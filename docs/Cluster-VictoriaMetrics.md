@@ -50,7 +50,7 @@ See [these docs](#url-format) for details. Some facts about tenants in VictoriaM
 * Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://victoriametrics.github.io/vmauth.html).
+by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth.html).
 [Contact us](mailto:info@victoriametrics.com) if you need help with creating such a service.
 
 * Tenants are automatically created when the first data point is written into the given tenant.
@@ -163,12 +163,12 @@ By default the following TCP ports are used:
 - `vmselect` - 8481
 - `vmstorage` - 8482
 
-It is recommended setting up [vmagent](https://victoriametrics.github.io/vmagent.html)
+It is recommended setting up [vmagent](https://docs.victoriametrics.com/vmagent.html)
 or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
 with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
 
-It is recommended setting up alerts in [vmalert](https://victoriametrics.github.io/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
+It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
 
 
 
@@ -182,11 +182,11 @@ It is recommended setting up alerts in [vmalert](https://victoriametrics.github.
      - `influx/write` and `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
      - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html).
        This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag.
-       See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests) for details.
+       See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests) for details.
      - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` on `vmselect` (see below).
      - `prometheus/api/v1/import/native` - for importing data obtained via `api/v1/export/native` on `vmselect` (see below).
-     - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-csv-data) for details.
-     - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
+     - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data) for details.
+     - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
 
 * URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
@@ -230,7 +230,7 @@ It is recommended setting up alerts in [vmalert](https://victoriametrics.github.
   be used on a regular basis, since it carries non-zero overhead.
 
 * `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
-  - `/internal/force_merge` - initiate [forced compactions](https://victoriametrics.github.io/#forced-merge) on the given `vmstorage` node.
+  - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/#forced-merge) on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.
@@ -279,7 +279,7 @@ the update process. See [cluster availability](#cluster-availability) section fo
   - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
   - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available. If consistency over availability is preferred, then either pass `-search.denyPartialResponse` command-line flag to `vmselect` or pass `deny_partial_response=1` query arg in requests to `vmselect`.
 
-`vmselect` doesn't serve partial responses for API handlers returning raw datapoints - [`/api/v1/export*` endpoints](https://victoriametrics.github.io/#how-to-export-time-series), since users usually expect this data is always complete.
+`vmselect` doesn't serve partial responses for API handlers returning raw datapoints - [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series), since users usually expect this data is always complete.
 
 Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
@@ -330,7 +330,7 @@ It isn't recommended spreading components for a single cluster across multiple a
 and higher error rates comparing the network inside AZ.
 
 If you need multi-AZ setup, then it is recommended running independed clusters in each AZ and setting up
-[vmagent](https://victoriametrics.github.io/vmagent.html) in front of these clusters, so it could replicate incoming data
+[vmagent](https://docs.victoriametrics.com/vmagent.html) in front of these clusters, so it could replicate incoming data
 into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
 
 
@@ -360,7 +360,7 @@ the remaining 3 `vmstorage` nodes could provide the `-replicationFactor=3` for n
 When the replication is enabled, `-replicationFactor=N` and `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
 The `-replicationFactor=N` improves query performance when a part of vmstorage nodes respond slowly and/or temporarily unavailable. Sometimes `-replicationFactor` at `vmselect` nodes shouldn't be set. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
 The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms
-when [deduplication](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#deduplication) is used additionally to replication.
+when [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication) is used additionally to replication.
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
 so it is recommended performing regular backups. See [these docs](#backups) for details.
@@ -382,7 +382,7 @@ for protecting from user errors such as accidental data deletion.
 The following steps must be performed for each `vmstorage` node for creating a backup:
 
 1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
-2. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://victoriametrics.github.io/vmbackup.html).
+2. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
    The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
 3. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
 
@@ -391,7 +391,7 @@ There is no need in synchronizing backups among all the `vmstorage` nodes.
 Restoring from backup:
 
 1. Stop `vmstorage` node with `kill -INT`.
-2. Restore data from backup using [vmrestore](https://victoriametrics.github.io/vmrestore.html) into `-storageDataPath` directory.
+2. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html) into `-storageDataPath` directory.
 3. Start `vmstorage` node.
 
 

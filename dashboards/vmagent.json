@@ -65,7 +65,7 @@
       "title": "vmagent wiki",
       "tooltip": "",
       "type": "link",
-      "url": "https://victoriametrics.github.io/vmagent.html"
+      "url": "https://docs.victoriametrics.com/vmagent.html"
     },
     {
       "icon": "external link",
@@ -186,7 +186,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
       "options": {
@@ -253,7 +253,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
       "options": {
@@ -889,7 +889,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
       "nullPointMode": "null as zero",
@@ -1014,7 +1014,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
       "nullPointMode": "null",
@@ -1114,7 +1114,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
       "nullPointMode": "null",
@@ -1215,7 +1215,7 @@
         {
           "targetBlank": true,
           "title": "Relabeling",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#relabeling"
+          "url": "https://docs.victoriametrics.com/vmagent.html#relabeling"
         }
       ],
       "nullPointMode": "null",
@@ -3030,7 +3030,7 @@
             {
               "targetBlank": true,
               "title": "Profiling",
-              "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#profiling"
+              "url": "https://docs.victoriametrics.com/vmagent.html#profiling"
             }
           ],
           "nullPointMode": "null",
@@ -3132,7 +3132,7 @@
             {
               "targetBlank": true,
               "title": "Profiling",
-              "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmagent#profiling"
+              "url": "https://docs.victoriametrics.com/vmagent.html#profiling"
             }
           ],
           "nullPointMode": "null",

@@ -123,7 +123,7 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 			if r.Method != "GET" {
 				return false
 			}
-			fmt.Fprintf(w, "vmstorage - a component of VictoriaMetrics cluster. See docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html")
+			fmt.Fprintf(w, "vmstorage - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
 			return true
 		}
 		return requestHandler(w, r, strg)
@@ -657,7 +657,7 @@ func usage() {
 	const s = `
 vmstorage stores time series data obtained from vminsert and returns the requested data to vmselect.
 
-See the docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html .
+See the docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html .
 `
 	flagutil.Usage(s)
 }

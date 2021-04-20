@@ -28,7 +28,7 @@ Docker images for `vmauth` are available [here](https://hub.docker.com/r/victori
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
-accounting and rate limiting such as [vmgateway](https://victoriametrics.github.io/vmgateway.html).
+accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
 
 ## Auth config
@@ -63,7 +63,7 @@ users:
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
   # The user for querying account 123 in VictoriaMetrics cluster
-  # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
+  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be proxied to http://vmselect:8481/select/123/prometheus .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect:8481/select/123/prometheus/api/v1/select
@@ -72,7 +72,7 @@ users:
   url_prefix: "http://vmselect:8481/select/123/prometheus"
 
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
-  # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
+  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be proxied to http://vminsert:8480/insert/42/prometheus .
   # For example, http://vmauth:8427/api/v1/write is proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
@@ -117,7 +117,7 @@ Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termi
 ## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://victoriametrics.github.io/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
+either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
 
 ## How to build from sources
@@ -181,10 +181,10 @@ Pass `-help` command-line arg to `vmauth` in order to see all the configuration 
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://victoriametrics.github.io/vmauth.html .
+See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
-    	Path to auth config. See https://victoriametrics.github.io/vmauth.html for details on the format of this auth config
+    	Path to auth config. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable

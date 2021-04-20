@@ -131,7 +131,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
-		fmt.Fprintf(w, "vmselect - a component of VictoriaMetrics cluster. See docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html")
+		fmt.Fprintf(w, "vmselect - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
 		return true
 	}
 	startTime := time.Now()
@@ -593,7 +593,7 @@ func usage() {
 	const s = `
 vmselect processes incoming queries by fetching the requested data from vmstorage nodes configured via -storageNode.
 
-See the docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html .
+See the docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html .
 `
 	flagutil.Usage(s)
 }

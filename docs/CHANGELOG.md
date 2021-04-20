@@ -6,15 +6,15 @@ sort: 14
 
 ## tip
 
-* FEATURE: vmauth: add ability to set madatory query args in `url_prefix`. For example, `url_prefix: http://vm:8428/?extra_label=team=dev` would add `extra_label=team=dev` query arg to all the incoming requests. See [the example](https://victoriametrics.github.io/vmauth.html#auth-config) for more details.
-* FEATURE: add OpenTSDB migration option to vmctl. See more details [here](https://victoriametrics.github.io/vmctl#migrating-data-from-opentsdb).
+* FEATURE: vmauth: add ability to set madatory query args in `url_prefix`. For example, `url_prefix: http://vm:8428/?extra_label=team=dev` would add `extra_label=team=dev` query arg to all the incoming requests. See [the example](https://docs.victoriametrics.com/vmauth.html#auth-config) for more details.
+* FEATURE: add OpenTSDB migration option to vmctl. See more details [here](https://docs.victoriametrics.com/vmctl#migrating-data-from-opentsdb).
 Thanks to @johnseekins!
 
 ## [v1.58.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.58.0)
 
 * FEATURE: vminsert and vmagent: add `-sortLabels` command-line flag for sorting metric labels before pushing them to `vmstorage`. This should reduce the size of `MetricName -> internal_series_id` cache (aka `vm_cache_size_bytes{type="storage/tsid"}`) when ingesting samples for the same time series with distinct order of labels. For example, `foo{k1="v1",k2="v2"}` and `foo{k2="v2",k1="v1"}` represent a single time series. Labels sorting is disabled by default, since the majority of established exporters preserve the order of labels for the exported metrics.
-* FEATURE: allow specifying label value alongside label name for the `others sum` time series returned from `topk_*` and `bottomk_*` functions from [MetricsQL](https://victoriametrics.github.io/MetricsQL.html). For example, `topk_avg(3, max(process_resident_memory_bytes) by (instance), "instance=other_sum")` would return top 3 series from `max(process_resident_memory_bytes) by (instance)` plus a series containing the sum of other series. The `others sum` series will have `{instance="other_sum"}` label.
-* FEATURE: do not delete `dst_label` when applying `label_copy(q, "src_label", "dst_label")` and `label_move(q, "src_label", "dst_label")` to series without `src_label` and with non-empty `dst_label`. See more details at [MetricsQL docs](https://victoriametrics.github.io/MetricsQL.html).
+* FEATURE: allow specifying label value alongside label name for the `others sum` time series returned from `topk_*` and `bottomk_*` functions from [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `topk_avg(3, max(process_resident_memory_bytes) by (instance), "instance=other_sum")` would return top 3 series from `max(process_resident_memory_bytes) by (instance)` plus a series containing the sum of other series. The `others sum` series will have `{instance="other_sum"}` label.
+* FEATURE: do not delete `dst_label` when applying `label_copy(q, "src_label", "dst_label")` and `label_move(q, "src_label", "dst_label")` to series without `src_label` and with non-empty `dst_label`. See more details at [MetricsQL docs](https://docs.victoriametrics.com/MetricsQL.html).
 * FEATURE: update Go builder from `v1.16.2` to `v1.16.3`. This should fix [these issues](https://github.com/golang/go/issues?q=milestone%3AGo1.16.3+label%3ACherryPickApproved).
 * FEATURE: vmagent: add support for `follow_redirects` option to `scrape_configs` section in the same way as [Prometheus 2.26 does](https://github.com/prometheus/prometheus/pull/8546).
 * FEATURE: vmagent: add support for `authorization` section in `-promscrape.config` in the same way as [Prometheus 2.26 does](https://github.com/prometheus/prometheus/pull/8512).
@@ -25,11 +25,11 @@ Thanks to @johnseekins!
 * FEATURE: vmagent: add support for `proxy_tls_config`, `proxy_authorization`, `proxy_basic_auth`, `proxy_bearer_token` and `proxy_bearer_token_file` options in `consul_sd_config`, `dockerswarm_sd_config` and `eureka_sd_config` sections.
 * FEATURE: vmagent: pass `X-Prometheus-Scrape-Timeout-Seconds` header to scrape targets as Prometheus does. In this case scrape targets can limit the time needed for performing the scrape. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813118733) for details.
 * FEATURE: vmagent: drop corrupted persistent queue files at `-remoteWrite.tmpDataPath` instead of throwing a fatal error. Corrupted files can appear after unclean shutdown of `vmagent` such as OOM kill or hardware reset. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1030).
-* FEATURE: vmauth: add support for authorization via [bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/). See [the docs](https://victoriametrics.github.io/vmauth.html#auth-config) for details.
+* FEATURE: vmauth: add support for authorization via [bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/). See [the docs](https://docs.victoriametrics.com/vmauth.html#auth-config) for details.
 * FEATURE: publish `arm64` and `amd64` binaries for cluster version of VictoriaMetrics at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 * BUGFIX: properly handle `/api/v1/labels` and `/api/v1/label/<label_name>/values` queries on big `start ... end` time range. This should fix big resource usage when VictoriaMetrics is queried with [Promxy](https://github.com/jacksontj/promxy) v0.0.62 or newer versions.
-* BUGFIX: do not break sort order for series returned from `topk*`, `bottomk*` and `outliersk` [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1189).
+* BUGFIX: do not break sort order for series returned from `topk*`, `bottomk*` and `outliersk` [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1189).
 * BUGFIX: vmagent: properly work with simple HTTP proxies which don't support `CONNECT` method. For example, [PushProx](https://github.com/prometheus-community/PushProx). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179).
 * BUGFIX: vmagent: properly discover targets if multiple namespace selectors are put inside `kubernetes_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1170).
 * BUGFIX: vmagent: properly discover `role: endpoints` and `role: endpointslices` targets in `kubernetes_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1182).
@@ -54,36 +54,36 @@ Thanks to @johnseekins!
   * `process_resident_memory_shared_bytes` - RSS share for memory shared with other processes (aka shared memory). This share can be freed by the OS at any time, so it must be ignored by OOM killer.
   * `process_resident_memory_peak_bytes` - peak RSS usage for the process.
   * `process_virtual_memory_peak_bytes` - peak virtual memory usage for the process.
-* FEATURE: accept and enforce `extra_label=<label_name>=<label_value>` query arg at [Graphite APIs](https://victoriametrics.github.io/#graphite-api-usage).
+* FEATURE: accept and enforce `extra_label=<label_name>=<label_value>` query arg at [Graphite APIs](https://docs.victoriametrics.com/#graphite-api-usage).
 * FEATURE: use Influx field as metric name if measurement is empty and `-influxSkipSingleField` command-line is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1139).
 * FEATURE: vmagent: add `-promscrape.consul.waitTime` command-line flag for tuning the maximum wait time for Consul service discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1144).
 * FEATURE: vmagent: add `vm_promscrape_discovery_kubernetes_stale_resource_versions_total` metric for monitoring the frequency of `too old resource version` errors during Kubernetes service discovery.
-* FEATURE: single-node VictoriaMetrics: log metrics with timestamps older than `-search.cacheTimestampOffset` compared to the current time. See [these docs](https://victoriametrics.github.io/#backfilling) for details.
+* FEATURE: single-node VictoriaMetrics: log metrics with timestamps older than `-search.cacheTimestampOffset` compared to the current time. See [these docs](https://docs.victoriametrics.com/#backfilling) for details.
 
 * BUGFIX: prevent from infinite loop on `{__graphite__="..."}` filters when a metric name contains `*`, `{` or `[` chars.
-* BUGFIX: prevent from infinite loop in `/metrics/find` and `/metrics/expand` [Graphite Metrics API handlers](https://victoriametrics.github.io/#graphite-metrics-api-usage) when they match metric names or labels with `*`, `{` or `[` chars.
+* BUGFIX: prevent from infinite loop in `/metrics/find` and `/metrics/expand` [Graphite Metrics API handlers](https://docs.victoriametrics.com/#graphite-metrics-api-usage) when they match metric names or labels with `*`, `{` or `[` chars.
 * BUGFIX: do not merge duplicate time series during requests to `/api/v1/query`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1141
 * BUGFIX: vmagent: properly handle `too old resource version` error messages from Kubernetes watch API. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1150
 * BUGFIX: vmagent: do not retry sending data blocks if remote storage returns `400 Bad Request` error. The number of dropped blocks due to such errors can be monitored with `vmagent_remotewrite_packets_dropped_total` metrics. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
-* BUGFIX: properly calculate `summarize` and `*Series` functions in [Graphite Render API](https://victoriametrics.github.io/#graphite-render-api-usage).
+* BUGFIX: properly calculate `summarize` and `*Series` functions in [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage).
 
 
 ## [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0)
 
-* FEATURE: add the following functions to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html):
+* FEATURE: add the following functions to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html):
   - `histogram_avg(buckets)` - returns the average value for the given buckets.
   - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
   - `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
 * FEATURE: export `vm_available_memory_bytes` and `vm_available_cpu_cores` metrics, which show the number of available RAM and available CPU cores for VictoriaMetrics apps.
 * FEATURE: export `vm_index_search_duration_seconds` histogram, which can be used for troubleshooting time series search performance.
-* FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets).
-* FEATURE: vmagent: accept `scrape_offset` option at `scrape_config`. This option may be useful when scrapes must start at the specified offset of every scrape interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
-* FEATURE: vmagent: support `proxy_tls_config`, `proxy_basic_auth`, `proxy_bearer_token` and `proxy_bearer_token_file` options at `scrape_config` section for configuring proxies specified via `proxy_url`. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-targets-via-a-proxy).
+* FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+* FEATURE: vmagent: accept `scrape_offset` option at `scrape_config`. This option may be useful when scrapes must start at the specified offset of every scrape interval. See [these docs](https://docs.victoriametrics.com/vmagent.html#troubleshooting) for details.
+* FEATURE: vmagent: support `proxy_tls_config`, `proxy_basic_auth`, `proxy_bearer_token` and `proxy_bearer_token_file` options at `scrape_config` section for configuring proxies specified via `proxy_url`. See [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-targets-via-a-proxy).
 * FEATURE: vmauth: allow using regexp paths in `url_map`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1112) for details.
 * FEATURE: accept `round_digits` query arg at `/api/v1/query` and `/api/v1/query_range` handlers. This option can be set at Prometheus datasource in Grafana for limiting the number of digits after the decimal point in response values.
 * FEATURE: add `-influx.databaseNames` command-line flag, which can be used for accepting data from some Telegraf plugins such as [fluentd plugin](https://github.com/fangli/fluent-plugin-influxdb). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1124).
 * FEATURE: add `-logNewSeries` command-line flag, which can be used for debugging the source of time series churn rate.
-* FEATURE: publish Windows builds for [vmagent](https://victoriametrics.github.io/vmagent.html), [vmalert](https://victoriametrics.github.io/vmalert.html), [vmauth](https://victoriametrics.github.io/vmauth.html) and [vmctl](https://victoriametrics.github.io/vmctl.html) at `vmutils-windows-*.zip` archives at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+* FEATURE: publish Windows builds for [vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html), [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmctl](https://docs.victoriametrics.com/vmctl.html) at `vmutils-windows-*.zip` archives at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 * FEATURE: listen for IPv6 UDP if `-enableTCP6` command-line flag is passed to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1131).
 
 * BUGFIX: vmagent: prevent from high CPU usage bug during failing scrapes with small `scrape_timeout` (less than a few seconds).
@@ -106,8 +106,8 @@ Thanks to @johnseekins!
 ## [v1.55.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.0)
 
 
-* FEATURE: add `sign(q)` and `clamp(q, min, max)` functions, which are planned to be added in [the upcoming Prometheus release](https://twitter.com/roidelapluie/status/1363428376162295811) . The `last_over_time(m[d])` function is already supported in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
-* FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+* FEATURE: add `sign(q)` and `clamp(q, min, max)` functions, which are planned to be added in [the upcoming Prometheus release](https://twitter.com/roidelapluie/status/1363428376162295811) . The `last_over_time(m[d])` function is already supported in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+* FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://docs.victoriametrics.com/vmagent.html#troubleshooting) for details.
 * FEATURE: expose io-related metrics at `/metrics` page for every VictoriaMetrics component:
   * `process_io_read_bytes_total` - the number of bytes read via io syscalls such as read and pread
   * `process_io_written_bytes_total` - the number of bytes written via io syscalls such as write and pwrite
@@ -115,12 +115,12 @@ Thanks to @johnseekins!
   * `process_io_write_syscalls_total` - the number of write syscalls such as write and pwrite
   * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
   * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
-* FEATURE: vmagent: add ability to spread scrape targets among multiple `vmagent` instances. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1084) for details.
+* FEATURE: vmagent: add ability to spread scrape targets among multiple `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1084) for details.
 * FEATURE: vmagent: use watch API for Kuberntes service discovery. This should reduce load on Kuberntes API server when it tracks big number of objects (for example, 10K pods). This should also reduce the time needed for k8s targets discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1057) for details.
 * FEATURE: vmagent: export `vm_promscrape_target_relabel_duration_seconds` metric, which can be used for monitoring the time spend on relabeling for discovered targets.
-* FEATURE: vmagent: optimize [relabeling](https://victoriametrics.github.io/vmagent.html#relabeling) performance for common cases.
+* FEATURE: vmagent: optimize [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) performance for common cases.
 * FEATURE: add `increase_pure(m[d])` function to MetricsQL. It works the same as `increase(m[d])` except of various edge cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.
-* FEATURE: increase accuracy for `buckets_limit(limit, buckets)` results for small `limit` values. See [MetricsQL docs](https://victoriametrics.github.io/MetricsQL.html) for details.
+* FEATURE: increase accuracy for `buckets_limit(limit, buckets)` results for small `limit` values. See [MetricsQL docs](https://docs.victoriametrics.com/MetricsQL.html) for details.
 * FEATURE: vmagent: initial support for Windows build with `CGO_ENABLED=0 GOOS=windows go build -mod=vendor ./app/vmagent`. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1036).
 * FEATURE: vmagent: support WebIdentityToken auth in EC2 service discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1080) for details.
 * FEATURE: vmalert: properly process query params in `-datasource.url` and `-remoteRead.url` command-line flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1087) for details.
@@ -149,9 +149,9 @@ Thanks to @johnseekins!
 * FEATURE: optimize searching for matching metrics for `metric{<label_filters>}` queries if `<label_filters>` contains at least a single filter. For example, the query `up{job="foobar"}` should find the matching time series much faster than previously.
 * FEATURE: reduce execution times for `q1 <binary_op> q2` queries by executing `q1` and `q2` in parallel.
 * FEATURE: switch from Go1.15 to [Go1.16](https://golang.org/doc/go1.16) for building prod binaries.
-* FEATURE: single-node VictoriaMetrics now accepts requests to handlers with `/prometheus` and `/graphite` prefixes such as `/prometheus/api/v1/query`. This improves compatibility with [handlers from VictoriaMetrics cluster](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format).
+* FEATURE: single-node VictoriaMetrics now accepts requests to handlers with `/prometheus` and `/graphite` prefixes such as `/prometheus/api/v1/query`. This improves compatibility with [handlers from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
 * FEATURE: expose `process_open_fds` and `process_max_fds` metrics. These metrics can be used for alerting when `process_open_fds` reaches `process_max_fds`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/402 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1037
-* FEATURE: vmalert: add `-datasource.appendTypePrefix` command-line option for querying both Prometheus and Graphite datasource in cluster version of VictoriaMetrics. See [these docs](https://victoriametrics.github.io/vmalert.html#graphite) for details.
+* FEATURE: vmalert: add `-datasource.appendTypePrefix` command-line option for querying both Prometheus and Graphite datasource in cluster version of VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/vmalert.html#graphite) for details.
 * FEATURE: vmauth: add ability to route requests from a single user to multiple destinations depending on the requested paths. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1064
 * FEATURE: remove dependency on external programs such as `cat`, `grep` and `cut` when detecting cpu and memory limits inside Docker or LXC container.
 * FEATURE: vmagent: add `__meta_kubernetes_endpoints_label_*`, `__meta_kubernetes_endpoints_labelpresent_*`, `__meta_kubernetes_endpoints_annotation_*` and `__meta_kubernetes_endpoints_annotationpresent_*` labels for `role: endpoints` in Kubernetes service discovery. These labels where added in Prometheus 2.25.
@@ -172,14 +172,14 @@ Thanks to @johnseekins!
 
 ## [v1.53.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.0)
 
-* FEATURE: added [vmctl tool](https://victoriametrics.github.io/vmctl.html) to VictoriaMetrics release process. Now it is packaged in `vmutils-*.tar.gz` archive on [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). Source code for `vmctl` tool has been moved from [github.com/VictoriaMetrics/vmctl](https://github.com/VictoriaMetrics/vmctl) to [github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmctl).
+* FEATURE: added [vmctl tool](https://docs.victoriametrics.com/vmctl.html) to VictoriaMetrics release process. Now it is packaged in `vmutils-*.tar.gz` archive on [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). Source code for `vmctl` tool has been moved from [github.com/VictoriaMetrics/vmctl](https://github.com/VictoriaMetrics/vmctl) to [github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmctl).
 * FEATURE: added `-loggerTimezone` command-line flag for adjusting time zone for timestamps in log messages. By default UTC is used.
 * FEATURE: added `-search.maxStepForPointsAdjustment` command-line flag, which can be used for disabling adjustment for points returned by `/api/v1/query_range` handler if such points have timestamps closer than `-search.latencyOffset` to the current time. Such points may contain incomplete data, so they are substituted by the previous values for `step` query args smaller than one minute by default.
 * FEATURE: vmselect: added ability to use Graphite-compatible filters in MetricsQL via `{__graphite__="foo.*.bar"}` syntax. This expression is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. This feature deprecates the usage of `-search.treatDotsAsIsInRegexps` command-line flag.
-* FEATURE: vmselect: added ability to set additional label filters, which must be applied during queries. Such label filters can be set via optional `extra_label` query arg, which is accepted by [querying API](https://victoriametrics.github.io/#prometheus-querying-api-usage) handlers. For example, the request to `/api/v1/query_range?extra_label=tenant_id=123&query=<query>` adds `{tenant_id="123"}` label filter to the given `<query>`. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
+* FEATURE: vmselect: added ability to set additional label filters, which must be applied during queries. Such label filters can be set via optional `extra_label` query arg, which is accepted by [querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage) handlers. For example, the request to `/api/v1/query_range?extra_label=tenant_id=123&query=<query>` adds `{tenant_id="123"}` label filter to the given `<query>`. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
 in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1021 .
 * FEATURE: vmalert: added `-datasource.queryStep` command-line flag for passing optional `step` query arg to `/api/v1/query` endpoint. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1025
-* FEATURE: vmalert: added ability to query Graphite datasource when evaluating alerting and recording rules. See [these docs](https://victoriametrics.github.io/vmalert.html#graphite) for details.
+* FEATURE: vmalert: added ability to query Graphite datasource when evaluating alerting and recording rules. See [these docs](https://docs.victoriametrics.com/vmalert.html#graphite) for details.
 * FEATURE: vmagent: added `-remoteWrite.roundDigits` command-line option for rounding metric values to the given number of decimal digits after the point before sending the metric to the corresponding `-remoteWrite.url`. This option can be used for improving data compression on the remote storage, because values with lower number of decimal digits can be compressed better than values with bigger number of decimal digits.
 * FEATURE: vmagent: added `-remoteWrite.rateLimit` command-line flag for limiting data transfer rate to `-remoteWrite.url`. This may be useful when big amounts of buffered data is sent after temporarily unavailability of the remote storage. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1035
 * FEATURE: vmagent: export the following additional metrics, which may be useful during troubleshooting:
@@ -189,7 +189,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   - `vm_promscrape_discovery_retries_total`
   - `vm_promscrape_scrape_retries_total`
   - `vm_promscrape_service_discovery_duration_seconds`
-* FEATURE: vmselect: initial implementation for [Graphite Render API](https://victoriametrics.github.io/#graphite-render-api-usage).
+* FEATURE: vmselect: initial implementation for [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage).
 
 * BUGFIX: vmagent: reduce HTTP reconnection rate for scrape targets. Previously vmagent could errorneusly close HTTP keep-alive connections more frequently than needed.
 * BUGFIX: vmagent: retry scrape and service discovery requests when the remote server closes HTTP keep-alive connection. Previously `disable_keepalive: true` option could be used under `scrape_configs` section when working with such servers.
@@ -199,10 +199,10 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 
 * FEATURE: provide a sample list of alerting rules for VictoriaMetrics components. It is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 * FEATURE: disable final merge for data for the previous month at the beginning of new month, since it may result in high disk IO and CPU usage. Final merge can be enabled by setting `-finalMergeDelay` command-line flag to positive duration.
-* FEATURE: add `tfirst_over_time(m[d])` and `tlast_over_time(m[d])` functions to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) for returning timestamps for the first and the last data point in `m` over `d` duration.
+* FEATURE: add `tfirst_over_time(m[d])` and `tlast_over_time(m[d])` functions to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for returning timestamps for the first and the last data point in `m` over `d` duration.
 * FEATURE: add ability to pass multiple labels to `sort_by_label()` and `sort_by_label_desc()` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/992 .
 * FEATURE: enforce at least TLS v1.2 when accepting HTTPS requests if `-tls`, `-tlsCertFile` and `-tlsKeyFile` command-line flags are set, because older TLS protocols such as v1.0 and v1.1 have been deprecated due to security vulnerabilities.
-* FEATURE: support `extra_label` query arg for all HTTP-based [data ingestion protocols](https://victoriametrics.github.io/#how-to-import-time-series-data). This query arg can be used for specifying extra labels which should be added for the ingested data.
+* FEATURE: support `extra_label` query arg for all HTTP-based [data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data). This query arg can be used for specifying extra labels which should be added for the ingested data.
 * FEATURE: vmbackup: increase backup chunk size from 128MB to 1GB. This should reduce the number of Object storage API calls during backups by 8x. This may also reduce costs, since object storage API calls usually have non-zero costs. See https://aws.amazon.com/s3/pricing/ and https://cloud.google.com/storage/pricing#operations-pricing .
 
 * BUGFIX: properly parse escaped unicode chars in MetricsQL metric names, label names and function names. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/990
@@ -229,7 +229,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 
 ## [v1.50.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.2)
 
-* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://victoriametrics.github.io/vmagent.html), [vmalert](https://victoriametrics.github.io/vmalert.html), [vmauth](https://victoriametrics.github.io/vmauth.html), [vmbackup](https://victoriametrics.github.io/vmbackup.html) and [vmrestore](https://victoriametrics.github.io/vmrestore.html), since they are identical to images without `-cluster` tag suffix.
+* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html), [vmauth](https://docs.victoriametrics.com/vmauth.html), [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html), since they are identical to images without `-cluster` tag suffix.
 
 * BUGFIX: vmalert: properly populate template variables. This has been broken in v1.50.0. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/974
 * BUGFIX: properly parse negative combined duration in MetricsQL such as `-1h3m4s`. It must be parsed as `-(1h + 3m + 4s)`. Prevsiously it was parsed as `-1h + 3m + 4s`.
@@ -245,7 +245,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 
 ## [v1.50.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.0)
 
-* FEATURE: automatically reset response cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to VictoriaMetrics. This makes unnecessary disabling response cache during data backfilling or resetting it after backfilling is complete as described [in these docs](https://victoriametrics.github.io/#backfilling). This feature applies only to single-node VictoriaMetrics. It doesn't apply to cluster version of VictoriaMetrics because `vminsert` nodes don't know about `vmselect` nodes where the response cache must be reset.
+* FEATURE: automatically reset response cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to VictoriaMetrics. This makes unnecessary disabling response cache during data backfilling or resetting it after backfilling is complete as described [in these docs](https://docs.victoriametrics.com/#backfilling). This feature applies only to single-node VictoriaMetrics. It doesn't apply to cluster version of VictoriaMetrics because `vminsert` nodes don't know about `vmselect` nodes where the response cache must be reset.
 * FEATURE: vmalert: add `query`, `first` and `value` functions to alert templates. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/539
 * FEATURE: vmagent: return user-friendly HTML page when requesting `/targets` page from web browser. The page is returned in the old plaintext format when requesting via curl or similar tool.
 * FEATURE: allow multiple whitespace chars between measurements, fields and timestamp when parsing InfluxDB line protocol.
@@ -271,7 +271,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 ## [v1.49.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.49.0)
 
 * FEATURE: optimize Consul service discovery speed when discovering big number of services. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574
-* FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
+* FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html)
   for uppercasing and lowercasing values for the given labels. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/936
 * FEATURE: add `count_eq_over_time(m[d], N)` and `count_ne_over_time(m[d], N)` for counting the number of samples for `m` over `d` that (equal / not equal) to `N`.
 * FEATURE: do not print usage info for all the command-line flags when incorrect command-line flag is passed. Previously it could be hard reading the error message
@@ -305,7 +305,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   at the rate exceeding the given limit. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905#issuecomment-729395855
 * FEATURE: add remoteAddr to slow query log in order to simplify identifying the client that sends slow queries to VictoriaMetrics.
   Slow query logging is controlled with `-search.logSlowQueryDuration` command-line flag.
-* FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See https://victoriametrics.github.io/#graphite-tags-api-usage
+* FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See https://docs.victoriametrics.com/#graphite-tags-api-usage
 * FEATURE: log metric name plus all its labels when the metric timestamp is out of the configured retention. This should simplify detecting the source of metrics with unexpected timestamps.
 * FEATURE: add `-dryRun` command-line flag to single-node VictoriaMetrics in order to check config file pointed by `-promscrape.config`.
 
@@ -334,9 +334,9 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/897
 * FEATURE: update Go builder from v1.15.4 to v1.15.5. This should fix [these issues in Go](https://github.com/golang/go/issues?q=milestone%3AGo1.15.5+label%3ACherryPickApproved).
 * FEATURE: added `/internal/force_flush` http handler for flushing recently ingested data from in-memory buffers to persistent storage.
-  See [troubleshooting docs](https://victoriametrics.github.io/#troubleshooting) for more details.
+  See [troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting) for more details.
 * FEATURE: added [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html) support.
-  See [these docs](https://victoriametrics.github.io/#graphite-tags-api-usage) for details.
+  See [these docs](https://docs.victoriametrics.com/#graphite-tags-api-usage) for details.
 
 * BUGFIX: do not return data points in the end of the selected time range for time series ending in the middle of the selected time range.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
@@ -358,7 +358,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 
 * BUGFIX: vmagent: eliminate data race when `-promscrape.streamParse` command-line is set. Previously this mode could result in scraped metrics with garbage labels.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247 for details.
-* BUGFIX: properly calculate `topk_*` and `bottomk_*` functions from [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) for time series with gaps.
+* BUGFIX: properly calculate `topk_*` and `bottomk_*` functions from [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for time series with gaps.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/883
 
 
@@ -375,9 +375,9 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 * FEATURE: vmagent: add `stream parse` mode. This mode allows reducing memory usage when individual scrape targets expose tens of millions of metrics.
   For example, during scraping Prometheus in [federation](https://prometheus.io/docs/prometheus/latest/federation/) mode.
   See `-promscrape.streamParse` command-line option and `stream_parse: true` config option for `scrape_config` section in `-promscrape.config`.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 and [troubleshooting docs for vmagent](https://victoriametrics.github.io/vmagent.html#troubleshooting).
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 and [troubleshooting docs for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting).
 * FEATURE: vmalert: add `-dryRun` command-line option for validating the provided config files without the need to start `vmalert` service.
-* FEATURE: accept optional third argument of string type at `topk_*` and `bottomk_*` functions. This is label name for additional time series to return with the sum of time series outside top/bottom K. See [MetricsQL docs](https://victoriametrics.github.io/MetricsQL.html) for more details.
+* FEATURE: accept optional third argument of string type at `topk_*` and `bottomk_*` functions. This is label name for additional time series to return with the sum of time series outside top/bottom K. See [MetricsQL docs](https://docs.victoriametrics.com/MetricsQL.html) for more details.
 * FEATURE: vmagent: expose `/api/v1/targets` page according to [the corresponding Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/643
 
@@ -406,9 +406,9 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   ```
 * FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)).
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/656
-* FEATURE: add ability to export data in CSV format. See [these docs](https://victoriametrics.github.io/#how-to-export-csv-data) for details.
+* FEATURE: add ability to export data in CSV format. See [these docs](https://docs.victoriametrics.com/#how-to-export-csv-data) for details.
 * FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651 and https://victoriametrics.github.io/vmagent.html#troubleshooting .
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651 and https://docs.victoriametrics.com/vmagent.html#troubleshooting .
 * FEATURE: vmagent: show original labels before relabeling is applied on `duplicate scrape target` errors. This should simplify debugging for incorrect relabeling.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
 * FEATURE: vmagent: `/targets` page now accepts optional `show_original_labels=1` query arg for displaying original labels for each target before relabeling is applied.
@@ -417,9 +417,9 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
 * FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
   The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
-  due to [relabeling](https://victoriametrics.github.io/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
-  than `sum(rate(vm_rows_inserted_total))` if [replication](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
-* FEATURE: keep metric name after applying [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) functions, which don't change time series meaning.
+  due to [relabeling](https://docs.victoriametrics.com/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
+  than `sum(rate(vm_rows_inserted_total))` if [replication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
+* FEATURE: keep metric name after applying [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions, which don't change time series meaning.
   The list of such functions:
    * `keep_last_value`
    * `keep_next_value`
@@ -459,7 +459,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 ## [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
 
 * FEATURE: reduce CPU usage for repeated queries over sliding time window when no new time series are added to the database.
-  Typical use cases: repeated evaluation of alerting rules in [vmalert](https://victoriametrics.github.io/vmalert.html) or dashboard auto-refresh in Grafana.
+  Typical use cases: repeated evaluation of alerting rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) or dashboard auto-refresh in Grafana.
 * FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config).
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728 .
 * FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
@@ -478,10 +478,10 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 ## [v1.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
 
 * FEATURE: use all the available CPU cores when accepting data via a single TCP connection
-  for [all the supported protocols](https://victoriametrics.github.io/#how-to-import-time-series-data).
+  for [all the supported protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data).
   Previously data ingested via a single TCP connection could use only a single CPU core. This could limit data ingestion performance.
   The main benefit of this feature is that data can be imported at max speed via a single connection - there is no need to open multiple concurrent
-  connections to VictoriaMetrics or [vmagent](https://victoriametrics.github.io/vmagent.html) in order to achieve the maximum data ingestion speed.
+  connections to VictoriaMetrics or [vmagent](https://docs.victoriametrics.com/vmagent.html) in order to achieve the maximum data ingestion speed.
 * FEATURE: cluster: improve performance for data ingestion path from `vminsert` to `vmstorage` nodes. The maximum data ingestion performance
   for a single connection between `vminsert` and `vmstorage` node scales with the number of available CPU cores on `vmstorage` side.
   This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/791 .
@@ -489,7 +489,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   This is the most optimized approach for data migration between VictoriaMetrics instances. Both single-node and cluster instances are supported.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/787#issuecomment-700632551 .
 * FEATURE: add `reduce_mem_usage` query option to `/api/v1/export` in order to reduce memory usage during data export / import.
-  See [these docs](https://victoriametrics.github.io/#how-to-export-data-in-json-line-format) for details.
+  See [these docs](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) for details.
 * FEATURE: improve performance for `/api/v1/series` handler when it returns big number of time series.
 * FEATURE: add `vm_merge_need_free_disk_space` metric, which can be used for estimating the number of deferred background data merges due to the lack of free disk space.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/686 .
@@ -501,7 +501,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   The adjustment was increasing the resulting GOMAXPROC by 1, which looked confusing to users.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-698595309 .
 * BUGFIX: vmagent: do not show `-remoteWrite.url` in initial logs if `-remoteWrite.showURL` isn't set. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/773 .
-* BUGFIX: properly handle case when [/metrics/find](https://victoriametrics.github.io/#graphite-metrics-api-usage) finds both a leaf and a node for the given `query=prefix.*`.
+* BUGFIX: properly handle case when [/metrics/find](https://docs.victoriametrics.com/#graphite-metrics-api-usage) finds both a leaf and a node for the given `query=prefix.*`.
   In this case only the node must be returned with stripped dot in the end of id as carbonapi does.
 
 

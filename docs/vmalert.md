@@ -10,12 +10,12 @@ rules against configured address.
 
 ## Features
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
-* VictoriaMetrics [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
+* VictoriaMetrics [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html)
  support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
-* Keeps the alerts [state on restarts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmalert#alerts-state-on-restarts);
+* Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite) for details.
 * Lightweight without extra dependencies.
 
@@ -97,7 +97,7 @@ rules:
 
 There are two types of Rules:
 * [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
-Alerting rules allows to define alert conditions via [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
+Alerting rules allows to define alert conditions via [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html)
 and to send notifications about firing alerts to [Alertmanager](https://github.com/prometheus/alertmanager).
 * [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
 Recording rules allow you to precompute frequently needed or computationally expensive expressions

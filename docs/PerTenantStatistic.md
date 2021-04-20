@@ -43,7 +43,7 @@ Visualisation of statistics can be done in Grafana using this dashboard [link](h
 
 ### Integration with vmgateway
 
-Per Tenant Statistics are the source data for the `vmgateway` rate limiter. More information can be found [here](https://victoriametrics.github.io/vmgateway.html)
+Per Tenant Statistics are the source data for the `vmgateway` rate limiter. More information can be found [here](https://docs.victoriametrics.com/vmgateway.html)
 
 ### Integration with vmalert
 

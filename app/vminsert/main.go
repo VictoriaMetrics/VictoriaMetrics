@@ -144,7 +144,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
-		fmt.Fprintf(w, "vminsert - a component of VictoriaMetrics cluster. See docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html")
+		fmt.Fprintf(w, "vminsert - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
 		return true
 	}
 	p, err := httpserver.ParsePath(r.URL.Path)
@@ -263,7 +263,7 @@ func usage() {
 	const s = `
 vminsert accepts data via popular data ingestion protocols and routes it to vmstorage nodes configured via -storageNode.
 
-See the docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html .
+See the docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html .
 `
 	flagutil.Usage(s)
 }

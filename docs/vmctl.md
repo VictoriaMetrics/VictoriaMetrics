@@ -442,7 +442,7 @@ then import it into VM using `vmctl` in `prometheus` mode.
 
 ### Native protocol
 
-The [native binary protocol](https://victoriametrics.github.io/#how-to-export-data-in-native-format)
+The [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 was introduced in [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
 and provides the most efficient way to migrate data between VM instances: single to single, cluster to cluster,
 single to cluster and vice versa. Please note that both instances (source and destination) should be of v1.42.0

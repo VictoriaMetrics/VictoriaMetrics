@@ -122,7 +122,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 	}
 	format := r.FormValue("format")
 	if len(format) == 0 {
-		return fmt.Errorf("missing `format` arg; see https://victoriametrics.github.io/#how-to-export-csv-data")
+		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/#how-to-export-csv-data")
 	}
 	fieldNames := strings.Split(format, ",")
 	start, err := searchutils.GetTime(r, "start", 0)
