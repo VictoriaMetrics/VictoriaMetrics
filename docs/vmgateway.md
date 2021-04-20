@@ -7,12 +7,12 @@ sort: 8
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
 
-`vmgateway` is a proxy for the Victoria Metrics Time Series Database (TSDB). It provides the following features:
+`vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
 
 * Rate Limiter
   * Based on cluster tenant's utilization, it supports multiple time interval limits for both the ingestion and retrieval of metrics
 * Token Access Control
-  * Supports additional per-label access control for both the Single and Cluster versions of the Victoria Metrics TSDB
+  * Supports additional per-label access control for both the Single and Cluster versions of the VictoriaMetrics TSDB
   * Provides access by tenantID in the Cluster version
   * Allows for separate write/read/admin access to data
 
@@ -51,7 +51,7 @@ Where:
 
 ## QuickStart
 
-Start the single version of Victoria Metrics
+Start the single version of VictoriaMetrics
 
 ```bash
 # single
@@ -173,7 +173,7 @@ The shortlist of configuration flags include the following:
   -clusterMode
         enable this for the cluster version
   -datasource.appendTypePrefix
-        Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the VMSelect URL.
+        Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
         Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
@@ -195,7 +195,7 @@ The shortlist of configuration flags include the following:
   -datasource.tlsServerName string
         Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-        Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
+        VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
   -enable.auth
         enables auth with jwt token
   -enable.rateLimit

@@ -39,7 +39,7 @@ var (
 			Name:  vmAddr,
 			Value: "http://localhost:8428",
 			Usage: "VictoriaMetrics address to perform import requests. \n" +
-				"Should be the same as --httpListenAddr value for single-node version or VMInsert component. \n" +
+				"Should be the same as --httpListenAddr value for single-node version or vminsert component. \n" +
 				"Please note, that `vmctl` performs initial readiness check for the given address by checking `/health` endpoint.",
 		},
 		&cli.StringFlag{
@@ -315,7 +315,7 @@ var (
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,
 			Usage: "VictoriaMetrics address to perform export from. \n" +
-				" Should be the same as --httpListenAddr value for single-node version or VMSelect component." +
+				" Should be the same as --httpListenAddr value for single-node version or vmselect component." +
 				" If exporting from cluster version - include the tenet token in address.",
 			Required: true,
 		},
@@ -332,7 +332,7 @@ var (
 		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
-				" Should be the same as --httpListenAddr value for single-node version or VMInsert component." +
+				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
 				" If importing into cluster version - include the tenet token in address.",
 			Required: true,
 		},

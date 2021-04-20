@@ -1,4 +1,6 @@
-## Victoria Metrics Backup Manager
+## vmbackupmanager
+
+VictoriaMetrics backup manager
 
 This service automates regular backup procedures. It supports the following backup intervals: **hourly**, **daily**, **weekly** and **monthly**. Multiple backup intervals may be configured simultaneously. I.e. the backup manager creates hourly backups every hour, while it creates daily backups every day, etc. Backup manager must have read access to the storage data, so best practice is to install it on the same machine (or as a sidecar) where the storage node is installed.
 The backup service makes a backup every hour and puts it to the latest folder and then copies data to the folders which represent the backup intervals (hourly, daily, weekly and monthly)
