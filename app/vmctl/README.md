@@ -1,7 +1,3 @@
----
-sort: 7
----
-
 # vmctl
 
 Victoria metrics command-line tool

@@ -6,6 +6,7 @@ sort: 14
 
 ## tip
 
+* FEATURE: vmauth: add ability to set madatory query args in `url_prefix`. For example, `url_prefix: http://vm:8428/?extra_label=team=dev` would add `extra_label=team=dev` query arg to all the incoming requests. See [the example](https://victoriametrics.github.io/vmauth.html#auth-config) for more details.
 * FEATURE: add OpenTSDB migration option to vmctl. See more details [here](https://victoriametrics.github.io/vmctl#migrating-data-from-opentsdb).
 Thanks to @johnseekins!
 

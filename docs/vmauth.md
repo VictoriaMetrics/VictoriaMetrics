@@ -54,6 +54,14 @@ users:
   password: "***"
   url_prefix: "http://localhost:8428"
 
+  # The user for querying local single-node VictoriaMetrics with extra_label team=dev.
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://localhost:8428 with extra_label=team=dev query arg.
+  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
+- username: "local-single-node"
+  password: "***"
+  url_prefix: "http://localhost:8428?extra_label=team=dev"
+
   # The user for querying account 123 in VictoriaMetrics cluster
   # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
