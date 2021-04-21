@@ -199,7 +199,7 @@ func (s *Search) NextMetricBlock() bool {
 			if err != nil {
 				if err == io.EOF {
 					// Skip missing metricName for tsid.MetricID.
-					// It should be automatically fixed. See indexDB.searchMetricName for details.
+					// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 					continue
 				}
 				s.err = err

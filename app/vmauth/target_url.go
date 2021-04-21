@@ -7,11 +7,31 @@ import (
 	"strings"
 )
 
-func createTargetURL(ui *UserInfo, uOrig *url.URL) (string, error) {
-	u, err := url.Parse(uOrig.String())
-	if err != nil {
-		return "", fmt.Errorf("cannot make a copy of %q: %w", u, err)
+func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
+	targetURL := *uiURL
+	targetURL.Path += requestURI.Path
+	requestParams := requestURI.Query()
+	// fast path
+	if len(requestParams) == 0 {
+		return &targetURL
 	}
+	// merge query parameters from requests.
+	uiParams := targetURL.Query()
+	for k, v := range requestParams {
+		// skip clashed query params from original request
+		if exist := uiParams.Get(k); len(exist) > 0 {
+			continue
+		}
+		for i := range v {
+			uiParams.Add(k, v[i])
+		}
+	}
+	targetURL.RawQuery = uiParams.Encode()
+	return &targetURL
+}
+
+func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, error) {
+	u := *uOrig
 	// Prevent from attacks with using `..` in r.URL.Path
 	u.Path = path.Clean(u.Path)
 	if !strings.HasPrefix(u.Path, "/") {
@@ -20,12 +40,12 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (string, error) {
 	for _, e := range ui.URLMap {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return e.URLPrefix + u.RequestURI(), nil
+				return mergeURLs(e.URLPrefix.u, &u), nil
 			}
 		}
 	}
-	if len(ui.URLPrefix) > 0 {
-		return ui.URLPrefix + u.RequestURI(), nil
+	if ui.URLPrefix != nil {
+		return mergeURLs(ui.URLPrefix.u, &u), nil
 	}
-	return "", fmt.Errorf("missing route for %q", u)
+	return nil, fmt.Errorf("missing route for %q", u.String())
 }

@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	authConfigPath = flag.String("auth.config", "", "Path to auth config. See https://victoriametrics.github.io/vmauth.html "+
+	authConfigPath = flag.String("auth.config", "", "Path to auth config. See https://docs.victoriametrics.com/vmauth.html "+
 		"for details on the format of this auth config")
 )
 
@@ -33,7 +33,7 @@ type UserInfo struct {
 	BearerToken string   `yaml:"bearer_token"`
 	Username    string   `yaml:"username"`
 	Password    string   `yaml:"password"`
-	URLPrefix   string   `yaml:"url_prefix"`
+	URLPrefix   *yamlURL `yaml:"url_prefix"`
 	URLMap      []URLMap `yaml:"url_map"`
 
 	requests *metrics.Counter
@@ -42,13 +42,34 @@ type UserInfo struct {
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
 	SrcPaths  []*SrcPath `yaml:"src_paths"`
-	URLPrefix string     `yaml:"url_prefix"`
+	URLPrefix *yamlURL   `yaml:"url_prefix"`
 }
 
 // SrcPath represents an src path
 type SrcPath struct {
 	sOriginal string
 	re        *regexp.Regexp
+}
+
+type yamlURL struct {
+	u *url.URL
+}
+
+func (yu *yamlURL) UnmarshalYAML(f func(interface{}) error) error {
+	var s string
+	if err := f(&s); err != nil {
+		return err
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal %q into url: %w", s, err)
+	}
+	yu.u = u
+	return nil
+}
+
+func (yu *yamlURL) MarshalYAML() (interface{}, error) {
+	return yu.u.String(), nil
 }
 
 func (sp *SrcPath) match(s string) bool {
@@ -173,24 +194,27 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if byAuthToken[authToken] != nil {
 			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", authToken, ui.BearerToken, ui.Username)
 		}
-		if len(ui.URLPrefix) > 0 {
-			urlPrefix, err := sanitizeURLPrefix(ui.URLPrefix)
+		if ui.URLPrefix != nil {
+			urlPrefix, err := sanitizeURLPrefix(ui.URLPrefix.u)
 			if err != nil {
 				return nil, err
 			}
-			ui.URLPrefix = urlPrefix
+			ui.URLPrefix.u = urlPrefix
 		}
 		for _, e := range ui.URLMap {
 			if len(e.SrcPaths) == 0 {
-				return nil, fmt.Errorf("missing `src_paths`")
+				return nil, fmt.Errorf("missing `src_paths` in `url_map`")
 			}
-			urlPrefix, err := sanitizeURLPrefix(e.URLPrefix)
+			if e.URLPrefix == nil {
+				return nil, fmt.Errorf("missing `url_prefix` in `url_map`")
+			}
+			urlPrefix, err := sanitizeURLPrefix(e.URLPrefix.u)
 			if err != nil {
 				return nil, err
 			}
-			e.URLPrefix = urlPrefix
+			e.URLPrefix.u = urlPrefix
 		}
-		if len(ui.URLMap) == 0 && len(ui.URLPrefix) == 0 {
+		if len(ui.URLMap) == 0 && ui.URLPrefix == nil {
 			return nil, fmt.Errorf("missing `url_prefix`")
 		}
 		if ui.BearerToken != "" {
@@ -218,21 +242,17 @@ func getAuthToken(bearerToken, username, password string) string {
 	return "Basic " + token64
 }
 
-func sanitizeURLPrefix(urlPrefix string) (string, error) {
+func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {
 	// Remove trailing '/' from urlPrefix
-	for strings.HasSuffix(urlPrefix, "/") {
-		urlPrefix = urlPrefix[:len(urlPrefix)-1]
+	for strings.HasSuffix(urlPrefix.Path, "/") {
+		urlPrefix.Path = urlPrefix.Path[:len(urlPrefix.Path)-1]
 	}
 	// Validate urlPrefix
-	target, err := url.Parse(urlPrefix)
-	if err != nil {
-		return "", fmt.Errorf("invalid `url_prefix: %q`: %w", urlPrefix, err)
+	if urlPrefix.Scheme != "http" && urlPrefix.Scheme != "https" {
+		return nil, fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, urlPrefix.Scheme)
 	}
-	if target.Scheme != "http" && target.Scheme != "https" {
-		return "", fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, target.Scheme)
-	}
-	if target.Host == "" {
-		return "", fmt.Errorf("missing hostname in `url_prefix %q`", urlPrefix)
+	if urlPrefix.Host == "" {
+		return nil, fmt.Errorf("missing hostname in `url_prefix %q`", urlPrefix.Host)
 	}
 	return urlPrefix, nil
 }

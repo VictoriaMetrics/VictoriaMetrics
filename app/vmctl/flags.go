@@ -39,7 +39,7 @@ var (
 			Name:  vmAddr,
 			Value: "http://localhost:8428",
 			Usage: "VictoriaMetrics address to perform import requests. \n" +
-				"Should be the same as --httpListenAddr value for single-node version or VMInsert component. \n" +
+				"Should be the same as --httpListenAddr value for single-node version or vminsert component. \n" +
 				"Please note, that `vmctl` performs initial readiness check for the given address by checking `/health` endpoint.",
 		},
 		&cli.StringFlag{
@@ -92,6 +92,78 @@ var (
 			Value: nil,
 			Usage: "Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag" +
 				"will have priority. Flag can be set multiple times, to add few additional labels.",
+		},
+	}
+)
+
+const (
+	otsdbAddr        = "otsdb-addr"
+	otsdbConcurrency = "otsdb-concurrency"
+	otsdbQueryLimit  = "otsdb-query-limit"
+	otsdbOffsetDays  = "otsdb-offset-days"
+	otsdbHardTSStart = "otsdb-hard-ts-start"
+	otsdbRetentions  = "otsdb-retentions"
+	otsdbFilters     = "otsdb-filters"
+	otsdbNormalize   = "otsdb-normalize"
+	otsdbMsecsTime   = "otsdb-msecstime"
+)
+
+var (
+	otsdbFlags = []cli.Flag{
+		&cli.StringFlag{
+			Name:     otsdbAddr,
+			Value:    "http://localhost:4242",
+			Required: true,
+			Usage:    "OpenTSDB server addr",
+		},
+		&cli.IntFlag{
+			Name:  otsdbConcurrency,
+			Usage: "Number of concurrently running fetch queries to OpenTSDB per metric",
+			Value: 1,
+		},
+		&cli.StringSliceFlag{
+			Name:     otsdbRetentions,
+			Value:    nil,
+			Required: true,
+			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed " +
+				"for the query, the row size (in HBase) that will define how long each individual query is, " +
+				"and the time range to query for. e.g. sum-1m-avg:1h:3d. " +
+				"The first time range defined should be a multiple of the row size in HBase. " +
+				"e.g. if the row size is 2 hours, 4h is good, 5h less so. We want each query to land on unique rows.",
+		},
+		&cli.StringSliceFlag{
+			Name:  otsdbFilters,
+			Value: cli.NewStringSlice("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"),
+			Usage: "Filters to process for discovering metrics in OpenTSDB",
+		},
+		&cli.Int64Flag{
+			Name:  otsdbOffsetDays,
+			Usage: "Days to offset our 'starting' point for collecting data from OpenTSDB",
+			Value: 0,
+		},
+		&cli.Int64Flag{
+			Name:  otsdbHardTSStart,
+			Usage: "A specific timestamp to start from, will override using an offset",
+			Value: 0,
+		},
+		/*
+			because the defaults are set *extremely* low in OpenTSDB (10-25 results), we will
+			set a larger default limit, but still allow a user to increase/decrease it
+		*/
+		&cli.IntFlag{
+			Name:  otsdbQueryLimit,
+			Usage: "Result limit on meta queries to OpenTSDB (affects both metric name and tag value queries, recommended to use a value exceeding your largest series)",
+			Value: 100e3,
+		},
+		&cli.BoolFlag{
+			Name:  otsdbMsecsTime,
+			Value: false,
+			Usage: "Whether OpenTSDB is writing values in milliseconds or seconds",
+		},
+		&cli.BoolFlag{
+			Name:  otsdbNormalize,
+			Value: false,
+			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
 		},
 	}
 )
@@ -243,7 +315,7 @@ var (
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,
 			Usage: "VictoriaMetrics address to perform export from. \n" +
-				" Should be the same as --httpListenAddr value for single-node version or VMSelect component." +
+				" Should be the same as --httpListenAddr value for single-node version or vmselect component." +
 				" If exporting from cluster version - include the tenet token in address.",
 			Required: true,
 		},
@@ -260,7 +332,7 @@ var (
 		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
-				" Should be the same as --httpListenAddr value for single-node version or VMInsert component." +
+				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
 				" If importing into cluster version - include the tenet token in address.",
 			Required: true,
 		},

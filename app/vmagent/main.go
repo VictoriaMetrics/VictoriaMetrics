@@ -148,7 +148,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
-		fmt.Fprintf(w, "vmagent - see docs at https://victoriametrics.github.io/vmagent.html")
+		fmt.Fprintf(w, "vmagent - see docs at https://docs.victoriametrics.com/vmagent.html")
 		return true
 	}
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
@@ -271,7 +271,7 @@ func usage() {
 	const s = `
 vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
 
-See the docs at https://victoriametrics.github.io/vmagent.html .
+See the docs at https://docs.victoriametrics.com/vmagent.html .
 `
 	flagutil.Usage(s)
 }

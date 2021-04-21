@@ -120,7 +120,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
 	//
-	// See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
+	// See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 	switch {
 	case strings.HasPrefix(path, "/prometheus"):
 		path = path[len("/prometheus"):]

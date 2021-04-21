@@ -1,6 +1,6 @@
 # vmrestore
 
-`vmrestore` restores data from backups created by [vmbackup](https://victoriametrics.github.io/vbackup.html).
+`vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vbackup.html).
 VictoriaMetrics `v1.29.0` and newer versions must be used for working with the restored data.
 
 Restore process can be interrupted at any time. It is automatically resumed from the interruption point
@@ -17,7 +17,7 @@ vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/r
 ```
 
 * `<bucket>` is [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets) name.
-* `<path/to/backup>` is the path to backup made with [vmbackup](https://victoriametrics.github.io/vbackup.html) on GCS bucket.
+* `<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vbackup.html) on GCS bucket.
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed
   to VictoriaMetrics in `-storageDataPath` command-line flag after the restore process is complete.
 
@@ -94,7 +94,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
-    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
     	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
@@ -104,15 +104,15 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -loggerTimezone string
     	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
-    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxBytesPerSecond size
     	The maximum download speed. There is no limit if it is set to 0
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedBytes size
-    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -skipBackupCompleteCheck
     	Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string

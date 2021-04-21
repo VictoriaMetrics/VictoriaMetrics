@@ -21,7 +21,7 @@ import (
 type Config struct {
 	// VictoriaMetrics address to perform import requests
 	//   --httpListenAddr value for single node version
-	//   --httpListenAddr value of VMSelect  component for cluster version
+	//   --httpListenAddr value of vmselect  component for cluster version
 	Addr string
 	// Concurrency defines number of worker
 	// performing the import requests concurrently
@@ -51,7 +51,7 @@ type Config struct {
 
 // Importer performs insertion of timeseries
 // via VictoriaMetrics import protocol
-// see https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master#how-to-import-time-series-data
+// see https://docs.victoriametrics.com/#how-to-import-time-series-data
 type Importer struct {
 	addr       string
 	importPath string
@@ -105,11 +105,11 @@ func NewImporter(cfg Config) (*Importer, error) {
 
 	addr := strings.TrimRight(cfg.Addr, "/")
 	// if single version
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master#how-to-import-time-series-data
+	// see https://docs.victoriametrics.com/#how-to-import-time-series-data
 	importPath := addr + "/api/v1/import"
 	if cfg.AccountID != "" {
 		// if cluster version
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster#url-format
+		// see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 		importPath = fmt.Sprintf("%s/insert/%s/prometheus/api/v1/import", addr, cfg.AccountID)
 	}
 	importPath, err := AddExtraLabelsToImportPath(importPath, cfg.ExtraLabels)

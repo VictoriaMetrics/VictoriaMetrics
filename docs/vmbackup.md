@@ -4,7 +4,7 @@ sort: 5
 
 # vmbackup
 
-`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
+`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 
 Supported storage systems for backups:
 
@@ -19,7 +19,7 @@ data between the existing backup and new backup. It saves time and costs on data
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 
-Backed up data can be restored with [vmrestore](https://victoriametrics.github.io/vmrestore.html).
+Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
@@ -38,8 +38,8 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
-  There is no need to stop VictoriaMetrics for creating backups, since they are performed from immutable [instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
-* `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
+  There is no need to stop VictoriaMetrics for creating backups, since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
+* `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
@@ -76,7 +76,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 vmbackup -snapshotName=<latest-snapshot> -dst=gcs://<bucket>/latest
 ```
 
-Where `<latest-snapshot>` is the latest [snapshot](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
+Where `<latest-snapshot>` is the latest [snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 The command will upload only changed data to `gcs://<bucket>/latest`.
 
 * Run the following command once a day:
@@ -127,8 +127,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
-* Backups created from [single-node VictoriaMetrics](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html) cannot be restored
-  at [cluster VictoriaMetrics](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html) and vice versa.
+* Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) cannot be restored
+  at [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) and vice versa.
 
 
 ## Advanced usage
@@ -198,7 +198,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
-    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
     	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
@@ -208,15 +208,15 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -loggerTimezone string
     	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
-    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxBytesPerSecond size
     	The maximum upload speed. There is no limit if it is set to 0
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedBytes size
-    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -origin string
     	Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
   -snapshot.createURL string
@@ -224,7 +224,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -snapshot.deleteURL string
     	VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snaphosts will be automatically deleted. Example: http://victoriametrics:8428/snaphsot/delete
   -snapshotName string
-    	Name for the snapshot to backup. See https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots
+    	Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots
   -storageDataPath string
     	Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -version
