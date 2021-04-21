@@ -65,11 +65,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
 		return true
 	}
-	if _, err := url.Parse(targetURL); err != nil {
-		httpserver.Errorf(w, r, "invalid targetURL=%q: %s", targetURL, err)
-		return true
-	}
-	r.Header.Set("vm-target-url", targetURL)
+	r.Header.Set("vm-target-url", targetURL.String())
 	reverseProxy.ServeHTTP(w, r)
 	return true
 }
