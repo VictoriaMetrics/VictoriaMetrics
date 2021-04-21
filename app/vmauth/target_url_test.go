@@ -16,28 +16,28 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if target != expectedTarget {
+		if target.String() != expectedTarget {
 			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
 		}
 	}
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
-		URLPrefix: "http://foo.bar",
+		URLPrefix: mustParseURL("http://foo.bar"),
 	}, "", "http://foo.bar/.")
 	f(&UserInfo{
-		URLPrefix: "http://foo.bar",
+		URLPrefix: mustParseURL("http://foo.bar"),
 	}, "/", "http://foo.bar/")
 	f(&UserInfo{
-		URLPrefix: "http://foo.bar",
+		URLPrefix: mustParseURL("http://foo.bar"),
 	}, "a/b?c=d", "http://foo.bar/a/b?c=d")
 	f(&UserInfo{
-		URLPrefix: "https://sss:3894/x/y",
+		URLPrefix: mustParseURL("https://sss:3894/x/y"),
 	}, "/z", "https://sss:3894/x/y/z")
 	f(&UserInfo{
-		URLPrefix: "https://sss:3894/x/y",
+		URLPrefix: mustParseURL("https://sss:3894/x/y"),
 	}, "/../../aaa", "https://sss:3894/x/y/aaa")
 	f(&UserInfo{
-		URLPrefix: "https://sss:3894/x/y",
+		URLPrefix: mustParseURL("https://sss:3894/x/y"),
 	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd")
 
 	// Complex routing with `url_map`
@@ -45,14 +45,14 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		URLMap: []URLMap{
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
-				URLPrefix: "http://vmselect/0/prometheus",
+				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 			},
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
-				URLPrefix: "http://vminsert/0/prometheus",
+				URLPrefix: mustParseURL("http://vminsert/0/prometheus"),
 			},
 		},
-		URLPrefix: "http://default-server",
+		URLPrefix: mustParseURL("http://default-server"),
 	}
 	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up")
 	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write")
@@ -63,14 +63,14 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		URLMap: []URLMap{
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query(_range)?", "/api/v1/label/[^/]+/values"}),
-				URLPrefix: "http://vmselect/0/prometheus",
+				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 			},
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
-				URLPrefix: "http://vminsert/0/prometheus",
+				URLPrefix: mustParseURL("http://vminsert/0/prometheus"),
 			},
 		},
-		URLPrefix: "http://default-server",
+		URLPrefix: mustParseURL("http://default-server"),
 	}
 	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up")
 	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up")
@@ -78,10 +78,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write")
 	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar")
 	f(&UserInfo{
-		URLPrefix: "http://foo.bar?extra_label=team=dev",
+		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=dev"),
 	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev")
 	f(&UserInfo{
-		URLPrefix: "http://foo.bar?extra_label=team=mobile",
+		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=mobile"),
 	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile")
 
 }
@@ -97,7 +97,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if target != "" {
+		if target != nil {
 			t.Fatalf("unexpected target=%q; want empty string", target)
 		}
 	}
@@ -106,7 +106,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 		URLMap: []URLMap{
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
-				URLPrefix: "http://foobar/baz",
+				URLPrefix: mustParseURL("http://foobar/baz"),
 			},
 		},
 	}, "/api/v1/write")

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"regexp"
 	"testing"
 
@@ -55,6 +56,11 @@ users:
 - username: foo
   url_prefix: http:///bar
 `)
+	f(`
+users:
+- username: foo
+  url_prefix: [bar]
+`)
 
 	// Username and bearer_token in a single config
 	f(`
@@ -102,6 +108,15 @@ users:
   - src_paths: ["/foo/bar"]
 `)
 
+	// Invalid url_prefix in url_map
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ["/foo/bar"]
+    url_prefix: foo.bar
+`)
+
 	// Missing src_paths in url_map
 	f(`
 users:
@@ -143,7 +158,7 @@ users:
 		getAuthToken("", "foo", "bar"): {
 			Username:  "foo",
 			Password:  "bar",
-			URLPrefix: "http://aaa:343/bbb",
+			URLPrefix: mustParseURL("http://aaa:343/bbb"),
 		},
 	})
 
@@ -157,11 +172,11 @@ users:
 `, map[string]*UserInfo{
 		getAuthToken("", "foo", ""): {
 			Username:  "foo",
-			URLPrefix: "http://foo",
+			URLPrefix: mustParseURL("http://foo"),
 		},
 		getAuthToken("", "bar", ""): {
 			Username:  "bar",
-			URLPrefix: "https://bar/x",
+			URLPrefix: mustParseURL("https://bar/x"),
 		},
 	})
 
@@ -180,11 +195,11 @@ users:
 			URLMap: []URLMap{
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
-					URLPrefix: "http://vmselect/select/0/prometheus",
+					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 				},
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
-					URLPrefix: "http://vminsert/insert/0/prometheus",
+					URLPrefix: mustParseURL("http://vminsert/insert/0/prometheus"),
 				},
 			},
 		},
@@ -221,4 +236,14 @@ func areEqualConfigs(a, b map[string]*UserInfo) error {
 		return fmt.Errorf("unexpected configs;\ngot\n%s\nwant\n%s", aData, bData)
 	}
 	return nil
+}
+
+func mustParseURL(u string) *yamlURL {
+	pu, err := url.Parse(u)
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot parse %q: %w", u, err))
+	}
+	return &yamlURL{
+		u: pu,
+	}
 }
