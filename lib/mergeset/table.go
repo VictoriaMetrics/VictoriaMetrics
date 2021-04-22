@@ -1014,6 +1014,12 @@ func openParts(path string) ([]*partWrapper, error) {
 			continue
 		}
 		partPath := path + "/" + fn
+		if fs.IsEmptyDir(partPath) {
+			// Remove empty directory, which can be left after unclean shutdown on NFS.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1142
+			fs.MustRemoveAll(partPath)
+			continue
+		}
 		p, err := openFilePart(partPath)
 		if err != nil {
 			mustCloseParts(pws)

@@ -81,7 +81,7 @@ func dirRemover() {
 		time.Sleep(sleepTime)
 		if sleepTime < maxSleepTime {
 			sleepTime *= 2
-		} else if sleepTime > time.Second {
+		} else if sleepTime > 5*time.Second {
 			logger.Warnf("failed to remove directory %q due to NFS lock; retrying later in %.3f seconds", w.path, sleepTime.Seconds())
 		}
 	}
@@ -121,11 +121,11 @@ func MustStopDirRemover() {
 		dirRemoverWG.Wait()
 		close(doneCh)
 	}()
-	const maxWaitTime = 5 * time.Second
+	const maxWaitTime = 10 * time.Second
 	select {
 	case <-doneCh:
 		return
 	case <-time.After(maxWaitTime):
-		logger.Panicf("FATAL: cannot stop dirRemover in %s", maxWaitTime)
+		logger.Errorf("cannot stop dirRemover in %s; the remaining empty NFS directories should be automatically removed on the next startup", maxWaitTime)
 	}
 }
