@@ -171,4 +171,5 @@ docs-sync:
 	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=6 $(MAKE) copy-docs
 	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=7 $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=8 $(MAKE) copy-docs
-	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md ORDER=9 $(MAKE) copy-docs
+	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=9 $(MAKE) copy-docs
+	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md ORDER=10 $(MAKE) copy-docs
