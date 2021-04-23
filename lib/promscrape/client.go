@@ -118,8 +118,17 @@ func newClient(sw *ScrapeWork) *client {
 				DisableCompression:  *disableCompression || sw.DisableCompression,
 				DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
 				DialContext:         statStdDial,
+
+				// Set timeout for receiving the first response byte,
+				// since the duration for reading the full response can be much bigger because of stream parsing.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
+				ResponseHeaderTimeout: sw.ScrapeTimeout,
 			},
-			Timeout: sw.ScrapeTimeout,
+
+			// Set 10x bigger timeout than the sw.ScrapeTimeout, since the duration for reading the full response
+			// can be much bigger because of stream parsing.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
+			Timeout: 10 * sw.ScrapeTimeout,
 		}
 		if sw.DenyRedirects {
 			sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {

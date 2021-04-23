@@ -829,6 +829,8 @@ Optional `start` and `end` args may be added to the request in order to limit th
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
+The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
+can fail to be imported into VictoriaMetrics release Y.
 
 
 ### How to export data in JSON line format

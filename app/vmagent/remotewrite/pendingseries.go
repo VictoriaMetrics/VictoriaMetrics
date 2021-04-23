@@ -28,7 +28,7 @@ var (
 const maxRowsPerBlock = 10000
 
 // the maximum number of labels to send per each block.
-const maxLabelsPerBlock = 40000
+const maxLabelsPerBlock = 10 * maxRowsPerBlock
 
 type pendingSeries struct {
 	mu sync.Mutex

@@ -1,3 +1,7 @@
+---
+sort: 9
+---
+
 ## vmbackupmanager
 
 VictoriaMetrics backup manager

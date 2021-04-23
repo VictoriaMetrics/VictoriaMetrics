@@ -220,9 +220,9 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -origin string
     	Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
   -snapshot.createURL string
-    	VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snaphsot/create
+    	VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
-    	VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snaphosts will be automatically deleted. Example: http://victoriametrics:8428/snaphsot/delete
+    	VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snaphosts will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
   -snapshotName string
     	Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots
   -storageDataPath string
