@@ -301,6 +301,13 @@ func (gw *groupWatcher) getCachedObjectByRole(role, namespace, name string) obje
 	return nil
 }
 
+func (gw *groupWatcher) refreshEndpointsLabels(namespace, key string) {
+	// Refresh endpoints and endpointslices labels for the corresponding service as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	gw.refreshObjectLabels("endpoints", namespace, key)
+	gw.refreshObjectLabels("endpointslices", namespace, key)
+}
+
 func (gw *groupWatcher) refreshObjectLabels(role, namespace, key string) {
 	// There is no need in starting url watcher for the given role,
 	// since there is no (namespace, key) object yet for this role.
@@ -550,13 +557,10 @@ func (uw *urlWatcher) reloadObjects() string {
 
 	uw.reloadScrapeWorksForAPIWatchers(aws, objectsByKey)
 	if uw.role == "service" {
-		// Update endpoints and endpointslices for the corresponding service as Prometheus does.
+		// Refresh endpoints labels for the corresponding services as Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
-		gw := uw.gw
-		namespace := uw.namespace
 		for key := range objectsByKey {
-			gw.refreshObjectLabels("endpoints", namespace, key)
-			gw.refreshObjectLabels("endpointslices", namespace, key)
+			uw.gw.refreshEndpointsLabels(uw.namespace, key)
 		}
 	}
 	logger.Infof("reloaded %d objects from %q", len(objectsByKey), requestURL)
@@ -686,10 +690,9 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 				}
 			}
 			if uw.role == "service" {
-				// Update endpoints and endpointslices for the corresponding service as Prometheus does.
+				// Refresh endpoints labels for the corresponding service as Prometheus does.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
-				uw.gw.refreshObjectLabels("endpoints", uw.namespace, key)
-				uw.gw.refreshObjectLabels("endpointslices", uw.namespace, key)
+				uw.gw.refreshEndpointsLabels(uw.namespace, key)
 			}
 		case "DELETED":
 			o, err := uw.parseObject(we.Object)
@@ -707,6 +710,11 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			uw.mu.Unlock()
 			for _, aw := range aws {
 				aw.removeScrapeWorks(uw.namespace, key)
+			}
+			if uw.role == "service" {
+				// Refresh endpoints labels for the corresponding service as Prometheus does.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+				uw.gw.refreshEndpointsLabels(uw.namespace, key)
 			}
 		case "BOOKMARK":
 			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
