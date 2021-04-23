@@ -47,7 +47,7 @@ var allRelabelConfigs atomic.Value
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
-var maxQueues = cgroup.AvailableCPUs() * 4
+var maxQueues = cgroup.AvailableCPUs() * 16
 
 // InitSecretFlags must be called after flag.Parse and before any logging.
 func InitSecretFlags() {
@@ -80,11 +80,11 @@ func Init() {
 	allRelabelConfigs.Store(rcs)
 
 	maxInmemoryBlocks := memory.Allowed() / len(*remoteWriteURLs) / maxRowsPerBlock / 100
-	if maxInmemoryBlocks > 200 {
+	if maxInmemoryBlocks > 400 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
 		// will continue growing. It is better storing the queue to file.
-		maxInmemoryBlocks = 200
+		maxInmemoryBlocks = 400
 	}
 	if maxInmemoryBlocks < 2 {
 		maxInmemoryBlocks = 2
