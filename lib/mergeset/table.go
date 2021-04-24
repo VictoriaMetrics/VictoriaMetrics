@@ -81,6 +81,11 @@ func maxItemsPerCachedPart() uint64 {
 // so they become visible to search.
 const rawItemsFlushInterval = time.Second
 
+type AddItemWork struct {
+	Items [][]byte
+	Ch    chan error
+}
+
 // Table represents mergeset table.
 type Table struct {
 	// Atomically updated counters must go first in the struct, so they are properly
@@ -106,6 +111,7 @@ type Table struct {
 	rawItemsBlocks        []*inmemoryBlock
 	rawItemsLock          sync.Mutex
 	rawItemsLastFlushTime uint64
+	RawItemsWorkCh        []chan *AddItemWork
 
 	snapshotLock sync.RWMutex
 
@@ -209,7 +215,23 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		tb.convertersWG.Done()
 	}()
 
+	for i := 0; i < 64; i++ {
+		tb.RawItemsWorkCh = append(tb.RawItemsWorkCh, make(chan *AddItemWork, 64))
+		go func(idx int) {
+			ibs := make([]*inmemoryBlock, 0, 512)
+			for i := range tb.RawItemsWorkCh[idx] {
+				i.Ch <- tb.AddItems(&ibs, i.Items)
+			}
+		}(i)
+	}
+
 	return tb, nil
+}
+
+var idx uint32
+
+func GetRawItemsWorkChIdx() int {
+	return int(atomic.AddUint32(&idx, 1) % 64)
 }
 
 // MustClose closes the table.
@@ -351,16 +373,16 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 }
 
 // AddItems adds the given items to the tb.
-func (tb *Table) AddItems(items [][]byte) error {
+func (tb *Table) AddItems(ibs *[]*inmemoryBlock, items [][]byte) error {
 	var err error
 	var blocksToMerge []*inmemoryBlock
 
-	tb.rawItemsLock.Lock()
-	if len(tb.rawItemsBlocks) == 0 {
+	//tb.rawItemsLock.Lock()
+	if len(*ibs) == 0 {
 		ib := getInmemoryBlock()
-		tb.rawItemsBlocks = append(tb.rawItemsBlocks, ib)
+		*ibs = append(*ibs, ib)
 	}
-	ib := tb.rawItemsBlocks[len(tb.rawItemsBlocks)-1]
+	ib := (*ibs)[len(*ibs)-1]
 	for _, item := range items {
 		if !ib.Add(item) {
 			ib = getInmemoryBlock()
@@ -370,15 +392,15 @@ func (tb *Table) AddItems(items [][]byte) error {
 					item, tb.path, len(item))
 				break
 			}
-			tb.rawItemsBlocks = append(tb.rawItemsBlocks, ib)
+			*ibs = append(*ibs, ib)
 		}
 	}
-	if len(tb.rawItemsBlocks) >= 512 {
-		blocksToMerge = tb.rawItemsBlocks
-		tb.rawItemsBlocks = nil
+	if len(*ibs) >= 512 {
+		blocksToMerge = *ibs
+		*ibs = nil
 		tb.rawItemsLastFlushTime = fasttime.UnixTimestamp()
 	}
-	tb.rawItemsLock.Unlock()
+	//tb.rawItemsLock.Unlock()
 
 	if blocksToMerge == nil {
 		// Fast path.

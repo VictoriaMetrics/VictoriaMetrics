@@ -674,7 +674,12 @@ func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {
 	ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)
 	kbPool.Put(prefix)
 
-	return db.tb.AddItems(ii.Items)
+	w := &mergeset.AddItemWork{
+		Items: ii.Items,
+		Ch:    make(chan error),
+	}
+	db.tb.RawItemsWorkCh[mergeset.GetRawItemsWorkChIdx()] <- w
+	return <-w.Ch
 }
 
 type indexItems struct {
@@ -1631,7 +1636,14 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 		items.B = encoding.MarshalUint64(items.B, metricID)
 		items.Next()
 	}
-	err := db.tb.AddItems(items.Items)
+
+	w := &mergeset.AddItemWork{
+		Items: items.Items,
+		Ch:    make(chan error),
+	}
+	db.tb.RawItemsWorkCh[mergeset.GetRawItemsWorkChIdx()] <- w
+	err := <-w.Ch
+
 	putIndexItems(items)
 	if err != nil {
 		return err
@@ -3083,7 +3095,13 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ii.registerTagIndexes(kb.B, mn, metricID)
-	if err = is.db.tb.AddItems(ii.Items); err != nil {
+
+	w := &mergeset.AddItemWork{
+		Items: ii.Items,
+		Ch:    make(chan error),
+	}
+	is.db.tb.RawItemsWorkCh[mergeset.GetRawItemsWorkChIdx()] <- w
+	if err := <-w.Ch; err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %w", metricID, err)
 	}
 	return nil
