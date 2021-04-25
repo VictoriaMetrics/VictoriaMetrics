@@ -100,7 +100,7 @@ func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series 
 	duplicates := make(map[uint64]prompbmarshal.TimeSeries, len(qMetrics))
 	var tss []prompbmarshal.TimeSeries
 	for _, r := range qMetrics {
-		ts := rr.toTimeSeries(r, rr.lastExecTime)
+		ts := rr.toTimeSeries(r, time.Unix(r.Timestamp, 0))
 		h := hashTimeSeries(ts)
 		if _, ok := duplicates[h]; ok {
 			rr.lastExecError = errDuplicate
