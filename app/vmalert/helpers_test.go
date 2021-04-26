@@ -38,7 +38,11 @@ func (fq *fakeQuerier) add(metrics ...datasource.Metric) {
 	fq.Unlock()
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string, _ datasource.Type) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {
+	return fq
+}
+
+func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {

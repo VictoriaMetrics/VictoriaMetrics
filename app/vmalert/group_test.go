@@ -109,13 +109,13 @@ func TestUpdateWith(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Name: "test"}
+			g := &Group{Name: "test", querierBuilder: &fakeQuerier{}}
 			for _, r := range tc.currentRules {
 				r.ID = config.HashRule(r)
 				g.Rules = append(g.Rules, g.newRule(r))
 			}
 
-			ng := &Group{Name: "test"}
+			ng := &Group{Name: "test", querierBuilder: &fakeQuerier{}}
 			for _, r := range tc.newRules {
 				r.ID = config.HashRule(r)
 				ng.Rules = append(ng.Rules, ng.newRule(r))
@@ -156,11 +156,11 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
 	const evalInterval = time.Millisecond
-	g := newGroup(groups[0], evalInterval, map[string]string{"cluster": "east-1"})
-	g.Concurrency = 2
-
-	fn := &fakeNotifier{}
 	fs := &fakeQuerier{}
+	fn := &fakeNotifier{}
+
+	g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
+	g.Concurrency = 2
 
 	const inst1, inst2, job = "foo", "bar", "baz"
 	m1 := metricWithLabels(t, "instance", inst1, "job", job)

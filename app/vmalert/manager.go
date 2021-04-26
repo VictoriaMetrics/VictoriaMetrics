@@ -15,11 +15,12 @@ import (
 
 // manager controls group states
 type manager struct {
-	querier   datasource.Querier
-	notifiers []notifier.Notifier
+	querierBuilder datasource.QuerierBuilder
+	notifiers      []notifier.Notifier
 
 	rw *remotewrite.Client
-	rr datasource.Querier
+	// remote read builder.
+	rr datasource.QuerierBuilder
 
 	wg     sync.WaitGroup
 	labels map[string]string
@@ -74,7 +75,7 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
-		group.start(ctx, m.querier, m.notifiers, m.rw)
+		group.start(ctx, m.querierBuilder, m.notifiers, m.rw)
 		m.wg.Done()
 	}()
 	m.groups[id] = group
@@ -89,7 +90,7 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 
 	groupsRegistry := make(map[uint64]*Group)
 	for _, cfg := range groupsCfg {
-		ng := newGroup(cfg, *evaluationInterval, m.labels)
+		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
 		groupsRegistry[ng.ID()] = ng
 	}
 

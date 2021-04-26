@@ -140,10 +140,10 @@ func newManager(ctx context.Context) (*manager, error) {
 	}
 
 	manager := &manager{
-		groups:    make(map[uint64]*Group),
-		querier:   q,
-		notifiers: nts,
-		labels:    map[string]string{},
+		groups:         make(map[uint64]*Group),
+		querierBuilder: q,
+		notifiers:      nts,
+		labels:         map[string]string{},
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {

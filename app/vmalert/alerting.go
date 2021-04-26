@@ -29,6 +29,8 @@ type AlertingRule struct {
 	GroupID     uint64
 	GroupName   string
 
+	q datasource.Querier
+
 	// guard status fields
 	mu sync.RWMutex
 	// stores list of active alerts
@@ -60,6 +62,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 		Annotations: cfg.Annotations,
 		GroupID:     group.ID(),
 		GroupName:   group.Name,
+		q:           group.querierBuilder.BuildWithParams(datasource.QuerierParams{DataSourceType: &cfg.Type}),
 		alerts:      make(map[uint64]*notifier.Alert),
 		metrics:     &alertingRuleMetrics{},
 	}
@@ -121,8 +124,8 @@ func (ar *AlertingRule) ID() uint64 {
 
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
-	qMetrics, err := q.Query(ctx, ar.Expr, ar.Type)
+func (ar *AlertingRule) Exec(ctx context.Context, series bool) ([]prompbmarshal.TimeSeries, error) {
+	qMetrics, err := ar.q.Query(ctx, ar.Expr)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
@@ -139,7 +142,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 		}
 	}
 
-	qFn := func(query string) ([]datasource.Metric, error) { return q.Query(ctx, query, ar.Type) }
+	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query) }
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
@@ -402,12 +405,14 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
-func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
-	if q == nil {
+func (ar *AlertingRule) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
+	if ar.q == nil {
 		return fmt.Errorf("querier is nil")
 	}
 
-	qFn := func(query string) ([]datasource.Metric, error) { return q.Query(ctx, query, ar.Type) }
+	restoreQuerier := qb.BuildWithParams(datasource.QuerierParams{DataSourceType: &ar.Type})
+
+	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query) }
 
 	// account for external labels in filter
 	var labelsFilter string
@@ -420,7 +425,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, err := q.Query(ctx, expr, ar.Type)
+	qMetrics, err := restoreQuerier.Query(ctx, expr)
 	if err != nil {
 		return err
 	}
