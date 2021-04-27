@@ -4,8 +4,7 @@ import (
 	"context"
 )
 
-// QuerierBuilder builds Querier with given params,
-// that will override corresponding default values.
+// QuerierBuilder builds Querier with given params.
 type QuerierBuilder interface {
 	BuildWithParams(params QuerierParams) Querier
 }

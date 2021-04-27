@@ -27,8 +27,6 @@ type Group struct {
 	Concurrency int
 	Checksum    string
 
-	querierBuilder datasource.QuerierBuilder
-
 	doneCh     chan struct{}
 	finishedCh chan struct{}
 	// channel accepts new Group obj
@@ -53,16 +51,15 @@ func newGroupMetrics(name, file string) *groupMetrics {
 
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
-		Type:           cfg.Type,
-		Name:           cfg.Name,
-		File:           cfg.File,
-		Interval:       cfg.Interval,
-		Concurrency:    cfg.Concurrency,
-		Checksum:       cfg.Checksum,
-		doneCh:         make(chan struct{}),
-		finishedCh:     make(chan struct{}),
-		updateCh:       make(chan *Group),
-		querierBuilder: qb,
+		Type:        cfg.Type,
+		Name:        cfg.Name,
+		File:        cfg.File,
+		Interval:    cfg.Interval,
+		Concurrency: cfg.Concurrency,
+		Checksum:    cfg.Checksum,
+		doneCh:      make(chan struct{}),
+		finishedCh:  make(chan struct{}),
+		updateCh:    make(chan *Group),
 	}
 	g.metrics = newGroupMetrics(g.Name, g.File)
 	if g.Interval == 0 {
@@ -84,17 +81,17 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 			}
 			r.Labels[k] = v
 		}
-		rules[i] = g.newRule(r)
+		rules[i] = g.newRule(qb, r)
 	}
 	g.Rules = rules
 	return g
 }
 
-func (g *Group) newRule(rule config.Rule) Rule {
+func (g *Group) newRule(qb datasource.QuerierBuilder, rule config.Rule) Rule {
 	if rule.Alert != "" {
-		return newAlertingRule(g, rule)
+		return newAlertingRule(qb, g, rule)
 	}
-	return newRecordingRule(g, rule)
+	return newRecordingRule(qb, g, rule)
 }
 
 // ID return unique group ID that consists of
@@ -118,7 +115,8 @@ func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookb
 		if rr.For < 1 {
 			continue
 		}
-		if err := rr.Restore(ctx, qb, lookback, labels); err != nil {
+		q := qb.BuildWithParams(datasource.QuerierParams{})
+		if err := rr.Restore(ctx, q, lookback, labels); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
@@ -192,7 +190,7 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, qb datasource.QuerierBuilder, nts []notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
@@ -216,7 +214,7 @@ func (g *Group) start(ctx context.Context, qb datasource.QuerierBuilder, nts []n
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{qb, nts, rw}
+	e := &executor{nts, rw}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -259,9 +257,8 @@ func (g *Group) start(ctx context.Context, qb datasource.QuerierBuilder, nts []n
 }
 
 type executor struct {
-	querierBuilder datasource.QuerierBuilder
-	notifiers      []notifier.Notifier
-	rw             *remotewrite.Client
+	notifiers []notifier.Notifier
+	rw        *remotewrite.Client
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {

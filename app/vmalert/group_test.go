@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
@@ -105,20 +107,32 @@ func TestUpdateWith(t *testing.T) {
 				{Record: "foo5"},
 			},
 		},
+		{
+			"update datasource type",
+			[]config.Rule{
+				{Alert: "foo1", Type: datasource.NewPrometheusType()},
+				{Alert: "foo3", Type: datasource.NewGraphiteType()},
+			},
+			[]config.Rule{
+				{Alert: "foo1", Type: datasource.NewGraphiteType()},
+				{Alert: "foo10", Type: datasource.NewPrometheusType()},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Name: "test", querierBuilder: &fakeQuerier{}}
+			g := &Group{Name: "test"}
+			qb := &fakeQuerier{}
 			for _, r := range tc.currentRules {
 				r.ID = config.HashRule(r)
-				g.Rules = append(g.Rules, g.newRule(r))
+				g.Rules = append(g.Rules, g.newRule(qb, r))
 			}
 
-			ng := &Group{Name: "test", querierBuilder: &fakeQuerier{}}
+			ng := &Group{Name: "test"}
 			for _, r := range tc.newRules {
 				r.ID = config.HashRule(r)
-				ng.Rules = append(ng.Rules, ng.newRule(r))
+				ng.Rules = append(ng.Rules, ng.newRule(qb, r))
 			}
 
 			err := g.updateWith(ng)
@@ -195,7 +209,7 @@ func TestGroupStart(t *testing.T) {
 	fs.add(m1)
 	fs.add(m2)
 	go func() {
-		g.start(context.Background(), fs, []notifier.Notifier{fn}, nil)
+		g.start(context.Background(), []notifier.Notifier{fn}, nil)
 		close(finished)
 	}()
 

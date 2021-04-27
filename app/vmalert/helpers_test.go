@@ -16,6 +16,7 @@ import (
 type fakeQuerier struct {
 	sync.Mutex
 	metrics []datasource.Metric
+	dt      datasource.Type
 	err     error
 }
 
@@ -163,6 +164,9 @@ func compareAlertingRules(t *testing.T, a, b *AlertingRule) error {
 	}
 	if !reflect.DeepEqual(a.Labels, b.Labels) {
 		return fmt.Errorf("expected to have labels %#v; got %#v", a.Labels, b.Labels)
+	}
+	if a.Type.String() != b.Type.String() {
+		return fmt.Errorf("expected to have Type %#v; got %#v", a.Type.String(), b.Type.String())
 	}
 	return nil
 }

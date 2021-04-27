@@ -75,7 +75,7 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
-		group.start(ctx, m.querierBuilder, m.notifiers, m.rw)
+		group.start(ctx, m.notifiers, m.rw)
 		m.wg.Done()
 	}()
 	m.groups[id] = group

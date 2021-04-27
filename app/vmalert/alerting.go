@@ -51,7 +51,7 @@ type alertingRuleMetrics struct {
 	active  *gauge
 }
 
-func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
+func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
 		Type:        cfg.Type,
 		RuleID:      cfg.ID,
@@ -62,7 +62,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 		Annotations: cfg.Annotations,
 		GroupID:     group.ID(),
 		GroupName:   group.Name,
-		q:           group.querierBuilder.BuildWithParams(datasource.QuerierParams{DataSourceType: &cfg.Type}),
+		q:           qb.BuildWithParams(datasource.QuerierParams{DataSourceType: &cfg.Type}),
 		alerts:      make(map[uint64]*notifier.Alert),
 		metrics:     &alertingRuleMetrics{},
 	}
@@ -405,12 +405,10 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
-func (ar *AlertingRule) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
-	if ar.q == nil {
+func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
+	if q == nil {
 		return fmt.Errorf("querier is nil")
 	}
-
-	restoreQuerier := qb.BuildWithParams(datasource.QuerierParams{DataSourceType: &ar.Type})
 
 	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query) }
 
@@ -425,7 +423,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, qb datasource.QuerierBuilde
 	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, err := restoreQuerier.Query(ctx, expr)
+	qMetrics, err := q.Query(ctx, expr)
 	if err != nil {
 		return err
 	}
