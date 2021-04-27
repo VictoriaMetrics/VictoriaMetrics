@@ -531,6 +531,8 @@ func (uw *urlWatcher) reloadObjects() string {
 	}
 
 	uw.mu.Lock()
+	// assume, that at start-up there will be no objects at cache.
+	isInitObjectsSync := len(uw.objectsByKey) == 0
 	var updated, removed, added int
 	for key := range uw.objectsByKey {
 		if o, ok := objectsByKey[key]; ok {
@@ -556,7 +558,9 @@ func (uw *urlWatcher) reloadObjects() string {
 	uw.mu.Unlock()
 
 	uw.reloadScrapeWorksForAPIWatchers(aws, objectsByKey)
-	if uw.role == "service" {
+	// refresh objects only if it wasn't service discovery startup.
+	// in this case it makes no sense and leads to dead-lock.
+	if uw.role == "service" && !isInitObjectsSync {
 		// Refresh endpoints labels for the corresponding services as Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 		for key := range objectsByKey {
