@@ -16,7 +16,6 @@ import (
 type fakeQuerier struct {
 	sync.Mutex
 	metrics []datasource.Metric
-	dt      datasource.Type
 	err     error
 }
 
