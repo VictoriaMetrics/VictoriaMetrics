@@ -1363,7 +1363,7 @@ func (pt *partition) removeStaleParts() {
 	pt.snapshotLock.RLock()
 	var removeWG sync.WaitGroup
 	for pw := range m {
-		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, retentionDeadline/1000)
+		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, pt.retentionMsecs/1000)
 		removeWG.Add(1)
 		fs.MustRemoveAllWithDoneCallback(pw.p.path, removeWG.Done)
 	}
