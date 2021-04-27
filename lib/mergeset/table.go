@@ -126,7 +126,7 @@ type Table struct {
 }
 
 type rawItemsShards struct {
-	shardIdx uint64
+	shardIdx uint32
 
 	// shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawItemsShard
@@ -144,9 +144,9 @@ func (riss *rawItemsShards) init() {
 }
 
 func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) error {
-	n := atomic.AddUint64(&riss.shardIdx, 1)
+	n := atomic.AddUint32(&riss.shardIdx, 1)
 	shards := riss.shards
-	idx := n % uint64(len(shards))
+	idx := n % uint32(len(shards))
 	shard := &shards[idx]
 	return shard.addItems(tb, items)
 }

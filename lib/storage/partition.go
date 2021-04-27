@@ -437,7 +437,7 @@ func (pt *partition) AddRows(rows []rawRow) {
 }
 
 type rawRowsShards struct {
-	shardIdx uint64
+	shardIdx uint32
 
 	// Shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawRowsShard
@@ -448,9 +448,9 @@ func (rrss *rawRowsShards) init() {
 }
 
 func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
-	n := atomic.AddUint64(&rrss.shardIdx, 1)
+	n := atomic.AddUint32(&rrss.shardIdx, 1)
 	shards := rrss.shards
-	idx := n % uint64(len(shards))
+	idx := n % uint32(len(shards))
 	shard := &shards[idx]
 	shard.addRows(pt, rows)
 }
