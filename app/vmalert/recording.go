@@ -25,6 +25,8 @@ type RecordingRule struct {
 	Labels  map[string]string
 	GroupID uint64
 
+	q datasource.Querier
+
 	// guard status fields
 	mu sync.RWMutex
 	// stores last moment of time Exec was called
@@ -52,7 +54,7 @@ func (rr *RecordingRule) ID() uint64 {
 	return rr.RuleID
 }
 
-func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
+func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
 		Type:    cfg.Type,
 		RuleID:  cfg.ID,
@@ -61,6 +63,7 @@ func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 		Labels:  cfg.Labels,
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
+		q:       qb.BuildWithParams(datasource.QuerierParams{DataSourceType: &cfg.Type}),
 	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
@@ -82,12 +85,12 @@ func (rr *RecordingRule) Close() {
 }
 
 // Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) Exec(ctx context.Context, series bool) ([]prompbmarshal.TimeSeries, error) {
 	if !series {
 		return nil, nil
 	}
 
-	qMetrics, err := q.Query(ctx, rr.Expr, rr.Type)
+	qMetrics, err := rr.q.Query(ctx, rr.Expr)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
 

@@ -26,7 +26,7 @@ var (
 
 // Init creates a Querier from provided flag values.
 // Returns nil if addr flag wasn't set.
-func Init() (datasource.Querier, error) {
+func Init() (datasource.QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, nil
 	}
