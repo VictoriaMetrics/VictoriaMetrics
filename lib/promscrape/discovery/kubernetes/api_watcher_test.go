@@ -187,7 +187,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 		expectedLen int
 		initObjects map[string][]byte
 		// will be added for watching api.
-		nextAdd map[string][][]byte
+		mustAddObjects map[string][][]byte
 	}
 	cases := []testCase{
 		{
@@ -228,7 +228,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
     }
 }]}`),
 			},
-			nextAdd: map[string][][]byte{
+			mustAddObjects: map[string][][]byte{
 				"pod": {
 					[]byte(`{
     "apiVersion": "v1",
@@ -362,7 +362,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 }
 ]}`),
 			},
-			nextAdd: map[string][][]byte{
+			mustAddObjects: map[string][][]byte{
 				"service": {
 					[]byte(`{
     "apiVersion": "v1",
@@ -398,6 +398,516 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:        "get nodes",
+			sdc:         &SDConfig{Role: "node"},
+			expectedLen: 2,
+			initObjects: map[string][]byte{
+				"node": []byte(`{
+  "kind": "NodeList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/nodes",
+    "resourceVersion": "22627"
+  },
+  "items": [
+{
+  "apiVersion": "v1",
+  "kind": "Node",
+  "metadata": {
+    "annotations": {
+      "kubeadm.alpha.kubernetes.io/cri-socket": "/run/containerd/containerd.sock"
+    },
+    "labels": {
+      "beta.kubernetes.io/arch": "amd64",
+      "beta.kubernetes.io/os": "linux"
+    },
+    "name": "kind-control-plane-new"
+  },
+  "status": {
+    "addresses": [
+      {
+        "address": "10.10.2.5",
+        "type": "InternalIP"
+      },
+      {
+        "address": "kind-control-plane",
+        "type": "Hostname"
+      }
+    ]
+  }
+}
+]}`),
+			},
+			mustAddObjects: map[string][][]byte{
+				"node": {
+					[]byte(`{
+  "apiVersion": "v1",
+  "kind": "Node",
+  "metadata": {
+    "annotations": {
+      "kubeadm.alpha.kubernetes.io/cri-socket": "/run/containerd/containerd.sock"
+    },
+    "labels": {
+      "beta.kubernetes.io/arch": "amd64",
+      "beta.kubernetes.io/os": "linux"
+    },
+    "name": "kind-control-plane"
+  },
+  "status": {
+    "addresses": [
+      {
+        "address": "10.10.2.2",
+        "type": "InternalIP"
+      },
+      {
+        "address": "kind-control-plane",
+        "type": "Hostname"
+      }
+    ]
+  }
+}`),
+				},
+			},
+		},
+		{
+			name:        "2 service with 2 added",
+			sdc:         &SDConfig{Role: "service"},
+			expectedLen: 4,
+			initObjects: map[string][]byte{
+				"service": []byte(`{
+  "kind": "ServiceList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/services",
+    "resourceVersion": "60485"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "kube-dns",
+        "namespace": "kube-system",
+        "labels": {
+          "k8s-app": "kube-dns"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "dns",
+            "protocol": "UDP",
+            "port": 53,
+            "targetPort": 53
+          },
+          {
+            "name": "dns-tcp",
+            "protocol": "TCP",
+            "port": 53,
+            "targetPort": 53
+          }
+        ],
+        "selector": {
+          "k8s-app": "kube-dns"
+        },
+        "clusterIP": "10.96.0.10",
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      }
+    }
+  ]
+}`),
+			},
+			mustAddObjects: map[string][][]byte{
+				"service": {
+					[]byte(`{
+  "metadata": {
+    "name": "another-service-1",
+    "namespace": "default",
+    "labels": {
+      "k8s-app": "kube-dns"
+    }
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "some-app-1-tcp",
+        "protocol": "TCP",
+        "port": 1053,
+        "targetPort": 1053
+      }
+    ],
+    "selector": {
+      "k8s-app": "some-app-1"
+    },
+    "clusterIP": "10.96.0.10",
+    "type": "ClusterIP"
+  }
+}`),
+					[]byte(`{
+  "metadata": {
+    "name": "another-service-2",
+    "namespace": "default",
+    "labels": {
+      "k8s-app": "kube-dns"
+    }
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "some-app-2-tcp",
+        "protocol": "TCP",
+        "port": 1053,
+        "targetPort": 1053
+      }
+    ],
+    "selector": {
+      "k8s-app": "some-app-2"
+    },
+    "clusterIP": "10.96.0.15",
+    "type": "ClusterIP"
+  }
+}`),
+				},
+			},
+		},
+		{
+			name:        "1 ingress with 2 add",
+			expectedLen: 3,
+			sdc: &SDConfig{
+				Role: "ingress",
+			},
+			initObjects: map[string][]byte{
+				"ingress": []byte(`{
+  "kind": "IngressList",
+  "apiVersion": "extensions/v1beta1",
+  "metadata": {
+    "selfLink": "/apis/extensions/v1beta1/ingresses",
+    "resourceVersion": "351452"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "test-ingress",
+        "namespace": "default"
+      },
+      "spec": {
+        "backend": {
+          "serviceName": "testsvc",
+          "servicePort": 80
+        },
+        "rules": [
+          {
+            "host": "foobar"
+          }
+        ]
+      },
+      "status": {
+        "loadBalancer": {
+          "ingress": [
+            {
+              "ip": "172.17.0.2"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}`),
+			},
+			mustAddObjects: map[string][][]byte{
+				"ingress": {
+					[]byte(`{
+  "metadata": {
+    "name": "test-ingress-1",
+    "namespace": "default"
+  },
+  "spec": {
+    "backend": {
+      "serviceName": "testsvc",
+      "servicePort": 801
+    },
+    "rules": [
+      {
+        "host": "foobar"
+      }
+    ]
+  },
+  "status": {
+    "loadBalancer": {
+      "ingress": [
+        {
+          "ip": "172.17.0.3"
+        }
+      ]
+    }
+  }
+}`),
+					[]byte(`{
+  "metadata": {
+    "name": "test-ingress-2",
+    "namespace": "default"
+  },
+  "spec": {
+    "backend": {
+      "serviceName": "testsvc",
+      "servicePort": 802
+    },
+    "rules": [
+      {
+        "host": "foobar"
+      }
+    ]
+  },
+  "status": {
+    "loadBalancer": {
+      "ingress": [
+        {
+          "ip": "172.17.0.3"
+        }
+      ]
+    }
+  }
+}`),
+				},
+			},
+		},
+		{
+			name: "7 endpointslices slice with 1 service update",
+			sdc: &SDConfig{
+				Role: "endpointslices",
+			},
+			expectedLen: 7,
+			initObjects: map[string][]byte{
+				"endpointslices": []byte(`{
+  "kind": "EndpointSliceList",
+  "apiVersion": "discovery.k8s.io/v1beta1",
+  "metadata": {
+    "selfLink": "/apis/discovery.k8s.io/v1beta1/endpointslices",
+    "resourceVersion": "1177"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "kubernetes",
+        "namespace": "default",
+        "labels": {
+          "kubernetes.io/service-name": "kubernetes"
+        }
+      },
+      "addressType": "IPv4",
+      "endpoints": [
+        {
+          "addresses": [
+            "172.18.0.2"
+          ],
+          "conditions": {
+            "ready": true
+          }
+        }
+      ],
+      "ports": [
+        {
+          "name": "https",
+          "protocol": "TCP",
+          "port": 6443
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "name": "kube-dns",
+        "namespace": "kube-system",
+        "labels": {
+          "kubernetes.io/service-name": "kube-dns"
+        }
+      },
+      "addressType": "IPv4",
+      "endpoints": [
+        {
+          "addresses": [
+            "10.244.0.3"
+          ],
+          "conditions": {
+            "ready": true
+          },
+          "targetRef": {
+            "kind": "Pod",
+            "namespace": "kube-system",
+            "name": "coredns-66bff467f8-z8czk",
+            "uid": "36a545ff-dbba-4192-a5f6-1dbb0c21c73d",
+            "resourceVersion": "603"
+          },
+          "topology": {
+            "kubernetes.io/hostname": "kind-control-plane"
+          }
+        },
+        {
+          "addresses": [
+            "10.244.0.4"
+          ],
+          "conditions": {
+            "ready": true
+          },
+          "targetRef": {
+            "kind": "Pod",
+            "namespace": "kube-system",
+            "name": "coredns-66bff467f8-kpbhk",
+            "uid": "db38d8b4-847a-4e82-874c-fe444fba2718",
+            "resourceVersion": "576"
+          },
+          "topology": {
+            "kubernetes.io/hostname": "kind-control-plane"
+          }
+        }
+      ],
+      "ports": [
+        {
+          "name": "dns-tcp",
+          "protocol": "TCP",
+          "port": 53
+        },
+        {
+          "name": "metrics",
+          "protocol": "TCP",
+          "port": 9153
+        },
+        {
+          "name": "dns",
+          "protocol": "UDP",
+          "port": 53
+        }
+      ]
+    }
+  ]
+}`),
+				"pod": []byte(`{
+  "kind": "PodList",
+  "apiVersion": "v1",
+  "metadata": {
+    "resourceVersion": "72425"
+  },
+  "items": [
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "labels": {
+            "app.kubernetes.io/instance": "stack",
+            "pod-template-hash": "5b9c6cf775"
+        },
+        "name": "coredns-66bff467f8-kpbhk",
+        "namespace": "kube-system"
+    },
+    "spec": {
+        "containers": [
+            {
+               "name": "generic-pod"
+            }
+        ]
+    },
+    "status": {
+        "podIP": "10.10.2.2",
+        "phase": "Running"
+    }
+},
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "labels": {
+            "app.kubernetes.io/instance": "stack",
+            "pod-template-hash": "5b9c6cf775"
+        },
+        "name": "coredns-66bff467f8-z8czk",
+        "namespace": "kube-system"
+    },
+    "spec": {
+        "containers": [
+            {
+               "name": "generic-pod"
+            }
+        ]
+    },
+    "status": {
+        "podIP": "10.10.2.3",
+        "phase": "Running"
+    }
+}
+]}`),
+				"service": []byte(`{
+  "kind": "ServiceList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/services",
+    "resourceVersion": "60485"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "kube-dns",
+        "namespace": "kube-system",
+        "labels": {
+          "k8s-app": "kube-dns"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "dns",
+            "protocol": "UDP",
+            "port": 53,
+            "targetPort": 53
+          },
+          {
+            "name": "dns-tcp",
+            "protocol": "TCP",
+            "port": 53,
+            "targetPort": 53
+          }
+        ],
+        "selector": {
+          "k8s-app": "kube-dns"
+        },
+        "clusterIP": "10.96.0.10",
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      }
+    }
+  ]
+}`),
+			},
+			mustAddObjects: map[string][][]byte{
+				"service": {
+					[]byte(`    {
+      "metadata": {
+        "name": "kube-dns",
+        "namespace": "kube-system",
+        "labels": {
+          "k8s-app": "kube-dns",
+          "some-new": "label-value"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "dns-tcp",
+            "protocol": "TCP",
+            "port": 53,
+            "targetPort": 53
+          }
+        ],
+        "selector": {
+          "k8s-app": "kube-dns"
+        },
+        "clusterIP": "10.96.0.10",
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      }
+    }
+`),
+				},
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -412,11 +922,11 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			srv := httptest.NewServer(mux)
 			tc.sdc.APIServer = srv.URL
 			ac, err := newAPIConfig(tc.sdc, "", func(metaLabels map[string]string) interface{} {
-				var simpleResult []interface{}
+				var res []interface{}
 				for k := range metaLabels {
-					simpleResult = append(simpleResult, k)
+					res = append(res, k)
 				}
-				return simpleResult
+				return res
 			})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -428,7 +938,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			for role, objs := range tc.nextAdd {
+			for role, objs := range tc.mustAddObjects {
 				for _, obj := range objs {
 					updatesByRole[role] <- obj
 				}
@@ -436,7 +946,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			for _, ch := range updatesByRole {
 				close(ch)
 			}
-			if len(tc.nextAdd) > 0 {
+			if len(tc.mustAddObjects) > 0 {
 				// updates async, need to wait some time.
 				// i guess, poll is not reliable.
 				time.Sleep(500 * time.Millisecond)
