@@ -404,10 +404,10 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			updatesByRole := make(map[string]chan []byte)
 			mux := http.NewServeMux()
 			for role, obj := range tc.initObjects {
-				watchCh := make(chan []byte, 0)
+				watchCh := make(chan []byte)
 				updatesByRole[role] = watchCh
 				apiPath := getAPIPath(getObjectTypeByRole(role), "", "")
-				addApiUrlHandler(t, mux, apiPath, obj, watchCh)
+				addAPIURLHandler(t, mux, apiPath, obj, watchCh)
 			}
 			srv := httptest.NewServer(mux)
 			tc.sdc.APIServer = srv.URL
@@ -424,7 +424,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			tc.sdc.cfg = ac
 			ac.aw.mustStart()
 			defer ac.aw.mustStop()
-			got, err := tc.sdc.GetScrapeWorkObjects()
+			_, err = tc.sdc.GetScrapeWorkObjects()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -441,7 +441,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 				// i guess, poll is not reliable.
 				time.Sleep(500 * time.Millisecond)
 			}
-			got, err = tc.sdc.GetScrapeWorkObjects()
+			got, err := tc.sdc.GetScrapeWorkObjects()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -452,9 +452,9 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 	}
 }
 
-func addApiUrlHandler(t *testing.T, mux *http.ServeMux, apiUrl string, initObjects []byte, updateObjects chan []byte) {
+func addAPIURLHandler(t *testing.T, mux *http.ServeMux, apiURL string, initObjects []byte, updateObjects chan []byte) {
 	t.Helper()
-	mux.HandleFunc(apiUrl, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(apiURL, func(w http.ResponseWriter, r *http.Request) {
 		if needWatch := r.URL.Query().Get("watch"); len(needWatch) > 0 {
 			// start watch handler
 			w.WriteHeader(200)
