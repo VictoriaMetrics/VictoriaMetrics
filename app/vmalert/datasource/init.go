@@ -28,7 +28,7 @@ var (
 )
 
 // Init creates a Querier from provided flag values.
-func Init() (Querier, error) {
+func Init() (QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, fmt.Errorf("datasource.url is empty")
 	}

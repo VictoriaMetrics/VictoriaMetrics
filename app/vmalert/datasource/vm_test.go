@@ -70,25 +70,25 @@ func TestVMSelectQuery(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected invalid response status error got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected response body error got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected error status got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected unknown status got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
 	}
-	m, err := am.Query(ctx, query, NewPrometheusType())
+	m, err := am.Query(ctx, query)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -106,7 +106,10 @@ func TestVMSelectQuery(t *testing.T) {
 		m[0].Labels[0].Name != expected.Labels[0].Name {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
-	m, err = am.Query(ctx, queryRender, NewGraphiteType())
+
+	dst := NewGraphiteType()
+	q := am.BuildWithParams(QuerierParams{&dst})
+	m, err = q.Query(ctx, queryRender)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}

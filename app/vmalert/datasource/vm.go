@@ -81,6 +81,7 @@ type VMStorage struct {
 	appendTypePrefix bool
 	lookBack         time.Duration
 	queryStep        time.Duration
+	dataSourceType   Type
 }
 
 const queryPath = "/api/v1/query"
@@ -88,6 +89,38 @@ const graphitePath = "/render"
 
 const prometheusPrefix = "/prometheus"
 const graphitePrefix = "/graphite"
+
+// QuerierParams params for Querier.
+type QuerierParams struct {
+	DataSourceType *Type
+}
+
+// Clone makes clone of VMStorage, shares http client.
+func (s *VMStorage) Clone() *VMStorage {
+	return &VMStorage{
+		c:                s.c,
+		datasourceURL:    s.datasourceURL,
+		basicAuthUser:    s.basicAuthUser,
+		basicAuthPass:    s.basicAuthPass,
+		lookBack:         s.lookBack,
+		queryStep:        s.queryStep,
+		appendTypePrefix: s.appendTypePrefix,
+		dataSourceType:   s.dataSourceType,
+	}
+}
+
+// ApplyParams - changes given querier params.
+func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
+	if params.DataSourceType != nil {
+		s.dataSourceType = *params.DataSourceType
+	}
+	return s
+}
+
+// BuildWithParams - implements interface.
+func (s *VMStorage) BuildWithParams(params QuerierParams) Querier {
+	return s.Clone().ApplyParams(params)
+}
 
 // NewVMStorage is a constructor for VMStorage
 func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
@@ -99,18 +132,19 @@ func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Du
 		appendTypePrefix: appendTypePrefix,
 		lookBack:         lookBack,
 		queryStep:        queryStep,
+		dataSourceType:   NewPrometheusType(),
 	}
 }
 
 // Query reads metrics from datasource by given query and type
-func (s *VMStorage) Query(ctx context.Context, query string, dataSourceType Type) ([]Metric, error) {
-	switch dataSourceType.name {
+func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
+	switch s.dataSourceType.name {
 	case "", prometheusType:
 		return s.queryDataSource(ctx, query, s.setPrometheusReqParams, parsePrometheusResponse)
 	case graphiteType:
 		return s.queryDataSource(ctx, query, s.setGraphiteReqParams, parseGraphiteResponse)
 	default:
-		return nil, fmt.Errorf("engine not found: %q", dataSourceType)
+		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
 	}
 }
 

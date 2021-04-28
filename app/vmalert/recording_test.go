@@ -76,7 +76,8 @@ func TestRecoridngRule_ToTimeSeries(t *testing.T) {
 		t.Run(tc.rule.Name, func(t *testing.T) {
 			fq := &fakeQuerier{}
 			fq.add(tc.metrics...)
-			tss, err := tc.rule.Exec(context.TODO(), fq, true)
+			tc.rule.q = fq
+			tss, err := tc.rule.Exec(context.TODO(), true)
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -95,8 +96,8 @@ func TestRecoridngRule_ToTimeSeriesNegative(t *testing.T) {
 	fq := &fakeQuerier{}
 	expErr := "connection reset by peer"
 	fq.setErr(errors.New(expErr))
-
-	_, err := rr.Exec(context.TODO(), fq, true)
+	rr.q = fq
+	_, err := rr.Exec(context.TODO(), true)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -111,7 +112,7 @@ func TestRecoridngRule_ToTimeSeriesNegative(t *testing.T) {
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
 	fq.add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
-	_, err = rr.Exec(context.TODO(), fq, true)
+	_, err = rr.Exec(context.TODO(), true)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
