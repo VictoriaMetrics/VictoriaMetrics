@@ -39,14 +39,14 @@ func parseEndpointSlice(data []byte) (object, error) {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpointslices
 func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string {
 	var svc *Service
-	if o := gw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
 	var ms []map[string]string
 	for _, ess := range eps.Endpoints {
 		var p *Pod
-		if o := gw.getObjectByRole("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {
+		if o := gw.getObjectByRoleLocked("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {
 			p = o.(*Pod)
 		}
 		for _, epp := range eps.Ports {
