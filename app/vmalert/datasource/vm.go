@@ -136,24 +136,8 @@ func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Du
 	}
 }
 
-// Query reads metrics from datasource by given query and type
+// Query executes the given query and returns parsed response
 func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
-	switch s.dataSourceType.name {
-	case "", prometheusType:
-		return s.queryDataSource(ctx, query, s.setPrometheusReqParams, parsePrometheusResponse)
-	case graphiteType:
-		return s.queryDataSource(ctx, query, s.setGraphiteReqParams, parseGraphiteResponse)
-	default:
-		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
-	}
-}
-
-func (s *VMStorage) queryDataSource(
-	ctx context.Context,
-	query string,
-	setReqParams func(r *http.Request, query string),
-	processResponse func(r *http.Request, resp *http.Response,
-	) ([]Metric, error)) ([]Metric, error) {
 	req, err := http.NewRequest("POST", s.datasourceURL, nil)
 	if err != nil {
 		return nil, err
@@ -162,17 +146,38 @@ func (s *VMStorage) queryDataSource(
 	if s.basicAuthPass != "" {
 		req.SetBasicAuth(s.basicAuthUser, s.basicAuthPass)
 	}
-	setReqParams(req, query)
+
+	var parseFn func(req *http.Request, resp *http.Response) ([]Metric, error)
+	switch s.dataSourceType.name {
+	case "", prometheusType:
+		s.setPrometheusReqParams(req, query)
+		parseFn = parsePrometheusResponse
+	case graphiteType:
+		s.setGraphiteReqParams(req, query)
+		parseFn = parseGraphiteResponse
+	default:
+		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
+	}
+
+	resp, err := s.do(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return parseFn(req, resp)
+}
+
+func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", req.URL, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
 	}
-	return processResponse(req, resp)
+	return resp, nil
 }
 
 func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
