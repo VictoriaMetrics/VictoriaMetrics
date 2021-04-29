@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
@@ -182,12 +183,12 @@ func TestParseBookmark(t *testing.T) {
 
 func TestGetScrapeWorkObjects(t *testing.T) {
 	type testCase struct {
-		name        string
-		sdc         *SDConfig
-		expectedLen int
-		initObjects map[string][]byte
+		name                 string
+		sdc                  *SDConfig
+		expectedTargetsLen   int
+		initAPIObjectsByRole map[string][]byte
 		// will be added for watching api.
-		mustAddObjects map[string][][]byte
+		watchAPIMustAddObjectsByRole map[string][][]byte
 	}
 	cases := []testCase{
 		{
@@ -195,8 +196,8 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			sdc: &SDConfig{
 				Role: "pod",
 			},
-			expectedLen: 2,
-			initObjects: map[string][]byte{
+			expectedTargetsLen: 2,
+			initAPIObjectsByRole: map[string][]byte{
 				"pod": []byte(`{
   "kind": "PodList",
   "apiVersion": "v1",
@@ -228,7 +229,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
     }
 }]}`),
 			},
-			mustAddObjects: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
 				"pod": {
 					[]byte(`{
     "apiVersion": "v1",
@@ -261,8 +262,8 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			sdc: &SDConfig{
 				Role: "endpoints",
 			},
-			expectedLen: 2,
-			initObjects: map[string][]byte{
+			expectedTargetsLen: 2,
+			initAPIObjectsByRole: map[string][]byte{
 				"service": []byte(`{
   "kind": "ServiceList",
   "apiVersion": "v1",
@@ -362,7 +363,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 }
 ]}`),
 			},
-			mustAddObjects: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
 				"service": {
 					[]byte(`{
     "apiVersion": "v1",
@@ -399,10 +400,10 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			},
 		},
 		{
-			name:        "get nodes",
-			sdc:         &SDConfig{Role: "node"},
-			expectedLen: 2,
-			initObjects: map[string][]byte{
+			name:               "get nodes",
+			sdc:                &SDConfig{Role: "node"},
+			expectedTargetsLen: 2,
+			initAPIObjectsByRole: map[string][]byte{
 				"node": []byte(`{
   "kind": "NodeList",
   "apiVersion": "v1",
@@ -439,7 +440,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 }
 ]}`),
 			},
-			mustAddObjects: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
 				"node": {
 					[]byte(`{
   "apiVersion": "v1",
@@ -471,10 +472,10 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			},
 		},
 		{
-			name:        "2 service with 2 added",
-			sdc:         &SDConfig{Role: "service"},
-			expectedLen: 4,
-			initObjects: map[string][]byte{
+			name:               "2 service with 2 added",
+			sdc:                &SDConfig{Role: "service"},
+			expectedTargetsLen: 4,
+			initAPIObjectsByRole: map[string][]byte{
 				"service": []byte(`{
   "kind": "ServiceList",
   "apiVersion": "v1",
@@ -517,7 +518,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
   ]
 }`),
 			},
-			mustAddObjects: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
 				"service": {
 					[]byte(`{
   "metadata": {
@@ -571,12 +572,12 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			},
 		},
 		{
-			name:        "1 ingress with 2 add",
-			expectedLen: 3,
+			name:               "1 ingress with 2 add",
+			expectedTargetsLen: 3,
 			sdc: &SDConfig{
 				Role: "ingress",
 			},
-			initObjects: map[string][]byte{
+			initAPIObjectsByRole: map[string][]byte{
 				"ingress": []byte(`{
   "kind": "IngressList",
   "apiVersion": "extensions/v1beta1",
@@ -614,7 +615,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
   ]
 }`),
 			},
-			mustAddObjects: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
 				"ingress": {
 					[]byte(`{
   "metadata": {
@@ -676,8 +677,8 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			sdc: &SDConfig{
 				Role: "endpointslices",
 			},
-			expectedLen: 7,
-			initObjects: map[string][]byte{
+			expectedTargetsLen: 7,
+			initAPIObjectsByRole: map[string][]byte{
 				"endpointslices": []byte(`{
   "kind": "EndpointSliceList",
   "apiVersion": "discovery.k8s.io/v1beta1",
@@ -876,7 +877,7 @@ func TestGetScrapeWorkObjects(t *testing.T) {
   ]
 }`),
 			},
-			mustAddObjects: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
 				"service": {
 					[]byte(`    {
       "metadata": {
@@ -911,16 +912,16 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			updatesByRole := make(map[string]chan []byte)
+			watchPublishersByRole := make(map[string]*watchObjectBroadcast)
 			mux := http.NewServeMux()
-			for role, obj := range tc.initObjects {
-				watchCh := make(chan []byte)
-				updatesByRole[role] = watchCh
+			for role, obj := range tc.initAPIObjectsByRole {
+				watchBroadCaster := &watchObjectBroadcast{}
+				watchPublishersByRole[role] = watchBroadCaster
 				apiPath := getAPIPath(getObjectTypeByRole(role), "", "")
-				addAPIURLHandler(t, mux, apiPath, obj, watchCh)
+				addAPIURLHandler(t, mux, apiPath, obj, watchBroadCaster)
 			}
-			srv := httptest.NewServer(mux)
-			tc.sdc.APIServer = srv.URL
+			testAPIServer := httptest.NewServer(mux)
+			tc.sdc.APIServer = testAPIServer.URL
 			ac, err := newAPIConfig(tc.sdc, "", func(metaLabels map[string]string) interface{} {
 				var res []interface{}
 				for k := range metaLabels {
@@ -938,31 +939,67 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			for role, objs := range tc.mustAddObjects {
+			// need to wait, for subscribers to start.
+			time.Sleep(80 * time.Millisecond)
+			for role, objs := range tc.watchAPIMustAddObjectsByRole {
 				for _, obj := range objs {
-					updatesByRole[role] <- obj
+					watchPublishersByRole[role].pub(obj)
 				}
 			}
-			for _, ch := range updatesByRole {
-				close(ch)
+			for _, ch := range watchPublishersByRole {
+				ch.shutdown()
 			}
-			if len(tc.mustAddObjects) > 0 {
+			if len(tc.watchAPIMustAddObjectsByRole) > 0 {
 				// updates async, need to wait some time.
 				// i guess, poll is not reliable.
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(80 * time.Millisecond)
 			}
 			got, err := tc.sdc.GetScrapeWorkObjects()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if len(got) != tc.expectedLen {
-				t.Fatalf("unexpected count of objects, got: %d, want: %d", len(got), tc.expectedLen)
+			if len(got) != tc.expectedTargetsLen {
+				t.Fatalf("unexpected count of objects, got: %d, want: %d", len(got), tc.expectedTargetsLen)
 			}
 		})
 	}
 }
 
-func addAPIURLHandler(t *testing.T, mux *http.ServeMux, apiURL string, initObjects []byte, updateObjects chan []byte) {
+type watchObjectBroadcast struct {
+	mu          sync.Mutex
+	subscribers []chan []byte
+}
+
+func (o *watchObjectBroadcast) pub(msg []byte) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	for i := range o.subscribers {
+		c := o.subscribers[i]
+		select {
+		case c <- msg:
+		default:
+		}
+	}
+}
+
+func (o *watchObjectBroadcast) sub() <-chan []byte {
+	c := make(chan []byte, 5)
+	o.mu.Lock()
+	o.subscribers = append(o.subscribers, c)
+	o.mu.Unlock()
+	return c
+}
+
+func (o *watchObjectBroadcast) shutdown() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	for i := range o.subscribers {
+		c := o.subscribers[i]
+		close(c)
+	}
+}
+
+func addAPIURLHandler(t *testing.T, mux *http.ServeMux, apiURL string, initObjects []byte, notifier *watchObjectBroadcast) {
 	t.Helper()
 	mux.HandleFunc(apiURL, func(w http.ResponseWriter, r *http.Request) {
 		if needWatch := r.URL.Query().Get("watch"); len(needWatch) > 0 {
@@ -970,7 +1007,8 @@ func addAPIURLHandler(t *testing.T, mux *http.ServeMux, apiURL string, initObjec
 			w.WriteHeader(200)
 			flusher := w.(http.Flusher)
 			flusher.Flush()
-			for obj := range updateObjects {
+			updateC := notifier.sub()
+			for obj := range updateC {
 				we := WatchEvent{
 					Type:   "ADDED",
 					Object: obj,
