@@ -213,8 +213,9 @@ func TestPrepareReq(t *testing.T) {
 				evaluationInterval: 15 * time.Second,
 			},
 			func(t *testing.T, r *http.Request) {
-				tt := timestamp.Truncate(15 * time.Second)
-				exp := fmt.Sprintf("query=%s&time=%d", query, tt.Unix())
+				evalInterval := 15 * time.Second
+				tt := timestamp.Truncate(evalInterval)
+				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
@@ -225,14 +226,15 @@ func TestPrepareReq(t *testing.T) {
 				evaluationInterval: 15 * time.Second,
 			},
 			func(t *testing.T, r *http.Request) {
+				evalInterval := 15 * time.Second
 				tt := timestamp.Add(-time.Minute)
-				tt = tt.Truncate(15 * time.Second)
-				exp := fmt.Sprintf("query=%s&time=%d", query, tt.Unix())
+				tt = tt.Truncate(evalInterval)
+				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
 		{
-			"step",
+			"step override",
 			&VMStorage{
 				queryStep: time.Minute,
 			},
