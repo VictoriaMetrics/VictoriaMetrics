@@ -62,9 +62,12 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		Annotations: cfg.Annotations,
 		GroupID:     group.ID(),
 		GroupName:   group.Name,
-		q:           qb.BuildWithParams(datasource.QuerierParams{DataSourceType: &cfg.Type}),
-		alerts:      make(map[uint64]*notifier.Alert),
-		metrics:     &alertingRuleMetrics{},
+		q: qb.BuildWithParams(datasource.QuerierParams{
+			DataSourceType:     &cfg.Type,
+			EvaluationInterval: group.Interval,
+		}),
+		alerts:  make(map[uint64]*notifier.Alert),
+		metrics: &alertingRuleMetrics{},
 	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
