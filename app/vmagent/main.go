@@ -148,7 +148,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
-		fmt.Fprintf(w, "vmagent - see docs at https://docs.victoriametrics.com/vmagent.html")
+		fmt.Fprintf(w, "<h2>vmagent</h2>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent.html'>https://docs.victoriametrics.com/vmagent.html</a></br>")
+		fmt.Fprintf(w, "Useful endpoints:</br>")
+		httpserver.WriteAPIHelp(w, [][2]string{
+			{"/targets", "discovered targets list"},
+			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
+			{"/metrics", "available service metrics"},
+			{"/-/reload", "reload configuration"},
+		})
 		return true
 	}
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
