@@ -209,9 +209,13 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string, timest
 	if s.evaluationInterval > 0 {
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
 		timestamp = timestamp.Truncate(s.evaluationInterval)
+		// set step as evaluationInterval by default
+		q.Set("step", s.evaluationInterval.String())
 	}
 	q.Set("time", fmt.Sprintf("%d", timestamp.Unix()))
+
 	if s.queryStep > 0 {
+		// override step with user-specified value
 		q.Set("step", s.queryStep.String())
 	}
 	r.URL.RawQuery = q.Encode()
