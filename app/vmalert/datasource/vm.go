@@ -81,7 +81,9 @@ type VMStorage struct {
 	appendTypePrefix bool
 	lookBack         time.Duration
 	queryStep        time.Duration
-	dataSourceType   Type
+
+	dataSourceType     Type
+	evaluationInterval time.Duration
 }
 
 const queryPath = "/api/v1/query"
@@ -92,7 +94,8 @@ const graphitePrefix = "/graphite"
 
 // QuerierParams params for Querier.
 type QuerierParams struct {
-	DataSourceType *Type
+	DataSourceType     *Type
+	EvaluationInterval time.Duration
 }
 
 // Clone makes clone of VMStorage, shares http client.
@@ -113,6 +116,7 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	if params.DataSourceType != nil {
 		s.dataSourceType = *params.DataSourceType
+		s.evaluationInterval = params.EvaluationInterval
 	}
 	return s
 }
@@ -136,24 +140,27 @@ func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Du
 	}
 }
 
-// Query reads metrics from datasource by given query and type
+// Query executes the given query and returns parsed response
 func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
-	switch s.dataSourceType.name {
-	case "", prometheusType:
-		return s.queryDataSource(ctx, query, s.setPrometheusReqParams, parsePrometheusResponse)
-	case graphiteType:
-		return s.queryDataSource(ctx, query, s.setGraphiteReqParams, parseGraphiteResponse)
-	default:
-		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
+	req, err := s.prepareReq(query, time.Now())
+	if err != nil {
+		return nil, err
 	}
+
+	resp, err := s.do(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	parseFn := parsePrometheusResponse
+	if s.dataSourceType.name != prometheusType {
+		parseFn = parseGraphiteResponse
+	}
+	return parseFn(req, resp)
 }
 
-func (s *VMStorage) queryDataSource(
-	ctx context.Context,
-	query string,
-	setReqParams func(r *http.Request, query string),
-	processResponse func(r *http.Request, resp *http.Response,
-	) ([]Metric, error)) ([]Metric, error) {
+func (s *VMStorage) prepareReq(query string, timestamp time.Time) (*http.Request, error) {
 	req, err := http.NewRequest("POST", s.datasourceURL, nil)
 	if err != nil {
 		return nil, err
@@ -162,20 +169,32 @@ func (s *VMStorage) queryDataSource(
 	if s.basicAuthPass != "" {
 		req.SetBasicAuth(s.basicAuthUser, s.basicAuthPass)
 	}
-	setReqParams(req, query)
+
+	switch s.dataSourceType.name {
+	case "", prometheusType:
+		s.setPrometheusReqParams(req, query, timestamp)
+	case graphiteType:
+		s.setGraphiteReqParams(req, query, timestamp)
+	default:
+		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
+	}
+	return req, nil
+}
+
+func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", req.URL, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
 	}
-	return processResponse(req, resp)
+	return resp, nil
 }
 
-func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
+func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string, timestamp time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += prometheusPrefix
 	}
@@ -183,16 +202,20 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 	q := r.URL.Query()
 	q.Set("query", query)
 	if s.lookBack > 0 {
-		lookBack := time.Now().Add(-s.lookBack)
-		q.Set("time", fmt.Sprintf("%d", lookBack.Unix()))
+		timestamp = timestamp.Add(-s.lookBack)
 	}
+	if s.evaluationInterval > 0 {
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
+		timestamp = timestamp.Truncate(s.evaluationInterval)
+	}
+	q.Set("time", fmt.Sprintf("%d", timestamp.Unix()))
 	if s.queryStep > 0 {
 		q.Set("step", s.queryStep.String())
 	}
 	r.URL.RawQuery = q.Encode()
 }
 
-func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string) {
+func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestamp time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += graphitePrefix
 	}
@@ -202,7 +225,7 @@ func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string) {
 	q.Set("target", query)
 	from := "-5min"
 	if s.lookBack > 0 {
-		lookBack := time.Now().Add(-s.lookBack)
+		lookBack := timestamp.Add(-s.lookBack)
 		from = strconv.FormatInt(lookBack.Unix(), 10)
 	}
 	q.Set("from", from)
