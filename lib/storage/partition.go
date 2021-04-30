@@ -437,54 +437,49 @@ func (pt *partition) AddRows(rows []rawRow) {
 }
 
 type rawRowsShards struct {
-	lock     sync.Mutex
-	shardIdx int
+	shardIdx uint32
 
 	// Shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawRowsShard
 }
 
-func (rrs *rawRowsShards) init() {
-	rrs.shards = make([]rawRowsShard, rawRowsShardsPerPartition)
+func (rrss *rawRowsShards) init() {
+	rrss.shards = make([]rawRowsShard, rawRowsShardsPerPartition)
 }
 
-func (rrs *rawRowsShards) addRows(pt *partition, rows []rawRow) {
-	rrs.lock.Lock()
-	rrs.shardIdx++
-	if rrs.shardIdx >= len(rrs.shards) {
-		rrs.shardIdx = 0
-	}
-	shard := &rrs.shards[rrs.shardIdx]
-	rrs.lock.Unlock()
-
+func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
+	n := atomic.AddUint32(&rrss.shardIdx, 1)
+	shards := rrss.shards
+	idx := n % uint32(len(shards))
+	shard := &shards[idx]
 	shard.addRows(pt, rows)
 }
 
-func (rrs *rawRowsShards) Len() int {
+func (rrss *rawRowsShards) Len() int {
 	n := 0
-	for i := range rrs.shards[:] {
-		n += rrs.shards[i].Len()
+	for i := range rrss.shards[:] {
+		n += rrss.shards[i].Len()
 	}
 	return n
 }
 
 type rawRowsShard struct {
-	lock          sync.Mutex
+	mu            sync.Mutex
 	rows          []rawRow
 	lastFlushTime uint64
 }
 
 func (rrs *rawRowsShard) Len() int {
-	rrs.lock.Lock()
+	rrs.mu.Lock()
 	n := len(rrs.rows)
-	rrs.lock.Unlock()
+	rrs.mu.Unlock()
 	return n
 }
 
 func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 	var rrss []*rawRows
 
-	rrs.lock.Lock()
+	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
 		rrs.rows = getRawRowsMaxSize().rows
 	}
@@ -506,7 +501,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 		rrss = append(rrss, rr)
 		rrs.lastFlushTime = fasttime.UnixTimestamp()
 	}
-	rrs.lock.Unlock()
+	rrs.mu.Unlock()
 
 	for _, rr := range rrss {
 		pt.addRowsPart(rr.rows)
@@ -752,10 +747,16 @@ func (pt *partition) flushRawRows(isFinal bool) {
 	pt.rawRows.flush(pt, isFinal)
 }
 
-func (rrs *rawRowsShards) flush(pt *partition, isFinal bool) {
-	for i := range rrs.shards[:] {
-		rrs.shards[i].flush(pt, isFinal)
+func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
+	var wg sync.WaitGroup
+	wg.Add(len(rrss.shards))
+	for i := range rrss.shards {
+		go func(rrs *rawRowsShard) {
+			rrs.flush(pt, isFinal)
+			wg.Done()
+		}(&rrss.shards[i])
 	}
+	wg.Wait()
 }
 
 func (rrs *rawRowsShard) flush(pt *partition, isFinal bool) {
@@ -766,12 +767,12 @@ func (rrs *rawRowsShard) flush(pt *partition, isFinal bool) {
 		flushSeconds = 1
 	}
 
-	rrs.lock.Lock()
+	rrs.mu.Lock()
 	if isFinal || currentTime-rrs.lastFlushTime > uint64(flushSeconds) {
 		rr = getRawRowsMaxSize()
 		rrs.rows, rr.rows = rr.rows, rrs.rows
 	}
-	rrs.lock.Unlock()
+	rrs.mu.Unlock()
 
 	if rr != nil {
 		pt.addRowsPart(rr.rows)
@@ -1363,7 +1364,7 @@ func (pt *partition) removeStaleParts() {
 	pt.snapshotLock.RLock()
 	var removeWG sync.WaitGroup
 	for pw := range m {
-		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, retentionDeadline/1000)
+		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, pt.retentionMsecs/1000)
 		removeWG.Add(1)
 		fs.MustRemoveAllWithDoneCallback(pw.p.path, removeWG.Done)
 	}

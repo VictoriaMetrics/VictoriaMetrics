@@ -2,31 +2,35 @@
 sort: 19
 ---
 
-## VictoriaMetrics Cluster Per Tenant Statistic
+# VictoriaMetrics Cluster Per Tenant Statistic
 
 <img alt="cluster-per-tenant-stat" src="per-tenant-stats.jpg">
 
-The enterprise version of VictoriaMetrics cluster exposes the usage statistics for each tenant.
-
-When the next statistic is exposed:
-
+VictoriaMetrics cluster for enterprise provides various metrics and statistics usage per tenant:
 - `vminsert`
-
-    * `vm_tenant_inserted_rows_total` -  the ingestion rate by tenant
+    * `vm_tenant_inserted_rows_total` - total number of inserted rows. Find out which tenant
+    puts the most of the pressure on the storage. 
+    
 - `vmselect`
-
-    * `vm_tenant_select_requests_duration_ms_total` -  query latency by tenant. It can be useful to identify the tenant with the heaviest queries
-    * `vm_tenant_select_requests_total` - total requests. You can calculate request rate (qps) with this metric
+    * `vm_tenant_select_requests_duration_ms_total` - query latency. 
+    Helps to identify tenants with the heaviest queries.
+    * `vm_tenant_select_requests_total` - total number of requests. 
+    Discover which tenant sends the most of the queries and how it changes with time.
 
 - `vmstorage`
-    * `vm_tenant_active_timeseries`  - the number of active timeseries
-    * `vm_tenant_used_tenant_bytes` - the disk space consumed by the metrics for a particular tenant
-    * `vm_tenant_timeseries_created_total` - the total number for timeseries by tenant
+    * `vm_tenant_active_timeseries` - number of active time series. 
+    This metric correlates with memory usage, so can be used to find the most expensive 
+    tenant in terms of memory. 
+    * `vm_tenant_used_tenant_bytes` - disk space usage. Helps to track disk space usage
+    per tenant.
+    * `vm_tenant_timeseries_created_total` - number of new time series created. Helps to track
+    the churn rate per tenant, or identify inefficient usage of the system.
 
+Collect the metrics by any scrape agent you like (`vmagent`, `victoriametrics`, Prometheus, etc) and put into TSDB. 
+It is ok to use existing cluster for storing such metrics, but make sure to use a different tenant for it to avoid collisions.
+Or just run a separate TSDB (VM single, Promethes, etc.) to keep the data isolated from the main cluster. 
 
-The information should be scraped by the agent (`vmagent`, `victoriametrics`, prometheus, etc) and stored in the TSDB. This can be the same cluster but a different tenant however, we encourage the use of one more instance of TSDB (more lightweight, eg. VM single) for the monitoring of monitoring.
-
-the config example for statistic scraping
+Example of the scraping configuration for statistic is the following: 
 
 ```yaml
 scrape_configs:
@@ -36,20 +40,23 @@ scrape_configs:
     - targets: ['vmselect:8481','vmstorage:8482','vminsert:8480']
 ```
 
-### Visualization
+## Visualization
 
-Visualisation of statistics can be done in Grafana using this dashboard [link](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster/dashboards/clusterbytenant.json)
+Visualisation of statistics can be done in Grafana using the following 
+[dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster/dashboards/clusterbytenant.json).
 
 
-### Integration with vmgateway
+## Integration with vmgateway
 
-Per Tenant Statistics are the source data for the `vmgateway` rate limiter. More information can be found [here](https://docs.victoriametrics.com/vmgateway.html)
+`vmgateway` supports integration with Per Tenant Statistics data for rate limiting purposes. 
+More information can be found [here](https://docs.victoriametrics.com/vmgateway.html)
 
-### Integration with vmalert
+## Integration with vmalert
 
-You can generate alerts based on each tenants' resource usage and notify the system/users that they are reaching the limits.
+You can generate alerts based on each tenant's resource usage and send notifications 
+to prevent limits exhaustion.
 
-Here is an example of an alert for high churn rate by the tenant
+Here is an alert example for high churn rate by the tenant:
 
 ```yaml
 

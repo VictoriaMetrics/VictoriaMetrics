@@ -17,7 +17,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.3
 	github.com/influxdata/influxdb v1.8.5
-	github.com/klauspost/compress v1.12.1
+	github.com/klauspost/compress v1.12.2
 	github.com/oklog/ulid v1.3.1
 	github.com/prometheus/client_golang v1.10.0 // indirect
 	github.com/prometheus/common v0.21.0 // indirect

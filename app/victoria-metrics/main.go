@@ -3,10 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"path"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -95,15 +93,21 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
-		fmt.Fprintf(w, "<h2>Single-node VictoriaMetrics.</h2></br>")
+		fmt.Fprintf(w, "<h2>Single-node VictoriaMetrics</h2></br>")
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/'>https://docs.victoriametrics.com/</a></br>")
-		fmt.Fprintf(w, "Useful endpoints: </br>")
-		writeAPIHelp(w, [][]string{
+		fmt.Fprintf(w, "Useful endpoints:</br>")
+		httpserver.WriteAPIHelp(w, [][2]string{
 			{"/targets", "discovered targets list"},
 			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"/metrics", "available service metrics"},
 			{"/api/v1/status/tsdb", "tsdb status page"},
+			{"/api/v1/status/top_queries", "top queries"},
+			{"/api/v1/status/active_queries", "active queries"},
 		})
+		for _, p := range customAPIPathList {
+			p, doc := p[0], p[1]
+			fmt.Fprintf(w, "<a href=%q>%s</a> - %s<br/>", p, p, doc)
+		}
 		return true
 	}
 	if vminsert.RequestHandler(w, r) {
@@ -116,19 +120,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	return false
-}
-
-func writeAPIHelp(w io.Writer, pathList [][]string) {
-	pathPrefix := httpserver.GetPathPrefix()
-	for _, p := range pathList {
-		p, doc := p[0], p[1]
-		p = path.Join(pathPrefix, p)
-		fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
-	}
-	for _, p := range customAPIPathList {
-		p, doc := p[0], p[1]
-		fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
-	}
 }
 
 func usage() {

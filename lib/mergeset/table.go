@@ -103,9 +103,10 @@ type Table struct {
 	partsLock sync.Mutex
 	parts     []*partWrapper
 
-	rawItemsBlocks        []*inmemoryBlock
-	rawItemsLock          sync.Mutex
-	rawItemsLastFlushTime uint64
+	// rawItems contains recently added items that haven't been converted to parts yet.
+	//
+	// rawItems aren't used in search for performance reasons
+	rawItems rawItemsShards
 
 	snapshotLock sync.RWMutex
 
@@ -122,6 +123,97 @@ type Table struct {
 
 	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
 	rawItemsPendingFlushesWG syncwg.WaitGroup
+}
+
+type rawItemsShards struct {
+	shardIdx uint32
+
+	// shards reduce lock contention when adding rows on multi-CPU systems.
+	shards []rawItemsShard
+}
+
+// The number of shards for rawItems per table.
+//
+// Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
+var rawItemsShardsPerTable = cgroup.AvailableCPUs()
+
+const maxBlocksPerShard = 512
+
+func (riss *rawItemsShards) init() {
+	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)
+}
+
+func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) error {
+	n := atomic.AddUint32(&riss.shardIdx, 1)
+	shards := riss.shards
+	idx := n % uint32(len(shards))
+	shard := &shards[idx]
+	return shard.addItems(tb, items)
+}
+
+func (riss *rawItemsShards) Len() int {
+	n := 0
+	for i := range riss.shards {
+		n += riss.shards[i].Len()
+	}
+	return n
+}
+
+type rawItemsShard struct {
+	mu            sync.Mutex
+	ibs           []*inmemoryBlock
+	lastFlushTime uint64
+}
+
+func (ris *rawItemsShard) Len() int {
+	ris.mu.Lock()
+	n := 0
+	for _, ib := range ris.ibs {
+		n += len(ib.items)
+	}
+	ris.mu.Unlock()
+	return n
+}
+
+func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
+	var err error
+	var blocksToMerge []*inmemoryBlock
+
+	ris.mu.Lock()
+	ibs := ris.ibs
+	if len(ibs) == 0 {
+		ib := getInmemoryBlock()
+		ibs = append(ibs, ib)
+		ris.ibs = ibs
+	}
+	ib := ibs[len(ibs)-1]
+	for _, item := range items {
+		if !ib.Add(item) {
+			ib = getInmemoryBlock()
+			if !ib.Add(item) {
+				putInmemoryBlock(ib)
+				err = fmt.Errorf("cannot insert an item %q into an empty inmemoryBlock; it looks like the item is too large? len(item)=%d", item, len(item))
+				break
+			}
+			ibs = append(ibs, ib)
+			ris.ibs = ibs
+		}
+	}
+	if len(ibs) >= maxBlocksPerShard {
+		blocksToMerge = ibs
+		ris.ibs = make([]*inmemoryBlock, 0, maxBlocksPerShard)
+		ris.lastFlushTime = fasttime.UnixTimestamp()
+	}
+	ris.mu.Unlock()
+
+	if blocksToMerge == nil {
+		// Fast path.
+		return err
+	}
+
+	// Slow path: merge blocksToMerge.
+	tb.mergeRawItemsBlocks(blocksToMerge)
+	return err
 }
 
 type partWrapper struct {
@@ -195,6 +287,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		flockF:        flockF,
 		stopCh:        make(chan struct{}),
 	}
+	tb.rawItems.init()
 	tb.startPartMergers()
 	tb.startRawItemsFlusher()
 
@@ -314,11 +407,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.ItemsMerged += atomic.LoadUint64(&tb.itemsMerged)
 	m.AssistedMerges += atomic.LoadUint64(&tb.assistedMerges)
 
-	tb.rawItemsLock.Lock()
-	for _, ib := range tb.rawItemsBlocks {
-		m.PendingItems += uint64(len(ib.items))
-	}
-	tb.rawItemsLock.Unlock()
+	m.PendingItems += uint64(tb.rawItems.Len())
 
 	tb.partsLock.Lock()
 	m.PartsCount += uint64(len(tb.parts))
@@ -352,42 +441,10 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 
 // AddItems adds the given items to the tb.
 func (tb *Table) AddItems(items [][]byte) error {
-	var err error
-	var blocksToMerge []*inmemoryBlock
-
-	tb.rawItemsLock.Lock()
-	if len(tb.rawItemsBlocks) == 0 {
-		ib := getInmemoryBlock()
-		tb.rawItemsBlocks = append(tb.rawItemsBlocks, ib)
+	if err := tb.rawItems.addItems(tb, items); err != nil {
+		return fmt.Errorf("cannot insert data into %q: %w", tb.path, err)
 	}
-	ib := tb.rawItemsBlocks[len(tb.rawItemsBlocks)-1]
-	for _, item := range items {
-		if !ib.Add(item) {
-			ib = getInmemoryBlock()
-			if !ib.Add(item) {
-				putInmemoryBlock(ib)
-				err = fmt.Errorf("cannot insert an item %q into an empty inmemoryBlock on %q; it looks like the item is too large? len(item)=%d",
-					item, tb.path, len(item))
-				break
-			}
-			tb.rawItemsBlocks = append(tb.rawItemsBlocks, ib)
-		}
-	}
-	if len(tb.rawItemsBlocks) >= 512 {
-		blocksToMerge = tb.rawItemsBlocks
-		tb.rawItemsBlocks = nil
-		tb.rawItemsLastFlushTime = fasttime.UnixTimestamp()
-	}
-	tb.rawItemsLock.Unlock()
-
-	if blocksToMerge == nil {
-		// Fast path.
-		return err
-	}
-
-	// Slow path: merge blocksToMerge.
-	tb.mergeRawItemsBlocks(blocksToMerge)
-	return err
+	return nil
 }
 
 // getParts appends parts snapshot to dst and returns it.
@@ -522,9 +579,25 @@ func (tb *Table) DebugFlush() {
 }
 
 func (tb *Table) flushRawItems(isFinal bool) {
+	tb.rawItems.flush(tb, isFinal)
+}
+
+func (riss *rawItemsShards) flush(tb *Table, isFinal bool) {
 	tb.rawItemsPendingFlushesWG.Add(1)
 	defer tb.rawItemsPendingFlushesWG.Done()
 
+	var wg sync.WaitGroup
+	wg.Add(len(riss.shards))
+	for i := range riss.shards {
+		go func(ris *rawItemsShard) {
+			ris.flush(tb, isFinal)
+			wg.Done()
+		}(&riss.shards[i])
+	}
+	wg.Wait()
+}
+
+func (ris *rawItemsShard) flush(tb *Table, isFinal bool) {
 	mustFlush := false
 	currentTime := fasttime.UnixTimestamp()
 	flushSeconds := int64(rawItemsFlushInterval.Seconds())
@@ -533,14 +606,14 @@ func (tb *Table) flushRawItems(isFinal bool) {
 	}
 	var blocksToMerge []*inmemoryBlock
 
-	tb.rawItemsLock.Lock()
-	if isFinal || currentTime-tb.rawItemsLastFlushTime > uint64(flushSeconds) {
+	ris.mu.Lock()
+	if isFinal || currentTime-ris.lastFlushTime > uint64(flushSeconds) {
 		mustFlush = true
-		blocksToMerge = tb.rawItemsBlocks
-		tb.rawItemsBlocks = nil
-		tb.rawItemsLastFlushTime = currentTime
+		blocksToMerge = ris.ibs
+		ris.ibs = make([]*inmemoryBlock, 0, maxBlocksPerShard)
+		ris.lastFlushTime = currentTime
 	}
-	tb.rawItemsLock.Unlock()
+	ris.mu.Unlock()
 
 	if mustFlush {
 		tb.mergeRawItemsBlocks(blocksToMerge)

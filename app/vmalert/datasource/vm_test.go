@@ -2,8 +2,10 @@ package datasource
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -69,26 +71,31 @@ func TestVMSelectQuery(t *testing.T) {
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+
+	s := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
+
+	p := NewPrometheusType()
+	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
+
+	if _, err := pq.Query(ctx, query); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := pq.Query(ctx, query); err == nil {
 		t.Fatalf("expected invalid response status error got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := pq.Query(ctx, query); err == nil {
 		t.Fatalf("expected response body error got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := pq.Query(ctx, query); err == nil {
 		t.Fatalf("expected error status got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := pq.Query(ctx, query); err == nil {
 		t.Fatalf("expected unknown status got nil")
 	}
-	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
+	if _, err := pq.Query(ctx, query); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
 	}
-	m, err := am.Query(ctx, query, NewPrometheusType())
+	m, err := pq.Query(ctx, query)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -100,13 +107,14 @@ func TestVMSelectQuery(t *testing.T) {
 		Timestamp: 1583786142,
 		Value:     13763,
 	}
-	if m[0].Timestamp != expected.Timestamp &&
-		m[0].Value != expected.Value &&
-		m[0].Labels[0].Value != expected.Labels[0].Value &&
-		m[0].Labels[0].Name != expected.Labels[0].Name {
+	if !reflect.DeepEqual(m[0], expected) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
-	m, err = am.Query(ctx, queryRender, NewGraphiteType())
+
+	g := NewGraphiteType()
+	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
+
+	m, err = gq.Query(ctx, queryRender)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -118,10 +126,139 @@ func TestVMSelectQuery(t *testing.T) {
 		Timestamp: 1611758403,
 		Value:     10,
 	}
-	if m[0].Timestamp != expected.Timestamp &&
-		m[0].Value != expected.Value &&
-		m[0].Labels[0].Value != expected.Labels[0].Value &&
-		m[0].Labels[0].Name != expected.Labels[0].Name {
+	if !reflect.DeepEqual(m[0], expected) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
+	}
+}
+
+func TestPrepareReq(t *testing.T) {
+	query := "up"
+	timestamp := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
+	testCases := []struct {
+		name    string
+		vm      *VMStorage
+		checkFn func(t *testing.T, r *http.Request)
+	}{
+		{
+			"prometheus path",
+			&VMStorage{
+				dataSourceType: NewPrometheusType(),
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, queryPath, r.URL.Path)
+			},
+		},
+		{
+			"prometheus prefix",
+			&VMStorage{
+				dataSourceType:   NewPrometheusType(),
+				appendTypePrefix: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, prometheusPrefix+queryPath, r.URL.Path)
+			},
+		},
+		{
+			"graphite path",
+			&VMStorage{
+				dataSourceType: NewGraphiteType(),
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, graphitePath, r.URL.Path)
+			},
+		},
+		{
+			"graphite prefix",
+			&VMStorage{
+				dataSourceType:   NewGraphiteType(),
+				appendTypePrefix: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, graphitePrefix+graphitePath, r.URL.Path)
+			},
+		},
+		{
+			"default params",
+			&VMStorage{},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"basic auth",
+			&VMStorage{
+				basicAuthUser: "foo",
+				basicAuthPass: "bar",
+			},
+			func(t *testing.T, r *http.Request) {
+				u, p, _ := r.BasicAuth()
+				checkEqualString(t, "foo", u)
+				checkEqualString(t, "bar", p)
+			},
+		},
+		{
+			"lookback",
+			&VMStorage{
+				lookBack: time.Minute,
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Add(-time.Minute).Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"evaluation interval",
+			&VMStorage{
+				evaluationInterval: 15 * time.Second,
+			},
+			func(t *testing.T, r *http.Request) {
+				evalInterval := 15 * time.Second
+				tt := timestamp.Truncate(evalInterval)
+				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"lookback + evaluation interval",
+			&VMStorage{
+				lookBack:           time.Minute,
+				evaluationInterval: 15 * time.Second,
+			},
+			func(t *testing.T, r *http.Request) {
+				evalInterval := 15 * time.Second
+				tt := timestamp.Add(-time.Minute)
+				tt = tt.Truncate(evalInterval)
+				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"step override",
+			&VMStorage{
+				queryStep: time.Minute,
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, time.Minute, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := tc.vm.prepareReq(query, timestamp)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			tc.checkFn(t, req)
+		})
+	}
+}
+
+func checkEqualString(t *testing.T, exp, got string) {
+	t.Helper()
+	if got != exp {
+		t.Errorf("expected to get %q; got %q", exp, got)
 	}
 }

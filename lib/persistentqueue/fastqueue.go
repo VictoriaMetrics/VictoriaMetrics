@@ -1,11 +1,13 @@
 package persistentqueue
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // FastQueue is fast persistent queue, which prefers sending data via memory.
@@ -47,6 +49,12 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int
 	}
 	fq.cond.L = &fq.mu
 	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_bytes_pending{path=%q}`, path), func() float64 {
+		fq.mu.Lock()
+		n := fq.pq.GetPendingBytes()
+		fq.mu.Unlock()
+		return float64(n)
+	})
 	pendingBytes := fq.GetPendingBytes()
 	logger.Infof("opened fast persistent queue at %q with maxInmemoryBlocks=%d, it contains %d pending bytes", path, maxInmemoryBlocks, pendingBytes)
 	return fq
