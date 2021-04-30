@@ -151,7 +151,9 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	parseFn := parsePrometheusResponse
 	if s.dataSourceType.name != prometheusType {
