@@ -17,25 +17,19 @@ type requestHandler struct {
 	m *manager
 }
 
-var pathList = [][]string{
-	{"/api/v1/groups", "list all loaded groups and rules"},
-	{"/api/v1/alerts", "list all active alerts"},
-	{"/api/v1/groupID/alertID/status", "get alert status by ID"},
-	// /metrics is served by httpserver by default
-	{"/metrics", "list of application metrics"},
-	{"/-/reload", "reload configuration"},
-}
-
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/":
 		if r.Method != "GET" {
 			return false
 		}
-		for _, path := range pathList {
-			p, doc := path[0], path[1]
-			fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
-		}
+		httpserver.WriteAPIHelp(w, [][2]string{
+			{"/api/v1/groups", "list all loaded groups and rules"},
+			{"/api/v1/alerts", "list all active alerts"},
+			{"/api/v1/groupID/alertID/status", "get alert status by ID"},
+			{"/metrics", "list of application metrics"},
+			{"/-/reload", "reload configuration"},
+		})
 		return true
 	case "/api/v1/groups":
 		data, err := rh.listGroups()

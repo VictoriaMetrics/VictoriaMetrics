@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -558,4 +559,13 @@ func IsTLS() bool {
 // GetPathPrefix - returns http server path prefix.
 func GetPathPrefix() string {
 	return *pathPrefix
+}
+
+// WriteAPIHelp writes pathList to w in HTML format.
+func WriteAPIHelp(w io.Writer, pathList [][2]string) {
+	for _, p := range pathList {
+		p, doc := p[0], p[1]
+		p = path.Join(*pathPrefix, p)
+		fmt.Fprintf(w, "<a href=%q>%s</a> - %s<br/>", p, p, doc)
+	}
 }
