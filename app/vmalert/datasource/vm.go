@@ -116,8 +116,8 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	if params.DataSourceType != nil {
 		s.dataSourceType = *params.DataSourceType
-		s.evaluationInterval = params.EvaluationInterval
 	}
+	s.evaluationInterval = params.EvaluationInterval
 	return s
 }
 

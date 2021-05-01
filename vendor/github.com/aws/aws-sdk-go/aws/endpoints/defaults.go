@@ -7984,7 +7984,8 @@ var awscnPartition = partition{
 				Protocols: []string{"https"},
 			},
 			Endpoints: endpoints{
-				"cn-north-1": endpoint{},
+				"cn-north-1":     endpoint{},
+				"cn-northwest-1": endpoint{},
 			},
 		},
 		"runtime.sagemaker": service{
