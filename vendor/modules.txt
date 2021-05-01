@@ -24,9 +24,10 @@ github.com/VictoriaMetrics/metrics
 ## explicit
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
-# github.com/VividCortex/ewma v1.1.1
+# github.com/VividCortex/ewma v1.2.0
+## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.38.25
+# github.com/aws/aws-sdk-go v1.38.30
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -155,7 +156,7 @@ github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.21.0
+# github.com/prometheus/common v0.23.0
 ## explicit
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
@@ -236,7 +237,7 @@ golang.org/x/lint/golint
 ## explicit
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6
+# golang.org/x/net v0.0.0-20210428140749-89ef3d95e781
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -248,9 +249,10 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78
+# golang.org/x/oauth2 v0.0.0-20210427180440-81ed05c6b58c
 ## explicit
 golang.org/x/oauth2
+golang.org/x/oauth2/authhandler
 golang.org/x/oauth2/google
 golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
@@ -258,7 +260,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210423185535-09eb48e85fd7
+# golang.org/x/sys v0.0.0-20210426230700-d19ff857e887
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -312,7 +314,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210423144448-3a41ef94ed2b
+# google.golang.org/genproto v0.0.0-20210429181445-86c259c2b4ab
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
