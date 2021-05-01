@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -441,7 +443,7 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	dstSize := dstLen
 	for i := range labels {
 		if i >= maxLabelsPerTimeseries {
-			atomic.AddUint64(&MetricsWithDroppedLabels, 1)
+			trackDroppedLabels(labels, labels[i:])
 			break
 		}
 		label := &labels[i]
@@ -492,6 +494,47 @@ var (
 	// TooLongLabelValues is the number of too long label values
 	TooLongLabelValues uint64
 )
+
+func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
+	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
+	ct := fasttime.UnixTimestamp()
+	if ct < atomic.LoadUint64(&droppedLabelsLogNextTimestamp) {
+		return
+	}
+	droppedLabelsLogOnce.Do(func() {
+		atomic.StoreUint64(&droppedLabelsLogNextTimestamp, ct+5)
+		logger.Infof("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
+			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
+			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
+		droppedLabelsLogOnce = &sync.Once{}
+	})
+}
+
+var droppedLabelsLogOnce = &sync.Once{}
+var droppedLabelsLogNextTimestamp uint64
+
+func labelsToString(labels []prompb.Label) string {
+	labelsCopy := append([]prompb.Label{}, labels...)
+	sort.Slice(labelsCopy, func(i, j int) bool {
+		return string(labelsCopy[i].Name) < string(labelsCopy[j].Name)
+	})
+	var b []byte
+	b = append(b, '{')
+	for i, label := range labelsCopy {
+		if len(label.Name) == 0 {
+			b = append(b, "__name__"...)
+		} else {
+			b = append(b, label.Name...)
+		}
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, string(label.Value))
+		if i < len(labels)-1 {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
+}
 
 // marshalRaw marshals mn to dst and returns the result.
 //
