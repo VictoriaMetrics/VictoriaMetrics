@@ -573,7 +573,7 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	}
 	droppedLabelsLogOnce.Do(func() {
 		atomic.StoreUint64(&droppedLabelsLogNextTimestamp, ct+5)
-		logger.Infof("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
+		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
 			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
 		droppedLabelsLogOnce = &sync.Once{}
