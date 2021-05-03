@@ -4,9 +4,9 @@ COMMENT =		fast, cost-effective and scalable time series database
 
 GH_ACCOUNT =		VictoriaMetrics
 GH_PROJECT =		VictoriaMetrics
-GH_TAGNAME =		v1.46.0
+GH_TAGNAME =		v1.58.0
 
-CATEGORIES =		sysutils
+CATEGORIES =		databases
 
 HOMEPAGE =		https://victoriametrics.com/
 
@@ -15,7 +15,7 @@ MAINTAINER =		VictoriaMetrics <info@victoriametrics.com>
 # Apache License 2.0
 PERMIT_PACKAGE =	Yes
 
-WANTLIB =		c pthread
+WANTLIB =		c pthread zstd
 
 USE_GMAKE =		Yes
 
@@ -23,14 +23,19 @@ MODULES =		lang/go
 MODGO_GOPATH =		${MODGO_WORKSPACE}
 SUBST_VARS =		VARBASE
 
+LIB_DEPENDS =		archivers/zstd
+
 do-build:
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} victoria-metrics-pure
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmbackup
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmrestore
+	cd ${WRKSRC} && CGO_LDFLAGS="-L${LOCALBASE}/lib -lzstd" \
+	    GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmagent
 
 do-install:
 	${INSTALL_PROGRAM} ./pkg/vmlogger.pl ${PREFIX}/bin/vmetricslogger.pl
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/victoria-metrics-pure ${PREFIX}/bin/vmetrics
+	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmagent ${PREFIX}/bin/vmagent
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmbackup ${PREFIX}/bin/vmetricsbackup
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmrestore ${PREFIX}/bin/vmetricsrestore
 	${INSTALL_DATA_DIR} ${PREFIX}/share/doc/vmetrics/

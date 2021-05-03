@@ -15,7 +15,8 @@ rc_reload=NO
 me=`basename $0`
 
 rc_start() {
-	${rcexec} "${daemon} -loggerDisableTimestamps ${daemon_flags} < /dev/null 2>&1 | ${TRUEPREFIX}/bin/vmetricslogger.pl $me"
+	${rcexec} "${daemon} -loggerDisableTimestamps ${daemon_flags} \
+	    < /dev/null 2>&1 | ${TRUEPREFIX}/bin/vmetricslogger.pl $me"
 }
 
 rc_cmd $1
