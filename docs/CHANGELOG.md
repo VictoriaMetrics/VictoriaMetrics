@@ -4,6 +4,9 @@ sort: 15
 
 # CHANGELOG
 
+* BUGFIX: properly remove stale parts outside the configured retention if `-retentionPeriod` is smaller than one month. Previously stale parts could remain active for up to a month after they go outside the retention.
+
+
 ## tip
 
 
