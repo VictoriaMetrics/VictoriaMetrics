@@ -4,9 +4,9 @@ COMMENT =		fast, cost-effective and scalable time series database
 
 GH_ACCOUNT =		VictoriaMetrics
 GH_PROJECT =		VictoriaMetrics
-GH_TAGNAME =		v1.46.0
+GH_TAGNAME =		v1.59.0
 
-CATEGORIES =		sysutils
+CATEGORIES =		databases
 
 HOMEPAGE =		https://victoriametrics.com/
 
@@ -27,10 +27,12 @@ do-build:
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} victoria-metrics-pure
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmbackup
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmrestore
+	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmagent-pure
 
 do-install:
 	${INSTALL_PROGRAM} ./pkg/vmlogger.pl ${PREFIX}/bin/vmetricslogger.pl
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/victoria-metrics-pure ${PREFIX}/bin/vmetrics
+	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmagent-pure ${PREFIX}/bin/vmagent
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmbackup ${PREFIX}/bin/vmetricsbackup
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmrestore ${PREFIX}/bin/vmetricsrestore
 	${INSTALL_DATA_DIR} ${PREFIX}/share/doc/vmetrics/
