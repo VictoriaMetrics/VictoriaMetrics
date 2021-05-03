@@ -229,6 +229,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
 	pt.startInmemoryPartsFlusher()
+	pt.startStalePartsRemover()
 
 	logger.Infof("partition %q has been created", name)
 
