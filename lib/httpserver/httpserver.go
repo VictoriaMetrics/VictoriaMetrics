@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"path"
 	"runtime"
 	"strconv"
@@ -194,6 +195,20 @@ var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seco
 var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
 
 func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
+	// All the VictoriaMetrics code assumes that panic stops the process.
+	// Unfortunately, the standard net/http.Server recovers from panics in request handlers,
+	// so VictoriaMetrics state can become inconsistent after the recovered panic.
+	// The following recover() code works around this by explicitly stopping the process after logging the panic.
+	// See https://github.com/golang/go/issues/16542#issuecomment-246549902 for details.
+	defer func() {
+		if err := recover(); err != nil {
+			buf := make([]byte, 1<<20)
+			n := runtime.Stack(buf, false)
+			fmt.Fprintf(os.Stderr, "panic: %v\n\n%s", err, buf[:n])
+			os.Exit(1)
+		}
+	}()
+
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
