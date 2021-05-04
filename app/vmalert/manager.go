@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -51,7 +52,12 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 }
 
 func (m *manager) start(ctx context.Context, path []string, validateTpl, validateExpr bool) error {
-	return m.update(ctx, path, validateTpl, validateExpr, true)
+	err := m.update(ctx, path, validateTpl, validateExpr, true)
+	if *remoteReadIgnoreRestoreErrors && errors.Is(err, ErrStateRestore) {
+		logger.Errorf("%s", err)
+		return nil
+	}
+	return err
 }
 
 func (m *manager) close() {
@@ -64,11 +70,11 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
+func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) error {
 	if restore && m.rr != nil {
 		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
 		if err != nil {
-			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
+			return fmt.Errorf("error while restoring state for group %q: %w", group.Name, err)
 		}
 	}
 
@@ -79,6 +85,7 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 		m.wg.Done()
 	}()
 	m.groups[id] = group
+	return nil
 }
 
 func (m *manager) update(ctx context.Context, path []string, validateTpl, validateExpr, restore bool) error {
@@ -117,7 +124,9 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 		}
 	}
 	for _, ng := range groupsRegistry {
-		m.startGroup(ctx, ng, restore)
+		if err := m.startGroup(ctx, ng, restore); err != nil {
+			return err
+		}
 	}
 	m.groupsMu.Unlock()
 
