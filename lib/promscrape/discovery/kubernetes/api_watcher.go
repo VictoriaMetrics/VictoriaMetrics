@@ -75,12 +75,12 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 }
 
 func (aw *apiWatcher) mustStart() {
-	aw.gw.startWatchersForRole(aw.role, aw)
 	if aw.role == "endpoints" || aw.role == "endpointslices" {
 		// endpoints and endpointslices watchers query pod and service objects. So start watchers for these roles as well.
 		aw.gw.startWatchersForRole("pod", nil)
 		aw.gw.startWatchersForRole("service", nil)
 	}
+	aw.gw.startWatchersForRole(aw.role, aw)
 }
 
 func (aw *apiWatcher) mustStop() {
