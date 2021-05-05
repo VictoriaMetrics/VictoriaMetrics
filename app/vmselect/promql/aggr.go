@@ -48,6 +48,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"outliersk":      aggrFuncOutliersK,
 	"mode":           newAggrFunc(aggrFuncMode),
 	"zscore":         aggrFuncZScore,
+	"cumulative_sum": newAggrFunc(aggrFuncCumSum),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -213,6 +214,31 @@ func aggrFuncSum2(tss []*timeseries) []*timeseries {
 			sum2 = nan
 		}
 		dst.Values[i] = sum2
+	}
+	return tss[:1]
+}
+
+func aggrFuncCumSum(tss []*timeseries) []*timeseries {
+	dst := tss[0]
+	for i := range dst.Values {
+		sum := float64(0)
+		count := 0
+		for _, ts := range tss {
+			v := ts.Values[i]
+			if math.IsNaN(v) {
+				continue
+			}
+			sum += v
+			count++
+		}
+		if count == 0 {
+			sum = 0
+		}
+		if i != 0 {
+			dst.Values[i] = dst.Values[i-1] + sum
+		} else {
+			dst.Values[i] = sum
+		}
 	}
 	return tss[:1]
 }
