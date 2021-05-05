@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -404,6 +405,8 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 	return newTimeSeries(float64(a.Start.Unix()), labels, timestamp)
 }
 
+var ErrStateRestore = errors.New("failed to restore the state")
+
 // Restore restores the state of active alerts basing on previously written timeseries.
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
@@ -428,7 +431,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
 	qMetrics, err := q.Query(ctx, expr)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", err, ErrStateRestore)
 	}
 
 	for _, m := range qMetrics {
