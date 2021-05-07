@@ -1248,6 +1248,50 @@ func (s *Storage) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (
 	return s.idb().GetTSDBStatusForDate(date, topN, deadline)
 }
 
+func (s *Storage) GetTSDBStatusForTrWithFilters(tffs []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64, topN int) (*TSDBStatus, error) {
+	thLabelValueCountByLabelName := newTopHeap(topN)
+	thSeriesCountByLabelValuePair := newTopHeap(topN)
+	thSeriesCountByMetricName := newTopHeap(topN)
+	tsids, err := s.searchTSIDs(tffs, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	idb := s.idb()
+	var metricName []byte
+	var mn MetricName
+	for i := range tsids {
+		if i&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+				return nil, err
+			}
+		}
+		tsid := tsids[i]
+		is := idb.getIndexSearch(noDeadline)
+		metricName, err := is.searchMetricName(metricName, tsid.MetricID)
+		idb.putIndexSearch(is)
+		// todo check eof
+		if err == io.EOF {
+			idb.extDB.doExtDB(func(extDB *indexDB) {
+
+			})
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err = mn.Unmarshal(metricName); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		}
+		//todo calc
+	}
+
+	status := TSDBStatus{
+		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
+		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
+		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
+	}
+	return &status, nil
+}
+
 // MetricRow is a metric to insert into storage.
 type MetricRow struct {
 	// MetricNameRaw contains raw metric name, which must be decoded

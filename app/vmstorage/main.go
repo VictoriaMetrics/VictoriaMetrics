@@ -213,6 +213,13 @@ func GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*storage.TSDB
 	return status, err
 }
 
+func GetTSDBStatusWithFilters(tr storage.TimeRange, tfss []*storage.TagFilters, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
+	WG.Add(1)
+	status, err := Storage.GetTSDBStatusForTrWithFilters(tfss, tr, maxMetrics, deadline, topN)
+	WG.Done()
+	return status, err
+}
+
 // GetSeriesCount returns the number of time series in the storage.
 func GetSeriesCount(deadline uint64) (uint64, error) {
 	WG.Add(1)
