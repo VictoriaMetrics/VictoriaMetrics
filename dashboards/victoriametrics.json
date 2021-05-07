@@ -5,7 +5,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "7.5.1"
+      "version": "7.5.2"
     },
     {
       "type": "panel",
@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1617619884528,
+  "iteration": 1620370388383,
   "links": [
     {
       "icon": "doc",
@@ -952,7 +952,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1052,7 +1052,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1151,7 +1151,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1252,7 +1252,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1353,7 +1353,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1452,7 +1452,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 1,
       "points": false,
       "renderer": "flot",
@@ -1572,7 +1572,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1672,7 +1672,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1787,7 +1787,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.1",
+      "pluginVersion": "7.5.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1896,7 +1896,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1991,7 +1991,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2089,7 +2089,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2202,7 +2202,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2299,7 +2299,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2394,7 +2394,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2490,7 +2490,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2585,7 +2585,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2676,7 +2676,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 76
           },
           "hiddenSeries": false,
           "id": 102,
@@ -2696,7 +2696,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2786,7 +2786,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 76
           },
           "hiddenSeries": false,
           "id": 107,
@@ -2806,7 +2806,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2882,7 +2882,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 84
           },
           "hiddenSeries": false,
           "id": 108,
@@ -2902,7 +2902,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2978,7 +2978,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 84
           },
           "hiddenSeries": false,
           "id": 116,
@@ -2999,7 +2999,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4087,7 +4087,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4185,7 +4185,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4284,7 +4284,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4386,7 +4386,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4499,7 +4499,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4597,7 +4597,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4694,7 +4694,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4790,7 +4790,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4887,7 +4887,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5003,7 +5003,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5099,7 +5099,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5163,7 +5163,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. However, these two actions are separated and controlled via different concurrency limiters. The `max` on this panel can't be changed and always equal to number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.\n\n",
+          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.",
           "fieldConfig": {
             "defaults": {},
             "overrides": []
@@ -5189,12 +5189,19 @@
           },
           "lines": true,
           "linewidth": 1,
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Related discussion",
+              "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/632"
+            }
+          ],
           "nullPointMode": "null",
           "options": {
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5672,7 +5679,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5736,7 +5743,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 4 by default. May be configured with `maxConcurrentInserts` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and require more CPU or higher limits.",
+          "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 4 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -5775,7 +5782,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5799,8 +5806,10 @@
               "refId": "A"
             },
             {
+              "exemplar": true,
               "expr": "sum(vm_concurrent_insert_capacity{job=\"$job_insert\", instance=~\"$instance\"})",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "max",
               "refId": "B"
@@ -5892,7 +5901,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -6006,7 +6015,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -6109,7 +6118,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.5.1",
+          "pluginVersion": "7.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
