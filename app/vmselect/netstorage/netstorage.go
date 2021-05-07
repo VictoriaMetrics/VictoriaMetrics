@@ -695,12 +695,20 @@ func GetTSDBStatusForDate(deadline searchutils.Deadline, date uint64, topN int) 
 	return status, nil
 }
 
-// GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func GetTSDBStatusWithFilters(deadline searchutils.Deadline, tr storage.TimeRange, tffs []*storage.TagFilters, topN int) (*storage.TSDBStatus, error) {
+// GetTSDBStatusWithFilters returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+func GetTSDBStatusWithFilters(deadline searchutils.Deadline, sq *storage.SearchQuery, topN int) (*storage.TSDBStatus, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	status, err := vmstorage.GetTSDBStatusWithFilters(tr, tffs, topN, *maxMetricsPerSearch, deadline.Deadline())
+	tr := storage.TimeRange{
+		MaxTimestamp: sq.MaxTimestamp,
+		MinTimestamp: sq.MinTimestamp,
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	if err != nil {
+		return nil, err
+	}
+	status, err := vmstorage.GetTSDBStatusWithFilters(tr, tfss, topN, *maxMetricsPerSearch, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}

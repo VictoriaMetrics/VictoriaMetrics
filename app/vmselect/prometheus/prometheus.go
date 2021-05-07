@@ -3,7 +3,6 @@ package prometheus
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"math"
 	"net/http"
 	"sort"
@@ -676,7 +675,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, err = tsdbStatusWithMatches(matches, etf, date, deadline)
+		status, err = tsdbStatusWithMatches(matches, etf, date, topN, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -693,7 +692,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-func tsdbStatusWithMatches(matches []string, etf []storage.TagFilter, date uint64, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+func tsdbStatusWithMatches(matches []string, etf []storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, err
@@ -703,37 +702,14 @@ func tsdbStatusWithMatches(matches []string, etf []storage.TagFilter, date uint6
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
-	start := int64(date) * 1000
-	end := int64(date+secsPerDay) * 1000
-	logger.Infof("start: %v, end: %v", start, end)
+	start := int64(date*secsPerDay) * 1000
+	end := int64(date*secsPerDay+secsPerDay) * 1000
 	sq := storage.NewSearchQuery(start, end, tagFilterss)
-
-	netstorage.GetTSDBStatusWithFilters(deadline)
-	vmstorage.Storage.GetTSDBStatusForTrWithFilters(storage.)
-	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+	status, err := netstorage.GetTSDBStatusWithFilters(deadline, sq, topN)
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		return nil, err
 	}
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		rs.MetricName.Tags[0].Key
-		mLock.Lock()
-		for _, tag := range rs.MetricName.Tags {
-			m[string(tag.Key)] = struct{}{}
-		}
-		m["__name__"] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %w", err)
-	}
-	labels := make([]string, 0, len(m))
-	for label := range m {
-		labels = append(labels, label)
-	}
-	sort.Strings(labels)
-	return labels, nil
+	return status, nil
 }
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)
