@@ -2354,24 +2354,11 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 	}
 
 	// Find intersection of minTf with other tfs.
-	var tfsPostponed []*tagFilter
-	successfulIntersects := 0
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		if tf == minTf {
 			continue
 		}
-		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
-		if err != nil {
-			return err
-		}
-		minMetricIDs = mIDs
-		successfulIntersects++
-	}
-	if len(tfsPostponed) > 0 && successfulIntersects == 0 {
-		return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed)
-	}
-	for _, tf := range tfsPostponed {
 		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
 		if err != nil {
 			return err
