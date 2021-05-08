@@ -188,7 +188,7 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
   By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
-* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics.
+* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics. See [these docs](#stream-parsing-mode).
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -234,6 +234,27 @@ You can read more about relabeling in the following articles:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+
+## Stream parsing mode
+
+By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled either globally for all of the scrape targets by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
+
+  ```yml
+  scrape_configs:
+  - job_name: 'big-federate'
+    stream_parse: true
+    static_configs:
+    - targets:
+      - big-prometeus1
+      - big-prometeus2
+    honor_labels: true
+    metrics_path: /federate
+    params:
+      'match[]': ['{__name__!=""}']
+  ```
+
+Note that `sample_limit` option doesn't work if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed. Therefore the `sample_limit` option doesn't make sense during stream parsing.
 
 
 ## Scraping big number of targets
@@ -337,25 +358,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
   This option drops `"discoveredLabels"` and `"droppedTargets"` lists at `/api/v1/targets` page, which may result in reduced debuggability for improperly configured per-target relabeling.
 
 * If `vmagent` scrapes targets with millions of metrics per target (for example, when scraping [federation endpoints](https://prometheus.io/docs/prometheus/latest/federation/)),
-  we recommend enabling `stream parsing mode` in order to reduce memory usage during scraping. This mode may be enabled either globally for all of the scrape targets
-  by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
-
-  ```yml
-  scrape_configs:
-  - job_name: 'big-federate'
-    stream_parse: true
-    static_configs:
-    - targets:
-      - big-prometeus1
-      - big-prometeus2
-    honor_labels: true
-    metrics_path: /federate
-    params:
-      'match[]': ['{__name__!=""}']
-  ```
-
-  Note that `sample_limit` option doesn't work if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed. Therefore the `sample_limit` option
- doesn't make sense during stream parsing.
+  we recommend enabling [stream parsing mode](#stream-parsing-mode) in order to reduce memory usage during scraping.
 
 * We recommend you increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page grows constantly.
 
