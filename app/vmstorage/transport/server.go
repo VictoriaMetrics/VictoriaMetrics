@@ -12,14 +12,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -294,159 +293,13 @@ func (s *Server) isStopping() bool {
 }
 
 func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
-	sizeBuf := make([]byte, 8)
-	var reqBuf []byte
-	remoteAddr := bc.RemoteAddr().String()
-	for {
-		if _, err := io.ReadFull(bc, sizeBuf); err != nil {
-			if err == io.EOF {
-				// Remote end gracefully closed the connection.
-				return nil
-			}
-			return fmt.Errorf("cannot read packet size: %w", err)
-		}
-		packetSize := encoding.UnmarshalUint64(sizeBuf)
-		if packetSize > consts.MaxInsertPacketSize {
-			return fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSize)
-		}
-		reqBuf = bytesutil.Resize(reqBuf, int(packetSize))
-		if n, err := io.ReadFull(bc, reqBuf); err != nil {
-			return fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
-		}
-		// Send `ack` to vminsert that the packet has been received.
-		deadline := time.Now().Add(5 * time.Second)
-		if err := bc.SetWriteDeadline(deadline); err != nil {
-			return fmt.Errorf("cannot set write deadline for sending `ack` to vminsert: %w", err)
-		}
-		sizeBuf[0] = 1
-		if _, err := bc.Write(sizeBuf[:1]); err != nil {
-			return fmt.Errorf("cannot send `ack` to vminsert: %w", err)
-		}
-		if err := bc.Flush(); err != nil {
-			return fmt.Errorf("cannot flush `ack` to vminsert: %w", err)
-		}
-		vminsertPacketsRead.Inc()
-
-		uw := getUnmarshalWork()
-		uw.storage = s.storage
-		uw.remoteAddr = remoteAddr
-		uw.reqBuf, reqBuf = reqBuf, uw.reqBuf
-		unmarshalWorkCh <- uw
-	}
+	return clusternative.ParseStream(bc, func(rows []storage.MetricRow) error {
+		vminsertMetricsRead.Add(len(rows))
+		return s.storage.AddRows(rows, uint8(*precisionBits))
+	})
 }
 
-var (
-	vminsertPacketsRead = metrics.NewCounter("vm_vminsert_packets_read_total")
-	vminsertMetricsRead = metrics.NewCounter("vm_vminsert_metrics_read_total")
-)
-
-func getUnmarshalWork() *unmarshalWork {
-	v := unmarshalWorkPool.Get()
-	if v == nil {
-		return &unmarshalWork{}
-	}
-	return v.(*unmarshalWork)
-}
-
-// StartUnmarshalWorkers starts workers for unmarshaling data obtained from vminsert connections.
-//
-// This function must be called before servers are created via NewServer.
-func StartUnmarshalWorkers() {
-	gomaxprocs := cgroup.AvailableCPUs()
-	unmarshalWorkCh = make(chan *unmarshalWork, gomaxprocs)
-	unmarshalWorkersWG.Add(gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go func() {
-			defer unmarshalWorkersWG.Done()
-			for uw := range unmarshalWorkCh {
-				uw.Unmarshal()
-				putUnmarshalWork(uw)
-			}
-		}()
-	}
-}
-
-// StopUnmarshalWorkers stops unmarshal workers which were started with StartUnmarshalWorkers.
-//
-// This function must be called after Server.MustClose().
-func StopUnmarshalWorkers() {
-	close(unmarshalWorkCh)
-	unmarshalWorkersWG.Wait()
-}
-
-var (
-	unmarshalWorkCh    chan *unmarshalWork
-	unmarshalWorkersWG sync.WaitGroup
-)
-
-func putUnmarshalWork(uw *unmarshalWork) {
-	uw.reset()
-	unmarshalWorkPool.Put(uw)
-}
-
-var unmarshalWorkPool sync.Pool
-
-type unmarshalWork struct {
-	storage       *storage.Storage
-	remoteAddr    string
-	mrs           []storage.MetricRow
-	reqBuf        []byte
-	lastResetTime uint64
-}
-
-func (uw *unmarshalWork) reset() {
-	if len(uw.reqBuf)*4 < cap(uw.reqBuf) && fasttime.UnixTimestamp()-uw.lastResetTime > 10 {
-		// Periodically reset mrs and reqBuf in order to prevent from gradual memory usage growth
-		// when ceratin entries in mr contain too long labels.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/490 for details.
-		uw.mrs = nil
-		uw.reqBuf = nil
-		uw.lastResetTime = fasttime.UnixTimestamp()
-	}
-	uw.storage = nil
-	uw.remoteAddr = ""
-	uw.mrs = uw.mrs[:0]
-	uw.reqBuf = uw.reqBuf[:0]
-}
-
-func (uw *unmarshalWork) Unmarshal() {
-	mrs := uw.mrs[:0]
-	tail := uw.reqBuf
-	for len(tail) > 0 {
-		if len(mrs) < cap(mrs) {
-			mrs = mrs[:len(mrs)+1]
-		} else {
-			mrs = append(mrs, storage.MetricRow{})
-		}
-		mr := &mrs[len(mrs)-1]
-		var err error
-		tail, err = mr.Unmarshal(tail)
-		if err != nil {
-			logger.Errorf("cannot unmarshal MetricRow obtained from %s: %s", uw.remoteAddr, err)
-			uw.mrs = mrs[:0]
-			return
-		}
-		if len(mrs) >= 10000 {
-			// Store the collected mrs in order to reduce memory usage
-			// when too big number of mrs are sent in each packet.
-			// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/490
-			uw.mrs = mrs
-			uw.flushRows()
-			mrs = uw.mrs[:0]
-		}
-	}
-	uw.mrs = mrs
-	uw.flushRows()
-}
-
-func (uw *unmarshalWork) flushRows() {
-	vminsertMetricsRead.Add(len(uw.mrs))
-	err := uw.storage.AddRows(uw.mrs, uint8(*precisionBits))
-	uw.mrs = uw.mrs[:0]
-	if err != nil {
-		logger.Errorf("cannot store metrics obtained from %s: %s", uw.remoteAddr, err)
-	}
-}
+var vminsertMetricsRead = metrics.NewCounter("vm_vminsert_metrics_read_total")
 
 func (s *Server) processVMSelectConn(bc *handshake.BufferedConn) error {
 	ctx := &vmselectRequestCtx{

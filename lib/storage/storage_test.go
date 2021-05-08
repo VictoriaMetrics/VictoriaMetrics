@@ -351,7 +351,7 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 
 		buf = mr1.Marshal(buf[:0])
 		var mr2 MetricRow
-		tail, err := mr2.Unmarshal(buf)
+		tail, err := mr2.UnmarshalX(buf)
 		if err != nil {
 			t.Fatalf("cannot unmarshal mr1=%s: %s", mr1, err)
 		}

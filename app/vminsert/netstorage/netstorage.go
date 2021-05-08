@@ -596,7 +596,7 @@ func spreadReroutedBufToStorageNodesBlocking(stopCh <-chan struct{}, br *bufRows
 	}
 	src := br.buf
 	for len(src) > 0 {
-		tail, err := mr.Unmarshal(src)
+		tail, err := mr.UnmarshalX(src)
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal MetricRow from reroutedBR.buf: %s", err)
 		}
@@ -610,6 +610,7 @@ func spreadReroutedBufToStorageNodesBlocking(stopCh <-chan struct{}, br *bufRows
 			// they all go to the original or to the next sn.
 			h = xxhash.Sum64(mr.MetricNameRaw)
 		}
+		mr.ResetX()
 		for {
 			idx := h % uint64(len(sns))
 			sn := sns[idx]

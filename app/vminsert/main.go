@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
@@ -27,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
+	clusternativeserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/clusternative"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -40,6 +43,8 @@ import (
 )
 
 var (
+	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for data from other vminsert nodes in multi-level cluster setup. "+
+		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8400 must be set. Doesn't work if empty")
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
 	influxListenAddr   = flag.String("influxListenAddr", "", "TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. "+
 		"This flag isn't needed when ingesting data over HTTP - just send it to http://<vminsert>:8480/insert/<accountID>/influx/write")
@@ -53,10 +58,11 @@ var (
 )
 
 var (
-	influxServer       *influxserver.Server
-	graphiteServer     *graphiteserver.Server
-	opentsdbServer     *opentsdbserver.Server
-	opentsdbhttpServer *opentsdbhttpserver.Server
+	clusternativeServer *clusternativeserver.Server
+	graphiteServer      *graphiteserver.Server
+	influxServer        *influxserver.Server
+	opentsdbServer      *opentsdbserver.Server
+	opentsdbhttpServer  *opentsdbhttpserver.Server
 )
 
 func main() {
@@ -79,16 +85,21 @@ func main() {
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
-	if len(*influxListenAddr) > 0 {
-		influxServer = influxserver.MustStart(*influxListenAddr, func(r io.Reader) error {
-			var at auth.Token // TODO: properly initialize auth token
-			return influx.InsertHandlerForReader(&at, r)
+	if len(*clusternativeListenAddr) > 0 {
+		clusternativeServer = clusternativeserver.MustStart(*clusternativeListenAddr, func(c net.Conn) error {
+			return clusternative.InsertHandler(c)
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, func(r io.Reader) error {
 			var at auth.Token // TODO: properly initialize auth token
 			return graphite.InsertHandler(&at, r)
+		})
+	}
+	if len(*influxListenAddr) > 0 {
+		influxServer = influxserver.MustStart(*influxListenAddr, func(r io.Reader) error {
+			var at auth.Token // TODO: properly initialize auth token
+			return influx.InsertHandlerForReader(&at, r)
 		})
 	}
 	if len(*opentsdbListenAddr) > 0 {
@@ -115,11 +126,14 @@ func main() {
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
-	if len(*influxListenAddr) > 0 {
-		influxServer.MustStop()
+	if len(*clusternativeListenAddr) > 0 {
+		clusternativeServer.MustStop()
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
+	}
+	if len(*influxListenAddr) > 0 {
+		influxServer.MustStop()
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdbServer.MustStop()

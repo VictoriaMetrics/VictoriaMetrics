@@ -504,7 +504,7 @@ func SetMaxLabelsPerTimeseries(maxLabels int) {
 
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
-// The result must be unmarshaled with MetricName.unmarshalRaw
+// The result must be unmarshaled with MetricName.UnmarshalRaw
 func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prompb.Label) []byte {
 	// Calculate the required space for dst.
 	dstLen := len(dst)
@@ -615,7 +615,7 @@ func MarshalMetricLabelRaw(dst []byte, label *prompb.Label) []byte {
 
 // marshalRaw marshals mn to dst and returns the result.
 //
-// The results may be unmarshaled with MetricName.unmarshalRaw.
+// The results may be unmarshaled with MetricName.UnmarshalRaw.
 //
 // This function is for testing purposes. MarshalMetricNameRaw must be used
 // in prod instead.
@@ -634,8 +634,8 @@ func (mn *MetricName) marshalRaw(dst []byte) []byte {
 	return dst
 }
 
-// unmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
-func (mn *MetricName) unmarshalRaw(src []byte) error {
+// UnmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
+func (mn *MetricName) UnmarshalRaw(src []byte) error {
 	mn.Reset()
 	if len(src) < 4 {
 		return fmt.Errorf("not enough data for decoding accountID; got %d bytes; %X; want at least 4 bytes", len(src), src)

@@ -150,7 +150,7 @@ func TestMetricNameMarshalUnmarshalRaw(t *testing.T) {
 			}
 			data := mn.marshalRaw(nil)
 			var mn1 MetricName
-			if err := mn1.unmarshalRaw(data); err != nil {
+			if err := mn1.UnmarshalRaw(data); err != nil {
 				t.Fatalf("cannot unmarshal mn %s: %s", &mn, err)
 			}
 			if !reflect.DeepEqual(&mn, &mn1) {
@@ -159,13 +159,13 @@ func TestMetricNameMarshalUnmarshalRaw(t *testing.T) {
 
 			// Try unmarshaling MetricName without tag value.
 			brokenData := marshalTagValue(data, []byte("foobar"))
-			if err := mn1.unmarshalRaw(brokenData); err == nil {
+			if err := mn1.UnmarshalRaw(brokenData); err == nil {
 				t.Fatalf("expecting non-zero error when unmarshaling MetricName without tag value")
 			}
 
 			// Try unmarshaling MetricName with invalid tag key.
 			brokenData[len(brokenData)-1] = 123
-			if err := mn1.unmarshalRaw(brokenData); err == nil {
+			if err := mn1.UnmarshalRaw(brokenData); err == nil {
 				t.Fatalf("expecting non-zero error when unmarshaling MetricName with invalid tag key")
 			}
 
@@ -173,7 +173,7 @@ func TestMetricNameMarshalUnmarshalRaw(t *testing.T) {
 			brokenData = marshalTagValue(data, []byte("foobar"))
 			brokenData = marshalTagValue(brokenData, []byte("aaa"))
 			brokenData[len(brokenData)-1] = 123
-			if err := mn1.unmarshalRaw(brokenData); err == nil {
+			if err := mn1.UnmarshalRaw(brokenData); err == nil {
 				t.Fatalf("expecting non-zero error when unmarshaling MetricName with invalid tag value")
 			}
 		}
