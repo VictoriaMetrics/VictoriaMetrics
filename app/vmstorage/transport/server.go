@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
@@ -51,44 +52,8 @@ type Server struct {
 	vminsertWG sync.WaitGroup
 	vmselectWG sync.WaitGroup
 
-	vminsertConnsMap connsMap
-	vmselectConnsMap connsMap
-}
-
-type connsMap struct {
-	mu       sync.Mutex
-	m        map[net.Conn]struct{}
-	isClosed bool
-}
-
-func (cm *connsMap) Init() {
-	cm.m = make(map[net.Conn]struct{})
-	cm.isClosed = false
-}
-
-func (cm *connsMap) Add(c net.Conn) bool {
-	cm.mu.Lock()
-	ok := !cm.isClosed
-	if ok {
-		cm.m[c] = struct{}{}
-	}
-	cm.mu.Unlock()
-	return ok
-}
-
-func (cm *connsMap) Delete(c net.Conn) {
-	cm.mu.Lock()
-	delete(cm.m, c)
-	cm.mu.Unlock()
-}
-
-func (cm *connsMap) CloseAll() {
-	cm.mu.Lock()
-	for c := range cm.m {
-		_ = c.Close()
-	}
-	cm.isClosed = true
-	cm.mu.Unlock()
+	vminsertConnsMap ingestserver.ConnsMap
+	vmselectConnsMap ingestserver.ConnsMap
 }
 
 // NewServer returns new Server.

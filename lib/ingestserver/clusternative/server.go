@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -22,6 +23,7 @@ type Server struct {
 	addr  string
 	lnTCP net.Listener
 	wg    sync.WaitGroup
+	cm    ingestserver.ConnsMap
 }
 
 // MustStart starts clusternative server on the given addr.
@@ -39,10 +41,11 @@ func MustStart(addr string, insertHandler func(c net.Conn) error) *Server {
 		addr:  addr,
 		lnTCP: lnTCP,
 	}
+	s.cm.Init()
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		serveTCP(lnTCP, insertHandler)
+		s.serveTCP(insertHandler)
 		logger.Infof("stopped TCP clusternative server at %q", addr)
 	}()
 	return s
@@ -54,18 +57,20 @@ func (s *Server) MustStop() {
 	if err := s.lnTCP.Close(); err != nil {
 		logger.Errorf("cannot close TCP clusternative server: %s", err)
 	}
+	s.cm.CloseAll()
 	s.wg.Wait()
 	logger.Infof("TCP clusternative server at %q has been stopped", s.addr)
 }
 
-func serveTCP(ln net.Listener, insertHandler func(c net.Conn) error) {
+func (s *Server) serveTCP(insertHandler func(c net.Conn) error) {
+	var wg sync.WaitGroup
 	for {
-		c, err := ln.Accept()
+		c, err := s.lnTCP.Accept()
 		if err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) {
 				if ne.Temporary() {
-					logger.Errorf("clusternative: temporary error when listening for TCP addr %q: %s", ln.Addr(), err)
+					logger.Errorf("clusternative: temporary error when listening for TCP addr %q: %s", s.lnTCP.Addr(), err)
 					time.Sleep(time.Second)
 					continue
 				}
@@ -76,13 +81,24 @@ func serveTCP(ln net.Listener, insertHandler func(c net.Conn) error) {
 			}
 			logger.Fatalf("unexpected error when accepting TCP clusternative connections: %s", err)
 		}
+		if !s.cm.Add(c) {
+			// The server is already closed.
+			_ = c.Close()
+			break
+		}
+		wg.Add(1)
 		go func() {
+			defer func() {
+				s.cm.Delete(c)
+				_ = c.Close()
+				wg.Done()
+			}()
 			writeRequestsTCP.Inc()
 			if err := insertHandler(c); err != nil {
 				writeErrorsTCP.Inc()
 				logger.Errorf("error in TCP clusternative conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
 			}
-			_ = c.Close()
 		}()
 	}
+	wg.Wait()
 }

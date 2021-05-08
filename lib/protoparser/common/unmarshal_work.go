@@ -40,7 +40,7 @@ func StartUnmarshalWorkers() {
 
 // StopUnmarshalWorkers stops unmarshal workers.
 //
-// No more calles to ScheduleUnmarshalWork are allowed after callsing stopUnmarshalWorkers
+// No more calles to ScheduleUnmarshalWork are allowed after calling stopUnmarshalWorkers
 func StopUnmarshalWorkers() {
 	close(unmarshalWorkCh)
 	unmarshalWorkersWG.Wait()
