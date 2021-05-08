@@ -405,6 +405,7 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 	return newTimeSeries(float64(a.Start.Unix()), labels, timestamp)
 }
 
+// ErrStateRestore indicates that the vmalert state failed to restore during startup.
 var ErrStateRestore = errors.New("failed to restore the state")
 
 // Restore restores the state of active alerts basing on previously written timeseries.
