@@ -26,7 +26,7 @@ func StartUnmarshalWorkers() {
 		logger.Panicf("BUG: it looks like startUnmarshalWorkers() has been alread called without stopUnmarshalWorkers()")
 	}
 	gomaxprocs := cgroup.AvailableCPUs()
-	unmarshalWorkCh = make(chan UnmarshalWork, 2*gomaxprocs)
+	unmarshalWorkCh = make(chan UnmarshalWork, gomaxprocs)
 	unmarshalWorkersWG.Add(gomaxprocs)
 	for i := 0; i < gomaxprocs; i++ {
 		go func() {
