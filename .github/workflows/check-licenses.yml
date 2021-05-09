@@ -1,0 +1,26 @@
+name: main
+on:
+  push:
+    paths:
+      - 'vendor'
+  pull_request:
+    paths:
+      - 'vendor'
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@main
+        with:
+          go-version: 1.16
+        id: go
+      - name: Dependencies
+        run: |
+          go get -u github.com/frapposelli/wwhrd
+      - name: Code checkout
+        uses: actions/checkout@master
+      - name: Check License
+        run: |
+          wwhrd check
