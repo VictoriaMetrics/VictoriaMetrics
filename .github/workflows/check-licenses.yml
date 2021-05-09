@@ -1,11 +1,12 @@
 name: main
-on:
-  push:
-    paths:
-      - 'vendor'
-  pull_request:
-    paths:
-      - 'vendor'
+#on:
+#  push:
+#    paths:
+#      - 'vendor'
+#  pull_request:
+#    paths:
+#      - 'vendor'
+on: ["pull_request", "push"]
 jobs:
   build:
     name: Build
