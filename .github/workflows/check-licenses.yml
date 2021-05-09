@@ -1,12 +1,11 @@
 name: license-check
-#on:
-#  push:
-#    paths:
-#      - 'vendor'
-#  pull_request:
-#    paths:
-#      - 'vendor'
-on: ["pull_request", "push"]
+on:
+  push:
+    paths:
+      - 'vendor'
+  pull_request:
+    paths:
+      - 'vendor'
 jobs:
   build:
     name: Build
