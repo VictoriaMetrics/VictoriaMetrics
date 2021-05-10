@@ -83,7 +83,7 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || go install golang.org/x/lint/golint
+	which golint || GO111MODULE=off go get golang.org/x/lint/golint
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
@@ -98,7 +98,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
 
 install-errcheck:
-	which errcheck || go install github.com/kisielk/errcheck
+	which errcheck || GO111MODULE=off go get github.com/kisielk/errcheck
 
 check-all: fmt vet lint errcheck golangci-lint
 
@@ -147,7 +147,7 @@ quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || go install github.com/valyala/quicktemplate/qtc
+	which qtc || GO111MODULE=off go get github.com/valyala/quicktemplate/qtc
 
 
 golangci-lint: install-golangci-lint
@@ -155,6 +155,12 @@ golangci-lint: install-golangci-lint
 
 install-golangci-lint:
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.29.0
+
+install-wwhrd:
+	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd
+
+check-licenses: install-wwhrd
+	wwhrd check -f .wwhrd.yml
 
 copy-docs:
 	echo "---\nsort: ${ORDER}\n---\n" > ${DST}
