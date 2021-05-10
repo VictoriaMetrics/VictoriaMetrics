@@ -2318,15 +2318,11 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 	metricIDs := &uint64set.Set{}
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
-			// Return all the metric ids
-			if err := is.updateMetricIDsAll(metricIDs, maxMetrics+1); err != nil {
-				return nil, err
+			// An empty filters must be equivalent to `{__name__!=""}`
+			tfs = NewTagFilters(tfs.accountID, tfs.projectID)
+			if err := tfs.Add(nil, nil, true, false); err != nil {
+				logger.Panicf(`BUG: cannot add {__name__!=""} filter: %s`, err)
 			}
-			if metricIDs.Len() > maxMetrics {
-				return nil, fmt.Errorf("the number of unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
-			}
-			// Stop the iteration, since we cannot find more metric ids with the remaining tfss.
-			break
 		}
 		if err := is.updateMetricIDsForTagFilters(metricIDs, tfs, tr, maxMetrics+1); err != nil {
 			return nil, err
