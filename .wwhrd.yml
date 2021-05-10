@@ -1,6 +1,4 @@
-blacklist:
-  - GPL-2.0
-whitelist:
+allowlist:
   - Apache-2.0
   - MIT
   - BSD-3-Clause
