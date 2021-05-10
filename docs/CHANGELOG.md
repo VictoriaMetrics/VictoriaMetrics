@@ -11,6 +11,7 @@ sort: 15
 * BUGFIX: properly remove stale parts outside the configured retention if `-retentionPeriod` is smaller than one month. Previously stale parts could remain active for up to a month after they go outside the retention.
 * BUGFIX: stop the process on panic errors, since such errors may leave the process in inconsistent state. Previously panics could be recovered, which could result in unexpected hard-to-debug further behavior of running process.
 * BUGFIX: vminsert, vmagent: make sure data ingestion connections are closed before completing graceful shutdown. Previously the connection may remain open, which could result in trailing samples loss.
+* BUGFIX: vmalert: fix a bug, which could prevent from proper state restore on startup. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1279).
 
 
 ## tip
