@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -52,12 +51,7 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 }
 
 func (m *manager) start(ctx context.Context, path []string, validateTpl, validateExpr bool) error {
-	err := m.update(ctx, path, validateTpl, validateExpr, true)
-	if *remoteReadIgnoreRestoreErrors && errors.Is(err, ErrStateRestore) {
-		logger.Errorf("%s", err)
-		return nil
-	}
-	return err
+	return m.update(ctx, path, validateTpl, validateExpr, true)
 }
 
 func (m *manager) close() {
@@ -74,7 +68,10 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) er
 	if restore && m.rr != nil {
 		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
 		if err != nil {
-			return fmt.Errorf("error while restoring state for group %q: %w", group.Name, err)
+			if !*remoteReadIgnoreRestoreErrors {
+				return fmt.Errorf("failed to restore state for group %q: %w", group.Name, err)
+			}
+			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
 		}
 	}
 
