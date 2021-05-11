@@ -221,7 +221,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 	}()
 
-	w.Header().Set("X-Server-Hostname", hostname)
+	w.Header().Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
