@@ -1702,7 +1702,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err := tfs.Add([]byte("day"), []byte("3"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatusWithFiltersOnTimeRange([]*TagFilters{tfs}, tr, 10000, 3, noDeadline)
+	status, err = db.GetTSDBStatusWithFiltersOnTimeRange([]*TagFilters{tfs}, tr, 10000, 5, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatusForDate: %s", err)
 	}
@@ -1717,40 +1717,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
-	}
-	expectedLabelValueCountByLabelName = []TopHeapEntry{
-		{
-			Name:  "uniqueid",
-			Count: 1000,
-		},
-		{
-			Name:  "__name__",
-			Count: 1,
-		},
-		{
-			Name:  "constant",
-			Count: 1,
-		},
-	}
-	if !reflect.DeepEqual(status.LabelValueCountByLabelName, expectedLabelValueCountByLabelName) {
-		t.Fatalf("unexpected LabelValueCountByLabelName;\ngot\n%v\nwant\n%v", status.LabelValueCountByLabelName, expectedLabelValueCountByLabelName)
-	}
-	expectedSeriesCountByLabelValuePair = []TopHeapEntry{
-		{
-			Name:  "__name__=testMetric",
-			Count: 1000,
-		},
-		{
-			Name:  "constant=const",
-			Count: 1000,
-		},
-		{
-			Name:  "day=3",
-			Count: 1000,
-		},
-	}
-	if !reflect.DeepEqual(status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair) {
-		t.Fatalf("unexpected SeriesCountByLabelValuePair;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair)
 	}
 }
 
