@@ -241,7 +241,7 @@ Yes, it’s possible. Also we have this [issue](https://github.com/VictoriaMetri
 
 ### How to set a memory limit for vmstorage ? Cluster/SingleNode version
 
-VictoriaMetrics provides flags to control the size of internal buffers and caches. But these are soft limits and the total process memory usage may exceed it. Hard limits may be enforced only by OS (cgroups) or virtualization tools (docker, k8s).
+VictoriaMetrics provides flags to control the size of internal buffers and caches. But these are soft limits and the total process memory usage may exceed it. Hard limits may be enforced only by OS ([cgroups](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-relationships_between_subsystems_hierarchies_control_groups_and_tasks)) or virtualization tools ([docker](https://docs.docker.com/config/containers/resource_constraints), [k8s](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
 
 
 ### Can I use VictoriaMetrics instead of an all Prometheus Stack (Prometheus, Alertmanager, PushGateway) or are there some things that can't be replaced?
