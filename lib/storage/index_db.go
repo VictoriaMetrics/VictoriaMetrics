@@ -1372,8 +1372,7 @@ func (is *indexSearch) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, t
 		if !bytes.Equal(tmpMetricName, mn.MetricGroup) {
 			tmpMetricName = mn.MetricGroup
 			cntByUniqLabelValues[metricNameLabel]++
-			tmpPairs = append(tmpPairs[:len(metricNameLabel)])
-			tmpPairs = append(tmpPairs, '=')
+			tmpPairs = append(tmpPairs[:len(metricNameLabel)], '=')
 			tmpPairs = append(tmpPairs, mn.MetricGroup...)
 			thSeriesCountByMetricName.pushIfNonEmpty(tmpMetricName, metricNameCnt)
 			metricNameCnt = 0
