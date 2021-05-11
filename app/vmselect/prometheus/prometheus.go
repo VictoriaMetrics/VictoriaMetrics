@@ -679,7 +679,6 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 		if err != nil {
 			return fmt.Errorf("cannot tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
-		// todo use extended match syntax.
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)

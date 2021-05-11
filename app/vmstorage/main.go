@@ -216,7 +216,7 @@ func GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*storage.TSDB
 // GetTSDBStatusWithFilters returns TSDB status for given filters.
 func GetTSDBStatusWithFilters(tr storage.TimeRange, tfss []*storage.TagFilters, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusForTrWithFilters(tfss, tr, maxMetrics, deadline, topN)
+	status, err := Storage.GetTSDBStatusForDateWithFilters(tfss, tr, maxMetrics, deadline, topN)
 	WG.Done()
 	return status, err
 }
