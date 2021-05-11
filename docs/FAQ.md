@@ -223,6 +223,114 @@ Questions about VictoriaMetrics can be asked via the following channels:
 File bugs and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 
+### Where I can find information about Multi-Tenancy?
+
+You can read about Multitenancy [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). Note that only a [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) version supports Multi-Tenancy.
+
+
+
+### Will having multiple tenants affect my performance? Is this data written on disk separately or in one place?
+
+If you take the most challenging case  (multi-tenancy for the same set of metrics) it will require more disk space, more RAM for caches and more CPU for data processing. There should be linear growth for each additional tenant. But, in general, the overhead from additional tenants should be negligible because the metrics should be differentiated by labels. When the  tenant-id is added to the metric ID, and everything else - indexes, disk placement, remains the same.
+
+
+### Is it possible to delete a tenant by deleting its metrics?  
+
+Yes, it’s possible. Also we have this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1111).
+
+
+### How to set a memory limit for vmstorage ? Cluster/SingleNode version
+
+VictoriaMetrics provides flags to control the size of internal buffers and caches. But these are soft limits and the total process memory usage may exceed it. Hard limits may be enforced only by OS (cgroups) or virtualization tools (docker, k8s).
+
+
+### Can I use VictoriaMetrics instead of an all Prometheus Stack (Prometheus, Alertmanager, PushGateway) or are there some things that can't be replaced?
+
+Yes, you can replace your entire Prometheus stack with VictoriaMetrics
+
+
+### I have two Prometheus replicas in my k8s cluster that write data into VictoriaMetrics and therefore see dual data from node_exporter’s in my Grafana dashboard. I have tried to use  `-dedup.minScrapeInterval: 10s`  parameter for vmagent https://docs.victoriametrics.com/#deduplication but my Pod was disconnected because it didn’t know this flag.
+
+`-dedup.minScrapeInterval` supported by single node version and for cluster version it supported by vmselect/vmstorage services so you need to set this flag for them.
+
+
+### How can I build VictoriaMetrics on FreeBSD?
+
+To build VictoriaMetrics on FreeBSD you need to install Golang in OS and then run gmake victoria-metrics-pure or install it from FreeBSD Ports - see [this link](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) .
+
+
+### What is the rule of thumb for vminsert replication factor? What if I have 8 vmstorage pods?
+
+E.g. replication factor 3 means that you have your initial data copied 3 times and these copies are spread across 8 nodes. Every node will therefore have 3/8 of the initial data.
+
+
+### Can I make a query to different tenants at the same time? 
+
+No. You can only do this if you will run the query through [promxy](https://github.com/jacksontj/promxy).
+
+
+### How does vmselect know in which storage to find the entire dataset?  
+
+`vmselect` queries all the `vmstorage` instances. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
+
+
+### Is there a way to use vm to identify the top 10 slow queries or non-performing queries being made to VictoriaMetrics?
+
+There is an `/api/v1/status/top_queries`  which should help to identify slowest queries.
+
+
+### How can I set replication files between vmstorages after one node has died? vminsert send data to all nodes, but after I reboot one node has less data than the node that was working. Is there any other way to manage this other than with rsync?
+
+There is currently no rebalancing between nodes. Please see the following links for more details. 
+https://github.com/VictoriaMetrics/VictoriaMetrics/issues/188
+https://github.com/VictoriaMetrics/VictoriaMetrics/issues/991
+
+
+### Does VictoriaMetrics support the many-to-many metrics multiplication?
+
+Many-to-many is not supported yet. There are only one-to-one and one-to-many - see [this] (https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching)
+
+
+### Is it a good idea to write into Single Node VictoriaMetrics from different protocols like Graphite plaintext protocol, Influxdb and Prometheus metrics? Maybe it would be better to keep these data separate from each other?
+
+This is a good case. Please ensure to have different label sets for the written data to avoid collisions
+
+
+### Is the native export format documented anywhere?
+
+There is a description about [Native Protocol](https://docs.victoriametrics.com/vmctl.html#native-protocol ).
+Also we have an [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1203)  and when protocol will be stabilized.
+
+
+### Let say we have already imported some data from Prometheus snapshot in VictoriaMetrics. What will happen with imported data into VictoriaMetrics if we run vmctl for the same Prometheus snapshot ?
+
+Such data will be written once again into VictoriaMetrics, i.e. as a result, VictoriaMetrics will have duplicate data. Such duplicates can be removed using deduplication. See this [link](https://docs.victoriametrics.com/#deduplication)
+
+
+### What are the current possibilities for billing the use of a multi-tenant database, i.e. an estimate of the number of per tenant requests, network bandwidth, disk usage, anything else that can be calculated?
+
+See [this](https://docs.victoriametrics.com/PerTenantStatistic.html) documentation. 
+
+
+### There is a Helm Chart for VictoriaMertics on github. Does it work for VictoriaMetrics enterprise?
+
+Yes, it works but it need to change `values.repository.tag` to use enterprise image also specify eula in `values.extraArgs`:
+
+```
+extraArgs:
+  eul
+  "true"
+```
+
+or in values.env:
+
+
+```
+- name: VM_eula
+  value: "true" 
+```
+
+
 ### Are you looking for investors?
 
 Yes. [Mail us](mailto:info@victoriametrics.com) if you are interested in.
