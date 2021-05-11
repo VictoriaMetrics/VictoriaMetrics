@@ -81,6 +81,7 @@ type VMStorage struct {
 	appendTypePrefix bool
 	lookBack         time.Duration
 	queryStep        time.Duration
+	roundDigits      string
 
 	dataSourceType     Type
 	evaluationInterval time.Duration
@@ -217,6 +218,9 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string, timest
 	if s.queryStep > 0 {
 		// override step with user-specified value
 		q.Set("step", s.queryStep.String())
+	}
+	if s.roundDigits != "" {
+		q.Set("round_digits", s.roundDigits)
 	}
 	r.URL.RawQuery = q.Encode()
 }

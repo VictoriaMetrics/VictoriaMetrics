@@ -1251,7 +1251,7 @@ func (s *Storage) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (
 // MetricRow is a metric to insert into storage.
 type MetricRow struct {
 	// MetricNameRaw contains raw metric name, which must be decoded
-	// with MetricName.unmarshalRaw.
+	// with MetricName.UnmarshalRaw.
 	MetricNameRaw []byte
 
 	Timestamp int64
@@ -1269,7 +1269,7 @@ func (mr *MetricRow) CopyFrom(src *MetricRow) {
 func (mr *MetricRow) String() string {
 	metricName := string(mr.MetricNameRaw)
 	var mn MetricName
-	if err := mn.unmarshalRaw(mr.MetricNameRaw); err == nil {
+	if err := mn.UnmarshalRaw(mr.MetricNameRaw); err == nil {
 		metricName = mn.String()
 	}
 	return fmt.Sprintf("%s (Timestamp=%d, Value=%f)", metricName, mr.Timestamp, mr.Value)
@@ -1283,13 +1283,15 @@ func (mr *MetricRow) Marshal(dst []byte) []byte {
 	return dst
 }
 
-// Unmarshal unmarshals mr from src and returns the remaining tail from src.
-func (mr *MetricRow) Unmarshal(src []byte) ([]byte, error) {
+// UnmarshalX unmarshals mr from src and returns the remaining tail from src.
+//
+// mr refers to src, so it remains valid until src changes.
+func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
 	tail, metricNameRaw, err := encoding.UnmarshalBytes(src)
 	if err != nil {
 		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
 	}
-	mr.MetricNameRaw = append(mr.MetricNameRaw[:0], metricNameRaw...)
+	mr.MetricNameRaw = metricNameRaw
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
@@ -1391,7 +1393,7 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		}
 
 		// Slow path - register mr.MetricNameRaw.
-		if err := mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			return fmt.Errorf("cannot register the metric because cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 		}
 		mn.sortTags()
@@ -1572,7 +1574,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 
 func getUserReadableMetricName(metricNameRaw []byte) string {
 	var mn MetricName
-	if err := mn.unmarshalRaw(metricNameRaw); err != nil {
+	if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
 		return fmt.Sprintf("cannot unmarshal metricNameRaw %q: %s", metricNameRaw, err)
 	}
 	return mn.String()
@@ -1608,7 +1610,7 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 	// Do not spend CPU time on re-calculating canonical metricName during bulk import
 	// of many rows for the same metric.
 	if string(mr.MetricNameRaw) != string(pmrs.lastMetricNameRaw) {
-		if err := pmrs.mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
+		if err := pmrs.mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 		}
 		pmrs.mn.sortTags()

@@ -436,7 +436,7 @@ func SetMaxLabelsPerTimeseries(maxLabels int) {
 
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
-// The result must be unmarshaled with MetricName.unmarshalRaw
+// The result must be unmarshaled with MetricName.UnmarshalRaw
 func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	// Calculate the required space for dst.
 	dstLen := len(dst)
@@ -538,7 +538,7 @@ func labelsToString(labels []prompb.Label) string {
 
 // marshalRaw marshals mn to dst and returns the result.
 //
-// The results may be unmarshaled with MetricName.unmarshalRaw.
+// The results may be unmarshaled with MetricName.UnmarshalRaw.
 //
 // This function is for testing purposes. MarshalMetricNameRaw must be used
 // in prod instead.
@@ -555,8 +555,8 @@ func (mn *MetricName) marshalRaw(dst []byte) []byte {
 	return dst
 }
 
-// unmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
-func (mn *MetricName) unmarshalRaw(src []byte) error {
+// UnmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
+func (mn *MetricName) UnmarshalRaw(src []byte) error {
 	mn.Reset()
 	for len(src) > 0 {
 		tail, key, err := unmarshalBytesFast(src)

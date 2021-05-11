@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -34,6 +35,7 @@ type Server struct {
 	httpServer *opentsdbhttp.Server
 	lnUDP      net.PacketConn
 	wg         sync.WaitGroup
+	cm         ingestserver.ConnsMap
 }
 
 // MustStart starts OpenTSDB collector on the given addr.
@@ -62,10 +64,11 @@ func MustStart(addr string, telnetInsertHandler func(r io.Reader) error, httpIns
 		httpServer: httpServer,
 		lnUDP:      lnUDP,
 	}
+	s.cm.Init()
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		serveTelnet(lnTelnet, telnetInsertHandler)
+		s.serveTelnet(lnTelnet, telnetInsertHandler)
 		logger.Infof("stopped TCP telnet OpenTSDB server at %q", addr)
 	}()
 	s.wg.Add(1)
@@ -77,7 +80,7 @@ func MustStart(addr string, telnetInsertHandler func(r io.Reader) error, httpIns
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		serveUDP(lnUDP, telnetInsertHandler)
+		s.serveUDP(telnetInsertHandler)
 		logger.Infof("stopped UDP OpenTSDB server at %q", addr)
 	}()
 	return s
@@ -97,13 +100,13 @@ func (s *Server) MustStop() {
 	if err := s.lnUDP.Close(); err != nil {
 		logger.Errorf("cannot stop UDP OpenTSDB server: %s", err)
 	}
-
-	// Wait until all the servers are stopped.
+	s.cm.CloseAll()
 	s.wg.Wait()
 	logger.Infof("TCP and UDP OpenTSDB servers at %q have been stopped", s.addr)
 }
 
-func serveTelnet(ln net.Listener, insertHandler func(r io.Reader) error) {
+func (s *Server) serveTelnet(ln net.Listener, insertHandler func(r io.Reader) error) {
+	var wg sync.WaitGroup
 	for {
 		c, err := ln.Accept()
 		if err != nil {
@@ -121,18 +124,28 @@ func serveTelnet(ln net.Listener, insertHandler func(r io.Reader) error) {
 			}
 			logger.Fatalf("unexpected error when accepting TCP OpenTSDB connections: %s", err)
 		}
+		if !s.cm.Add(c) {
+			_ = c.Close()
+			break
+		}
+		wg.Add(1)
 		go func() {
+			defer func() {
+				s.cm.Delete(c)
+				_ = c.Close()
+				wg.Done()
+			}()
 			writeRequestsTCP.Inc()
 			if err := insertHandler(c); err != nil {
 				writeErrorsTCP.Inc()
 				logger.Errorf("error in TCP OpenTSDB conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
 			}
-			_ = c.Close()
 		}()
 	}
+	wg.Wait()
 }
 
-func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
+func (s *Server) serveUDP(insertHandler func(r io.Reader) error) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	for i := 0; i < gomaxprocs; i++ {
@@ -144,13 +157,13 @@ func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
 			for {
 				bb.Reset()
 				bb.B = bb.B[:cap(bb.B)]
-				n, addr, err := ln.ReadFrom(bb.B)
+				n, addr, err := s.lnUDP.ReadFrom(bb.B)
 				if err != nil {
 					writeErrorsUDP.Inc()
 					var ne net.Error
 					if errors.As(err, &ne) {
 						if ne.Temporary() {
-							logger.Errorf("opentsdb: temporary error when listening for UDP addr %q: %s", ln.LocalAddr(), err)
+							logger.Errorf("opentsdb: temporary error when listening for UDP addr %q: %s", s.lnUDP.LocalAddr(), err)
 							time.Sleep(time.Second)
 							continue
 						}
@@ -165,7 +178,7 @@ func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
 				writeRequestsUDP.Inc()
 				if err := insertHandler(bb.NewReader()); err != nil {
 					writeErrorsUDP.Inc()
-					logger.Errorf("error in UDP OpenTSDB conn %q<->%q: %s", ln.LocalAddr(), addr, err)
+					logger.Errorf("error in UDP OpenTSDB conn %q<->%q: %s", s.lnUDP.LocalAddr(), addr, err)
 					continue
 				}
 			}

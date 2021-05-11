@@ -216,6 +216,8 @@ The shortlist of configuration flags is the following:
     	Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+  -datasource.roundDigits int
+    	Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -317,6 +319,8 @@ The shortlist of configuration flags is the following:
     	Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.username string
     	Optional basic auth username for -remoteRead.url
+  -remoteRead.ignoreRestoreErrors
+    	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
     	Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
   -remoteRead.tlsCAFile string
