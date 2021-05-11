@@ -1,6 +1,7 @@
 package cgroup
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -41,20 +42,28 @@ func updateGOMAXPROCSToCPUQuota() {
 }
 
 func getCPUQuota() float64 {
-	quotaUS, err := getCPUStat("cpu.cfs_quota_us")
+	cpuQuota, err := getCPUStatGeneric()
 	if err != nil {
 		return 0
 	}
-	if quotaUS <= 0 {
+
+	if cpuQuota <= 0 {
 		// The quota isn't set. This may be the case in multilevel containers.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
 		return getOnlineCPUCount()
 	}
-	periodUS, err := getCPUStat("cpu.cfs_period_us")
-	if err != nil {
-		return 0
+	return cpuQuota
+}
+
+func getCPUStatGeneric() (float64, error) {
+	quotaUS, err := getCPUStat("cpu.cfs_quota_us")
+	if err == nil {
+		periodUS, err := getCPUStat("cpu.cfs_period_us")
+		if err == nil {
+			return float64(quotaUS) / float64(periodUS), nil
+		}
 	}
-	return float64(quotaUS) / float64(periodUS)
+	return getCPUStatV2("/sys/fs/cgroup", "/proc/self/cgroup")
 }
 
 func getCPUStat(statName string) (int64, error) {
@@ -72,6 +81,35 @@ func getOnlineCPUCount() float64 {
 		return -1
 	}
 	return n
+}
+
+func getCPUStatV2(sysPrefix, cgroupPath string) (float64, error) {
+	data, err := getFileContents("cpu.max", sysPrefix, cgroupPath, "")
+	if err != nil {
+		return 0, err
+	}
+	return parseCPUsMaxV2(data)
+}
+
+// https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu
+func parseCPUsMaxV2(data string) (float64, error) {
+	data = strings.TrimRight(data, "\r\n")
+	bounds := strings.Split(data, " ")
+	if len(bounds) != 2 {
+		return 0, fmt.Errorf("")
+	}
+	if bounds[0] == "max" {
+		return -1, nil
+	}
+	quota, err := strconv.Atoi(bounds[0])
+	if err != nil {
+		return 0, err
+	}
+	period, err := strconv.Atoi(bounds[1])
+	if err != nil {
+		return 0, err
+	}
+	return float64(quota) / float64(period), nil
 }
 
 func countCPUs(data string) int {
