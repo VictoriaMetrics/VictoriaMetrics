@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -194,6 +195,17 @@ func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
 var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
 
+var hostname = func() string {
+	h, err := os.Hostname()
+	if err != nil {
+		// Cannot use logger.Errorf, since it isn't initialized yet.
+		// So use log.Printf instead.
+		log.Printf("ERROR: cannot determine hostname: %s", err)
+		return "unknown"
+	}
+	return h
+}()
+
 func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	// All the VictoriaMetrics code assumes that panic stops the process.
 	// Unfortunately, the standard net/http.Server recovers from panics in request handlers,
@@ -209,6 +221,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 	}()
 
+	w.Header().Set("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
