@@ -88,15 +88,15 @@ func getCPUStatV2(sysPrefix, cgroupPath string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return parseCPUsMaxV2(data)
+	return parseCPUMax(data)
 }
 
 // https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu
-func parseCPUsMaxV2(data string) (float64, error) {
+func parseCPUMax(data string) (float64, error) {
 	data = strings.TrimRight(data, "\r\n")
 	bounds := strings.Split(data, " ")
 	if len(bounds) != 2 {
-		return 0, fmt.Errorf("")
+		return 0, fmt.Errorf("unexpected count: %d, want quota and period, got: %s", len(bounds), data)
 	}
 	if bounds[0] == "max" {
 		return -1, nil
