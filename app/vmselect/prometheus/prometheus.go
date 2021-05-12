@@ -691,11 +691,19 @@ const secsPerDay = 3600 * 24
 // TSDBStatusHandler processes /api/v1/status/tsdb request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+//
+// It can accept `match[]` filters in order to narrow down the search.
 func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	if err != nil {
+		return err
+	}
+	matches := getMatchesFromRequest(r)
+
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
 	if len(dateStr) > 0 {
@@ -721,9 +729,18 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		topN = n
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	status, isPartial, err := netstorage.GetTSDBStatusForDate(at, denyPartialResponse, deadline, date, topN)
-	if err != nil {
-		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
+	var status *storage.TSDBStatus
+	var isPartial bool
+	if len(matches) == 0 && len(etf) == 0 {
+		status, isPartial, err = netstorage.GetTSDBStatusForDate(at, denyPartialResponse, deadline, date, topN)
+		if err != nil {
+			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
+		}
+	} else {
+		status, isPartial, err = tsdbStatusWithMatches(at, denyPartialResponse, matches, etf, date, topN, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -735,6 +752,25 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	}
 	tsdbStatusDuration.UpdateDuration(startTime)
 	return nil
+}
+
+func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etf []storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+	tagFilterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return nil, false, err
+	}
+	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	if len(tagFilterss) == 0 {
+		logger.Panicf("BUG: tagFilterss must be non-empty")
+	}
+	start := int64(date*secsPerDay) * 1000
+	end := int64(date*secsPerDay+secsPerDay) * 1000
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(at, denyPartialResponse, deadline, sq, topN)
+	if err != nil {
+		return nil, false, err
+	}
+	return status, isPartial, nil
 }
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)

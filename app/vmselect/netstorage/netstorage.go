@@ -1047,6 +1047,50 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 	return a
 }
 
+// GetTSDBStatusWithFilters returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+//
+// It accepts aribtrary filters on time series in sq.
+func GetTSDBStatusWithFilters(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline, sq *storage.SearchQuery, topN int) (*storage.TSDBStatus, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	requestData := sq.Marshal(nil)
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		status *storage.TSDBStatus
+		err    error
+	}
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
+		sn.tsdbStatusWithFiltersRequests.Inc()
+		status, err := sn.getTSDBStatusWithFilters(requestData, topN, deadline)
+		if err != nil {
+			sn.tsdbStatusWithFiltersErrors.Inc()
+			err = fmt.Errorf("cannot obtain tsdb status with filters from vmstorage %s: %w", sn.connPool.Addr(), err)
+		}
+		return &nodeResult{
+			status: status,
+			err:    err,
+		}
+	})
+
+	// Collect results.
+	var statuses []*storage.TSDBStatus
+	isPartial, err := snr.collectResults(partialTSDBStatusResults, func(result interface{}) error {
+		nr := result.(*nodeResult)
+		if nr.err != nil {
+			return nr.err
+		}
+		statuses = append(statuses, nr.status)
+		return nil
+	})
+	if err != nil {
+		return nil, isPartial, fmt.Errorf("cannot fetch tsdb status with filters from vmstorage nodes: %w", err)
+	}
+
+	status := mergeTSDBStatuses(statuses, topN)
+	return status, isPartial, nil
+}
+
 // GetSeriesCount returns the number of unique series for the given at.
 func GetSeriesCount(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) (uint64, bool, error) {
 	if deadline.Exceeded() {
@@ -1462,6 +1506,12 @@ type storageNode struct {
 	// The number of errors during requests to tsdb status.
 	tsdbStatusErrors *metrics.Counter
 
+	// The number of requests to tsdb status.
+	tsdbStatusWithFiltersRequests *metrics.Counter
+
+	// The number of errors during requests to tsdb status.
+	tsdbStatusWithFiltersErrors *metrics.Counter
+
 	// The number of requests to seriesCount.
 	seriesCountRequests *metrics.Counter
 
@@ -1621,6 +1671,22 @@ func (sn *storageNode) getTSDBStatusForDate(accountID, projectID uint32, date ui
 		return nil
 	}
 	if err := sn.execOnConnWithPossibleRetry("tsdbStatus_v2", f, deadline); err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+func (sn *storageNode) getTSDBStatusWithFilters(requestData []byte, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+	var status *storage.TSDBStatus
+	f := func(bc *handshake.BufferedConn) error {
+		st, err := sn.getTSDBStatusWithFiltersOnConn(bc, requestData, topN)
+		if err != nil {
+			return err
+		}
+		status = st
+		return nil
+	}
+	if err := sn.execOnConnWithPossibleRetry("tsdbStatusWithFilters_v1", f, deadline); err != nil {
 		return nil, err
 	}
 	return status, nil
@@ -2108,6 +2174,49 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 	return status, nil
 }
 
+func (sn *storageNode) getTSDBStatusWithFiltersOnConn(bc *handshake.BufferedConn, requestData []byte, topN int) (*storage.TSDBStatus, error) {
+	// Send the request to sn.
+	if err := writeBytes(bc, requestData); err != nil {
+		return nil, fmt.Errorf("cannot write requestData: %w", err)
+	}
+	// topN shouldn't exceed 32 bits, so send it as uint32.
+	if err := writeUint32(bc, uint32(topN)); err != nil {
+		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush tsdbStatusWithFilters args to conn: %w", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	// Read response
+	seriesCountByMetricName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
+	}
+	labelValueCountByLabelName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
+	}
+	seriesCountByLabelValuePair, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %w", err)
+	}
+	status := &storage.TSDBStatus{
+		SeriesCountByMetricName:     seriesCountByMetricName,
+		LabelValueCountByLabelName:  labelValueCountByLabelName,
+		SeriesCountByLabelValuePair: seriesCountByLabelValuePair,
+	}
+	return status, nil
+}
+
 func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, error) {
 	n, err := readUint64(bc)
 	if err != nil {
@@ -2368,6 +2477,8 @@ func InitStorageNodes(addrs []string) {
 			tagValueSuffixesErrors:         metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			tsdbStatusRequests:             metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			tsdbStatusErrors:               metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusWithFiltersRequests:  metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusWithFiltersErrors:    metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchMetricNamesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),

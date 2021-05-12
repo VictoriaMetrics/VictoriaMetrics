@@ -553,9 +553,7 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
-* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts optional `topN=N` and `date=YYYY-MM-DD`
-  query args for this handler, where `N` is the number of top entries to return in the response and `YYYY-MM-DD` is the date for collecting the stats.
-  By default top 10 entries are returned and the stats is collected for the current day.
+* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). See [these docs](#tsdb-stats) for details.
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
@@ -1328,6 +1326,16 @@ VictoriaMetrics also exposes currently running queries with their execution time
 
 See the example of alerting rules for VM components [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
+
+## TSDB stats
+
+VictoriaMetrics retuns TSDB stats at `/api/v1/status/tsdb` page in the way similar to Prometheus - see [these Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts the following optional query args at `/api/v1/status/tsdb` page:
+  * `topN=N` where `N` is the number of top entries to return in the response. By default top 10 entries are returned.
+  * `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day.
+  * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
+  * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
+
+
 ## Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
@@ -1384,10 +1392,7 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
   It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
   each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
-* Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page.
-  See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
-  VictoriaMetrics accepts optional `date=YYYY-MM-DD` and `topN=42` args on this page. By default `date` equals to the current date,
-  while `topN` equals to 10.
+* Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page. See [these docs](#tsdb-stats) for details.
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 

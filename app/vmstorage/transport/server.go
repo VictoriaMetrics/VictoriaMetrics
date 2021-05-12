@@ -514,6 +514,8 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 		return s.processVMSelectSeriesCount(ctx)
 	case "tsdbStatus_v2":
 		return s.processVMSelectTSDBStatus(ctx)
+	case "tsdbStatusWithFilters_v1":
+		return s.processVMSelectTSDBStatusWithFilters(ctx)
 	case "deleteMetrics_v3":
 		return s.processVMSelectDeleteMetrics(ctx)
 	case "registerMetricNames_v1":
@@ -930,6 +932,50 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
+func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) error {
+	vmselectTSDBStatusWithFiltersRequests.Inc()
+
+	// Read request
+	if err := ctx.readSearchQuery(); err != nil {
+		return err
+	}
+	topN, err := ctx.readUint32()
+	if err != nil {
+		return fmt.Errorf("cannot read topN: %w", err)
+	}
+
+	// Execute the request
+	tr := storage.TimeRange{
+		MinTimestamp: ctx.sq.MinTimestamp,
+		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), ctx.deadline)
+	if err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	// Send status to vmselect.
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
+		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
+		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
+		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
+	}
+	return nil
+}
+
 func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) error {
 	if err := ctx.writeUint64(uint64(len(a))); err != nil {
 		return fmt.Errorf("cannot write topHeapEntries size: %w", err)
@@ -1078,6 +1124,7 @@ var (
 	vmselectLabelEntriesRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_entries"}`)
 	vmselectSeriesCountRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="series_count"}`)
 	vmselectTSDBStatusRequests             = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status"}`)
+	vmselectTSDBStatusWithFiltersRequests  = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status_with_filters"}`)
 	vmselectSearchMetricNamesRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search_metric_names"}`)
 	vmselectSearchRequests                 = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search"}`)
 

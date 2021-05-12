@@ -1324,6 +1324,11 @@ func (s *Storage) GetTSDBStatusForDate(accountID, projectID uint32, date uint64,
 	return s.idb().GetTSDBStatusForDate(accountID, projectID, date, topN, deadline)
 }
 
+// GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters and the given (accountID, projectID).
+func (s *Storage) GetTSDBStatusWithFiltersForDate(accountID, projectID uint32, tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusWithFiltersForDate(accountID, projectID, tfss, date, topN, deadline)
+}
+
 // MetricRow is a metric to insert into storage.
 type MetricRow struct {
 	// MetricNameRaw contains raw metric name, which must be decoded
