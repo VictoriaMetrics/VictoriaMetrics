@@ -638,6 +638,12 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	if err != nil {
+		return err
+	}
+	matches := getMatchesFromRequest(r)
+
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
 	if len(dateStr) > 0 {
@@ -662,9 +668,17 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 		}
 		topN = n
 	}
-	status, err := netstorage.GetTSDBStatusForDate(deadline, date, topN)
-	if err != nil {
-		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
+	var status *storage.TSDBStatus
+	if len(matches) == 0 && len(etf) == 0 {
+		status, err = netstorage.GetTSDBStatusForDate(deadline, date, topN)
+		if err != nil {
+			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
+		}
+	} else {
+		status, err = tsdbStatusWithMatches(matches, etf, date, topN, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
+		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
@@ -675,6 +689,26 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	}
 	tsdbStatusDuration.UpdateDuration(startTime)
 	return nil
+}
+
+func tsdbStatusWithMatches(matches []string, etf []storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+	tagFilterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return nil, err
+	}
+
+	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	if len(tagFilterss) == 0 {
+		logger.Panicf("BUG: tagFilterss must be non-empty")
+	}
+	start := int64(date*secsPerDay) * 1000
+	end := int64(date*secsPerDay+secsPerDay) * 1000
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	status, err := netstorage.GetTSDBStatusWithFilters(deadline, sq, topN)
+	if err != nil {
+		return nil, err
+	}
+	return status, nil
 }
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)

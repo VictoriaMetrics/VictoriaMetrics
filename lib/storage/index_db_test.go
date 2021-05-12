@@ -1691,6 +1691,33 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair) {
 		t.Fatalf("unexpected SeriesCountByLabelValuePair;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair)
 	}
+
+	// Perform a search across all the days, should match all metrics
+	tr = TimeRange{
+		MinTimestamp: int64(now),
+		MaxTimestamp: int64(now - msecPerDay*days),
+	}
+
+	tfs = NewTagFilters()
+	if err := tfs.Add([]byte("day"), []byte("3"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	status, err = db.GetTSDBStatusWithFiltersOnTimeRange([]*TagFilters{tfs}, tr, 10000, 5, noDeadline)
+	if err != nil {
+		t.Fatalf("error in GetTSDBStatusForDate: %s", err)
+	}
+	if !status.hasEntries() {
+		t.Fatalf("expecting non-empty TSDB status")
+	}
+	expectedSeriesCountByMetricName = []TopHeapEntry{
+		{
+			Name:  "testMetric",
+			Count: 1000,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
+		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
+	}
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {

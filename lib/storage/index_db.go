@@ -1309,6 +1309,105 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	return metricIDsLen, nil
 }
 
+// GetTSDBStatusWithFiltersOnTimeRange returns topN entries for tsdb status for given TSIDs.
+func (db *indexDB) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, tr TimeRange, maxMetrics, topN int, deadline uint64) (*TSDBStatus, error) {
+	is := db.getIndexSearch(deadline)
+	status, err := is.GetTSDBStatusWithFiltersOnTimeRange(tfss, tr, maxMetrics, topN, deadline)
+	db.putIndexSearch(is)
+	if err != nil {
+		return nil, err
+	}
+	if status.hasEntries() {
+		return status, nil
+	}
+	ok := db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(deadline)
+		status, err = is.GetTSDBStatusWithFiltersOnTimeRange(tfss, tr, maxMetrics, topN, deadline)
+		extDB.putIndexSearch(is)
+	})
+	if ok && err != nil {
+		return nil, fmt.Errorf("error when obtaining TSDB status from extDB: %w", err)
+	}
+	return status, nil
+}
+
+// GetTSDBStatusWithFiltersOnTimeRange returns topN entries for tsdb status for given TSIDs.
+func (is *indexSearch) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, tr TimeRange, maxMetrics, topN int, deadline uint64) (*TSDBStatus, error) {
+	metricIDs, err := is.searchMetricIDs(tfss, tr, maxMetrics)
+	if err != nil {
+		return nil, err
+	}
+
+	thLabelValueCountByLabelName := newTopHeap(topN)
+	thSeriesCountByLabelValuePair := newTopHeap(topN)
+	thSeriesCountByMetricName := newTopHeap(topN)
+
+	var metricName, tmpMetricName, labelPairs []byte
+	var mn MetricName
+	var metricNameCnt uint64
+	metricNameLabel := "__name__"
+	tmpPairs := []byte(metricNameLabel)
+
+	// holds uniq count values per label name.
+	cntByUniqLabelValues := make(map[string]uint64, len(metricIDs))
+	// holds count for label=value uniq pairs.
+	cntLabelPairs := make(map[string]uint64, len(metricIDs))
+	for i := range metricIDs {
+		if i&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+				return nil, err
+			}
+		}
+		mID := metricIDs[i]
+		metricName, err = is.searchMetricName(metricName[:0], mID)
+		if err == io.EOF {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err = mn.Unmarshal(metricName); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		}
+		if !bytes.Equal(tmpMetricName, mn.MetricGroup) {
+			tmpMetricName = mn.MetricGroup
+			cntByUniqLabelValues[metricNameLabel]++
+			tmpPairs = append(tmpPairs[:len(metricNameLabel)], '=')
+			tmpPairs = append(tmpPairs, mn.MetricGroup...)
+			thSeriesCountByMetricName.pushIfNonEmpty(tmpMetricName, metricNameCnt)
+			metricNameCnt = 0
+		}
+		cntLabelPairs[string(tmpPairs)]++
+		metricNameCnt++
+		for j := range mn.Tags {
+			tag := mn.Tags[j]
+			labelPairs = append(labelPairs[:0], tag.Key...)
+			labelPairs = append(labelPairs, '=')
+			labelPairs = append(labelPairs, tag.Value...)
+			// if label pairs not seen, its uniq value for given label.
+			if _, ok := cntLabelPairs[string(labelPairs)]; ok {
+				cntLabelPairs[string(labelPairs)]++
+			} else {
+				cntLabelPairs[string(labelPairs)]++
+				cntByUniqLabelValues[string(tag.Key)]++
+			}
+		}
+	}
+	thSeriesCountByMetricName.pushIfNonEmpty(tmpMetricName, metricNameCnt)
+	for k, v := range cntLabelPairs {
+		thSeriesCountByLabelValuePair.pushIfNonEmpty([]byte(k), v)
+	}
+	for k, v := range cntByUniqLabelValues {
+		thLabelValueCountByLabelName.pushIfNonEmpty([]byte(k), v)
+	}
+	status := TSDBStatus{
+		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
+		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
+		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
+	}
+	return &status, nil
+}
+
 // GetTSDBStatusForDate returns topN entries for tsdb status for the given date.
 func (db *indexDB) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
 	is := db.getIndexSearch(deadline)
