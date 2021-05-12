@@ -34,7 +34,7 @@ var rollupResultCachePath string
 
 func getRollupResultCacheSize() int {
 	rollupResultCacheSizeOnce.Do(func() {
-		n := memory.Allowed() / 16
+		n := memory.Allowed() / 8
 		if n <= 0 {
 			n = 1024 * 1024
 		}

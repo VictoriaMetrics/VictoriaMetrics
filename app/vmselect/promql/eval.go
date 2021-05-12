@@ -795,7 +795,7 @@ var (
 
 func getRollupMemoryLimiter() *memoryLimiter {
 	rollupMemoryLimiterOnce.Do(func() {
-		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
+		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 2
 	})
 	return &rollupMemoryLimiter
 }
