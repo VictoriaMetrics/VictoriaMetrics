@@ -223,13 +223,13 @@ Questions about VictoriaMetrics can be asked via the following channels:
 File bugs and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 
-### Where I can find information about Multi-Tenancy?
+### Where I can find information about multi-tenancy?
 
-You can read about Multitenancy [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). Note that only a [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) version supports Multi-Tenancy.
+See more details about multi-tenancy [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). Please note, this feature is supported only by [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) version of VictoriaMetrics.
 
 
 
-### Will having multiple tenants affect my performance? Is this data written on disk separately or in one place?
+### Does having multiple tenants affect database performance? What is the on-disk layout for multi-tenant data?
 
 If you take the most challenging case  (multi-tenancy for the same set of metrics) it will require more disk space, more RAM for caches and more CPU for data processing. There should be linear growth for each additional tenant. But, in general, the overhead from additional tenants should be negligible because the metrics should be differentiated by labels. When the  tenant-id is added to the metric ID, and everything else - indexes, disk placement, remains the same.
 
@@ -239,7 +239,7 @@ If you take the most challenging case  (multi-tenancy for the same set of metric
 Yes, it’s possible. Also we have this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1111).
 
 
-### How to set a memory limit for vmstorage ? Cluster/SingleNode version
+### How to set a memory limit for VictoriaMetrics components?
 
 VictoriaMetrics provides flags to control the size of internal buffers and caches. But these are soft limits and the total process memory usage may exceed it. Hard limits may be enforced only by OS ([cgroups](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-relationships_between_subsystems_hierarchies_control_groups_and_tasks)) or virtualization tools ([docker](https://docs.docker.com/config/containers/resource_constraints), [k8s](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
 
@@ -256,7 +256,7 @@ Yes, you can replace your entire Prometheus stack with VictoriaMetrics
 
 ### How can I build VictoriaMetrics on FreeBSD?
 
-To build VictoriaMetrics on FreeBSD you need to install Golang in OS and then run gmake victoria-metrics-pure or install it from FreeBSD Ports - see [this link](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) .
+To build VictoriaMetrics on FreeBSD you need to install Golang in OS and then run `gmake victoria-metrics-pure` from the repo's root folder or install it from FreeBSD Ports - see [this link](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) .
 
 
 ### What is the rule of thumb for vminsert replication factor? What if I have 8 vmstorage pods?
@@ -274,21 +274,21 @@ No. You can only do this if you will run the query through [promxy](https://gith
 `vmselect` queries all the `vmstorage` instances. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
 
 
-### Is there a way to use vm to identify the top 10 slow queries or non-performing queries being made to VictoriaMetrics?
+### Is there a way to identify the slowest queries being made to VictoriaMetrics?
 
-There is an `/api/v1/status/top_queries`  which should help to identify slowest queries.
+There is an `/api/v1/status/top_queries` which should help to identify slowest queries.
 
 
-### How can I set replication files between vmstorages after one node has died? vminsert send data to all nodes, but after I reboot one node has less data than the node that was working. Is there any other way to manage this other than with rsync?
+### How can I synchronize data between vmstorage replicas if one of nodes has died or was unresponsive?
 
-There is currently no rebalancing between nodes. Please see the following links for more details. 
+There is no currently rebalancing between nodes. Please see the following links for more details. 
 https://github.com/VictoriaMetrics/VictoriaMetrics/issues/188
 https://github.com/VictoriaMetrics/VictoriaMetrics/issues/991
 
 
 ### Does VictoriaMetrics support the many-to-many metrics multiplication?
 
-Many-to-many is not supported yet. There are only one-to-one and one-to-many - see [this] (https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching)
+Many-to-many is not supported yet. There are only one-to-one and one-to-many - see [this] (https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching).
 
 
 ### Is it a good idea to write into Single Node VictoriaMetrics from different protocols like Graphite plaintext protocol, Influxdb and Prometheus metrics? Maybe it would be better to keep these data separate from each other?
@@ -302,9 +302,9 @@ There is a description about [Native Protocol](https://docs.victoriametrics.com/
 Also we have an [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1203)  and when protocol will be stabilized.
 
 
-### Let say we have already imported some data from Prometheus snapshot in VictoriaMetrics. What will happen with imported data into VictoriaMetrics if we run vmctl for the same Prometheus snapshot ?
+### Let say we have already imported some data from Prometheus snapshot in VictoriaMetrics. What will happen with imported data into VictoriaMetrics if we run vmctl for the same Prometheus snapshot?
 
-Such data will be written once again into VictoriaMetrics, i.e. as a result, VictoriaMetrics will have duplicate data. Such duplicates can be removed using deduplication. See this [link](https://docs.victoriametrics.com/#deduplication)
+Such data will be written once again into VictoriaMetrics, i.e. as a result, VictoriaMetrics will store both duplicates of data. Such duplicates can be removed using deduplication. See this [link](https://docs.victoriametrics.com/#deduplication)
 
 
 ### What are the current possibilities for billing the use of a multi-tenant database, i.e. an estimate of the number of per tenant requests, network bandwidth, disk usage, anything else that can be calculated?
