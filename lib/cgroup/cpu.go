@@ -101,11 +101,11 @@ func parseCPUMax(data string) (float64, error) {
 	if bounds[0] == "max" {
 		return -1, nil
 	}
-	quota, err := strconv.Atoi(bounds[0])
+	quota, err := strconv.ParseUint(bounds[0], 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	period, err := strconv.Atoi(bounds[1])
+	period, err := strconv.ParseUint(bounds[1], 10, 64)
 	if err != nil {
 		return 0, err
 	}
