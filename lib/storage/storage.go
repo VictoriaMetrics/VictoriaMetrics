@@ -1248,9 +1248,9 @@ func (s *Storage) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (
 	return s.idb().GetTSDBStatusForDate(date, topN, deadline)
 }
 
-// GetTSDBStatusForDateWithFilters special function for /api/v1/status/tsdb with match[] filters.
-func (s *Storage) GetTSDBStatusForDateWithFilters(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64, topN int) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusWithFiltersOnTimeRange(tfss, tr, maxMetrics, topN, deadline)
+// GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters.
+func (s *Storage) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusWithFiltersForDate(tfss, date, topN, deadline)
 }
 
 // MetricRow is a metric to insert into storage.

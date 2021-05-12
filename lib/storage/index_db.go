@@ -1309,10 +1309,10 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	return metricIDsLen, nil
 }
 
-// GetTSDBStatusWithFiltersOnTimeRange returns topN entries for tsdb status for given TSIDs.
-func (db *indexDB) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, tr TimeRange, maxMetrics, topN int, deadline uint64) (*TSDBStatus, error) {
+// GetTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
+func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
 	is := db.getIndexSearch(deadline)
-	status, err := is.GetTSDBStatusWithFiltersOnTimeRange(tfss, tr, maxMetrics, topN, deadline)
+	status, err := is.getTSDBStatusWithFiltersForDate(tfss, date, topN, deadline)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
@@ -1322,7 +1322,7 @@ func (db *indexDB) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, tr Ti
 	}
 	ok := db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
-		status, err = is.GetTSDBStatusWithFiltersOnTimeRange(tfss, tr, maxMetrics, topN, deadline)
+		status, err = is.getTSDBStatusWithFiltersForDate(tfss, date, topN, deadline)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -1331,81 +1331,116 @@ func (db *indexDB) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, tr Ti
 	return status, nil
 }
 
-// GetTSDBStatusWithFiltersOnTimeRange returns topN entries for tsdb status for given TSIDs.
-func (is *indexSearch) GetTSDBStatusWithFiltersOnTimeRange(tfss []*TagFilters, tr TimeRange, maxMetrics, topN int, deadline uint64) (*TSDBStatus, error) {
-	metricIDs, err := is.searchMetricIDs(tfss, tr, maxMetrics)
+// getTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
+func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+	tr := TimeRange{
+		MinTimestamp: int64(date) * msecPerDay,
+		MaxTimestamp: int64(date+1) * msecPerDay,
+	}
+	metricIDs, err := is.searchMetricIDsInternal(tfss, tr, 2e9)
 	if err != nil {
 		return nil, err
 	}
+	if metricIDs.Len() == 0 {
+		// Nothing found.
+		return &TSDBStatus{}, nil
+	}
 
+	// The code below must be in sync with getTSDBStatusForDate
+	ts := &is.ts
+	kb := &is.kb
+	mp := &is.mp
 	thLabelValueCountByLabelName := newTopHeap(topN)
 	thSeriesCountByLabelValuePair := newTopHeap(topN)
 	thSeriesCountByMetricName := newTopHeap(topN)
+	var tmp, labelName, labelNameValue []byte
+	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
+	nameEqualBytes := []byte("__name__=")
 
-	var metricName, tmpMetricName, labelPairs []byte
-	var mn MetricName
-	var metricNameCnt uint64
-	metricNameLabel := "__name__"
-	tmpPairs := []byte(metricNameLabel)
-
-	// holds uniq count values per label name.
-	cntByUniqLabelValues := make(map[string]uint64, len(metricIDs))
-	// holds count for label=value uniq pairs.
-	cntLabelPairs := make(map[string]uint64, len(metricIDs))
-	for i := range metricIDs {
-		if i&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+	loopsPaceLimiter := 0
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	prefix := kb.B
+	ts.Seek(prefix)
+	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return nil, err
 			}
 		}
-		mID := metricIDs[i]
-		metricName, err = is.searchMetricName(metricName[:0], mID)
-		if err == io.EOF {
-			continue
+		loopsPaceLimiter++
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			break
 		}
-		if err != nil {
+		if err := mp.Init(item, nsPrefixDateTagToMetricIDs); err != nil {
 			return nil, err
 		}
-		if err = mn.Unmarshal(metricName); err != nil {
-			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
-		}
-		if !bytes.Equal(tmpMetricName, mn.MetricGroup) {
-			tmpMetricName = mn.MetricGroup
-			cntByUniqLabelValues[metricNameLabel]++
-			tmpPairs = append(tmpPairs[:len(metricNameLabel)], '=')
-			tmpPairs = append(tmpPairs, mn.MetricGroup...)
-			thSeriesCountByMetricName.pushIfNonEmpty(tmpMetricName, metricNameCnt)
-			metricNameCnt = 0
-		}
-		cntLabelPairs[string(tmpPairs)]++
-		metricNameCnt++
-		for j := range mn.Tags {
-			tag := mn.Tags[j]
-			labelPairs = append(labelPairs[:0], tag.Key...)
-			labelPairs = append(labelPairs, '=')
-			labelPairs = append(labelPairs, tag.Value...)
-			// if label pairs not seen, its uniq value for given label.
-			if _, ok := cntLabelPairs[string(labelPairs)]; ok {
-				cntLabelPairs[string(labelPairs)]++
-			} else {
-				cntLabelPairs[string(labelPairs)]++
-				cntByUniqLabelValues[string(tag.Key)]++
+		mp.ParseMetricIDs()
+		matchingSeriesCount := 0
+		for _, metricID := range mp.MetricIDs {
+			if metricIDs.Has(metricID) {
+				matchingSeriesCount++
 			}
 		}
+		if matchingSeriesCount == 0 {
+			// Skip rows without matching metricIDs.
+			continue
+		}
+		tail := item[len(prefix):]
+		var err error
+		tail, tmp, err = unmarshalTagValue(tmp[:0], tail)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal tag key from line %q: %w", item, err)
+		}
+		if isArtificialTagKey(tmp) {
+			// Skip artificially created tag keys.
+			continue
+		}
+		if len(tmp) == 0 {
+			tmp = append(tmp, "__name__"...)
+		}
+		if !bytes.Equal(tmp, labelName) {
+			thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
+			labelValueCountByLabelName = 0
+			labelName = append(labelName[:0], tmp...)
+		}
+		tmp = append(tmp, '=')
+		tail, tmp, err = unmarshalTagValue(tmp, tail)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal tag value from line %q: %w", item, err)
+		}
+		if !bytes.Equal(tmp, labelNameValue) {
+			thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
+			if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
+				thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
+			}
+			seriesCountByLabelValuePair = 0
+			labelValueCountByLabelName++
+			labelNameValue = append(labelNameValue[:0], tmp...)
+		}
+		if err := mp.InitOnlyTail(item, tail); err != nil {
+			return nil, err
+		}
+		// Take into account deleted timeseries too.
+		// It is OK if series can be counted multiple times in rare cases -
+		// the returned number is an estimation.
+		seriesCountByLabelValuePair += uint64(matchingSeriesCount)
 	}
-	thSeriesCountByMetricName.pushIfNonEmpty(tmpMetricName, metricNameCnt)
-	for k, v := range cntLabelPairs {
-		thSeriesCountByLabelValuePair.pushIfNonEmpty([]byte(k), v)
+	if err := ts.Error(); err != nil {
+		return nil, fmt.Errorf("error when counting time series by metric names: %w", err)
 	}
-	for k, v := range cntByUniqLabelValues {
-		thLabelValueCountByLabelName.pushIfNonEmpty([]byte(k), v)
+	thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
+	thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
+	if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
+		thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
 	}
-	status := TSDBStatus{
+	status := &TSDBStatus{
 		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
 		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
 		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
 	}
-	return &status, nil
+	return status, nil
 }
 
 // GetTSDBStatusForDate returns topN entries for tsdb status for the given date.
@@ -1434,6 +1469,7 @@ func (db *indexDB) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) 
 }
 
 func (is *indexSearch) getTSDBStatusForDate(date uint64, topN int) (*TSDBStatus, error) {
+	// The code below must be in sync with getTSDBStatusWithFiltersForDate
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
@@ -2389,21 +2425,9 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 }
 
 func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
-	metricIDs := &uint64set.Set{}
-	for _, tfs := range tfss {
-		if len(tfs.tfs) == 0 {
-			// An empty filters must be equivalent to `{__name__!=""}`
-			tfs = NewTagFilters()
-			if err := tfs.Add(nil, nil, true, false); err != nil {
-				logger.Panicf(`BUG: cannot add {__name__!=""} filter: %s`, err)
-			}
-		}
-		if err := is.updateMetricIDsForTagFilters(metricIDs, tfs, tr, maxMetrics+1); err != nil {
-			return nil, err
-		}
-		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
-		}
+	metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
+	if err != nil {
+		return nil, err
 	}
 	if metricIDs.Len() == 0 {
 		// Nothing found
@@ -2425,6 +2449,26 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 	}
 
 	return sortedMetricIDs, nil
+}
+
+func (is *indexSearch) searchMetricIDsInternal(tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
+	metricIDs := &uint64set.Set{}
+	for _, tfs := range tfss {
+		if len(tfs.tfs) == 0 {
+			// An empty filters must be equivalent to `{__name__!=""}`
+			tfs = NewTagFilters()
+			if err := tfs.Add(nil, nil, true, false); err != nil {
+				logger.Panicf(`BUG: cannot add {__name__!=""} filter: %s`, err)
+			}
+		}
+		if err := is.updateMetricIDsForTagFilters(metricIDs, tfs, tr, maxMetrics+1); err != nil {
+			return nil, err
+		}
+		if metricIDs.Len() > maxMetrics {
+			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+		}
+	}
+	return metricIDs, nil
 }
 
 func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {

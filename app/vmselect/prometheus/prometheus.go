@@ -633,6 +633,8 @@ const secsPerDay = 3600 * 24
 // TSDBStatusHandler processes /api/v1/status/tsdb request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+//
+// It can accept `match[]` filters in order to narrow down the search.
 func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	if err := r.ParseForm(); err != nil {
@@ -677,7 +679,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	} else {
 		status, err = tsdbStatusWithMatches(matches, etf, date, topN, deadline)
 		if err != nil {
-			return fmt.Errorf("cannot tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
+			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -696,7 +698,6 @@ func tsdbStatusWithMatches(matches []string, etf []storage.TagFilter, date uint6
 	if err != nil {
 		return nil, err
 	}
-
 	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
