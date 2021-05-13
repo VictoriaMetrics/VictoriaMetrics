@@ -768,7 +768,7 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 			return false
 		}
 		idx++
-		if idx >= replicasCount {
+		if idx >= membersCount {
 			idx = 0
 		}
 	}
