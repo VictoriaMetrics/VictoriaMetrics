@@ -31,7 +31,7 @@ Alphabetically sorted links to case studies:
 
 See our [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
 from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk at [PromCon 2019](https://promcon.io/2019-munich/).
-VictoriaMetrics is compared to Thanos, Corex and M3DB in the talk.
+VictoriaMetrics is compared to Thanos, Cortex and M3DB in the talk.
 
 ## Adsterra
 
