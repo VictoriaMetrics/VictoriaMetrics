@@ -21,6 +21,7 @@ func TestGetStatGenericSuccess(t *testing.T) {
 	f("cpu.cfs_period_us", "testdata/cgroup", "testdata/self/cgroup", "cpu,", 500000)
 	f("memory.limit_in_bytes", "testdata/", "testdata/self/cgroup", "memory", 9223372036854771712)
 	f("memory.limit_in_bytes", "testdata/cgroup", "testdata/self/cgroup", "memory", 523372036854771712)
+	f("memory.max", "testdata/cgroup", "testdata/self/cgroupv2", "", 523372036854771712)
 }
 
 func TestGetStatGenericFailure(t *testing.T) {
@@ -37,4 +38,5 @@ func TestGetStatGenericFailure(t *testing.T) {
 	f("cpu.cfs_quota_us", "testdata/", "testdata/missing_folder", "cpu,")
 	f("cpu.cfs_period_us", "testdata/", "testdata/missing_folder", "cpu,")
 	f("memory.limit_in_bytes", "testdata/", "testdata/none_existing_folder", "memory")
+	f("memory.max", "testdata/", "testdata/none_existing_folder", "")
 }

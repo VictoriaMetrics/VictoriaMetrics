@@ -13,6 +13,7 @@ func getStatGeneric(statName, sysfsPrefix, cgroupPath, cgroupGrepLine string) (i
 	if err != nil {
 		return 0, err
 	}
+	data = strings.TrimRight(data, "\r\n")
 	n, err := strconv.ParseInt(data, 10, 64)
 	if err != nil {
 		return 0, err

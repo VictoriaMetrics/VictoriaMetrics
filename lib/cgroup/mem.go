@@ -13,10 +13,20 @@ func GetMemoryLimit() int64 {
 	// This should properly determine the limit inside lxc container.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/84
 	n, err := getMemStat("memory.limit_in_bytes")
+	if err == nil {
+		return n
+	}
+	// https: //www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
+	n, err = getMemStatV2()
 	if err != nil {
 		return 0
 	}
+
 	return n
+}
+
+func getMemStatV2() (int64, error) {
+	return getStatGeneric("memory.max", "/sys/fs/cgroup", "/proc/self/cgroup", "")
 }
 
 func getMemStat(statName string) (int64, error) {
