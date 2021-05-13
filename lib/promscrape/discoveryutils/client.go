@@ -222,6 +222,7 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 }
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+	sleepTime := time.Second
 	discoveryRequests.Inc()
 	for {
 		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
@@ -234,9 +235,15 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 			return err
 		}
 		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
-		if time.Since(deadline) >= 0 {
+		maxSleepTime := time.Until(deadline)
+		if sleepTime > maxSleepTime {
 			return fmt.Errorf("the server closes all the connection attempts: %w", err)
 		}
+		sleepTime += sleepTime
+		if sleepTime > maxSleepTime {
+			sleepTime = maxSleepTime
+		}
+		time.Sleep(sleepTime)
 		discoveryRetries.Inc()
 	}
 }
