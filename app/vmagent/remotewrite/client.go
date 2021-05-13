@@ -260,11 +260,9 @@ again:
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
 	if statusCode == 409 || statusCode == 400 {
-		// Just drop block on 409 status code like Prometheus does.
+		// Just drop block on 409 and 400 status codes like Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
-		// drop block on 400 status code,
-		// not expected that remote server will be able to handle it on retry
-		// should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
 		return true
