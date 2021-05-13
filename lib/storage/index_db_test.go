@@ -1628,10 +1628,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("expected %d time series for all days, got %d time series", metricsPerDay*days, len(matchedTSIDs))
 	}
 
-	// Check GetTSDBStatusForDate
-	status, err := db.GetTSDBStatusForDate(baseDate, 5, noDeadline)
+	// Check GetTSDBStatusWithFiltersForDate with nil filters.
+	status, err := db.GetTSDBStatusWithFiltersForDate(nil, baseDate, 5, noDeadline)
 	if err != nil {
-		t.Fatalf("error in GetTSDBStatusForDate: %s", err)
+		t.Fatalf("error in GetTSDBStatusWithFiltersForDate with nil filters: %s", err)
 	}
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")

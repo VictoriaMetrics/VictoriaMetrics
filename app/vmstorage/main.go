@@ -208,7 +208,7 @@ func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.
 // GetTSDBStatusForDate returns TSDB status for the given date.
 func GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusForDate(date, topN, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(nil, date, topN, deadline)
 	WG.Done()
 	return status, err
 }

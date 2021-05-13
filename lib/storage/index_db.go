@@ -1451,31 +1451,6 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	return status, nil
 }
 
-// GetTSDBStatusForDate returns topN entries for tsdb status for the given date.
-func (db *indexDB) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
-	is := db.getIndexSearch(deadline)
-	status, err := is.getTSDBStatusWithFiltersForDate(nil, date, topN)
-	db.putIndexSearch(is)
-	if err != nil {
-		return nil, err
-	}
-	if status.hasEntries() {
-		// The entries were found in the db. There is no need in searching them in extDB.
-		return status, nil
-	}
-
-	// The entries weren't found in the db. Try searching them in extDB.
-	ok := db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		status, err = is.getTSDBStatusWithFiltersForDate(nil, date, topN)
-		extDB.putIndexSearch(is)
-	})
-	if ok && err != nil {
-		return nil, fmt.Errorf("error when obtaining TSDB status from extDB: %w", err)
-	}
-	return status, nil
-}
-
 // TSDBStatus contains TSDB status data for /api/v1/status/tsdb.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
