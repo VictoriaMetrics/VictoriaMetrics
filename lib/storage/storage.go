@@ -1317,13 +1317,6 @@ func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (
 	return s.idb().GetSeriesCount(accountID, projectID, deadline)
 }
 
-// GetTSDBStatusForDate returns TSDB status data for /api/v1/status/tsdb for the given (accountID, projectID).
-//
-// See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func (s *Storage) GetTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusForDate(accountID, projectID, date, topN, deadline)
-}
-
 // GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters and the given (accountID, projectID).
 func (s *Storage) GetTSDBStatusWithFiltersForDate(accountID, projectID uint32, tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
 	return s.idb().GetTSDBStatusWithFiltersForDate(accountID, projectID, tfss, date, topN, deadline)

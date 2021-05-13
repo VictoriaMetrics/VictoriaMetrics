@@ -909,7 +909,7 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	status, err := s.storage.GetTSDBStatusForDate(accountID, projectID, uint64(date), int(topN), ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, uint64(date), int(topN), ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
