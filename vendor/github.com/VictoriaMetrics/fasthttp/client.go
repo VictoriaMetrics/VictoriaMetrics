@@ -1099,6 +1099,9 @@ func (c *HostClient) doNonNilReqResp(req *Request, resp *Response) (bool, error)
 
 	br := c.acquireReader(conn)
 	if err = resp.ReadLimitBody(br, c.MaxResponseBodySize); err != nil {
+		if err == io.EOF && time.Since(cc.createdTime) < time.Second {
+			err = io.ErrUnexpectedEOF
+		}
 		c.releaseReader(br)
 		c.closeConn(cc)
 		return true, err

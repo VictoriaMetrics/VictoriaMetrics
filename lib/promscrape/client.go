@@ -317,7 +317,7 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		}
 		sleepTime += sleepTime
 		if sleepTime > maxSleepTime {
-			maxSleepTime = maxSleepTime
+			sleepTime = maxSleepTime
 		}
 		time.Sleep(sleepTime)
 		scrapeRetries.Inc()
