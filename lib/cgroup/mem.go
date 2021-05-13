@@ -16,17 +16,16 @@ func GetMemoryLimit() int64 {
 	if err == nil {
 		return n
 	}
-	// https: //www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
-	n, err = getMemStatV2()
+	n, err = getMemStatV2("memory.max")
 	if err != nil {
 		return 0
 	}
-
 	return n
 }
 
-func getMemStatV2() (int64, error) {
-	return getStatGeneric("memory.max", "/sys/fs/cgroup", "/proc/self/cgroup", "")
+func getMemStatV2(statName string) (int64, error) {
+	// See https: //www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
+	return getStatGeneric(statName, "/sys/fs/cgroup", "/proc/self/cgroup", "")
 }
 
 func getMemStat(statName string) (int64, error) {
