@@ -898,7 +898,7 @@ scrape_configs:
 		{
 			ScrapeURL:      "http://1.2.3.4:80/metrics",
 			ScrapeInterval: 8 * time.Second,
-			ScrapeTimeout:  34 * time.Second,
+			ScrapeTimeout:  8 * time.Second,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -932,7 +932,7 @@ scrape_configs:
 		{
 			ScrapeURL:      "http://foobar:80/metrics",
 			ScrapeInterval: 8 * time.Second,
-			ScrapeTimeout:  34 * time.Second,
+			ScrapeTimeout:  8 * time.Second,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
