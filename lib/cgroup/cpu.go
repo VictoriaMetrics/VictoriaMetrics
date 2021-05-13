@@ -42,11 +42,10 @@ func updateGOMAXPROCSToCPUQuota() {
 }
 
 func getCPUQuota() float64 {
-	cpuQuota, err := getCPUStatGeneric()
+	cpuQuota, err := getCPUQuotaGeneric()
 	if err != nil {
 		return 0
 	}
-
 	if cpuQuota <= 0 {
 		// The quota isn't set. This may be the case in multilevel containers.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
@@ -55,7 +54,7 @@ func getCPUQuota() float64 {
 	return cpuQuota
 }
 
-func getCPUStatGeneric() (float64, error) {
+func getCPUQuotaGeneric() (float64, error) {
 	quotaUS, err := getCPUStat("cpu.cfs_quota_us")
 	if err == nil {
 		periodUS, err := getCPUStat("cpu.cfs_period_us")
@@ -63,7 +62,7 @@ func getCPUStatGeneric() (float64, error) {
 			return float64(quotaUS) / float64(periodUS), nil
 		}
 	}
-	return getCPUStatV2("/sys/fs/cgroup", "/proc/self/cgroup")
+	return getCPUQuotaV2("/sys/fs/cgroup", "/proc/self/cgroup")
 }
 
 func getCPUStat(statName string) (int64, error) {
@@ -83,31 +82,35 @@ func getOnlineCPUCount() float64 {
 	return n
 }
 
-func getCPUStatV2(sysPrefix, cgroupPath string) (float64, error) {
+func getCPUQuotaV2(sysPrefix, cgroupPath string) (float64, error) {
 	data, err := getFileContents("cpu.max", sysPrefix, cgroupPath, "")
 	if err != nil {
 		return 0, err
 	}
-	return parseCPUMax(data)
+	data = strings.TrimSpace(data)
+	n, err := parseCPUMax(data)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse cpu.max file contents: %w", err)
+	}
+	return n, nil
 }
 
-// https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu
+// See https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu
 func parseCPUMax(data string) (float64, error) {
-	data = strings.TrimRight(data, "\r\n")
 	bounds := strings.Split(data, " ")
 	if len(bounds) != 2 {
-		return 0, fmt.Errorf("unexpected count: %d, want quota and period, got: %s", len(bounds), data)
+		return 0, fmt.Errorf("unexpected line format: want 'quota period'; got: %s", data)
 	}
 	if bounds[0] == "max" {
 		return -1, nil
 	}
 	quota, err := strconv.ParseUint(bounds[0], 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("cannot parse quota: %w", err)
 	}
 	period, err := strconv.ParseUint(bounds[1], 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("cannot parse period: %w", err)
 	}
 	return float64(quota) / float64(period), nil
 }
