@@ -118,6 +118,7 @@ func newClient(sw *ScrapeWork) *client {
 				DisableCompression:  *disableCompression || sw.DisableCompression,
 				DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
 				DialContext:         statStdDial,
+				MaxIdleConnsPerHost: 100,
 
 				// Set timeout for receiving the first response byte,
 				// since the duration for reading the full response can be much bigger because of stream parsing.

@@ -70,7 +70,11 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
-		client:       &http.Client{},
+		client: &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConnsPerHost: 100,
+			},
+		},
 		availability: sdc.Availability,
 		region:       sdc.Region,
 		allTenants:   sdc.AllTenants,
@@ -82,7 +86,8 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 			return nil, err
 		}
 		cfg.client.Transport = &http.Transport{
-			TLSClientConfig: ac.NewTLSConfig(),
+			TLSClientConfig:     ac.NewTLSConfig(),
+			MaxIdleConnsPerHost: 100,
 		}
 	}
 	// use public compute endpoint by default
