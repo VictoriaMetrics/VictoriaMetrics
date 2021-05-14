@@ -64,7 +64,7 @@ func (u *URL) String() string {
 func (u *URL) GetAuthHeader(ac *promauth.Config) string {
 	authHeader := ""
 	if ac != nil {
-		authHeader = ac.Authorization
+		authHeader = ac.GetAuthHeader()
 	}
 	if u == nil || u.url == nil {
 		return authHeader
@@ -122,10 +122,6 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	if pu.Scheme == "socks5" || pu.Scheme == "tls+socks5" {
 		return socks5DialFunc(proxyAddr, pu, tlsCfg)
 	}
-	authHeader := u.GetAuthHeader(ac)
-	if authHeader != "" {
-		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
-	}
 	dialFunc := func(addr string) (net.Conn, error) {
 		proxyConn, err := defaultDialFunc(proxyAddr)
 		if err != nil {
@@ -133,6 +129,10 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		}
 		if isTLS {
 			proxyConn = tls.Client(proxyConn, tlsCfg)
+		}
+		authHeader := u.GetAuthHeader(ac)
+		if authHeader != "" {
+			authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 		}
 		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {

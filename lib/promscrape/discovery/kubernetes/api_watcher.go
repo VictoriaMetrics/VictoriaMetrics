@@ -155,12 +155,12 @@ func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 }
 
 // groupWatcher watches for Kubernetes objects on the given apiServer with the given namespaces,
-// selectors and authorization using the given client.
+// selectors using the given client.
 type groupWatcher struct {
 	apiServer     string
 	namespaces    []string
 	selectors     []Selector
-	authorization string
+	getAuthHeader func() string
 	client        *http.Client
 
 	mu sync.Mutex
@@ -184,7 +184,7 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	}
 	return &groupWatcher{
 		apiServer:     apiServer,
-		authorization: ac.Authorization,
+		getAuthHeader: ac.GetAuthHeader,
 		namespaces:    namespaces,
 		selectors:     selectors,
 		client:        client,
@@ -296,8 +296,8 @@ func (gw *groupWatcher) doRequest(requestURL string) (*http.Response, error) {
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
 	}
-	if gw.authorization != "" {
-		req.Header.Set("Authorization", gw.authorization)
+	if ah := gw.getAuthHeader(); ah != "" {
+		req.Header.Set("Authorization", ah)
 	}
 	return gw.client.Do(req)
 }

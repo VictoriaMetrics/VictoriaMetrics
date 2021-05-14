@@ -301,7 +301,7 @@ scrape_configs:
 - job_name: x
   basic_auth:
     username: foobar
-    password_file: /non_existing_file.pass
+    password_file: ['foobar']
   static_configs:
   - targets: ["a"]
 `)
@@ -355,7 +355,7 @@ scrape_configs:
 	f(`
 scrape_configs:
 - job_name: x
-  bearer_token_file: non_existing_file.bearer
+  bearer_token_file: [foobar]
   static_configs:
   - targets: ["a"]
 `)
@@ -778,28 +778,18 @@ scrape_configs:
   params:
     p: ["x&y", "="]
     xaa:
-  bearer_token: xyz
   proxy_url: http://foo.bar
-  proxy_basic_auth:
-    username: foo
-    password: bar
   static_configs:
   - targets: ["foo.bar", "aaa"]
     labels:
       x: y
 - job_name: qwer
-  basic_auth:
-    username: user
-    password: pass
   tls_config:
     server_name: foobar
     insecure_skip_verify: true
   static_configs:
   - targets: [1.2.3.4]
 - job_name: asdf
-  authorization:
-    type: xyz
-    credentials: abc
   static_configs:
   - targets: [foobar]
 `, []*ScrapeWork{
@@ -840,12 +830,8 @@ scrape_configs:
 					Value: "y",
 				},
 			},
-			AuthConfig: &promauth.Config{
-				Authorization: "Bearer xyz",
-			},
-			ProxyAuthConfig: &promauth.Config{
-				Authorization: "Basic Zm9vOmJhcg==",
-			},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
@@ -886,12 +872,8 @@ scrape_configs:
 					Value: "y",
 				},
 			},
-			AuthConfig: &promauth.Config{
-				Authorization: "Bearer xyz",
-			},
-			ProxyAuthConfig: &promauth.Config{
-				Authorization: "Basic Zm9vOmJhcg==",
-			},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
@@ -922,7 +904,6 @@ scrape_configs:
 				},
 			},
 			AuthConfig: &promauth.Config{
-				Authorization:         "Basic dXNlcjpwYXNz",
 				TLSServerName:         "foobar",
 				TLSInsecureSkipVerify: true,
 			},
@@ -955,9 +936,7 @@ scrape_configs:
 					Value: "asdf",
 				},
 			},
-			AuthConfig: &promauth.Config{
-				Authorization: "xyz abc",
-			},
+			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "asdf",
 		},
@@ -1196,9 +1175,6 @@ scrape_configs:
 	f(`
 scrape_configs:
 - job_name: foo
-  basic_auth:
-    username: xyz
-    password_file: testdata/password.txt
   static_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
@@ -1228,9 +1204,7 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig: &promauth.Config{
-				Authorization: "Basic eHl6OnNlY3JldC1wYXNz",
-			},
+			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
@@ -1238,7 +1212,6 @@ scrape_configs:
 	f(`
 scrape_configs:
 - job_name: foo
-  bearer_token_file: testdata/password.txt
   static_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
@@ -1268,9 +1241,7 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig: &promauth.Config{
-				Authorization: "Bearer secret-pass",
-			},
+			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
