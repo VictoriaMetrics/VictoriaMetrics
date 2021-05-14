@@ -42,10 +42,10 @@ type Client struct {
 
 	apiServer string
 
-	hostPort        string
-	authHeader      string
-	proxyAuthHeader string
-	sendFullURL     bool
+	hostPort           string
+	getAuthHeader      func() string
+	getProxyAuthHeader func() string
+	sendFullURL        bool
 }
 
 // NewClient returns new Client for the given args.
@@ -70,7 +70,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyA
 		tlsCfg = ac.NewTLSConfig()
 	}
 	sendFullURL := !isTLS && proxyURL.IsHTTPOrHTTPS()
-	proxyAuthHeader := ""
+	getProxyAuthHeader := func() string { return "" }
 	if sendFullURL {
 		// Send full urls in requests to a proxy host for non-TLS apiServer
 		// like net/http package from Go does.
@@ -81,7 +81,9 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyA
 		if isTLS {
 			tlsCfg = proxyAC.NewTLSConfig()
 		}
-		proxyAuthHeader = proxyURL.GetAuthHeader(proxyAC)
+		getProxyAuthHeader = func() string {
+			return proxyURL.GetAuthHeader(proxyAC)
+		}
 		proxyURL = proxy.URL{}
 	}
 	if !strings.Contains(hostPort, ":") {
@@ -120,18 +122,18 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyA
 		MaxConns:            64 * 1024,
 		Dial:                dialFunc,
 	}
-	authHeader := ""
+	getAuthHeader := func() string { return "" }
 	if ac != nil {
-		authHeader = ac.Authorization
+		getAuthHeader = ac.GetAuthHeader
 	}
 	return &Client{
-		hc:              hc,
-		blockingClient:  blockingClient,
-		apiServer:       apiServer,
-		hostPort:        hostPort,
-		authHeader:      authHeader,
-		proxyAuthHeader: proxyAuthHeader,
-		sendFullURL:     sendFullURL,
+		hc:                 hc,
+		blockingClient:     blockingClient,
+		apiServer:          apiServer,
+		hostPort:           hostPort,
+		getAuthHeader:      getAuthHeader,
+		getProxyAuthHeader: getProxyAuthHeader,
+		sendFullURL:        sendFullURL,
 	}, nil
 }
 
@@ -188,11 +190,11 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	}
 	req.Header.SetHost(c.hostPort)
 	req.Header.Set("Accept-Encoding", "gzip")
-	if c.authHeader != "" {
-		req.Header.Set("Authorization", c.authHeader)
+	if ah := c.getAuthHeader(); ah != "" {
+		req.Header.Set("Authorization", ah)
 	}
-	if c.proxyAuthHeader != "" {
-		req.Header.Set("Proxy-Authorization", c.proxyAuthHeader)
+	if ah := c.getProxyAuthHeader(); ah != "" {
+		req.Header.Set("Proxy-Authorization", ah)
 	}
 
 	var resp fasthttp.Response
