@@ -41,7 +41,7 @@ func Init() (QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
-	tr.MaxIdleConns = *maxIdleConnections
+	tr.MaxIdleConnsPerHost = *maxIdleConnections
 
 	var rd string
 	if *roundDigits > 0 {

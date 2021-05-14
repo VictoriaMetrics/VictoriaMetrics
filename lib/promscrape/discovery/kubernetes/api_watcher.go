@@ -178,6 +178,7 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 			Proxy:               proxy,
 			TLSHandshakeTimeout: 10 * time.Second,
 			IdleConnTimeout:     *apiServerTimeout,
+			MaxIdleConnsPerHost: 100,
 		},
 		Timeout: *apiServerTimeout,
 	}

@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	httpListenAddr = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
+	httpListenAddr         = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
+	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
 )
 
 func main() {
@@ -85,6 +86,7 @@ var reverseProxy = &httputil.ReverseProxy{
 		tr.DisableCompression = true
 		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
 		tr.ForceAttemptHTTP2 = false
+		tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 		return tr
 	}(),
 	FlushInterval: time.Second,
