@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"hash/fnv"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,33 +103,38 @@ func (rr *RecordingRule) Exec(ctx context.Context, series bool) ([]prompbmarshal
 		return nil, fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
 	}
 
-	duplicates := make(map[uint64]prompbmarshal.TimeSeries, len(qMetrics))
+	duplicates := make(map[string]struct{}, len(qMetrics))
 	var tss []prompbmarshal.TimeSeries
 	for _, r := range qMetrics {
 		ts := rr.toTimeSeries(r, time.Unix(r.Timestamp, 0))
-		h := hashTimeSeries(ts)
-		if _, ok := duplicates[h]; ok {
+		key := stringifyLabels(ts)
+		if _, ok := duplicates[key]; ok {
 			rr.lastExecError = errDuplicate
-			return nil, errDuplicate
+			return nil, fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
 		}
-		duplicates[h] = ts
+		duplicates[key] = struct{}{}
 		tss = append(tss, ts)
 	}
 	return tss, nil
 }
 
-func hashTimeSeries(ts prompbmarshal.TimeSeries) uint64 {
-	hash := fnv.New64a()
+func stringifyLabels(ts prompbmarshal.TimeSeries) string {
 	labels := ts.Labels
-	sort.Slice(labels, func(i, j int) bool {
-		return labels[i].Name < labels[j].Name
-	})
-	for _, l := range labels {
-		hash.Write([]byte(l.Name))
-		hash.Write([]byte(l.Value))
-		hash.Write([]byte("\xff"))
+	if len(labels) > 1 {
+		sort.Slice(labels, func(i, j int) bool {
+			return labels[i].Name < labels[j].Name
+		})
 	}
-	return hash.Sum64()
+	b := strings.Builder{}
+	for i, l := range labels {
+		b.WriteString(l.Name)
+		b.WriteString("=")
+		b.WriteString(l.Value)
+		if i != len(labels)-1 {
+			b.WriteString(",")
+		}
+	}
+	return b.String()
 }
 
 func (rr *RecordingRule) toTimeSeries(m datasource.Metric, timestamp time.Time) prompbmarshal.TimeSeries {
