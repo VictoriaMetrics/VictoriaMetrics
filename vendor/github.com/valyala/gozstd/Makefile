@@ -3,7 +3,7 @@ GOARCH ?= $(shell go env GOARCH)
 GOOS_GOARCH := $(GOOS)_$(GOARCH)
 GOOS_GOARCH_NATIVE := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 LIBZSTD_NAME := libzstd_$(GOOS_GOARCH).a
-ZSTD_VERSION ?= master
+ZSTD_VERSION ?= v1.5.0
 
 .PHONY: libzstd.a
 
@@ -36,8 +36,8 @@ update-zstd:
 	mv zstd-tmp zstd
 	$(MAKE) clean libzstd.a
 	cp zstd/lib/zstd.h .
-	cp zstd/lib/dictBuilder/zdict.h .
-	cp zstd/lib/common/zstd_errors.h .
+	cp zstd/lib/zdict.h .
+	cp zstd/lib/zstd_errors.h .
 
 test:
 	CGO_ENABLED=1 GODEBUG=cgocheck=2 go test -v
