@@ -22,8 +22,8 @@ static size_t ZSTD_initCStream_wrapper(uintptr_t cs, int compressionLevel) {
     return ZSTD_initCStream((ZSTD_CStream*)cs, compressionLevel);
 }
 
-static size_t ZSTD_initCStream_usingCDict_wrapper(uintptr_t cs, uintptr_t dict) {
-    return ZSTD_initCStream_usingCDict((ZSTD_CStream*)cs, (ZSTD_CDict*)dict);
+static size_t ZSTD_CCtx_refCDict_wrapper(uintptr_t cc, uintptr_t dict) {
+    return ZSTD_CCtx_refCDict((ZSTD_CCtx*)cc, (ZSTD_CDict*)dict);
 }
 
 static size_t ZSTD_freeCStream_wrapper(uintptr_t cs) {
@@ -214,10 +214,10 @@ func (zw *Writer) ResetWriterParams(w io.Writer, params *WriterParams) {
 
 func initCStream(cs *C.ZSTD_CStream, params WriterParams) {
 	if params.Dict != nil {
-		result := C.ZSTD_initCStream_usingCDict_wrapper(
+		result := C.ZSTD_CCtx_refCDict_wrapper(
 			C.uintptr_t(uintptr(unsafe.Pointer(cs))),
 			C.uintptr_t(uintptr(unsafe.Pointer(params.Dict.p))))
-		ensureNoError("ZSTD_initCStream_usingCDict", result)
+		ensureNoError("ZSTD_CCtx_refCDict", result)
 	} else {
 		result := C.ZSTD_initCStream_wrapper(
 			C.uintptr_t(uintptr(unsafe.Pointer(cs))),
