@@ -43,8 +43,8 @@ jwt token must be in following format:
 }
 ```
 Where:
-- `exp` - required, expire time in unix_timestamp. If the token expires then `vmgateway` rejects the request.
-- `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenand_id": {}}`
+- `exp` - required, token expiration in unix_timestamp. If the token expires then `vmgateway` rejects the request.
+- `vm_access` - required, object with claim information, minimum form: `{"vm_access": {"tenand_id": {}}`
 - `tenant_id` - optional, for cluster mode, routes requests to the corresponding tenant.
 - `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics.
 - `mode` - optional, access mode for api - read, write, or full. Supported values: 0 - full (default value), 1 - read, 2 - write.
