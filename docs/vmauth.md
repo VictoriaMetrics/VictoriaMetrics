@@ -21,7 +21,7 @@ and pass the following flag to `vmauth` binary in order to start authorizing and
 After that `vmauth` starts accepting HTTP requests on port `8427` and routing them according to the provided [-auth.config](#auth-config).
 The port can be modified via `-httpListenAddr` command-line flag.
 
-The auth config can be reloaded by passing `SIGHUP` signal to `vmauth`.
+The auth config can be reloaded either by passing `SIGHUP` signal to `vmauth` or by querying `/-/reload` http endpoint.
 
 Docker images for `vmauth` are available [here](https://hub.docker.com/r/victoriametrics/vmauth/tags).
 
