@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -48,6 +49,13 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	switch r.URL.Path {
+	case "/-/reload":
+		configReloadRequests.Inc()
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
 	authToken := r.Header.Get("Authorization")
 	if authToken == "" {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
@@ -70,6 +78,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	reverseProxy.ServeHTTP(w, r)
 	return true
 }
+
+var configReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 
 var reverseProxy = &httputil.ReverseProxy{
 	Director: func(r *http.Request) {
