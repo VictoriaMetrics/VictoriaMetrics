@@ -43,8 +43,8 @@ jwt token must be in following format:
 }
 ```
 Where:
-- `exp` - required, token expiration in unix_timestamp. If the token expires then `vmgateway` rejects the request.
-- `vm_access` - required, object with claim information, minimum form: `{"vm_access": {"tenand_id": {}}`
+- `exp` - required, expire time in unix_timestamp. If the token expires then `vmgateway` rejects the request.
+- `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenand_id": {}}`
 - `tenant_id` - optional, for cluster mode, routes requests to the corresponding tenant.
 - `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics.
 - `mode` - optional, access mode for api - read, write, or full. Supported values: 0 - full (default value), 1 - read, 2 - write.
@@ -221,7 +221,7 @@ The shortlist of configuration flags include the following:
   -http.pathPrefix string
         An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-        Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+        Optional delay before http server shutdown. During this delay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
         Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
