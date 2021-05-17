@@ -171,6 +171,56 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
+	t.Run("replace-hit-remove-label", func(t *testing.T) {
+		f(`
+- action: replace
+  source_labels: ["xxx", "foo"]
+  regex: "yyy;.+"
+  target_label: "foo"
+  replacement: ""
+`, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("replace-miss-remove-label", func(t *testing.T) {
+		f(`
+- action: replace
+  source_labels: ["xxx", "foo"]
+  regex: "yyy;.+"
+  target_label: "foo"
+  replacement: ""
+`, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyyz",
+			},
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "xxx",
+				Value: "yyyz",
+			},
+		})
+	})
 	t.Run("replace-hit-target-label-with-capture-group", func(t *testing.T) {
 		f(`
 - action: replace
