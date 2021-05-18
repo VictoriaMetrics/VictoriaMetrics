@@ -81,6 +81,9 @@ func (aw *apiWatcher) mustStart() {
 func (aw *apiWatcher) mustStop() {
 	aw.gw.unsubscribeAPIWatcher(aw)
 	aw.swosByURLWatcherLock.Lock()
+	for _, swosByKey := range aw.swosByURLWatcher {
+		aw.swosCount.Add(-len(swosByKey))
+	}
 	aw.swosByURLWatcher = make(map[*urlWatcher]map[string][]interface{})
 	aw.swosByURLWatcherLock.Unlock()
 }
@@ -100,11 +103,10 @@ func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labels []map[st
 		swosByKey = make(map[string][]interface{})
 		aw.swosByURLWatcher[uw] = swosByKey
 	}
+	aw.swosCount.Add(len(swos) - len(swosByKey[key]))
 	if len(swos) > 0 {
-		aw.swosCount.Add(len(swos) - len(swosByKey[key]))
 		swosByKey[key] = swos
 	} else {
-		aw.swosCount.Add(-len(swosByKey[key]))
 		delete(swosByKey, key)
 	}
 	aw.swosByURLWatcherLock.Unlock()
@@ -464,7 +466,8 @@ func (uw *urlWatcher) reloadObjects() string {
 	uw.objectsCount.Add(added - removed)
 	uw.resourceVersion = metadata.ResourceVersion
 
-	logger.Infof("reloaded %d objects from %q", len(objectsByKey), requestURL)
+	logger.Infof("reloaded %d objects from %q; updated=%d, removed=%d, added=%d, resourceVersion=%q",
+		len(objectsByKey), requestURL, updated, removed, added, uw.resourceVersion)
 	return uw.resourceVersion
 }
 
