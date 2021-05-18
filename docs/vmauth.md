@@ -204,7 +204,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this delay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
