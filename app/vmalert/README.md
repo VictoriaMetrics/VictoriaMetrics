@@ -176,6 +176,32 @@ in configured `-remoteRead.url`, weren't updated in the last `1h` or received st
 rules configuration.
 
 
+### Multitenancy
+
+There are the following approaches for alerting and recording rules across [multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) exist:
+
+* To run a separate `vmalert` instance per each tenant. The corresponding tenant must be specified in `-datasource.url` command-line flag according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). For example, `/path/to/vmalert -datasource.url=http://vmselect:8481/select/123/prometheus` would run alerts against `AccountID=123`. For recording rules the `-remoteWrite.url` command-line flag must contain the url for the specific tenant as well. For example, `-remoteWrite.url=http://vminsert:8480/insert/123/prometheus` would write recording rules to `AccountID=123`.
+
+* To specify `tenant` parameter per each alerting and recording group if [enterprise version of vmalert](https://victoriametrics.com/enterprise.html) is used with `-clusterMode` command-line flag. For example:
+
+```yaml
+groups:
+- name: rules_for_tenant_123
+  tenant: "123"
+  rules:
+    # Rules for accountID=123
+
+- name: rules_for_tenant_456:789
+  tenant: "456:789"
+  rules:
+    # Rules for accountID=456, projectID=789
+```
+
+If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481` . `vmselect` automatically adds the specified tenant to urls per each recording rule in this case.
+
+The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise` tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
+
+
 ### WEB
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
