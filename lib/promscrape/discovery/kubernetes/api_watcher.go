@@ -443,20 +443,18 @@ func (uw *urlWatcher) reloadObjects() string {
 	uw.gw.mu.Lock()
 	var updated, removed, added int
 	for key := range uw.objectsByKey {
-		if o, ok := objectsByKey[key]; ok {
-			uw.objectsByKey[key] = o
+		if _, ok := objectsByKey[key]; ok {
 			updated++
 		} else {
-			delete(uw.objectsByKey, key)
 			removed++
 		}
 	}
-	for key, o := range objectsByKey {
+	for key := range objectsByKey {
 		if _, ok := uw.objectsByKey[key]; !ok {
-			uw.objectsByKey[key] = o
 			added++
 		}
 	}
+	uw.objectsByKey = objectsByKey
 	uw.reloadScrapeWorksForAPIWatchersLocked(uw.aws)
 	uw.gw.mu.Unlock()
 
