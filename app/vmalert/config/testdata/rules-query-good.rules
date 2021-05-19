@@ -1,0 +1,15 @@
+groups:
+  - name: alertmanager.rules
+    rules:
+      - alert: AlertmanagerConfigInconsistent
+        annotations:
+          message: |
+            The configuration of the instances of the Alertmanager cluster `{{ $labels.namespace }}/{{ $labels.service }}` are out of sync.
+            {{ range printf "alertmanager_config_hash{namespace=\"%s\",service=\"%s\"}" $labels.namespace $labels.service | query }}
+            Configuration hash for pod {{ .Labels.pod }} is "{{ printf "%.f" .Value }}"
+            {{ end }}
+        expr: |
+          count by(namespace,service) (count_values by(namespace,service) ("config_hash", alertmanager_config_hash{job="alertmanager-main",namespace="openshift-monitoring"})) != 1
+        for: 5m
+        labels:
+          severity: critical
