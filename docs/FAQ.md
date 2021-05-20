@@ -247,3 +247,8 @@ Yes in most cases. VictoriaMetrics can substitute Prometheus in the following as
 * Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/vmagent.html) and with single-node VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/vmalert.html).
 * Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#grafana-setup).
+
+
+### How can I run VictoriaMetrics on FreeBSD?
+
+VictoriaMetrics is included in FreeBSD ports, so just install it from there. See [this link](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all).
