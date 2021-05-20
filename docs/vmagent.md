@@ -38,7 +38,9 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared with Prometheus.
-* Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets) for details.
+* Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
+* Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/). See [these docs](#stream-parsing-mode).
+* Can deal with high cardinality and high churn rate issues by limiting the number of unique time series sent to remote storage systems. See [these docs](#cardinality-limiter).
 
 
 ## Quick Start
@@ -320,6 +322,22 @@ scrape_configs:
     server_name: real-server-name
 ```
 
+## Cardinality limiter
+
+By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
+
+* `-remoteWrite.maxHourlySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last hour. Useful for limiting the number of active time series.
+* `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day. Useful for limiting daily churn rate.
+
+Both limits can be set simultaneously. It any of these limits is reached, then new time series are dropped before sending the data to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
+
+The exceeded limits can be [monitored](#monitoring) with the following metrics:
+
+* `vmagent_hourly_series_limit_samples_dropped_total` - the number of metrics dropped due to exceeding hourly limit on the number of unique time series.
+* `vmagent_daily_series_limit_samples_dropped_total` - the number of metrics dropped due to exceeding daily limit on the number of unique time series.
+
+These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
+
 
 ## Monitoring
 
@@ -346,6 +364,12 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 * We recommend you increase the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
+
+* If `vmagent` uses too big amounts of memory, then the following options can help:
+  * Enabling stream parsing. See [these docs](#stream-parsing-mode).
+  * Reducing the number of output queues with `-remoteWrite.queues` command-line option.
+  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option. Another option is to reduce memory limits in Docker and/or Kuberntes if `vmagent` runs under these systems.
+  * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`, where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
 
 * When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. These errors can be suppressed
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
