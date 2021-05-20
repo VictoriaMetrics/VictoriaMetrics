@@ -113,6 +113,8 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
+It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
+
 
 ## Monitoring
 
@@ -236,6 +238,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
     	Auth key for /metrics. It overrides httpAuth settings
   -pprofAuthKey string
     	Auth key for /debug/pprof. It overrides httpAuth settings
+  -reloadAuthKey string
+    	Auth key for /-/reload http endpoint. It must be passed as authKey=...
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
