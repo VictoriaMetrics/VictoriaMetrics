@@ -81,9 +81,21 @@ func Init() {
 	}
 	if *maxHourlySeries > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
+		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
+			return float64(hourlySeriesLimiter.MaxItems())
+		})
+		_ = metrics.NewGauge(`vmagent_hourly_series_limit_current_series`, func() float64 {
+			return float64(hourlySeriesLimiter.CurrentItems())
+		})
 	}
 	if *maxDailySeries > 0 {
 		dailySeriesLimiter = bloomfilter.NewLimiter(*maxDailySeries, 24*time.Hour)
+		_ = metrics.NewGauge(`vmagent_daily_series_limit_max_series`, func() float64 {
+			return float64(dailySeriesLimiter.MaxItems())
+		})
+		_ = metrics.NewGauge(`vmagent_daily_series_limit_current_series`, func() float64 {
+			return float64(dailySeriesLimiter.CurrentItems())
+		})
 	}
 	if *queues > maxQueues {
 		*queues = maxQueues
