@@ -33,6 +33,13 @@ func (l *Limiter) MaxItems() int {
 	return l.maxItems
 }
 
+// CurrentItems return the current number of items registered in l.
+func (l *Limiter) CurrentItems() int {
+	lm := l.v.Load().(*limiter)
+	n := atomic.LoadUint64(&lm.currentItems)
+	return int(n)
+}
+
 // Add adds h to the limiter.
 //
 // It is safe calling Add from concurrent goroutines.
