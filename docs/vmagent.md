@@ -329,12 +329,12 @@ By default `vmagent` doesn't limit the number of time series written to remote s
 * `-remoteWrite.maxHourlySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last hour. Useful for limiting the number of active time series.
 * `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day. Useful for limiting daily churn rate.
 
-Both limits can be set simultaneously. It any of these limits is reached, then new time series are dropped before sending the data to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
+Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
 
 The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
-* `vmagent_hourly_series_limit_samples_dropped_total` - the number of metrics dropped due to exceeding hourly limit on the number of unique time series.
-* `vmagent_daily_series_limit_samples_dropped_total` - the number of metrics dropped due to exceeding daily limit on the number of unique time series.
+* `vmagent_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vmagent_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
 
 These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
 
@@ -687,9 +687,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.maxBlockSize size
     	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
+  -remoteWrite.maxDailySeries int
+    	The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries
   -remoteWrite.maxDiskUsagePerURL size
     	The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. Disk usage is unlimited if the value is set to 0
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -remoteWrite.maxHourlySeries int
+    	The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries
   -remoteWrite.proxyURL array
     	Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
     	Supports an array of values separated by comma or specified via multiple flags.

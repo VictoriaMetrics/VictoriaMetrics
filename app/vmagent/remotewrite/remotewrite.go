@@ -50,7 +50,7 @@ var (
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
-		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxHourlySeries")
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries")
 )
 
 var rwctxs []*remoteWriteCtx
@@ -227,13 +227,13 @@ func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.Time
 		labels := tss[i].Labels
 		h := getLabelsHash(labels)
 		if hourlySeriesLimiter != nil && !hourlySeriesLimiter.Add(h) {
-			hourlySeriesLimit.Add(len(tss[i].Samples))
-			logSkippedSeries(labels, "-remoteWrite.maxHourlySeries", *maxHourlySeries)
+			hourlySeriesLimitRowsDropped.Add(len(tss[i].Samples))
+			logSkippedSeries(labels, "-remoteWrite.maxHourlySeries", hourlySeriesLimiter.MaxItems())
 			continue
 		}
 		if dailySeriesLimiter != nil && !dailySeriesLimiter.Add(h) {
-			dailySeriesLimit.Add(len(tss[i].Samples))
-			logSkippedSeries(labels, "-remoteWrite.maxDailySeries", *maxDailySeries)
+			dailySeriesLimitRowsDropped.Add(len(tss[i].Samples))
+			logSkippedSeries(labels, "-remoteWrite.maxDailySeries", dailySeriesLimiter.MaxItems())
 			continue
 		}
 		dst = append(dst, tss[i])
@@ -245,8 +245,8 @@ var (
 	hourlySeriesLimiter *bloomfilter.Limiter
 	dailySeriesLimiter  *bloomfilter.Limiter
 
-	hourlySeriesLimit = metrics.NewCounter(`vmagent_hourly_series_limit_samples_dropped_total`)
-	dailySeriesLimit  = metrics.NewCounter(`vmagent_daily_series_limit_samples_dropped_total`)
+	hourlySeriesLimitRowsDropped = metrics.NewCounter(`vmagent_hourly_series_limit_rows_dropped_total`)
+	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
 func getLabelsHash(labels []prompbmarshal.Label) uint64 {

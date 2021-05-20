@@ -16,6 +16,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -52,6 +53,9 @@ type Storage struct {
 	slowPerDayIndexInserts uint64
 	slowMetricNameLoads    uint64
 
+	hourlySeriesLimitRowsDropped uint64
+	dailySeriesLimitRowsDropped  uint64
+
 	path           string
 	cachePath      string
 	retentionMsecs int64
@@ -62,6 +66,10 @@ type Storage struct {
 	idbCurr atomic.Value
 
 	tb *table
+
+	// Series cardinality limiters.
+	hourlySeriesLimiter *bloomfilter.Limiter
+	dailySeriesLimiter  *bloomfilter.Limiter
 
 	// tsidCache is MetricName -> TSID cache.
 	tsidCache *workingsetcache.Cache
@@ -126,7 +134,7 @@ type accountProjectKey struct {
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
+func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
@@ -159,6 +167,14 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	snapshotsPath := path + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
+	}
+
+	// Initialize series cardinality limiter.
+	if maxHourlySeries > 0 {
+		s.hourlySeriesLimiter = bloomfilter.NewLimiter(maxHourlySeries, time.Hour)
+	}
+	if maxDailySeries > 0 {
+		s.dailySeriesLimiter = bloomfilter.NewLimiter(maxDailySeries, 24*time.Hour)
 	}
 
 	// Load caches.
@@ -377,6 +393,9 @@ type Metrics struct {
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
 
+	HourlySeriesLimitRowsDropped uint64
+	DailySeriesLimitRowsDropped  uint64
+
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
@@ -445,6 +464,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
+
+	m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
+	m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
 
 	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
 	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
@@ -1598,6 +1620,11 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			continue
 		}
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
+			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip the row, since the limit on the number of unique series has been exceeded.
+				j--
+				continue
+			}
 			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
 			// contain MetricName->TSID entries for deleted time series.
@@ -1657,6 +1684,11 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				j--
 				continue
 			}
+			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip the row, since the limit on the number of unique series has been exceeded.
+				j--
+				continue
+			}
 			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -1682,6 +1714,30 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	}
 	return rows, nil
 }
+
+func (s *Storage) isSeriesCardinalityExceeded(metricID uint64, metricNameRaw []byte) bool {
+	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
+		atomic.AddUint64(&s.hourlySeriesLimitRowsDropped, 1)
+		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
+		return true
+	}
+	if sl := s.dailySeriesLimiter; sl != nil && !sl.Add(metricID) {
+		atomic.AddUint64(&s.dailySeriesLimitRowsDropped, 1)
+		logSkippedSeries(metricNameRaw, "-storage.maxDailySeries", sl.MaxItems())
+		return true
+	}
+	return false
+}
+
+func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
+	select {
+	case <-logSkippedSeriesTicker.C:
+		logger.Warnf("skip series %s because %s=%d reached", getUserReadableMetricName(metricNameRaw), flagName, flagValue)
+	default:
+	}
+}
+
+var logSkippedSeriesTicker = time.NewTicker(5 * time.Second)
 
 func getUserReadableMetricName(metricNameRaw []byte) string {
 	var mn MetricName

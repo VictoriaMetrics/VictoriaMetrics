@@ -43,6 +43,10 @@ var (
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
+	maxHourlySeries = flag.Int("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries")
+	maxDailySeries = flag.Int("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
 )
 
 func main() {
@@ -61,7 +65,7 @@ func main() {
 
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-	strg, err := storage.OpenStorage(*storageDataPath, retentionPeriod.Msecs)
+	strg, err := storage.OpenStorage(*storageDataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
 	if err != nil {
 		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *storageDataPath, retentionPeriod, err)
 	}
@@ -454,6 +458,13 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_slow_metric_name_loads_total`, func() float64 {
 		return float64(m().SlowMetricNameLoads)
+	})
+
+	metrics.NewGauge(`vm_hourly_series_limit_rows_dropped_total`, func() float64 {
+		return float64(m().HourlySeriesLimitRowsDropped)
+	})
+	metrics.NewGauge(`vm_daily_series_limit_rows_dropped_total`, func() float64 {
+		return float64(m().DailySeriesLimitRowsDropped)
 	})
 
 	metrics.NewGauge(`vm_timestamps_blocks_merged_total`, func() float64 {

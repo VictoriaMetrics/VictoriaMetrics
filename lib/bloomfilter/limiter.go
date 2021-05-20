@@ -9,12 +9,15 @@ import (
 //
 // It is safe using the Limiter from concurrent goroutines.
 type Limiter struct {
-	v atomic.Value
+	maxItems int
+	v        atomic.Value
 }
 
 // NewLimiter creates new Limiter, which can hold up to maxItems unique items during the given refreshInterval.
 func NewLimiter(maxItems int, refreshInterval time.Duration) *Limiter {
-	var l Limiter
+	l := &Limiter{
+		maxItems: maxItems,
+	}
 	l.v.Store(newLimiter(maxItems))
 	go func() {
 		for {
@@ -22,7 +25,12 @@ func NewLimiter(maxItems int, refreshInterval time.Duration) *Limiter {
 			l.v.Store(newLimiter(maxItems))
 		}
 	}()
-	return &l
+	return l
+}
+
+// MaxItems returns the maxItems passed to NewLimiter.
+func (l *Limiter) MaxItems() int {
+	return l.maxItems
 }
 
 // Add adds h to the limiter.
