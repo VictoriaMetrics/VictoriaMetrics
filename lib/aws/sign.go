@@ -1,48 +1,42 @@
 package aws
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// NewSignedRequestWithTime signed request for apiURL according to aws signature algorithm.
+// NewSignedGetRequestWithTime creates signed http get request for apiURL according to aws signature algorithm.
 //
 // See the algorithm at https://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
-func NewSignedRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
+func NewSignedGetRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create http request with given apiURL: %s, err: %w", apiURL, err)
 	}
-	if err := signRequestWithTime(req, service, region, creds, t); err != nil {
+	if err := signRequestWithTime(req, service, region, "", creds, t); err != nil {
 		return nil, err
 	}
 	return req, nil
 }
 
-// SignRequestWithConfig - signs request with given config for service access.
-func SignRequestWithConfig(req *http.Request, cfg *Config, service string) error {
+// SignRequestWithConfig - signs request with given config for service access and payloadHash.
+func SignRequestWithConfig(req *http.Request, cfg *Config, service string, payloadHash string) error {
 	ac, err := cfg.getFreshAPICredentials()
 	if err != nil {
 		return err
 	}
-	return signRequestWithTime(req, service, cfg.region, ac, time.Now().UTC())
+	return signRequestWithTime(req, service, cfg.region, payloadHash, ac, time.Now().UTC())
 }
 
-var bbp bytesutil.ByteBufferPool
-
 // signRequestWithTime - signs given http request.
-func signRequestWithTime(req *http.Request, service, region string, creds *credentials, t time.Time) error {
+func signRequestWithTime(req *http.Request, service, region, payloadHash string, creds *credentials, t time.Time) error {
 	uri := req.URL
 	// Create canonicalRequest
 	amzdate := t.Format("20060102T150405Z")
@@ -50,20 +44,8 @@ func signRequestWithTime(req *http.Request, service, region string, creds *crede
 	canonicalURL := uri.Path
 	canonicalQS := uri.Query().Encode()
 
-	var payload string
-	if req.Body != nil {
-		bb := bbp.Get()
-		defer bbp.Put(bb)
-		if _, err := io.Copy(bb, req.Body); err != nil {
-			return fmt.Errorf("cannot copy request body for sign: %w", err)
-		}
-		payload = string(bb.B)
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(bb.B))
-	}
-
 	canonicalHeaders := fmt.Sprintf("host:%s\nx-amz-date:%s\n", uri.Host, amzdate)
 	signedHeaders := "host;x-amz-date"
-	payloadHash := hashHex(payload)
 	tmp := []string{
 		req.Method,
 		canonicalURL,
@@ -109,7 +91,12 @@ func getSignatureKey(key, datestamp, region, service string) string {
 }
 
 func hashHex(s string) string {
-	h := sha256.Sum256([]byte(s))
+	return HashHex([]byte(s))
+}
+
+// HashHex hashes given s
+func HashHex(s []byte) string {
+	h := sha256.Sum256(s)
 	return hex.EncodeToString(h[:])
 }
 

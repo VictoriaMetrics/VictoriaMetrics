@@ -295,7 +295,7 @@ func getRoleWebIdentityCredentials(cfg *Config, token string) (*credentials, err
 // getRoleARNCredentials obtains credentials fo the given roleARN.
 func getRoleARNCredentials(cfg *Config, creds *credentials) (*credentials, error) {
 	data, err := getSTSAPIResponse("AssumeRole", cfg, func(apiURL string) (*http.Request, error) {
-		return NewSignedRequestWithTime(apiURL, "sts", cfg.region, creds, time.Now().UTC())
+		return NewSignedGetRequestWithTime(apiURL, "sts", cfg.region, creds, time.Now().UTC())
 	})
 	if err != nil {
 		return nil, err

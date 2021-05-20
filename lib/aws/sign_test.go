@@ -15,7 +15,7 @@ func TestNewSignedRequest(t *testing.T) {
 			SecretAccessKey: "foobar",
 		}
 		ct := time.Unix(0, 0).UTC()
-		req, err := NewSignedRequestWithTime(apiURL, service, region, ac, ct)
+		req, err := NewSignedGetRequestWithTime(apiURL, service, region, ac, ct)
 		if err != nil {
 			t.Fatalf("error in newSignedRequest: %s", err)
 		}

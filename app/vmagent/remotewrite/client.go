@@ -45,11 +45,16 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	bearerToken = flagutil.NewArray("remoteWrite.bearerToken", "Optional bearer auth token to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	useSigV4     = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing for remoteWrite endpoint.")
-	awsRegion    = flagutil.NewArray("remoteWrite.aws.region", "Optional aws region, if missing, vmagent will try to get default region from instance metadata.")
-	awsRoleARN   = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional roleARN name.")
-	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AccessKey value.")
-	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey value.")
+	useSigV4 = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional aws region to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional roleARN to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AccessKey  to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
 type client struct {
@@ -233,9 +238,11 @@ func (c *client) runWorker() {
 	}
 }
 
-func (c *client) do(req *http.Request) (*http.Response, error) {
+// do execute request and sign it if needed with given hashed payload,
+// payload must be hashed with aws.HashHex algorithm.
+func (c *client) do(req *http.Request, payloadHash string) (*http.Response, error) {
 	if c.awsConfig != nil {
-		if err := aws.SignRequestWithConfig(req, c.awsConfig, "aps"); err != nil {
+		if err := aws.SignRequestWithConfig(req, c.awsConfig, "aps", payloadHash); err != nil {
 			return nil, err
 		}
 	}
@@ -251,6 +258,11 @@ func (c *client) sendBlock(block []byte) bool {
 	c.bytesSent.Add(len(block))
 	c.blocksSent.Inc()
 
+	var payloadHash string
+	// calculate payloadHash if needed.
+	if c.awsConfig != nil {
+		payloadHash = aws.HashHex(block)
+	}
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
@@ -266,7 +278,7 @@ again:
 	}
 
 	startTime := time.Now()
-	resp, err := c.do(req)
+	resp, err := c.do(req, payloadHash)
 	c.requestDuration.UpdateDuration(startTime)
 	if err != nil {
 		c.errorsCount.Inc()
