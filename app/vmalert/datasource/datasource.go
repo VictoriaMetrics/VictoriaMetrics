@@ -24,30 +24,6 @@ type Metric struct {
 	Value     float64
 }
 
-// MetricSample is used for templating annotations,
-// Labels as map simplifies templates evaluation.
-type MetricSample struct {
-	Labels    map[string]string
-	Timestamp int64
-	Value     float64
-}
-
-// MetricsToMetricsSamples converts Metrics to MetricSamples.
-func MetricsToMetricsSamples(ms []Metric) []MetricSample {
-	mss := make([]MetricSample, 0, len(ms))
-	for _, m := range ms {
-		labelsMap := make(map[string]string, len(m.Labels))
-		for _, labelValue := range m.Labels {
-			labelsMap[labelValue.Name] = labelValue.Value
-		}
-		mss = append(mss, MetricSample{
-			Labels:    labelsMap,
-			Timestamp: m.Timestamp,
-			Value:     m.Value})
-	}
-	return mss
-}
-
 // SetLabel adds or updates existing one label
 // by the given key and label
 func (m *Metric) SetLabel(key, value string) {
