@@ -223,6 +223,8 @@ Questions about VictoriaMetrics can be asked via the following channels:
 File bugs and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 
-### Are you looking for investors?
+### Where I can find information about multi-tenancy?
 
-Yes. [Mail us](mailto:info@victoriametrics.com) if you are interested in.
+See more details about multi-tenancy [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). Please note, this feature is supported only by [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) version of VictoriaMetrics.
+
+
