@@ -19,7 +19,7 @@ func TestFetchQuery(t *testing.T) {
 					},
 				},
 			},
-			expected: `select "value" from "cpu" where "foo"='bar'`,
+			expected: `select "value" from "cpu" where "foo"::tag='bar'`,
 		},
 		{
 			s: Series{
@@ -36,7 +36,7 @@ func TestFetchQuery(t *testing.T) {
 					},
 				},
 			},
-			expected: `select "value" from "cpu" where "foo"='bar' and "baz"='qux'`,
+			expected: `select "value" from "cpu" where "foo"::tag='bar' and "baz"::tag='qux'`,
 		},
 		{
 			s: Series{
@@ -50,7 +50,7 @@ func TestFetchQuery(t *testing.T) {
 				},
 			},
 			timeFilter: "time >= now()",
-			expected:   `select "value" from "cpu" where "foo"='b\'ar' and time >= now()`,
+			expected:   `select "value" from "cpu" where "foo"::tag='b\'ar' and time >= now()`,
 		},
 		{
 			s: Series{
@@ -68,7 +68,7 @@ func TestFetchQuery(t *testing.T) {
 				},
 			},
 			timeFilter: "time >= now()",
-			expected:   `select "value" from "cpu" where "name"='dev-mapper-centos\\x2dswap.swap' and "state"='dev-mapp\'er-c\'en\'tos' and time >= now()`,
+			expected:   `select "value" from "cpu" where "name"::tag='dev-mapper-centos\\x2dswap.swap' and "state"::tag='dev-mapp\'er-c\'en\'tos' and time >= now()`,
 		},
 		{
 			s: Series{

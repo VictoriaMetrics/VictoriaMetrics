@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -497,21 +497,16 @@ var (
 
 func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
-	ct := fasttime.UnixTimestamp()
-	if ct < atomic.LoadUint64(&droppedLabelsLogNextTimestamp) {
-		return
-	}
-	droppedLabelsLogOnce.Do(func() {
-		atomic.StoreUint64(&droppedLabelsLogNextTimestamp, ct+5)
+	select {
+	case <-droppedLabelsLogTicker.C:
 		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
 			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
-		droppedLabelsLogOnce = &sync.Once{}
-	})
+	default:
+	}
 }
 
-var droppedLabelsLogOnce = &sync.Once{}
-var droppedLabelsLogNextTimestamp uint64
+var droppedLabelsLogTicker = time.NewTicker(5 * time.Second)
 
 func labelsToString(labels []prompb.Label) string {
 	labelsCopy := append([]prompb.Label{}, labels...)

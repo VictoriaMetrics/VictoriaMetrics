@@ -123,6 +123,7 @@ var transformFuncs = map[string]transformFunc{
 	"histogram_stddev":   transformHistogramStddev,
 	"sort_by_label":      newTransformFuncSortByLabel(false),
 	"sort_by_label_desc": newTransformFuncSortByLabel(true),
+	"timezone_offset":    transformTimezoneOffset,
 }
 
 func getTransformFunc(s string) transformFunc {
@@ -1904,6 +1905,32 @@ func transformPi(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	return evalNumber(tfa.ec, math.Pi), nil
+}
+
+func transformTimezoneOffset(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	tzString, err := getString(args[0], 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get timezone name: %w", err)
+	}
+	tzOffset, err := getTimezoneOffset(tzString)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get timezone offset for %q: %w", tzString, err)
+	}
+	rv := evalNumber(tfa.ec, float64(tzOffset))
+	return rv, nil
+}
+
+func getTimezoneOffset(tzString string) (int, error) {
+	loc, err := time.LoadLocation(tzString)
+	if err != nil {
+		return 0, fmt.Errorf("cannot load timezone %q: %w", tzString, err)
+	}
+	_, tzOffset := time.Now().In(loc).Zone()
+	return tzOffset, nil
 }
 
 func transformTime(tfa *transformFuncArg) ([]*timeseries, error) {

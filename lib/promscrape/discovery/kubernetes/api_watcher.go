@@ -573,15 +573,11 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			key := o.key()
 			uw.gw.mu.Lock()
 			if _, ok := uw.objectsByKey[key]; !ok {
-				if we.Type == "MODIFIED" {
-					// This is expected condition after recovering from the bookmarked resourceVersion.
-				}
+				// if we.Type == "MODIFIED" is expected condition after recovering from the bookmarked resourceVersion.
 				uw.objectsCount.Inc()
 				uw.objectsAdded.Inc()
 			} else {
-				if we.Type == "ADDED" {
-					// This is expected condition after recovering from the bookmarked resourceVersion.
-				}
+				// if we.Type == "ADDED" is expected condition after recovering from the bookmarked resourceVersion.
 				uw.objectsUpdated.Inc()
 			}
 			uw.objectsByKey[key] = o
@@ -599,9 +595,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			}
 			key := o.key()
 			uw.gw.mu.Lock()
-			if _, ok := uw.objectsByKey[key]; !ok {
-				// This is expected condition after recovering from the bookmarked resourceVersion.
-			} else {
+			if _, ok := uw.objectsByKey[key]; ok {
 				uw.objectsCount.Dec()
 				uw.objectsRemoved.Inc()
 				delete(uw.objectsByKey, key)
