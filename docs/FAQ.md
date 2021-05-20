@@ -228,3 +228,13 @@ File bugs and feature requests [here](https://github.com/VictoriaMetrics/Victori
 See more details about multi-tenancy [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). Please note, this feature is supported only by [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) version of VictoriaMetrics.
 
 
+### How to set a memory limit for VictoriaMetrics components?
+
+All the VictoriaMetrics component provide command-line flags to control the size of internal buffers and caches: `-memory.allowedPercent` and `-memory.allowedBytes` (pass `-help` to any VictoriaMetrics component in order to see the description for these flags). These limits don't take into account additional memory, which may be needed for processing incoming queries. Hard limits may be enforced only by the OS via [cgroups](https://en.wikipedia.org/wiki/Cgroups), Docker (see [these docs](https://docs.docker.com/config/containers/resource_constraints)) or Kubernetes (see [these docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
+
+Memory usage for VictoriaMetrics components can be tuned according to the following docs:
+
+* [Capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/#capacity-planning)
+* [Capacity planning for cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
+* [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting)
+* [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
