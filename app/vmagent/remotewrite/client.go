@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/aws"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -44,6 +45,11 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	bearerToken = flagutil.NewArray("remoteWrite.bearerToken", "Optional bearer auth token to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	useSigV4     = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing for remoteWrite endpoint.")
+	awsRegion    = flagutil.NewArray("remoteWrite.aws.region", "Optional aws region, if missing, vmagent will try to get default region from instance metadata.")
+	awsRoleARN   = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional roleARN name.")
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AccessKey value.")
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey value.")
 )
 
 type client struct {
@@ -62,6 +68,7 @@ type client struct {
 	errorsCount     *metrics.Counter
 	packetsDropped  *metrics.Counter
 	retriesCount    *metrics.Counter
+	awsConfig       *aws.Config
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -72,6 +79,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize TLS config: %s", err)
 	}
+
 	tr := &http.Transport{
 		Dial:                statDial,
 		TLSClientConfig:     tlsCfg,
@@ -108,7 +116,12 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		}
 		authHeader = "Bearer " + token
 	}
+	awsCfg, err := getAwsConfig(argIdx)
+	if err != nil {
+		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite idx: %d, err: %s", argIdx, err)
+	}
 	c := &client{
+		awsConfig:      awsCfg,
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authHeader:     authHeader,
@@ -147,6 +160,19 @@ func (c *client) MustStop() {
 	close(c.stopCh)
 	c.wg.Wait()
 	logger.Infof("stopped client for -remoteWrite.url=%q", c.sanitizedURL)
+}
+
+func getAwsConfig(argIdx int) (*aws.Config, error) {
+
+	if !useSigV4.GetOptionalArg(argIdx) {
+		return nil, nil
+	}
+
+	cfg, err := aws.NewConfig(awsRegion.GetOptionalArg(argIdx), awsRoleARN.GetOptionalArg(argIdx), awsAccessKey.GetOptionalArg(argIdx), awsSecretKey.GetOptionalArg(argIdx))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create aws Config for remoteWrite idx: %d, err: %w", argIdx, err)
+	}
+	return cfg, nil
 }
 
 func getTLSConfig(argIdx int) (*tls.Config, error) {
@@ -207,6 +233,15 @@ func (c *client) runWorker() {
 	}
 }
 
+func (c *client) do(req *http.Request) (*http.Response, error) {
+	if c.awsConfig != nil {
+		if err := aws.SignRequestWithConfig(req, c.awsConfig, "aps"); err != nil {
+			return nil, err
+		}
+	}
+	return c.hc.Do(req)
+}
+
 // sendBlock returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlock(block []byte) bool {
@@ -231,7 +266,7 @@ again:
 	}
 
 	startTime := time.Now()
-	resp, err := c.hc.Do(req)
+	resp, err := c.do(req)
 	c.requestDuration.UpdateDuration(startTime)
 	if err != nil {
 		c.errorsCount.Inc()
