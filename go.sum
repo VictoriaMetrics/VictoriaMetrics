@@ -88,8 +88,8 @@ github.com/VictoriaMetrics/fasthttp v1.0.15/go.mod h1:s9o5H4T58Kt4CTrdyJp4RorBKC
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metrics v1.17.2 h1:9zPJ7DPfxdJWshOGLPLpAtPL0ZZ9AeUyQC3fIqG6Lvo=
 github.com/VictoriaMetrics/metrics v1.17.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
-github.com/VictoriaMetrics/metricsql v0.14.0 h1:XGbpZJVskUPJFo2C7vG6ATxXBwkBFPe7EWZXB2HZt2U=
-github.com/VictoriaMetrics/metricsql v0.14.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
+github.com/VictoriaMetrics/metricsql v0.15.0 h1:7tveqhA0xLumXhokcmgxiUn90VlKqiVtYZQ3p6y9Fu4=
+github.com/VictoriaMetrics/metricsql v0.15.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
 github.com/VividCortex/ewma v1.1.1/go.mod h1:2Tkkvm3sRDVXaiyucHiACn4cqf7DpdyLvmxzcbUokwA=
 github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1ow=
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=

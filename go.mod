@@ -8,7 +8,7 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.0.15
 	github.com/VictoriaMetrics/metrics v1.17.2
-	github.com/VictoriaMetrics/metricsql v0.14.0
+	github.com/VictoriaMetrics/metricsql v0.15.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/aws/aws-sdk-go v1.38.40
 	github.com/cespare/xxhash/v2 v2.1.1
