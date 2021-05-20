@@ -88,6 +88,7 @@ var transformFuncs = map[string]bool{
 	"histogram_stddev":   true,
 	"sort_by_label":      true,
 	"sort_by_label_desc": true,
+	"timezone_offset":    true,
 }
 
 // IsTransformFunc returns whether funcName is known transform function.

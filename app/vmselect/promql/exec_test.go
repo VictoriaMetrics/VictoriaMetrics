@@ -132,6 +132,49 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("timezone_offset(UTC)", func(t *testing.T) {
+		t.Parallel()
+		q := `timezone_offset("UTC")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("timezone_offset(America/New_York)", func(t *testing.T) {
+		t.Parallel()
+		q := `timezone_offset("America/New_York")`
+		offset, err := getTimezoneOffset("America/New_York")
+		if err != nil {
+			t.Fatalf("cannot obtain timezone: %s", err)
+		}
+		off := float64(offset)
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{off, off, off, off, off, off},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("timezone_offset(Local)", func(t *testing.T) {
+		t.Parallel()
+		q := `timezone_offset("Local")`
+		offset, err := getTimezoneOffset("Local")
+		if err != nil {
+			t.Fatalf("cannot obtain timezone: %s", err)
+		}
+		off := float64(offset)
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{off, off, off, off, off, off},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time()", func(t *testing.T) {
 		t.Parallel()
 		q := `time()`
