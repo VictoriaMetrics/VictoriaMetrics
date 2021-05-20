@@ -238,3 +238,12 @@ Memory usage for VictoriaMetrics components can be tuned according to the follow
 * [Capacity planning for cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
 * [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting)
 * [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
+
+
+### Can I use VictoriaMetrics instead of Prometheus?
+
+Yes in most cases. VictoriaMetrics can substitute Prometheus in the following aspects:
+
+* Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/vmagent.html) and with single-node VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/vmalert.html).
+* Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#grafana-setup).
