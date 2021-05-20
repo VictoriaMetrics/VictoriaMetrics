@@ -16,6 +16,9 @@ func TestLimiter(t *testing.T) {
 func testLimiter(t *testing.T, maxItems int) {
 	r := rand.New(rand.NewSource(int64(0)))
 	l := NewLimiter(maxItems, time.Hour)
+	if n := l.MaxItems(); n != maxItems {
+		t.Fatalf("unexpected maxItems returned; got %d; want %d", n, maxItems)
+	}
 	items := make(map[uint64]struct{}, maxItems)
 
 	// Populate the l with new items.
@@ -57,6 +60,9 @@ func TestLimiterConcurrent(t *testing.T) {
 	doneCh := make(chan struct{}, concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
+			if n := l.MaxItems(); n != maxItems {
+				panic(fmt.Errorf("unexpected maxItems returned; got %d; want %d", n, maxItems))
+			}
 			r := rand.New(rand.NewSource(0))
 			for i := 0; i < maxItems; i++ {
 				h := r.Uint64()
