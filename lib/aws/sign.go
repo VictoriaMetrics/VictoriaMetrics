@@ -12,6 +12,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// for get requests there is no need to calculate payload hash each time.
+var emptyPayloadHash = hashHex("")
+
 // NewSignedGetRequestWithTime creates signed http get request for apiURL according to aws signature algorithm.
 //
 // See the algorithm at https://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
@@ -20,7 +23,7 @@ func NewSignedGetRequestWithTime(apiURL, service, region string, creds *credenti
 	if err != nil {
 		return nil, fmt.Errorf("cannot create http request with given apiURL: %s, err: %w", apiURL, err)
 	}
-	if err := signRequestWithTime(req, service, region, "", creds, t); err != nil {
+	if err := signRequestWithTime(req, service, region, emptyPayloadHash, creds, t); err != nil {
 		return nil, err
 	}
 	return req, nil
@@ -55,7 +58,6 @@ func signRequestWithTime(req *http.Request, service, region, payloadHash string,
 		payloadHash,
 	}
 	canonicalRequest := strings.Join(tmp, "\n")
-	req.Header = http.Header{}
 
 	// Create stringToSign
 	algorithm := "AWS4-HMAC-SHA256"
