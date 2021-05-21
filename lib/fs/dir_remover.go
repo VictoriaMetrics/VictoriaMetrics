@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -34,7 +35,16 @@ func mustRemoveAll(path string, done func()) bool {
 	select {
 	case removeDirCh <- w:
 	default:
-		logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirCh))
+		// Wait for a while in the hope files are removed from removeDirCh.
+		// This can be the case on highly loaded system with high ingestion rate
+		// as described at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1313
+		t := timerpool.Get(10 * time.Second)
+		select {
+		case removeDirCh <- w:
+			timerpool.Put(t)
+		case <-t.C:
+			logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirCh))
+		}
 	}
 	return false
 }
