@@ -2,6 +2,7 @@ package promauth
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 // TLSConfig represents TLS config.
@@ -46,6 +49,7 @@ type HTTPClientConfig struct {
 	BasicAuth       *BasicAuthConfig `yaml:"basic_auth,omitempty"`
 	BearerToken     string           `yaml:"bearer_token,omitempty"`
 	BearerTokenFile string           `yaml:"bearer_token_file,omitempty"`
+	OAuth2          *OAuth2Config    `yaml:"oauth2,omitempty"`
 	TLSConfig       *TLSConfig       `yaml:"tls_config,omitempty"`
 }
 
@@ -56,6 +60,115 @@ type ProxyClientConfig struct {
 	BearerToken     string           `yaml:"proxy_bearer_token,omitempty"`
 	BearerTokenFile string           `yaml:"proxy_bearer_token_file,omitempty"`
 	TLSConfig       *TLSConfig       `yaml:"proxy_tls_config,omitempty"`
+}
+
+// OAuth2Config represent oAuth2 configuration
+type OAuth2Config struct {
+	ClientID         string
+	ClientSecretFile string
+	Scopes           []string
+	TokenURL         string
+	// mu guards tokenSource and client Secret
+	mu           sync.Mutex
+	ClientSecret string
+	tokenSource  oauth2.TokenSource
+}
+
+// UnmarshalYAML implements interface
+func (o *OAuth2Config) UnmarshalYAML(f func(interface{}) error) error {
+	var s OAuth2Config
+	if err := f(&s); err != nil {
+		return err
+	}
+	if err := s.Validate(); err != nil {
+		return err
+	}
+	o.ClientID = s.ClientID
+	o.ClientSecret = s.ClientSecret
+	o.ClientSecretFile = s.ClientSecretFile
+	o.TokenURL = s.TokenURL
+	o.Scopes = s.Scopes
+	if o.ClientSecretFile != "" {
+		secret, err := readPasswordFromFile(o.ClientSecretFile)
+		if err != nil {
+			return err
+		}
+		o.ClientSecret = secret
+	}
+	o.refreshTokenSourceLocked()
+	return nil
+}
+
+// NewOAuth2Config creates new config with given params.
+func NewOAuth2Config(clientID, clientSecret, SecretFile, tokenURL string, scopes []string) (*OAuth2Config, error) {
+
+	cfg := OAuth2Config{
+		ClientID:         clientID,
+		ClientSecret:     clientSecret,
+		ClientSecretFile: SecretFile,
+		TokenURL:         tokenURL,
+		Scopes:           scopes,
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	if cfg.ClientSecretFile != "" {
+		secret, err := readPasswordFromFile(cfg.ClientSecretFile)
+		if err != nil {
+			return nil, err
+		}
+		cfg.ClientSecret = secret
+	}
+	cfg.refreshTokenSourceLocked()
+	return &cfg, nil
+}
+
+func (o *OAuth2Config) refreshTokenSourceLocked() {
+	cfg := clientcredentials.Config{
+		ClientID:     o.ClientID,
+		ClientSecret: o.ClientSecret,
+		TokenURL:     o.TokenURL,
+		Scopes:       o.Scopes,
+	}
+	o.tokenSource = cfg.TokenSource(context.Background())
+}
+
+// Validate validate given configs.
+func (o *OAuth2Config) Validate() error {
+	if o.TokenURL == "" {
+		return fmt.Errorf("token url cannot be empty")
+	}
+	if o.ClientSecret == "" && o.ClientSecretFile == "" {
+		return fmt.Errorf("ClientSecret or ClientSecretFile must be set")
+	}
+	return nil
+}
+
+func (o *OAuth2Config) getAuthHeader() (string, error) {
+	var needUpdate bool
+	if o.ClientSecretFile != "" {
+		newSecret, err := readPasswordFromFile(o.ClientSecretFile)
+		if err != nil {
+			return "", err
+		}
+		o.mu.Lock()
+		if o.ClientSecret != newSecret {
+			o.ClientSecret = newSecret
+			needUpdate = true
+		}
+		o.mu.Unlock()
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if needUpdate {
+		o.refreshTokenSourceLocked()
+	}
+	t, err := o.tokenSource.Token()
+	if err != nil {
+		return "", err
+	}
+
+	return t.Type() + " " + t.AccessToken, nil
 }
 
 // Config is auth config.
@@ -131,16 +244,16 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 
 // NewConfig creates auth config for the given hcc.
 func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken, hcc.BearerTokenFile, hcc.TLSConfig)
+	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken, hcc.BearerTokenFile, hcc.OAuth2, hcc.TLSConfig)
 }
 
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken, pcc.BearerTokenFile, pcc.TLSConfig)
+	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken, pcc.BearerTokenFile, nil, pcc.TLSConfig)
 }
 
 // NewConfig creates auth config from the given args.
-func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, tlsConfig *TLSConfig) (*Config, error) {
+func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, oauth *OAuth2Config, tlsConfig *TLSConfig) (*Config, error) {
 	var getAuthHeader func() string
 	authDigest := ""
 	if az != nil {
@@ -229,6 +342,19 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			return "Bearer " + bearerToken
 		}
 		authDigest = fmt.Sprintf("bearer(token=%q)", bearerToken)
+	}
+	if oauth != nil {
+		if getAuthHeader != nil {
+			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
+		}
+		getAuthHeader = func() string {
+			h, err := oauth.getAuthHeader()
+			if err != nil {
+				logger.Errorf("cannot get OAuth2 header: %s", err)
+				return ""
+			}
+			return h
+		}
 	}
 	var tlsRootCA *x509.CertPool
 	var tlsCertificate *tls.Certificate

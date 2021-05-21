@@ -43,7 +43,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		tlsConfig := promauth.TLSConfig{
 			CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 		}
-		acNew, err := promauth.NewConfig(".", nil, nil, "", "/var/run/secrets/kubernetes.io/serviceaccount/token", &tlsConfig)
+		acNew, err := promauth.NewConfig(".", nil, nil, "", "/var/run/secrets/kubernetes.io/serviceaccount/token", nil, &tlsConfig)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize service account auth: %w; probably, `kubernetes_sd_config->api_server` is missing in Prometheus configs?", err)
 		}
