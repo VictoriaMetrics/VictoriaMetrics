@@ -28,6 +28,31 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 )
 
+// metric is private copy of datasource.Metric,
+// it is used for templating annotations,
+// Labels as map simplifies templates evaluation.
+type metric struct {
+	Labels    map[string]string
+	Timestamp int64
+	Value     float64
+}
+
+// datasourceMetricsToTemplateMetrics converts Metrics from datasource package to private copy for templating.
+func datasourceMetricsToTemplateMetrics(ms []datasource.Metric) []metric {
+	mss := make([]metric, 0, len(ms))
+	for _, m := range ms {
+		labelsMap := make(map[string]string, len(m.Labels))
+		for _, labelValue := range m.Labels {
+			labelsMap[labelValue.Name] = labelValue.Value
+		}
+		mss = append(mss, metric{
+			Labels:    labelsMap,
+			Timestamp: m.Timestamp,
+			Value:     m.Value})
+	}
+	return mss
+}
+
 // QueryFn is used to wrap a call to datasource into simple-to-use function
 // for templating functions.
 type QueryFn func(query string) ([]datasource.Metric, error)
@@ -211,34 +236,34 @@ func InitTemplateFunc(externalURL *url.URL) {
 		// For example, {{ query "foo" | first | value }} will
 		// execute "/api/v1/query?query=foo" request and will return
 		// the first value in response.
-		"query": func(q string) ([]datasource.Metric, error) {
+		"query": func(q string) ([]metric, error) {
 			// query function supposed to be substituted at funcsWithQuery().
 			// it is present here only for validation purposes, when there is no
 			// provided datasource.
 			//
 			// return non-empty slice to pass validation with chained functions in template
 			// see issue #989 for details
-			return []datasource.Metric{{}}, nil
+			return []metric{{}}, nil
 		},
 
 		// first returns the first by order element from the given metrics list.
 		// usually used alongside with `query` template function.
-		"first": func(metrics []datasource.Metric) (datasource.Metric, error) {
+		"first": func(metrics []metric) (metric, error) {
 			if len(metrics) > 0 {
 				return metrics[0], nil
 			}
-			return datasource.Metric{}, errors.New("first() called on vector with no elements")
+			return metric{}, errors.New("first() called on vector with no elements")
 		},
 
 		// label returns the value of the given label name for the given metric.
 		// usually used alongside with `query` template function.
-		"label": func(label string, m datasource.Metric) string {
-			return m.Label(label)
+		"label": func(label string, m metric) string {
+			return m.Labels[label]
 		},
 
 		// value returns the value of the given metric.
 		// usually used alongside with `query` template function.
-		"value": func(m datasource.Metric) float64 {
+		"value": func(m metric) float64 {
 			return m.Value
 		},
 
@@ -266,8 +291,12 @@ func funcsWithQuery(query QueryFn) textTpl.FuncMap {
 	for k, fn := range tmplFunc {
 		fm[k] = fn
 	}
-	fm["query"] = func(q string) ([]datasource.Metric, error) {
-		return query(q)
+	fm["query"] = func(q string) ([]metric, error) {
+		result, err := query(q)
+		if err != nil {
+			return nil, err
+		}
+		return datasourceMetricsToTemplateMetrics(result), nil
 	}
 	return fm
 }
