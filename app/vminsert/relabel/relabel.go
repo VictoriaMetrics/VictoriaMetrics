@@ -19,6 +19,11 @@ var relabelConfig = flag.String("relabelConfig", "", "Optional path to a file wi
 
 // Init must be called after flag.Parse and before using the relabel package.
 func Init() {
+	// Register SIGHUP handler for config re-read just before loadRelabelConfig call.
+	// This guarantees that the config will be re-read if the signal arrives during loadRelabelConfig call.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	pcs, err := loadRelabelConfig()
 	if err != nil {
 		logger.Fatalf("cannot load relabelConfig: %s", err)
@@ -27,7 +32,6 @@ func Init() {
 	if len(*relabelConfig) == 0 {
 		return
 	}
-	sighupCh := procutil.NewSighupChan()
 	go func() {
 		for range sighupCh {
 			logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)

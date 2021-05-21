@@ -104,6 +104,12 @@ func Init() {
 		*queues = 1
 	}
 	initLabelsGlobal()
+
+	// Register SIGHUP handler for config reload before loadRelabelConfigs.
+	// This guarantees that the config will be re-read if the signal arrives just after loadRelabelConfig.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	rcs, err := loadRelabelConfigs()
 	if err != nil {
 		logger.Fatalf("cannot load relabel configs: %s", err)
@@ -130,7 +136,6 @@ func Init() {
 	}
 
 	// Start config reloader.
-	sighupCh := procutil.NewSighupChan()
 	configReloaderWG.Add(1)
 	go func() {
 		defer configReloaderWG.Done()
