@@ -77,6 +77,12 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to init: %s", err)
 	}
+
+	// Register SIGHUP handler for config re-read just before manager.start call.
+	// This guarantees that the config will be re-read if the signal arrives during manager.start call.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	if err := manager.start(ctx, *rulePath, *validateTemplates, *validateExpressions); err != nil {
 		logger.Fatalf("failed to start: %s", err)
 	}
@@ -85,9 +91,8 @@ func main() {
 		// init reload metrics with positive values to improve alerting conditions
 		configSuccess.Set(1)
 		configTimestamp.Set(fasttime.UnixTimestamp())
-		sigHup := procutil.NewSighupChan()
 		for {
-			<-sigHup
+			<-sighupCh
 			configReloads.Inc()
 			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
 			if err := manager.update(ctx, *rulePath, *validateTemplates, *validateExpressions, false); err != nil {
