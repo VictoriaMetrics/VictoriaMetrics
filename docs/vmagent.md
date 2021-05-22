@@ -673,11 +673,17 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.basicAuth.password array
     	Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.basicAuth.passwordFile array
+    	Optional path to basic auth password to use for -remoteWrite.url. The file is re-read every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.username array
     	Optional basic auth username to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.bearerToken array
     	Optional bearer auth token to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.bearerTokenFile array
+    	Optional path to bearer token file to use for -remoteWrite.url. The token is re-read from the file every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
     	Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
@@ -694,6 +700,21 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -remoteWrite.maxHourlySeries int
     	The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries
+  -remoteWrite.oauth2.clientID array
+    	Optional OAuth2 clientID to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.clientSecret array
+    	Optional OAuth2 clientSecret to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.clientSecretFile array
+    	Optional OAuth2 clientSecretFile to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.scopes array
+    	Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.tokenUrl array
+    	Optional OAuth2 tokenURL to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.proxyURL array
     	Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
     	Supports an array of values separated by comma or specified via multiple flags.
