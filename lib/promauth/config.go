@@ -62,65 +62,16 @@ type ProxyClientConfig struct {
 	TLSConfig       *TLSConfig       `yaml:"proxy_tls_config,omitempty"`
 }
 
-// OAuth2Config represent oAuth2 configuration
+// OAuth2Config represent OAuth2 configuration
 type OAuth2Config struct {
-	ClientID         string
-	ClientSecretFile string
-	Scopes           []string
-	TokenURL         string
+	ClientID         string   `yaml:"client_id"`
+	ClientSecretFile string   `yaml:"client_secret_file"`
+	Scopes           []string `yaml:"scopes"`
+	TokenURL         string   `yaml:"token_url"`
 	// mu guards tokenSource and client Secret
 	mu           sync.Mutex
-	ClientSecret string
+	ClientSecret string `yaml:"client_secret"`
 	tokenSource  oauth2.TokenSource
-}
-
-// UnmarshalYAML implements interface
-func (o *OAuth2Config) UnmarshalYAML(f func(interface{}) error) error {
-	var s OAuth2Config
-	if err := f(&s); err != nil {
-		return err
-	}
-	if err := s.Validate(); err != nil {
-		return err
-	}
-	o.ClientID = s.ClientID
-	o.ClientSecret = s.ClientSecret
-	o.ClientSecretFile = s.ClientSecretFile
-	o.TokenURL = s.TokenURL
-	o.Scopes = s.Scopes
-	if o.ClientSecretFile != "" {
-		secret, err := readPasswordFromFile(o.ClientSecretFile)
-		if err != nil {
-			return err
-		}
-		o.ClientSecret = secret
-	}
-	o.refreshTokenSourceLocked()
-	return nil
-}
-
-// NewOAuth2Config creates new config with given params.
-func NewOAuth2Config(clientID, clientSecret, SecretFile, tokenURL string, scopes []string) (*OAuth2Config, error) {
-
-	cfg := OAuth2Config{
-		ClientID:         clientID,
-		ClientSecret:     clientSecret,
-		ClientSecretFile: SecretFile,
-		TokenURL:         tokenURL,
-		Scopes:           scopes,
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	if cfg.ClientSecretFile != "" {
-		secret, err := readPasswordFromFile(cfg.ClientSecretFile)
-		if err != nil {
-			return nil, err
-		}
-		cfg.ClientSecret = secret
-	}
-	cfg.refreshTokenSourceLocked()
-	return &cfg, nil
 }
 
 func (o *OAuth2Config) refreshTokenSourceLocked() {
@@ -133,13 +84,16 @@ func (o *OAuth2Config) refreshTokenSourceLocked() {
 	o.tokenSource = cfg.TokenSource(context.Background())
 }
 
-// Validate validate given configs.
-func (o *OAuth2Config) Validate() error {
+// validate checks given configs.
+func (o *OAuth2Config) validate() error {
 	if o.TokenURL == "" {
 		return fmt.Errorf("token url cannot be empty")
 	}
 	if o.ClientSecret == "" && o.ClientSecretFile == "" {
 		return fmt.Errorf("ClientSecret or ClientSecretFile must be set")
+	}
+	if o.ClientSecret != "" && o.ClientSecretFile != "" {
+		return fmt.Errorf("only one option can be set ClientSecret or ClientSecretFile, provided both")
 	}
 	return nil
 }
@@ -149,7 +103,7 @@ func (o *OAuth2Config) getAuthHeader() (string, error) {
 	if o.ClientSecretFile != "" {
 		newSecret, err := readPasswordFromFile(o.ClientSecretFile)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("cannot read OAuth2 config file with path: %s, err: %w", o.ClientSecretFile, err)
 		}
 		o.mu.Lock()
 		if o.ClientSecret != newSecret {
@@ -165,7 +119,7 @@ func (o *OAuth2Config) getAuthHeader() (string, error) {
 	}
 	t, err := o.tokenSource.Token()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot fetch token for OAuth2 client: %w", err)
 	}
 
 	return t.Type() + " " + t.AccessToken, nil
@@ -347,6 +301,17 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		if getAuthHeader != nil {
 			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
 		}
+		if err := oauth.validate(); err != nil {
+			return nil, err
+		}
+		if oauth.ClientSecretFile != "" {
+			secret, err := readPasswordFromFile(oauth.ClientSecretFile)
+			if err != nil {
+				return nil, err
+			}
+			oauth.ClientSecret = secret
+		}
+		oauth.refreshTokenSourceLocked()
 		getAuthHeader = func() string {
 			h, err := oauth.getAuthHeader()
 			if err != nil {

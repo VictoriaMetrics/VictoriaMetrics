@@ -47,13 +47,13 @@ var (
 
 	clientID = flagutil.NewArray("remoteWrite.oauth2.clientID", "Optional OAuth2 clientID to use for -remoteWrite.url."+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	clientSecret = flagutil.NewArray("remoteWrite.oauth2.clietSecret", "Optional OAuth2 clientSecret to use for -remoteWrite.url."+
+	clientSecret = flagutil.NewArray("remoteWrite.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for -remoteWrite.url."+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	clientSecretFile = flagutil.NewArray("remoteWrite.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -remoteWrite.url."+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	tokenURL = flagutil.NewArray("remoteWrite.oauth2.tokenUrl", "Optional OAuth2 token url to use for -remoteWrite.url."+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url."+
+	oAuth2Scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url."+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
@@ -191,19 +191,22 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 }
 
 func getAuthConfig(argIdx int) (*promauth.Config, error) {
-	cID := clientID.GetOptionalArg(argIdx)
-	cs := clientSecret.GetOptionalArg(argIdx)
-	csf := clientSecretFile.GetOptionalArg(argIdx)
-	tURL := tokenURL.GetOptionalArg(argIdx)
-	scopes := strings.Split(scopes.GetOptionalArg(argIdx), ";")
-	if cs == "" && csf == "" {
+
+	oAuth2Cfg := &promauth.OAuth2Config{
+		ClientID:         clientID.GetOptionalArg(argIdx),
+		ClientSecret:     clientSecret.GetOptionalArg(argIdx),
+		ClientSecretFile: clientSecretFile.GetOptionalArg(argIdx),
+		TokenURL:         tokenURL.GetOptionalArg(argIdx),
+		Scopes:           strings.Split(oAuth2Scopes.GetOptionalArg(argIdx), ";"),
+	}
+	if oAuth2Cfg.ClientSecretFile == "" && oAuth2Cfg.ClientSecret == "" {
 		return nil, nil
 	}
-	oauthCfg, err := promauth.NewOAuth2Config(cID, cs, csf, tURL, scopes)
+	authCfg, err := promauth.NewConfig("", nil, nil, "", "", oAuth2Cfg, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}
-	return promauth.NewConfig("", nil, nil, "", "", oauthCfg, nil)
+	return authCfg, nil
 }
 
 func (c *client) runWorker() {
