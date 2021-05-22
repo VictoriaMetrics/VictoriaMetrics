@@ -17,9 +17,10 @@ func TestNewConfig(t *testing.T) {
 		tlsConfig       *TLSConfig
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name         string
+		args         args
+		wantErr      bool
+		expectHeader string
 	}{
 		{
 			name: "OAuth2 config",
@@ -30,6 +31,7 @@ func TestNewConfig(t *testing.T) {
 					TokenURL:     "http://localhost:8511",
 				},
 			},
+			expectHeader: "Bearer some-token",
 		},
 		{
 			name: "OAuth2 config with file",
@@ -40,8 +42,8 @@ func TestNewConfig(t *testing.T) {
 					TokenURL:         "http://localhost:8511",
 				},
 			},
+			expectHeader: "Bearer some-token",
 		},
-
 		{
 			name: "OAuth2 want err",
 			args: args{
@@ -62,6 +64,7 @@ func TestNewConfig(t *testing.T) {
 					Password: "password",
 				},
 			},
+			expectHeader: "Basic dXNlcjpwYXNzd29yZA==",
 		},
 		{
 			name: "basic Auth config with file",
@@ -71,21 +74,24 @@ func TestNewConfig(t *testing.T) {
 					PasswordFile: "testdata/test_secretfile.txt",
 				},
 			},
+			expectHeader: "Basic dXNlcjpzZWNyZXQtY29udGVudA==",
 		},
 		{
 			name: "want Authorization",
 			args: args{
 				az: &Authorization{
-					Type:        "Bearer ",
+					Type:        "Bearer",
 					Credentials: "Value",
 				},
 			},
+			expectHeader: "Bearer Value",
 		},
 		{
 			name: "token file",
 			args: args{
 				bearerTokenFile: "testdata/test_secretfile.txt",
 			},
+			expectHeader: "Bearer secret-content",
 		},
 		{
 			name: "token with tls",
@@ -95,6 +101,7 @@ func TestNewConfig(t *testing.T) {
 					InsecureSkipVerify: true,
 				},
 			},
+			expectHeader: "Bearer some-token",
 		},
 	}
 	for _, tt := range tests {
@@ -103,7 +110,7 @@ func TestNewConfig(t *testing.T) {
 				r := http.NewServeMux()
 				r.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
-					w.Write([]byte(`{"access_token":"some-token","token_type": "Bearer "}`))
+					w.Write([]byte(`{"access_token":"some-token","token_type": "Bearer"}`))
 
 				})
 				mock := httptest.NewServer(r)
@@ -115,8 +122,9 @@ func TestNewConfig(t *testing.T) {
 				return
 			}
 			if got != nil {
-				if ah := got.GetAuthHeader(); ah == "" {
-					t.Fatalf("unexpected empty auth header")
+				ah := got.GetAuthHeader()
+				if ah != tt.expectHeader {
+					t.Fatalf("unexpected auth header; got %q; want %q", ah, tt.expectHeader)
 				}
 			}
 

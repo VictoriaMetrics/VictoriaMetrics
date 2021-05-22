@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -64,65 +65,93 @@ type ProxyClientConfig struct {
 
 // OAuth2Config represent OAuth2 configuration
 type OAuth2Config struct {
-	ClientID         string   `yaml:"client_id"`
-	ClientSecretFile string   `yaml:"client_secret_file"`
-	Scopes           []string `yaml:"scopes"`
-	TokenURL         string   `yaml:"token_url"`
-	// mu guards tokenSource and client Secret
-	mu           sync.Mutex
-	ClientSecret string `yaml:"client_secret"`
-	tokenSource  oauth2.TokenSource
+	ClientID         string            `yaml:"client_id"`
+	ClientSecret     string            `yaml:"client_secret"`
+	ClientSecretFile string            `yaml:"client_secret_file"`
+	Scopes           []string          `yaml:"scopes"`
+	TokenURL         string            `yaml:"token_url"`
+	EndpointParams   map[string]string `yaml:"endpoint_params"`
 }
 
-func (o *OAuth2Config) refreshTokenSourceLocked() {
-	cfg := clientcredentials.Config{
-		ClientID:     o.ClientID,
-		ClientSecret: o.ClientSecret,
-		TokenURL:     o.TokenURL,
-		Scopes:       o.Scopes,
-	}
-	o.tokenSource = cfg.TokenSource(context.Background())
+// String returns string representation of o.
+func (o *OAuth2Config) String() string {
+	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, Scopes=%q, tokenURL=%q, endpointParams=%q",
+		o.ClientID, o.ClientSecret, o.ClientSecretFile, o.Scopes, o.TokenURL, o.EndpointParams)
 }
 
-// validate checks given configs.
 func (o *OAuth2Config) validate() error {
-	if o.TokenURL == "" {
-		return fmt.Errorf("token url cannot be empty")
+	if o.ClientID == "" {
+		return fmt.Errorf("client_id cannot be empty")
 	}
 	if o.ClientSecret == "" && o.ClientSecretFile == "" {
 		return fmt.Errorf("ClientSecret or ClientSecretFile must be set")
 	}
 	if o.ClientSecret != "" && o.ClientSecretFile != "" {
-		return fmt.Errorf("only one option can be set ClientSecret or ClientSecretFile, provided both")
+		return fmt.Errorf("ClientSecret and ClientSecretFile cannot be set simultaneously")
+	}
+	if o.TokenURL == "" {
+		return fmt.Errorf("token_url cannot be empty")
 	}
 	return nil
 }
 
-func (o *OAuth2Config) getAuthHeader() (string, error) {
-	var needUpdate bool
-	if o.ClientSecretFile != "" {
-		newSecret, err := readPasswordFromFile(o.ClientSecretFile)
-		if err != nil {
-			return "", fmt.Errorf("cannot read OAuth2 config file with path: %s, err: %w", o.ClientSecretFile, err)
-		}
-		o.mu.Lock()
-		if o.ClientSecret != newSecret {
-			o.ClientSecret = newSecret
-			needUpdate = true
-		}
-		o.mu.Unlock()
-	}
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if needUpdate {
-		o.refreshTokenSourceLocked()
-	}
-	t, err := o.tokenSource.Token()
-	if err != nil {
-		return "", fmt.Errorf("cannot fetch token for OAuth2 client: %w", err)
-	}
+type oauth2ConfigInternal struct {
+	mu               sync.Mutex
+	cfg              *clientcredentials.Config
+	clientSecretFile string
+	tokenSource      oauth2.TokenSource
+}
 
-	return t.Type() + " " + t.AccessToken, nil
+func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInternal, error) {
+	if err := o.validate(); err != nil {
+		return nil, err
+	}
+	oi := &oauth2ConfigInternal{
+		cfg: &clientcredentials.Config{
+			ClientID:       o.ClientID,
+			ClientSecret:   o.ClientSecret,
+			TokenURL:       o.TokenURL,
+			Scopes:         o.Scopes,
+			EndpointParams: urlValuesFromMap(o.EndpointParams),
+		},
+	}
+	if o.ClientSecretFile != "" {
+		oi.clientSecretFile = getFilepath(baseDir, o.ClientSecretFile)
+		secret, err := readPasswordFromFile(oi.clientSecretFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read OAuth2 secret from %q: %w", oi.clientSecretFile, err)
+		}
+		oi.cfg.ClientSecret = secret
+	}
+	oi.tokenSource = oi.cfg.TokenSource(context.Background())
+	return oi, nil
+}
+
+func urlValuesFromMap(m map[string]string) url.Values {
+	result := make(url.Values, len(m))
+	for k, v := range m {
+		result[k] = []string{v}
+	}
+	return result
+}
+
+func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
+	oi.mu.Lock()
+	defer oi.mu.Unlock()
+
+	if oi.clientSecretFile == "" {
+		return oi.tokenSource, nil
+	}
+	newSecret, err := readPasswordFromFile(oi.clientSecretFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read OAuth2 secret from %q: %w", oi.clientSecretFile, err)
+	}
+	if newSecret == oi.cfg.ClientSecret {
+		return oi.tokenSource, nil
+	}
+	oi.cfg.ClientSecret = newSecret
+	oi.tokenSource = oi.cfg.TokenSource(context.Background())
+	return oi.tokenSource, nil
 }
 
 // Config is auth config.
@@ -207,7 +236,7 @@ func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
 }
 
 // NewConfig creates auth config from the given args.
-func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, oauth *OAuth2Config, tlsConfig *TLSConfig) (*Config, error) {
+func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, o *OAuth2Config, tlsConfig *TLSConfig) (*Config, error) {
 	var getAuthHeader func() string
 	authDigest := ""
 	if az != nil {
@@ -297,29 +326,28 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		}
 		authDigest = fmt.Sprintf("bearer(token=%q)", bearerToken)
 	}
-	if oauth != nil {
+	if o != nil {
 		if getAuthHeader != nil {
 			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
 		}
-		if err := oauth.validate(); err != nil {
+		oi, err := newOAuth2ConfigInternal(baseDir, o)
+		if err != nil {
 			return nil, err
 		}
-		if oauth.ClientSecretFile != "" {
-			secret, err := readPasswordFromFile(oauth.ClientSecretFile)
-			if err != nil {
-				return nil, err
-			}
-			oauth.ClientSecret = secret
-		}
-		oauth.refreshTokenSourceLocked()
 		getAuthHeader = func() string {
-			h, err := oauth.getAuthHeader()
+			ts, err := oi.getTokenSource()
 			if err != nil {
-				logger.Errorf("cannot get OAuth2 header: %s", err)
+				logger.Errorf("cannot get OAuth2 tokenSource: %s", err)
 				return ""
 			}
-			return h
+			t, err := ts.Token()
+			if err != nil {
+				logger.Errorf("cannot get OAuth2 token: %s", err)
+				return ""
+			}
+			return t.Type() + " " + t.AccessToken
 		}
+		authDigest = fmt.Sprintf("oauth2(%s)", o.String())
 	}
 	var tlsRootCA *x509.CertPool
 	var tlsCertificate *tls.Certificate
