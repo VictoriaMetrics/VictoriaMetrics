@@ -44,6 +44,17 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	bearerToken = flagutil.NewArray("remoteWrite.bearerToken", "Optional bearer auth token to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+
+	clientID = flagutil.NewArray("remoteWrite.oauth2.clientID", "Optional OAuth2 clientID to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	clientSecret = flagutil.NewArray("remoteWrite.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	clientSecretFile = flagutil.NewArray("remoteWrite.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	tokenURL = flagutil.NewArray("remoteWrite.oauth2.tokenUrl", "Optional OAuth2 token url to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	oAuth2Scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
 type client struct {
@@ -52,6 +63,8 @@ type client struct {
 	authHeader     string
 	fq             *persistentqueue.FastQueue
 	hc             *http.Client
+
+	authCfg *promauth.Config
 
 	rl rateLimiter
 
@@ -72,6 +85,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize TLS config: %s", err)
 	}
+
 	tr := &http.Transport{
 		Dial:                statDial,
 		TLSClientConfig:     tlsCfg,
@@ -108,10 +122,18 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		}
 		authHeader = "Bearer " + token
 	}
+	authCfg, err := getAuthConfig(argIdx)
+	if err != nil {
+		logger.Fatalf("FATAL: cannot create OAuth2 config for remoteWrite idx: %d, err: %s", argIdx, err)
+	}
+	if authCfg != nil && authHeader != "" {
+		logger.Fatalf("`-remoteWrite.bearerToken`=%q  or `-remoteWrite.basicAuth.* cannot be set when `-remoteWrite.oauth2.*` flags are set", token)
+	}
 	c := &client{
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authHeader:     authHeader,
+		authCfg:        authCfg,
 		fq:             fq,
 		hc: &http.Client{
 			Transport: tr,
@@ -160,12 +182,31 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 	if c.CAFile == "" && c.CertFile == "" && c.KeyFile == "" && c.ServerName == "" && !c.InsecureSkipVerify {
 		return nil, nil
 	}
-	cfg, err := promauth.NewConfig(".", nil, nil, "", "", c)
+	cfg, err := promauth.NewConfig(".", nil, nil, "", "", nil, c)
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate TLS config: %w", err)
 	}
 	tlsCfg := cfg.NewTLSConfig()
 	return tlsCfg, nil
+}
+
+func getAuthConfig(argIdx int) (*promauth.Config, error) {
+
+	oAuth2Cfg := &promauth.OAuth2Config{
+		ClientID:         clientID.GetOptionalArg(argIdx),
+		ClientSecret:     clientSecret.GetOptionalArg(argIdx),
+		ClientSecretFile: clientSecretFile.GetOptionalArg(argIdx),
+		TokenURL:         tokenURL.GetOptionalArg(argIdx),
+		Scopes:           strings.Split(oAuth2Scopes.GetOptionalArg(argIdx), ";"),
+	}
+	if oAuth2Cfg.ClientSecretFile == "" && oAuth2Cfg.ClientSecret == "" {
+		return nil, nil
+	}
+	authCfg, err := promauth.NewConfig("", nil, nil, "", "", oAuth2Cfg, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
+	}
+	return authCfg, nil
 }
 
 func (c *client) runWorker() {
@@ -228,6 +269,11 @@ again:
 	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
+	}
+	// add oauth2 header on best effort.
+	// remote storage may return error with incorrect authorization.
+	if c.authCfg != nil {
+		req.Header.Set("Authorization", c.authCfg.GetAuthHeader())
 	}
 
 	startTime := time.Now()
