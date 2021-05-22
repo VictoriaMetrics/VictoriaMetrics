@@ -65,6 +65,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     &cfg.Type,
 			EvaluationInterval: group.Interval,
+			ExtraLabels:        group.ExtraFilterLabels,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
 		metrics: &alertingRuleMetrics{},
@@ -250,6 +251,7 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	ar.For = nr.For
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
+	ar.q = nr.q
 	return nil
 }
 

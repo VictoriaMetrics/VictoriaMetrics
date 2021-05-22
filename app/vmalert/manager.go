@@ -147,12 +147,14 @@ func (g *Group) toAPI() APIGroup {
 
 	ag := APIGroup{
 		// encode as string to avoid rounding
-		ID:          fmt.Sprintf("%d", g.ID()),
-		Name:        g.Name,
-		Type:        g.Type.String(),
-		File:        g.File,
-		Interval:    g.Interval.String(),
-		Concurrency: g.Concurrency,
+		ID: fmt.Sprintf("%d", g.ID()),
+
+		Name:              g.Name,
+		Type:              g.Type.String(),
+		File:              g.File,
+		Interval:          g.Interval.String(),
+		Concurrency:       g.Concurrency,
+		ExtraFilterLabels: g.ExtraFilterLabels,
 	}
 	for _, r := range g.Rules {
 		switch v := r.(type) {

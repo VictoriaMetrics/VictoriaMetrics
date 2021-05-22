@@ -85,6 +85,7 @@ type VMStorage struct {
 
 	dataSourceType     Type
 	evaluationInterval time.Duration
+	extraLabels        []string
 }
 
 const queryPath = "/api/v1/query"
@@ -97,6 +98,8 @@ const graphitePrefix = "/graphite"
 type QuerierParams struct {
 	DataSourceType     *Type
 	EvaluationInterval time.Duration
+	// see https://docs.victoriametrics.com/#prometheus-querying-api-enhancements
+	ExtraLabels map[string]string
 }
 
 // Clone makes clone of VMStorage, shares http client.
@@ -119,6 +122,9 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 		s.dataSourceType = *params.DataSourceType
 	}
 	s.evaluationInterval = params.EvaluationInterval
+	for k, v := range params.ExtraLabels {
+		s.extraLabels = append(s.extraLabels, fmt.Sprintf("%s=%s", k, v))
+	}
 	return s
 }
 
@@ -221,6 +227,9 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string, timest
 	}
 	if s.roundDigits != "" {
 		q.Set("round_digits", s.roundDigits)
+	}
+	for _, l := range s.extraLabels {
+		q.Add("extra_label", l)
 	}
 	r.URL.RawQuery = q.Encode()
 }
