@@ -725,7 +725,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		tsid := &tsids[i]
 		is.accountID = tsid.AccountID
 		is.projectID = tsid.ProjectID
-		if err := is.storeDateMetricID(date, tsid.MetricID); err != nil {
+		if err := is.storeDateMetricID(date, tsid.MetricID, &mns[i]); err != nil {
 			return nil, nil, fmt.Errorf("error in storeDateMetricID(%d, %d, %d, %d): %w", date, tsid.MetricID, tsid.AccountID, tsid.ProjectID, err)
 		}
 	}
@@ -1575,6 +1575,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	sort.Strings(tagKeys)
 	for day := 0; day < days; day++ {
 		var tsids []TSID
+		var mns []MetricName
 		for metric := 0; metric < metricsPerDay; metric++ {
 			var mn MetricName
 			mn.AccountID = accountID
@@ -1605,6 +1606,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			if tsid.ProjectID != projectID {
 				t.Fatalf("unexpected accountID; got %d; want %d", tsid.ProjectID, projectID)
 			}
+			mns = append(mns, mn)
 			tsids = append(tsids, tsid)
 		}
 
@@ -1614,7 +1616,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for i := range tsids {
 			tsid := &tsids[i]
 			metricIDs.Add(tsid.MetricID)
-			if err := is.storeDateMetricID(date, tsid.MetricID); err != nil {
+			if err := is.storeDateMetricID(date, tsid.MetricID, &mns[i]); err != nil {
 				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
 			}
 		}
