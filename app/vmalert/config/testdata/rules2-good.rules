@@ -2,6 +2,8 @@ groups:
   - name: TestGroup
     interval: 2s
     concurrency: 2
+    extra_filter_labels:
+        job: victoriametrics
     rules:
       - alert: Conns
         expr: sum(vm_tcplistener_conns) by(instance) > 1

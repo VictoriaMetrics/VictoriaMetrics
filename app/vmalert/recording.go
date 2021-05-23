@@ -66,6 +66,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     &cfg.Type,
 			EvaluationInterval: group.Interval,
+			ExtraLabels:        group.ExtraFilterLabels,
 		}),
 	}
 
@@ -151,8 +152,6 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric, timestamp time.Time) 
 }
 
 // UpdateWith copies all significant fields.
-// alerts state isn't copied since
-// it should be updated in next 2 Execs
 func (rr *RecordingRule) UpdateWith(r Rule) error {
 	nr, ok := r.(*RecordingRule)
 	if !ok {
@@ -160,6 +159,7 @@ func (rr *RecordingRule) UpdateWith(r Rule) error {
 	}
 	rr.Expr = nr.Expr
 	rr.Labels = nr.Labels
+	rr.q = nr.q
 	return nil
 }
 

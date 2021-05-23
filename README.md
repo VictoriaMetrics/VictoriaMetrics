@@ -93,6 +93,7 @@ Alphabetically sorted links to case studies:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
+* Can deal with high cardinality and high churn rate issues using [series limiter](#cardinality-limiter).
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
@@ -154,6 +155,8 @@ Alphabetically sorted links to case studies:
 * [Security](#security)
 * [Tuning](#tuning)
 * [Monitoring](#monitoring)
+* [TSDB stats](#tsdb-stats)
+* [Cardinality limiter](#cardinality-limiter)
 * [Troubleshooting](#troubleshooting)
 * [Data migration](#data-migration)
 * [Backfilling](#backfilling)
@@ -1334,6 +1337,23 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
   * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
 
+## Cardinality limiter
+
+By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
+
+* `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of active time series.
+* `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily churn rate.
+
+Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
+
+The exceeded limits can be [monitored](#monitoring) with the following metrics:
+
+* `vm_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vm_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
+
+These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
+
+
 ## Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
@@ -1613,7 +1633,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this delay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
@@ -1807,6 +1827,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	authKey, which must be passed in query string to /snapshot* pages
   -sortLabels
     	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -storage.maxDailySeries int
+    	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
+  -storage.maxHourlySeries int
+    	The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries
   -storageDataPath string
     	Path to storage data (default "victoria-metrics-data")
   -tls

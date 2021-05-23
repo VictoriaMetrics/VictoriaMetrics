@@ -157,7 +157,10 @@ func Stop(addr string) error {
 	delete(servers, addr)
 	serversLock.Unlock()
 	if s == nil {
-		logger.Panicf("BUG: there is no http server at %q", addr)
+		err := fmt.Errorf("BUG: there is no http server at %q", addr)
+		logger.Panicf("%s", err)
+		// The return is needed for golangci-lint: SA5011(related information): this check suggests that the pointer can be nil
+		return err
 	}
 
 	deadline := time.Now().Add(*shutdownDelay).UnixNano()

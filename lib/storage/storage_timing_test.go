@@ -17,7 +17,7 @@ func BenchmarkStorageAddRows(b *testing.B) {
 
 func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 	path := fmt.Sprintf("BenchmarkStorageAddRows_%d", rowsPerBatch)
-	s, err := OpenStorage(path, 0)
+	s, err := OpenStorage(path, 0, 0, 0)
 	if err != nil {
 		b.Fatalf("cannot open storage at %q: %s", path, err)
 	}

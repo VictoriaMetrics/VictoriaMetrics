@@ -19,9 +19,28 @@ See [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prominent-features).
 
 
+### Are there performance comparisons with other solutions?
+
+Yes. See [these benchmarks](https://docs.victoriametrics.com/Articles.html#benchmarks).
+
+
 ### How to start using VictoriaMetrics?
 
 See [these docs](https://docs.victoriametrics.com/Quick-Start.html).
+
+
+### Does VictoriaMetrics support replication?
+
+Yes. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
+
+
+### Can I use VictoriaMetrics instead of Prometheus?
+
+Yes in most cases. VictoriaMetrics can substitute Prometheus in the following aspects:
+
+* Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/vmagent.html) and with single-node VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/vmalert.html).
+* Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#grafana-setup).
 
 
 ### What is the difference between vmagent and Prometheus?
@@ -141,23 +160,6 @@ No. VictoriaMetrics core is written in Go from scratch by [fasthttp](https://git
 The architecture is [optimized for storing and querying large amounts of time series data with high cardinality](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac). VictoriaMetrics storage uses [certain ideas from ClickHouse](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). Special thanks to [Alexey Milovidov](https://github.com/alexey-milovidov).
 
 
-
-### Are there performance comparisons with other solutions?
-
-Yes:
-
-* [Prometheus vs VictoriaMetrics benchmark on node-exporter metrics](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f)
-* [Promscale vs VictoriaMetrics: measuring resource usage in production](https://valyala.medium.com/promscale-vs-victoriametrics-resource-usage-on-production-workload-91c8e3786c03)
-* [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
-* [Billy: how VictoriaMetrics deals with more than 500 billion rows](https://medium.com/@valyala/billy-how-victoriametrics-deals-with-more-than-500-billion-rows-e82ff8f725da)
-* [Measuring vertical scalability for time series databases: VictoriaMetrics vs InfluxDB vs TimescaleDB](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-* [Measuring insert performance on high-cardinality time series: VictoriaMetrics vs InfluxDB](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893)
-* [TSBS benchmark on high-cardinality time series: VictoriaMetrics vs InfluxDB vs TimescaleDB](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
-* [Standard TSBS benchmark: VictoriaMetrics vs InfluxDB vs TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
-
-See also [other articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
-
-
 ### What is the pricing for VictoriaMetrics?
 
 The following versions are open source and free:
@@ -189,11 +191,6 @@ or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/#graf
 Yes. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication) for details.
 
 
-### Does VictoriaMetrics support replication?
-
-Yes. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
-
-
 ### Where is the source code of VictoriaMetrics?
 
 Source code for the following versions is available in the following places:
@@ -223,6 +220,28 @@ Questions about VictoriaMetrics can be asked via the following channels:
 File bugs and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 
-### Are you looking for investors?
+### Where I can find information about multi-tenancy?
 
-Yes. [Mail us](mailto:info@victoriametrics.com) if you are interested in.
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). Multitenancy is supported only by [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics.
+
+
+### How to set a memory limit for VictoriaMetrics components?
+
+All the VictoriaMetrics component provide command-line flags to control the size of internal buffers and caches: `-memory.allowedPercent` and `-memory.allowedBytes` (pass `-help` to any VictoriaMetrics component in order to see the description for these flags). These limits don't take into account additional memory, which may be needed for processing incoming queries. Hard limits may be enforced only by the OS via [cgroups](https://en.wikipedia.org/wiki/Cgroups), Docker (see [these docs](https://docs.docker.com/config/containers/resource_constraints)) or Kubernetes (see [these docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
+
+Memory usage for VictoriaMetrics components can be tuned according to the following docs:
+
+* [Capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/#capacity-planning)
+* [Capacity planning for cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
+* [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting)
+* [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
+
+
+### How can I run VictoriaMetrics on FreeBSD?
+
+VictoriaMetrics is included in FreeBSD ports, so just install it from there. See [this link](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all).
+
+
+### Does VictoriaMetrics support Graphite query language?
+
+Yes. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage).

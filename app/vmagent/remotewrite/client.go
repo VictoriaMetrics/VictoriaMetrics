@@ -2,8 +2,6 @@ package remotewrite
 
 import (
 	"bytes"
-	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -43,6 +41,9 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	basicAuthPassword = flagutil.NewArray("remoteWrite.basicAuth.password", "Optional basic auth password to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	basicAuthPasswordFile = flagutil.NewArray("remoteWrite.basicAuth.passwordFile", "Optional path to basic auth password to use for -remoteWrite.url. "+
+		"The file is re-read every second. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	bearerToken = flagutil.NewArray("remoteWrite.bearerToken", "Optional bearer auth token to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	useSigV4 = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing to use for -remoteWrite.url. "+
@@ -55,14 +56,29 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey to use for -remoteWrite.url."+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	bearerTokenFile = flagutil.NewArray("remoteWrite.bearerTokenFile", "Optional path to bearer token file to use for -remoteWrite.url. "+
+		"The token is re-read from the file every second. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+
+	oauth2ClientID = flagutil.NewArray("remoteWrite.oauth2.clientID", "Optional OAuth2 clientID to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	oauth2ClientSecret = flagutil.NewArray("remoteWrite.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	oauth2ClientSecretFile = flagutil.NewArray("remoteWrite.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	oauth2TokenURL = flagutil.NewArray("remoteWrite.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	oauth2Scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
 type client struct {
 	sanitizedURL   string
 	remoteWriteURL string
-	authHeader     string
 	fq             *persistentqueue.FastQueue
 	hc             *http.Client
+
+	authCfg *promauth.Config
 
 	rl rateLimiter
 
@@ -80,11 +96,12 @@ type client struct {
 }
 
 func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
-	tlsCfg, err := getTLSConfig(argIdx)
+	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
-		logger.Panicf("FATAL: cannot initialize TLS config: %s", err)
+		logger.Panicf("FATAL: cannot initialize auth config: %s", err)
 	}
 
+	tlsCfg := authCfg.NewTLSConfig()
 	tr := &http.Transport{
 		Dial:                statDial,
 		TLSClientConfig:     tlsCfg,
@@ -105,22 +122,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		}
 		tr.Proxy = http.ProxyURL(urlProxy)
 	}
-	authHeader := ""
-	username := basicAuthUsername.GetOptionalArg(argIdx)
-	password := basicAuthPassword.GetOptionalArg(argIdx)
-	if len(username) > 0 || len(password) > 0 {
-		// See https://en.wikipedia.org/wiki/Basic_access_authentication
-		token := username + ":" + password
-		token64 := base64.StdEncoding.EncodeToString([]byte(token))
-		authHeader = "Basic " + token64
-	}
-	token := bearerToken.GetOptionalArg(argIdx)
-	if len(token) > 0 {
-		if authHeader != "" {
-			logger.Fatalf("`-remoteWrite.bearerToken`=%q cannot be set when `-remoteWrite.basicAuth.*` flags are set", token)
-		}
-		authHeader = "Bearer " + token
-	}
+
 	awsCfg, err := getAwsConfig(argIdx)
 	if err != nil {
 		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite idx: %d, err: %s", argIdx, err)
@@ -129,7 +131,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		awsConfig:      awsCfg,
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
-		authHeader:     authHeader,
+		authCfg:        authCfg,
 		fq:             fq,
 		hc: &http.Client{
 			Transport: tr,
@@ -180,23 +182,48 @@ func getAwsConfig(argIdx int) (*aws.Config, error) {
 	return cfg, nil
 }
 
-func getTLSConfig(argIdx int) (*tls.Config, error) {
-	c := &promauth.TLSConfig{
+func getAuthConfig(argIdx int) (*promauth.Config, error) {
+	username := basicAuthUsername.GetOptionalArg(argIdx)
+	password := basicAuthPassword.GetOptionalArg(argIdx)
+	passwordFile := basicAuthPasswordFile.GetOptionalArg(argIdx)
+	var basicAuthCfg *promauth.BasicAuthConfig
+	if username != "" || password != "" || passwordFile != "" {
+		basicAuthCfg = &promauth.BasicAuthConfig{
+			Username:     username,
+			Password:     password,
+			PasswordFile: passwordFile,
+		}
+	}
+
+	token := bearerToken.GetOptionalArg(argIdx)
+	tokenFile := bearerTokenFile.GetOptionalArg(argIdx)
+
+	var oauth2Cfg *promauth.OAuth2Config
+	clientSecret := oauth2ClientSecret.GetOptionalArg(argIdx)
+	clientSecretFile := oauth2ClientSecretFile.GetOptionalArg(argIdx)
+	if clientSecretFile != "" || clientSecret != "" {
+		oauth2Cfg = &promauth.OAuth2Config{
+			ClientID:         oauth2ClientID.GetOptionalArg(argIdx),
+			ClientSecret:     clientSecret,
+			ClientSecretFile: clientSecretFile,
+			TokenURL:         oauth2TokenURL.GetOptionalArg(argIdx),
+			Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(argIdx), ";"),
+		}
+	}
+
+	tlsCfg := &promauth.TLSConfig{
 		CAFile:             tlsCAFile.GetOptionalArg(argIdx),
 		CertFile:           tlsCertFile.GetOptionalArg(argIdx),
 		KeyFile:            tlsKeyFile.GetOptionalArg(argIdx),
 		ServerName:         tlsServerName.GetOptionalArg(argIdx),
 		InsecureSkipVerify: tlsInsecureSkipVerify.GetOptionalArg(argIdx),
 	}
-	if c.CAFile == "" && c.CertFile == "" && c.KeyFile == "" && c.ServerName == "" && !c.InsecureSkipVerify {
-		return nil, nil
-	}
-	cfg, err := promauth.NewConfig(".", nil, nil, "", "", c)
+
+	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg)
 	if err != nil {
-		return nil, fmt.Errorf("cannot populate TLS config: %w", err)
+		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}
-	tlsCfg := cfg.NewTLSConfig()
-	return tlsCfg, nil
+	return authCfg, nil
 }
 
 func (c *client) runWorker() {
@@ -238,15 +265,11 @@ func (c *client) runWorker() {
 	}
 }
 
-// do execute request and sign it if needed with given hashed payload,
-// payload must be hashed with aws.HashHex algorithm.
-func (c *client) do(req *http.Request, payloadHash string) (*http.Response, error) {
-	if c.awsConfig != nil {
-		if err := aws.SignRequestWithConfig(req, c.awsConfig, "aps", payloadHash); err != nil {
-			return nil, err
-		}
+// sings request on best-effort.
+func mustSignHTTPRequest(req *http.Request, awsCfg *aws.Config, payloadHash string) {
+	if err := aws.SignRequestWithConfig(req, awsCfg, "aps", payloadHash); err != nil {
+		logger.Errorf("cannot sign remoteWrite request: %s", err)
 	}
-	return c.hc.Do(req)
 }
 
 // sendBlock returns false only if c.stopCh is closed.
@@ -273,12 +296,15 @@ again:
 	h.Set("Content-Type", "application/x-protobuf")
 	h.Set("Content-Encoding", "snappy")
 	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
-	if c.authHeader != "" {
-		req.Header.Set("Authorization", c.authHeader)
+	if ah := c.authCfg.GetAuthHeader(); ah != "" {
+		req.Header.Set("Authorization", ah)
+	}
+	if c.awsConfig != nil {
+		mustSignHTTPRequest(req, c.awsConfig, payloadHash)
 	}
 
 	startTime := time.Now()
-	resp, err := c.do(req, payloadHash)
+	resp, err := c.hc.Do(req)
 	c.requestDuration.UpdateDuration(startTime)
 	if err != nil {
 		c.errorsCount.Inc()

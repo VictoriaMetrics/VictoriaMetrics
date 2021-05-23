@@ -88,6 +88,11 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		return
 	}
 
+	// Register SIGHUP handler for config reload before loadConfig.
+	// This guarantees that the config will be re-read if the signal arrives just after loadConfig.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	logger.Infof("reading Prometheus configs from %q", configFile)
 	cfg, data, err := loadConfig(configFile)
 	if err != nil {
@@ -106,8 +111,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	scs.add("ec2_sd_configs", *ec2SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEC2SDScrapeWork(swsPrev) })
 	scs.add("gce_sd_configs", *gceSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getGCESDScrapeWork(swsPrev) })
 	scs.add("dockerswarm_sd_configs", *dockerswarmSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDockerSwarmSDScrapeWork(swsPrev) })
-
-	sighupCh := procutil.NewSighupChan()
 
 	var tickerCh <-chan time.Time
 	if *configCheckInterval > 0 {

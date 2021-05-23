@@ -3,9 +3,13 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -43,6 +47,10 @@ var (
 		`This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. `+
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
+	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries")
+	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries")
 )
 
 var rwctxs []*remoteWriteCtx
@@ -71,6 +79,24 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
+	if *maxHourlySeries > 0 {
+		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
+		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
+			return float64(hourlySeriesLimiter.MaxItems())
+		})
+		_ = metrics.NewGauge(`vmagent_hourly_series_limit_current_series`, func() float64 {
+			return float64(hourlySeriesLimiter.CurrentItems())
+		})
+	}
+	if *maxDailySeries > 0 {
+		dailySeriesLimiter = bloomfilter.NewLimiter(*maxDailySeries, 24*time.Hour)
+		_ = metrics.NewGauge(`vmagent_daily_series_limit_max_series`, func() float64 {
+			return float64(dailySeriesLimiter.MaxItems())
+		})
+		_ = metrics.NewGauge(`vmagent_daily_series_limit_current_series`, func() float64 {
+			return float64(dailySeriesLimiter.CurrentItems())
+		})
+	}
 	if *queues > maxQueues {
 		*queues = maxQueues
 	}
@@ -78,6 +104,12 @@ func Init() {
 		*queues = 1
 	}
 	initLabelsGlobal()
+
+	// Register SIGHUP handler for config reload before loadRelabelConfigs.
+	// This guarantees that the config will be re-read if the signal arrives just after loadRelabelConfig.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	rcs, err := loadRelabelConfigs()
 	if err != nil {
 		logger.Fatalf("cannot load relabel configs: %s", err)
@@ -104,7 +136,6 @@ func Init() {
 	}
 
 	// Start config reloader.
-	sighupCh := procutil.NewSighupChan()
 	configReloaderWG.Add(1)
 	go func() {
 		defer configReloaderWG.Done()
@@ -179,8 +210,11 @@ func Push(wr *prompbmarshal.WriteRequest) {
 			globalRelabelMetricsDropped.Add(tssBlockLen - len(tssBlock))
 		}
 		sortLabelsIfNeeded(tssBlock)
-		for _, rwctx := range rwctxs {
-			rwctx.Push(tssBlock)
+		tssBlock = limitSeriesCardinality(tssBlock)
+		if len(tssBlock) > 0 {
+			for _, rwctx := range rwctxs {
+				rwctx.Push(tssBlock)
+			}
 		}
 		if rctx != nil {
 			rctx.reset()
@@ -199,6 +233,77 @@ func sortLabelsIfNeeded(tss []prompbmarshal.TimeSeries) {
 	for i := range tss {
 		promrelabel.SortLabels(tss[i].Labels)
 	}
+}
+
+func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+	if hourlySeriesLimiter == nil && dailySeriesLimiter == nil {
+		return tss
+	}
+	dst := make([]prompbmarshal.TimeSeries, 0, len(tss))
+	for i := range tss {
+		labels := tss[i].Labels
+		h := getLabelsHash(labels)
+		if hourlySeriesLimiter != nil && !hourlySeriesLimiter.Add(h) {
+			hourlySeriesLimitRowsDropped.Add(len(tss[i].Samples))
+			logSkippedSeries(labels, "-remoteWrite.maxHourlySeries", hourlySeriesLimiter.MaxItems())
+			continue
+		}
+		if dailySeriesLimiter != nil && !dailySeriesLimiter.Add(h) {
+			dailySeriesLimitRowsDropped.Add(len(tss[i].Samples))
+			logSkippedSeries(labels, "-remoteWrite.maxDailySeries", dailySeriesLimiter.MaxItems())
+			continue
+		}
+		dst = append(dst, tss[i])
+	}
+	return dst
+}
+
+var (
+	hourlySeriesLimiter *bloomfilter.Limiter
+	dailySeriesLimiter  *bloomfilter.Limiter
+
+	hourlySeriesLimitRowsDropped = metrics.NewCounter(`vmagent_hourly_series_limit_rows_dropped_total`)
+	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
+)
+
+func getLabelsHash(labels []prompbmarshal.Label) uint64 {
+	bb := labelsHashBufPool.Get()
+	b := bb.B[:0]
+	for _, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
+	}
+	h := xxhash.Sum64(b)
+	bb.B = b
+	labelsHashBufPool.Put(bb)
+	return h
+}
+
+var labelsHashBufPool bytesutil.ByteBufferPool
+
+func logSkippedSeries(labels []prompbmarshal.Label, flagName string, flagValue int) {
+	select {
+	case <-logSkippedSeriesTicker.C:
+		logger.Warnf("skip series %s because %s=%d reached", labelsToString(labels), flagName, flagValue)
+	default:
+	}
+}
+
+var logSkippedSeriesTicker = time.NewTicker(5 * time.Second)
+
+func labelsToString(labels []prompbmarshal.Label) string {
+	var b []byte
+	b = append(b, '{')
+	for i, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		if i+1 < len(labels) {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
 }
 
 var globalRelabelMetricsDropped = metrics.NewCounter("vmagent_remotewrite_global_relabel_metrics_dropped_total")

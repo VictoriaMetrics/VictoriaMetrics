@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -109,6 +110,12 @@ func initAuthConfig() {
 	if len(*authConfigPath) == 0 {
 		logger.Fatalf("missing required `-auth.config` command-line flag")
 	}
+
+	// Register SIGHUP handler for config re-read just before readAuthConfig call.
+	// This guarantees that the config will be re-read if the signal arrives during readAuthConfig call.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	m, err := readAuthConfig(*authConfigPath)
 	if err != nil {
 		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
@@ -118,7 +125,7 @@ func initAuthConfig() {
 	authConfigWG.Add(1)
 	go func() {
 		defer authConfigWG.Done()
-		authConfigReloader()
+		authConfigReloader(sighupCh)
 	}()
 }
 
@@ -127,8 +134,7 @@ func stopAuthConfig() {
 	authConfigWG.Wait()
 }
 
-func authConfigReloader() {
-	sighupCh := procutil.NewSighupChan()
+func authConfigReloader(sighupCh <-chan os.Signal) {
 	for {
 		select {
 		case <-stopCh:
