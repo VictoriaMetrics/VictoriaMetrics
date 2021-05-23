@@ -568,7 +568,6 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	if err := db.generateTSID(dst, metricName, mn); err != nil {
 		return fmt.Errorf("cannot generate TSID: %w", err)
 	}
-	db.putMetricNameToCache(dst.MetricID, metricName)
 	if err := db.createIndexes(dst, mn); err != nil {
 		return fmt.Errorf("cannot create indexes: %w", err)
 	}
@@ -3047,7 +3046,7 @@ const (
 	int64Max = int64((1 << 63) - 1)
 )
 
-func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
+func (is *indexSearch) storeDateMetricID(date, metricID uint64, mn *MetricName) error {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -3059,31 +3058,10 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	// Create per-day inverted index entries for metricID.
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	mn := GetMetricName()
-	defer PutMetricName(mn)
-	var err error
-	// There is no need in searching for metric name in is.db.extDB,
-	// Since the storeDateMetricID function is called only after the metricID->metricName
-	// is added into the current is.db.
-	kb.B, err = is.searchMetricNameWithCache(kb.B[:0], metricID)
-	if err != nil {
-		if err == io.EOF {
-			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
-				"deleting the metricID, so it could be re-created next time", metricID)
-			if err := is.db.deleteMetricIDs([]uint64{metricID}); err != nil {
-				return fmt.Errorf("cannot delete metricID %d after unclean shutdown: %w", metricID, err)
-			}
-			return nil
-		}
-		return fmt.Errorf("cannot find metricName by metricID %d: %w", metricID, err)
-	}
-	if err = mn.Unmarshal(kb.B); err != nil {
-		return fmt.Errorf("cannot unmarshal metricName %q obtained by metricID %d: %w", metricID, kb.B, err)
-	}
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ii.registerTagIndexes(kb.B, mn, metricID)
-	if err = is.db.tb.AddItems(ii.Items); err != nil {
+	if err := is.db.tb.AddItems(ii.Items); err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %w", metricID, err)
 	}
 	return nil
