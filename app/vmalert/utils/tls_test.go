@@ -13,6 +13,7 @@ func TestTLSConfig(t *testing.T) {
 	}
 	if tlsCfg == nil {
 		t.Errorf("expected tlsConfig to be set, got nil")
+		return
 	}
 	if tlsCfg.ServerName != serverName {
 		t.Errorf("unexpected ServerName, want %s, got %s", serverName, tlsCfg.ServerName)

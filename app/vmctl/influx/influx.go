@@ -61,7 +61,7 @@ func (s Series) fetchQuery(timeFilter string) string {
 	}
 	for i, pair := range s.LabelPairs {
 		pairV := valueEscaper.Replace(pair.Value)
-		fmt.Fprintf(f, " %q='%s'", pair.Name, pairV)
+		fmt.Fprintf(f, " %q::tag='%s'", pair.Name, pairV)
 		if i != len(s.LabelPairs)-1 {
 			f.WriteString(" and")
 		}

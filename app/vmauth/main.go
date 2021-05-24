@@ -14,10 +14,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	httpListenAddr = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
+	httpListenAddr         = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
+	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
+	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 )
 
 func main() {
@@ -47,6 +50,18 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	switch r.URL.Path {
+	case "/-/reload":
+		authKey := r.FormValue("authKey")
+		if authKey != *reloadAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -reloadAuthKey command line flag", authKey)
+			return true
+		}
+		configReloadRequests.Inc()
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
 	authToken := r.Header.Get("Authorization")
 	if authToken == "" {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
@@ -70,6 +85,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+var configReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+
 var reverseProxy = &httputil.ReverseProxy{
 	Director: func(r *http.Request) {
 		targetURL := r.Header.Get("vm-target-url")
@@ -85,6 +102,7 @@ var reverseProxy = &httputil.ReverseProxy{
 		tr.DisableCompression = true
 		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
 		tr.ForceAttemptHTTP2 = false
+		tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 		return tr
 	}(),
 	FlushInterval: time.Second,

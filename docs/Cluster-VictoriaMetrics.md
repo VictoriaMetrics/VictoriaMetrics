@@ -50,13 +50,14 @@ See [these docs](#url-format) for details. Some facts about tenants in VictoriaM
 * Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth.html).
-[Contact us](mailto:info@victoriametrics.com) if you need help with creating such a service.
+by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or [vmgateway](https://docs.victoriametrics.com/vmgateway.html). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
 
 * Tenants are automatically created when the first data point is written into the given tenant.
 
 * Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
 when different tenants have different amounts of data and different query load.
+
+* The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of active time series in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 
 * VictoriaMetrics doesn't support querying multiple tenants in a single request.
 
@@ -201,9 +202,7 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
     - `api/v1/export/native` - exports raw data in native binary format. It may be imported into another VictoriaMetrics via `api/v1/import/native` (see above).
     - `api/v1/export/csv` - exports data in CSV. It may be imported into another VictoriaMetrics via `api/v1/import/csv` (see above).
     - `api/v1/series/count` - returns the total number of series.
-    - `api/v1/status/tsdb` - for time series stats. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
-      VictoriaMetrics accepts optional `topN=N` and `date=YYYY-MM-DD` query args for this handler, where `N` is the number of top entries to return in the response
-      and `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day.
+    - `api/v1/status/tsdb` - for time series stats. See [these docs](https://docs.victoriametrics.com/#tsdb-stats) for details.
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
     - `api/v1/status/top_queries` - for listing the most frequently executed queries and queries taking the most duration.
@@ -334,6 +333,13 @@ If you need multi-AZ setup, then it is recommended running independed clusters i
 [vmagent](https://docs.victoriametrics.com/vmagent.html) in front of these clusters, so it could replicate incoming data
 into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
 
+Another solution is to use multi-level cluster setup, where the top level of `vminsert` nodes [replicate](#replication-and-data-safety) data among the lower level of `vminsert` nodes located at different availability zones. These `vminsert` nodes then spread the data among `vmstorage` nodes in each AZ. See [these docs](#multi-level-cluster-setup) for more details.
+
+
+## Multi-level cluster setup
+
+`vminsert` nodes can accept data from another `vminsert` nodes starting from [v1.60.0](https://docs.victoriametrics.com/CHANGELOG.html#v1600) if `-clusternativeListenAddr` command-line flag is set. For example, if `vminsert` is started with `-clusternativeListenAddr=:8400` command-line flag, then it can accept data from another `vminsert` nodes at TCP port 8400 in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies with flexible configs. For example, the top level of `vminsert` nodes can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ), while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes located in the same AZ. Such setup guarantees cluster availability if some AZ becomes unavailable. The data from all the `vmstorage` nodes in all the AZs can be read via `vmselect` nodes, which are configured to query all the `vmstorage` nodes in all the availability zones (e.g. all the `vmstorage` addresses are passed via `-storageNode` command-line flag to `vmselect` nodes). Additionally, `-replicationFactor=k+1` must be passed to `vmselect` nodes, where `k` is the lowest number of `vmstorage` nodes in a single AZ. See [replication docs](#replication-and-data-safety) for more details.
+
 
 ## Helm
 
@@ -359,7 +365,7 @@ so up to 2 `vmstorage` nodes can be lost without data loss. The minimum number o
 the remaining 3 `vmstorage` nodes could provide the `-replicationFactor=3` for newly ingested data.
 
 When the replication is enabled, `-replicationFactor=N` and `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
-The `-replicationFactor=N` improves query performance when a part of vmstorage nodes respond slowly and/or temporarily unavailable. Sometimes `-replicationFactor` at `vmselect` nodes shouldn't be set. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
+The `-replicationFactor=N` improves query performance when up to `N-1` vmstorage nodes respond slowly and/or temporarily unavailable. Sometimes `-replicationFactor` at `vmselect` nodes can result in partial responses. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
 The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms
 when [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication) is used additionally to replication.
 

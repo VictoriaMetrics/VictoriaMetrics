@@ -541,6 +541,12 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 			scrapeTimeout = defaultScrapeTimeout
 		}
 	}
+	if scrapeTimeout > scrapeInterval {
+		// Limit the `scrape_timeout` with `scrape_interval` like Prometheus does.
+		// This guarantees that the scraper can miss only a single scrape if the target sometimes responds slowly.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1281#issuecomment-840538907
+		scrapeTimeout = scrapeInterval
+	}
 	honorLabels := sc.HonorLabels
 	honorTimestamps := sc.HonorTimestamps
 	denyRedirects := false
@@ -768,7 +774,7 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 			return false
 		}
 		idx++
-		if idx >= replicasCount {
+		if idx >= membersCount {
 			idx = 0
 		}
 	}

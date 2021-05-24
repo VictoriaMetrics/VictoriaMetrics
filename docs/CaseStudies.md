@@ -31,7 +31,7 @@ Alphabetically sorted links to case studies:
 
 See our [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
 from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk at [PromCon 2019](https://promcon.io/2019-munich/).
-VictoriaMetrics is compared to Thanos, Corex and M3DB in the talk.
+VictoriaMetrics is compared to Thanos, Cortex and M3DB in the talk.
 
 ## Adsterra
 
@@ -227,7 +227,7 @@ as the load balancer for reads.
 [idealo.de](https://www.idealo.de/) is the leading price comparison website in Germany. We use Prometheus for metrics on our container platform.
 When we introduced Prometheus at idealo we started with m3db as our longterm storage. In our setup, m3db was quite unstable and consumed a lot of resources.
 
-VictoriaMetrics in poroduction is very stable for us and uses only a fraction of the resources even though we also increased our retention period from 1 month to 13 months.
+VictoriaMetrics in production is very stable for us and uses only a fraction of the resources even though we also increased our retention period from 1 month to 13 months.
 
 Numbers:
 

@@ -69,7 +69,7 @@ these projects as "general project" and "Firestore project".
 
 After creating each project, you must [create a service account](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#creatinganaccount)
 for each project. Ensure the project-level **Owner**
-[IAM role](console.cloud.google.com/iam-admin/iam/project) role is added to
+[IAM role](https://console.cloud.google.com/iam-admin/iam/project) role is added to
 each service account. During the creation of the service account, you should
 download the JSON credential file for use later.
 
@@ -182,6 +182,13 @@ $ gcloud kms keys create key2 --keyring $MY_KEYRING --location $MY_LOCATION --pu
 $ export GCLOUD_TESTS_GOLANG_KEYRING=projects/$GCLOUD_TESTS_GOLANG_PROJECT_ID/locations/$MY_LOCATION/keyRings/$MY_KEYRING
 # Authorizes Google Cloud Storage to encrypt and decrypt using key1.
 $ gsutil kms authorize -p $GCLOUD_TESTS_GOLANG_PROJECT_ID -k $GCLOUD_TESTS_GOLANG_KEYRING/cryptoKeys/key1
+# Authorizes Google Cloud Bigtable to encrypt and decrypt using key1
+$ gcloud kms keys add-iam-policy-binding key1 \
+    --keyring $MY_KEYRING \
+    --location $MY_LOCATION \
+    --role roles/cloudkms.cryptoKeyEncrypterDecrypter \
+    --member "${GCLOUD_TESTS_GOLANG_PROJECT_ID}@${GCLOUD_TESTS_GOLANG_PROJECT_ID}.iam.gserviceaccount.com" \
+    --project $GCLOUD_TESTS_GOLANG_PROJECT_ID
 ```
 
 It may be useful to add exports to your shell initialization for future use.
@@ -295,8 +302,8 @@ Instances of abusive, harassing, or otherwise unacceptable behavior
 may be reported by opening an issue
 or contacting one or more of the project maintainers.
 
-This Code of Conduct is adapted from the [Contributor Covenant](http://contributor-covenant.org), version 1.2.0,
-available at [http://contributor-covenant.org/version/1/2/0/](http://contributor-covenant.org/version/1/2/0/)
+This Code of Conduct is adapted from the [Contributor Covenant](https://contributor-covenant.org), version 1.2.0,
+available at [https://contributor-covenant.org/version/1/2/0/](https://contributor-covenant.org/version/1/2/0/)
 
 [gcloudcli]: https://developers.google.com/cloud/sdk/gcloud/
 [indvcla]: https://developers.google.com/open-source/cla/individual

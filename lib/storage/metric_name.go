@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -442,7 +442,7 @@ func SetMaxLabelsPerTimeseries(maxLabels int) {
 
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
-// The result must be unmarshaled with MetricName.unmarshalRaw
+// The result must be unmarshaled with MetricName.UnmarshalRaw
 func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	// Calculate the required space for dst.
 	dstLen := len(dst)
@@ -503,21 +503,16 @@ var (
 
 func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
-	ct := fasttime.UnixTimestamp()
-	if ct < atomic.LoadUint64(&droppedLabelsLogNextTimestamp) {
-		return
-	}
-	droppedLabelsLogOnce.Do(func() {
-		atomic.StoreUint64(&droppedLabelsLogNextTimestamp, ct+5)
-		logger.Infof("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
+	select {
+	case <-droppedLabelsLogTicker.C:
+		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
 			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
-		droppedLabelsLogOnce = &sync.Once{}
-	})
+	default:
+	}
 }
 
-var droppedLabelsLogOnce = &sync.Once{}
-var droppedLabelsLogNextTimestamp uint64
+var droppedLabelsLogTicker = time.NewTicker(5 * time.Second)
 
 func labelsToString(labels []prompb.Label) string {
 	labelsCopy := append([]prompb.Label{}, labels...)
@@ -544,7 +539,7 @@ func labelsToString(labels []prompb.Label) string {
 
 // marshalRaw marshals mn to dst and returns the result.
 //
-// The results may be unmarshaled with MetricName.unmarshalRaw.
+// The results may be unmarshaled with MetricName.UnmarshalRaw.
 //
 // This function is for testing purposes. MarshalMetricNameRaw must be used
 // in prod instead.
@@ -561,8 +556,8 @@ func (mn *MetricName) marshalRaw(dst []byte) []byte {
 	return dst
 }
 
-// unmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
-func (mn *MetricName) unmarshalRaw(src []byte) error {
+// UnmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
+func (mn *MetricName) UnmarshalRaw(src []byte) error {
 	mn.Reset()
 	for len(src) > 0 {
 		tail, key, err := unmarshalBytesFast(src)

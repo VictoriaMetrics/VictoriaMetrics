@@ -38,7 +38,9 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared with Prometheus.
-* Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets) for details.
+* Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
+* Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/). See [these docs](#stream-parsing-mode).
+* Can deal with high cardinality and high churn rate issues by limiting the number of unique time series sent to remote storage systems. See [these docs](#cardinality-limiter).
 
 
 ## Quick Start
@@ -188,7 +190,7 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
   By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
-* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics.
+* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics. See [these docs](#stream-parsing-mode).
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -234,6 +236,27 @@ You can read more about relabeling in the following articles:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+
+## Stream parsing mode
+
+By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled either globally for all of the scrape targets by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
+
+  ```yml
+  scrape_configs:
+  - job_name: 'big-federate'
+    stream_parse: true
+    static_configs:
+    - targets:
+      - big-prometeus1
+      - big-prometeus2
+    honor_labels: true
+    metrics_path: /federate
+    params:
+      'match[]': ['{__name__!=""}']
+  ```
+
+Note that `sample_limit` option doesn't work if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed. Therefore the `sample_limit` option doesn't make sense during stream parsing.
 
 
 ## Scraping big number of targets
@@ -299,6 +322,22 @@ scrape_configs:
     server_name: real-server-name
 ```
 
+## Cardinality limiter
+
+By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
+
+* `-remoteWrite.maxHourlySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last hour. Useful for limiting the number of active time series.
+* `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day. Useful for limiting daily churn rate.
+
+Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
+
+The exceeded limits can be [monitored](#monitoring) with the following metrics:
+
+* `vmagent_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vmagent_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
+
+These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
+
 
 ## Monitoring
 
@@ -326,6 +365,12 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 * We recommend you increase the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
 
+* If `vmagent` uses too big amounts of memory, then the following options can help:
+  * Enabling stream parsing. See [these docs](#stream-parsing-mode).
+  * Reducing the number of output queues with `-remoteWrite.queues` command-line option.
+  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option. Another option is to reduce memory limits in Docker and/or Kuberntes if `vmagent` runs under these systems.
+  * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`, where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
+
 * When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. These errors can be suppressed
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
   and `http://vmagent-host:8429/api/v1/targets`.
@@ -337,25 +382,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
   This option drops `"discoveredLabels"` and `"droppedTargets"` lists at `/api/v1/targets` page, which may result in reduced debuggability for improperly configured per-target relabeling.
 
 * If `vmagent` scrapes targets with millions of metrics per target (for example, when scraping [federation endpoints](https://prometheus.io/docs/prometheus/latest/federation/)),
-  we recommend enabling `stream parsing mode` in order to reduce memory usage during scraping. This mode may be enabled either globally for all of the scrape targets
-  by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
-
-  ```yml
-  scrape_configs:
-  - job_name: 'big-federate'
-    stream_parse: true
-    static_configs:
-    - targets:
-      - big-prometeus1
-      - big-prometeus2
-    honor_labels: true
-    metrics_path: /federate
-    params:
-      'match[]': ['{__name__!=""}']
-  ```
-
-  Note that `sample_limit` option doesn't work if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed. Therefore the `sample_limit` option
- doesn't make sense during stream parsing.
+  we recommend enabling [stream parsing mode](#stream-parsing-mode) in order to reduce memory usage during scraping.
 
 * We recommend you increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page grows constantly.
 
@@ -519,7 +546,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
@@ -646,11 +673,17 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.basicAuth.password array
     	Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.basicAuth.passwordFile array
+    	Optional path to basic auth password to use for -remoteWrite.url. The file is re-read every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.username array
     	Optional basic auth username to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.bearerToken array
     	Optional bearer auth token to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.bearerTokenFile array
+    	Optional path to bearer token file to use for -remoteWrite.url. The token is re-read from the file every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
     	Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
@@ -660,9 +693,28 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.maxBlockSize size
     	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
+  -remoteWrite.maxDailySeries int
+    	The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries
   -remoteWrite.maxDiskUsagePerURL size
     	The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. Disk usage is unlimited if the value is set to 0
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -remoteWrite.maxHourlySeries int
+    	The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries
+  -remoteWrite.oauth2.clientID array
+    	Optional OAuth2 clientID to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.clientSecret array
+    	Optional OAuth2 clientSecret to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.clientSecretFile array
+    	Optional OAuth2 clientSecretFile to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.scopes array
+    	Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.tokenUrl array
+    	Optional OAuth2 tokenURL to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.proxyURL array
     	Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
     	Supports an array of values separated by comma or specified via multiple flags.

@@ -42,6 +42,10 @@ var (
 	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside of the configured -retentionPeriod. "+
 		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
 		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
+	maxHourlySeries = flag.Int("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries")
+	maxDailySeries = flag.Int("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -82,7 +86,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
-	strg, err := storage.OpenStorage(*DataPath, retentionPeriod.Msecs)
+	strg, err := storage.OpenStorage(*DataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
 	if err != nil {
 		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *DataPath, retentionPeriod, err)
 	}
@@ -211,7 +215,15 @@ func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.
 // GetTSDBStatusForDate returns TSDB status for the given date.
 func GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusForDate(date, topN, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(nil, date, topN, deadline)
+	WG.Done()
+	return status, err
+}
+
+// GetTSDBStatusWithFiltersForDate returns TSDB status for given filters on the given date.
+func GetTSDBStatusWithFiltersForDate(tfss []*storage.TagFilters, date uint64, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+	WG.Add(1)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, deadline)
 	WG.Done()
 	return status, err
 }
@@ -569,6 +581,13 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_slow_metric_name_loads_total`, func() float64 {
 		return float64(m().SlowMetricNameLoads)
+	})
+
+	metrics.NewGauge(`vm_hourly_series_limit_rows_dropped_total`, func() float64 {
+		return float64(m().HourlySeriesLimitRowsDropped)
+	})
+	metrics.NewGauge(`vm_daily_series_limit_rows_dropped_total`, func() float64 {
+		return float64(m().DailySeriesLimitRowsDropped)
 	})
 
 	metrics.NewGauge(`vm_timestamps_blocks_merged_total`, func() float64 {

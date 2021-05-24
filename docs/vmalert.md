@@ -89,6 +89,12 @@ name: <string>
 # By default "prometheus" rule type is used.
 [ type: <string> ]
 
+# Optional list of label filters applied to every rule's
+# request withing a group. Is compatible only with VM datasource.
+# See more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+extra_filter_labels:
+  [ <labelname>: <labelvalue> ... ]
+
 rules:
   [ - <rule> ... ]
 ```
@@ -180,6 +186,32 @@ in configured `-remoteRead.url`, weren't updated in the last `1h` or received st
 rules configuration.
 
 
+### Multitenancy
+
+There are the following approaches for alerting and recording rules across [multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) exist:
+
+* To run a separate `vmalert` instance per each tenant. The corresponding tenant must be specified in `-datasource.url` command-line flag according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). For example, `/path/to/vmalert -datasource.url=http://vmselect:8481/select/123/prometheus` would run alerts against `AccountID=123`. For recording rules the `-remoteWrite.url` command-line flag must contain the url for the specific tenant as well. For example, `-remoteWrite.url=http://vminsert:8480/insert/123/prometheus` would write recording rules to `AccountID=123`.
+
+* To specify `tenant` parameter per each alerting and recording group if [enterprise version of vmalert](https://victoriametrics.com/enterprise.html) is used with `-clusterMode` command-line flag. For example:
+
+```yaml
+groups:
+- name: rules_for_tenant_123
+  tenant: "123"
+  rules:
+    # Rules for accountID=123
+
+- name: rules_for_tenant_456:789
+  tenant: "456:789"
+  rules:
+    # Rules for accountID=456, projectID=789
+```
+
+If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481` . `vmselect` automatically adds the specified tenant to urls per each recording rule in this case.
+
+The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise` tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
+
+
 ### WEB
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
@@ -216,6 +248,8 @@ The shortlist of configuration flags is the following:
     	Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+  -datasource.roundDigits int
+    	Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -259,7 +293,7 @@ The shortlist of configuration flags is the following:
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
@@ -317,6 +351,8 @@ The shortlist of configuration flags is the following:
     	Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.username string
     	Optional basic auth username for -remoteRead.url
+  -remoteRead.ignoreRestoreErrors
+    	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
     	Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
   -remoteRead.tlsCAFile string

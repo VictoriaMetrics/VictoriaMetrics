@@ -26,7 +26,7 @@ func StartUnmarshalWorkers() {
 		logger.Panicf("BUG: it looks like startUnmarshalWorkers() has been alread called without stopUnmarshalWorkers()")
 	}
 	gomaxprocs := cgroup.AvailableCPUs()
-	unmarshalWorkCh = make(chan UnmarshalWork, 2*gomaxprocs)
+	unmarshalWorkCh = make(chan UnmarshalWork, gomaxprocs)
 	unmarshalWorkersWG.Add(gomaxprocs)
 	for i := 0; i < gomaxprocs; i++ {
 		go func() {
@@ -40,7 +40,7 @@ func StartUnmarshalWorkers() {
 
 // StopUnmarshalWorkers stops unmarshal workers.
 //
-// No more calles to ScheduleUnmarshalWork are allowed after callsing stopUnmarshalWorkers
+// No more calles to ScheduleUnmarshalWork are allowed after calling stopUnmarshalWorkers
 func StopUnmarshalWorkers() {
 	close(unmarshalWorkCh)
 	unmarshalWorkersWG.Wait()

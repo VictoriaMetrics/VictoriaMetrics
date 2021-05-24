@@ -29,6 +29,10 @@ type Group struct {
 	Interval    time.Duration `yaml:"interval,omitempty"`
 	Rules       []Rule        `yaml:"rules"`
 	Concurrency int           `yaml:"concurrency"`
+	// ExtraFilterLabels is a list label filters applied to every rule
+	// request withing a group. Is compatible only with VM datasources.
+	// See https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+	ExtraFilterLabels map[string]string `yaml:"extra_filter_labels"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
 	Checksum string

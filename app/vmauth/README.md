@@ -17,7 +17,7 @@ and pass the following flag to `vmauth` binary in order to start authorizing and
 After that `vmauth` starts accepting HTTP requests on port `8427` and routing them according to the provided [-auth.config](#auth-config).
 The port can be modified via `-httpListenAddr` command-line flag.
 
-The auth config can be reloaded by passing `SIGHUP` signal to `vmauth`.
+The auth config can be reloaded either by passing `SIGHUP` signal to `vmauth` or by querying `/-/reload` http endpoint.
 
 Docker images for `vmauth` are available [here](https://hub.docker.com/r/victoriametrics/vmauth/tags).
 
@@ -108,6 +108,8 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 ```
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
+
+It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 
 
 ## Monitoring
@@ -200,7 +202,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
@@ -221,6 +223,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
     	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxIdleConnsPerBackend int
+    	The maximum number of idle connections vmauth can open per each backend host (default 100)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
@@ -230,6 +234,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
     	Auth key for /metrics. It overrides httpAuth settings
   -pprofAuthKey string
     	Auth key for /debug/pprof. It overrides httpAuth settings
+  -reloadAuthKey string
+    	Auth key for /-/reload http endpoint. It must be passed as authKey=...
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string

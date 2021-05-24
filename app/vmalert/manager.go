@@ -64,10 +64,13 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
+func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) error {
 	if restore && m.rr != nil {
 		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
 		if err != nil {
+			if !*remoteReadIgnoreRestoreErrors {
+				return fmt.Errorf("failed to restore state for group %q: %w", group.Name, err)
+			}
 			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
 		}
 	}
@@ -79,6 +82,7 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 		m.wg.Done()
 	}()
 	m.groups[id] = group
+	return nil
 }
 
 func (m *manager) update(ctx context.Context, path []string, validateTpl, validateExpr, restore bool) error {
@@ -117,7 +121,9 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 		}
 	}
 	for _, ng := range groupsRegistry {
-		m.startGroup(ctx, ng, restore)
+		if err := m.startGroup(ctx, ng, restore); err != nil {
+			return err
+		}
 	}
 	m.groupsMu.Unlock()
 
@@ -141,12 +147,14 @@ func (g *Group) toAPI() APIGroup {
 
 	ag := APIGroup{
 		// encode as string to avoid rounding
-		ID:          fmt.Sprintf("%d", g.ID()),
-		Name:        g.Name,
-		Type:        g.Type.String(),
-		File:        g.File,
-		Interval:    g.Interval.String(),
-		Concurrency: g.Concurrency,
+		ID: fmt.Sprintf("%d", g.ID()),
+
+		Name:              g.Name,
+		Type:              g.Type.String(),
+		File:              g.File,
+		Interval:          g.Interval.String(),
+		Concurrency:       g.Concurrency,
+		ExtraFilterLabels: g.ExtraFilterLabels,
 	}
 	for _, r := range g.Rules {
 		switch v := r.(type) {

@@ -15,3 +15,4 @@
 /package/temp-rpm-*
 /package/*.deb
 /package/*.rpm
+.DS_store

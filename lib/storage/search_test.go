@@ -72,7 +72,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	path := "TestSearch"
-	st, err := OpenStorage(path, 0)
+	st, err := OpenStorage(path, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage %q: %s", path, err)
 	}
@@ -121,7 +121,7 @@ func TestSearch(t *testing.T) {
 
 	// Re-open the storage in order to flush all the pending cached data.
 	st.MustClose()
-	st, err = OpenStorage(path, 0)
+	st, err = OpenStorage(path, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot re-open storage %q: %s", path, err)
 	}
@@ -187,7 +187,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 			if mr.Timestamp < tr.MinTimestamp || mr.Timestamp > tr.MaxTimestamp {
 				continue
 			}
-			if err := mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
+			if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 				return fmt.Errorf("cannot unmarshal MetricName: %w", err)
 			}
 			if !metricGroupRegexp.Match(mn.MetricGroup) {

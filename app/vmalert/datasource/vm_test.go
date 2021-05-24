@@ -243,6 +243,29 @@ func TestPrepareReq(t *testing.T) {
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
+		{
+			"round digits",
+			&VMStorage{
+				roundDigits: "10",
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("query=%s&round_digits=10&time=%d", query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"extra labels",
+			&VMStorage{
+				extraLabels: []string{
+					"env=prod",
+					"query=es=cape",
+				},
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("extra_label=env%%3Dprod&extra_label=query%%3Des%%3Dcape&query=%s&time=%d", query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

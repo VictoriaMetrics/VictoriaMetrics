@@ -44,8 +44,8 @@ var (
 )
 
 var (
-	influxServer       *influxserver.Server
 	graphiteServer     *graphiteserver.Server
+	influxServer       *influxserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
 )
@@ -56,11 +56,11 @@ func Init() {
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
-	if len(*influxListenAddr) > 0 {
-		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
-	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
+	}
+	if len(*influxListenAddr) > 0 {
+		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, opentsdb.InsertHandler, opentsdbhttp.InsertHandler)
@@ -74,11 +74,11 @@ func Init() {
 // Stop stops vminsert.
 func Stop() {
 	promscrape.Stop()
-	if len(*influxListenAddr) > 0 {
-		influxServer.MustStop()
-	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
+	}
+	if len(*influxListenAddr) > 0 {
+		influxServer.MustStop()
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdbServer.MustStop()

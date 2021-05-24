@@ -70,19 +70,24 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
-		client:       &http.Client{},
+		client: &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConnsPerHost: 100,
+			},
+		},
 		availability: sdc.Availability,
 		region:       sdc.Region,
 		allTenants:   sdc.AllTenants,
 		port:         sdc.Port,
 	}
 	if sdc.TLSConfig != nil {
-		ac, err := promauth.NewConfig(baseDir, nil, nil, "", "", sdc.TLSConfig)
+		ac, err := promauth.NewConfig(baseDir, nil, nil, "", "", nil, sdc.TLSConfig)
 		if err != nil {
 			return nil, err
 		}
 		cfg.client.Transport = &http.Transport{
-			TLSClientConfig: ac.NewTLSConfig(),
+			TLSClientConfig:     ac.NewTLSConfig(),
+			MaxIdleConnsPerHost: 100,
 		}
 	}
 	// use public compute endpoint by default

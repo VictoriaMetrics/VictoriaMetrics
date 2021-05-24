@@ -13,9 +13,10 @@ func getStatGeneric(statName, sysfsPrefix, cgroupPath, cgroupGrepLine string) (i
 	if err != nil {
 		return 0, err
 	}
+	data = strings.TrimSpace(data)
 	n, err := strconv.ParseInt(data, 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("cannot parse %q: %w", cgroupPath, err)
 	}
 	return n, nil
 }
@@ -32,7 +33,7 @@ func getFileContents(statName, sysfsPrefix, cgroupPath, cgroupGrepLine string) (
 	}
 	subPath, err := grepFirstMatch(string(cgroupData), cgroupGrepLine, 2, ":")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot find cgroup path for %q in %q: %w", cgroupGrepLine, cgroupPath, err)
 	}
 	filepath = path.Join(sysfsPrefix, subPath, statName)
 	data, err = ioutil.ReadFile(filepath)

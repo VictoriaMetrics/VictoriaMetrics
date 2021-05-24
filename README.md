@@ -93,6 +93,7 @@ Alphabetically sorted links to case studies:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
+* Can deal with high cardinality and high churn rate issues using [series limiter](#cardinality-limiter).
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
@@ -154,6 +155,8 @@ Alphabetically sorted links to case studies:
 * [Security](#security)
 * [Tuning](#tuning)
 * [Monitoring](#monitoring)
+* [TSDB stats](#tsdb-stats)
+* [Cardinality limiter](#cardinality-limiter)
 * [Troubleshooting](#troubleshooting)
 * [Data migration](#data-migration)
 * [Backfilling](#backfilling)
@@ -549,9 +552,7 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
-* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts optional `topN=N` and `date=YYYY-MM-DD`
-  query args for this handler, where `N` is the number of top entries to return in the response and `YYYY-MM-DD` is the date for collecting the stats.
-  By default top 10 entries are returned and the stats is collected for the current day.
+* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). See [these docs](#tsdb-stats) for details.
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
@@ -563,7 +564,7 @@ All the Prometheus querying API handlers can be prepended with `/prometheus` pre
 VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
 `/api/v1/query_range?extra_label=user_id=123&query=<query>` would automatically add `{user_id="123"}` label filter to the given `<query>`. This functionality can be used
 for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
-in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
+in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
 VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
@@ -959,6 +960,8 @@ For example, `/api/v1/import?extra_label=foo=bar` would add `"foo":"bar"` label 
 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
+VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage. This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines. The solution is to split too long JSON lines into smaller lines. It is OK if samples for a single time series are split among multiple JSON lines.
+
 
 ### How to import CSV data
 
@@ -1106,7 +1109,8 @@ A rough estimation of the required resources for ingestion path:
 
 * Storage space: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
   of 100K data points per second.
-  The actual storage size heavily depends on data randomness (entropy). Higher randomness means higher storage size requirements.
+  The actual storage size heavily depends on data randomness (entropy) and the average number of samples per time series.
+  Higher randomness means higher storage size requirements. Lower average number of samples per time series means higher storage requirement.
   Read [this article](https://medium.com/faun/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
 
@@ -1324,6 +1328,33 @@ VictoriaMetrics also exposes currently running queries with their execution time
 
 See the example of alerting rules for VM components [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
+
+## TSDB stats
+
+VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way similar to Prometheus - see [these Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts the following optional query args at `/api/v1/status/tsdb` page:
+  * `topN=N` where `N` is the number of top entries to return in the response. By default top 10 entries are returned.
+  * `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day.
+  * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
+  * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
+
+
+## Cardinality limiter
+
+By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
+
+* `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of active time series.
+* `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily churn rate.
+
+Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
+
+The exceeded limits can be [monitored](#monitoring) with the following metrics:
+
+* `vm_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vm_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
+
+These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
+
+
 ## Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
@@ -1380,10 +1411,7 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
   It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
   each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
-* Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page.
-  See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
-  VictoriaMetrics accepts optional `date=YYYY-MM-DD` and `topN=42` args on this page. By default `date` equals to the current date,
-  while `topN` equals to 10.
+* Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page. See [these docs](#tsdb-stats) for details.
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
@@ -1606,7 +1634,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
@@ -1800,6 +1828,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	authKey, which must be passed in query string to /snapshot* pages
   -sortLabels
     	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -storage.maxDailySeries int
+    	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
+  -storage.maxHourlySeries int
+    	The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries
   -storageDataPath string
     	Path to storage data (default "victoria-metrics-data")
   -tls

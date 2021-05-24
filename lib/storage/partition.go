@@ -229,6 +229,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
 	pt.startInmemoryPartsFlusher()
+	pt.startStalePartsRemover()
 
 	logger.Infof("partition %q has been created", name)
 
@@ -483,7 +484,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 	if cap(rrs.rows) == 0 {
 		rrs.rows = getRawRowsMaxSize().rows
 	}
-	maxRowsCount := getMaxRawRowsPerPartition()
+	maxRowsCount := cap(rrs.rows)
 	for {
 		capacity := maxRowsCount - len(rrs.rows)
 		if capacity >= len(rows) {
@@ -1254,7 +1255,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	d := time.Since(startTime)
-	if d > 10*time.Second {
+	if d > 30*time.Second {
 		logger.Infof("merged %d rows across %d blocks in %.3f seconds at %d rows/sec to %q; sizeBytes: %d",
 			outRowsCount, outBlocksCount, d.Seconds(), int(float64(outRowsCount)/d.Seconds()), dstPartPath, newPSize)
 	}

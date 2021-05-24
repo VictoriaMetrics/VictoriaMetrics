@@ -19,11 +19,11 @@ import (
 
 var (
 	storageDataPath   = flag.String("storageDataPath", "victoria-metrics-data", "Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage")
-	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots")
+	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set")
 	snapshotCreateURL = flag.String("snapshot.createURL", "", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
-		"Example: http://victoriametrics:8428/snapshot/create")
+		"Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set")
 	snapshotDeleteURL = flag.String("snapshot.deleteURL", "", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
-		"All created snaphosts will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete")
+		"All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete")
 	dst = flag.String("dst", "", "Where to put the backup on the remote storage. "+
 		"Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir\n"+
 		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded")
@@ -41,7 +41,9 @@ func main() {
 	logger.Init()
 
 	if len(*snapshotCreateURL) > 0 {
-		logger.Infof("Snapshots enabled")
+		if len(*snapshotName) > 0 {
+			logger.Fatalf("-snapshotName shouldn't be set if -snapshot.createURL is set, since snapshots are created automatically in this case")
+		}
 		logger.Infof("Snapshot create url %s", *snapshotCreateURL)
 		if len(*snapshotDeleteURL) <= 0 {
 			err := flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
@@ -99,7 +101,7 @@ func usage() {
 vmbackup performs backups for VictoriaMetrics data from instant snapshots to gcs, s3
 or local filesystem. Backed up data can be restored with vmrestore.
 
-See the docs at https://docs.victoriametrics.com/vbackup.html .
+See the docs at https://docs.victoriametrics.com/vmbackup.html .
 `
 	flagutil.Usage(s)
 }

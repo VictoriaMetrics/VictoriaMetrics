@@ -198,7 +198,7 @@ func IsEmptyDir(path string) bool {
 //
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 func MustRemoveAll(path string) {
-	_ = mustRemoveAll(path, func() {})
+	mustRemoveAll(path, func() {})
 }
 
 // MustRemoveAllWithDoneCallback removes path with all the contents.
@@ -210,7 +210,7 @@ func MustRemoveAll(path string) {
 // done may be called after the function returns for NFS path.
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61.
 func MustRemoveAllWithDoneCallback(path string, done func()) {
-	_ = mustRemoveAll(path, done)
+	mustRemoveAll(path, done)
 }
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.

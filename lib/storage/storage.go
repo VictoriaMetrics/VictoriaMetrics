@@ -16,6 +16,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -52,6 +53,9 @@ type Storage struct {
 	slowPerDayIndexInserts uint64
 	slowMetricNameLoads    uint64
 
+	hourlySeriesLimitRowsDropped uint64
+	dailySeriesLimitRowsDropped  uint64
+
 	path           string
 	cachePath      string
 	retentionMsecs int64
@@ -62,6 +66,10 @@ type Storage struct {
 	idbCurr atomic.Value
 
 	tb *table
+
+	// Series cardinality limiters.
+	hourlySeriesLimiter *bloomfilter.Limiter
+	dailySeriesLimiter  *bloomfilter.Limiter
 
 	// tsidCache is MetricName -> TSID cache.
 	tsidCache *workingsetcache.Cache
@@ -115,7 +123,7 @@ type Storage struct {
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
+func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
@@ -148,6 +156,14 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	snapshotsPath := path + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
+	}
+
+	// Initialize series cardinality limiter.
+	if maxHourlySeries > 0 {
+		s.hourlySeriesLimiter = bloomfilter.NewLimiter(maxHourlySeries, time.Hour)
+	}
+	if maxDailySeries > 0 {
+		s.dailySeriesLimiter = bloomfilter.NewLimiter(maxDailySeries, 24*time.Hour)
 	}
 
 	// Load caches.
@@ -362,6 +378,9 @@ type Metrics struct {
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
 
+	HourlySeriesLimitRowsDropped uint64
+	DailySeriesLimitRowsDropped  uint64
+
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
@@ -430,6 +449,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
+
+	m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
+	m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
 
 	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
 	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
@@ -1241,17 +1263,15 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 	return s.idb().GetSeriesCount(deadline)
 }
 
-// GetTSDBStatusForDate returns TSDB status data for /api/v1/status/tsdb.
-//
-// See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func (s *Storage) GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusForDate(date, topN, deadline)
+// GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters.
+func (s *Storage) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusWithFiltersForDate(tfss, date, topN, deadline)
 }
 
 // MetricRow is a metric to insert into storage.
 type MetricRow struct {
 	// MetricNameRaw contains raw metric name, which must be decoded
-	// with MetricName.unmarshalRaw.
+	// with MetricName.UnmarshalRaw.
 	MetricNameRaw []byte
 
 	Timestamp int64
@@ -1269,7 +1289,7 @@ func (mr *MetricRow) CopyFrom(src *MetricRow) {
 func (mr *MetricRow) String() string {
 	metricName := string(mr.MetricNameRaw)
 	var mn MetricName
-	if err := mn.unmarshalRaw(mr.MetricNameRaw); err == nil {
+	if err := mn.UnmarshalRaw(mr.MetricNameRaw); err == nil {
 		metricName = mn.String()
 	}
 	return fmt.Sprintf("%s (Timestamp=%d, Value=%f)", metricName, mr.Timestamp, mr.Value)
@@ -1283,13 +1303,15 @@ func (mr *MetricRow) Marshal(dst []byte) []byte {
 	return dst
 }
 
-// Unmarshal unmarshals mr from src and returns the remaining tail from src.
-func (mr *MetricRow) Unmarshal(src []byte) ([]byte, error) {
+// UnmarshalX unmarshals mr from src and returns the remaining tail from src.
+//
+// mr refers to src, so it remains valid until src changes.
+func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
 	tail, metricNameRaw, err := encoding.UnmarshalBytes(src)
 	if err != nil {
 		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
 	}
-	mr.MetricNameRaw = append(mr.MetricNameRaw[:0], metricNameRaw...)
+	mr.MetricNameRaw = metricNameRaw
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
@@ -1350,17 +1372,60 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		}
 	}
 
-	// Add rows to the storage.
-	var err error
-	rr := getRawRowsWithSize(len(mrs))
-	rr.rows, err = s.add(rr.rows, mrs, precisionBits)
-	putRawRows(rr)
+	// Add rows to the storage in blocks with limited size in order to reduce memory usage.
+	var firstErr error
+	ic := getMetricRowsInsertCtx()
+	maxBlockLen := len(ic.rrs)
+	for len(mrs) > 0 {
+		mrsBlock := mrs
+		if len(mrs) > maxBlockLen {
+			mrsBlock = mrs[:maxBlockLen]
+			mrs = mrs[maxBlockLen:]
+		} else {
+			mrs = nil
+		}
+		if err := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		atomic.AddUint64(&rowsAddedTotal, uint64(len(mrsBlock)))
+	}
+	putMetricRowsInsertCtx(ic)
 
 	<-addRowsConcurrencyCh
 
-	atomic.AddUint64(&rowsAddedTotal, uint64(len(mrs)))
-	return err
+	return firstErr
 }
+
+type metricRowsInsertCtx struct {
+	rrs    []rawRow
+	tmpMrs []*MetricRow
+}
+
+func getMetricRowsInsertCtx() *metricRowsInsertCtx {
+	v := metricRowsInsertCtxPool.Get()
+	if v == nil {
+		v = &metricRowsInsertCtx{
+			rrs:    make([]rawRow, maxMetricRowsPerBlock),
+			tmpMrs: make([]*MetricRow, maxMetricRowsPerBlock),
+		}
+	}
+	return v.(*metricRowsInsertCtx)
+}
+
+func putMetricRowsInsertCtx(ic *metricRowsInsertCtx) {
+	tmpMrs := ic.tmpMrs
+	for i := range tmpMrs {
+		tmpMrs[i] = nil
+	}
+	metricRowsInsertCtxPool.Put(ic)
+}
+
+var metricRowsInsertCtxPool sync.Pool
+
+const maxMetricRowsPerBlock = 8000
 
 var (
 	// Limit the concurrency for data ingestion to GOMAXPROCS, since this operation
@@ -1377,9 +1442,10 @@ var (
 func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	var (
 		tsid       TSID
-		mn         MetricName
 		metricName []byte
 	)
+	mn := GetMetricName()
+	defer PutMetricName(mn)
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
@@ -1391,7 +1457,7 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		}
 
 		// Slow path - register mr.MetricNameRaw.
-		if err := mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			return fmt.Errorf("cannot register the metric because cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 		}
 		mn.sortTags()
@@ -1417,7 +1483,7 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		}
 		if !ok {
 			// The (date, metricID) entry is missing in the indexDB. Add it there.
-			if err := is.storeDateMetricID(date, metricID); err != nil {
+			if err := is.storeDateMetricID(date, metricID, mn); err != nil {
 				return fmt.Errorf("cannot register the metric in per-date inverted index because of error when storing (date=%d, metricID=%d) in database: %w",
 					date, metricID, err)
 			}
@@ -1428,13 +1494,8 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	return nil
 }
 
-func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
+func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
 	idb := s.idb()
-	rowsLen := len(rows)
-	if n := rowsLen + len(mrs) - cap(rows); n > 0 {
-		rows = append(rows[:cap(rows)], make([]rawRow, n)...)
-	}
-	rows = rows[:rowsLen+len(mrs)]
 	j := 0
 	var (
 		// These vars are used for speeding up bulk imports of multiple adjacent rows for the same metricName.
@@ -1473,7 +1534,8 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			atomic.AddUint64(&s.tooBigTimestampRows, 1)
 			continue
 		}
-		r := &rows[rowsLen+j]
+		dstMrs[j] = mr
+		r := &rows[j]
 		j++
 		r.Timestamp = mr.Timestamp
 		r.Value = mr.Value
@@ -1485,6 +1547,11 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			continue
 		}
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
+			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip the row, since the limit on the number of unique series has been exceeded.
+				j--
+				continue
+			}
 			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
 			// contain MetricName->TSID entries for deleted time series.
@@ -1521,8 +1588,9 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		var slowInsertsCount uint64
 		for i := range pendingMetricRows {
 			pmr := &pendingMetricRows[i]
-			mr := &pmr.mr
-			r := &rows[rowsLen+j]
+			mr := pmr.mr
+			dstMrs[j] = mr
+			r := &rows[j]
 			j++
 			r.Timestamp = mr.Timestamp
 			r.Value = mr.Value
@@ -1544,6 +1612,11 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				j--
 				continue
 			}
+			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip the row, since the limit on the number of unique series has been exceeded.
+				j--
+				continue
+			}
 			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -1555,24 +1628,50 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	if firstWarn != nil {
 		logger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
-	rows = rows[:rowsLen+j]
+	dstMrs = dstMrs[:j]
+	rows = rows[:j]
 
 	var firstError error
 	if err := s.tb.AddRows(rows); err != nil {
 		firstError = fmt.Errorf("cannot add rows to table: %w", err)
 	}
-	if err := s.updatePerDateData(rows); err != nil && firstError == nil {
+	if err := s.updatePerDateData(rows, dstMrs); err != nil && firstError == nil {
 		firstError = fmt.Errorf("cannot update per-date data: %w", err)
 	}
 	if firstError != nil {
-		return rows, fmt.Errorf("error occurred during rows addition: %w", firstError)
+		return fmt.Errorf("error occurred during rows addition: %w", firstError)
 	}
-	return rows, nil
+	return nil
 }
 
+func (s *Storage) isSeriesCardinalityExceeded(metricID uint64, metricNameRaw []byte) bool {
+	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
+		atomic.AddUint64(&s.hourlySeriesLimitRowsDropped, 1)
+		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
+		return true
+	}
+	if sl := s.dailySeriesLimiter; sl != nil && !sl.Add(metricID) {
+		atomic.AddUint64(&s.dailySeriesLimitRowsDropped, 1)
+		logSkippedSeries(metricNameRaw, "-storage.maxDailySeries", sl.MaxItems())
+		return true
+	}
+	return false
+}
+
+func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
+	select {
+	case <-logSkippedSeriesTicker.C:
+		logger.Warnf("skip series %s because %s=%d reached", getUserReadableMetricName(metricNameRaw), flagName, flagValue)
+	default:
+	}
+}
+
+var logSkippedSeriesTicker = time.NewTicker(5 * time.Second)
+
 func getUserReadableMetricName(metricNameRaw []byte) string {
-	var mn MetricName
-	if err := mn.unmarshalRaw(metricNameRaw); err != nil {
+	mn := GetMetricName()
+	defer PutMetricName(mn)
+	if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
 		return fmt.Sprintf("cannot unmarshal metricNameRaw %q: %s", metricNameRaw, err)
 	}
 	return mn.String()
@@ -1580,7 +1679,7 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 
 type pendingMetricRow struct {
 	MetricName []byte
-	mr         MetricRow
+	mr         *MetricRow
 }
 
 type pendingMetricRows struct {
@@ -1595,7 +1694,7 @@ type pendingMetricRows struct {
 func (pmrs *pendingMetricRows) reset() {
 	for _, pmr := range pmrs.pmrs {
 		pmr.MetricName = nil
-		pmr.mr.MetricNameRaw = nil
+		pmr.mr = nil
 	}
 	pmrs.pmrs = pmrs.pmrs[:0]
 	pmrs.metricNamesBuf = pmrs.metricNamesBuf[:0]
@@ -1608,7 +1707,7 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 	// Do not spend CPU time on re-calculating canonical metricName during bulk import
 	// of many rows for the same metric.
 	if string(mr.MetricNameRaw) != string(pmrs.lastMetricNameRaw) {
-		if err := pmrs.mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
+		if err := pmrs.mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 		}
 		pmrs.mn.sortTags()
@@ -1619,7 +1718,7 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 	}
 	pmrs.pmrs = append(pmrs.pmrs, pendingMetricRow{
 		MetricName: pmrs.lastMetricName,
-		mr:         *mr,
+		mr:         mr,
 	})
 	return nil
 }
@@ -1639,7 +1738,7 @@ func putPendingMetricRows(pmrs *pendingMetricRows) {
 
 var pendingMetricRowsPool sync.Pool
 
-func (s *Storage) updatePerDateData(rows []rawRow) error {
+func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	var date uint64
 	var hour uint64
 	var prevTimestamp int64
@@ -1657,6 +1756,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	type pendingDateMetricID struct {
 		date     uint64
 		metricID uint64
+		mr       *MetricRow
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
@@ -1690,6 +1790,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 					pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
 						date:     date + 1,
 						metricID: metricID,
+						mr:       mrs[i],
 					})
 					pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 				}
@@ -1710,6 +1811,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
 			date:     date,
 			metricID: metricID,
+			mr:       mrs[i],
 		})
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
@@ -1744,6 +1846,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	defer idb.putIndexSearch(is)
 	var firstError error
 	dateMetricIDsForCache := make([]dateMetricID, 0, len(pendingDateMetricIDs))
+	mn := GetMetricName()
 	for _, dmid := range pendingDateMetricIDs {
 		date := dmid.date
 		metricID := dmid.metricID
@@ -1758,7 +1861,14 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			// The (date, metricID) entry is missing in the indexDB. Add it there.
 			// It is OK if the (date, metricID) entry is added multiple times to db
 			// by concurrent goroutines.
-			if err := is.storeDateMetricID(date, metricID); err != nil {
+			if err := mn.UnmarshalRaw(dmid.mr.MetricNameRaw); err != nil {
+				if firstError == nil {
+					firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", dmid.mr.MetricNameRaw, err)
+				}
+				continue
+			}
+			mn.sortTags()
+			if err := is.storeDateMetricID(date, metricID, mn); err != nil {
 				if firstError == nil {
 					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %w", date, metricID, err)
 				}
@@ -1770,6 +1880,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			metricID: metricID,
 		})
 	}
+	PutMetricName(mn)
 	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.
 	s.dateMetricIDCache.Store(dateMetricIDsForCache)
 	return firstError

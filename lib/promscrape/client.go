@@ -47,8 +47,8 @@ type client struct {
 	scrapeTimeoutSecondsStr string
 	host                    string
 	requestURI              string
-	authHeader              string
-	proxyAuthHeader         string
+	getAuthHeader           func() string
+	getProxyAuthHeader      func() string
 	denyRedirects           bool
 	disableCompression      bool
 	disableKeepAlive        bool
@@ -64,7 +64,7 @@ func newClient(sw *ScrapeWork) *client {
 	if isTLS {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
-	proxyAuthHeader := ""
+	getProxyAuthHeader := func() string { return "" }
 	proxyURL := sw.ProxyURL
 	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
@@ -77,7 +77,9 @@ func newClient(sw *ScrapeWork) *client {
 		if isTLS {
 			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
 		}
-		proxyAuthHeader = proxyURL.GetAuthHeader(sw.ProxyAuthConfig)
+		getProxyAuthHeader = func() string {
+			return proxyURL.GetAuthHeader(sw.ProxyAuthConfig)
+		}
 		proxyURL = proxy.URL{}
 	}
 	if !strings.Contains(host, ":") {
@@ -118,6 +120,7 @@ func newClient(sw *ScrapeWork) *client {
 				DisableCompression:  *disableCompression || sw.DisableCompression,
 				DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
 				DialContext:         statStdDial,
+				MaxIdleConnsPerHost: 100,
 
 				// Set timeout for receiving the first response byte,
 				// since the duration for reading the full response can be much bigger because of stream parsing.
@@ -143,8 +146,8 @@ func newClient(sw *ScrapeWork) *client {
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
 		host:                    host,
 		requestURI:              requestURI,
-		authHeader:              sw.AuthConfig.Authorization,
-		proxyAuthHeader:         proxyAuthHeader,
+		getAuthHeader:           sw.AuthConfig.GetAuthHeader,
+		getProxyAuthHeader:      getProxyAuthHeader,
 		denyRedirects:           sw.DenyRedirects,
 		disableCompression:      sw.DisableCompression,
 		disableKeepAlive:        sw.DisableKeepAlive,
@@ -168,11 +171,11 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	if c.authHeader != "" {
-		req.Header.Set("Authorization", c.authHeader)
+	if ah := c.getAuthHeader(); ah != "" {
+		req.Header.Set("Authorization", ah)
 	}
-	if c.proxyAuthHeader != "" {
-		req.Header.Set("Proxy-Authorization", c.proxyAuthHeader)
+	if ah := c.getProxyAuthHeader(); ah != "" {
+		req.Header.Set("Proxy-Authorization", ah)
 	}
 	resp, err := c.sc.Do(req)
 	if err != nil {
@@ -208,11 +211,11 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	if c.authHeader != "" {
-		req.Header.Set("Authorization", c.authHeader)
+	if ah := c.getAuthHeader(); ah != "" {
+		req.Header.Set("Authorization", ah)
 	}
-	if c.proxyAuthHeader != "" {
-		req.Header.Set("Proxy-Authorization", c.proxyAuthHeader)
+	if ah := c.getProxyAuthHeader(); ah != "" {
+		req.Header.Set("Proxy-Authorization", ah)
 	}
 	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -299,6 +302,7 @@ var (
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+	sleepTime := time.Second
 	for {
 		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
 		// across multiple retries.
@@ -310,9 +314,15 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 			return err
 		}
 		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
-		if time.Since(deadline) >= 0 {
+		maxSleepTime := time.Until(deadline)
+		if sleepTime > maxSleepTime {
 			return fmt.Errorf("the server closes all the connection attempts: %w", err)
 		}
+		sleepTime += sleepTime
+		if sleepTime > maxSleepTime {
+			sleepTime = maxSleepTime
+		}
+		time.Sleep(sleepTime)
 		scrapeRetries.Inc()
 	}
 }

@@ -8,9 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"path"
 	"runtime"
 	"strconv"
@@ -42,7 +44,7 @@ var (
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
-	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
+	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
 	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
 )
@@ -155,7 +157,10 @@ func Stop(addr string) error {
 	delete(servers, addr)
 	serversLock.Unlock()
 	if s == nil {
-		logger.Panicf("BUG: there is no http server at %q", addr)
+		err := fmt.Errorf("BUG: there is no http server at %q", addr)
+		logger.Panicf("%s", err)
+		// The return is needed for golangci-lint: SA5011(related information): this check suggests that the pointer can be nil
+		return err
 	}
 
 	deadline := time.Now().Add(*shutdownDelay).UnixNano()
@@ -193,7 +198,33 @@ func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
 var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
 
+var hostname = func() string {
+	h, err := os.Hostname()
+	if err != nil {
+		// Cannot use logger.Errorf, since it isn't initialized yet.
+		// So use log.Printf instead.
+		log.Printf("ERROR: cannot determine hostname: %s", err)
+		return "unknown"
+	}
+	return h
+}()
+
 func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
+	// All the VictoriaMetrics code assumes that panic stops the process.
+	// Unfortunately, the standard net/http.Server recovers from panics in request handlers,
+	// so VictoriaMetrics state can become inconsistent after the recovered panic.
+	// The following recover() code works around this by explicitly stopping the process after logging the panic.
+	// See https://github.com/golang/go/issues/16542#issuecomment-246549902 for details.
+	defer func() {
+		if err := recover(); err != nil {
+			buf := make([]byte, 1<<20)
+			n := runtime.Stack(buf, false)
+			fmt.Fprintf(os.Stderr, "panic: %v\n\n%s", err, buf[:n])
+			os.Exit(1)
+		}
+	}()
+
+	w.Header().Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
