@@ -11,7 +11,8 @@ import (
 )
 
 func mustRemoveAll(path string, done func()) {
-	if tryRemoveAll(path, done) {
+	if tryRemoveAll(path) {
+		done()
 		return
 	}
 	select {
@@ -27,7 +28,8 @@ func mustRemoveAll(path string, done func()) {
 		}()
 		for {
 			time.Sleep(time.Second)
-			if tryRemoveAll(path, done) {
+			if tryRemoveAll(path) {
+				done()
 				return
 			}
 		}
@@ -36,13 +38,12 @@ func mustRemoveAll(path string, done func()) {
 
 var dirRemoverWG syncwg.WaitGroup
 
-func tryRemoveAll(path string, done func()) bool {
+func tryRemoveAll(path string) bool {
 	err := os.RemoveAll(path)
 	if err == nil || isStaleNFSFileHandleError(err) {
 		// Make sure the parent directory doesn't contain references
 		// to the current directory.
 		mustSyncParentDirIfExists(path)
-		done()
 		return true
 	}
 	if !isTemporaryNFSError(err) {
