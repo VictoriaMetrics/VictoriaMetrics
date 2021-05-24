@@ -79,7 +79,7 @@ func TestLimiterConcurrent(t *testing.T) {
 				}
 			}
 			p := float64(falseAdditions) / float64(maxItems)
-			if p > 0.003 {
+			if p > 0.0035 {
 				panic(fmt.Errorf("too big false additions share=%.5f: %d out of %d", p, falseAdditions, maxItems))
 			}
 			doneCh <- struct{}{}
