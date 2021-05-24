@@ -484,7 +484,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 	if cap(rrs.rows) == 0 {
 		rrs.rows = getRawRowsMaxSize().rows
 	}
-	maxRowsCount := getMaxRawRowsPerPartition()
+	maxRowsCount := cap(rrs.rows)
 	for {
 		capacity := maxRowsCount - len(rrs.rows)
 		if capacity >= len(rows) {
