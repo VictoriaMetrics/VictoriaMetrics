@@ -89,6 +89,12 @@ name: <string>
 # By default "prometheus" rule type is used.
 [ type: <string> ]
 
+# Optional list of label filters applied to every rule's
+# request withing a group. Is compatible only with VM datasource.
+# See more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+extra_filter_labels:
+  [ <labelname>: <labelvalue> ... ]
+
 rules:
   [ - <rule> ... ]
 ```
