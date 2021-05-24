@@ -1113,7 +1113,8 @@ A rough estimation of the required resources for ingestion path:
 
 * Storage space: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
   of 100K data points per second.
-  The actual storage size heavily depends on data randomness (entropy). Higher randomness means higher storage size requirements.
+  The actual storage size heavily depends on data randomness (entropy) and the average number of samples per time series.
+  Higher randomness means higher storage size requirements. Lower average number of samples per time series means higher storage requirement.
   Read [this article](https://medium.com/faun/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
 
