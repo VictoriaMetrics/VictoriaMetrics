@@ -265,7 +265,7 @@ again:
 		if retryDuration > time.Minute {
 			retryDuration = time.Minute
 		}
-		logger.Errorf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
+		logger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
 		t := timerpool.Get(retryDuration)
 		select {
