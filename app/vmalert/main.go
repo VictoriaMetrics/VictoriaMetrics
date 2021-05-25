@@ -34,6 +34,9 @@ Examples:
 absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
+	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+
 	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
@@ -78,34 +81,17 @@ func main() {
 		logger.Fatalf("failed to init: %s", err)
 	}
 
-	// Register SIGHUP handler for config re-read just before manager.start call.
-	// This guarantees that the config will be re-read if the signal arrives during manager.start call.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
-	sighupCh := procutil.NewSighupChan()
+	logger.Infof("reading rules configuration file from %q", strings.Join(*rulePath, ";"))
+	groupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
+	if err != nil {
+		logger.Fatalf("cannot parse configuration file: %s", err)
+	}
 
-	if err := manager.start(ctx, *rulePath, *validateTemplates, *validateExpressions); err != nil {
+	if err := manager.start(ctx, groupsCfg); err != nil {
 		logger.Fatalf("failed to start: %s", err)
 	}
 
-	go func() {
-		// init reload metrics with positive values to improve alerting conditions
-		configSuccess.Set(1)
-		configTimestamp.Set(fasttime.UnixTimestamp())
-		for {
-			<-sighupCh
-			configReloads.Inc()
-			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
-			if err := manager.update(ctx, *rulePath, *validateTemplates, *validateExpressions, false); err != nil {
-				configReloadErrors.Inc()
-				configSuccess.Set(0)
-				logger.Errorf("error while reloading rules: %s", err)
-				continue
-			}
-			configSuccess.Set(1)
-			configTimestamp.Set(fasttime.UnixTimestamp())
-			logger.Infof("Rules reloaded successfully from %q", *rulePath)
-		}
-	}()
+	go configReload(ctx, manager, groupsCfg)
 
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(*httpListenAddr, rh.handler)
@@ -227,4 +213,63 @@ vmalert processes alerts and recording rules.
 See the docs at https://docs.victoriametrics.com/vmalert.html .
 `
 	flagutil.Usage(s)
+}
+
+func configReload(ctx context.Context, m *manager, groupsCfg []config.Group) {
+	// Register SIGHUP handler for config re-read just before manager.start call.
+	// This guarantees that the config will be re-read if the signal arrives during manager.start call.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
+	var configCheckCh <-chan time.Time
+	if *rulesCheckInterval > 0 {
+		ticker := time.NewTicker(*rulesCheckInterval)
+		configCheckCh = ticker.C
+		defer ticker.Stop()
+	}
+
+	// init reload metrics with positive values to improve alerting conditions
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-sighupCh:
+			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
+			configReloads.Inc()
+		case <-configCheckCh:
+		}
+		newGroupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
+		if err != nil {
+			logger.Errorf("cannot parse configuration file: %s", err)
+			continue
+		}
+		if configsEqual(newGroupsCfg, groupsCfg) {
+			// config didn't change - skip it
+			continue
+		}
+		groupsCfg = newGroupsCfg
+		if err := m.update(ctx, groupsCfg, false); err != nil {
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
+			logger.Errorf("error while reloading rules: %s", err)
+			continue
+		}
+		configSuccess.Set(1)
+		configTimestamp.Set(fasttime.UnixTimestamp())
+		logger.Infof("Rules reloaded successfully from %q", *rulePath)
+	}
+}
+
+func configsEqual(a, b []config.Group) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Checksum != b[i].Checksum {
+			return false
+		}
+	}
+	return true
 }

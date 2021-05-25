@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -50,8 +49,8 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	return nil, fmt.Errorf("can't find alert with id %q in group %q", aID, g.Name)
 }
 
-func (m *manager) start(ctx context.Context, path []string, validateTpl, validateExpr bool) error {
-	return m.update(ctx, path, validateTpl, validateExpr, true)
+func (m *manager) start(ctx context.Context, groupsCfg []config.Group) error {
+	return m.update(ctx, groupsCfg, true)
 }
 
 func (m *manager) close() {
@@ -85,13 +84,7 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) er
 	return nil
 }
 
-func (m *manager) update(ctx context.Context, path []string, validateTpl, validateExpr, restore bool) error {
-	logger.Infof("reading rules configuration file from %q", strings.Join(path, ";"))
-	groupsCfg, err := config.Parse(path, validateTpl, validateExpr)
-	if err != nil {
-		return fmt.Errorf("cannot parse configuration file: %w", err)
-	}
-
+func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
 	groupsRegistry := make(map[uint64]*Group)
 	for _, cfg := range groupsCfg {
 		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
