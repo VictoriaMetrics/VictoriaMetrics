@@ -66,7 +66,8 @@ run-vmalert: vmalert
 		-remoteRead.url=http://localhost:8428 \
 		-external.label=cluster=east-1 \
 		-external.label=replica=a \
-		-evaluationInterval=3s
+		-evaluationInterval=3s \
+		-rule.configCheckInterval=10s
 
 vmalert-amd64:
 	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmalert-local-with-goarch
