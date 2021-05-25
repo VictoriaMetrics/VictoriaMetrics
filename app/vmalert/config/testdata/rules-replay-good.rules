@@ -1,0 +1,39 @@
+groups:
+  - name: ReplayGroup
+    interval: 1m
+    concurrency: 1
+    rules:
+      - record: type:vm_cache_entries:rate5m
+        expr: sum(rate(vm_cache_entries[5m])) by (type)
+        labels:
+          recording: true
+      - record: go_cgo_calls_count:rate5m
+        expr: rate(go_cgo_calls_count{job="vmdb"}[5m])
+        labels:
+          recording: true
+
+  - name: vmsingleReplay
+    interval: 30s
+    concurrency: 2
+    rules:
+      - alert: RequestErrorsToAPI
+        expr: increase(vm_http_request_errors_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
+          summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
+          description: "Requests to path {{ $labels.path }} are receiving errors.
+            Please verify if clients are sending correct requests."
+
+      - alert: TooManyLogs
+        expr: sum(increase(vm_log_messages_total{level!="info"}[5m])) by (job, instance) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=67&var-instance={{ $labels.instance }}"
+          summary: "Too many logs printed for job \"{{ $labels.job }}\" ({{ $labels.instance }})"
+          description: "Logging rate for job \"{{ $labels.job }}\" ({{ $labels.instance }}) is {{ $value }} for last 15m.\n
+           Worth to check logs for specific error messages."

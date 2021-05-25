@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -42,6 +43,10 @@ func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Qu
 	return fq
 }
 
+func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
+	return fq.Query(ctx, q)
+}
+
 func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
 	fq.Lock()
 	defer fq.Unlock()
@@ -72,9 +77,16 @@ func (fn *fakeNotifier) getAlerts() []notifier.Alert {
 }
 
 func metricWithValueAndLabels(t *testing.T, value float64, labels ...string) datasource.Metric {
+	return metricWithValuesAndLabels(t, []float64{value}, labels...)
+}
+
+func metricWithValuesAndLabels(t *testing.T, values []float64, labels ...string) datasource.Metric {
 	t.Helper()
 	m := metricWithLabels(t, labels...)
-	m.Value = value
+	m.Values = values
+	for i := range values {
+		m.Timestamps = append(m.Timestamps, int64(i))
+	}
 	return m
 }
 
@@ -83,7 +95,7 @@ func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
 	if len(labels) == 0 || len(labels)%2 != 0 {
 		t.Fatalf("expected to get even number of labels")
 	}
-	m := datasource.Metric{}
+	m := datasource.Metric{Values: []float64{1}, Timestamps: []int64{1}}
 	for i := 0; i < len(labels); i += 2 {
 		m.Labels = append(m.Labels, datasource.Label{
 			Name:  labels[i],

@@ -49,6 +49,8 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 		"config/testdata/rules1-good.rules",
 		"config/testdata/rules2-good.rules",
 	}
+	evalInterval := *evaluationInterval
+	defer func() { *evaluationInterval = evalInterval }()
 	*evaluationInterval = time.Millisecond
 	cfg := loadCfg(t, []string{paths[0]}, true, true)
 	if err := m.start(context.Background(), cfg); err != nil {
