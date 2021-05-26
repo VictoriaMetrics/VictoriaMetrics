@@ -305,6 +305,8 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		wc.resetNoRows()
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
+		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
+			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 	}
 	sw.updateSeriesAdded(wc)
 	seriesAdded := sw.finalizeSeriesAdded(samplesPostRelabeling)
@@ -348,6 +350,12 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 			// after returning from the callback - this will result in data race.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 			samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+			if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
+				wc.resetNoRows()
+				scrapesSkippedBySampleLimit.Inc()
+				return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
+					"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
+			}
 			sw.updateSeriesAdded(wc)
 			startTime := time.Now()
 			sw.PushData(&wc.writeRequest)
