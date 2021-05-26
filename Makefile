@@ -170,12 +170,12 @@ copy-docs:
 # Cluster docs are supposed to be ordered as 9th.
 # For The rest of docs is ordered manually.t
 docs-sync:
-	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=2 $(MAKE) copy-docs
-	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=3 $(MAKE) copy-docs
-	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=4 $(MAKE) copy-docs
-	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=5 $(MAKE) copy-docs
-	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=6 $(MAKE) copy-docs
-	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=7 $(MAKE) copy-docs
-	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=8 $(MAKE) copy-docs
-	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=9 $(MAKE) copy-docs
-	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md ORDER=10 $(MAKE) copy-docs
+	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md ORDER=2 $(MAKE) copy-docs
+	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=3 $(MAKE) copy-docs
+	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=4 $(MAKE) copy-docs
+	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=5 $(MAKE) copy-docs
+	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=6 $(MAKE) copy-docs
+	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=7 $(MAKE) copy-docs
+	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
+	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
