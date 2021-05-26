@@ -1,5 +1,5 @@
 ---
-sort: 10
+sort: 2
 ---
 
 # Cluster version
