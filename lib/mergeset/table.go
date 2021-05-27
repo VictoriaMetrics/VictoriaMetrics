@@ -182,16 +182,15 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
 	ris.mu.Lock()
 	ibs := ris.ibs
 	if len(ibs) == 0 {
-		ib := getInmemoryBlock()
+		ib := newInmemoryBlock()
 		ibs = append(ibs, ib)
 		ris.ibs = ibs
 	}
 	ib := ibs[len(ibs)-1]
 	for _, item := range items {
 		if !ib.Add(item) {
-			ib = getInmemoryBlock()
+			ib = newInmemoryBlock()
 			if !ib.Add(item) {
-				putInmemoryBlock(ib)
 				err = fmt.Errorf("cannot insert an item %q into an empty inmemoryBlock; it looks like the item is too large? len(item)=%d", item, len(item))
 				break
 			}
@@ -675,13 +674,13 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrapper {
 	// Convert blocksToMerge into inmemoryPart's
 	mps := make([]*inmemoryPart, 0, len(blocksToMerge))
-	for _, ib := range blocksToMerge {
+	for i, ib := range blocksToMerge {
 		if len(ib.items) == 0 {
 			continue
 		}
 		mp := getInmemoryPart()
 		mp.Init(ib)
-		putInmemoryBlock(ib)
+		blocksToMerge[i] = nil
 		mps = append(mps, mp)
 	}
 	if len(mps) == 0 {
