@@ -115,7 +115,9 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 
 		timestamp := int64(123000)
 		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			if !strings.Contains(err.Error(), "sample_limit") {
+				t.Fatalf("unexpected error: %s", err)
+			}
 		}
 		if pushDataErr != nil {
 			t.Fatalf("unexpected error: %s", pushDataErr)
