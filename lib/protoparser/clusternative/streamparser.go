@@ -50,7 +50,7 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 				putUnmarshalWork(uw)
 				return nil
 			}
-			return fmt.Errorf("cannot read packet size: %w", err)
+			return err
 		}
 		blocksRead.Inc()
 		wg.Add(1)
