@@ -761,7 +761,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		mLen := encoding.UnmarshalUint64(src)
 		src = src[8:]
 		if uint64(len(src)) < 8*mLen {
-			logger.Errorf("discarding %s, since it has borken accountID:projectID entry; got %d bytes; want %d bytes", path, len(src), 8*mLen)
+			logger.Errorf("discarding %s, since it has broken accountID:projectID entry; got %d bytes; want %d bytes", path, len(src), 8*mLen)
 			return hm
 		}
 		m := &uint64set.Set{}
