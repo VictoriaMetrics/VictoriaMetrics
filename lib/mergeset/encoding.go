@@ -540,17 +540,6 @@ func putLensBuffer(lb *lensBuffer) {
 	lensBufferPool.Put(lb)
 }
 
-func getInmemoryBlock() *inmemoryBlock {
-	v := ibPool.Get()
-	if v == nil {
-		return &inmemoryBlock{}
-	}
-	return v.(*inmemoryBlock)
+func newInmemoryBlock() *inmemoryBlock {
+	return &inmemoryBlock{}
 }
-
-func putInmemoryBlock(ib *inmemoryBlock) {
-	ib.Reset()
-	ibPool.Put(ib)
-}
-
-var ibPool sync.Pool
