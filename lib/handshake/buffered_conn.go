@@ -47,7 +47,7 @@ func newBufferedConn(c net.Conn, compressionLevel int, isReadCompressed bool) *B
 func (bc *BufferedConn) Read(p []byte) (int, error) {
 	startTime := time.Now()
 	n, err := bc.br.Read(p)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		err = fmt.Errorf("cannot read data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
 	}
 	return n, err
