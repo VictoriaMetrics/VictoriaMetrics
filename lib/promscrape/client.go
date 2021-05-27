@@ -340,8 +340,8 @@ type streamReader struct {
 func (sr *streamReader) Read(p []byte) (int, error) {
 	n, err := sr.r.Read(p)
 	sr.bytesRead += int64(n)
-	if sr.bytesRead > sr.maxBodySize {
-		return 0, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
+	if err == nil && sr.bytesRead > sr.maxBodySize {
+		err = fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
 			"either reduce the response size for the target or increase -promscrape.maxScrapeSize", sr.scrapeURL, sr.maxBodySize)
 	}
 	return n, err
