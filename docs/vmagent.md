@@ -256,7 +256,7 @@ By default `vmagent` reads the full response from scrape target into memory, the
       'match[]': ['{__name__!=""}']
   ```
 
-Note that `sample_limit` option doesn't work if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed. Therefore the `sample_limit` option doesn't make sense during stream parsing.
+Note that `sample_limit` option doesn't prevent from data push to remote storage if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed.
 
 
 ## Scraping big number of targets
