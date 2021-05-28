@@ -11,6 +11,7 @@ sort: 16
 * [Observations on Better Resource Usage with Percona Monitoring and Management v2.12.0](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/)
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
 * [Percona monitoring and management migration from Prometheus to VictoriaMetrics FAQ](https://www.percona.com/blog/2020/12/16/percona-monitoring-and-management-migration-from-prometheus-to-victoriametrics-faq/)
+* [Compiling a Percona Monitoring and Management v2 Client in ARM: Raspberry Pi 3 Reprise](https://www.percona.com/blog/2021/05/26/compiling-a-percona-monitoring-and-management-v2-client-in-arm-raspberry-pi-3/)
 * [Making peace with Prometheus rate()](https://blog.doit-intl.com/making-peace-with-prometheus-rate-43a3ea75c4cf)
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/@IG1.com/sismology-iguana-solutions-monitoring-system-f46e4170447f)
