@@ -4,9 +4,9 @@ sort: 5
 
 # vmauth
 
-`vmauth` is a simple auth proxy and router for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
-It reads username and password from [Basic Auth headers](https://en.wikipedia.org/wiki/Basic_access_authentication),
-matches them against configs pointed by `-auth.config` command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
+`vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
+It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) and `Bearer token` is supported),
+matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 
 
 ## Quick start
@@ -31,9 +31,14 @@ Feel free [contacting us](mailto:info@victoriametrics.com) if you need customize
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
 
+## Load balancing
+
+Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls. In the latter case `vmauth` balances load among the configured urls in a round-robin manner. This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+
 ## Auth config
 
-Auth config is represented in the following simple `yml` format:
+`-auth.config` is represented in the following simple `yml` format:
 
 ```yml
 
@@ -65,31 +70,44 @@ users:
   # The user for querying account 123 in VictoriaMetrics cluster
   # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be proxied to http://vmselect:8481/select/123/prometheus .
-  # For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect:8481/select/123/prometheus/api/v1/select
+  # will be load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
+  # For example, http://vmauth:8427/api/v1/query is proxied to the following urls in a round-robin manner:
+  #   - http://vmselect1:8481/select/123/prometheus/api/v1/select
+  #   - http://vmselect2:8481/select/123/prometheus/api/v1/select
 - username: "cluster-select-account-123"
   password: "***"
-  url_prefix: "http://vmselect:8481/select/123/prometheus"
+  url_prefix:
+  - "http://vmselect1:8481/select/123/prometheus"
+  - "http://vmselect2:8481/select/123/prometheus"
 
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
   # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be proxied to http://vminsert:8480/insert/42/prometheus .
-  # For example, http://vmauth:8427/api/v1/write is proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
+  # will be load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
+  # For example, http://vmauth:8427/api/v1/write is proxied to the following urls in a round-robin manner:
+  #   - http://vminsert1:8480/insert/42/prometheus/api/v1/write
+  #   - http://vminsert2:8480/insert/42/prometheus/api/v1/write
 - username: "cluster-insert-account-42"
   password: "***"
-  url_prefix: "http://vminsert:8480/insert/42/prometheus"
+  url_prefix:
+  - "http://vminsert1:8480/insert/42/prometheus"
+  - "http://vminsert2:8480/insert/42/prometheus"
 
 
   # A single user for querying and inserting data:
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
-  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to http://vmselect:8481/select/42/prometheus.
-  #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect:8480/select/42/prometheus/api/v1/query
+  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
+  #     - http://vmselect1:8481/select/42/prometheus
+  #     - http://vmselect2:8481/select/42/prometheus
+  #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
+  #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "foobar"
   url_map:
   - src_paths: ["/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^/]+/values"]
-    url_prefix: "http://vmselect:8481/select/42/prometheus"
+    url_prefix:
+    - "http://vmselect1:8481/select/42/prometheus"
+    - "http://vmselect2:8481/select/42/prometheus"
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
 ```
