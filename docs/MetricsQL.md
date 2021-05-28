@@ -13,6 +13,7 @@ If you are unfamiliar with PromQL, then it is suggested reading [this tutorial f
 The following functionality is implemented differently in MetricsQL comparing to PromQL in order to improve user experience:
 * MetricsQL takes into account the previous point before the window in square brackets for range functions such as `rate` and `increase`.
   It also doesn't extrapolate range function results. This addresses [this issue from Prometheus](https://github.com/prometheus/prometheus/issues/3746).
+  See technical details about VictoriaMetrics and Prometheus calculations for `rate()` and `increase()` [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1215#issuecomment-850305711).
 * MetricsQL returns the expected non-empty responses for requests with `step` values smaller than scrape interval. This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451).
 * MetricsQL treats `scalar` type the same as `instant vector` without labels, since subtle difference between these types usually confuses users.
   See [the corresponding Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) for details.
