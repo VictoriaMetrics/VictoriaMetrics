@@ -138,7 +138,7 @@ A minimal cluster must contain the following nodes:
 It is recommended to run at least two nodes for each service
 for high availability purposes.
 
-An http load balancer such as `nginx` must be put in front of `vminsert` and `vmselect` nodes:
+An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes:
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
 - requests starting with `/select` must be routed to port `8481` on `vmselect` nodes.
 
