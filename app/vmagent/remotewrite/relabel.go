@@ -18,6 +18,7 @@ var (
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. These entries are applied to all the metrics "+
 		"before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details")
 	relabelConfigPaths = flagutil.NewArray("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url")
+	relabelDebug =  flag.Bool("remoteWrite.relabelDebug", false, "Show relabel results of via -remoteWrite.relabelConfig specified rules and skip its submission.")
 )
 
 var labelsGlobal []prompbmarshal.Label
@@ -32,6 +33,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 	var rcs relabelConfigs
 	if *relabelConfigPathGlobal != "" {
 		global, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
+		global.RelabelDebug = *relabelDebug
 		if err != nil {
 			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %w", *relabelConfigPathGlobal, err)
 		}
@@ -51,6 +53,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %w", path, err)
 		}
+		prc.RelabelDebug = *relabelDebug
 		rcs.perURL[i] = prc
 	}
 	return &rcs, nil
@@ -100,7 +103,11 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 				labels = append(labels, *extraLabel)
 			}
 		}
-		labels = pcs.Apply(labels, labelsLen, true)
+		labels = pcs.Apply(labels, labelsLen, true, pcs.RelabelDebug)
+		if (pcs.RelabelDebug) {
+			// simulate "all labels dropped" to avoid submission
+			labels = labels[:labelsLen]
+		}
 		if len(labels) == labelsLen {
 			// Drop the current time series, since relabeling removed all the labels.
 			continue
