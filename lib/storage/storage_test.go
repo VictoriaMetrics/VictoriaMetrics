@@ -89,7 +89,9 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 			return fmt.Errorf("c.Has(%d, %d) must return true, but returned false", date, metricID)
 		}
 		if i%11234 == 0 {
-			c.sync()
+			c.mu.Lock()
+			c.syncLocked()
+			c.mu.Unlock()
 		}
 		if i%34323 == 0 {
 			c.Reset()
@@ -103,7 +105,9 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 		metricID := uint64(i) % 123
 		c.Set(date, metricID)
 	}
-	c.sync()
+	c.mu.Lock()
+	c.syncLocked()
+	c.mu.Unlock()
 	for i := 0; i < 1e5; i++ {
 		date := uint64(i) % 3
 		metricID := uint64(i) % 123
