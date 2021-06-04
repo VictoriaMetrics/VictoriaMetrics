@@ -512,10 +512,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	labelsLen := len(wc.labels)
 	wc.labels = appendLabels(wc.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
 	if needRelabel {
-		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, true, sw.Config.MetricRelabelConfigs.RelabelDebug)
-		if sw.Config.MetricRelabelConfigs.RelabelDebug {
-			return	// avoid submission
-		}
+		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, true)
 	} else {
 		wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
 		promrelabel.SortLabels(wc.labels[labelsLen:])
