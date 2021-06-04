@@ -17,7 +17,7 @@ const appsAPIPath = "/apps"
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka
 type SDConfig struct {
 	Server            string                     `yaml:"server,omitempty"`
-	HTTPClientConfig  promauth.HTTPClientConfig  `ymal:",inline"`
+	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
