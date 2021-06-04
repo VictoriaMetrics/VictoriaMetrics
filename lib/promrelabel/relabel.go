@@ -35,23 +35,65 @@ func (prc *parsedRelabelConfig) String() string {
 		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex.String(), prc.Modulus, prc.Replacement, prc.Action)
 }
 
+func labelsToString(labels []prompbmarshal.Label) string {
+	var b []byte
+	b = append(b, '{')
+	mname := ""
+	for _, label := range labels {
+		if (label.Name == "__name__") {
+			mname = label.Value
+			continue
+		}
+		b = append(b, label.Name...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		b = append(b, ',')
+	}
+	if b[len(b)-1] == ',' {
+		b[len(b)-1] = '}'
+		return mname + string(b)
+	}
+	return mname
+}
+
 // Apply applies pcs to labels starting from the labelsOffset.
 //
 // If isFinalize is set, then FinalizeLabels is called on the labels[labelsOffset:].
 //
 // The returned labels at labels[labelsOffset:] are sorted.
-func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, isFinalize bool) []prompbmarshal.Label {
+func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, isFinalize bool, relabelDebug bool) []prompbmarshal.Label {
+	var inStr, outStr string
 	if pcs != nil {
+		if relabelDebug {
+			inStr = labelsToString(labels[labelsOffset:])
+		}
 		for _, prc := range pcs.prcs {
 			tmp := prc.apply(labels, labelsOffset)
 			if len(tmp) == labelsOffset {
 				// All the labels have been removed.
+				if relabelDebug {
+					logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed.", inStr)
+				}
 				return tmp
 			}
 			labels = tmp
 		}
 	}
 	labels = removeEmptyLabels(labels, labelsOffset)
+	if relabelDebug {
+		outStr = labelsToString(labels[labelsOffset:])
+		if inStr == outStr {
+			logger.Infof("\nRelabel  In: %s\nRelabel Out: KEPT AS IS - no change.", inStr)
+		} else {
+			logger.Infof("\nRelabel  In: %s\nRelabel Out: %s", inStr, outStr)
+		}
+		// lib/promscrape/config.go::getScrapeWork() would drop the entire
+		// target, if this func does not return a single label. So we can't do
+		// a simple 'labels = labels[:labelsOffset]' here.
+		// BTW: Other callees would just drop the related ts, yes, e.g.
+		// app/vmagent/remotewrite/relabel.go::applyRelabeling() and
+		// lib/promscrape/scrapework.go::addRowToTimeseries()
+	}
 	if isFinalize {
 		labels = FinalizeLabels(labels[:labelsOffset], labels[labelsOffset:])
 	}
