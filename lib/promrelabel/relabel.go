@@ -446,7 +446,7 @@ func labelsToString(labels []prompbmarshal.Label) string {
 			break
 		}
 	}
-	if len(labelsCopy) <= 1 {
+	if mname != "" && len(labelsCopy) <= 1 {
 		return mname
 	}
 	b := []byte(mname)
