@@ -101,7 +101,7 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	}
 
 	// Apply relabeling
-	tmpLabels = pcs.Apply(tmpLabels, 0, true)
+	tmpLabels = pcs.Apply(tmpLabels, 0, true, pcs.RelabelDebug)
 	ctx.tmpLabels = tmpLabels
 	if len(tmpLabels) == 0 {
 		metricsDropped.Inc()

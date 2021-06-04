@@ -225,6 +225,7 @@ The relabeling can be defined in the following places:
 
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to target labels.
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to all the scraped metrics in the given `scrape_config`.
+* By setting the `relabel_debug` property of a `scrape_configs` target section in the `-promscrape.config` file to `true`, one is able to instruct the vmagent to just log the metric before and after relabeling and skip its submission to servers. This way it is much easier to understand and check scraped relabeled metrics before poisoning servers with it.
 * At the `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to remote storage.
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`.
 

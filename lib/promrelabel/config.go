@@ -26,6 +26,7 @@ type RelabelConfig struct {
 // ParsedConfigs represents parsed relabel configs.
 type ParsedConfigs struct {
 	prcs []*parsedRelabelConfig
+	RelabelDebug bool
 }
 
 // Len returns the number of relabel configs in pcs.
