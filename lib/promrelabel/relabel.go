@@ -35,35 +35,16 @@ func (prc *parsedRelabelConfig) String() string {
 		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex.String(), prc.Modulus, prc.Replacement, prc.Action)
 }
 
-func labelsToString(labels []prompbmarshal.Label) string {
-	var b []byte
-	b = append(b, '{')
-	mname := ""
-	for _, label := range labels {
-		if (label.Name == "__name__") {
-			mname = label.Value
-			continue
-		}
-		b = append(b, label.Name...)
-		b = append(b, '=')
-		b = strconv.AppendQuote(b, label.Value)
-		b = append(b, ',')
-	}
-	if b[len(b)-1] == ',' {
-		b[len(b)-1] = '}'
-		return mname + string(b)
-	}
-	return mname
-}
-
 // Apply applies pcs to labels starting from the labelsOffset.
 //
 // If isFinalize is set, then FinalizeLabels is called on the labels[labelsOffset:].
 //
 // The returned labels at labels[labelsOffset:] are sorted.
-func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, isFinalize bool, relabelDebug bool) []prompbmarshal.Label {
-	var inStr, outStr string
+func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, isFinalize bool) []prompbmarshal.Label {
+	var inStr string
+	relabelDebug := false
 	if pcs != nil {
+		relabelDebug = pcs.relabelDebug
 		if relabelDebug {
 			inStr = labelsToString(labels[labelsOffset:])
 		}
@@ -71,8 +52,8 @@ func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, 
 			tmp := prc.apply(labels, labelsOffset)
 			if len(tmp) == labelsOffset {
 				// All the labels have been removed.
-				if relabelDebug {
-					logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed.", inStr)
+				if pcs.relabelDebug {
+					logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed", inStr)
 				}
 				return tmp
 			}
@@ -80,24 +61,24 @@ func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, 
 		}
 	}
 	labels = removeEmptyLabels(labels, labelsOffset)
-	if relabelDebug {
-		outStr = labelsToString(labels[labelsOffset:])
-		if inStr == outStr {
-			logger.Infof("\nRelabel  In: %s\nRelabel Out: KEPT AS IS - no change.", inStr)
-		} else {
-			logger.Infof("\nRelabel  In: %s\nRelabel Out: %s", inStr, outStr)
-		}
-		// lib/promscrape/config.go::getScrapeWork() would drop the entire
-		// target, if this func does not return a single label. So we can't do
-		// a simple 'labels = labels[:labelsOffset]' here.
-		// BTW: Other callees would just drop the related ts, yes, e.g.
-		// app/vmagent/remotewrite/relabel.go::applyRelabeling() and
-		// lib/promscrape/scrapework.go::addRowToTimeseries()
-	}
 	if isFinalize {
 		labels = FinalizeLabels(labels[:labelsOffset], labels[labelsOffset:])
 	}
 	SortLabels(labels[labelsOffset:])
+	if relabelDebug {
+		if len(labels) == labelsOffset {
+			logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed", inStr)
+			return labels
+		}
+		outStr := labelsToString(labels[labelsOffset:])
+		if inStr == outStr {
+			logger.Infof("\nRelabel  In: %s\nRelabel Out: KEPT AS IS - no change", inStr)
+		} else {
+			logger.Infof("\nRelabel  In: %s\nRelabel Out: %s", inStr, outStr)
+		}
+		// Drop labels
+		labels = labels[:labelsOffset]
+	}
 	return labels
 }
 
@@ -453,4 +434,34 @@ func CleanLabels(labels []prompbmarshal.Label) {
 		label.Name = ""
 		label.Value = ""
 	}
+}
+
+func labelsToString(labels []prompbmarshal.Label) string {
+	labelsCopy := append([]prompbmarshal.Label{}, labels...)
+	SortLabels(labelsCopy)
+	mname := ""
+	for _, label := range labelsCopy {
+		if label.Name == "__name__" {
+			mname = label.Value
+			break
+		}
+	}
+	if len(labelsCopy) <= 1 {
+		return mname
+	}
+	b := []byte(mname)
+	b = append(b, '{')
+	for i, label := range labelsCopy {
+		if label.Name == "__name__" {
+			continue
+		}
+		b = append(b, label.Name...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		if i+1 < len(labelsCopy) {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
 }

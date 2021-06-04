@@ -10,7 +10,7 @@ import (
 func TestApplyRelabelConfigs(t *testing.T) {
 	f := func(config string, labels []prompbmarshal.Label, isFinalize bool, resultExpected []prompbmarshal.Label) {
 		t.Helper()
-		pcs, err := ParseRelabelConfigsData([]byte(config))
+		pcs, err := ParseRelabelConfigsData([]byte(config), false)
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", config, err)
 		}

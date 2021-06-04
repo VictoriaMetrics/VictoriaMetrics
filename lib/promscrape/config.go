@@ -104,7 +104,6 @@ type ScrapeConfig struct {
 	ProxyURL             proxy.URL                   `yaml:"proxy_url,omitempty"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
-	RelabelDebug         bool                        `yaml:"relabel_debug,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	StaticConfigs        []StaticConfig         `yaml:"static_configs,omitempty"`
@@ -119,6 +118,8 @@ type ScrapeConfig struct {
 	GCESDConfigs         []gce.SDConfig         `yaml:"gce_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
+	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`
+	MetricRelabelDebug  bool                       `yaml:"metric_relabel_debug,omitempty"`
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
@@ -574,15 +575,14 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs, sc.RelabelDebug)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs, sc.MetricRelabelDebug)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs.RelabelDebug = sc.RelabelDebug
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeTimeout:        scrapeTimeout,
@@ -822,7 +822,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		// Reduce memory usage by interning all the strings in originalLabels.
 		internLabelStrings(originalLabels)
 	}
-	labels = swc.relabelConfigs.Apply(labels, 0, false, swc.metricRelabelConfigs.RelabelDebug)
+	labels = swc.relabelConfigs.Apply(labels, 0, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
