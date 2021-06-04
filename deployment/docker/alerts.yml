@@ -89,8 +89,6 @@ groups:
            sum(increase(vm_rpc_dial_errors_total[5m])) by(job, instance)
            +
            sum(increase(vm_rpc_handshake_errors_total[5m])) by(job, instance)
-           +
-           sum(increase(vm_rpc_reroute_errors_total[5m])) by(job, instance)
           ) > 0
         for: 15m
         labels:
@@ -207,17 +205,6 @@ groups:
           description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
            This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
            correctly or that clients which send these metrics aren't misbehaving."
-
-      - alert: VminsertIsDroppingRows
-        expr: sum(rate(vm_rpc_rows_lost_total[5m])) by(instance) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=84&var-instance={{ $labels.instance }}"
-          summary: "VMinsert \"{{ $labels.job }}\" on instance {{ $labels.instance }} drops rows due to RPC errors."
-          description: "VMinsert starts to drop rows if there are no healthy VMstorage nodes where it can route
-           insert requests to. Check the health state of VMstorage nodes and RPC metrics."
 
 
   # Alerts group for vmagent assumes that Grafana dashboard
