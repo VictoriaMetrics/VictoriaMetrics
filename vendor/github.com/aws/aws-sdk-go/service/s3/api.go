@@ -8815,11 +8815,12 @@ func (c *S3) PutBucketTaggingRequest(input *PutBucketTaggingInput) (req *request
 // according to resources with the same tag key values. For example, you can
 // tag several resources with a specific application name, and then organize
 // your billing information to see the total cost of that application across
-// several services. For more information, see Cost Allocation and Tagging (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html).
+// several services. For more information, see Cost Allocation and Tagging (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)
+// and Using Cost Allocation in Amazon S3 Bucket Tags (https://docs.aws.amazon.com/AmazonS3/latest/dev/CostAllocTagging.html).
 //
-// Within a bucket, if you add a tag that has the same key as an existing tag,
-// the new value overwrites the old value. For more information, see Using Cost
-// Allocation in Amazon S3 Bucket Tags (https://docs.aws.amazon.com/AmazonS3/latest/dev/CostAllocTagging.html).
+// When this operation sets the tags for a bucket, it will overwrite any current
+// tags the bucket already has. You cannot use this operation to add tags to
+// an existing list of tags.
 //
 // To use this operation, you must have permissions to perform the s3:PutBucketTagging
 // action. The bucket owner has this permission by default and can grant this
@@ -30056,7 +30057,8 @@ type PutObjectInput struct {
 	// The Object Lock mode that you want to apply to this object.
 	ObjectLockMode *string `location:"header" locationName:"x-amz-object-lock-mode" type:"string" enum:"ObjectLockMode"`
 
-	// The date and time when you want this object's Object Lock to expire.
+	// The date and time when you want this object's Object Lock to expire. Must
+	// be formatted as a timestamp parameter.
 	ObjectLockRetainUntilDate *time.Time `location:"header" locationName:"x-amz-object-lock-retain-until-date" type:"timestamp" timestampFormat:"iso8601"`
 
 	// Confirms that the requester knows that they will be charged for the request.
@@ -36036,6 +36038,9 @@ const (
 
 	// InventoryOptionalFieldIntelligentTieringAccessTier is a InventoryOptionalField enum value
 	InventoryOptionalFieldIntelligentTieringAccessTier = "IntelligentTieringAccessTier"
+
+	// InventoryOptionalFieldBucketKeyStatus is a InventoryOptionalField enum value
+	InventoryOptionalFieldBucketKeyStatus = "BucketKeyStatus"
 )
 
 // InventoryOptionalField_Values returns all elements of the InventoryOptionalField enum
@@ -36052,6 +36057,7 @@ func InventoryOptionalField_Values() []string {
 		InventoryOptionalFieldObjectLockMode,
 		InventoryOptionalFieldObjectLockLegalHoldStatus,
 		InventoryOptionalFieldIntelligentTieringAccessTier,
+		InventoryOptionalFieldBucketKeyStatus,
 	}
 }
 
