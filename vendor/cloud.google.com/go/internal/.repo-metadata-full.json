@@ -485,6 +485,15 @@
     "release_level": "beta",
     "library_type": ""
   },
+  "cloud.google.com/go/essentialcontacts/apiv1": {
+    "distribution_name": "cloud.google.com/go/essentialcontacts/apiv1",
+    "description": "Essential Contacts API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/essentialcontacts/apiv1",
+    "release_level": "beta",
+    "library_type": ""
+  },
   "cloud.google.com/go/firestore": {
     "distribution_name": "cloud.google.com/go/firestore",
     "description": "Cloud Firestore API",
@@ -557,6 +566,15 @@
     "release_level": "beta",
     "library_type": ""
   },
+  "cloud.google.com/go/gsuiteaddons/apiv1": {
+    "distribution_name": "cloud.google.com/go/gsuiteaddons/apiv1",
+    "description": "Google Workspace Add-ons API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/gsuiteaddons/apiv1",
+    "release_level": "beta",
+    "library_type": ""
+  },
   "cloud.google.com/go/iam": {
     "distribution_name": "cloud.google.com/go/iam",
     "description": "Cloud IAM",
@@ -604,7 +622,7 @@
   },
   "cloud.google.com/go/language/apiv1beta2": {
     "distribution_name": "cloud.google.com/go/language/apiv1beta2",
-    "description": "Cloud Natural Language API",
+    "description": "Google Cloud Natural Language API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/language/apiv1beta2",
@@ -773,6 +791,15 @@
     "release_level": "ga",
     "library_type": ""
   },
+  "cloud.google.com/go/osconfig/apiv1alpha": {
+    "distribution_name": "cloud.google.com/go/osconfig/apiv1alpha",
+    "description": "OS Config API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/osconfig/apiv1alpha",
+    "release_level": "alpha",
+    "library_type": ""
+  },
   "cloud.google.com/go/osconfig/apiv1beta": {
     "distribution_name": "cloud.google.com/go/osconfig/apiv1beta",
     "description": "Cloud OS Config API",
@@ -816,6 +843,15 @@
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/policytroubleshooter/apiv1",
     "release_level": "ga",
+    "library_type": ""
+  },
+  "cloud.google.com/go/privatecatalog/apiv1beta1": {
+    "distribution_name": "cloud.google.com/go/privatecatalog/apiv1beta1",
+    "description": "Cloud Private Catalog API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/privatecatalog/apiv1beta1",
+    "release_level": "beta",
     "library_type": ""
   },
   "cloud.google.com/go/profiler": {
@@ -1088,6 +1124,24 @@
     "release_level": "ga",
     "library_type": ""
   },
+  "cloud.google.com/go/serviceusage/apiv1": {
+    "distribution_name": "cloud.google.com/go/serviceusage/apiv1",
+    "description": "Service Usage API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/serviceusage/apiv1",
+    "release_level": "beta",
+    "library_type": ""
+  },
+  "cloud.google.com/go/shell/apiv1": {
+    "distribution_name": "cloud.google.com/go/shell/apiv1",
+    "description": "Cloud Shell API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/shell/apiv1",
+    "release_level": "beta",
+    "library_type": ""
+  },
   "cloud.google.com/go/spanner": {
     "distribution_name": "cloud.google.com/go/spanner",
     "description": "Cloud Spanner",
@@ -1247,6 +1301,15 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/vision/apiv1p1beta1",
+    "release_level": "beta",
+    "library_type": ""
+  },
+  "cloud.google.com/go/vpcaccess/apiv1": {
+    "distribution_name": "cloud.google.com/go/vpcaccess/apiv1",
+    "description": "Serverless VPC Access API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/vpcaccess/apiv1",
     "release_level": "beta",
     "library_type": ""
   },

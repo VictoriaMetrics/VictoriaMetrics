@@ -137,6 +137,7 @@ const (
 	MEMSETBADBLOCK                   = 0x40084d0c
 	MEMUNLOCK                        = 0x40084d06
 	MEMWRITEOOB                      = 0xc00c4d03
+	MTDFILEMODE                      = 0x4d13
 	NFDBITS                          = 0x20
 	NLDLY                            = 0x100
 	NOFLSH                           = 0x80
