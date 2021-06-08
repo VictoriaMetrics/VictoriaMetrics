@@ -2579,10 +2579,10 @@ func (is *indexSearch) updateMetricIDsForOrSuffixesNoFilter(tf *tagFilter, metri
 		kb.B = append(kb.B, orSuffix...)
 		kb.B = append(kb.B, tagSeparatorChar)
 		lc, err := is.updateMetricIDsForOrSuffixNoFilter(kb.B, metricIDs, maxMetrics, maxLoopsCount-loopsCount)
+		loopsCount += lc
 		if err != nil {
 			return loopsCount, err
 		}
-		loopsCount += lc
 		if metricIDs.Len() >= maxMetrics {
 			return loopsCount, nil
 		}
@@ -2600,10 +2600,10 @@ func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, met
 		kb.B = append(kb.B, orSuffix...)
 		kb.B = append(kb.B, tagSeparatorChar)
 		lc, err := is.updateMetricIDsForOrSuffixWithFilter(kb.B, metricIDs, sortedFilter, tf.isNegative, maxLoopsCount-loopsCount)
+		loopsCount += lc
 		if err != nil {
 			return loopsCount, err
 		}
-		loopsCount += lc
 	}
 	return loopsCount, nil
 }
