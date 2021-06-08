@@ -470,6 +470,7 @@ func rerouteRowsMayBlock(snSource *storageNode, mayUseSNSource bool, buf []byte,
 		logger.Panicf("BUG: re-routing can work only if at least 2 storage nodes are configured; got %d nodes", len(storageNodes))
 	}
 	reroutesTotal.Inc()
+	atomic.StoreUint64(&snSource.lastRerouteTime, fasttime.UnixTimestamp())
 	sns := getStorageNodesMapForRerouting(snSource, mayUseSNSource)
 	if areStorageNodesEqual(sns) {
 		// Fast path - all the storage nodes are the same - send the buf to them.
@@ -483,7 +484,6 @@ func rerouteRowsMayBlock(snSource *storageNode, mayUseSNSource bool, buf []byte,
 		}
 		return nil
 	}
-	atomic.StoreUint64(&snSource.lastRerouteTime, fasttime.UnixTimestamp())
 	src := buf
 	var mr storage.MetricRow
 	for len(src) > 0 {
