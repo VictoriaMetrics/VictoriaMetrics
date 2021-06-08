@@ -188,7 +188,6 @@ func TestRangeIterator(t *testing.T) {
 				{parseTime(t, "2021-01-01T12:15:00.000Z"), parseTime(t, "2021-01-01T12:20:00.000Z")},
 				{parseTime(t, "2021-01-01T12:20:00.000Z"), parseTime(t, "2021-01-01T12:25:00.000Z")},
 				{parseTime(t, "2021-01-01T12:25:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-				{parseTime(t, "2021-01-01T12:30:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
 			},
 		},
 		{
@@ -213,21 +212,28 @@ func TestRangeIterator(t *testing.T) {
 				{parseTime(t, "2021-01-01T12:00:13.000Z"), parseTime(t, "2021-01-01T12:00:14.000Z")},
 				{parseTime(t, "2021-01-01T12:00:14.000Z"), parseTime(t, "2021-01-01T12:00:15.000Z")},
 				{parseTime(t, "2021-01-01T12:00:15.000Z"), parseTime(t, "2021-01-01T12:00:16.000Z")},
+				{parseTime(t, "2021-01-01T12:00:16.000Z"), parseTime(t, "2021-01-01T12:00:17.000Z")},
 			},
 		},
 	}
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			for j := 0; j < len(tc.result); j++ {
-				s, e := tc.ri.next(j)
+			var j int
+			for tc.ri.next() {
+				if len(tc.result) < j+1 {
+					t.Fatalf("unexpected result for iterator on step %d: %v - %v",
+						j, tc.ri.s, tc.ri.e)
+				}
+				s, e := tc.ri.s, tc.ri.e
 				expS, expE := tc.result[j][0], tc.result[j][1]
 				if s != expS {
-					t.Errorf("expected to get start=%v; got %v", expS, s)
+					t.Fatalf("expected to get start=%v; got %v", expS, s)
 				}
 				if e != expE {
-					t.Errorf("expected to get end=%v; got %v", expE, e)
+					t.Fatalf("expected to get end=%v; got %v", expE, e)
 				}
+				j++
 			}
 		})
 	}

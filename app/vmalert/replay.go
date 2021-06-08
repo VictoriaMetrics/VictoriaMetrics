@@ -43,6 +43,9 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewr
 	if err != nil {
 		return fmt.Errorf("failed to parse %q: %s", *replayTo, err)
 	}
+	if !tTo.After(tFrom) {
+		return fmt.Errorf("replay.timeTo must be bigger than replay.timeFrom")
+	}
 	labels := make(map[string]string)
 	for _, s := range *externalLabels {
 		if len(s) == 0 {
@@ -86,14 +89,9 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 	for _, rule := range g.Rules {
 		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
 		bar := pb.StartNew(iterations)
-
-	iteration:
-		for i := 0; ; i++ {
-			s, e := ri.next(i)
-			if s == e {
-				break iteration
-			}
-			n, err := replayRule(rule, s, e, rw)
+		ri.reset()
+		for ri.next() {
+			n, err := replayRule(rule, ri.s, ri.e, rw)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", rule, err)
 			}
@@ -118,7 +116,6 @@ func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client) (int, e
 		}
 		logger.Errorf("attempt %d to execute rule %q failed: %s", i+1, rule, err)
 		time.Sleep(time.Second)
-		continue
 	}
 	if err != nil { // means all attempts failed
 		return 0, err
@@ -137,18 +134,27 @@ func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client) (int, e
 }
 
 type rangeIterator struct {
-	start, end time.Time
 	step       time.Duration
+	start, end time.Time
+
+	iter int
+	s, e time.Time
 }
 
-func (ri rangeIterator) next(i int) (time.Time, time.Time) {
-	start := ri.start.Add(ri.step * time.Duration(i))
-	if start.After(ri.end) {
-		return ri.end, ri.end
+func (ri *rangeIterator) reset() {
+	ri.iter = 0
+	ri.s, ri.e = time.Time{}, time.Time{}
+}
+
+func (ri *rangeIterator) next() bool {
+	ri.s = ri.start.Add(ri.step * time.Duration(ri.iter))
+	if !ri.end.After(ri.s) {
+		return false
 	}
-	end := start.Add(ri.step)
-	if end.After(ri.end) {
-		end = ri.end
+	ri.e = ri.s.Add(ri.step)
+	if ri.e.After(ri.end) {
+		ri.e = ri.end
 	}
-	return start, end
+	ri.iter++
+	return true
 }
