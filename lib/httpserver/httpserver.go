@@ -216,7 +216,9 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	// The following recover() code works around this by explicitly stopping the process after logging the panic.
 	// See https://github.com/golang/go/issues/16542#issuecomment-246549902 for details.
 	defer func() {
-		if err := recover(); err != nil {
+		// need to check for abortHandler
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353
+		if err := recover(); err != nil && err != http.ErrAbortHandler {
 			buf := make([]byte, 1<<20)
 			n := runtime.Stack(buf, false)
 			fmt.Fprintf(os.Stderr, "panic: %v\n\n%s", err, buf[:n])
