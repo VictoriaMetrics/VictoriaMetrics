@@ -1,5 +1,26 @@
 # Changes
 
+## [0.84.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.83.0...v0.84.0) (2021-06-09)
+
+
+### Features
+
+* **aiplatform:** start generating apiv1 ([be1d729](https://www.github.com/googleapis/google-cloud-go/commit/be1d729fdaa18eb1c782f3b09a6bb8fd6b3a144c))
+* **apigeeconnect:** start generating abiv1 ([be1d729](https://www.github.com/googleapis/google-cloud-go/commit/be1d729fdaa18eb1c782f3b09a6bb8fd6b3a144c))
+* **dialogflow/cx:** support sentiment analysis in bot testing ([7a57aac](https://www.github.com/googleapis/google-cloud-go/commit/7a57aac996f2bae20ee6ddbd02ad9e56e380099b))
+* **dialogflow/cx:** support sentiment analysis in bot testing ([6ad2306](https://www.github.com/googleapis/google-cloud-go/commit/6ad2306f64710ce16059b464342dbc6a98d2d9c2))
+* **documentai:** Move CommonOperationMetadata into a separate proto file for potential reuse. ([9e80ea0](https://www.github.com/googleapis/google-cloud-go/commit/9e80ea0d053b06876418194f65a478045dc4fe6c))
+* **documentai:** Move CommonOperationMetadata into a separate proto file for potential reuse. ([18375e5](https://www.github.com/googleapis/google-cloud-go/commit/18375e50e8f16e63506129b8927a7b62f85e407b))
+* **gkeconnect/gateway:** start generating apiv1beta1 ([#4235](https://www.github.com/googleapis/google-cloud-go/issues/4235)) ([1c3e968](https://www.github.com/googleapis/google-cloud-go/commit/1c3e9689d78670a231a3660db00fd4fd8f5c6345))
+* **lifesciences:** strat generating apiv2beta ([be1d729](https://www.github.com/googleapis/google-cloud-go/commit/be1d729fdaa18eb1c782f3b09a6bb8fd6b3a144c))
+* **tpu:** start generating apiv1 ([#4199](https://www.github.com/googleapis/google-cloud-go/issues/4199)) ([cac48ea](https://www.github.com/googleapis/google-cloud-go/commit/cac48eab960cd34cc20732f6a1aeb93c540a036b))
+
+
+### Bug Fixes
+
+* **bttest:** fix race condition in SampleRowKeys ([#4207](https://www.github.com/googleapis/google-cloud-go/issues/4207)) ([5711fb1](https://www.github.com/googleapis/google-cloud-go/commit/5711fb10d25c458807598d736a232bb2210a047a))
+* **documentai:** Fix Ruby gem title of documentai v1 (package not currently published) ([9e80ea0](https://www.github.com/googleapis/google-cloud-go/commit/9e80ea0d053b06876418194f65a478045dc4fe6c))
+
 ## [0.83.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.82.0...v0.83.0) (2021-06-02)
 
 
