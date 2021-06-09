@@ -177,6 +177,18 @@ groups:
           description: "Exhausting OS file descriptors limit can cause severe degradation of the process.
           Consider to increase the limit as fast as possible."
 
+      - alert: LabelsLimitExceededOnIngestion
+        expr: sum(increase(vm_metrics_with_dropped_labels_total[5m])) by (instance) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=74&var-instance={{ $labels.instance }}"
+          summary: "Metrics ingested in ({{ $labels.instance }}) are exceeding labels limit"
+          description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
+           This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
+           correctly or that clients which send these metrics aren't misbehaving."
+
   # Alerts group for vmagent assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/12683 is installed.
   # Pls update the `dashboard` annotation according to your setup.
