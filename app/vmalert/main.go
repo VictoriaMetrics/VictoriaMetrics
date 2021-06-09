@@ -68,13 +68,37 @@ func main() {
 		notifier.InitTemplateFunc(u)
 		groups, err := config.Parse(*rulePath, true, true)
 		if err != nil {
-			logger.Fatalf(err.Error())
+			logger.Fatalf("failed to parse %q: %s", *rulePath, err)
 		}
 		if len(groups) == 0 {
 			logger.Fatalf("No rules for validation. Please specify path to file(s) with alerting and/or recording rules using `-rule` flag")
 		}
 		return
 	}
+	if *replayFrom != "" || *replayTo != "" {
+		rw, err := remotewrite.Init(context.Background())
+		if err != nil {
+			logger.Fatalf("failed to init remoteWrite: %s", err)
+		}
+		eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
+		if err != nil {
+			logger.Fatalf("failed to init `external.url`: %s", err)
+		}
+		notifier.InitTemplateFunc(eu)
+		groupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
+		if err != nil {
+			logger.Fatalf("cannot parse configuration file: %s", err)
+		}
+		q, err := datasource.Init()
+		if err != nil {
+			logger.Fatalf("failed to init datasource: %s", err)
+		}
+		if err := replay(groupsCfg, q, rw); err != nil {
+			logger.Fatalf("replay failed: %s", err)
+		}
+		return
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	manager, err := newManager(ctx)
 	if err != nil {

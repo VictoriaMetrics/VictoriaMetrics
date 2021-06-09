@@ -83,14 +83,16 @@ func TestAlert_ExecTemplate(t *testing.T) {
 					{Name: "foo", Value: "bar"},
 					{Name: "baz", Value: "qux"},
 				},
-				Value: 1,
+				Values:     []float64{1},
+				Timestamps: []int64{1},
 			},
 			{
 				Labels: []datasource.Label{
 					{Name: "foo", Value: "garply"},
 					{Name: "baz", Value: "fred"},
 				},
-				Value: 2,
+				Values:     []float64{2},
+				Timestamps: []int64{1},
 			},
 		}, nil
 	}

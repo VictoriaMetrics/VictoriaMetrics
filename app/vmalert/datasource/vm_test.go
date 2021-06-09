@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,7 +20,7 @@ var (
 	queryRender   = "constantLine(10)"
 )
 
-func TestVMSelectQuery(t *testing.T) {
+func TestVMInstantQuery(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
 		t.Errorf("should not be called")
@@ -103,9 +104,9 @@ func TestVMSelectQuery(t *testing.T) {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
 	expected := Metric{
-		Labels:    []Label{{Value: "vm_rows", Name: "__name__"}},
-		Timestamp: 1583786142,
-		Value:     13763,
+		Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
+		Timestamps: []int64{1583786142},
+		Values:     []float64{13763},
 	}
 	if !reflect.DeepEqual(m[0], expected) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
@@ -122,44 +123,145 @@ func TestVMSelectQuery(t *testing.T) {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
 	expected = Metric{
-		Labels:    []Label{{Value: "constantLine(10)", Name: "name"}},
-		Timestamp: 1611758403,
-		Value:     10,
+		Labels:     []Label{{Value: "constantLine(10)", Name: "name"}},
+		Timestamps: []int64{1611758403},
+		Values:     []float64{10},
 	}
 	if !reflect.DeepEqual(m[0], expected) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
 }
 
-func TestPrepareReq(t *testing.T) {
+func TestVMRangeQuery(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
+		t.Errorf("should not be called")
+	})
+	c := -1
+	mux.HandleFunc("/api/v1/query_range", func(w http.ResponseWriter, r *http.Request) {
+		c++
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST method got %s", r.Method)
+		}
+		if name, pass, _ := r.BasicAuth(); name != basicAuthName || pass != basicAuthPass {
+			t.Errorf("expected %s:%s as basic auth got %s:%s", basicAuthName, basicAuthPass, name, pass)
+		}
+		if r.URL.Query().Get("query") != query {
+			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))
+		}
+		startTS := r.URL.Query().Get("start")
+		if startTS == "" {
+			t.Errorf("expected 'start' in query param, got nil instead")
+		}
+		if _, err := strconv.ParseInt(startTS, 10, 64); err != nil {
+			t.Errorf("failed to parse 'start' query param: %s", err)
+		}
+		endTS := r.URL.Query().Get("end")
+		if endTS == "" {
+			t.Errorf("expected 'end' in query param, got nil instead")
+		}
+		if _, err := strconv.ParseInt(endTS, 10, 64); err != nil {
+			t.Errorf("failed to parse 'end' query param: %s", err)
+		}
+		switch c {
+		case 0:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"vm_rows"},"values":[[1583786142,"13763"]]}]}}`))
+		}
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	s := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
+
+	p := NewPrometheusType()
+	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
+
+	_, err := pq.QueryRange(ctx, query, time.Now(), time.Time{})
+	expectError(t, err, "is missing")
+
+	_, err = pq.QueryRange(ctx, query, time.Time{}, time.Now())
+	expectError(t, err, "is missing")
+
+	start, end := time.Now().Add(-time.Minute), time.Now()
+
+	m, err := pq.QueryRange(ctx, query, start, end)
+	if err != nil {
+		t.Fatalf("unexpected %s", err)
+	}
+	if len(m) != 1 {
+		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
+	}
+	expected := Metric{
+		Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
+		Timestamps: []int64{1583786142},
+		Values:     []float64{13763},
+	}
+	if !reflect.DeepEqual(m[0], expected) {
+		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
+	}
+
+	g := NewGraphiteType()
+	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
+
+	_, err = gq.QueryRange(ctx, queryRender, start, end)
+	expectError(t, err, "is not supported")
+}
+
+func TestRequestParams(t *testing.T) {
 	query := "up"
 	timestamp := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
 	testCases := []struct {
-		name    string
-		vm      *VMStorage
-		checkFn func(t *testing.T, r *http.Request)
+		name       string
+		queryRange bool
+		vm         *VMStorage
+		checkFn    func(t *testing.T, r *http.Request)
 	}{
 		{
 			"prometheus path",
+			false,
 			&VMStorage{
 				dataSourceType: NewPrometheusType(),
 			},
 			func(t *testing.T, r *http.Request) {
-				checkEqualString(t, queryPath, r.URL.Path)
+				checkEqualString(t, prometheusInstantPath, r.URL.Path)
 			},
 		},
 		{
 			"prometheus prefix",
+			false,
 			&VMStorage{
 				dataSourceType:   NewPrometheusType(),
 				appendTypePrefix: true,
 			},
 			func(t *testing.T, r *http.Request) {
-				checkEqualString(t, prometheusPrefix+queryPath, r.URL.Path)
+				checkEqualString(t, prometheusPrefix+prometheusInstantPath, r.URL.Path)
+			},
+		},
+		{
+			"prometheus range path",
+			true,
+			&VMStorage{
+				dataSourceType: NewPrometheusType(),
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, prometheusRangePath, r.URL.Path)
+			},
+		},
+		{
+			"prometheus range prefix",
+			true,
+			&VMStorage{
+				dataSourceType:   NewPrometheusType(),
+				appendTypePrefix: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, prometheusPrefix+prometheusRangePath, r.URL.Path)
 			},
 		},
 		{
 			"graphite path",
+			false,
 			&VMStorage{
 				dataSourceType: NewGraphiteType(),
 			},
@@ -169,6 +271,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"graphite prefix",
+			false,
 			&VMStorage{
 				dataSourceType:   NewGraphiteType(),
 				appendTypePrefix: true,
@@ -179,6 +282,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"default params",
+			false,
 			&VMStorage{},
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Unix())
@@ -186,7 +290,30 @@ func TestPrepareReq(t *testing.T) {
 			},
 		},
 		{
+			"default range params",
+			true,
+			&VMStorage{},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("end=%d&query=%s&start=%d", timestamp.Unix(), query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
 			"basic auth",
+			false,
+			&VMStorage{
+				basicAuthUser: "foo",
+				basicAuthPass: "bar",
+			},
+			func(t *testing.T, r *http.Request) {
+				u, p, _ := r.BasicAuth()
+				checkEqualString(t, "foo", u)
+				checkEqualString(t, "bar", p)
+			},
+		},
+		{
+			"basic auth range",
+			true,
 			&VMStorage{
 				basicAuthUser: "foo",
 				basicAuthPass: "bar",
@@ -199,6 +326,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"lookback",
+			false,
 			&VMStorage{
 				lookBack: time.Minute,
 			},
@@ -209,6 +337,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"evaluation interval",
+			false,
 			&VMStorage{
 				evaluationInterval: 15 * time.Second,
 			},
@@ -221,6 +350,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"lookback + evaluation interval",
+			false,
 			&VMStorage{
 				lookBack:           time.Minute,
 				evaluationInterval: 15 * time.Second,
@@ -235,6 +365,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"step override",
+			false,
 			&VMStorage{
 				queryStep: time.Minute,
 			},
@@ -245,6 +376,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"round digits",
+			false,
 			&VMStorage{
 				roundDigits: "10",
 			},
@@ -255,6 +387,7 @@ func TestPrepareReq(t *testing.T) {
 		},
 		{
 			"extra labels",
+			false,
 			&VMStorage{
 				extraLabels: []string{
 					"env=prod",
@@ -266,13 +399,38 @@ func TestPrepareReq(t *testing.T) {
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
+		{
+			"extra labels range",
+			true,
+			&VMStorage{
+				extraLabels: []string{
+					"env=prod",
+					"query=es=cape",
+				},
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("end=%d&extra_label=env%%3Dprod&extra_label=query%%3Des%%3Dcape&query=%s&start=%d",
+					timestamp.Unix(), query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := tc.vm.prepareReq(query, timestamp)
+			req, err := tc.vm.newRequestPOST()
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
+			}
+			switch tc.vm.dataSourceType.name {
+			case "", prometheusType:
+				if tc.queryRange {
+					tc.vm.setPrometheusRangeReqParams(req, query, timestamp, timestamp)
+				} else {
+					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
+				}
+			case graphiteType:
+				tc.vm.setGraphiteReqParams(req, query, timestamp)
 			}
 			tc.checkFn(t, req)
 		})
@@ -283,5 +441,15 @@ func checkEqualString(t *testing.T, exp, got string) {
 	t.Helper()
 	if got != exp {
 		t.Errorf("expected to get %q; got %q", exp, got)
+	}
+}
+
+func expectError(t *testing.T, err error, exp string) {
+	t.Helper()
+	if err == nil {
+		t.Errorf("expected non-nil error")
+	}
+	if !strings.Contains(err.Error(), exp) {
+		t.Errorf("expected error %q to contain %q", err, exp)
 	}
 }

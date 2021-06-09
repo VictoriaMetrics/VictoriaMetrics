@@ -19,15 +19,16 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	Type        datasource.Type
-	RuleID      uint64
-	Name        string
-	Expr        string
-	For         time.Duration
-	Labels      map[string]string
-	Annotations map[string]string
-	GroupID     uint64
-	GroupName   string
+	Type         datasource.Type
+	RuleID       uint64
+	Name         string
+	Expr         string
+	For          time.Duration
+	Labels       map[string]string
+	Annotations  map[string]string
+	GroupID      uint64
+	GroupName    string
+	EvalInterval time.Duration
 
 	q datasource.Querier
 
@@ -53,15 +54,16 @@ type alertingRuleMetrics struct {
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
-		Type:        cfg.Type,
-		RuleID:      cfg.ID,
-		Name:        cfg.Alert,
-		Expr:        cfg.Expr,
-		For:         cfg.For.Duration(),
-		Labels:      cfg.Labels,
-		Annotations: cfg.Annotations,
-		GroupID:     group.ID(),
-		GroupName:   group.Name,
+		Type:         cfg.Type,
+		RuleID:       cfg.ID,
+		Name:         cfg.Alert,
+		Expr:         cfg.Expr,
+		For:          cfg.For.Duration(),
+		Labels:       cfg.Labels,
+		Annotations:  cfg.Annotations,
+		GroupID:      group.ID(),
+		GroupName:    group.Name,
+		EvalInterval: group.Interval,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     &cfg.Type,
 			EvaluationInterval: group.Interval,
@@ -126,9 +128,66 @@ func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
 }
 
+// ExecRange executes alerting rule on the given time range similarly to Exec.
+// It doesn't update internal states of the Rule and meant to be used just
+// to get time series for backfilling.
+// It returns ALERT and ALERT_FOR_STATE time series as result.
+func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
+	series, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
+	if err != nil {
+		return nil, err
+	}
+	var result []prompbmarshal.TimeSeries
+	qFn := func(query string) ([]datasource.Metric, error) {
+		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
+	}
+	for _, s := range series {
+		// extra labels could contain templates, so we expand them first
+		labels, err := expandLabels(s, qFn, ar)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand labels: %s", err)
+		}
+		for k, v := range labels {
+			// apply extra labels to datasource
+			// so the hash key will be consistent on restore
+			s.SetLabel(k, v)
+		}
+
+		a, err := ar.newAlert(s, time.Time{}, qFn) // initial alert
+		if err != nil {
+			return nil, fmt.Errorf("failed to create alert: %s", err)
+		}
+		if ar.For == 0 { // if alert is instant
+			a.State = notifier.StateFiring
+			for i := range s.Values {
+				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			}
+			continue
+		}
+
+		// if alert with For > 0
+		prevT := time.Time{}
+		//activeAt := time.Time{}
+		for i := range s.Values {
+			at := time.Unix(s.Timestamps[i], 0)
+			if at.Sub(prevT) > ar.EvalInterval {
+				// reset to Pending if there are gaps > EvalInterval between DPs
+				a.State = notifier.StatePending
+				//activeAt = at
+				a.Start = at
+			} else if at.Sub(a.Start) >= ar.For {
+				a.State = notifier.StateFiring
+			}
+			prevT = at
+			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+		}
+	}
+	return result, nil
+}
+
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context, series bool) ([]prompbmarshal.TimeSeries, error) {
+func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
 	qMetrics, err := ar.q.Query(ctx, ar.Expr)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
@@ -168,9 +227,9 @@ func (ar *AlertingRule) Exec(ctx context.Context, series bool) ([]prompbmarshal.
 		}
 		updated[h] = struct{}{}
 		if a, ok := ar.alerts[h]; ok {
-			if a.Value != m.Value {
+			if a.Value != m.Values[0] {
 				// update Value field with latest value
-				a.Value = m.Value
+				a.Value = m.Values[0]
 				// and re-exec template since Value can be used
 				// in annotations
 				a.Annotations, err = a.ExecTemplate(qFn, ar.Annotations)
@@ -208,10 +267,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, series bool) ([]prompbmarshal.
 			alertsFired.Inc()
 		}
 	}
-	if series {
-		return ar.toTimeSeries(ar.lastExecTime), nil
-	}
-	return nil, nil
+	return ar.toTimeSeries(ar.lastExecTime.Unix()), nil
 }
 
 func expandLabels(m datasource.Metric, q notifier.QueryFn, ar *AlertingRule) (map[string]string, error) {
@@ -221,13 +277,13 @@ func expandLabels(m datasource.Metric, q notifier.QueryFn, ar *AlertingRule) (ma
 	}
 	tpl := notifier.AlertTplData{
 		Labels: metricLabels,
-		Value:  m.Value,
+		Value:  m.Values[0],
 		Expr:   ar.Expr,
 	}
 	return notifier.ExecTemplate(q, ar.Labels, tpl)
 }
 
-func (ar *AlertingRule) toTimeSeries(timestamp time.Time) []prompbmarshal.TimeSeries {
+func (ar *AlertingRule) toTimeSeries(timestamp int64) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	for _, a := range ar.alerts {
 		if a.State == notifier.StateInactive {
@@ -251,6 +307,7 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	ar.For = nr.For
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
+	ar.EvalInterval = nr.EvalInterval
 	ar.q = nr.q
 	return nil
 }
@@ -279,13 +336,15 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notif
 		GroupID: ar.GroupID,
 		Name:    ar.Name,
 		Labels:  map[string]string{},
-		Value:   m.Value,
+		Value:   m.Values[0],
 		Start:   start,
 		Expr:    ar.Expr,
 	}
 	// label defined here to make override possible by
 	// time series labels.
-	a.Labels[alertGroupNameLabel] = ar.GroupName
+	if ar.GroupName != "" {
+		a.Labels[alertGroupNameLabel] = ar.GroupName
+	}
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
 		if l.Name == "__name__" {
@@ -374,7 +433,7 @@ const (
 )
 
 // alertToTimeSeries converts the given alert with the given timestamp to timeseries
-func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp time.Time) []prompbmarshal.TimeSeries {
+func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	tss = append(tss, alertToTimeSeries(ar.Name, a, timestamp))
 	if ar.For > 0 {
@@ -383,7 +442,7 @@ func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp time.Time
 	return tss
 }
 
-func alertToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
+func alertToTimeSeries(name string, a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
 	labels := make(map[string]string)
 	for k, v := range a.Labels {
 		labels[k] = v
@@ -391,19 +450,19 @@ func alertToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prom
 	labels["__name__"] = alertMetricName
 	labels[alertNameLabel] = name
 	labels[alertStateLabel] = a.State.String()
-	return newTimeSeries(1, labels, timestamp)
+	return newTimeSeries([]float64{1}, []int64{timestamp}, labels)
 }
 
 // alertForToTimeSeries returns a timeseries that represents
 // state of active alerts, where value is time when alert become active
-func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
+func alertForToTimeSeries(name string, a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
 	labels := make(map[string]string)
 	for k, v := range a.Labels {
 		labels[k] = v
 	}
 	labels["__name__"] = alertForStateMetricName
 	labels[alertNameLabel] = name
-	return newTimeSeries(float64(a.Start.Unix()), labels, timestamp)
+	return newTimeSeries([]float64{float64(a.Start.Unix())}, []int64{timestamp}, labels)
 }
 
 // Restore restores the state of active alerts basing on previously written timeseries.
@@ -445,7 +504,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 			m.Labels = append(m.Labels, l)
 		}
 
-		a, err := ar.newAlert(m, time.Unix(int64(m.Value), 0), qFn)
+		a, err := ar.newAlert(m, time.Unix(int64(m.Values[0]), 0), qFn)
 		if err != nil {
 			return fmt.Errorf("failed to create alert: %w", err)
 		}
