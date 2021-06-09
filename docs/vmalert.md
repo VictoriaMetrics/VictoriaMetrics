@@ -16,7 +16,8 @@ rules against configured address.
  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
-* Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite) for details.
+* Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
+* Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight without extra dependencies.
 
 ## Limitations
@@ -231,6 +232,93 @@ implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/rende
 When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VM do not forget
 to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on query type.
 
+## Rules backfilling
+
+vmalert supports alerting and recording rules backfilling (aka `replay`). In replay mode vmalert
+can read the same rules configuration as normally, evaluate them on the given time range and backfill
+results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
+data source for backfilling.
+
+### How it works
+
+In `replay` mode vmalert works as a cli-tool and exits immediately after work is done.
+To run vmalert in `replay` mode:
+```
+./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
+    -datasource.url=http://localhost:8428 \     # PromQL/MetricsQL compatible datasource
+    -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
+    -replay.timeFrom=2021-05-11T07:21:43Z \     # time from begin replay
+    -replay.timeTo=2021-05-29T18:40:43Z         # time to finish replay
+```
+
+The output of the command will look like the following:
+```
+Replay mode:
+from:   2021-05-11 07:21:43 +0000 UTC   # set by -replay.timeFrom
+to:     2021-05-29 18:40:43 +0000 UTC   # set by -replay.timeTo
+max data points per request: 1000       # set by -replay.maxDatapointsPerQuery
+
+Group "ReplayGroup"
+interval:       1m0s
+requests to make:       27
+max range per request:  16h40m0s
+> Rule "type:vm_cache_entries:rate5m" (ID: 1792509946081842725)
+27 / 27 [----------------------------------------------------------------------------------------------------] 100.00% 78 p/s
+> Rule "go_cgo_calls_count:rate5m" (ID: 17958425467471411582)
+27 / 27 [-----------------------------------------------------------------------------------------------------] 100.00% ? p/s
+
+Group "vmsingleReplay"
+interval:       30s
+requests to make:       54
+max range per request:  8h20m0s
+> Rule "RequestErrorsToAPI" (ID: 17645863024999990222)
+54 / 54 [-----------------------------------------------------------------------------------------------------] 100.00% ? p/s
+> Rule "TooManyLogs" (ID: 9042195394653477652)
+54 / 54 [-----------------------------------------------------------------------------------------------------] 100.00% ? p/s
+2021-06-07T09:59:12.098Z        info    app/vmalert/replay.go:68        replay finished! Imported 511734 samples
+```
+
+In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
+executed sequentially as well (`concurrency` setting is ignored). Vmalert sends rule's expression
+to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) endpoint
+of the configured `-datasource.url`. Returned data then processed according to the rule type and
+backfilled to `-remoteWrite.url` via [Remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
+Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
+
+#### Recording rules
+
+Result of recording rules `replay` should match with results of normal rules evaluation.
+
+#### Alerting rules
+
+Result of alerting rules `replay` is time series reflecting [alert's state](#alerts-state-on-restarts).
+To see if `replayed` alert has fired in the past use the following PromQL/MetricsQL expression:
+```
+ALERTS{alertname="your_alertname", alertstate="firing"}
+```
+Execute the query against storage which was used for `-remoteWrite.url` during the `replay`.
+
+### Additional configuration
+
+There are following non-required `replay` flags:
+
+* `-replay.maxDatapointsPerQuery` - the max number of data points expected to receive in one request.
+In two words, it affects the max time range for every `/query_range` request. The higher the value,
+the less requests will be issued during `replay`.
+* `-replay.ruleRetryAttempts` - when datasource fails to respond vmalert will make this number of retries
+per rule before giving up.
+* `-replay.rulesDelay` - delay between sequential rules execution. Important in cases if there are chaining
+(rules which depend on each other) rules. It is expected, that remote storage will be able to persist
+previously accepted data during the delay, so data will be available for the subsequent queries.
+Keep it equal or bigger than `-remoteWrite.flushInterval`.
+
+See full description for these flags in `./vmalert --help`.
+
+### Limitations
+
+* Graphite engine isn't supported yet;
+* `query` template function is disabled for performance reasons (might be changed in future);
+
 
 ## Configuration
 
@@ -391,6 +479,16 @@ The shortlist of configuration flags is the following:
         Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
         Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
+  -replay.maxDatapointsPerQuery int
+        Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
+  -replay.ruleRetryAttempts int
+        Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
+  -replay.rulesDelay duration
+        Delay between rules evaluation within the group. Could be important if there are chained rules inside of the groupand processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule. Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
+  -replay.timeFrom string
+        The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
+  -replay.timeTo string
+        The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
         Path to the file with alert rules.
         Supports patterns. Flag can be specified multiple times.
