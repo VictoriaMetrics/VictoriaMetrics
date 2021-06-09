@@ -262,7 +262,7 @@ Note that `sample_limit` option doesn't prevent from data push to remote storage
 ## Scraping big number of targets
 
 A single `vmagent` instance can scrape tens of thousands of scrape targets. Sometimes this isn't enough due to limitations on CPU, network, RAM, etc.
-In this case scrape targets can be split among multiple `vmagent` instances (aka `vmagent` horizontal scaling and clustering).
+In this case scrape targets can be split among multiple `vmagent` instances (aka `vmagent` horizontal scaling, sharding and clustering).
 Each `vmagent` instance in the cluster must use identical `-promscrape.config` files with distinct `-promscrape.cluster.memberNum` values.
 The flag value must be in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster.
 The number of `vmagent` instances in the cluster must be passed to `-promscrape.cluster.membersCount` command-line flag. For example, the following commands
