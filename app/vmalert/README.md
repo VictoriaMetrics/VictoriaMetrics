@@ -292,7 +292,7 @@ To see if `replayed` alert has fired in the past use the following PromQL/Metric
 ```
 ALERTS{alertname="your_alertname", alertstate="firing"}
 ```
-Execute the query against storage which was used for `-remoteWrite.url` during replay.
+Execute the query against storage which was used for `-remoteWrite.url` during the `replay`.
 
 ### Additional configuration
 
@@ -300,12 +300,12 @@ There are following non-required `replay` flags:
 
 * `-replay.maxDatapointsPerQuery` - the max number of data points expected to receive in one request.
 In two words, it affects the max time range for every `/query_range` request. The higher the value,
-the more requests will be issued during `replay`.
+the less requests will be issued during `replay`.
 * `-replay.ruleRetryAttempts` - when datasource fails to respond vmalert will make this number of retries
 per rule before giving up.
 * `-replay.rulesDelay` - delay between sequential rules execution. Important in cases if there are chaining
-(rules which depends on each other) rules. It is expected, that remote storage will be able to persist
-previously accepted data during the delay, so it will be available for the next rule queries. Also,
+(rules which depend on each other) rules. It is expected, that remote storage will be able to persist
+previously accepted data during the delay, so data will be available for the subsequent queries.
 Keep it equal or bigger than `-remoteWrite.flushInterval`.
 
 See full description for these flags in `./vmalert --help`.
