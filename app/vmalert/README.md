@@ -12,8 +12,8 @@ rules against configured address.
  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
-* Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite) for details;
-* Recording and Alerting rules backfilling (aka `replay`);
+* Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
+* Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight without extra dependencies.
 
 ## Limitations
