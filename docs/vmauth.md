@@ -104,7 +104,10 @@ users:
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "foobar"
   url_map:
-  - src_paths: ["/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^/]+/values"]
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/label/[^/]+/values"
     url_prefix:
     - "http://vmselect1:8481/select/42/prometheus"
     - "http://vmselect2:8481/select/42/prometheus"
