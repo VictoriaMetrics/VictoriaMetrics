@@ -33,7 +33,7 @@ sort: 16
 * [Observability, Availability & DORA’s Research Program](https://medium.com/alteos-tech-blog/observability-availability-and-doras-research-program-85deb6680e78)
 * [Tame Kubernetes Costs with Percona Monitoring and Management and Prometheus Operator](https://www.percona.com/blog/2021/02/12/tame-kubernetes-costs-with-percona-monitoring-and-management-and-prometheus-operator/)
 * [Prometheus VictoriaMetrics On AWS ECS](https://dalefro.medium.com/prometheus-victoria-metrics-on-aws-ecs-62448e266090)
-* [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-alertmanager)
+* [API Monitoring With Prometheus, Grafana, AlertManager and VictoriaMetrics](https://nordicapis.com/api-monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics/)
 * [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
 * [Monitoring Kubernetes clusters with VictoriaMetrics and Grafana](https://blog.cybozu.io/entry/2021/03/18/115743)
 * [Multi-tenancy monitoring system for Kubernetes cluster using VictoriaMetrics and operators](https://blog.kintone.io/entry/2021/03/31/175256)
