@@ -90,6 +90,17 @@ and [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-writ
 VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/thanos-io/thanos/issues/448).
 
 
+### What is the difference between VictoriaMetrics and [QuestDB](https://questdb.io/)?
+
+- QuestDB needs more than 20x storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
+- QuestDB is much harder to setup and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
+- VictoriaMetrics provides [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) query language, which is better suited for typical queries over time series data than SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
+- Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/#grafana-setup), while QuestDB needs full rewrite of existing dashboards in Grafana.
+- Thanks to Prometheus remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/vmagent.html), while QuestDB has no integration with Prometheus.
+- QuestDB [supports smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-import-time-series-data)).
+- [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
+
+
 ### What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)?
 
 VictoriaMetrics is similar to Cortex in the following aspects:
@@ -142,7 +153,8 @@ The main differences between Cortex and VictoriaMetrics:
 ### How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
 
 - VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [works faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-- VictoriaMetrics provides [better query language](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) than InfluxQL or Flux.
+- VictoriaMetrics needs lower amounts of storage space than InfluxDB on production data.
+- VictoriaMetrics provides better query language - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) - than InfluxQL or Flux. See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 - VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to InfluxDB - Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-time-series-data) for details.
 
@@ -151,6 +163,7 @@ The main differences between Cortex and VictoriaMetrics:
 
 - TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical TSDB usage. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
 - VictoriaMetrics requires [up to 70x less storage space comparing to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be lowered from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/latest/using-timescaledb/compression) (it isn't an easy task in general case :)).
+- TimescaleDB is [harder to setup, configure and operate](https://docs.timescale.com/timescaledb/latest/how-to-guides/install-timescaledb/self-hosted/ubuntu/installation-apt-ubuntu/) than VictoriaMetrics (see [how to run VictoriaMetrics](https://docs.victoriametrics.com/#how-to-start-victoriametrics)).
 - VictoriaMetrics accepts data in multiple popular data ingestion protocols - InfluxDB, OpenTSDB, Graphite, CSV, while TimescaleDB supports only SQL inserts.
 
 
