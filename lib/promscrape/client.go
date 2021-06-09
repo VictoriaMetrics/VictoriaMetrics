@@ -192,8 +192,10 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	}
 	scrapesOK.Inc()
 	return &streamReader{
-		r:      resp.Body,
-		cancel: cancel,
+		r:           resp.Body,
+		cancel:      cancel,
+		scrapeURL:   c.scrapeURL,
+		maxBodySize: int64(c.hc.MaxResponseBodySize),
 	}, nil
 }
 
@@ -328,14 +330,20 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 }
 
 type streamReader struct {
-	r         io.ReadCloser
-	cancel    context.CancelFunc
-	bytesRead int64
+	r           io.ReadCloser
+	cancel      context.CancelFunc
+	bytesRead   int64
+	scrapeURL   string
+	maxBodySize int64
 }
 
 func (sr *streamReader) Read(p []byte) (int, error) {
 	n, err := sr.r.Read(p)
 	sr.bytesRead += int64(n)
+	if err == nil && sr.bytesRead > sr.maxBodySize {
+		err = fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
+			"either reduce the response size for the target or increase -promscrape.maxScrapeSize", sr.scrapeURL, sr.maxBodySize)
+	}
 	return n, err
 }
 

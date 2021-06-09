@@ -66,7 +66,17 @@ run-vmalert: vmalert
 		-remoteRead.url=http://localhost:8428 \
 		-external.label=cluster=east-1 \
 		-external.label=replica=a \
-		-evaluationInterval=3s
+		-evaluationInterval=3s \
+		-rule.configCheckInterval=10s
+
+replay-vmalert: vmalert
+	./bin/vmalert -rule=app/vmalert/config/testdata/rules-replay-good.rules \
+		-datasource.url=http://localhost:8428 \
+		-remoteWrite.url=http://localhost:8428 \
+		-external.label=cluster=east-1 \
+		-external.label=replica=a \
+		-replay.timeFrom=2021-05-11T07:21:43Z \
+		-replay.timeTo=2021-05-29T18:40:43Z
 
 vmalert-amd64:
 	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmalert-local-with-goarch

@@ -59,7 +59,21 @@ users:
 	f(`
 users:
 - username: foo
-  url_prefix: [bar]
+  url_prefix:
+    bar: baz
+`)
+	f(`
+users:
+- username: foo
+  url_prefix:
+  - [foo]
+`)
+
+	// empty url_prefix
+	f(`
+users:
+- username: foo
+  url_prefix: []
 `)
 
 	// Username and bearer_token in a single config
@@ -117,6 +131,15 @@ users:
     url_prefix: foo.bar
 `)
 
+	// empty url_prefix in url_map
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foo/bar']
+    url_prefix: []
+`)
+
 	// Missing src_paths in url_map
 	f(`
 users:
@@ -162,6 +185,25 @@ users:
 		},
 	})
 
+	// Multiple url_prefix entries
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix:
+  - http://node1:343/bbb
+  - http://node2:343/bbb
+`, map[string]*UserInfo{
+		getAuthToken("", "foo", "bar"): {
+			Username: "foo",
+			Password: "bar",
+			URLPrefix: mustParseURLs([]string{
+				"http://node1:343/bbb",
+				"http://node2:343/bbb",
+			}),
+		},
+	})
+
 	// Multiple users
 	f(`
 users:
@@ -188,7 +230,7 @@ users:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
-    url_prefix: http://vminsert/insert/0/prometheus
+    url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
 `, map[string]*UserInfo{
 		getAuthToken("foo", "", ""): {
 			BearerToken: "foo",
@@ -198,8 +240,11 @@ users:
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 				},
 				{
-					SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
-					URLPrefix: mustParseURL("http://vminsert/insert/0/prometheus"),
+					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					URLPrefix: mustParseURLs([]string{
+						"http://vminsert1/insert/0/prometheus",
+						"http://vminsert2/insert/0/prometheus",
+					}),
 				},
 			},
 		},
@@ -238,12 +283,20 @@ func areEqualConfigs(a, b map[string]*UserInfo) error {
 	return nil
 }
 
-func mustParseURL(u string) *yamlURL {
-	pu, err := url.Parse(u)
-	if err != nil {
-		panic(fmt.Errorf("BUG: cannot parse %q: %w", u, err))
+func mustParseURL(u string) *URLPrefix {
+	return mustParseURLs([]string{u})
+}
+
+func mustParseURLs(us []string) *URLPrefix {
+	pus := make([]*url.URL, len(us))
+	for i, u := range us {
+		pu, err := url.Parse(u)
+		if err != nil {
+			panic(fmt.Errorf("BUG: cannot parse %q: %w", u, err))
+		}
+		pus[i] = pu
 	}
-	return &yamlURL{
-		u: pu,
+	return &URLPrefix{
+		urls: pus,
 	}
 }

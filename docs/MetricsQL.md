@@ -13,6 +13,7 @@ If you are unfamiliar with PromQL, then it is suggested reading [this tutorial f
 The following functionality is implemented differently in MetricsQL comparing to PromQL in order to improve user experience:
 * MetricsQL takes into account the previous point before the window in square brackets for range functions such as `rate` and `increase`.
   It also doesn't extrapolate range function results. This addresses [this issue from Prometheus](https://github.com/prometheus/prometheus/issues/3746).
+  See technical details about VictoriaMetrics and Prometheus calculations for `rate()` and `increase()` [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1215#issuecomment-850305711).
 * MetricsQL returns the expected non-empty responses for requests with `step` values smaller than scrape interval. This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451).
 * MetricsQL treats `scalar` type the same as `instant vector` without labels, since subtle difference between these types usually confuses users.
   See [the corresponding Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) for details.
@@ -67,7 +68,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   - `label_del(q, label1, ... labelN)` for deleting the given labels from `q`. For example, `label_del(foo, "bar")` would delete `bar` label from all the `foo` series.
   - `label_keep(q, label1, ... labelN)` for deleting all the labels except the given labels from `q`. For example, `label_keep(foo, "bar")` would delete all the labels except `bar` from `foo` series.
   - `label_copy(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for copying label values from `src_*` to `dst_*`. If `src_label` is empty, then `dst_label` is left untouched. For example, `label_copy(foo, "bar", baz")` would transform `foo{bar="x"}` to `foo{bar="x",baz="x"}`.
-  - `label_move(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for moving label values from `src_*` to `dst_*`. If `src_label` is empty, then `dst_label` is left untouched. For example, `label_move(foo, 'bar", "baz")` would transform `foo{bar="x"}` to `foo{baz="x"}`.
+  - `label_move(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for moving label values from `src_*` to `dst_*`. If `src_label` is empty, then `dst_label` is left untouched. For example, `label_move(foo, "bar", "baz")` would transform `foo{bar="x"}` to `foo{baz="x"}`.
   - `label_transform(q, label, regexp, replacement)` for replacing all the `regexp` occurences with `replacement` in the `label` values from `q`. For example, `label_transform(foo, "bar", "-", "_")` would transform `foo{bar="a-b-c"}` to `foo{bar="a_b_c"}`.
   - `label_value(q, label)` - returns numeric values for the given `label` from `q`. For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series `foo{bar="1.234"}` with `1.234` value.
 - `label_match(q, label, regexp)` and `label_mismatch(q, label, regexp)` for filtering time series with labels matching (or not matching) the given regexps.

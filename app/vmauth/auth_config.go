@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,11 +32,11 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	BearerToken string   `yaml:"bearer_token"`
-	Username    string   `yaml:"username"`
-	Password    string   `yaml:"password"`
-	URLPrefix   *yamlURL `yaml:"url_prefix"`
-	URLMap      []URLMap `yaml:"url_map"`
+	BearerToken string     `yaml:"bearer_token"`
+	Username    string     `yaml:"username"`
+	Password    string     `yaml:"password"`
+	URLPrefix   *URLPrefix `yaml:"url_prefix"`
+	URLMap      []URLMap   `yaml:"url_map"`
 
 	requests *metrics.Counter
 }
@@ -43,7 +44,7 @@ type UserInfo struct {
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
 	SrcPaths  []*SrcPath `yaml:"src_paths"`
-	URLPrefix *yamlURL   `yaml:"url_prefix"`
+	URLPrefix *URLPrefix `yaml:"url_prefix"`
 }
 
 // SrcPath represents an src path
@@ -52,25 +53,74 @@ type SrcPath struct {
 	re        *regexp.Regexp
 }
 
-type yamlURL struct {
-	u *url.URL
+// URLPrefix represents pased `url_prefix`
+type URLPrefix struct {
+	n    uint32
+	urls []*url.URL
 }
 
-func (yu *yamlURL) UnmarshalYAML(f func(interface{}) error) error {
-	var s string
-	if err := f(&s); err != nil {
+func (up *URLPrefix) getNextURL() *url.URL {
+	n := atomic.AddUint32(&up.n, 1)
+	idx := n % uint32(len(up.urls))
+	return up.urls[idx]
+}
+
+// UnmarshalYAML unmarshals up from yaml.
+func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
+	var v interface{}
+	if err := f(&v); err != nil {
 		return err
 	}
-	u, err := url.Parse(s)
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal %q into url: %w", s, err)
+	var urls []string
+	switch x := v.(type) {
+	case string:
+		urls = []string{x}
+	case []interface{}:
+		if len(x) == 0 {
+			return fmt.Errorf("`url_prefix` must contain at least a single url")
+		}
+		us := make([]string, len(x))
+		for i, xx := range x {
+			s, ok := xx.(string)
+			if !ok {
+				return fmt.Errorf("`url_prefix` must contain array of strings; got %T", xx)
+			}
+			us[i] = s
+		}
+		urls = us
+	default:
+		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string or []string", v)
 	}
-	yu.u = u
+	pus := make([]*url.URL, len(urls))
+	for i, u := range urls {
+		pu, err := url.Parse(u)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal %q into url: %w", u, err)
+		}
+		pus[i] = pu
+	}
+	up.urls = pus
 	return nil
 }
 
-func (yu *yamlURL) MarshalYAML() (interface{}, error) {
-	return yu.u.String(), nil
+// MarshalYAML marshals up to yaml.
+func (up *URLPrefix) MarshalYAML() (interface{}, error) {
+	var b []byte
+	if len(up.urls) == 1 {
+		u := up.urls[0].String()
+		b = strconv.AppendQuote(b, u)
+		return string(b), nil
+	}
+	b = append(b, '[')
+	for i, pu := range up.urls {
+		u := pu.String()
+		b = strconv.AppendQuote(b, u)
+		if i+1 < len(up.urls) {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, ']')
+	return string(b), nil
 }
 
 func (sp *SrcPath) match(s string) bool {
@@ -201,11 +251,9 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", authToken, ui.BearerToken, ui.Username)
 		}
 		if ui.URLPrefix != nil {
-			urlPrefix, err := sanitizeURLPrefix(ui.URLPrefix.u)
-			if err != nil {
+			if err := ui.URLPrefix.sanitize(); err != nil {
 				return nil, err
 			}
-			ui.URLPrefix.u = urlPrefix
 		}
 		for _, e := range ui.URLMap {
 			if len(e.SrcPaths) == 0 {
@@ -214,11 +262,9 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			if e.URLPrefix == nil {
 				return nil, fmt.Errorf("missing `url_prefix` in `url_map`")
 			}
-			urlPrefix, err := sanitizeURLPrefix(e.URLPrefix.u)
-			if err != nil {
+			if err := e.URLPrefix.sanitize(); err != nil {
 				return nil, err
 			}
-			e.URLPrefix.u = urlPrefix
 		}
 		if len(ui.URLMap) == 0 && ui.URLPrefix == nil {
 			return nil, fmt.Errorf("missing `url_prefix`")
@@ -246,6 +292,17 @@ func getAuthToken(bearerToken, username, password string) string {
 	token := username + ":" + password
 	token64 := base64.StdEncoding.EncodeToString([]byte(token))
 	return "Basic " + token64
+}
+
+func (up *URLPrefix) sanitize() error {
+	for i, pu := range up.urls {
+		puNew, err := sanitizeURLPrefix(pu)
+		if err != nil {
+			return err
+		}
+		up.urls[i] = puNew
+	}
+	return nil
 }
 
 func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {

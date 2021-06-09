@@ -47,8 +47,8 @@ func datasourceMetricsToTemplateMetrics(ms []datasource.Metric) []metric {
 		}
 		mss = append(mss, metric{
 			Labels:    labelsMap,
-			Timestamp: m.Timestamp,
-			Value:     m.Value})
+			Timestamp: m.Timestamps[0],
+			Value:     m.Values[0]})
 	}
 	return mss
 }

@@ -25,7 +25,8 @@ type RelabelConfig struct {
 
 // ParsedConfigs represents parsed relabel configs.
 type ParsedConfigs struct {
-	prcs []*parsedRelabelConfig
+	prcs         []*parsedRelabelConfig
+	relabelDebug bool
 }
 
 // Len returns the number of relabel configs in pcs.
@@ -43,19 +44,20 @@ func (pcs *ParsedConfigs) String() string {
 	}
 	var sb strings.Builder
 	for _, prc := range pcs.prcs {
-		fmt.Fprintf(&sb, "%s", prc.String())
+		fmt.Fprintf(&sb, "%s,", prc.String())
 	}
+	fmt.Fprintf(&sb, "relabelDebug=%v", pcs.relabelDebug)
 	return sb.String()
 }
 
 // LoadRelabelConfigs loads relabel configs from the given path.
-func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
+func LoadRelabelConfigs(path string, relabelDebug bool) (*ParsedConfigs, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
 	data = envtemplate.Replace(data)
-	pcs, err := ParseRelabelConfigsData(data)
+	pcs, err := ParseRelabelConfigsData(data, relabelDebug)
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %w", path, err)
 	}
@@ -63,16 +65,16 @@ func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
 }
 
 // ParseRelabelConfigsData parses relabel configs from the given data.
-func ParseRelabelConfigsData(data []byte) (*ParsedConfigs, error) {
+func ParseRelabelConfigsData(data []byte, relabelDebug bool) (*ParsedConfigs, error) {
 	var rcs []RelabelConfig
 	if err := yaml.UnmarshalStrict(data, &rcs); err != nil {
 		return nil, err
 	}
-	return ParseRelabelConfigs(rcs)
+	return ParseRelabelConfigs(rcs, relabelDebug)
 }
 
 // ParseRelabelConfigs parses rcs to dst.
-func ParseRelabelConfigs(rcs []RelabelConfig) (*ParsedConfigs, error) {
+func ParseRelabelConfigs(rcs []RelabelConfig, relabelDebug bool) (*ParsedConfigs, error) {
 	if len(rcs) == 0 {
 		return nil, nil
 	}
@@ -85,7 +87,8 @@ func ParseRelabelConfigs(rcs []RelabelConfig) (*ParsedConfigs, error) {
 		prcs[i] = prc
 	}
 	return &ParsedConfigs{
-		prcs: prcs,
+		prcs:         prcs,
+		relabelDebug: relabelDebug,
 	}, nil
 }
 

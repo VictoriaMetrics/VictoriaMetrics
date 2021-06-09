@@ -39,7 +39,7 @@ services:
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:7.5.2
+    image: grafana/grafana:8.0.0
     depends_on:
       - "victoriametrics"
     ports:

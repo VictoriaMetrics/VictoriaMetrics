@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+func (up *URLPrefix) mergeURLs(requestURI *url.URL) *url.URL {
+	pu := up.getNextURL()
+	return mergeURLs(pu, requestURI)
+}
+
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
 	targetURL.Path += requestURI.Path
@@ -40,12 +45,12 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, error) {
 	for _, e := range ui.URLMap {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return mergeURLs(e.URLPrefix.u, &u), nil
+				return e.URLPrefix.mergeURLs(&u), nil
 			}
 		}
 	}
 	if ui.URLPrefix != nil {
-		return mergeURLs(ui.URLPrefix.u, &u), nil
+		return ui.URLPrefix.mergeURLs(&u), nil
 	}
 	return nil, fmt.Errorf("missing route for %q", u.String())
 }

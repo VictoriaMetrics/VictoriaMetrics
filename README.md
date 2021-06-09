@@ -459,11 +459,7 @@ The `/api/v1/export` endpoint should return the following response:
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
 * [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). Graphite metric names may special chars such as `-`, which may clash
-  with [MetricsQL operations](https://docs.victoriametrics.com/MetricsQL.html). Such metrics can be queries via `{__name__="foo-bar.baz"}`.
-  VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
-  For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
-  and it is easier to use when migrating from Graphite to VictoriaMetrics.
+* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics.
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
 
 ## How to send data from OpenTSDB-compatible agents
@@ -1766,6 +1762,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
   -relabelConfig string
     	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details
+  -relabelDebug
+    	Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -retentionPeriod value
     	Data with timestamps outside the retentionPeriod is automatically deleted
     	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)

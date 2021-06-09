@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
@@ -25,9 +25,8 @@ func TestMain(m *testing.M) {
 // starting with empty rules folder
 func TestManagerEmptyRulesDir(t *testing.T) {
 	m := &manager{groups: make(map[uint64]*Group)}
-	path := []string{"foo/bar"}
-	err := m.update(context.Background(), path, true, true, false)
-	if err != nil {
+	cfg := loadCfg(t, []string{"foo/bar"}, true, true)
+	if err := m.update(context.Background(), cfg, false); err != nil {
 		t.Fatalf("expected to load succesfully with empty rules dir; got err instead: %v", err)
 	}
 }
@@ -50,8 +49,11 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 		"config/testdata/rules1-good.rules",
 		"config/testdata/rules2-good.rules",
 	}
+	evalInterval := *evaluationInterval
+	defer func() { *evaluationInterval = evalInterval }()
 	*evaluationInterval = time.Millisecond
-	if err := m.start(context.Background(), []string{paths[0]}, true, true); err != nil {
+	cfg := loadCfg(t, []string{paths[0]}, true, true)
+	if err := m.start(context.Background(), cfg); err != nil {
 		t.Fatalf("failed to start: %s", err)
 	}
 
@@ -64,8 +66,11 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < iterations; i++ {
 				rnd := rand.Intn(len(paths))
-				path := []string{paths[rnd]}
-				_ = m.update(context.Background(), path, true, true, false)
+				cfg, err := config.Parse([]string{paths[rnd]}, true, true)
+				if err != nil { // update can fail and this is expected
+					continue
+				}
+				_ = m.update(context.Background(), cfg, false)
 			}
 		}()
 	}
@@ -243,13 +248,16 @@ func TestManagerUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
 			m := &manager{groups: make(map[uint64]*Group), querierBuilder: &fakeQuerier{}}
-			path := []string{tc.initPath}
-			if err := m.update(ctx, path, true, true, false); err != nil {
+
+			cfgInit := loadCfg(t, []string{tc.initPath}, true, true)
+			if err := m.update(ctx, cfgInit, false); err != nil {
 				t.Fatalf("failed to complete initial rules update: %s", err)
 			}
 
-			path = []string{tc.updatePath}
-			_ = m.update(ctx, path, true, true, false)
+			cfgUpdate, err := config.Parse([]string{tc.updatePath}, true, true)
+			if err == nil { // update can fail and that's expected
+				_ = m.update(ctx, cfgUpdate, false)
+			}
 			if len(tc.want) != len(m.groups) {
 				t.Fatalf("\nwant number of groups: %d;\ngot: %d ", len(tc.want), len(m.groups))
 			}
@@ -266,4 +274,13 @@ func TestManagerUpdate(t *testing.T) {
 			m.close()
 		})
 	}
+}
+
+func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressions bool) []config.Group {
+	t.Helper()
+	cfg, err := config.Parse(path, validateAnnotations, validateExpressions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg
 }

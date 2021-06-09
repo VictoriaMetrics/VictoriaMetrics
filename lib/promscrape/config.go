@@ -118,6 +118,8 @@ type ScrapeConfig struct {
 	GCESDConfigs         []gce.SDConfig         `yaml:"gce_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
+	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`
+	MetricRelabelDebug  bool                       `yaml:"metric_relabel_debug,omitempty"`
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
@@ -573,11 +575,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs, sc.RelabelDebug)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs, sc.MetricRelabelDebug)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}

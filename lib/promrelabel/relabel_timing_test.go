@@ -840,7 +840,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 }
 
 func mustParseRelabelConfigs(config string) *ParsedConfigs {
-	pcs, err := ParseRelabelConfigsData([]byte(config))
+	pcs, err := ParseRelabelConfigsData([]byte(config), false)
 	if err != nil {
 		panic(fmt.Errorf("unexpected error: %w", err))
 	}

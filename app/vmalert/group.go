@@ -269,15 +269,10 @@ type executor struct {
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
 	res := make(chan error, len(rules))
-	var returnSeries bool
-	if e.rw != nil {
-		returnSeries = true
-	}
-
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, returnSeries, interval)
+			res <- e.exec(ctx, rule, interval)
 		}
 		close(res)
 		return res
@@ -290,7 +285,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, r, returnSeries, interval)
+				res <- e.exec(ctx, r, interval)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -309,14 +304,14 @@ var (
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
-func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, interval time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) error {
 	execTotal.Inc()
 	execStart := time.Now()
 	defer func() {
 		execDuration.UpdateDuration(execStart)
 	}()
 
-	tss, err := rule.Exec(ctx, returnSeries)
+	tss, err := rule.Exec(ctx)
 	if err != nil {
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)

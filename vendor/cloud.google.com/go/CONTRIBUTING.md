@@ -136,6 +136,9 @@ As part of the setup that follows, the following variables will be configured:
 - `GCLOUD_TESTS_GOLANG_KEYRING`: The full name of the keyring for the tests,
 in the form
 "projects/P/locations/L/keyRings/R". The creation of this is described below.
+- `GCLOUD_TESTS_BIGTABLE_KEYRING`: The full name of the keyring for the bigtable tests,
+in the form
+"projects/P/locations/L/keyRings/R". The creation of this is described below. Expected to be single region.
 - `GCLOUD_TESTS_GOLANG_ZONE`: Compute Engine zone.
 
 Install the [gcloud command-line tool][gcloudcli] to your machine and use it to
@@ -172,6 +175,7 @@ $ gcloud beta spanner instances create go-integration-test --config regional-us-
 
 $ export MY_KEYRING=some-keyring-name
 $ export MY_LOCATION=global
+$ export MY_SINGLE_LOCATION=us-central1
 # Creates a KMS keyring, in the same location as the default location for your
 # project's buckets.
 $ gcloud kms keyrings create $MY_KEYRING --location $MY_LOCATION
@@ -182,10 +186,15 @@ $ gcloud kms keys create key2 --keyring $MY_KEYRING --location $MY_LOCATION --pu
 $ export GCLOUD_TESTS_GOLANG_KEYRING=projects/$GCLOUD_TESTS_GOLANG_PROJECT_ID/locations/$MY_LOCATION/keyRings/$MY_KEYRING
 # Authorizes Google Cloud Storage to encrypt and decrypt using key1.
 $ gsutil kms authorize -p $GCLOUD_TESTS_GOLANG_PROJECT_ID -k $GCLOUD_TESTS_GOLANG_KEYRING/cryptoKeys/key1
+
+# Create KMS Key in one region for Bigtable
+$ gcloud kms keys create key1 --keyring $MY_KEYRING --location $MY_SINGLE_LOCATION --purpose encryption
+# Sets the GCLOUD_TESTS_BIGTABLE_KEYRING environment variable.
+$ export GCLOUD_TESTS_BIGTABLE_KEYRING=projects/$GCLOUD_TESTS_GOLANG_PROJECT_ID/locations/$MY_SINGLE_LOCATION/keyRings/$MY_KEYRING
 # Authorizes Google Cloud Bigtable to encrypt and decrypt using key1
 $ gcloud kms keys add-iam-policy-binding key1 \
     --keyring $MY_KEYRING \
-    --location $MY_LOCATION \
+    --location $MY_SINGLE_LOCATION \
     --role roles/cloudkms.cryptoKeyEncrypterDecrypter \
     --member "${GCLOUD_TESTS_GOLANG_PROJECT_ID}@${GCLOUD_TESTS_GOLANG_PROJECT_ID}.iam.gserviceaccount.com" \
     --project $GCLOUD_TESTS_GOLANG_PROJECT_ID
