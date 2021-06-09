@@ -3,21 +3,21 @@ package main
 import (
 	"context"
 	"errors"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"time"
 )
 
 // Rule represents alerting or recording rule
 // that has unique ID, can be Executed and
 // updated with other Rule.
 type Rule interface {
-	// Returns unique ID that may be used for
+	// ID returns unique ID that may be used for
 	// identifying this Rule among others.
 	ID() uint64
 	// Exec executes the rule with given context
-	// and Querier. If returnSeries is true, Exec
-	// may return TimeSeries as result of execution
-	Exec(ctx context.Context, returnSeries bool) ([]prompbmarshal.TimeSeries, error)
+	Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error)
+	// ExecRange executes the rule on the given time range
+	ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error)
 	// UpdateWith performs modification of current Rule
 	// with fields of the given Rule.
 	UpdateWith(Rule) error

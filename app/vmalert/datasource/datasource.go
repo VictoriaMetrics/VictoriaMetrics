@@ -2,26 +2,33 @@ package datasource
 
 import (
 	"context"
+	"time"
 )
+
+// Querier interface wraps Query and QueryRange methods
+type Querier interface {
+	Query(ctx context.Context, query string) ([]Metric, error)
+	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
+}
 
 // QuerierBuilder builds Querier with given params.
 type QuerierBuilder interface {
 	BuildWithParams(params QuerierParams) Querier
 }
 
-// Querier interface wraps Query method which
-// executes given query and returns list of Metrics
-// as result
-type Querier interface {
-	Query(ctx context.Context, query string) ([]Metric, error)
+// QuerierParams params for Querier.
+type QuerierParams struct {
+	DataSourceType     *Type
+	EvaluationInterval time.Duration
+	// see https://docs.victoriametrics.com/#prometheus-querying-api-enhancements
+	ExtraLabels map[string]string
 }
 
 // Metric is the basic entity which should be return by datasource
-// It represents single data point with full list of labels
 type Metric struct {
-	Labels    []Label
-	Timestamp int64
-	Value     float64
+	Labels     []Label
+	Timestamps []int64
+	Values     []float64
 }
 
 // SetLabel adds or updates existing one label
