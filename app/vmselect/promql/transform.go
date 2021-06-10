@@ -87,7 +87,7 @@ var transformFuncs = map[string]transformFunc{
 	"label_match":        transformLabelMatch,
 	"label_mismatch":     transformLabelMismatch,
 	"union":              transformUnion,
-	"":                   transformUnion, // empty func is a synonim to union
+	"":                   transformUnion, // empty func is a synonym to union
 	"keep_last_value":    transformKeepLastValue,
 	"keep_next_value":    transformKeepNextValue,
 	"interpolate":        transformInterpolate,
