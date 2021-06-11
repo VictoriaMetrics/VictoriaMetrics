@@ -111,7 +111,7 @@ within one group.
 
 #### Alerting rules
 
-The syntax for alerting rule is following:
+The syntax for alerting rule is the following:
 ```yaml
 # The name of the alert. Must be a valid metric name.
 alert: <string>
@@ -127,6 +127,8 @@ expr: <string>
 
 # Alerts are considered firing once they have been returned for this long.
 # Alerts which have not yet fired for long enough are considered pending.
+# If param is omitted or set to 0 then alerts will be immediately considered
+# as firing once they return.
 [ for: <duration> | default = 0s ]
 
 # Labels to add or overwrite for each alert.
