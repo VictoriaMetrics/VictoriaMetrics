@@ -79,8 +79,8 @@ const finalPartsToMerge = 3
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
 var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 7) / 8
 
-// getMaxRowsPerPartition returns the maximum number of rows that haven't been converted into parts yet.
-func getMaxRawRowsPerPartition() int {
+// getMaxRawRowsPerShard returns the maximum number of rows that haven't been converted into parts yet.
+func getMaxRawRowsPerShard() int {
 	maxRawRowsPerPartitionOnce.Do(func() {
 		n := memory.Allowed() / rawRowsShardsPerPartition / 256 / int(unsafe.Sizeof(rawRow{}))
 		if n < 1e4 {
@@ -515,7 +515,7 @@ type rawRows struct {
 }
 
 func getRawRowsMaxSize() *rawRows {
-	size := getMaxRawRowsPerPartition()
+	size := getMaxRawRowsPerShard()
 	return getRawRowsWithSize(size)
 }
 
