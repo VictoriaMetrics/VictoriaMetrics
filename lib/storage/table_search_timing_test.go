@@ -110,7 +110,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 
 func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int, fetchData bool) {
 	startTimestamp := timestampFromTime(time.Now()) - 365*24*3600*1000
-	rowsPerInsert := getMaxRawRowsPerPartition()
+	rowsPerInsert := getMaxRawRowsPerShard()
 
 	tb := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 	tr := TimeRange{

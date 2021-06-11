@@ -66,7 +66,7 @@ func TestVMInstantQuery(t *testing.T) {
 		case 5:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix"}}`))
 		case 6:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows"},"value":[1583786142,"13763"]}]}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests"},"value":[1583786140,"2000"]}]}}`))
 		}
 	})
 
@@ -100,16 +100,23 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
+	if len(m) != 2 {
+		t.Fatalf("expected 2 metrics got %d in %+v", len(m), m)
 	}
-	expected := Metric{
-		Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
-		Timestamps: []int64{1583786142},
-		Values:     []float64{13763},
+	expected := []Metric{
+		{
+			Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
+			Timestamps: []int64{1583786142},
+			Values:     []float64{13763},
+		},
+		{
+			Labels:     []Label{{Value: "vm_requests", Name: "__name__"}},
+			Timestamps: []int64{1583786140},
+			Values:     []float64{2000},
+		},
 	}
-	if !reflect.DeepEqual(m[0], expected) {
-		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
+	if !reflect.DeepEqual(m, expected) {
+		t.Fatalf("unexpected metric %+v want %+v", m, expected)
 	}
 
 	g := NewGraphiteType()
@@ -122,12 +129,12 @@ func TestVMInstantQuery(t *testing.T) {
 	if len(m) != 1 {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
-	expected = Metric{
+	exp := Metric{
 		Labels:     []Label{{Value: "constantLine(10)", Name: "name"}},
 		Timestamps: []int64{1611758403},
 		Values:     []float64{10},
 	}
-	if !reflect.DeepEqual(m[0], expected) {
+	if !reflect.DeepEqual(m[0], exp) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
 }
