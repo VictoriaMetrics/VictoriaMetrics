@@ -50,7 +50,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1623413472429,
+  "iteration": 1623413472435,
   "links": [
     {
       "icon": "doc",
@@ -3866,7 +3866,10 @@
   "refresh": "30s",
   "schemaVersion": 30,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "victoriametrics",
+    "vmsingle"
+  ],
   "templating": {
     "list": [
       {
