@@ -34,23 +34,18 @@ type promRange struct {
 
 func (r promInstant) metrics() ([]Metric, error) {
 	var result []Metric
-	var m Metric
 	for i, res := range r.Result {
 		f, err := strconv.ParseFloat(res.TV[1].(string), 64)
 		if err != nil {
 			return nil, fmt.Errorf("metric %v, unable to parse float64 from %s: %w", res, res.TV[1], err)
 		}
-		m.Labels = nil
+		var m Metric
 		for k, v := range r.Result[i].Labels {
 			m.AddLabel(k, v)
 		}
 		m.Timestamps = append(m.Timestamps, int64(res.TV[0].(float64)))
 		m.Values = append(m.Values, f)
 		result = append(result, m)
-
-		m.Values = m.Values[:0]
-		m.Labels = m.Labels[:0]
-		m.Timestamps = m.Timestamps[:0]
 	}
 	return result, nil
 }
