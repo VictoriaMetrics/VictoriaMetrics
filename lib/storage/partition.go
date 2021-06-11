@@ -82,7 +82,7 @@ var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 7) / 8
 // getMaxRowsPerPartition returns the maximum number of rows that haven't been converted into parts yet.
 func getMaxRawRowsPerPartition() int {
 	maxRawRowsPerPartitionOnce.Do(func() {
-		n := memory.Allowed() / 256 / int(unsafe.Sizeof(rawRow{}))
+		n := memory.Allowed() / rawRowsShardsPerPartition / 256 / int(unsafe.Sizeof(rawRow{}))
 		if n < 1e4 {
 			n = 1e4
 		}
