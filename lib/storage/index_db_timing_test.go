@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 func BenchmarkRegexpFilterMatch(b *testing.B) {
@@ -42,15 +40,11 @@ func BenchmarkRegexpFilterMismatch(b *testing.B) {
 func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const recordsPerLoop = 1e3
 
-	metricIDCache := workingsetcache.New(1234, time.Hour)
-	metricNameCache := workingsetcache.New(1234, time.Hour)
-	tsidCache := workingsetcache.New(1234, time.Hour)
-	defer metricIDCache.Stop()
-	defer metricNameCache.Stop()
-	defer tsidCache.Stop()
+	s := newTestStorage()
+	defer stopTestStorage(s)
 
 	const dbName = "bench-index-db-add-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+	db, err := openIndexDB(dbName, s)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -107,15 +101,11 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// This benchmark is equivalent to https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L52
 	// See https://www.robustperception.io/evaluating-performance-and-correctness for more details.
-	metricIDCache := workingsetcache.New(1234, time.Hour)
-	metricNameCache := workingsetcache.New(1234, time.Hour)
-	tsidCache := workingsetcache.New(1234, time.Hour)
-	defer metricIDCache.Stop()
-	defer metricNameCache.Stop()
-	defer tsidCache.Stop()
+	s := newTestStorage()
+	defer stopTestStorage(s)
 
 	const dbName = "bench-head-posting-for-matchers"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+	db, err := openIndexDB(dbName, s)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -286,15 +276,11 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 }
 
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
-	metricIDCache := workingsetcache.New(1234, time.Hour)
-	metricNameCache := workingsetcache.New(1234, time.Hour)
-	tsidCache := workingsetcache.New(1234, time.Hour)
-	defer metricIDCache.Stop()
-	defer metricNameCache.Stop()
-	defer tsidCache.Stop()
+	s := newTestStorage()
+	defer stopTestStorage(s)
 
 	const dbName = "bench-index-db-get-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+	db, err := openIndexDB(dbName, s)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -454,15 +455,11 @@ func TestMarshalUnmarshalTSIDs(t *testing.T) {
 }
 
 func TestIndexDBOpenClose(t *testing.T) {
-	metricIDCache := workingsetcache.New(1234, time.Hour)
-	metricNameCache := workingsetcache.New(1234, time.Hour)
-	tsidCache := workingsetcache.New(1234, time.Hour)
-	defer metricIDCache.Stop()
-	defer metricNameCache.Stop()
-	defer tsidCache.Stop()
+	s := newTestStorage()
+	defer stopTestStorage(s)
 
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache, 0)
+		db, err := openIndexDB("test-index-db", s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -477,15 +474,11 @@ func TestIndexDB(t *testing.T) {
 	const metricGroups = 10
 
 	t.Run("serial", func(t *testing.T) {
-		metricIDCache := workingsetcache.New(1234, time.Hour)
-		metricNameCache := workingsetcache.New(1234, time.Hour)
-		tsidCache := workingsetcache.New(1234, time.Hour)
-		defer metricIDCache.Stop()
-		defer metricNameCache.Stop()
-		defer tsidCache.Stop()
+		s := newTestStorage()
+		defer stopTestStorage(s)
 
 		dbName := "test-index-db-serial"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+		db, err := openIndexDB(dbName, s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -515,7 +508,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+		db, err = openIndexDB(dbName, s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -531,15 +524,11 @@ func TestIndexDB(t *testing.T) {
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
-		metricIDCache := workingsetcache.New(1234, time.Hour)
-		metricNameCache := workingsetcache.New(1234, time.Hour)
-		tsidCache := workingsetcache.New(1234, time.Hour)
-		defer metricIDCache.Stop()
-		defer metricNameCache.Stop()
-		defer tsidCache.Stop()
+		s := newTestStorage()
+		defer stopTestStorage(s)
 
 		dbName := "test-index-db-concurrent"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+		db, err := openIndexDB(dbName, s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -1463,15 +1452,11 @@ func TestMatchTagFilters(t *testing.T) {
 }
 
 func TestSearchTSIDWithTimeRange(t *testing.T) {
-	metricIDCache := workingsetcache.New(1234, time.Hour)
-	metricNameCache := workingsetcache.New(1234, time.Hour)
-	tsidCache := workingsetcache.New(1234, time.Hour)
-	defer metricIDCache.Stop()
-	defer metricNameCache.Stop()
-	defer tsidCache.Stop()
+	s := newTestStorage()
+	defer stopTestStorage(s)
 
 	dbName := "test-index-db-ts-range"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
+	db, err := openIndexDB(dbName, s)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -1723,4 +1708,21 @@ func toTFPointers(tfs []tagFilter) []*tagFilter {
 		tfps[i] = &tfs[i]
 	}
 	return tfps
+}
+
+func newTestStorage() *Storage {
+	return &Storage{
+		cachePath: "test-storage-cache",
+
+		metricIDCache:   workingsetcache.New(1234, time.Hour),
+		metricNameCache: workingsetcache.New(1234, time.Hour),
+		tsidCache:       workingsetcache.New(1234, time.Hour),
+	}
+}
+
+func stopTestStorage(s *Storage) {
+	s.metricIDCache.Stop()
+	s.metricNameCache.Stop()
+	s.tsidCache.Stop()
+	fs.MustRemoveAll(s.cachePath)
 }
