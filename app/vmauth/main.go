@@ -81,8 +81,22 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	r.Header.Set("vm-target-url", targetURL.String())
-	reverseProxy.ServeHTTP(w, r)
+	proxyRequest(w, r)
 	return true
+}
+
+func proxyRequest(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := recover()
+		if err == nil || err == http.ErrAbortHandler {
+			// Suppress http.ErrAbortHandler panic.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353
+			return
+		}
+		// Forward other panics to the caller.
+		panic(err)
+	}()
+	reverseProxy.ServeHTTP(w, r)
 }
 
 var configReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
