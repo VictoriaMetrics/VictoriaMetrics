@@ -211,7 +211,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
-	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache, s.minTimestampForCompositeIndex)
+	idbCurr, idbPrev, err := s.openIndexDBTables(idbPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
 	}
@@ -594,7 +594,7 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache, s.minTimestampForCompositeIndex)
+	idbNew, err := openIndexDB(idbNewPath, s)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -614,7 +614,7 @@ func (s *Storage) mustRotateIndexDB() {
 	fs.MustSyncPath(s.path)
 
 	// Flush tsidCache, so idbNew can be populated with fresh data.
-	s.tsidCache.Reset()
+	s.resetAndSaveTSIDCache()
 
 	// Flush dateMetricIDCache, so idbNew can be populated with fresh data.
 	s.dateMetricIDCache.Reset()
@@ -623,6 +623,11 @@ func (s *Storage) mustRotateIndexDB() {
 	// from prev idb remain valid after the rotation.
 
 	// There is no need in resetting nextDayMetricIDs, since it should be automatically reset every day.
+}
+
+func (s *Storage) resetAndSaveTSIDCache() {
+	s.tsidCache.Reset()
+	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
 }
 
 // MustClose closes the storage.
@@ -639,9 +644,12 @@ func (s *Storage) MustClose() {
 	s.idb().MustClose()
 
 	// Save caches.
-	s.mustSaveAndStopCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
-	s.mustSaveAndStopCache(s.metricIDCache, "MetricID->TSID", "metricID_tsid")
-	s.mustSaveAndStopCache(s.metricNameCache, "MetricID->MetricName", "metricID_metricName")
+	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
+	s.tsidCache.Stop()
+	s.mustSaveCache(s.metricIDCache, "MetricID->TSID", "metricID_tsid")
+	s.metricIDCache.Stop()
+	s.mustSaveCache(s.metricNameCache, "MetricID->MetricName", "metricID_metricName")
+	s.metricNameCache.Stop()
 
 	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids")
@@ -916,7 +924,10 @@ func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcac
 	return c
 }
 
-func (s *Storage) mustSaveAndStopCache(c *workingsetcache.Cache, info, name string) {
+func (s *Storage) mustSaveCache(c *workingsetcache.Cache, info, name string) {
+	saveCacheLock.Lock()
+	defer saveCacheLock.Unlock()
+
 	path := s.cachePath + "/" + name
 	logger.Infof("saving %s cache to %q...", info, path)
 	startTime := time.Now()
@@ -925,10 +936,12 @@ func (s *Storage) mustSaveAndStopCache(c *workingsetcache.Cache, info, name stri
 	}
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
-	c.Stop()
 	logger.Infof("saved %s cache to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
 		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 }
+
+// saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
+var saveCacheLock sync.Mutex
 
 func nextRetentionDuration(retentionMsecs int64) time.Duration {
 	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
@@ -2313,7 +2326,7 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, minTimestampForCompositeIndex int64) (curr, prev *indexDB, err error) {
+func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
@@ -2372,12 +2385,12 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *w
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache, minTimestampForCompositeIndex)
+	curr, err = openIndexDB(currPath, s)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache, minTimestampForCompositeIndex)
+	prev, err = openIndexDB(prevPath, s)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)

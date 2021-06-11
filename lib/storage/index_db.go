@@ -91,14 +91,8 @@ type indexDB struct {
 	// Cache for fast TagFilters -> TSIDs lookup.
 	tagCache *workingsetcache.Cache
 
-	// Cache for fast MetricID -> TSID lookup.
-	metricIDCache *workingsetcache.Cache
-
-	// Cache for fast MetricID -> MetricName lookup.
-	metricNameCache *workingsetcache.Cache
-
-	// Cache for fast MetricName -> TSID lookups.
-	tsidCache *workingsetcache.Cache
+	// The parent storage.
+	s *Storage
 
 	// Cache for useless TagFilters entries, which have no tag filters
 	// matching low number of metrics.
@@ -118,21 +112,12 @@ type indexDB struct {
 	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
-
-	// The minimum timestamp when queries with composite index can be used.
-	minTimestampForCompositeIndex int64
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, minTimestampForCompositeIndex int64) (*indexDB, error) {
-	if metricIDCache == nil {
-		logger.Panicf("BUG: metricIDCache must be non-nil")
-	}
-	if metricNameCache == nil {
-		logger.Panicf("BUG: metricNameCache must be non-nil")
-	}
-	if tsidCache == nil {
-		logger.Panicf("BUG: tsidCache must be nin-nil")
+func openIndexDB(path string, s *Storage) (*indexDB, error) {
+	if s == nil {
+		logger.Panicf("BUG: Storage must be nin-nil")
 	}
 
 	tb, err := mergeset.OpenTable(path, invalidateTagCache, mergeTagToMetricIDsRows)
@@ -151,13 +136,9 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		name:     name,
 
 		tagCache:                   workingsetcache.New(mem/32, time.Hour),
-		metricIDCache:              metricIDCache,
-		metricNameCache:            metricNameCache,
-		tsidCache:                  tsidCache,
+		s:                          s,
 		uselessTagFiltersCache:     workingsetcache.New(mem/128, time.Hour),
 		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
-
-		minTimestampForCompositeIndex: minTimestampForCompositeIndex,
 	}
 
 	is := db.getIndexSearch(0, 0, noDeadline)
@@ -249,7 +230,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.IndexBlocksWithMetricIDsProcessed = atomic.LoadUint64(&indexBlocksWithMetricIDsProcessed)
 	m.IndexBlocksWithMetricIDsIncorrectOrder = atomic.LoadUint64(&indexBlocksWithMetricIDsIncorrectOrder)
 
-	m.MinTimestampForCompositeIndex = uint64(db.minTimestampForCompositeIndex)
+	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
 	m.CompositeFilterSuccessConversions = atomic.LoadUint64(&compositeFilterSuccessConversions)
 	m.CompositeFilterMissingConversions = atomic.LoadUint64(&compositeFilterMissingConversions)
 
@@ -323,9 +304,7 @@ func (db *indexDB) decRef() {
 	db.loopsPerDateTagFilterCache.Stop()
 
 	db.tagCache = nil
-	db.metricIDCache = nil
-	db.metricNameCache = nil
-	db.tsidCache = nil
+	db.s = nil
 	db.uselessTagFiltersCache = nil
 	db.loopsPerDateTagFilterCache = nil
 
@@ -380,7 +359,7 @@ func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
 	// must be checked by the caller.
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	tmp := db.metricIDCache.Get(buf[:0], key[:])
+	tmp := db.s.metricIDCache.Get(buf[:0], key[:])
 	if len(tmp) == 0 {
 		// The TSID for the given metricID wasn't found in the cache.
 		return io.EOF
@@ -394,7 +373,7 @@ func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
 func (db *indexDB) putToMetricIDCache(metricID uint64, tsid *TSID) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	db.metricIDCache.Set(key[:], buf[:])
+	db.s.metricIDCache.Set(key[:], buf[:])
 }
 
 func (db *indexDB) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
@@ -405,12 +384,12 @@ func (db *indexDB) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
 	// There is no need in checking for deleted metricIDs here, since they
 	// must be checked by the caller.
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	return db.metricNameCache.Get(dst, key[:])
+	return db.s.metricNameCache.Get(dst, key[:])
 }
 
 func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	db.metricNameCache.Set(key[:], metricName)
+	db.s.metricNameCache.Set(key[:], metricName)
 }
 
 func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {
@@ -1657,19 +1636,6 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 		return nil
 	}
 
-	// Mark the found metricIDs as deleted.
-	items := getIndexItems()
-	for _, metricID := range metricIDs {
-		items.B = append(items.B, nsPrefixDeletedMetricID)
-		items.B = encoding.MarshalUint64(items.B, metricID)
-		items.Next()
-	}
-	err := db.tb.AddItems(items.Items)
-	putIndexItems(items)
-	if err != nil {
-		return err
-	}
-
 	// atomically add deleted metricIDs to an inmemory map.
 	dmis := &uint64set.Set{}
 	dmis.AddMulti(metricIDs)
@@ -1679,11 +1645,25 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 	invalidateTagCache()
 
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
-	db.tsidCache.Reset()
+	db.s.resetAndSaveTSIDCache()
 
 	// Do not reset uselessTagFiltersCache, since the found metricIDs
 	// on cache miss are filtered out later with deletedMetricIDs.
-	return nil
+
+	// Store the metricIDs as deleted.
+	// Make this after updating the deletedMetricIDs and resetting caches
+	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
+	// remain available in the tsidCache after unclean shutdown.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
+	items := getIndexItems()
+	for _, metricID := range metricIDs {
+		items.B = append(items.B, nsPrefixDeletedMetricID)
+		items.B = encoding.MarshalUint64(items.B, metricID)
+		items.Next()
+	}
+	err := db.tb.AddItems(items.Items)
+	putIndexItems(items)
+	return err
 }
 
 func (db *indexDB) getDeletedMetricIDs() *uint64set.Set {
@@ -1732,7 +1712,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int,
 	if len(tfss) == 0 {
 		return nil, nil
 	}
-	if tr.MinTimestamp >= db.minTimestampForCompositeIndex {
+	if tr.MinTimestamp >= db.s.minTimestampForCompositeIndex {
 		tfss = convertToCompositeTagFilterss(tfss)
 	}
 
