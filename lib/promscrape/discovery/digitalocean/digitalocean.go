@@ -11,8 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
-const listAPIPath = "v2/droplets"
-
 // SDConfig represents service discovery config for digital ocean.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config
@@ -30,7 +28,7 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
-	droplets, err := getDroplets(cfg)
+	droplets, err := getDroplets(cfg.client.GetAPIResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +53,7 @@ type droplet struct {
 		Slug string `json:"slug"`
 	} `json:"region"`
 	Tags    []string `json:"tags"`
-	VpcUuid string   `json:"vpc_uuid"`
+	VpcUUID string   `json:"vpc_uuid"`
 }
 
 func (d *droplet) getIPByNet(netVersion, netType string) string {
@@ -70,7 +68,7 @@ func (d *droplet) getIPByNet(netVersion, netType string) string {
 	}
 	for _, net := range dropletNetworks {
 		if net.Type == netType {
-			return net.IpAddress
+			return net.IPAddress
 		}
 	}
 	return ""
@@ -81,31 +79,33 @@ type networks struct {
 	V6 []network `json:"v6"`
 }
 type network struct {
-	IpAddress string `json:"ip_address"`
+	IPAddress string `json:"ip_address"`
 	// private | public.
 	Type string `json:"type"`
 }
 
 // https://developers.digitalocean.com/documentation/v2/#list-all-droplets
 type listDropletResponse struct {
-	Droplets []droplet
-	Links    paginationLinks
+	Droplets []droplet `json:"droplets,omitempty"`
+	Links    links     `json:"links,omitempty"`
 }
 
-type paginationLinks struct {
-	Last string
-	Next string
+type links struct {
+	Pages struct {
+		Last string `json:"last,omitempty"`
+		Next string `json:"next,omitempty"`
+	} `json:"pages,omitempty"`
 }
 
 func (r *listDropletResponse) nextURLPath() (string, error) {
-	if r.Links.Next == "" {
+	if r.Links.Pages.Next == "" {
 		return "", nil
 	}
-	u, err := url.Parse(r.Links.Next)
+	u, err := url.Parse(r.Links.Pages.Next)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse digital ocean next url: %s, err: %s", r.Links.Next, err)
+		return "", fmt.Errorf("cannot parse digital ocean next url: %s, err: %s", r.Links.Pages.Next, err)
 	}
-	return u.Path, nil
+	return u.RequestURI(), nil
 }
 
 func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
@@ -132,7 +132,7 @@ func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
 			"__meta_digitalocean_region":       droplet.Region.Slug,
 			"__meta_digitalocean_size":         droplet.SizeSlug,
 			"__meta_digitalocean_status":       droplet.Status,
-			"__meta_digitalocean_vpc":          droplet.VpcUuid,
+			"__meta_digitalocean_vpc":          droplet.VpcUUID,
 		}
 		if len(droplet.Features) > 0 {
 			features := fmt.Sprintf(",%s,", strings.Join(droplet.Features, ","))

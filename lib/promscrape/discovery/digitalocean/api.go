@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -13,7 +12,6 @@ var configMap = discoveryutils.NewConfigMap()
 
 type apiConfig struct {
 	client *discoveryutils.Client
-	ac     *promauth.Config
 	port   int
 }
 
@@ -61,13 +59,16 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 }
 
-func getDroplets(cfg *apiConfig) ([]droplet, error) {
+const dropletsAPIPath = "/v2/droplets"
+
+func getDroplets(getAPIResponse func(string) ([]byte, error)) ([]droplet, error) {
 	var droplets []droplet
-	nextAPIURL := "/v2/droplets"
+
+	nextAPIURL := dropletsAPIPath
 	for nextAPIURL != "" {
-		data, err := getAPIResponse(cfg, nextAPIURL)
+		data, err := getAPIResponse(nextAPIURL)
 		if err != nil {
-			return nil, fmt.Errorf("cannot fetch data from digitalocean list api: %w")
+			return nil, fmt.Errorf("cannot fetch data from digitalocean list api: %w", err)
 		}
 		apiResp, err := parseAPIResponse(data)
 		if err != nil {
@@ -82,16 +83,10 @@ func getDroplets(cfg *apiConfig) ([]droplet, error) {
 	return droplets, nil
 }
 
-func getAPIResponse(cfg *apiConfig, apiURL string) ([]byte, error) {
-
-	return cfg.client.GetAPIResponse(apiURL)
-
-}
-
 func parseAPIResponse(data []byte) (*listDropletResponse, error) {
 	var dps listDropletResponse
 	if err := json.Unmarshal(data, &dps); err != nil {
-		return nil, fmt.Errorf("failed parse eureka api response: %q, err: %w", data, err)
+		return nil, fmt.Errorf("failed parse digitalocean api response: %q, err: %w", data, err)
 	}
 	return &dps, nil
 }
