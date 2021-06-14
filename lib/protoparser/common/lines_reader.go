@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
@@ -41,6 +42,7 @@ func ReadLinesBlockExt(r io.Reader, dstBuf, tailBuf []byte, maxLineLen int) ([]b
 	dstBuf = append(dstBuf[:0], tailBuf...)
 	tailBuf = tailBuf[:0]
 again:
+	startTime := time.Now()
 	n, err := r.Read(dstBuf[len(dstBuf):cap(dstBuf)])
 	// Check for error only if zero bytes read from r, i.e. no forward progress made.
 	// Otherwise process the read data.
@@ -54,6 +56,9 @@ again:
 			// call to ReadLinesBlock.
 			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/60 .
 			return dstBuf, tailBuf, nil
+		}
+		if err != io.EOF {
+			err = fmt.Errorf("cannot read data in %.3fs: %w", time.Since(startTime).Seconds(), err)
 		}
 		return dstBuf, tailBuf, err
 	}
