@@ -36,13 +36,13 @@ func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error)
 //
 // It is expected that read timeout on r exceeds 1 second.
 func ReadLinesBlockExt(r io.Reader, dstBuf, tailBuf []byte, maxLineLen int) ([]byte, []byte, error) {
+	startTime := time.Now()
 	if cap(dstBuf) < defaultBlockSize {
 		dstBuf = bytesutil.Resize(dstBuf, defaultBlockSize)
 	}
 	dstBuf = append(dstBuf[:0], tailBuf...)
 	tailBuf = tailBuf[:0]
 again:
-	startTime := time.Now()
 	n, err := r.Read(dstBuf[len(dstBuf):cap(dstBuf)])
 	// Check for error only if zero bytes read from r, i.e. no forward progress made.
 	// Otherwise process the read data.
@@ -58,7 +58,7 @@ again:
 			return dstBuf, tailBuf, nil
 		}
 		if err != io.EOF {
-			err = fmt.Errorf("cannot read data in %.3fs: %w", time.Since(startTime).Seconds(), err)
+			err = fmt.Errorf("cannot read a block of data in %.3fs: %w", time.Since(startTime).Seconds(), err)
 		}
 		return dstBuf, tailBuf, err
 	}
