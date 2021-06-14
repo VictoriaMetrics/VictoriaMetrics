@@ -56,7 +56,7 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 
 func (ctx *streamContext) Read() bool {
 	readCalls.Inc()
-	if ctx.err != nil || ctx.CallbackError() != nil {
+	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
@@ -77,7 +77,7 @@ type streamContext struct {
 	err     error
 
 	wg              sync.WaitGroup
-	callbackErrLock sync.RWMutex
+	callbackErrLock sync.Mutex
 	callbackErr     error
 }
 
@@ -88,11 +88,11 @@ func (ctx *streamContext) Error() error {
 	return ctx.err
 }
 
-func (ctx *streamContext) CallbackError() error {
-	ctx.callbackErrLock.RLock()
-	callbackErr := ctx.callbackErr
-	ctx.callbackErrLock.RUnlock()
-	return callbackErr
+func (ctx *streamContext) hasCallbackError() bool {
+	ctx.callbackErrLock.Lock()
+	ok := ctx.callbackErr != nil
+	ctx.callbackErrLock.Unlock()
+	return ok
 }
 
 func (ctx *streamContext) reset() {
