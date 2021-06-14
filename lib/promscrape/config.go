@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
@@ -106,16 +107,17 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
-	StaticConfigs        []StaticConfig         `yaml:"static_configs,omitempty"`
-	FileSDConfigs        []FileSDConfig         `yaml:"file_sd_configs,omitempty"`
-	KubernetesSDConfigs  []kubernetes.SDConfig  `yaml:"kubernetes_sd_configs,omitempty"`
-	OpenStackSDConfigs   []openstack.SDConfig   `yaml:"openstack_sd_configs,omitempty"`
-	ConsulSDConfigs      []consul.SDConfig      `yaml:"consul_sd_configs,omitempty"`
-	EurekaSDConfigs      []eureka.SDConfig      `yaml:"eureka_sd_configs,omitempty"`
-	DockerSwarmSDConfigs []dockerswarm.SDConfig `yaml:"dockerswarm_sd_configs,omitempty"`
-	DNSSDConfigs         []dns.SDConfig         `yaml:"dns_sd_configs,omitempty"`
-	EC2SDConfigs         []ec2.SDConfig         `yaml:"ec2_sd_configs,omitempty"`
-	GCESDConfigs         []gce.SDConfig         `yaml:"gce_sd_configs,omitempty"`
+	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
+	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
+	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
+	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
+	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
+	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
+	DockerSwarmSDConfigs  []dockerswarm.SDConfig  `yaml:"dockerswarm_sd_configs,omitempty"`
+	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
+	EC2SDConfigs          []ec2.SDConfig          `yaml:"ec2_sd_configs,omitempty"`
+	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
+	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`
@@ -482,6 +484,34 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
 			logger.Errorf("there were errors when discovering gce targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDigitalOceanDScrapeWork returns `digitalocean_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DigitaloceanSDConfigs {
+			sdc := &sc.DigitaloceanSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "digitalocean_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering digitalocean targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
