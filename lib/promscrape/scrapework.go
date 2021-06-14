@@ -324,7 +324,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// body must be released only after wc is released, since wc refers to body.
 	sw.prevBodyLen = len(body.B)
 	leveledbytebufferpool.Put(body)
-	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
+	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
 }
 
@@ -391,7 +391,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
-	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
+	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
 }
 

@@ -19,7 +19,8 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
     {% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %},
     last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,
     scrape_duration={%f.3 ts.scrapeDuration.Seconds() %}s,
-    error={%q= ts.error %}
+    samples_scraped={%d ts.samplesScraped %},
+    error={%q= ts.errMsg %}
     {% newline %}
 {% endfor %}
 {% endfor %}
@@ -62,6 +63,7 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
             <th scope="col">Labels</th>
             <th scope="col">Last Scrape</th>
             <th scope="col">Scrape Duration</th>
+            <th scope="col">Samples Scraped</th>
             <th scope="col">Error</th>
           </tr>
         </thead>
@@ -76,7 +78,8 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
               </td>
               <td>{%f.3 ts.lastScrapeTime.Seconds() %}s ago</td>
               <td>{%f.3 ts.scrapeDuration.Seconds() %}s</td>
-              <td>{%s ts.error %}</td>
+              <td>{%d ts.samplesScraped %}</td>
+              <td>{%s ts.errMsg %}</td>
             </tr>
           {% endfor %}
         </tbody>
