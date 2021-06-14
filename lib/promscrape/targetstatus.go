@@ -88,7 +88,7 @@ func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, err error) {
+func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
 	tsm.mu.Lock()
 	ts := tsm.m[sw]
 	if ts == nil {
@@ -101,6 +101,7 @@ func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrape
 	ts.scrapeGroup = group
 	ts.scrapeTime = scrapeTime
 	ts.scrapeDuration = scrapeDuration
+	ts.samplesScraped = samplesScraped
 	ts.err = err
 	tsm.mu.Unlock()
 }
@@ -156,6 +157,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		fmt.Fprintf(w, `,"lastError":%q`, errMsg)
 		fmt.Fprintf(w, `,"lastScrape":%q`, time.Unix(st.scrapeTime/1000, (st.scrapeTime%1000)*1e6).Format(time.RFC3339Nano))
 		fmt.Fprintf(w, `,"lastScrapeDuration":%g`, (time.Millisecond * time.Duration(st.scrapeDuration)).Seconds())
+		fmt.Fprintf(w, `,"lastSamplesScraped":%d`, st.samplesScraped)
 		state := "up"
 		if !st.up {
 			state = "down"
@@ -185,6 +187,7 @@ type targetStatus struct {
 	scrapeGroup    string
 	scrapeTime     int64
 	scrapeDuration int64
+	samplesScraped int
 	err            error
 }
 
@@ -270,7 +273,8 @@ type jobTargetStatus struct {
 	originalLabels []prompbmarshal.Label
 	lastScrapeTime time.Duration
 	scrapeDuration time.Duration
-	error          string
+	samplesScraped int
+	errMsg         string
 }
 
 type jobTargetsStatuses struct {
@@ -313,7 +317,8 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 				originalLabels: st.sw.OriginalLabels,
 				lastScrapeTime: st.getDurationFromLastScrape(),
 				scrapeDuration: time.Duration(st.scrapeDuration) * time.Millisecond,
-				error:          errMsg,
+				samplesScraped: st.samplesScraped,
+				errMsg:         errMsg,
 			})
 		}
 		jts = append(jts, jobTargetsStatuses{
