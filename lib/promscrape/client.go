@@ -128,10 +128,10 @@ func newClient(sw *ScrapeWork) *client {
 				ResponseHeaderTimeout: sw.ScrapeTimeout,
 			},
 
-			// Set 10x bigger timeout than the sw.ScrapeTimeout, since the duration for reading the full response
+			// Set 30x bigger timeout than the sw.ScrapeTimeout, since the duration for reading the full response
 			// can be much bigger because of stream parsing.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
-			Timeout: 10 * sw.ScrapeTimeout,
+			Timeout: 30 * sw.ScrapeTimeout,
 		}
 		if sw.DenyRedirects {
 			sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
