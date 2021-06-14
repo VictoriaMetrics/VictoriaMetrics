@@ -82,7 +82,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 
 func (ctx *streamContext) Read() bool {
 	readCalls.Inc()
-	if ctx.err != nil {
+	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.N)
@@ -118,6 +118,13 @@ func (ctx *streamContext) Error() error {
 		return nil
 	}
 	return ctx.err
+}
+
+func (ctx *streamContext) hasCallbackError() bool {
+	ctx.callbackErrLock.Lock()
+	ok := ctx.callbackErr != nil
+	ctx.callbackErrLock.Unlock()
+	return ok
 }
 
 func (ctx *streamContext) reset() {
