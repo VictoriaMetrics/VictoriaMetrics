@@ -98,7 +98,7 @@ Alphabetically sorted links to case studies:
   * [Arbitrary CSV data](#how-to-import-csv-data).
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
 * Can deal with high cardinality and high churn rate issues using [series limiter](#cardinality-limiter).
-* Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
+* Ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
