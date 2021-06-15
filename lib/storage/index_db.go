@@ -620,13 +620,27 @@ func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) er
 		err = extDB.getTSIDByNameNoCreate(dst, metricName)
 	}) {
 		if err == nil {
-			// The TSID has been found in the external storage.
-			return nil
+			is := db.getIndexSearch(0, 0, noDeadline)
+			dmis := is.db.getDeletedMetricIDs()
+			if !dmis.Has(dst.MetricID){
+				// The TSID has been found in the external storage.
+				return nil
+			}
+			//The TSID searched from external storage is marked deleted in current storage,delete it in the external storage
+			if db.doExtDB(func(extDB *indexDB) {
+				err = extDB.deleteMetricIDs([]uint64{dst.MetricID})
+			}){
+				if err != nil{
+					return err
+				}
+				err = io.EOF
+			}
 		}
 		if err != io.EOF {
 			return fmt.Errorf("external search failed: %w", err)
 		}
 	}
+
 
 	// The TSID wasn't found in the external storage.
 	// Generate it locally.
