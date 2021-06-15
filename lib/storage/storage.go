@@ -120,6 +120,13 @@ type Storage struct {
 
 	// The minimum timestamp when composite index search can be used.
 	minTimestampForCompositeIndex int64
+
+	// An inmemory set of deleted metricIDs.
+	//
+	// It is safe to keep the set in memory even for big number of deleted
+	// metricIDs, since it usually requires 1 bit per deleted metricID.
+	deletedMetricIDs           atomic.Value
+	deletedMetricIDsUpdateLock sync.Mutex
 }
 
 type pendingHourMetricIDEntry struct {
@@ -218,6 +225,18 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
 
+	// Load deleted metricIDs from idbCurr and idbPrev
+	dmisCurr, err := idbCurr.loadDeletedMetricIDs()
+	if err != nil {
+		return nil, fmt.Errorf("cannot load deleted metricIDs for the current indexDB: %w", err)
+	}
+	dmisPrev, err := idbPrev.loadDeletedMetricIDs()
+	if err != nil {
+		return nil, fmt.Errorf("cannot load deleted metricIDs for the previous indexDB: %w", err)
+	}
+	s.setDeletedMetricIDs(dmisCurr)
+	s.updateDeletedMetricIDs(dmisPrev)
+
 	// Load data
 	tablePath := path + "/data"
 	tb, err := openTable(tablePath, s.getDeletedMetricIDs, retentionMsecs)
@@ -239,14 +258,27 @@ func (s *Storage) RetentionMsecs() int64 {
 	return s.retentionMsecs
 }
 
+func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
+	return s.deletedMetricIDs.Load().(*uint64set.Set)
+}
+
+func (s *Storage) setDeletedMetricIDs(dmis *uint64set.Set) {
+	s.deletedMetricIDs.Store(dmis)
+}
+
+func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
+	s.deletedMetricIDsUpdateLock.Lock()
+	dmisOld := s.getDeletedMetricIDs()
+	dmisNew := dmisOld.Clone()
+	dmisNew.Union(metricIDs)
+	s.setDeletedMetricIDs(dmisNew)
+	s.deletedMetricIDsUpdateLock.Unlock()
+}
+
 // DebugFlush flushes recently added storage data, so it becomes visible to search.
 func (s *Storage) DebugFlush() {
 	s.tb.flushRawRows()
 	s.idb().tb.DebugFlush()
-}
-
-func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
-	return s.idb().getDeletedMetricIDs()
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.

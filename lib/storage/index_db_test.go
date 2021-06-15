@@ -1791,13 +1791,15 @@ func toTFPointers(tfs []tagFilter) []*tagFilter {
 }
 
 func newTestStorage() *Storage {
-	return &Storage{
+	s := &Storage{
 		cachePath: "test-storage-cache",
 
 		metricIDCache:   workingsetcache.New(1234, time.Hour),
 		metricNameCache: workingsetcache.New(1234, time.Hour),
 		tsidCache:       workingsetcache.New(1234, time.Hour),
 	}
+	s.setDeletedMetricIDs(&uint64set.Set{})
+	return s
 }
 
 func stopTestStorage(s *Storage) {
