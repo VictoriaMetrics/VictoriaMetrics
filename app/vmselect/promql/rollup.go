@@ -1332,7 +1332,8 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
-	prevValue := rfa.prevValue
+	// restore to the real value because of potential staleness reset
+	prevValue := rfa.realPrevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
 			return nan
