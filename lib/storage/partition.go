@@ -485,14 +485,11 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 		rrs.rows = make([]rawRow, 0, n)
 	}
 	maxRowsCount := cap(rrs.rows)
-	for {
-		capacity := maxRowsCount - len(rrs.rows)
-		if capacity >= len(rows) {
-			// Fast path - rows fit capacity.
-			rrs.rows = append(rrs.rows, rows...)
-			break
-		}
-
+	capacity := maxRowsCount - len(rrs.rows)
+	if capacity >= len(rows) {
+		// Fast path - rows fit capacity.
+		rrs.rows = append(rrs.rows, rows...)
+	} else {
 		// Slow path - rows don't fit capacity.
 		// Put rrs.rows and rows to rowsToFlush and convert it to a part.
 		rowsToFlush = append(rowsToFlush, rrs.rows...)
