@@ -136,10 +136,10 @@ func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
 		}
 		if len(droplet.Features) > 0 {
 			features := fmt.Sprintf(",%s,", strings.Join(droplet.Features, ","))
-			m["__meta_digitalocean_vpc"] = features
+			m["__meta_digitalocean_features"] = features
 		}
 		if len(droplet.Tags) > 0 {
-			tags := fmt.Sprintf(",%s,", strings.Join(droplet.Features, ","))
+			tags := fmt.Sprintf(",%s,", strings.Join(droplet.Tags, ","))
 			m["__meta_digitalocean_tags"] = tags
 		}
 		ms = append(ms, m)
