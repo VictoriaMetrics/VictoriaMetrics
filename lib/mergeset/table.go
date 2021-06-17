@@ -177,7 +177,7 @@ func (ris *rawItemsShard) Len() int {
 
 func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
 	var err error
-	var blocksToMerge []*inmemoryBlock
+	var blocksToFlush []*inmemoryBlock
 
 	ris.mu.Lock()
 	ibs := ris.ibs
@@ -200,19 +200,16 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
 		}
 	}
 	if len(ibs) >= maxBlocksPerShard {
-		blocksToMerge = ibs
-		ris.ibs = make([]*inmemoryBlock, 0, maxBlocksPerShard)
+		blocksToFlush = append(blocksToFlush, ibs...)
+		for i := range ibs {
+			ibs[i] = nil
+		}
+		ris.ibs = ibs[:0]
 		ris.lastFlushTime = fasttime.UnixTimestamp()
 	}
 	ris.mu.Unlock()
 
-	if blocksToMerge == nil {
-		// Fast path.
-		return err
-	}
-
-	// Slow path: merge blocksToMerge.
-	tb.mergeRawItemsBlocks(blocksToMerge)
+	tb.mergeRawItemsBlocks(blocksToFlush)
 	return err
 }
 
@@ -586,58 +583,65 @@ func (riss *rawItemsShards) flush(tb *Table, isFinal bool) {
 	tb.rawItemsPendingFlushesWG.Add(1)
 	defer tb.rawItemsPendingFlushesWG.Done()
 
-	var wg sync.WaitGroup
-	wg.Add(len(riss.shards))
+	var blocksToFlush []*inmemoryBlock
 	for i := range riss.shards {
-		go func(ris *rawItemsShard) {
-			ris.flush(tb, isFinal)
-			wg.Done()
-		}(&riss.shards[i])
+		blocksToFlush = riss.shards[i].appendBlocksToFlush(blocksToFlush, tb, isFinal)
 	}
-	wg.Wait()
+	tb.mergeRawItemsBlocks(blocksToFlush)
 }
 
-func (ris *rawItemsShard) flush(tb *Table, isFinal bool) {
-	mustFlush := false
+func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, tb *Table, isFinal bool) []*inmemoryBlock {
 	currentTime := fasttime.UnixTimestamp()
 	flushSeconds := int64(rawItemsFlushInterval.Seconds())
 	if flushSeconds <= 0 {
 		flushSeconds = 1
 	}
-	var blocksToMerge []*inmemoryBlock
 
 	ris.mu.Lock()
 	if isFinal || currentTime-ris.lastFlushTime > uint64(flushSeconds) {
-		mustFlush = true
-		blocksToMerge = ris.ibs
-		ris.ibs = make([]*inmemoryBlock, 0, maxBlocksPerShard)
+		ibs := ris.ibs
+		dst = append(dst, ibs...)
+		for i := range ibs {
+			ibs[i] = nil
+		}
+		ris.ibs = ibs[:0]
 		ris.lastFlushTime = currentTime
 	}
 	ris.mu.Unlock()
 
-	if mustFlush {
-		tb.mergeRawItemsBlocks(blocksToMerge)
-	}
+	return dst
 }
 
-func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
+func (tb *Table) mergeRawItemsBlocks(ibs []*inmemoryBlock) {
+	if len(ibs) == 0 {
+		return
+	}
 	tb.partMergersWG.Add(1)
 	defer tb.partMergersWG.Done()
 
-	pws := make([]*partWrapper, 0, (len(blocksToMerge)+defaultPartsToMerge-1)/defaultPartsToMerge)
-	for len(blocksToMerge) > 0 {
+	pws := make([]*partWrapper, 0, (len(ibs)+defaultPartsToMerge-1)/defaultPartsToMerge)
+	var pwsLock sync.Mutex
+	var wg sync.WaitGroup
+	for len(ibs) > 0 {
 		n := defaultPartsToMerge
-		if n > len(blocksToMerge) {
-			n = len(blocksToMerge)
+		if n > len(ibs) {
+			n = len(ibs)
 		}
-		pw := tb.mergeInmemoryBlocks(blocksToMerge[:n])
-		blocksToMerge = blocksToMerge[n:]
-		if pw == nil {
-			continue
-		}
-		pw.isInMerge = true
-		pws = append(pws, pw)
+		wg.Add(1)
+		go func(ibsPart []*inmemoryBlock) {
+			defer wg.Done()
+			pw := tb.mergeInmemoryBlocks(ibsPart)
+			if pw == nil {
+				return
+			}
+			pw.isInMerge = true
+			pwsLock.Lock()
+			pws = append(pws, pw)
+			pwsLock.Unlock()
+		}(ibs[:n])
+		ibs = ibs[n:]
 	}
+	wg.Wait()
 	if len(pws) > 0 {
 		if err := tb.mergeParts(pws, nil, true); err != nil {
 			logger.Panicf("FATAL: cannot merge raw parts: %s", err)
@@ -672,10 +676,10 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 	}
 }
 
-func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrapper {
-	// Convert blocksToMerge into inmemoryPart's
-	mps := make([]*inmemoryPart, 0, len(blocksToMerge))
-	for _, ib := range blocksToMerge {
+func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
+	// Convert ibs into inmemoryPart's
+	mps := make([]*inmemoryPart, 0, len(ibs))
+	for _, ib := range ibs {
 		if len(ib.items) == 0 {
 			continue
 		}
