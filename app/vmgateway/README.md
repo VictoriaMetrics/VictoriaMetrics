@@ -1,5 +1,7 @@
 # vmgateway
 
+***vmgateway is a part of [enterprise package](https://victoriametrics.com/enterprise.html)***
+
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
 
