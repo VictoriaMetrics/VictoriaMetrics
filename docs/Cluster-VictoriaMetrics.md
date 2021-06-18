@@ -29,9 +29,9 @@ Join [our Slack](http://slack.victoriametrics.com/) or [contact us](mailto:info@
 
 VictoriaMetrics cluster consists of the following services:
 
-- `vmstorage` - stores the data
-- `vminsert` - proxies the ingested data to `vmstorage` shards using consistent hashing
-- `vmselect` - performs incoming queries using the data from `vmstorage`
+- `vmstorage` - stores the raw data and returns the queried data on the given time range for the given label filters
+- `vminsert` - accepts the ingested data and spreads it among `vmstorage` nodes according to consistent hashing over metric name and all its labels
+- `vmselect` - performs incoming queries by fetching the needed data from all the configured `vmstorage` nodes
 
 Each service may scale independently and may run on the most suitable hardware.
 `vmstorage` nodes don't know about each other, don't communicate with each other and don't share any data.
