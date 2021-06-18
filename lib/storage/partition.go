@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/bits"
 	"os"
 	"path/filepath"
 	"sort"
@@ -478,80 +477,48 @@ func (rrs *rawRowsShard) Len() int {
 }
 
 func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
-	var rrss []*rawRows
+	var rowsToFlush []rawRow
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		rrs.rows = getRawRowsMaxSize().rows
+		n := getMaxRawRowsPerShard()
+		rrs.rows = make([]rawRow, 0, n)
 	}
 	maxRowsCount := cap(rrs.rows)
-	for {
-		capacity := maxRowsCount - len(rrs.rows)
-		if capacity >= len(rows) {
-			// Fast path - rows fit capacity.
-			rrs.rows = append(rrs.rows, rows...)
-			break
-		}
-
+	capacity := maxRowsCount - len(rrs.rows)
+	if capacity >= len(rows) {
+		// Fast path - rows fit capacity.
+		rrs.rows = append(rrs.rows, rows...)
+	} else {
 		// Slow path - rows don't fit capacity.
-		// Fill rawRows to capacity and convert it to a part.
-		rrs.rows = append(rrs.rows, rows[:capacity]...)
-		rows = rows[capacity:]
-		rr := getRawRowsMaxSize()
-		rrs.rows, rr.rows = rr.rows, rrs.rows
-		rrss = append(rrss, rr)
+		// Put rrs.rows and rows to rowsToFlush and convert it to a part.
+		rowsToFlush = append(rowsToFlush, rrs.rows...)
+		rowsToFlush = append(rowsToFlush, rows...)
+		rrs.rows = rrs.rows[:0]
 		rrs.lastFlushTime = fasttime.UnixTimestamp()
 	}
 	rrs.mu.Unlock()
 
-	for _, rr := range rrss {
-		pt.addRowsPart(rr.rows)
-		putRawRows(rr)
-	}
+	pt.flushRowsToParts(rowsToFlush)
 }
 
-type rawRows struct {
-	rows []rawRow
-}
-
-func getRawRowsMaxSize() *rawRows {
-	size := getMaxRawRowsPerShard()
-	return getRawRowsWithSize(size)
-}
-
-func getRawRowsWithSize(size int) *rawRows {
-	p, sizeRounded := getRawRowsPool(size)
-	v := p.Get()
-	if v == nil {
-		return &rawRows{
-			rows: make([]rawRow, 0, sizeRounded),
+func (pt *partition) flushRowsToParts(rows []rawRow) {
+	maxRows := getMaxRawRowsPerShard()
+	var wg sync.WaitGroup
+	for len(rows) > 0 {
+		n := maxRows
+		if n > len(rows) {
+			n = len(rows)
 		}
+		wg.Add(1)
+		go func(rowsPart []rawRow) {
+			defer wg.Done()
+			pt.addRowsPart(rowsPart)
+		}(rows[:n])
+		rows = rows[n:]
 	}
-	return v.(*rawRows)
+	wg.Wait()
 }
-
-func putRawRows(rr *rawRows) {
-	rr.rows = rr.rows[:0]
-	size := cap(rr.rows)
-	p, _ := getRawRowsPool(size)
-	p.Put(rr)
-}
-
-func getRawRowsPool(size int) (*sync.Pool, int) {
-	size--
-	if size < 0 {
-		size = 0
-	}
-	bucketIdx := 64 - bits.LeadingZeros64(uint64(size))
-	if bucketIdx >= len(rawRowsPools) {
-		bucketIdx = len(rawRowsPools) - 1
-	}
-	p := &rawRowsPools[bucketIdx]
-	sizeRounded := 1 << uint(bucketIdx)
-	return p, sizeRounded
-}
-
-var rawRowsPools [19]sync.Pool
 
 func (pt *partition) addRowsPart(rows []rawRow) {
 	if len(rows) == 0 {
@@ -749,19 +716,14 @@ func (pt *partition) flushRawRows(isFinal bool) {
 }
 
 func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
-	var wg sync.WaitGroup
-	wg.Add(len(rrss.shards))
+	var rowsToFlush []rawRow
 	for i := range rrss.shards {
-		go func(rrs *rawRowsShard) {
-			rrs.flush(pt, isFinal)
-			wg.Done()
-		}(&rrss.shards[i])
+		rowsToFlush = rrss.shards[i].appendRawRowsToFlush(rowsToFlush, pt, isFinal)
 	}
-	wg.Wait()
+	pt.flushRowsToParts(rowsToFlush)
 }
 
-func (rrs *rawRowsShard) flush(pt *partition, isFinal bool) {
-	var rr *rawRows
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFinal bool) []rawRow {
 	currentTime := fasttime.UnixTimestamp()
 	flushSeconds := int64(rawRowsFlushInterval.Seconds())
 	if flushSeconds <= 0 {
@@ -770,15 +732,12 @@ func (rrs *rawRowsShard) flush(pt *partition, isFinal bool) {
 
 	rrs.mu.Lock()
 	if isFinal || currentTime-rrs.lastFlushTime > uint64(flushSeconds) {
-		rr = getRawRowsMaxSize()
-		rrs.rows, rr.rows = rr.rows, rrs.rows
+		dst = append(dst, rrs.rows...)
+		rrs.rows = rrs.rows[:0]
 	}
 	rrs.mu.Unlock()
 
-	if rr != nil {
-		pt.addRowsPart(rr.rows)
-		putRawRows(rr)
-	}
+	return dst
 }
 
 func (pt *partition) startInmemoryPartsFlusher() {

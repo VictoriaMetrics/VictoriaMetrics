@@ -1,9 +1,9 @@
 {% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 %}
 
-{% collapsespace %}
+{% stripspace %}
 
-{% func TargetsResponsePlain (jts []jobTargetsStatuses,  showOriginLabels bool) -%}
+{% func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels bool) %}
 
 {% for _, js := range jts %}
 job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
@@ -13,21 +13,26 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
      labels :=  promLabelsString(ts.labels)
      ol := promLabelsString(ts.originalLabels)
     %}
-{%s= "\t" %}state={% if ts.up %}up{% else %}down{% endif %},
-    endpoint={%s= ts.endpoint %},
+{%s= "\t" %}state={% if ts.up %}up{% else %}down{% endif %},{% space %}
+    endpoint={%s= ts.endpoint %},{ %space %}
     labels={%s= labels %}
-    {% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %},
-    last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,
-    scrape_duration={%f.3 ts.scrapeDuration.Seconds() %}s,
-    error={%q= ts.error %}
+    {% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %},{% space %}
+    last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,{% space %}
+    scrape_duration={%f.3 ts.scrapeDuration.Seconds() %}s,{% space %}
+    samples_scraped={%d ts.samplesScraped %},{% space %}
+    error={%q= ts.errMsg %}
     {% newline %}
 {% endfor %}
 {% endfor %}
+
+{% for _, jobName := range emptyJobs %}
+job={%q= jobName %} (0/0 up)
 {% newline %}
+{% endfor %}
 
 {% endfunc %}
 
-{% func TargetsResponseHTML(jts []jobTargetsStatuses, redirectPath string, onlyUnhealthy bool) %}
+{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, redirectPath string, onlyUnhealthy bool) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,7 +53,7 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
         Unhealthy
     </button>
   </div>
-  {% for _,js :=range jts %}
+  {% for _, js := range jts %}
     {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
     <div>
       <h4>
@@ -62,6 +67,7 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
             <th scope="col">Labels</th>
             <th scope="col">Last Scrape</th>
             <th scope="col">Scrape Duration</th>
+            <th scope="col">Samples Scraped</th>
             <th scope="col">Error</th>
           </tr>
         </thead>
@@ -76,10 +82,32 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
               </td>
               <td>{%f.3 ts.lastScrapeTime.Seconds() %}s ago</td>
               <td>{%f.3 ts.scrapeDuration.Seconds() %}s</td>
-              <td>{%s ts.error %}</td>
+              <td>{%d ts.samplesScraped %}</td>
+              <td>{%s ts.errMsg %}</td>
             </tr>
           {% endfor %}
         </tbody>
+      </table>
+    </div>
+  {% endfor %}
+
+  {% for _, jobName := range emptyJobs %}
+    <div>
+      <h4>
+        <a>{%s jobName %} (0/0 up)</a>
+      </h4>
+      <table class="table table-striped table-hover table-bordered table-sm">
+        <thead>
+          <tr>
+            <th scope="col">Endpoint</th>
+            <th scope="col">State</th>
+            <th scope="col">Labels</th>
+            <th scope="col">Last Scrape</th>
+            <th scope="col">Scrape Duration</th>
+            <th scope="col">Samples Scraped</th>
+            <th scope="col">Error</th>
+          </tr>
+        </thead>
       </table>
     </div>
   {% endfor %}
@@ -93,4 +121,4 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
 {% endfor %}
 {% endfunc %}
 
-{% endcollapsespace %}
+{% endstripspace %}

@@ -58,8 +58,9 @@ func WriteAPIV1Targets(w io.Writer, state string) {
 }
 
 type targetStatusMap struct {
-	mu sync.Mutex
-	m  map[*ScrapeWork]*targetStatus
+	mu       sync.Mutex
+	m        map[*ScrapeWork]*targetStatus
+	jobNames []string
 }
 
 func newTargetStatusMap() *targetStatusMap {
@@ -71,6 +72,12 @@ func newTargetStatusMap() *targetStatusMap {
 func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Lock()
 	tsm.m = make(map[*ScrapeWork]*targetStatus)
+	tsm.mu.Unlock()
+}
+
+func (tsm *targetStatusMap) registerJobNames(jobNames []string) {
+	tsm.mu.Lock()
+	tsm.jobNames = append(tsm.jobNames[:0], jobNames...)
 	tsm.mu.Unlock()
 }
 
@@ -88,7 +95,7 @@ func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, err error) {
+func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
 	tsm.mu.Lock()
 	ts := tsm.m[sw]
 	if ts == nil {
@@ -101,6 +108,7 @@ func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrape
 	ts.scrapeGroup = group
 	ts.scrapeTime = scrapeTime
 	ts.scrapeDuration = scrapeDuration
+	ts.samplesScraped = samplesScraped
 	ts.err = err
 	tsm.mu.Unlock()
 }
@@ -156,6 +164,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		fmt.Fprintf(w, `,"lastError":%q`, errMsg)
 		fmt.Fprintf(w, `,"lastScrape":%q`, time.Unix(st.scrapeTime/1000, (st.scrapeTime%1000)*1e6).Format(time.RFC3339Nano))
 		fmt.Fprintf(w, `,"lastScrapeDuration":%g`, (time.Millisecond * time.Duration(st.scrapeDuration)).Seconds())
+		fmt.Fprintf(w, `,"lastSamplesScraped":%d`, st.samplesScraped)
 		state := "up"
 		if !st.up {
 			state = "down"
@@ -185,6 +194,7 @@ type targetStatus struct {
 	scrapeGroup    string
 	scrapeTime     int64
 	scrapeDuration int64
+	samplesScraped int
 	err            error
 }
 
@@ -270,7 +280,8 @@ type jobTargetStatus struct {
 	originalLabels []prompbmarshal.Label
 	lastScrapeTime time.Duration
 	scrapeDuration time.Duration
-	error          string
+	samplesScraped int
+	errMsg         string
 }
 
 type jobTargetsStatuses struct {
@@ -280,13 +291,14 @@ type jobTargetsStatuses struct {
 	targetsStatus []jobTargetStatus
 }
 
-func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
+func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []string) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
 		job := st.sw.Job()
 		byJob[job] = append(byJob[job], *st)
 	}
+	jobNames := append([]string{}, tsm.jobNames...)
 	tsm.mu.Unlock()
 
 	var jts []jobTargetsStatuses
@@ -313,7 +325,8 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 				originalLabels: st.sw.OriginalLabels,
 				lastScrapeTime: st.getDurationFromLastScrape(),
 				scrapeDuration: time.Duration(st.scrapeDuration) * time.Millisecond,
-				error:          errMsg,
+				samplesScraped: st.samplesScraped,
+				errMsg:         errMsg,
 			})
 		}
 		jts = append(jts, jobTargetsStatuses{
@@ -326,20 +339,37 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 	sort.Slice(jts, func(i, j int) bool {
 		return jts[i].job < jts[j].job
 	})
-	return jts
+	emptyJobs := getEmptyJobs(jts, jobNames)
+	return jts, emptyJobs
+}
+
+func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
+	jobNamesMap := make(map[string]struct{}, len(jobNames))
+	for _, jobName := range jobNames {
+		jobNamesMap[jobName] = struct{}{}
+	}
+	for i := range jts {
+		delete(jobNamesMap, jts[i].job)
+	}
+	emptyJobs := make([]string, 0, len(jobNamesMap))
+	for k := range jobNamesMap {
+		emptyJobs = append(emptyJobs, k)
+	}
+	sort.Strings(emptyJobs)
+	return emptyJobs
 }
 
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
 func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool) {
-	jss := tsm.getTargetsStatusByJob()
+	jss, emptyJobs := tsm.getTargetsStatusByJob()
 	targetsPath := path.Join(httpserver.GetPathPrefix(), "/targets")
-	WriteTargetsResponseHTML(w, jss, targetsPath, showOnlyUnhealthy)
+	WriteTargetsResponseHTML(w, jss, emptyJobs, targetsPath, showOnlyUnhealthy)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
 // accept filter to show original labels.
 func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, showOriginalLabels bool) {
-	jss := tsm.getTargetsStatusByJob()
-	WriteTargetsResponsePlain(w, jss, showOriginalLabels)
+	jss, emptyJobs := tsm.getTargetsStatusByJob()
+	WriteTargetsResponsePlain(w, jss, emptyJobs, showOriginalLabels)
 }
