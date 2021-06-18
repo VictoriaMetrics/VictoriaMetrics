@@ -67,6 +67,8 @@ func (cfg *Config) mustStart() {
 	for i := range cfg.ScrapeConfigs {
 		cfg.ScrapeConfigs[i].mustStart(cfg.baseDir)
 	}
+	jobNames := cfg.getJobNames()
+	tsmGlobal.registerJobNames(jobNames)
 	logger.Infof("started service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
 }
 
@@ -77,6 +79,15 @@ func (cfg *Config) mustStop() {
 		cfg.ScrapeConfigs[i].mustStop()
 	}
 	logger.Infof("stopped service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// getJobNames returns all the scrape job names from the cfg.
+func (cfg *Config) getJobNames() []string {
+	a := make([]string, 0, len(cfg.ScrapeConfigs))
+	for i := range cfg.ScrapeConfigs {
+		a = append(a, cfg.ScrapeConfigs[i].JobName)
+	}
+	return a
 }
 
 // GlobalConfig represents essential parts for `global` section of Prometheus config.
