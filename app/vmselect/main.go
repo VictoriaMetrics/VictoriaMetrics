@@ -39,9 +39,12 @@ var (
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
 		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
 		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
-	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
-	storageNodes      = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
+	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+	storageNodes         = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
 )
+
+var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
 	n := cgroup.AvailableCPUs()
@@ -164,6 +167,20 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+	}
+
+	if *logSlowQueryDuration > 0 {
+		actualStartTime := time.Now()
+		defer func() {
+			d := time.Since(actualStartTime)
+			if d >= *logSlowQueryDuration {
+				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+				requestURI := getRequestURI(r)
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				slowQueries.Inc()
+			}
+		}()
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
@@ -497,6 +514,23 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	w.WriteHeader(statusCode)
 	prometheus.WriteErrorResponse(w, statusCode, err)
+}
+
+func getRequestURI(r *http.Request) string {
+	requestURI := r.RequestURI
+	if r.Method != "POST" {
+		return requestURI
+	}
+	_ = r.ParseForm()
+	queryArgs := r.PostForm.Encode()
+	if len(queryArgs) == 0 {
+		return requestURI
+	}
+	delimiter := "?"
+	if strings.Contains(requestURI, delimiter) {
+		delimiter = "&"
+	}
+	return requestURI + delimiter + queryArgs
 }
 
 var (
