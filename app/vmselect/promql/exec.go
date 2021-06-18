@@ -13,34 +13,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
-	logSlowQueryDuration   = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 	treatDotsAsIsInRegexps = flag.Bool("search.treatDotsAsIsInRegexps", false, "Whether to treat dots as is in regexp label filters used in queries. "+
 		`For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped `+
 		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
 		`This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter`)
 )
 
-var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
-
 // Exec executes q for the given ec.
 func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
-	if *logSlowQueryDuration > 0 {
-		startTime := time.Now()
-		defer func() {
-			d := time.Since(startTime)
-			if d >= *logSlowQueryDuration {
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds, start=%d, end=%d, step=%d, query=%q",
-					*logSlowQueryDuration, ec.QuotedRemoteAddr, d.Seconds(), ec.Start/1000, ec.End/1000, ec.Step/1000, q)
-				slowQueries.Inc()
-			}
-		}()
-	}
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)

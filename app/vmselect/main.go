@@ -28,8 +28,11 @@ var (
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 )
+
+var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
 	n := cgroup.AvailableCPUs()
@@ -106,6 +109,20 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+	}
+
+	if *logSlowQueryDuration > 0 {
+		actualStartTime := time.Now()
+		defer func() {
+			d := time.Since(actualStartTime)
+			if d >= *logSlowQueryDuration {
+				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+				requestURI := getRequestURI(r)
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				slowQueries.Inc()
+			}
+		}()
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
@@ -416,6 +433,23 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	w.WriteHeader(statusCode)
 	prometheus.WriteErrorResponse(w, statusCode, err)
+}
+
+func getRequestURI(r *http.Request) string {
+	requestURI := r.RequestURI
+	if r.Method != "POST" {
+		return requestURI
+	}
+	_ = r.ParseForm()
+	queryArgs := r.PostForm.Encode()
+	if len(queryArgs) == 0 {
+		return requestURI
+	}
+	delimiter := "?"
+	if strings.Contains(requestURI, delimiter) {
+		delimiter = "&"
+	}
+	return requestURI + delimiter + queryArgs
 }
 
 var (
