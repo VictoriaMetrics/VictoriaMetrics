@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1623417312757,
+  "iteration": 1623910135370,
   "links": [
     {
       "icon": "doc",
@@ -812,10 +812,6 @@
     {
       "collapsed": false,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1463,7 +1459,7 @@
         },
         "overrides": []
       },
-      "fill": 1,
+      "fill": 0,
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
@@ -1499,7 +1495,7 @@
       "renderer": "flot",
       "seriesOverrides": [],
       "spaceLength": 10,
-      "stack": true,
+      "stack": false,
       "steppedLine": false,
       "targets": [
         {
@@ -1514,6 +1510,7 @@
       ],
       "thresholds": [
         {
+          "$$hashKey": "object:89",
           "colorMode": "critical",
           "fill": true,
           "line": true,
@@ -1672,10 +1669,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1697,13 +1690,13 @@
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 35
           },
           "hiddenSeries": false,
           "id": 66,
@@ -1737,8 +1730,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
-              "legendFormat": "{{instance}}",
+              "exemplar": true,
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (job, instance)",
+              "interval": "",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -1796,13 +1791,13 @@
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 35
           },
           "hiddenSeries": false,
           "id": 138,
@@ -1837,9 +1832,9 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}) by (job, instance)",
               "interval": "",
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -1896,13 +1891,13 @@
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 43
           },
           "hiddenSeries": false,
           "id": 64,
@@ -1936,10 +1931,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(instance)",
+              "exemplar": true,
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -1997,13 +1994,13 @@
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 43
           },
           "hiddenSeries": false,
           "id": 72,
@@ -2037,10 +2034,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[5m])) by(instance)\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m])) by(instance)",
+              "exemplar": true,
+              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -2104,7 +2103,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 117,
@@ -2143,19 +2142,21 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(process_open_fds{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
+              "exemplar": true,
+              "expr": "sum(process_open_fds{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             },
             {
-              "expr": "sum(process_max_fds{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
+              "exemplar": true,
+              "expr": "sum(process_max_fds{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "max ({{instance}})",
+              "legendFormat": "max {{instance}} ({{job}})",
               "refId": "B"
             }
           ],
@@ -2207,13 +2208,13 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 119,
@@ -2246,9 +2247,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+              "exemplar": true,
+              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "interval": "",
-              "legendFormat": "{{job}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -2305,13 +2307,13 @@
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2345,10 +2347,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
+              "exemplar": true,
+              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -2400,13 +2404,13 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 120,
@@ -2439,9 +2443,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job)",
+              "exemplar": true,
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
               "interval": "",
-              "legendFormat": "{{job}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -2498,13 +2503,13 @@
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 67
           },
           "hiddenSeries": false,
           "id": 70,
@@ -2538,10 +2543,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
+              "exemplar": true,
+              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
             }
           ],
@@ -2594,10 +2601,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3033,10 +3036,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3689,10 +3688,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3931,10 +3926,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -5202,10 +5193,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -5555,10 +5542,6 @@
     {
       "collapsed": true,
       "datasource": "$ds",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
