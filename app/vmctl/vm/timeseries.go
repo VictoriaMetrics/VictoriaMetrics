@@ -56,27 +56,37 @@ func (cw *cWriter) printf(format string, args ...interface{}) {
 
 //"{"metric":{"__name__":"cpu_usage_guest","arch":"x64","hostname":"host_19",},"timestamps":[1567296000000,1567296010000],"values":[1567296000000,66]}
 func (ts *TimeSeries) write(w io.Writer) (int, error) {
-	pointsCount := len(ts.Timestamps)
-	if pointsCount == 0 {
-		return 0, nil
-	}
-
+	timestamps := ts.Timestamps
+	values := ts.Values
 	cw := &cWriter{w: w}
-	cw.printf(`{"metric":{"__name__":%q`, ts.Name)
-	if len(ts.LabelPairs) > 0 {
+	for len(timestamps) > 0 {
+		// Split long lines with more than 10K samples into multiple JSON lines.
+		// This should limit memory usage at VictoriaMetrics during data ingestion,
+		// since it allocates memory for the whole JSON line and processes it in one go.
+		batchSize := 10000
+		if batchSize > len(timestamps) {
+			batchSize = len(timestamps)
+		}
+		timestampsBatch := timestamps[:batchSize]
+		valuesBatch := values[:batchSize]
+		timestamps = timestamps[batchSize:]
+		values = values[batchSize:]
+
+		cw.printf(`{"metric":{"__name__":%q`, ts.Name)
 		for _, lp := range ts.LabelPairs {
 			cw.printf(",%q:%q", lp.Name, lp.Value)
 		}
-	}
 
-	cw.printf(`},"timestamps":[`)
-	for i := 0; i < pointsCount-1; i++ {
-		cw.printf(`%d,`, ts.Timestamps[i])
+		pointsCount := len(timestampsBatch)
+		cw.printf(`},"timestamps":[`)
+		for i := 0; i < pointsCount-1; i++ {
+			cw.printf(`%d,`, timestampsBatch[i])
+		}
+		cw.printf(`%d],"values":[`, timestampsBatch[pointsCount-1])
+		for i := 0; i < pointsCount-1; i++ {
+			cw.printf(`%v,`, valuesBatch[i])
+		}
+		cw.printf("%v]}\n", valuesBatch[pointsCount-1])
 	}
-	cw.printf(`%d],"values":[`, ts.Timestamps[pointsCount-1])
-	for i := 0; i < pointsCount-1; i++ {
-		cw.printf(`%v,`, ts.Values[i])
-	}
-	cw.printf("%v]}\n", ts.Values[pointsCount-1])
 	return cw.n, cw.err
 }
