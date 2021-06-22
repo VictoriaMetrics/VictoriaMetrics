@@ -42,10 +42,13 @@ type serviceWatcher struct {
 }
 
 // newConsulWatcher creates new watcher and start background service discovery for Consul.
-func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter string) *consulWatcher {
+func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, namespace string) *consulWatcher {
 	baseQueryArgs := "?dc=" + url.QueryEscape(datacenter)
 	if sdc.AllowStale {
 		baseQueryArgs += "&stale"
+	}
+	if namespace != "" {
+		baseQueryArgs += "&ns=" + namespace
 	}
 	for k, v := range sdc.NodeMeta {
 		baseQueryArgs += "&node-meta=" + url.QueryEscape(k+":"+v)

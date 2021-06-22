@@ -82,7 +82,13 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, err
 	}
 
-	cw := newConsulWatcher(client, sdc, dc)
+	namespace := sdc.Namespace
+	// default namespace can be detected from env var.
+	if namespace == "" {
+		namespace = os.Getenv("CONSUL_NAMESPACE")
+	}
+
+	cw := newConsulWatcher(client, sdc, dc, sdc.Namespace)
 	cfg := &apiConfig{
 		tagSeparator:  tagSeparator,
 		consulWatcher: cw,
