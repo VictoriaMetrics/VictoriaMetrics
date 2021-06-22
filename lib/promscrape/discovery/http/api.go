@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/fasthttp"
 )
 
 var configMap = discoveryutils.NewConfigMap()
@@ -56,12 +58,14 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return v.(*apiConfig), nil
 }
 
-func getHTTPTargets(getAPIResponse func(path string) ([]byte, error), path string) ([]httpGroupTarget, error) {
-	data, err := getAPIResponse(path)
+func getHTTPTargets(cfg *apiConfig) ([]httpGroupTarget, error) {
+	data, err := cfg.client.GetAPIResponseWithReqParams(cfg.path, func(request *fasthttp.Request) {
+		request.Header.Set("X-Prometheus-Refresh-Interval-Seconds", strconv.FormatFloat(SDCheckInterval.Seconds(), 'f', 0, 64))
+	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot read http_sd api response: %w", err)
 	}
-	return parseAPIResponse(data, path)
+	return parseAPIResponse(data, cfg.path)
 }
 
 func parseAPIResponse(data []byte, path string) ([]httpGroupTarget, error) {

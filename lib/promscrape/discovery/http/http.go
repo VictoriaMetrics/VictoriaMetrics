@@ -1,11 +1,18 @@
 package http
 
 import (
+	"flag"
 	"fmt"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
+
+// SDCheckInterval defines interval for targets refresh.
+var SDCheckInterval = flag.Duration("promscrape.httpSDCheckInterval", time.Minute, "Interval for checking for changes in http endpoint service discovery. "+
+	"This works only if http_sd_configs is configured in '-promscrape.config' file. "+
+	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details")
 
 // SDConfig represents service discovery config for http.
 //
@@ -23,7 +30,8 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
-	hts, err := getHTTPTargets(cfg.client.GetAPIResponse, cfg.path)
+
+	hts, err := getHTTPTargets(cfg)
 	if err != nil {
 		return nil, err
 	}
