@@ -20,9 +20,9 @@ type SDConfig struct {
 	Scheme            string                     `yaml:"scheme,omitempty"`
 	Username          string                     `yaml:"username"`
 	Password          string                     `yaml:"password"`
+	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
-	TLSConfig         *promauth.TLSConfig        `yaml:"tls_config,omitempty"`
 	Services          []string                   `yaml:"services,omitempty"`
 	Tags              []string                   `yaml:"tags,omitempty"`
 	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`

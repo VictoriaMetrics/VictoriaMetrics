@@ -38,19 +38,27 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	hcc := sdc.HTTPClientConfig
 	token, err := getToken(sdc.Token)
 	if err != nil {
 		return nil, err
 	}
-	var ba *promauth.BasicAuthConfig
+	if token != "" {
+		if hcc.BearerToken != "" {
+			return nil, fmt.Errorf("cannot set both token and bearer_token configs")
+		}
+		hcc.BearerToken = token
+	}
 	if len(sdc.Username) > 0 {
-		ba = &promauth.BasicAuthConfig{
+		if hcc.BasicAuth != nil {
+			return nil, fmt.Errorf("cannot set both username and basic_auth configs")
+		}
+		hcc.BasicAuth = &promauth.BasicAuthConfig{
 			Username: sdc.Username,
 			Password: sdc.Password,
 		}
-		token = ""
 	}
-	ac, err := promauth.NewConfig(baseDir, nil, ba, token, "", nil, sdc.TLSConfig)
+	ac, err := hcc.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
