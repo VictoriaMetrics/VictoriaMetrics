@@ -34,12 +34,13 @@ type ServiceNode struct {
 //
 // See https://www.consul.io/api/health.html#list-nodes-for-service
 type Service struct {
-	ID      string
-	Service string
-	Address string
-	Port    int
-	Tags    []string
-	Meta    map[string]string
+	ID        string
+	Service   string
+	Address   string
+	Namespace string
+	Port      int
+	Tags      []string
+	Meta      map[string]string
 }
 
 // Node is Consul node.
@@ -81,6 +82,7 @@ func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, serviceName, t
 		"__meta_consul_address":         sn.Node.Address,
 		"__meta_consul_dc":              sn.Node.Datacenter,
 		"__meta_consul_health":          aggregatedStatus(sn.Checks),
+		"__meta_consul_namespace":       sn.Service.Namespace,
 		"__meta_consul_node":            sn.Node.Node,
 		"__meta_consul_service":         serviceName,
 		"__meta_consul_service_address": sn.Service.Address,
