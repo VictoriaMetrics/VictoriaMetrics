@@ -30,16 +30,14 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
-
 	hts, err := getHTTPTargets(cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	return addHTTPTargetLabels(hts), nil
+	return addHTTPTargetLabels(hts, sdc.URL), nil
 }
 
-func addHTTPTargetLabels(src []httpGroupTarget) []map[string]string {
+func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []map[string]string {
 	ms := make([]map[string]string, 0, len(src))
 	for _, targetGroup := range src {
 		labels := targetGroup.Labels
@@ -49,6 +47,7 @@ func addHTTPTargetLabels(src []httpGroupTarget) []map[string]string {
 				m[k] = v
 			}
 			m["__address__"] = target
+			m["__meta_url"] = sourceURL
 			ms = append(ms, m)
 		}
 	}
