@@ -16,7 +16,7 @@ type SDConfig struct {
 	Datacenter string  `yaml:"datacenter"`
 	// Namespace only supported at enterprise consul.
 	// https://www.consul.io/docs/enterprise/namespaces
-	Namespace         string                     `yaml:"namespace"`
+	Namespace         string                     `yaml:"namespace,omitempty"`
 	Scheme            string                     `yaml:"scheme,omitempty"`
 	Username          string                     `yaml:"username"`
 	Password          string                     `yaml:"password"`
