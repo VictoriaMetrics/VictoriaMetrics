@@ -61,6 +61,7 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 func getHTTPTargets(cfg *apiConfig) ([]httpGroupTarget, error) {
 	data, err := cfg.client.GetAPIResponseWithReqParams(cfg.path, func(request *fasthttp.Request) {
 		request.Header.Set("X-Prometheus-Refresh-Interval-Seconds", strconv.FormatFloat(SDCheckInterval.Seconds(), 'f', 0, 64))
+		request.Header.Set("Accept", "application/json")
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot read http_sd api response: %w", err)
