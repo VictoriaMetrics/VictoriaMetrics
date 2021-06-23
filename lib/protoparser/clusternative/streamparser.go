@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -29,7 +28,10 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 		callbackErr     error
 	)
 	for {
-		uw := getUnmarshalWork()
+		// Do not use unmarshalWork pool, since every unmarshalWork structure usually occupies
+		// big amounts of memory (more than consts.MaxInsertPacketSize bytes).
+		// The pool would result in increased memory usage.
+		uw := &unmarshalWork{}
 		uw.callback = func(rows []storage.MetricRow) {
 			if err := callback(rows); err != nil {
 				processErrors.Inc()
@@ -47,7 +49,6 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 			wg.Wait()
 			if err == io.EOF {
 				// Remote end gracefully closed the connection.
-				putUnmarshalWork(uw)
 				return nil
 			}
 			return err
@@ -119,68 +120,25 @@ type unmarshalWork struct {
 	lastResetTime uint64
 }
 
-func (uw *unmarshalWork) reset() {
-	if len(uw.reqBuf)*4 < cap(uw.reqBuf) && fasttime.UnixTimestamp()-uw.lastResetTime > 10 {
-		// Periodically reset reqBuf and mrs in order to prevent from gradual memory usage growth
-		// when ceratin entries in mr contain too long labels.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/490 for details.
-		uw.reqBuf = nil
-		uw.mrs = nil
-		uw.lastResetTime = fasttime.UnixTimestamp()
-	}
-	uw.wg = nil
-	uw.callback = nil
-	uw.reqBuf = uw.reqBuf[:0]
-	mrs := uw.mrs
-	for i := range mrs {
-		mrs[i].ResetX()
-	}
-	uw.mrs = uw.mrs[:0]
-}
-
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	defer uw.wg.Done()
-	if err := uw.unmarshal(); err != nil {
-		parseErrors.Inc()
-		logger.Errorf("error when unmarshaling clusternative block: %s", err)
-		putUnmarshalWork(uw)
-		return
-	}
-	mrs := uw.mrs
-	for len(mrs) > maxRowsPerCallback {
+	reqBuf := uw.reqBuf
+	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage
 		// when processing big packets of rows.
-		uw.callback(mrs[:maxRowsPerCallback])
-		mrs = mrs[maxRowsPerCallback:]
+		mrs, tail, err := storage.UnmarshalMetricRows(uw.mrs[:0], reqBuf, maxRowsPerCallback)
+		uw.mrs = mrs
+		if err != nil {
+			parseErrors.Inc()
+			logger.Errorf("cannot unmarshal MetricRow from clusternative block with size %d (remaining %d bytes): %s", len(reqBuf), len(tail), err)
+			break
+		}
+		rowsRead.Add(len(mrs))
+		uw.callback(mrs)
+		reqBuf = tail
 	}
-	uw.callback(mrs)
-	putUnmarshalWork(uw)
+	wg := uw.wg
+	wg.Done()
 }
 
 const maxRowsPerCallback = 10000
-
-func (uw *unmarshalWork) unmarshal() error {
-	var err error
-	uw.mrs, err = storage.UnmarshalMetricRows(uw.mrs[:0], uw.reqBuf)
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal MetricRow from clusternative block: %s", err)
-	}
-	rowsRead.Add(len(uw.mrs))
-	return nil
-}
-
-func getUnmarshalWork() *unmarshalWork {
-	v := unmarshalWorkPool.Get()
-	if v == nil {
-		return &unmarshalWork{}
-	}
-	return v.(*unmarshalWork)
-}
-
-func putUnmarshalWork(uw *unmarshalWork) {
-	uw.reset()
-	unmarshalWorkPool.Put(uw)
-}
-
-var unmarshalWorkPool sync.Pool

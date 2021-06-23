@@ -1438,9 +1438,11 @@ func MarshalMetricRow(dst []byte, metricNameRaw []byte, timestamp int64, value f
 
 // UnmarshalMetricRows appends unmarshaled MetricRow items from src to dst and returns the result.
 //
+// Up to maxRows rows are unmarshaled at once. The remaining byte slice is returned to the caller.
+//
 // The returned MetricRow items refer to src, so they become invalid as soon as src changes.
-func UnmarshalMetricRows(dst []MetricRow, src []byte) ([]MetricRow, error) {
-	for len(src) > 0 {
+func UnmarshalMetricRows(dst []MetricRow, src []byte, maxRows int) ([]MetricRow, []byte, error) {
+	for len(src) > 0 && maxRows > 0 {
 		if len(dst) < cap(dst) {
 			dst = dst[:len(dst)+1]
 		} else {
@@ -1449,11 +1451,12 @@ func UnmarshalMetricRows(dst []MetricRow, src []byte) ([]MetricRow, error) {
 		mr := &dst[len(dst)-1]
 		tail, err := mr.UnmarshalX(src)
 		if err != nil {
-			return dst, err
+			return dst, tail, err
 		}
 		src = tail
+		maxRows--
 	}
-	return dst, nil
+	return dst, src, nil
 }
 
 // UnmarshalX unmarshals mr from src and returns the remaining tail from src.
