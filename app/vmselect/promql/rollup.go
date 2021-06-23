@@ -1149,7 +1149,8 @@ func rollupTmin(rfa *rollupFuncArg) float64 {
 	minValue := values[0]
 	minTimestamp := timestamps[0]
 	for i, v := range values {
-		if v < minValue {
+		// Get the last timestamp for the minimum value as most users expect.
+		if v <= minValue {
 			minValue = v
 			minTimestamp = timestamps[i]
 		}
@@ -1168,7 +1169,8 @@ func rollupTmax(rfa *rollupFuncArg) float64 {
 	maxValue := values[0]
 	maxTimestamp := timestamps[0]
 	for i, v := range values {
-		if v > maxValue {
+		// Get the last timestamp for the maximum value as most users expect.
+		if v >= maxValue {
 			maxValue = v
 			maxTimestamp = timestamps[i]
 		}
