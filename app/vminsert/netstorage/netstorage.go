@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -399,6 +400,11 @@ func InitStorageNodes(addrs []string) {
 	if len(addrs) > 255 {
 		logger.Panicf("BUG: too much addresses: %d; max supported %d addresses", len(addrs), 255)
 	}
+
+	// Sort addrs in order to guarantee identical series->vmstorage mapping across all the vminsert nodes.
+	addrsCopy := append([]string{}, addrs...)
+	sort.Strings(addrsCopy)
+	addrs = addrsCopy
 
 	storageNodes = storageNodes[:0]
 	for _, addr := range addrs {
