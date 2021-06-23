@@ -2812,8 +2812,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		loopsCount, filterLoopsCount, timestamp := is.getLoopsCountAndTimestampForDateFilter(date, tf)
-		origLoopsCount := loopsCount
-		origFilterLoopsCount := filterLoopsCount
 		if currentTime > timestamp+3600 {
 			// Update stats once per hour for relatively fast tag filters.
 			// There is no need in spending CPU resources on updating stats for heavy tag filters.
@@ -2823,17 +2821,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			if filterLoopsCount <= 10e6 {
 				filterLoopsCount = 0
 			}
-		}
-		if loopsCount == 0 {
-			// Prevent from possible thundering herd issue when potentially heavy tf is executed from multiple concurrent queries
-			// by temporary persisting its position in the tag filters list.
-			if origLoopsCount == 0 {
-				origLoopsCount = 9e6
-			}
-			if origFilterLoopsCount == 0 {
-				origFilterLoopsCount = 9e6
-			}
-			is.storeLoopsCountForDateFilter(date, tf, origLoopsCount, origFilterLoopsCount)
 		}
 		tfws[i] = tagFilterWithWeight{
 			tf:               tf,
@@ -2862,13 +2849,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			is.storeLoopsCountForDateFilter(date, tfw.tf, tfw.loopsCount, tfw.filterLoopsCount)
 		}
 	}
-	storeZeroLoopsCounts := func(tfws []tagFilterWithWeight) {
-		for _, tfw := range tfws {
-			if tfw.loopsCount == 0 || tfw.filterLoopsCount == 0 {
-				is.storeLoopsCountForDateFilter(date, tfw.tf, tfw.loopsCount, tfw.filterLoopsCount)
-			}
-		}
-	}
 
 	// Populate metricIDs for the first non-negative filter with the cost smaller than maxLoopsCount.
 	var metricIDs *uint64set.Set
@@ -2894,8 +2874,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			}
 			// Move failing filter to the end of filter list.
 			storeLoopsCount(&tfw, int64Max)
-			storeZeroLoopsCounts(tfws[i+1:])
-			storeZeroLoopsCounts(tfwsRemaining)
 			return nil, err
 		}
 		if m.Len() >= maxDateMetrics {
@@ -2917,7 +2895,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		// so later they can be filtered out with negative filters.
 		m, err := is.getMetricIDsForDate(date, maxDateMetrics)
 		if err != nil {
-			storeZeroLoopsCounts(tfws)
 			if err == errMissingMetricIDsForDate {
 				// Zero time series were written on the given date.
 				return nil, nil
@@ -2926,7 +2903,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		}
 		if m.Len() >= maxDateMetrics {
 			// Too many time series found for the given (date). Fall back to global search.
-			storeZeroLoopsCounts(tfws)
 			return nil, errFallbackToGlobalSearch
 		}
 		metricIDs = m
@@ -2965,7 +2941,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		metricIDsLen := metricIDs.Len()
 		if metricIDsLen == 0 {
 			// There is no need in applying the remaining filters to an empty set.
-			storeZeroLoopsCounts(tfws[i:])
 			break
 		}
 		if tfw.filterLoopsCount > int64(metricIDsLen)*loopsCountPerMetricNameMatch {
@@ -2974,7 +2949,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			for _, tfw := range tfws[i:] {
 				tfsPostponed = append(tfsPostponed, tfw.tf)
 			}
-			storeZeroLoopsCounts(tfws[i:])
 			break
 		}
 		maxLoopsCount := getFirstPositiveFilterLoopsCount(tfws[i+1:])
@@ -2991,7 +2965,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			}
 			// Move failing tf to the end of filter list
 			storeFilterLoopsCount(&tfw, int64Max)
-			storeZeroLoopsCounts(tfws[i:])
 			return nil, err
 		}
 		storeFilterLoopsCount(&tfw, filterLoopsCount)
