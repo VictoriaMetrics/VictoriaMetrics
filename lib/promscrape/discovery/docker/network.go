@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// See https://docs.docker.com/engine/api/v1.40/#tag/Network
+// See https://github.com/moby/moby/blob/314759dc2f4745925d8dec6d15acc7761c6e5c92/docs/api/v1.41.yaml#L1763
 type network struct {
 	ID       string
 	Name     string
@@ -21,7 +21,7 @@ type network struct {
 func getNetworks(cfg *apiConfig) ([]network, error) {
 	resp, err := cfg.getAPIResponse("/networks")
 	if err != nil {
-		return nil, fmt.Errorf("cannot query dockerswarm api for networks: %w", err)
+		return nil, fmt.Errorf("cannot query docker api for networks: %w", err)
 	}
 	return parseNetworks(resp)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
@@ -125,6 +126,7 @@ type ScrapeConfig struct {
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
 	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
+	DockerSDConfigs       []docker.SDConfig       `yaml:"docker_sd_configs,omitempty"`
 	DockerSwarmSDConfigs  []dockerswarm.SDConfig  `yaml:"dockerswarm_sd_configs,omitempty"`
 	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
 	EC2SDConfigs          []ec2.SDConfig          `yaml:"ec2_sd_configs,omitempty"`
@@ -173,6 +175,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.EurekaSDConfigs {
 		sc.EurekaSDConfigs[i].MustStop()
+	}
+	for i := range sc.DockerSDConfigs {
+		sc.DockerSDConfigs[i].MustStop()
 	}
 	for i := range sc.DockerSwarmSDConfigs {
 		sc.DockerSwarmSDConfigs[i].MustStop()
@@ -329,6 +334,34 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
 			logger.Errorf("there were errors when discovering openstack targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDockerSDScrapeWork returns `docker_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDockerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DockerSDConfigs {
+			sdc := &sc.DockerSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "docker_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering docker targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}

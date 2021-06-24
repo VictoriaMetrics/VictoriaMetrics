@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// See https://github.com/moby/moby/blob/master/docs/api/v1.41.yaml
+// See https://github.com/moby/moby/blob/314759dc2f4745925d8dec6d15acc7761c6e5c92/docs/api/v1.41.yaml#L4024
 type container struct {
 	Id     string
 	Names  []string
