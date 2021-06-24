@@ -39,6 +39,7 @@ Alphabetically sorted links to case studies:
 * [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
 * [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
 * [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
