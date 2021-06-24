@@ -18,7 +18,7 @@ type SDConfig struct {
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
-	// TODO: refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option
+	// refresh_interval is obtained from `-promscrape.dockerSDCheckInterval` command-line option
 }
 
 // Filter is a filter, which can be passed to SDConfig.
