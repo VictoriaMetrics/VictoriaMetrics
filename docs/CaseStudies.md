@@ -20,6 +20,7 @@ Alphabetically sorted links to case studies:
 * [Dreamteam](#dreamteam)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+* [Sensedia](#sensedia)
 * [Synthesio](#synthesio)
 * [Wedos.com](#wedoscom)
 * [Wix.com](#wixcom)
@@ -253,6 +254,31 @@ Numbers with current, limited roll out:
 - Total number of datapoints: 850 billion
 - Data size on disk: 800 GiB
 - Retention period: 3 years
+
+
+## Sensedia
+
+[Sensedia](https://www.sensedia.com) is a leading integration solutions provider with more than 120 enterprise clients across a range of sectors. Its world-class portfolio includes: an API Management Platform, Adaptive Governance, Events Hub, Service Mesh, Cloud Connectors and Strategic Professional Services' teams.
+
+> Our initial requirements for monitoring solution: the metrics must be stored for 15 days, the solution must be scalable and must offer high availability of the metrics. It must being integrated into Grafana and allowing the use of PromQL when creating/editing dashboards in Grafana to obtain metrics from the Prometheus datasource. The solution also needs to receive data from Prometheus using HTTPS and needs to request a login and password to write/read the metrics. Details are available [in this article](https://nordicapis.com/api-monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics/).
+
+> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, ElasticSearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](http://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
+
+> We started using VictoriaMetrics in the production environment days before the start of BlackFriday in 2020, the period of greatest use of the Sensedia API-Platform by customers. There was a record in the generation of metrics and there was no instability with the monitoring stack.
+
+> We use VictoriaMetrics in cluster mode for centralized storage of metrics collected by several Prometheus servers installed in Kubernetes clusters from two different cloud providers. VictoriaMetrics has also been integrated with Grafana to view metrics.
+
+[Aecio dos Santos Pires](http://aeciopires.com), Cloud Architect, Sensedia.
+
+Numbers:
+- Cluster mode
+- Active time series: 700K
+- Ingestion rate: 70K datapoints per second
+- Datapoints: 112 Billion
+- Data size on disk: 82 GB
+- Index size on disk: 30 GB
+- Churn rate: 3 million of new time series per day
+- Query response time (99th percentile): 500ms
 
 
 ## Synthesio
