@@ -7,10 +7,6 @@ sort: 11
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](http://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
-You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides).
-
-Alphabetically sorted links to case studies:
-
 * [adidas](#adidas)
 * [Adsterra](#adsterra)
 * [ARNES](#arnes)
@@ -28,6 +24,8 @@ Alphabetically sorted links to case studies:
 * [Wix.com](#wixcom)
 * [Zerodha](#zerodha)
 * [zhihu](#zhihu)
+
+You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides).
 
 
 ## adidas

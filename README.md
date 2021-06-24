@@ -28,7 +28,7 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 ## Case studies and talks
 
-Alphabetically sorted links to case studies:
+Case studies:
 
 * [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
 * [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
@@ -47,6 +47,8 @@ Alphabetically sorted links to case studies:
 * [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
 * [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
 * [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
+
+See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
 
 
 ## Prominent features
