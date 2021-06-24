@@ -18,6 +18,7 @@ Alphabetically sorted links to case studies:
 * [CERN](#cern)
 * [COLOPL](#colopl)
 * [Dreamteam](#dreamteam)
+* [Groove X](#groove-x)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
 * [Sensedia](#sensedia)
@@ -214,14 +215,37 @@ from `Large-scale, super-load system monitoring platform built with VictoriaMetr
 
 Numbers:
 
-* Active time series: from 350K to 725K.
-* Total number of time series: from 100M to 320M.
-* Total number of datapoints: from 120 billion to 155 billion.
-* Retention period: 3 months.
+* Active time series: from 350K to 725K
+* Total number of time series: from 100M to 320M
+* Total number of datapoints: from 120 billions to 155 billions
+* Retention period: 3 months
 
 VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
 as the load balancer for reads.
+
+## Groove X
+
+[Groove X](https://groove-x.com/en/) designs and produces robotics solutions. Its mission is to bring out humanity’s full potential through robotics.
+
+> We need monitoring solution for Device (Robot and Charge Station) health monitoring. At first, we used the Prometheus server, and then migrated to Thanos. But it was difficult to manage Thanos cluster and also we had a performance issue (long latency on request). Colopl, Inc. used VictoriaMetrics and we got interested in it. We built another k8s cluster besides our original Thanos cluster, and tried VictoriaMetrics in parallel for a while. It worked better and finally we decided to switch to VictoriaMetrics, because it provides low latency, it is in active development and it is easy to maintain.
+
+> We like performance and scalability provided by VictoriaMetrics. We use metrics in our daily work, and long latency would be a big problem. Also, metrics correctness is important. We reported some inconsistencies with Prometheus during the evaluation period and received quick feedback from VictoriaMetrics developers.
+
+Junya Hayashi, Senior Software Engineer, Groove X
+
+Numbers:
+
+- Active time series: 14 millions
+- Ingestion rate: 235K samples per second
+- Total number of datapoints: 3.2 trillions
+- Churn rate: 420K new time series per day
+- Data size on disk: 2 TB
+- Index size on disk: 52 GB
+- Query duration:
+  - 99th percentile: 2.6 seconds
+  - 90th percentile: 0.4 seconds
+  - median: 0.006 seconds
 
 ## Idealo.de
 
@@ -232,12 +256,12 @@ VictoriaMetrics in production is very stable for us and uses only a fraction of 
 
 Numbers:
 
-- The number of active time series per VictoriaMetrics instance is 21M.
-- Total ingestion rate 120k metrics per second.
-- The total number of datapoints 3.1 trillion.
-- The average time series churn rate is ~9M per day.
-- The average query rate is ~20 per second. Response time for 99th quantile is 120ms.
-- Retention: 13 months.
+- The number of active time series per VictoriaMetrics instance is 21M
+- Total ingestion rate 120k metrics per second
+- The total number of datapoints 3.1 trillion
+- The average time series churn rate is ~9M per day
+- The average query rate is ~20 per second. Response time for 99th quantile is 120ms
+- Retention: 13 months
 - Size of all datapoints: 3.5 TB
 
 
@@ -250,8 +274,8 @@ MHI Vestas Offshore Wind is using VictoriaMetrics to ingest and visualize sensor
 Numbers with current, limited roll out:
 
 - Active time series: 270K
-- Ingestion rate: 70K/sec
-- Total number of datapoints: 850 billion
+- Ingestion rate: 70K samples per second
+- Total number of datapoints: 850 billions
 - Data size on disk: 800 GiB
 - Retention period: 3 years
 
@@ -274,7 +298,7 @@ Numbers:
 - Cluster mode
 - Active time series: 700K
 - Ingestion rate: 70K datapoints per second
-- Datapoints: 112 Billion
+- Datapoints: 112 billions
 - Data size on disk: 82 GB
 - Index size on disk: 30 GB
 - Churn rate: 3 million of new time series per day
@@ -289,13 +313,13 @@ Numbers:
 
 Numbers:
 - Single node
-- Active time series - 5 Million
-- Datapoints: 1.25 Trillion
-- Ingestion rate - 550k datapoints per second
-- Disk usage - 150gb
-- Index size - 3gb
-- Query duration 99th percentile - 147ms
-- Churn rate - 100 new time series per hour
+- Active time series: 5 millions
+- Datapoints: 1.25 trillions
+- Ingestion rate: 550K datapoints per second
+- Disk usage: 150 GB
+- Index size: 3 GB
+- Query duration 99th percentile: 147ms
+- Churn rate: 2400 new time series per day
 
 ## Wedos.com
 
