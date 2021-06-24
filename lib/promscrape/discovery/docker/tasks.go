@@ -1,4 +1,4 @@
-package dockerswarm
+package docker
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -45,7 +44,7 @@ func getTasksLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	networkLabels, err := getNetworksLabelsByNetworkID(cfg)
+	networkLabels, err := getNetworksLabels(cfg, "__meta_dockerswarm_")
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package dockerswarm
+package docker
 
 import (
 	"reflect"

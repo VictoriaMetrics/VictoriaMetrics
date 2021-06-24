@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// See https://github.com/moby/moby/blob/314759dc2f4745925d8dec6d15acc7761c6e5c92/docs/api/v1.41.yaml#L1763
+// See https://docs.docker.com/engine/api/v1.40/#tag/Network
 type network struct {
 	ID       string
 	Name     string
@@ -18,10 +18,18 @@ type network struct {
 	Labels   map[string]string
 }
 
+func getNetworksLabels(cfg *apiConfig, labelPrefix string) (map[string]map[string]string, error) {
+	networks, err := getNetworks(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return getNetworkLabelsGroupByNetworkID(networks, labelPrefix), nil
+}
+
 func getNetworks(cfg *apiConfig) ([]network, error) {
 	resp, err := cfg.getAPIResponse("/networks")
 	if err != nil {
-		return nil, fmt.Errorf("cannot query docker api for networks: %w", err)
+		return nil, fmt.Errorf("cannot query docker/dockerswarm api for networks: %w", err)
 	}
 	return parseNetworks(resp)
 }
@@ -34,7 +42,7 @@ func parseNetworks(data []byte) ([]network, error) {
 	return networks, nil
 }
 
-func getNetworkLabels(networks []network, labelPrefix string) map[string]map[string]string {
+func getNetworkLabelsGroupByNetworkID(networks []network, labelPrefix string) map[string]map[string]string {
 	ms := make(map[string]map[string]string)
 	for _, network := range networks {
 		m := map[string]string{

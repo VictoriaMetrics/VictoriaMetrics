@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
@@ -120,19 +119,19 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
-	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
-	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
-	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
-	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
-	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
-	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
-	DockerSDConfigs       []docker.SDConfig       `yaml:"docker_sd_configs,omitempty"`
-	DockerSwarmSDConfigs  []dockerswarm.SDConfig  `yaml:"dockerswarm_sd_configs,omitempty"`
-	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
-	EC2SDConfigs          []ec2.SDConfig          `yaml:"ec2_sd_configs,omitempty"`
-	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
-	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
-	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
+	StaticConfigs         []StaticConfig               `yaml:"static_configs,omitempty"`
+	FileSDConfigs         []FileSDConfig               `yaml:"file_sd_configs,omitempty"`
+	KubernetesSDConfigs   []kubernetes.SDConfig        `yaml:"kubernetes_sd_configs,omitempty"`
+	OpenStackSDConfigs    []openstack.SDConfig         `yaml:"openstack_sd_configs,omitempty"`
+	ConsulSDConfigs       []consul.SDConfig            `yaml:"consul_sd_configs,omitempty"`
+	EurekaSDConfigs       []eureka.SDConfig            `yaml:"eureka_sd_configs,omitempty"`
+	DockerSDConfigs       []docker.DockerSDConfig      `yaml:"docker_sd_configs,omitempty"`
+	DockerSwarmSDConfigs  []docker.DockerSwarmSDConfig `yaml:"dockerswarm_sd_configs,omitempty"`
+	DNSSDConfigs          []dns.SDConfig               `yaml:"dns_sd_configs,omitempty"`
+	EC2SDConfigs          []ec2.SDConfig               `yaml:"ec2_sd_configs,omitempty"`
+	GCESDConfigs          []gce.SDConfig               `yaml:"gce_sd_configs,omitempty"`
+	DigitaloceanSDConfigs []digitalocean.SDConfig      `yaml:"digitalocean_sd_configs,omitempty"`
+	HTTPSDConfigs         []http.SDConfig              `yaml:"http_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`

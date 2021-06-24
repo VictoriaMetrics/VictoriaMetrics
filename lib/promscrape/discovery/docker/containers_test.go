@@ -309,7 +309,7 @@ func Test_addContainerLabels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to parse networks: %v", err)
 	}
-	networkLabels := getNetworkLabels(networks, "__meta_docker_")
+	networkLabels := getNetworkLabelsGroupByNetworkID(networks, "__meta_docker_")
 
 	tests := []struct {
 		name    string

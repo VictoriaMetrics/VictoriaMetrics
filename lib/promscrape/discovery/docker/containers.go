@@ -31,11 +31,11 @@ type container struct {
 }
 
 func getContainersLabels(cfg *apiConfig) ([]map[string]string, error) {
-	networks, err := getNetworks(cfg)
+	networkLabels, err := getNetworksLabels(cfg, "__meta_docker_")
+
 	if err != nil {
 		return nil, err
 	}
-	networkLabels := getNetworkLabels(networks, "__meta_docker_")
 
 	containers, err := getContainers(cfg)
 	if err != nil {
