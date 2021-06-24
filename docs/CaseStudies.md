@@ -18,6 +18,7 @@ Alphabetically sorted links to case studies:
 * [CERN](#cern)
 * [COLOPL](#colopl)
 * [Dreamteam](#dreamteam)
+* [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
 * [Groove X](#groove-x)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
@@ -223,6 +224,42 @@ Numbers:
 VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
 as the load balancer for reads.
+
+## German Research Center for Artificial Intelligence
+
+[German Research Center for Artificial Intelligence](https://en.wikipedia.org/wiki/German_Research_Centre_for_Artificial_Intelligence) (DFKI) is one of the world's largest nonprofit contract research institutes for software technology based on artificial intelligence (AI) methods. DFKI was founded in 1988, and has facilities in the German cities of Kaiserslautern, Saarbrücken, Bremen and Berlin.
+
+> Traditionally research groups in DFKI each used their own hardware. In mid 2020 we started an initiative to consolidate existing (and future) hardware into a central Slurm cluster to enable our researchers and students to run more and larger experiments. Based on the Nvidia deepops stack this included Prometheus for short-term metric storage. Our users liked the level of detail they got from our custom dashboards compared to our previous Zabbix-based solution, so we decided to extend the retention period to several years. Ideally we wanted PhD students to be able to recall even their earliest experiments by the time they finished their thesis. Since we do everything on-premise we needed a solution that is primarily space-efficient.
+
+> We initially considered simply extending the retention period of the Prometheus instances included with deepops, since this would be the “batteries included” solution and appeared to be what everyone else was doing. We naively also liked the concept behind TimescaleDB, since it relies on Postgres for storage that has had decades of development. Turns out relational databases are not good at storing time-series and integration with existing exporters and Grafana would have been more difficult.
+
+> VictoriaMetrics kept showing up in searches and benchmarks on time-series DB performance and consistently came out on top when it came to required storage. Quite frankly, the presented numbers looked like magic, so we decided to put this to the test. First impressions upon trial were excellent. Download the binary and point it at a storage location. Almost no configuration required. Apart from minor tweaks to the command line (turning on deduplication) and running it as a systemd unit we still use the same instance from the first tests today. It was further superior to Prometheus in every measurable way. It used considerably less CPU time and RAM than Prometheus and a third of the storage.
+
+> While initially storage efficiency was the primary driver, the simplicity of setting up a testbed definitely helped. Seeing how effortlessly the single-node instance deals with our current setup gives us confidence that it will keep up with our growth for quite a while. And when the time comes that we outgrow it there is always the robust cluster variant of VictoriaMetrics that we can turn to.
+
+> We like hassle-free experience with VictoriaMetrics. And at least for our use case a straight upgrade compared to Prometheus, while fully compatible with that ecosystem. While it can use cloud storage, there appears to be no downsides to using the filesystem instead, so it fits very well into our on-premise culture. It even comes with an excellent official Grafana dashboard to monitor performance.
+
+Joachim Folz, Researcher, German Research Center for Artificial Intelligence (DFKI)
+
+Numbers:
+
+- Single-node mode
+- Active time series: 130K
+- Ingestion rate: 24K new samples per second
+- Total number of datapoints: 160 billions
+- Churn rate: 20K new time series per day
+- Data size on disk: 82 GB
+- Index size on disk: 300 MB
+- Query rate:
+  - `/api/v1/query_range`: 2 queries per second
+  - `/api/v1/query`: 1.2 queries per second
+- Query duration:
+  - 99th percentile: 6.5 milliseconds
+  - 90th percentile: 4 milliseconds
+  - median: 1 millisecond
+- CPU usage: 0.1 CPU cores
+- RAM usage: 2.8 GB
+
 
 ## Groove X
 
