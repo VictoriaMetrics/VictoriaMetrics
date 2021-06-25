@@ -1,4 +1,4 @@
-package dockerswarm
+package docker
 
 import (
 	"reflect"
@@ -46,7 +46,7 @@ func Test_addNetworkLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getNetworkLabelsByNetworkID(tt.args.networks)
+			got := getNetworkLabelsGroupByNetworkID(tt.args.networks, "__meta_dockerswarm_")
 			var networkIDs []string
 			for networkID := range got {
 				networkIDs = append(networkIDs, networkID)
