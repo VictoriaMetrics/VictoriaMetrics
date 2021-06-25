@@ -53,3 +53,8 @@ func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []map[string]s
 	}
 	return ms
 }
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
+}
