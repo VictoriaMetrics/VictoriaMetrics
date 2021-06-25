@@ -1,4 +1,4 @@
-package docker
+package dockerswarm
 
 import (
 	"encoding/json"
@@ -46,14 +46,14 @@ func getNetworkLabelsByNetworkID(networks []network) map[string]map[string]strin
 	ms := make(map[string]map[string]string)
 	for _, network := range networks {
 		m := map[string]string{
-			"__meta_docker_network_id":       network.ID,
-			"__meta_docker_network_name":     network.Name,
-			"__meta_docker_network_internal": strconv.FormatBool(network.Internal),
-			"__meta_docker_network_ingress":  strconv.FormatBool(network.Ingress),
-			"__meta_docker_network_scope":    network.Scope,
+			"__meta_dockerswarm_network_id":       network.ID,
+			"__meta_dockerswarm_network_name":     network.Name,
+			"__meta_dockerswarm_network_internal": strconv.FormatBool(network.Internal),
+			"__meta_dockerswarm_network_ingress":  strconv.FormatBool(network.Ingress),
+			"__meta_dockerswarm_network_scope":    network.Scope,
 		}
 		for k, v := range network.Labels {
-			m["__meta_docker_network_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			m["__meta_dockerswarm_network_label_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
 		ms[network.ID] = m
 	}

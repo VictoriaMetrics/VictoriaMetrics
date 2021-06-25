@@ -1,4 +1,4 @@
-package docker
+package dockerswarm
 
 import (
 	"encoding/json"
@@ -51,7 +51,7 @@ func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	networksLabels, err := getNetworksLabels(cfg, "__meta_dockerswarm_")
+	networksLabels, err := getNetworksLabelsByNetworkID(cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -31,12 +31,10 @@ type container struct {
 }
 
 func getContainersLabels(cfg *apiConfig) ([]map[string]string, error) {
-	networkLabels, err := getNetworksLabels(cfg, "__meta_docker_")
-
+	networkLabels, err := getNetworksLabelsByNetworkID(cfg)
 	if err != nil {
 		return nil, err
 	}
-
 	containers, err := getContainers(cfg)
 	if err != nil {
 		return nil, err
@@ -62,71 +60,52 @@ func parseContainers(data []byte) ([]container, error) {
 
 func addContainersLabels(containers []container, networkLabels map[string]map[string]string, defaultPort int) []map[string]string {
 	var ms []map[string]string
-	for _, c := range containers {
-		if c.Names == nil || len(c.Names) == 0 {
+	for i := range containers {
+		c := &containers[i]
+		if len(c.Names) == 0 {
 			continue
 		}
-
-		commonLabels := map[string]string{
-			"__meta_docker_container_id":           c.Id,
-			"__meta_docker_container_name":         c.Names[0],
-			"__meta_docker_container_network_mode": c.HostConfig.NetworkMode,
-		}
-
-		for k, v := range c.Labels {
-			commonLabels["__meta_docker_container_label_"+discoveryutils.SanitizeLabelName(k)] = v
-		}
-
-		for _, network := range c.NetworkSettings.Networks {
+		for _, n := range c.NetworkSettings.Networks {
 			var added bool
-
-			for _, port := range c.Ports {
-				if port.Type != "tcp" {
+			for _, p := range c.Ports {
+				if p.Type != "tcp" {
 					continue
 				}
-
-				labels := map[string]string{
-					"__meta_docker_network_ip":   network.IPAddress,
-					"__meta_docker_port_private": strconv.FormatInt(int64(port.PrivatePort), 10),
+				m := map[string]string{
+					"__address__":                discoveryutils.JoinHostPort(n.IPAddress, p.PrivatePort),
+					"__meta_docker_network_ip":   n.IPAddress,
+					"__meta_docker_port_private": strconv.Itoa(p.PrivatePort),
 				}
-
-				if port.PublicPort > 0 {
-					labels["__meta_docker_port_public"] = strconv.FormatInt(int64(port.PublicPort), 10)
-					labels["__meta_docker_port_public_ip"] = port.IP
+				if p.PublicPort > 0 {
+					m["__meta_docker_port_public"] = strconv.Itoa(p.PublicPort)
+					m["__meta_docker_port_public_ip"] = p.IP
 				}
-
-				for k, v := range commonLabels {
-					labels[k] = v
-				}
-
-				for k, v := range networkLabels[network.NetworkID] {
-					labels[k] = v
-				}
-
-				labels["__address__"] = discoveryutils.JoinHostPort(network.IPAddress, port.PrivatePort)
-				ms = append(ms, labels)
-
+				addCommonLabels(m, c, networkLabels[n.NetworkID])
+				ms = append(ms, m)
 				added = true
 			}
-
 			if !added {
 				// Use fallback port when no exposed ports are available or if all are non-TCP
-				labels := map[string]string{
-					"__meta_docker_network_ip": network.IPAddress,
+				m := map[string]string{
+					"__address__":              discoveryutils.JoinHostPort(n.IPAddress, defaultPort),
+					"__meta_docker_network_ip": n.IPAddress,
 				}
-
-				for k, v := range commonLabels {
-					labels[k] = v
-				}
-
-				for k, v := range networkLabels[network.NetworkID] {
-					labels[k] = v
-				}
-
-				labels["__address__"] = discoveryutils.JoinHostPort(network.IPAddress, defaultPort)
-				ms = append(ms, labels)
+				addCommonLabels(m, c, networkLabels[n.NetworkID])
+				ms = append(ms, m)
 			}
 		}
 	}
 	return ms
+}
+
+func addCommonLabels(m map[string]string, c *container, networkLabels map[string]string) {
+	m["__meta_docker_container_id"] = c.Id
+	m["__meta_docker_container_name"] = c.Names[0]
+	m["__meta_docker_container_network_mode"] = c.HostConfig.NetworkMode
+	for k, v := range c.Labels {
+		m["__meta_docker_container_label_"+discoveryutils.SanitizeLabelName(k)] = v
+	}
+	for k, v := range networkLabels {
+		m[k] = v
+	}
 }
