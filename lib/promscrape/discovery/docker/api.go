@@ -1,4 +1,4 @@
-package dockerswarm
+package docker
 
 import (
 	"encoding/json"
@@ -20,7 +20,7 @@ type apiConfig struct {
 	filtersQueryArg string
 }
 
-func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+func getAPIConfigFromDockerSDConfig(sdc *DockerSDConfig, baseDir string) (*apiConfig, error) {
 	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
 	if err != nil {
 		return nil, err
@@ -28,7 +28,15 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return v.(*apiConfig), nil
 }
 
-func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+func getAPIConfigFromDockerSwarmSDConfig(sdc *DockerSwarmSDConfig, baseDir string) (*apiConfig, error) {
+	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(&sdc.DockerSDConfig, baseDir) })
+	if err != nil {
+		return nil, err
+	}
+	return v.(*apiConfig), nil
+}
+
+func newAPIConfig(sdc *DockerSDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
 		port:            sdc.Port,
 		filtersQueryArg: getFiltersQueryArg(sdc.Filters),

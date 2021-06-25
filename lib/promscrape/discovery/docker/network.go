@@ -1,4 +1,4 @@
-package dockerswarm
+package docker
 
 import (
 	"encoding/json"
@@ -18,18 +18,18 @@ type network struct {
 	Labels   map[string]string
 }
 
-func getNetworksLabelsByNetworkID(cfg *apiConfig) (map[string]map[string]string, error) {
+func getNetworksLabels(cfg *apiConfig, labelPrefix string) (map[string]map[string]string, error) {
 	networks, err := getNetworks(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return getNetworkLabelsByNetworkID(networks), nil
+	return getNetworkLabelsGroupByNetworkID(networks, labelPrefix), nil
 }
 
 func getNetworks(cfg *apiConfig) ([]network, error) {
 	resp, err := cfg.getAPIResponse("/networks")
 	if err != nil {
-		return nil, fmt.Errorf("cannot query dockerswarm api for networks: %w", err)
+		return nil, fmt.Errorf("cannot query docker/dockerswarm api for networks: %w", err)
 	}
 	return parseNetworks(resp)
 }
@@ -42,18 +42,18 @@ func parseNetworks(data []byte) ([]network, error) {
 	return networks, nil
 }
 
-func getNetworkLabelsByNetworkID(networks []network) map[string]map[string]string {
+func getNetworkLabelsGroupByNetworkID(networks []network, labelPrefix string) map[string]map[string]string {
 	ms := make(map[string]map[string]string)
 	for _, network := range networks {
 		m := map[string]string{
-			"__meta_dockerswarm_network_id":       network.ID,
-			"__meta_dockerswarm_network_name":     network.Name,
-			"__meta_dockerswarm_network_internal": strconv.FormatBool(network.Internal),
-			"__meta_dockerswarm_network_ingress":  strconv.FormatBool(network.Ingress),
-			"__meta_dockerswarm_network_scope":    network.Scope,
+			labelPrefix + "network_id":       network.ID,
+			labelPrefix + "network_name":     network.Name,
+			labelPrefix + "network_internal": strconv.FormatBool(network.Internal),
+			labelPrefix + "network_ingress":  strconv.FormatBool(network.Ingress),
+			labelPrefix + "network_scope":    network.Scope,
 		}
 		for k, v := range network.Labels {
-			m["__meta_dockerswarm_network_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			m[labelPrefix+"network_label_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
 		ms[network.ID] = m
 	}
