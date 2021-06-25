@@ -177,6 +177,8 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `openstack_sd_configs` - is for scraping OpenStack targets.
   See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details.
   [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
+* `docker_sd_configs` - is for scraping Docker targets.
+  See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config) for details.
 * `dockerswarm_sd_configs` - is for scraping Docker Swarm targets.
   See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config) for details.
 * `eureka_sd_configs` - is for scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka).
