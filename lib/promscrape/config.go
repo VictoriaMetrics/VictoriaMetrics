@@ -186,6 +186,12 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.GCESDConfigs {
 		sc.GCESDConfigs[i].MustStop()
 	}
+	for i := range sc.DigitaloceanSDConfigs {
+		sc.DigitaloceanSDConfigs[i].MustStop()
+	}
+	for i := range sc.HTTPSDConfigs {
+		sc.HTTPSDConfigs[i].MustStop()
+	}
 }
 
 // FileSDConfig represents file-based service discovery config.

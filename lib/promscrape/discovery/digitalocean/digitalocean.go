@@ -146,3 +146,8 @@ func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
 	}
 	return ms
 }
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
+}
