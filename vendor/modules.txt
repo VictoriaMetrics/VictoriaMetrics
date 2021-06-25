@@ -1,5 +1,4 @@
 # cloud.google.com/go v0.84.0
-## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -28,7 +27,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.38.57
+# github.com/aws/aws-sdk-go v1.38.66
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -158,7 +157,7 @@ github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.28.0
+# github.com/prometheus/common v0.29.0
 ## explicit
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
@@ -239,7 +238,7 @@ golang.org/x/lint/golint
 # golang.org/x/mod v0.4.2
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210525063256-abc453219eb5
+# golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -251,7 +250,7 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
+# golang.org/x/oauth2 v0.0.0-20210622215436-a8dc77f794b6
 ## explicit
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -263,7 +262,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210608053332-aa57babbf139
+# golang.org/x/sys v0.0.0-20210616094352-59db8d763f22
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -274,7 +273,8 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.1.2
+# golang.org/x/tools v0.1.4
+## explicit
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
@@ -287,10 +287,11 @@ golang.org/x/tools/internal/fastwalk
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/imports
+golang.org/x/tools/internal/typeparams
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.48.0
+# google.golang.org/api v0.49.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -317,7 +318,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210608205507-b6d2f5bf0d7d
+# google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code

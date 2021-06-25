@@ -21,10 +21,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -118,17 +120,19 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
-	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
+	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
+	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
+	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
+	DockerSDConfigs       []docker.SDConfig       `yaml:"docker_sd_configs,omitempty"`
+	DockerSwarmSDConfigs  []dockerswarm.SDConfig  `yaml:"dockerswarm_sd_configs,omitempty"`
+	EC2SDConfigs          []ec2.SDConfig          `yaml:"ec2_sd_configs,omitempty"`
+	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
 	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
+	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
+	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
-	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
-	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
-	DockerSwarmSDConfigs  []dockerswarm.SDConfig  `yaml:"dockerswarm_sd_configs,omitempty"`
-	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
-	EC2SDConfigs          []ec2.SDConfig          `yaml:"ec2_sd_configs,omitempty"`
-	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
-	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
+	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`
@@ -160,29 +164,38 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 }
 
 func (sc *ScrapeConfig) mustStop() {
+	for i := range sc.ConsulSDConfigs {
+		sc.ConsulSDConfigs[i].MustStop()
+	}
+	for i := range sc.DigitaloceanSDConfigs {
+		sc.DigitaloceanSDConfigs[i].MustStop()
+	}
+	for i := range sc.DNSSDConfigs {
+		sc.DNSSDConfigs[i].MustStop()
+	}
+	for i := range sc.DockerSDConfigs {
+		sc.DockerSDConfigs[i].MustStop()
+	}
+	for i := range sc.DockerSwarmSDConfigs {
+		sc.DockerSwarmSDConfigs[i].MustStop()
+	}
+	for i := range sc.EC2SDConfigs {
+		sc.EC2SDConfigs[i].MustStop()
+	}
+	for i := range sc.EurekaSDConfigs {
+		sc.EurekaSDConfigs[i].MustStop()
+	}
+	for i := range sc.GCESDConfigs {
+		sc.GCESDConfigs[i].MustStop()
+	}
+	for i := range sc.HTTPSDConfigs {
+		sc.HTTPSDConfigs[i].MustStop()
+	}
 	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStop()
 	}
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
-	}
-	for i := range sc.ConsulSDConfigs {
-		sc.ConsulSDConfigs[i].MustStop()
-	}
-	for i := range sc.EurekaSDConfigs {
-		sc.EurekaSDConfigs[i].MustStop()
-	}
-	for i := range sc.DockerSwarmSDConfigs {
-		sc.DockerSwarmSDConfigs[i].MustStop()
-	}
-	for i := range sc.DNSSDConfigs {
-		sc.DNSSDConfigs[i].MustStop()
-	}
-	for i := range sc.EC2SDConfigs {
-		sc.EC2SDConfigs[i].MustStop()
-	}
-	for i := range sc.GCESDConfigs {
-		sc.GCESDConfigs[i].MustStop()
 	}
 }
 
@@ -272,6 +285,281 @@ func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
 	return m
 }
 
+// getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.ConsulSDConfigs {
+			sdc := &sc.ConsulSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consul_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering consul targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDigitalOceanDScrapeWork returns `digitalocean_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DigitaloceanSDConfigs {
+			sdc := &sc.DigitaloceanSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "digitalocean_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering digitalocean targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DNSSDConfigs {
+			sdc := &sc.DNSSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dns_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering dns targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDockerSDScrapeWork returns `docker_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDockerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DockerSDConfigs {
+			sdc := &sc.DockerSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "docker_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering docker targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DockerSwarmSDConfigs {
+			sdc := &sc.DockerSwarmSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dockerswarm_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering dockerswarm targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.EC2SDConfigs {
+			sdc := &sc.EC2SDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "ec2_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering ec2 targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getEurekaSDScrapeWork returns `eureka_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.EurekaSDConfigs {
+			sdc := &sc.EurekaSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "eureka_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering eureka targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	// Create a map for the previous scrape work.
+	swsMapPrev := make(map[string][]*ScrapeWork)
+	for _, sw := range prev {
+		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
+		if len(filepath) == 0 {
+			logger.Panicf("BUG: missing `__vm_filepath` label")
+		} else {
+			swsMapPrev[filepath] = append(swsMapPrev[filepath], sw)
+		}
+	}
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.FileSDConfigs {
+			sdc := &sc.FileSDConfigs[j]
+			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
+}
+
+// getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.GCESDConfigs {
+			sdc := &sc.GCESDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "gce_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering gce targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getHTTPDScrapeWork returns `http_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.HTTPSDConfigs {
+			sdc := &sc.HTTPSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "http_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering http targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
@@ -328,225 +616,6 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		if len(swsPrev) > 0 {
 			logger.Errorf("there were errors when discovering openstack targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DockerSwarmSDConfigs {
-			sdc := &sc.DockerSwarmSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dockerswarm_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering dockerswarm targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.ConsulSDConfigs {
-			sdc := &sc.ConsulSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consul_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering consul targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getEurekaSDScrapeWork returns `eureka_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.EurekaSDConfigs {
-			sdc := &sc.EurekaSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "eureka_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering eureka targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DNSSDConfigs {
-			sdc := &sc.DNSSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dns_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering dns targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.EC2SDConfigs {
-			sdc := &sc.EC2SDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "ec2_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering ec2 targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.GCESDConfigs {
-			sdc := &sc.GCESDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "gce_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering gce targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getDigitalOceanDScrapeWork returns `digitalocean_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DigitaloceanSDConfigs {
-			sdc := &sc.DigitaloceanSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "digitalocean_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering digitalocean targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
-	}
-	return dst
-}
-
-// getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	// Create a map for the previous scrape work.
-	swsMapPrev := make(map[string][]*ScrapeWork)
-	for _, sw := range prev {
-		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
-		if len(filepath) == 0 {
-			logger.Panicf("BUG: missing `__vm_filepath` label")
-		} else {
-			swsMapPrev[filepath] = append(swsMapPrev[filepath], sw)
-		}
-	}
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
-		for j := range sc.FileSDConfigs {
-			sdc := &sc.FileSDConfigs[j]
-			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
 		}
 	}
 	return dst

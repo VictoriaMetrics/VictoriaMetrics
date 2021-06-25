@@ -11,15 +11,18 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 type SDConfig struct {
-	Server            string                     `yaml:"server,omitempty"`
-	Token             *string                    `yaml:"token"`
-	Datacenter        string                     `yaml:"datacenter"`
+	Server     string  `yaml:"server,omitempty"`
+	Token      *string `yaml:"token"`
+	Datacenter string  `yaml:"datacenter"`
+	// Namespace only supported at enterprise consul.
+	// https://www.consul.io/docs/enterprise/namespaces
+	Namespace         string                     `yaml:"namespace,omitempty"`
 	Scheme            string                     `yaml:"scheme,omitempty"`
 	Username          string                     `yaml:"username"`
 	Password          string                     `yaml:"password"`
+	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
-	TLSConfig         *promauth.TLSConfig        `yaml:"tls_config,omitempty"`
 	Services          []string                   `yaml:"services,omitempty"`
 	Tags              []string                   `yaml:"tags,omitempty"`
 	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`

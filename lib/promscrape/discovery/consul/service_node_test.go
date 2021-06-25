@@ -64,7 +64,7 @@ func TestParseServiceNodesSuccess(t *testing.T) {
         "Passing": 10,
         "Warning": 1
       },
-      "Namespace": "default"
+      "Namespace": "ns-dev"
     },
     "Checks": [
       {
@@ -118,6 +118,7 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 			"__meta_consul_dc":                             "dc1",
 			"__meta_consul_health":                         "passing",
 			"__meta_consul_metadata_instance_type":         "t2.medium",
+			"__meta_consul_namespace":                      "ns-dev",
 			"__meta_consul_node":                           "foobar",
 			"__meta_consul_service":                        "redis",
 			"__meta_consul_service_address":                "10.1.10.12",

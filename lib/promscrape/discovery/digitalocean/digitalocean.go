@@ -1,15 +1,22 @@
 package digitalocean
 
 import (
+	"flag"
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
+
+// SDCheckInterval defines interval for targets refresh.
+var SDCheckInterval = flag.Duration("promscrape.digitaloceanSDCheckInterval", time.Minute, "Interval for checking for changes in digital ocean. "+
+	"This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. "+
+	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config for details")
 
 // SDConfig represents service discovery config for digital ocean.
 //
@@ -145,4 +152,9 @@ func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
 		ms = append(ms, m)
 	}
 	return ms
+}
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
 }

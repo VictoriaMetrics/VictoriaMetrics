@@ -12,42 +12,29 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
-	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
-	kubernetesSDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
-		"This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details")
-	openstackSDCheckInterval = flag.Duration("promscrape.openstackSDCheckInterval", 30*time.Second, "Interval for checking for changes in openstack API server. "+
-		"This works only if openstack_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details")
-	eurekaSDCheckInterval = flag.Duration("promscrape.eurekaSDCheckInterval", 30*time.Second, "Interval for checking for changes in eureka. "+
-		"This works only if eureka_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details")
-	dnsSDCheckInterval = flag.Duration("promscrape.dnsSDCheckInterval", 30*time.Second, "Interval for checking for changes in dns. "+
-		"This works only if dns_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details")
-	ec2SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute, "Interval for checking for changes in ec2. "+
-		"This works only if ec2_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details")
-	gceSDCheckInterval = flag.Duration("promscrape.gceSDCheckInterval", time.Minute, "Interval for checking for changes in gce. "+
-		"This works only if gce_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details")
-	dockerswarmSDCheckInterval = flag.Duration("promscrape.dockerswarmSDCheckInterval", 30*time.Second, "Interval for checking for changes in dockerswarm. "+
-		"This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details")
-	digitaloceanSDCheckInterval = flag.Duration("promscrape.digitaloceanSDCheckInterval", time.Minute, "Interval for checking for changes in digital ocean. "+
-		"This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config for details")
-	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
-		"See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress 'duplicate scrape target' errors; "+
 		"see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details")
+	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
+		"See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
+
+	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
+		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.
@@ -104,17 +91,19 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	cfg.mustStart()
 
 	scs := newScrapeConfigs(pushData)
-	scs.add("static_configs", 0, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getStaticScrapeWork() })
-	scs.add("file_sd_configs", *fileSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getFileSDScrapeWork(swsPrev) })
-	scs.add("kubernetes_sd_configs", *kubernetesSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getKubernetesSDScrapeWork(swsPrev) })
-	scs.add("openstack_sd_configs", *openstackSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getOpenStackSDScrapeWork(swsPrev) })
 	scs.add("consul_sd_configs", *consul.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getConsulSDScrapeWork(swsPrev) })
-	scs.add("eureka_sd_configs", *eurekaSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEurekaSDScrapeWork(swsPrev) })
-	scs.add("dns_sd_configs", *dnsSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDNSSDScrapeWork(swsPrev) })
-	scs.add("ec2_sd_configs", *ec2SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEC2SDScrapeWork(swsPrev) })
-	scs.add("gce_sd_configs", *gceSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getGCESDScrapeWork(swsPrev) })
-	scs.add("dockerswarm_sd_configs", *dockerswarmSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDockerSwarmSDScrapeWork(swsPrev) })
-	scs.add("digitalocean_sd_configs", *digitaloceanSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDigitalOceanDScrapeWork(swsPrev) })
+	scs.add("digitalocean_sd_configs", *digitalocean.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDigitalOceanDScrapeWork(swsPrev) })
+	scs.add("dns_sd_configs", *dns.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDNSSDScrapeWork(swsPrev) })
+	scs.add("docker_sd_configs", *docker.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDockerSDScrapeWork(swsPrev) })
+	scs.add("dockerswarm_sd_configs", *dockerswarm.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDockerSwarmSDScrapeWork(swsPrev) })
+	scs.add("ec2_sd_configs", *ec2.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEC2SDScrapeWork(swsPrev) })
+	scs.add("eureka_sd_configs", *eureka.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEurekaSDScrapeWork(swsPrev) })
+	scs.add("file_sd_configs", *fileSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getFileSDScrapeWork(swsPrev) })
+	scs.add("gce_sd_configs", *gce.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getGCESDScrapeWork(swsPrev) })
+	scs.add("http_sd_configs", *http.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getHTTPDScrapeWork(swsPrev) })
+	scs.add("kubernetes_sd_configs", *kubernetes.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getKubernetesSDScrapeWork(swsPrev) })
+	scs.add("openstack_sd_configs", *openstack.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getOpenStackSDScrapeWork(swsPrev) })
+	scs.add("static_configs", 0, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getStaticScrapeWork() })
 
 	var tickerCh <-chan time.Time
 	if *configCheckInterval > 0 {

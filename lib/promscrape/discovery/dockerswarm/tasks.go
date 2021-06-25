@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 

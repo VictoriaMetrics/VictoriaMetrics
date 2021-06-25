@@ -7,10 +7,6 @@ sort: 11
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](http://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
-You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides).
-
-Alphabetically sorted links to case studies:
-
 * [adidas](#adidas)
 * [Adsterra](#adsterra)
 * [ARNES](#arnes)
@@ -18,13 +14,18 @@ Alphabetically sorted links to case studies:
 * [CERN](#cern)
 * [COLOPL](#colopl)
 * [Dreamteam](#dreamteam)
+* [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
+* [Groove X](#groove-x)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+* [Sensedia](#sensedia)
 * [Synthesio](#synthesio)
 * [Wedos.com](#wedoscom)
 * [Wix.com](#wixcom)
 * [Zerodha](#zerodha)
 * [zhihu](#zhihu)
+
+You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides).
 
 
 ## adidas
@@ -213,14 +214,73 @@ from `Large-scale, super-load system monitoring platform built with VictoriaMetr
 
 Numbers:
 
-* Active time series: from 350K to 725K.
-* Total number of time series: from 100M to 320M.
-* Total number of datapoints: from 120 billion to 155 billion.
-* Retention period: 3 months.
+* Active time series: from 350K to 725K
+* Total number of time series: from 100M to 320M
+* Total number of datapoints: from 120 billions to 155 billions
+* Retention period: 3 months
 
 VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
 as the load balancer for reads.
+
+## German Research Center for Artificial Intelligence
+
+[German Research Center for Artificial Intelligence](https://en.wikipedia.org/wiki/German_Research_Centre_for_Artificial_Intelligence) (DFKI) is one of the world's largest nonprofit contract research institutes for software technology based on artificial intelligence (AI) methods. DFKI was founded in 1988, and has facilities in the German cities of Kaiserslautern, Saarbrücken, Bremen and Berlin.
+
+> Traditionally research groups in DFKI each used their own hardware. In mid 2020 we started an initiative to consolidate existing (and future) hardware into a central Slurm cluster to enable our researchers and students to run more and larger experiments. Based on the Nvidia deepops stack this included Prometheus for short-term metric storage. Our users liked the level of detail they got from our custom dashboards compared to our previous Zabbix-based solution, so we decided to extend the retention period to several years. Ideally we wanted PhD students to be able to recall even their earliest experiments by the time they finished their thesis. Since we do everything on-premise we needed a solution that is primarily space-efficient.
+
+> We initially considered simply extending the retention period of the Prometheus instances included with deepops, since this would be the “batteries included” solution and appeared to be what everyone else was doing. We naively also liked the concept behind TimescaleDB, since it relies on Postgres for storage that has had decades of development. Turns out relational databases are not good at storing time-series and integration with existing exporters and Grafana would have been more difficult.
+
+> VictoriaMetrics kept showing up in searches and benchmarks on time-series DB performance and consistently came out on top when it came to required storage. Quite frankly, the presented numbers looked like magic, so we decided to put this to the test. First impressions upon trial were excellent. Download the binary and point it at a storage location. Almost no configuration required. Apart from minor tweaks to the command line (turning on deduplication) and running it as a systemd unit we still use the same instance from the first tests today. It was further superior to Prometheus in every measurable way. It used considerably less CPU time and RAM than Prometheus and a third of the storage.
+
+> While initially storage efficiency was the primary driver, the simplicity of setting up a testbed definitely helped. Seeing how effortlessly the single-node instance deals with our current setup gives us confidence that it will keep up with our growth for quite a while. And when the time comes that we outgrow it there is always the robust cluster variant of VictoriaMetrics that we can turn to.
+
+> We like hassle-free experience with VictoriaMetrics. And at least for our use case a straight upgrade compared to Prometheus, while fully compatible with that ecosystem. While it can use cloud storage, there appears to be no downsides to using the filesystem instead, so it fits very well into our on-premise culture. It even comes with an excellent official Grafana dashboard to monitor performance.
+
+Joachim Folz, Researcher, German Research Center for Artificial Intelligence (DFKI)
+
+Numbers:
+
+- Single-node mode
+- Active time series: 130K
+- Ingestion rate: 24K new samples per second
+- Total number of datapoints: 160 billions
+- Churn rate: 20K new time series per day
+- Data size on disk: 82 GB
+- Index size on disk: 300 MB
+- Query rate:
+  - `/api/v1/query_range`: 2 queries per second
+  - `/api/v1/query`: 1.2 queries per second
+- Query duration:
+  - 99th percentile: 6.5 milliseconds
+  - 90th percentile: 4 milliseconds
+  - median: 1 millisecond
+- CPU usage: 0.1 CPU cores
+- RAM usage: 2.8 GB
+
+
+## Groove X
+
+[Groove X](https://groove-x.com/en/) designs and produces robotics solutions. Its mission is to bring out humanity’s full potential through robotics.
+
+> We need monitoring solution for Device (Robot and Charge Station) health monitoring. At first, we used the Prometheus server, and then migrated to Thanos. But it was difficult to manage Thanos cluster and also we had a performance issue (long latency on request). Colopl, Inc. used VictoriaMetrics and we got interested in it. We built another k8s cluster besides our original Thanos cluster, and tried VictoriaMetrics in parallel for a while. It worked better and finally we decided to switch to VictoriaMetrics, because it provides low latency, it is in active development and it is easy to maintain.
+
+> We like performance and scalability provided by VictoriaMetrics. We use metrics in our daily work, and long latency would be a big problem. Also, metrics correctness is important. We reported some inconsistencies with Prometheus during the evaluation period and received quick feedback from VictoriaMetrics developers.
+
+Junya Hayashi, Senior Software Engineer, Groove X
+
+Numbers:
+
+- Active time series: 14 millions
+- Ingestion rate: 235K samples per second
+- Total number of datapoints: 3.2 trillions
+- Churn rate: 420K new time series per day
+- Data size on disk: 2 TB
+- Index size on disk: 52 GB
+- Query duration:
+  - 99th percentile: 2.6 seconds
+  - 90th percentile: 0.4 seconds
+  - median: 0.006 seconds
 
 ## Idealo.de
 
@@ -231,12 +291,12 @@ VictoriaMetrics in production is very stable for us and uses only a fraction of 
 
 Numbers:
 
-- The number of active time series per VictoriaMetrics instance is 21M.
-- Total ingestion rate 120k metrics per second.
-- The total number of datapoints 3.1 trillion.
-- The average time series churn rate is ~9M per day.
-- The average query rate is ~20 per second. Response time for 99th quantile is 120ms.
-- Retention: 13 months.
+- The number of active time series per VictoriaMetrics instance is 21M
+- Total ingestion rate 120k metrics per second
+- The total number of datapoints 3.1 trillion
+- The average time series churn rate is ~9M per day
+- The average query rate is ~20 per second. Response time for 99th quantile is 120ms
+- Retention: 13 months
 - Size of all datapoints: 3.5 TB
 
 
@@ -249,10 +309,35 @@ MHI Vestas Offshore Wind is using VictoriaMetrics to ingest and visualize sensor
 Numbers with current, limited roll out:
 
 - Active time series: 270K
-- Ingestion rate: 70K/sec
-- Total number of datapoints: 850 billion
+- Ingestion rate: 70K samples per second
+- Total number of datapoints: 850 billions
 - Data size on disk: 800 GiB
 - Retention period: 3 years
+
+
+## Sensedia
+
+[Sensedia](https://www.sensedia.com) is a leading integration solutions provider with more than 120 enterprise clients across a range of sectors. Its world-class portfolio includes: an API Management Platform, Adaptive Governance, Events Hub, Service Mesh, Cloud Connectors and Strategic Professional Services' teams.
+
+> Our initial requirements for monitoring solution: the metrics must be stored for 15 days, the solution must be scalable and must offer high availability of the metrics. It must being integrated into Grafana and allowing the use of PromQL when creating/editing dashboards in Grafana to obtain metrics from the Prometheus datasource. The solution also needs to receive data from Prometheus using HTTPS and needs to request a login and password to write/read the metrics. Details are available [in this article](https://nordicapis.com/api-monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics/).
+
+> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, ElasticSearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](http://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
+
+> We started using VictoriaMetrics in the production environment days before the start of BlackFriday in 2020, the period of greatest use of the Sensedia API-Platform by customers. There was a record in the generation of metrics and there was no instability with the monitoring stack.
+
+> We use VictoriaMetrics in cluster mode for centralized storage of metrics collected by several Prometheus servers installed in Kubernetes clusters from two different cloud providers. VictoriaMetrics has also been integrated with Grafana to view metrics.
+
+[Aecio dos Santos Pires](http://aeciopires.com), Cloud Architect, Sensedia.
+
+Numbers:
+- Cluster mode
+- Active time series: 700K
+- Ingestion rate: 70K datapoints per second
+- Datapoints: 112 billions
+- Data size on disk: 82 GB
+- Index size on disk: 30 GB
+- Churn rate: 3 million of new time series per day
+- Query response time (99th percentile): 500ms
 
 
 ## Synthesio
@@ -263,13 +348,13 @@ Numbers with current, limited roll out:
 
 Numbers:
 - Single node
-- Active time series - 5 Million
-- Datapoints: 1.25 Trillion
-- Ingestion rate - 550k datapoints per second
-- Disk usage - 150gb
-- Index size - 3gb
-- Query duration 99th percentile - 147ms
-- Churn rate - 100 new time series per hour
+- Active time series: 5 millions
+- Datapoints: 1.25 trillions
+- Ingestion rate: 550K datapoints per second
+- Disk usage: 150 GB
+- Index size: 3 GB
+- Query duration 99th percentile: 147ms
+- Churn rate: 2400 new time series per day
 
 ## Wedos.com
 

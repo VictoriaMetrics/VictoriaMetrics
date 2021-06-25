@@ -154,8 +154,19 @@ func (c *Client) Addr() string {
 	return c.hc.Addr
 }
 
+// GetAPIResponseWithReqParams returns response for given absolute path with optional callback for request.
+// modifyRequestParams should never reference data from request.
+func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequestParams func(request *fasthttp.Request)) ([]byte, error) {
+	return c.getAPIResponse(path, modifyRequestParams)
+}
+
 // GetAPIResponse returns response for the given absolute path.
 func (c *Client) GetAPIResponse(path string) ([]byte, error) {
+	return c.getAPIResponse(path, nil)
+}
+
+// GetAPIResponse returns response for the given absolute path with optional callback for request.
+func (c *Client) getAPIResponse(path string, modifyRequest func(request *fasthttp.Request)) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -168,17 +179,17 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 			c.apiServer, *maxWaitTime, *maxConcurrency)
 	}
 	defer func() { <-concurrencyLimitCh }()
-	return c.getAPIResponseWithParamsAndClient(c.hc, path, nil)
+	return c.getAPIResponseWithParamsAndClient(c.hc, path, modifyRequest, nil)
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
 // inspectResponse - should never reference data from response.
 func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
-	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, inspectResponse)
+	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, nil, inspectResponse)
 }
 
-// getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for response.
-func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, path string, inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
+// getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for request and for response.
+func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, path string, modifyRequest func(req *fasthttp.Request), inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
 	requestURL := c.apiServer + path
 	var u fasthttp.URI
 	u.Update(requestURL)
@@ -195,6 +206,9 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	}
 	if ah := c.getProxyAuthHeader(); ah != "" {
 		req.Header.Set("Proxy-Authorization", ah)
+	}
+	if modifyRequest != nil {
+		modifyRequest(&req)
 	}
 
 	var resp fasthttp.Response

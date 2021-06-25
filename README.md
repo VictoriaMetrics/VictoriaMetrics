@@ -28,7 +28,7 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 ## Case studies and talks
 
-Alphabetically sorted links to case studies:
+Case studies:
 
 * [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
 * [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
@@ -37,13 +37,18 @@ Alphabetically sorted links to case studies:
 * [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
 * [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
+* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
 * [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
 * [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
 * [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
 * [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
+
+See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
 
 
 ## Prominent features
@@ -344,6 +349,7 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)
 * [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)
 * [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
+* [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
 
 
 Other `*_sd_config` types will be supported in the future.
@@ -1177,7 +1183,7 @@ VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-
 is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points
 on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept.  In the case of equal timestamps, an arbitrary data point will be kept.
 
-The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs.
+The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. It is recommended to have a single `scrape_interval` across all the scrape targets. See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
 
 The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
@@ -1746,6 +1752,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
   -promscrape.gceSDCheckInterval duration
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
+  -promscrape.httpSDCheckInterval duration
+        Interval for checking for changes in http service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details (default 1m0s)    	
   -promscrape.kubernetes.apiServerTimeout duration
     	How frequently to reload the full state from Kuberntes API server (default 30m0s)
   -promscrape.kubernetesSDCheckInterval duration
