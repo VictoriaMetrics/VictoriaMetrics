@@ -1,11 +1,18 @@
 package kubernetes
 
 import (
+	"flag"
 	"fmt"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
+
+// SDCheckInterval defines interval for targets refresh.
+var SDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
+	"This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. "+
+	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details")
 
 // SDConfig represents kubernetes-based service discovery config.
 //

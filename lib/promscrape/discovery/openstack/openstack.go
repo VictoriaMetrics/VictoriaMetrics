@@ -1,10 +1,17 @@
 package openstack
 
 import (
+	"flag"
 	"fmt"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
+
+// SDCheckInterval defines interval for targets refresh.
+var SDCheckInterval = flag.Duration("promscrape.openstackSDCheckInterval", 30*time.Second, "Interval for checking for changes in openstack API server. "+
+	"This works only if openstack_sd_configs is configured in '-promscrape.config' file. "+
+	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details")
 
 // SDConfig is the configuration for OpenStack based service discovery.
 //

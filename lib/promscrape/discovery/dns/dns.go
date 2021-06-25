@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"strconv"
@@ -11,6 +12,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
+
+// SDCheckInterval defines interval for targets refresh.
+var SDCheckInterval = flag.Duration("promscrape.dnsSDCheckInterval", 30*time.Second, "Interval for checking for changes in dns. "+
+	"This works only if dns_sd_configs is configured in '-promscrape.config' file. "+
+	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details")
 
 // SDConfig represents service discovery config for DNS.
 //
