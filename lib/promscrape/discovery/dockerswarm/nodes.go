@@ -1,4 +1,4 @@
-package docker
+package dockerswarm
 
 import (
 	"encoding/json"

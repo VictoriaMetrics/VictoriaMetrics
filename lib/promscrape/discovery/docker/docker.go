@@ -14,15 +14,10 @@ var SDCheckInterval = flag.Duration("promscrape.dockerSDCheckInterval", 30*time.
 	"This works only if docker_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config for details")
 
-// SwarmSDCheckInterval defines interval for dockerswarm targets refresh.
-var SwarmSDCheckInterval = flag.Duration("promscrape.dockerswarmSDCheckInterval", 30*time.Second, "Interval for checking for changes in dockerswarm. "+
-	"This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details")
-
-// DockerSDConfig defines the `docker_sd` section for Docker based discovery
+// SDConfig defines the `docker_sd` section for Docker based discovery
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config
-type DockerSDConfig struct {
+type SDConfig struct {
 	Host    string   `yaml:"host"`
 	Port    int      `yaml:"port,omitempty"`
 	Filters []Filter `yaml:"filters,omitempty"`
@@ -40,8 +35,8 @@ type Filter struct {
 }
 
 // GetLabels returns docker labels according to sdc.
-func (sdc *DockerSDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
-	cfg, err := getAPIConfigFromDockerSDConfig(sdc, baseDir)
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
@@ -49,6 +44,6 @@ func (sdc *DockerSDConfig) GetLabels(baseDir string) ([]map[string]string, error
 }
 
 // MustStop stops further usage for sdc.
-func (sdc *DockerSDConfig) MustStop() {
+func (sdc *SDConfig) MustStop() {
 	configMap.Delete(sdc)
 }

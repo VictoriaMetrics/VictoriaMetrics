@@ -1,4 +1,4 @@
-package docker
+package dockerswarm
 
 import (
 	"reflect"
@@ -35,12 +35,12 @@ func Test_addNetworkLabels(t *testing.T) {
 			},
 			want: [][]prompbmarshal.Label{
 				discoveryutils.GetSortedLabels(map[string]string{
-					"__meta_docker_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
-					"__meta_docker_network_ingress":    "true",
-					"__meta_docker_network_internal":   "false",
-					"__meta_docker_network_label_key1": "value1",
-					"__meta_docker_network_name":       "ingress",
-					"__meta_docker_network_scope":      "swarm",
+					"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
+					"__meta_dockerswarm_network_ingress":    "true",
+					"__meta_dockerswarm_network_internal":   "false",
+					"__meta_dockerswarm_network_label_key1": "value1",
+					"__meta_dockerswarm_network_name":       "ingress",
+					"__meta_dockerswarm_network_scope":      "swarm",
 				})},
 		},
 	}
