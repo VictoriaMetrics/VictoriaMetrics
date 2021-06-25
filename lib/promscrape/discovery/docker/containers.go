@@ -63,6 +63,10 @@ func parseContainers(data []byte) ([]container, error) {
 func addContainersLabels(containers []container, networkLabels map[string]map[string]string, defaultPort int) []map[string]string {
 	var ms []map[string]string
 	for _, c := range containers {
+		if c.Names == nil || len(c.Names) == 0 {
+			continue
+		}
+
 		commonLabels := map[string]string{
 			"__meta_docker_container_id":           c.Id,
 			"__meta_docker_container_name":         c.Names[0],
