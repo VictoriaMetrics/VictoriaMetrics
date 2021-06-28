@@ -70,7 +70,11 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets_response.qtpl:17
 			qw422016.N().S(ts.endpoint)
 //line lib/promscrape/targets_response.qtpl:17
-			qw422016.N().S(`,{ %space %}labels=`)
+			qw422016.N().S(`,`)
+//line lib/promscrape/targets_response.qtpl:17
+			qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:17
+			qw422016.N().S(`labels=`)
 //line lib/promscrape/targets_response.qtpl:18
 			qw422016.N().S(labels)
 //line lib/promscrape/targets_response.qtpl:19

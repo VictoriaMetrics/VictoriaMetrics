@@ -14,7 +14,7 @@ job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
      ol := promLabelsString(ts.originalLabels)
     %}
 {%s= "\t" %}state={% if ts.up %}up{% else %}down{% endif %},{% space %}
-    endpoint={%s= ts.endpoint %},{ %space %}
+    endpoint={%s= ts.endpoint %},{% space %}
     labels={%s= labels %}
     {% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %},{% space %}
     last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,{% space %}
