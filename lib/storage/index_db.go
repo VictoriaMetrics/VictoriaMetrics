@@ -2002,9 +2002,14 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 }
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
+	appendCacheKeyPrefix := func(dst []byte, prefix byte) []byte {
+		dst = append(dst, prefix)
+		dst = append(dst, is.db.name...)
+		dst = encoding.MarshalUint64(dst, uint64(maxMetrics))
+		return dst
+	}
 	kb := &is.kb
-	kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
-	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+	kb.B = appendCacheKeyPrefix(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
 	kb.B = tfs.marshal(kb.B)
 	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 		// Skip useless work below, since the tfs doesn't contain tag filters matching less than maxMetrics metrics.
@@ -2032,8 +2037,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 		// Too many metrics matched.
 		if maxAllowedMetrics >= maxMetrics {
 			// The tag filter with minimum matching metrics matches at least maxMetrics metrics.
-			kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
-			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+			kb.B = appendCacheKeyPrefix(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
 			kb.B = tfs.marshal(kb.B)
 			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 			return nil, nil, errTooManyMetrics
@@ -2050,6 +2054,12 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
+	appendCacheKeyPrefix := func(dst []byte, prefix byte) []byte {
+		dst = append(dst, prefix)
+		dst = append(dst, is.db.name...)
+		dst = encoding.MarshalUint64(dst, uint64(maxMetrics))
+		return dst
+	}
 	var minMetricIDs *uint64set.Set
 	var minTf *tagFilter
 	kb := &is.kb
@@ -2061,8 +2071,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 			continue
 		}
 
-		kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
-		kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+		kb.B = appendCacheKeyPrefix(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 		kb.B = tf.Marshal(kb.B)
 		if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 			// Skip useless work below, since the tf matches at least maxMetrics metrics.
@@ -2076,8 +2085,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 		}
 		if metricIDs.Len() >= maxMetrics {
 			// The tf matches at least maxMetrics. Skip it
-			kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
-			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+			kb.B = appendCacheKeyPrefix(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 			kb.B = tf.Marshal(kb.B)
 			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 			uselessTagFilters++
@@ -2103,8 +2111,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 
 	// There is no positive filter with small number of matching metrics.
 	// Create it, so it matches all the MetricIDs.
-	kb.B = append(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
-	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+	kb.B = appendCacheKeyPrefix(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
 	kb.B = tfs.marshal(kb.B)
 	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 		return nil, nil, errTooManyMetrics
@@ -2114,8 +2121,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 		return nil, nil, err
 	}
 	if metricIDs.Len() >= maxMetrics {
-		kb.B = append(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
-		kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+		kb.B = appendCacheKeyPrefix(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
 		kb.B = tfs.marshal(kb.B)
 		is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 	}
@@ -3112,7 +3118,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 }
 
 func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *tagFilter) (int64, int64, uint64) {
-	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf)
+	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
 	kb.B = is.db.loopsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
@@ -3127,7 +3133,7 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 
 func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, loopsCount, filterLoopsCount int64) {
 	currentTimestamp := fasttime.UnixTimestamp()
-	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf)
+	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
 	kb := kbPool.Get()
 	kb.B = encoding.MarshalInt64(kb.B[:0], loopsCount)
 	kb.B = encoding.MarshalInt64(kb.B, filterLoopsCount)
@@ -3136,7 +3142,8 @@ func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, 
 	kbPool.Put(kb)
 }
 
-func appendDateTagFilterCacheKey(dst []byte, date uint64, tf *tagFilter) []byte {
+func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf *tagFilter) []byte {
+	dst = append(dst, indexDBName...)
 	dst = encoding.MarshalUint64(dst, date)
 	dst = tf.Marshal(dst)
 	return dst
