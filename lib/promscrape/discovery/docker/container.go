@@ -10,7 +10,7 @@ import (
 
 // See https://github.com/moby/moby/blob/314759dc2f4745925d8dec6d15acc7761c6e5c92/docs/api/v1.41.yaml#L4024
 type container struct {
-	Id     string
+	ID     string
 	Names  []string
 	Labels map[string]string
 	Ports  []struct {
@@ -99,7 +99,7 @@ func addContainersLabels(containers []container, networkLabels map[string]map[st
 }
 
 func addCommonLabels(m map[string]string, c *container, networkLabels map[string]string) {
-	m["__meta_docker_container_id"] = c.Id
+	m["__meta_docker_container_id"] = c.ID
 	m["__meta_docker_container_name"] = c.Names[0]
 	m["__meta_docker_container_network_mode"] = c.HostConfig.NetworkMode
 	for k, v := range c.Labels {
