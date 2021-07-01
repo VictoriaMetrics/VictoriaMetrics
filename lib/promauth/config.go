@@ -158,9 +158,11 @@ func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
 type Config struct {
 	// Optional TLS config
 	TLSRootCA             *x509.CertPool
-	TLSCertificate        *tls.Certificate
 	TLSServerName         string
 	TLSInsecureSkipVerify bool
+
+	getTLSCert    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	tlsCertDigest string
 
 	getAuthHeader      func() string
 	authHeaderLock     sync.Mutex
@@ -189,7 +191,7 @@ func (ac *Config) GetAuthHeader() string {
 // String returns human-readable representation for ac.
 func (ac *Config) String() string {
 	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v",
-		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertificateString(), ac.TLSServerName, ac.TLSInsecureSkipVerify)
+		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify)
 }
 
 func (ac *Config) tlsRootCAString() string {
@@ -200,13 +202,6 @@ func (ac *Config) tlsRootCAString() string {
 	return string(bytes.Join(data, []byte("\n")))
 }
 
-func (ac *Config) tlsCertificateString() string {
-	if ac.TLSCertificate == nil {
-		return ""
-	}
-	return string(bytes.Join(ac.TLSCertificate.Certificate, []byte("\n")))
-}
-
 // NewTLSConfig returns new TLS config for the given ac.
 func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg := &tls.Config{
@@ -215,10 +210,7 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	if ac == nil {
 		return tlsCfg
 	}
-	if ac.TLSCertificate != nil {
-		// Do not set tlsCfg.GetClientCertificate, since tlsCfg.Certificates should work OK.
-		tlsCfg.Certificates = []tls.Certificate{*ac.TLSCertificate}
-	}
+	tlsCfg.GetClientCertificate = ac.getTLSCert
 	tlsCfg.RootCAs = ac.TLSRootCA
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
@@ -350,20 +342,29 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		authDigest = fmt.Sprintf("oauth2(%s)", o.String())
 	}
 	var tlsRootCA *x509.CertPool
-	var tlsCertificate *tls.Certificate
+	var getTLSCert func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	tlsCertDigest := ""
 	tlsServerName := ""
 	tlsInsecureSkipVerify := false
 	if tlsConfig != nil {
 		tlsServerName = tlsConfig.ServerName
 		tlsInsecureSkipVerify = tlsConfig.InsecureSkipVerify
 		if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
-			certPath := getFilepath(baseDir, tlsConfig.CertFile)
-			keyPath := getFilepath(baseDir, tlsConfig.KeyFile)
-			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-			if err != nil {
-				return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
+				certPath := getFilepath(baseDir, tlsConfig.CertFile)
+				keyPath := getFilepath(baseDir, tlsConfig.KeyFile)
+				cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+				if err != nil {
+					return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+				}
+				return &cert, nil
 			}
-			tlsCertificate = &cert
+			// Check whether the configured TLS cert can be loaded.
+			if _, err := getTLSCert(nil); err != nil {
+				return nil, err
+			}
+			tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tlsConfig.CertFile, tlsConfig.KeyFile)
 		}
 		if tlsConfig.CAFile != "" {
 			path := getFilepath(baseDir, tlsConfig.CAFile)
@@ -379,9 +380,11 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 	}
 	ac := &Config{
 		TLSRootCA:             tlsRootCA,
-		TLSCertificate:        tlsCertificate,
 		TLSServerName:         tlsServerName,
 		TLSInsecureSkipVerify: tlsInsecureSkipVerify,
+
+		getTLSCert:    getTLSCert,
+		tlsCertDigest: tlsCertDigest,
 
 		getAuthHeader: getAuthHeader,
 		authDigest:    authDigest,

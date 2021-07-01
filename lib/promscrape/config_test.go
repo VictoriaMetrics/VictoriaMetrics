@@ -1,7 +1,6 @@
 package promscrape
 
 import (
-	"crypto/tls"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -1242,52 +1241,6 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
-			jobNameOriginal: "foo",
-		},
-	})
-	snakeoilCert, err := tls.LoadX509KeyPair("testdata/ssl-cert-snakeoil.pem", "testdata/ssl-cert-snakeoil.key")
-	if err != nil {
-		t.Fatalf("cannot load snakeoil cert: %s", err)
-	}
-	f(`
-scrape_configs:
-- job_name: foo
-  tls_config:
-    cert_file: testdata/ssl-cert-snakeoil.pem
-    key_file: testdata/ssl-cert-snakeoil.key
-  static_configs:
-  - targets: ["foo.bar:1234"]
-`, []*ScrapeWork{
-		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-			},
-			AuthConfig: &promauth.Config{
-				TLSCertificate: &snakeoilCert,
-			},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
