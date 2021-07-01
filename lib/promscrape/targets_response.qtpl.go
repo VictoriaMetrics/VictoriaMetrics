@@ -169,7 +169,9 @@ func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOrig
 //line lib/promscrape/targets_response.qtpl:35
 func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, redirectPath string, onlyUnhealthy bool) {
 //line lib/promscrape/targets_response.qtpl:35
-	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous"><title>Scrape targets</title></head><body class="m-3"><h1>Scrape targets</h1><div><button type="button" class="btn`)
+	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"><title>Scrape targets</title></head><body class="m-3"><h1>Scrape targets</h1><div><button type="button" class="btn`)
+//line lib/promscrape/targets_response.qtpl:47
+	qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:47
 	if !onlyUnhealthy {
 //line lib/promscrape/targets_response.qtpl:47
@@ -194,6 +196,8 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 	}
 //line lib/promscrape/targets_response.qtpl:48
 	qw422016.N().S(`>All</button><button type="button" class="btn`)
+//line lib/promscrape/targets_response.qtpl:51
+	qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:51
 	if onlyUnhealthy {
 //line lib/promscrape/targets_response.qtpl:51
