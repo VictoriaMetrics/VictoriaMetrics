@@ -6,6 +6,8 @@ sort: 15
 
 ## tip
 
+* FEATURE: reduce memory usage when performing heavy queries over high number of time series.
+
 * BUGFIX: remove `{ %space %}` typo in `/targets` output. The typo has been introduced in v1.62.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1408).
 
 

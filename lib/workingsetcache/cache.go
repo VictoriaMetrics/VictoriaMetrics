@@ -218,6 +218,8 @@ func (c *Cache) Reset() {
 	prev.Reset()
 	curr := c.curr.Load().(*fastcache.Cache)
 	curr.Reset()
+	// Reset the mode to `split` in the hope the working set size becomes smaller after the reset.
+	atomic.StoreUint64(&c.mode, split)
 }
 
 // UpdateStats updates fcs with cache stats.
