@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1623910135370,
+  "iteration": 1624970989155,
   "links": [
     {
       "icon": "doc",
@@ -140,9 +140,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -205,9 +206,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "min(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -271,9 +273,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -336,9 +339,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_allowed_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -401,9 +405,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_rows{job=\"$job_storage\", type=\"indexdb\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -466,9 +471,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -483,7 +489,7 @@
         {
           "cacheTimeout": null,
           "datasource": "$ds",
-          "description": "Total number of allocated CPUs for all VM components. ",
+          "description": "Total number of available CPUs for all VM components. ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -531,9 +537,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -542,13 +549,13 @@
           ],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Allocated CPU",
+          "title": "Available CPU",
           "type": "stat"
         },
         {
           "cacheTimeout": null,
           "datasource": "$ds",
-          "description": "Total size of allocated memory for all VM components.",
+          "description": "Total size of available memory for all VM components.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -596,9 +603,10 @@
           "pluginVersion": "8.0.0",
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "instant": false,
+              "instant": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -607,7 +615,7 @@
           ],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Allocated memory",
+          "title": "Available memory",
           "type": "stat"
         },
         {
@@ -806,7 +814,7 @@
           }
         }
       ],
-      "title": "Configuration",
+      "title": "Stats",
       "type": "row"
     },
     {
@@ -1696,7 +1704,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 3
           },
           "hiddenSeries": false,
           "id": 66,
@@ -1797,7 +1805,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 3
           },
           "hiddenSeries": false,
           "id": 138,
@@ -1897,7 +1905,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 64,
@@ -2000,7 +2008,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 72,
@@ -2103,7 +2111,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 117,
@@ -2208,13 +2216,235 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
+          "description": "Shows the number of bytes read/write from the storage layer.",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 19
+          },
+          "hiddenSeries": false,
+          "id": 122,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.0.0",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "/read .*/",
+              "transform": "negative-Y"
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "read {{instance}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "write {{instance}}",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Disk writes/reads ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": null,
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "hiddenSeries": false,
+          "id": 68,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.0.0",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} ({{job}})",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Goroutines ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
           "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 27
           },
           "hiddenSeries": false,
           "id": 119,
@@ -2313,203 +2543,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
-          },
-          "hiddenSeries": false,
-          "id": 68,
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "max": true,
-            "min": false,
-            "show": true,
-            "sort": "current",
-            "sortDesc": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.0.0",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "exemplar": true,
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "{{instance}} ({{job}})",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Goroutines ($instance)",
-          "tooltip": {
-            "shared": true,
-            "sort": 2,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "decimals": 0,
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": "0",
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$ds",
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 59
-          },
-          "hiddenSeries": false,
-          "id": 120,
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "max": true,
-            "min": false,
-            "show": true,
-            "sort": "current",
-            "sortDesc": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.0.0",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "exemplar": true,
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
-              "interval": "",
-              "legendFormat": "{{instance}} ({{job}})",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "TCP connections rate ($instance)",
-          "tooltip": {
-            "shared": true,
-            "sort": 2,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$ds",
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 67
+            "y": 35
           },
           "hiddenSeries": false,
           "id": 70,
@@ -2578,6 +2612,99 @@
               "logBase": 1,
               "max": null,
               "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
+          "hiddenSeries": false,
+          "id": 120,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.0.0",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
+              "interval": "",
+              "legendFormat": "{{instance}} ({{job}})",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "TCP connections rate ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
               "show": true
             },
             {
@@ -3953,7 +4080,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 100,
@@ -4054,7 +4181,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 113,
@@ -4084,7 +4211,7 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "stack": true,
+          "stack": false,
           "steppedLine": false,
           "targets": [
             {
@@ -4156,7 +4283,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 16,
@@ -4259,7 +4386,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 14,
@@ -4376,7 +4503,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 18,
@@ -4477,7 +4604,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4578,7 +4705,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 54,
@@ -4677,7 +4804,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 55,
@@ -4763,23 +4890,17 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows the number of bytes read/write from the storage layer.",
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
+          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 71
           },
           "hiddenSeries": false,
-          "id": 122,
+          "id": 135,
           "legend": {
             "alignAsTable": true,
             "avg": true,
@@ -4794,7 +4915,6 @@
           },
           "lines": true,
           "linewidth": 1,
-          "links": [],
           "nullPointMode": "null",
           "options": {
             "alertThreshold": true
@@ -4804,41 +4924,24 @@
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "/read .*/",
-              "transform": "negative-Y"
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
-              "format": "time_series",
-              "hide": false,
+              "expr": "sum(vm_rows_ignored_total{job=\"$job_storage\", instance=~\"$instance\"}) by (reason)",
               "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "read {{instance}}",
+              "legendFormat": "{{reason}}",
               "refId": "A"
-            },
-            {
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "write {{instance}}",
-              "refId": "B"
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Disk writes/reads ($instance)",
+          "title": "Rows ignored ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -4854,8 +4957,7 @@
           },
           "yaxes": [
             {
-              "decimals": null,
-              "format": "bytes",
+              "format": "short",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -4867,7 +4969,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": "0",
+              "min": null,
               "show": true
             }
           ],
@@ -4895,7 +4997,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 22,
@@ -4984,100 +5086,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 47
-          },
-          "hiddenSeries": false,
-          "id": 135,
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "max": true,
-            "min": false,
-            "show": true,
-            "sort": "current",
-            "sortDesc": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.0.0",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "exemplar": true,
-              "expr": "sum(vm_rows_ignored_total{job=\"$job_storage\", instance=~\"$instance\"}) by (reason)",
-              "interval": "",
-              "legendFormat": "{{reason}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Rows ignored ($instance)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$ds",
           "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.",
           "fill": 0,
           "fillGradient": 0,
@@ -5085,7 +5093,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 133,
@@ -5187,7 +5195,7 @@
           }
         }
       ],
-      "title": "storage ($instance)",
+      "title": "vmstorage ($instance)",
       "type": "row"
     },
     {
