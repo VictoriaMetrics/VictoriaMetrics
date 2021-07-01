@@ -44,11 +44,11 @@ job={%q= jobName %} (0/0 up)
 <body class="m-3">
   <h1>Scrape targets</h1>
   <div>
-    <button type="button" class="btn {% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
+    <button type="button" class="btn{% space %} {% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
         {% if onlyUnhealthy %}onclick="location.href='{%s redirectPath %}'"{% endif %}>
         All
     </button>
-    <button type="button" class="btn {% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
+    <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
         {% if !onlyUnhealthy %}onclick="location.href='{%s= redirectPath %}?show_only_unhealthy=true'"{% endif %}>
         Unhealthy
     </button>
