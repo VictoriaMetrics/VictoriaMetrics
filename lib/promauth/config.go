@@ -210,7 +210,26 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	if ac == nil {
 		return tlsCfg
 	}
-	tlsCfg.GetClientCertificate = ac.getTLSCert
+	if ac.getTLSCert != nil {
+		var certLock sync.Mutex
+		var cert *tls.Certificate
+		var certDeadline uint64
+		tlsCfg.GetClientCertificate = func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			// Cache the certificate for up to a second in order to save CPU time
+			// on certificate parsing when TLS connection are frequently re-established.
+			certLock.Lock()
+			defer certLock.Unlock()
+			if fasttime.UnixTimestamp() > certDeadline {
+				c, err := ac.getTLSCert(cri)
+				if err != nil {
+					return nil, err
+				}
+				cert = c
+				certDeadline = fasttime.UnixTimestamp() + 1
+			}
+			return cert, nil
+		}
+	}
 	tlsCfg.RootCAs = ac.TLSRootCA
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
