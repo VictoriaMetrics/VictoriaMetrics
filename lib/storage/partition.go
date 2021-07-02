@@ -1386,17 +1386,18 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 
 	// Filter out too big parts.
 	// This should reduce N for O(N^2) algorithm below.
-	needFreeSpace := false
+	skippedBigParts := 0
 	maxInPartRows := maxRows / 2
 	tmp := make([]*partWrapper, 0, len(src))
 	for _, pw := range src {
 		if pw.p.ph.RowsCount > maxInPartRows {
-			needFreeSpace = true
+			skippedBigParts++
 			continue
 		}
 		tmp = append(tmp, pw)
 	}
 	src = tmp
+	needFreeSpace := skippedBigParts > 1
 
 	// Sort src parts by rows count and backwards timestamp.
 	// This should improve adjanced points' locality in the merged parts.
@@ -1409,13 +1410,13 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 		return a.RowsCount < b.RowsCount
 	})
 
-	minSrcParts := (maxPartsToMerge + 1) / 2
+	maxSrcParts := maxPartsToMerge
+	if maxSrcParts > len(src) {
+		maxSrcParts = len(src)
+	}
+	minSrcParts := (maxSrcParts + 1) / 2
 	if minSrcParts < 2 {
 		minSrcParts = 2
-	}
-	maxSrcParts := maxPartsToMerge
-	if len(src) < maxSrcParts {
-		maxSrcParts = len(src)
 	}
 
 	// Exhaustive search for parts giving the lowest write amplification when merged.
@@ -1450,7 +1451,7 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	}
 	if maxM < minM {
 		// There is no sense in merging parts with too small m.
-		return dst, false
+		return dst, needFreeSpace
 	}
 	return append(dst, pws...), needFreeSpace
 }
