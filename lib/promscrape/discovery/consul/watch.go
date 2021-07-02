@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -252,7 +253,8 @@ func shouldCollectServiceByName(filterServices []string, serviceName string) boo
 		return true
 	}
 	for _, filterService := range filterServices {
-		if filterService == serviceName {
+		// Use case-insensitive comparison for service names according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1422
+		if strings.EqualFold(filterService, serviceName) {
 			return true
 		}
 	}
