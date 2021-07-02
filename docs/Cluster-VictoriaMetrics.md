@@ -138,13 +138,25 @@ A minimal cluster must contain the following nodes:
 It is recommended to run at least two nodes for each service
 for high availability purposes.
 
-An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes:
+An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes. It must contain the following routing configs according to [the url format](#url-format):
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
 - requests starting with `/select` must be routed to port `8481` on `vmselect` nodes.
 
 Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 
 It is recommended setting up [monitoring](#monitoring) for the cluster.
+
+The following tools can siplify cluster setup:
+* [An example docker-compose config for VictoriaMetrics cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/docker-compose.yml)
+* [Helm charts for VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts)
+* [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator)
+
+
+It is possible manualy setting up a toy cluster on a single host. In this case every cluster component - `vminsert`, `vmselect` and `vmstorage` - must have distinct values for `-httpListenAddr` command-line flag. This flag specifies http address for accepting http requests for [monitoring](#monitoring) and [profiling](#profiling). `vmstorage` node must have distinct values for the following additional command-line flags in order to prevent resource usage clash:
+* `-storageDataPath` - every `vmstorage` node must have a dedicated data storage.
+* `-vminsertAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting data from `vminsert` nodes.
+* `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
+
 
 ### Environment variables
 
