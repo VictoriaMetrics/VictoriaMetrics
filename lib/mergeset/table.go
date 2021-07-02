@@ -1392,13 +1392,13 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 	// Sort src parts by itemsCount.
 	sort.Slice(src, func(i, j int) bool { return src[i].p.ph.itemsCount < src[j].p.ph.itemsCount })
 
-	minSrcParts := (maxPartsToMerge + 1) / 2
+	maxSrcParts := maxPartsToMerge
+	if maxSrcParts > len(src) {
+		maxSrcParts = len(src)
+	}
+	minSrcParts := (maxSrcParts + 1) / 2
 	if minSrcParts < 2 {
 		minSrcParts = 2
-	}
-	maxSrcParts := maxPartsToMerge
-	if len(src) < maxSrcParts {
-		maxSrcParts = len(src)
 	}
 
 	// Exhaustive search for parts giving the lowest write amplification when merged.

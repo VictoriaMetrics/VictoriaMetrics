@@ -34,6 +34,24 @@ func TestAppendPartsToMerge(t *testing.T) {
 	testAppendPartsToMerge(t, 3, []uint64{11, 1, 10, 100, 10}, []uint64{10, 10, 11})
 }
 
+func TestAppendPartsToMergeNeedFreeSpace(t *testing.T) {
+	f := func(a []uint64, maxItems int, expectedNeedFreeSpace bool) {
+		t.Helper()
+		pws := newTestPartWrappersForRowsCount(a)
+		_, needFreeSpace := appendPartsToMerge(nil, pws, defaultPartsToMerge, uint64(maxItems))
+		if needFreeSpace != expectedNeedFreeSpace {
+			t.Fatalf("unexpected needFreeSpace; got %v; want %v", needFreeSpace, expectedNeedFreeSpace)
+		}
+	}
+	f(nil, 1000, false)
+	f([]uint64{1000}, 100, false)
+	f([]uint64{1000}, 1100, false)
+	f([]uint64{100, 200}, 180, true)
+	f([]uint64{100, 200}, 310, false)
+	f([]uint64{100, 110, 109, 1}, 300, true)
+	f([]uint64{100, 110, 109, 1}, 330, false)
+}
+
 func TestAppendPartsToMergeManyParts(t *testing.T) {
 	// Verify that big number of parts are merged into minimal number of parts
 	// using minimum merges.
