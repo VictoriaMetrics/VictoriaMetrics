@@ -12,7 +12,7 @@ cloud.google.com/go/storage
 # github.com/VictoriaMetrics/fastcache v1.6.0
 ## explicit
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/fasthttp v1.0.15
+# github.com/VictoriaMetrics/fasthttp v1.0.16
 ## explicit
 github.com/VictoriaMetrics/fasthttp
 github.com/VictoriaMetrics/fasthttp/fasthttputil

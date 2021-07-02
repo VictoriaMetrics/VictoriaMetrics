@@ -99,8 +99,8 @@ github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWX
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
 github.com/VictoriaMetrics/fastcache v1.6.0 h1:C/3Oi3EiBCqufydp1neRZkqcwmEiuRT9c3fqvvgKm5o=
 github.com/VictoriaMetrics/fastcache v1.6.0/go.mod h1:0qHz5QP0GMX4pfmMA/zt5RgfNuXJrTP0zS7DqpHGGTw=
-github.com/VictoriaMetrics/fasthttp v1.0.15 h1:UaX6kOxcQRtwMWBCX5avt2d1IzHp8qK8OUpUswz5akQ=
-github.com/VictoriaMetrics/fasthttp v1.0.15/go.mod h1:s9o5H4T58Kt4CTrdyJp4RorBKCwY7gRVS3N2JAUJ9jw=
+github.com/VictoriaMetrics/fasthttp v1.0.16 h1:rLonAIxZWUq0V4a1yJeuIeHZ/zSneR+gWrXF3A1xTqE=
+github.com/VictoriaMetrics/fasthttp v1.0.16/go.mod h1:s9o5H4T58Kt4CTrdyJp4RorBKCwY7gRVS3N2JAUJ9jw=
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metrics v1.17.2 h1:9zPJ7DPfxdJWshOGLPLpAtPL0ZZ9AeUyQC3fIqG6Lvo=
 github.com/VictoriaMetrics/metrics v1.17.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
