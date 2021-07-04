@@ -1,23 +1,23 @@
-name: license-check
-on:
-  push:
-    paths:
-      - 'vendor'
-  pull_request:
-    paths:
-      - 'vendor'
-jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Go
-        uses: actions/setup-go@main
-        with:
-          go-version: 1.17
-        id: go
-      - name: Code checkout
-        uses: actions/checkout@master
-      - name: Check License
-        run: |
-          make check-licenses
+#name: license-check
+#on:
+#  push:
+#    paths:
+#      - 'vendor'
+#  pull_request:
+#    paths:
+#      - 'vendor'
+#jobs:
+#  build:
+#    name: Build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Setup Go
+#        uses: actions/setup-go@main
+#        with:
+#          go-version: 1.16
+#        id: go
+#      - name: Code checkout
+#        uses: actions/checkout@master
+#      - name: Check License
+#        run: |
+#          make check-licenses

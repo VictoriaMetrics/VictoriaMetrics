@@ -1,26 +1,6 @@
-version: 2
-updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "bundler"
-    directory: "/docs"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/app/vmui/packages/vmui/web"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "npm"
-    directory: "/app/vmui/packages/vmui"
-    schedule:
-      interval: "weekly"
+#version: 2
+#updates:
+#  - package-ecosystem: "github-actions"
+#    directory: "/"
+#    schedule:
+#      interval: "daily"

@@ -1,28 +1,28 @@
-name: wiki
-on:
-  push:
-    paths:
-      - 'docs/*'
-    branches:
-      - master
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - name: publish
-        shell: bash
-        env:
-          TOKEN: ${{secrets.CI_TOKEN}}
-        run: |
-          git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
-          cp -r docs/* wiki
-          cd wiki
-          git config --local user.email "info@victoriametrics.com"
-          git config --local user.name "Vika"
-          git add .
-          git commit -m "update wiki pages"
-          remote_repo="https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git"
-          git push "${remote_repo}"
-          cd ..
-          rm -rf wiki
+#name: wiki
+#on:
+#  push:
+#    paths:
+#      - 'docs/*'
+#    branches:
+#      - master
+#jobs:
+#  build:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@master
+#      - name: publish
+#        shell: bash
+#        env:
+#          TOKEN: ${{secrets.CI_TOKEN}}
+#        run: |
+#          git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
+#          cp docs/* wiki
+#          cd wiki
+#          git config --local user.email "info@victoriametrics.com"
+#          git config --local user.name "Vika"
+#          git add .
+#          git commit -m "update wiki pages"
+#          remote_repo="https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git"
+#          git push "${remote_repo}"
+#          cd ..
+#          rm -rf wiki
