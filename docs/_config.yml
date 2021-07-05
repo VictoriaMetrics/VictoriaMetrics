@@ -1,0 +1,18 @@
+title: VictoriaMetrics
+author: VictoriaMetrics
+email: info@victoriametrics.com
+description: >
+  The High Performance Open Source Time Series Database & Monitoring Solution
+
+remote_theme: rundocs/jekyll-rtd-theme
+
+readme_index:
+  with_frontmatter: true
+
+google:
+  gtag: UA-129683199-1
+
+plugins:
+  - github-pages
+
+
