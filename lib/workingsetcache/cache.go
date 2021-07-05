@@ -62,8 +62,9 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 		// The cache couldn't be loaded with maxBytes size.
 		// This may mean that the cache is split into curr and prev caches.
 		// Try loading it again with maxBytes / 2 size.
+		curr := fastcache.New(maxBytes / 2)
 		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
-		c := newCacheInternal(fastcache.New(1024), prev, maxBytes, split)
+		c := newCacheInternal(curr, prev, maxBytes, split)
 		c.runWatchers(expireDuration)
 		return c
 	}
@@ -71,7 +72,8 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 	// The cache has been successfully loaded in full.
 	// Set its' mode to `whole`.
 	// There is no need in runWatchers call.
-	return newCacheInternal(curr, fastcache.New(1024), maxBytes, whole)
+	prev := fastcache.New(1024)
+	return newCacheInternal(curr, prev, maxBytes, whole)
 }
 
 // New creates new cache with the given maxBytes capcity and the given expireDuration
@@ -79,9 +81,9 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 //
 // Stop must be called on the returned cache when it is no longer needed.
 func New(maxBytes int, expireDuration time.Duration) *Cache {
-	// Split maxBytes between curr and prev caches.
-	curr := fastcache.New(maxBytes)
-	c := newCacheInternal(curr, fastcache.New(1024), maxBytes, split)
+	curr := fastcache.New(maxBytes / 2)
+	prev := fastcache.New(1024)
+	c := newCacheInternal(curr, prev, maxBytes, split)
 	c.runWatchers(expireDuration)
 	return c
 }
