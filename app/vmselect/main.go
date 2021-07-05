@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -28,6 +29,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+// static content
+//go:embed ui
+var files embed.FS
 
 var (
 	httpListenAddr        = flag.String("httpListenAddr", ":8481", "Address to listen for http connections")
@@ -138,6 +143,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	startTime := time.Now()
+	// ui access.
+	if strings.HasPrefix(r.URL.Path, "/ui") {
+		http.FileServer(http.FS(files)).ServeHTTP(w, r)
+		return true
+	}
+
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:
