@@ -15,3 +15,21 @@ $(document).on("click", '.shift li.toc a', function(e) {
        location.hash = segments.pop();
     },1)
 });
+
+/* Clipboard-copy snippet from https://github.com/marcoaugustoandrade/jekyll-clipboardjs/blob/master/copy.js */
+let codes = document.querySelectorAll('.with-copy .highlight > pre > code');
+let countID = 0;
+codes.forEach((code) => {
+
+    code.setAttribute("id", "code" + countID);
+
+    let btn = document.createElement('button');
+    btn.innerHTML = "Copy";
+    btn.className = "btn-copy";
+    btn.setAttribute("data-clipboard-action", "copy");
+    btn.setAttribute("data-clipboard-target", "#code" + countID);
+    code.before(btn);
+    countID++;
+});
+
+let clipboard = new ClipboardJS('.btn-copy');
