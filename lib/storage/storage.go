@@ -175,9 +175,9 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", mem/3)
+	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", int(float64(mem)*0.35))
 	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/8)
+	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
