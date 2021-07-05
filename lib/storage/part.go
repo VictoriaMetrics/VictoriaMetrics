@@ -204,9 +204,9 @@ func (ibc *indexBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
-		// Delete items accessed more than a minute ago.
+		// Delete items accessed more than two minutes ago.
 		// This time should be enough for repeated queries.
-		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 60 {
+		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 2*60 {
 			delete(ibc.m, k)
 		}
 	}
