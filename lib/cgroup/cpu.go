@@ -7,16 +7,16 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 // AvailableCPUs returns the number of available CPU cores for the app.
 func AvailableCPUs() int {
-	availableCPUsOnce.Do(updateGOMAXPROCSToCPUQuota)
 	return runtime.GOMAXPROCS(-1)
 }
 
-var availableCPUsOnce sync.Once
+func init() {
+	updateGOMAXPROCSToCPUQuota()
+}
 
 // updateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cgroup CPU quota if GOMAXPROCS isn't set in environment var.
 func updateGOMAXPROCSToCPUQuota() {
