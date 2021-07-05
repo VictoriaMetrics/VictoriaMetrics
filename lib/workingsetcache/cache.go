@@ -80,7 +80,6 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 // Stop must be called on the returned cache when it is no longer needed.
 func New(maxBytes int, expireDuration time.Duration) *Cache {
 	// Split maxBytes between curr and prev caches.
-	maxBytes /= 2
 	curr := fastcache.New(maxBytes)
 	c := newCacheInternal(curr, fastcache.New(1024), maxBytes, split)
 	c.runWatchers(expireDuration)
@@ -89,6 +88,7 @@ func New(maxBytes int, expireDuration time.Duration) *Cache {
 
 func newCacheInternal(curr, prev *fastcache.Cache, maxBytes, mode int) *Cache {
 	var c Cache
+	c.maxBytes = maxBytes
 	c.curr.Store(curr)
 	c.prev.Store(prev)
 	c.stopCh = make(chan struct{})
