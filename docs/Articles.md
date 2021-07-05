@@ -6,6 +6,7 @@ sort: 16
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Fly's Prometheus Metrics](https://fly.io/blog/measuring-fly/)
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
 * [Observations on Better Resource Usage with Percona Monitoring and Management v2.12.0](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/)
