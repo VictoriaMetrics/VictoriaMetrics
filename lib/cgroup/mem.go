@@ -1,8 +1,38 @@
 package cgroup
 
 import (
+	"os"
+	"runtime/debug"
 	"strconv"
 )
+
+// GetGOGC returns GOGC value for the currently running process.
+//
+// See https://golang.org/pkg/runtime/#hdr-Environment_Variables for more details about GOGC
+func GetGOGC() int {
+	return gogc
+}
+
+func init() {
+	initGOGC()
+}
+
+func initGOGC() {
+	if v := os.Getenv("GOGC"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			n = 100
+		}
+		gogc = n
+	} else {
+		// Set GOGC to 50% by default if it isn't set yet.
+		// This should reduce memory usage for typical workloads for VictoriaMetrics components.
+		gogc = 50
+		debug.SetGCPercent(gogc)
+	}
+}
+
+var gogc int
 
 // GetMemoryLimit returns cgroup memory limit
 func GetMemoryLimit() int64 {
