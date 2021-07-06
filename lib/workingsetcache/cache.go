@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/fastcache"
 )
@@ -45,8 +46,8 @@ type Cache struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
-	// historicalStats keeps historical counters from fastcache.Stats
-	historicalStats fastcache.Stats
+	// cs holds cache stats
+	cs fastcache.Stats
 }
 
 // Load loads the cache from filePath and limits its size to maxBytes
@@ -132,7 +133,6 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		prev := c.prev.Load().(*fastcache.Cache)
 		prev.Reset()
 		curr := c.curr.Load().(*fastcache.Cache)
-		curr.UpdateStats(&c.historicalStats)
 		c.prev.Store(curr)
 		curr = fastcache.New(c.maxBytes / 2)
 		c.curr.Store(curr)
@@ -175,7 +175,6 @@ func (c *Cache) cacheSizeWatcher() {
 	prev := c.prev.Load().(*fastcache.Cache)
 	prev.Reset()
 	curr := c.curr.Load().(*fastcache.Cache)
-	curr.UpdateStats(&c.historicalStats)
 	c.prev.Store(curr)
 	c.curr.Store(fastcache.New(c.maxBytes))
 	c.mu.Unlock()
@@ -239,33 +238,28 @@ func (c *Cache) loadMode() int {
 
 // UpdateStats updates fcs with cache stats.
 func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
+	var cs fastcache.Stats
 	curr := c.curr.Load().(*fastcache.Cache)
-	curr.UpdateStats(fcs)
+	curr.UpdateStats(&cs)
+	fcs.Collisions += cs.Collisions
+	fcs.Corruptions += cs.Corruptions
+	fcs.EntriesCount += cs.EntriesCount
+	fcs.BytesSize += cs.BytesSize
 
-	// Add counters from historical stats
-	hs := &c.historicalStats
-	fcs.GetCalls += atomic.LoadUint64(&hs.GetCalls)
-	fcs.SetCalls += atomic.LoadUint64(&hs.SetCalls)
-	fcs.Misses += atomic.LoadUint64(&hs.Misses)
-	fcs.Collisions += atomic.LoadUint64(&hs.Collisions)
-	fcs.Corruptions += atomic.LoadUint64(&hs.Corruptions)
+	fcs.GetCalls += atomic.LoadUint64(&c.cs.GetCalls)
+	fcs.SetCalls += atomic.LoadUint64(&c.cs.SetCalls)
+	fcs.Misses += atomic.LoadUint64(&c.cs.Misses)
 
-	if c.loadMode() == whole {
-		return
-	}
-
-	// Add stats for entries from the previous cache
-	// Do not add counters from the previous cache, since they are already
-	// taken into account via c.historicalStats.
 	prev := c.prev.Load().(*fastcache.Cache)
-	var fcsTmp fastcache.Stats
-	prev.UpdateStats(&fcsTmp)
-	fcs.EntriesCount += fcsTmp.EntriesCount
-	fcs.BytesSize += fcsTmp.BytesSize
+	cs.Reset()
+	prev.UpdateStats(&cs)
+	fcs.EntriesCount += cs.EntriesCount
+	fcs.BytesSize += cs.BytesSize
 }
 
 // Get appends the found value for the given key to dst and returns the result.
 func (c *Cache) Get(dst, key []byte) []byte {
+	atomic.AddUint64(&c.cs.GetCalls, 1)
 	curr := c.curr.Load().(*fastcache.Cache)
 	result := curr.Get(dst, key)
 	if len(result) > len(dst) {
@@ -273,6 +267,8 @@ func (c *Cache) Get(dst, key []byte) []byte {
 		return result
 	}
 	if c.loadMode() == whole {
+		// Nothing found.
+		atomic.AddUint64(&c.cs.Misses, 1)
 		return result
 	}
 
@@ -281,6 +277,7 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	result = prev.Get(dst, key)
 	if len(result) <= len(dst) {
 		// Nothing found.
+		atomic.AddUint64(&c.cs.Misses, 1)
 		return result
 	}
 	// Cache the found entry in the current cache.
@@ -288,27 +285,42 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	return result
 }
 
-// Has verifies whether the cahce contains the given key.
+// Has verifies whether the cache contains the given key.
 func (c *Cache) Has(key []byte) bool {
+	atomic.AddUint64(&c.cs.GetCalls, 1)
 	curr := c.curr.Load().(*fastcache.Cache)
 	if curr.Has(key) {
 		return true
 	}
 	if c.loadMode() == whole {
+		atomic.AddUint64(&c.cs.Misses, 1)
 		return false
 	}
 	prev := c.prev.Load().(*fastcache.Cache)
-	return prev.Has(key)
+	if !prev.Has(key) {
+		atomic.AddUint64(&c.cs.Misses, 1)
+		return false
+	}
+	// Cache the found entry in the current cache.
+	tmpBuf := tmpBufPool.Get()
+	tmpBuf.B = prev.Get(tmpBuf.B, key)
+	curr.Set(key, tmpBuf.B)
+	tmpBufPool.Put(tmpBuf)
+	return true
 }
+
+var tmpBufPool bytesutil.ByteBufferPool
 
 // Set sets the given value for the given key.
 func (c *Cache) Set(key, value []byte) {
+	atomic.AddUint64(&c.cs.SetCalls, 1)
 	curr := c.curr.Load().(*fastcache.Cache)
 	curr.Set(key, value)
 }
 
 // GetBig appends the found value for the given key to dst and returns the result.
 func (c *Cache) GetBig(dst, key []byte) []byte {
+	atomic.AddUint64(&c.cs.GetCalls, 1)
 	curr := c.curr.Load().(*fastcache.Cache)
 	result := curr.GetBig(dst, key)
 	if len(result) > len(dst) {
@@ -316,6 +328,8 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 		return result
 	}
 	if c.loadMode() == whole {
+		// Nothing found.
+		atomic.AddUint64(&c.cs.Misses, 1)
 		return result
 	}
 
@@ -324,6 +338,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 	result = prev.GetBig(dst, key)
 	if len(result) <= len(dst) {
 		// Nothing found.
+		atomic.AddUint64(&c.cs.Misses, 1)
 		return result
 	}
 	// Cache the found entry in the current cache.
@@ -333,6 +348,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 
 // SetBig sets the given value for the given key.
 func (c *Cache) SetBig(key, value []byte) {
+	atomic.AddUint64(&c.cs.SetCalls, 1)
 	curr := c.curr.Load().(*fastcache.Cache)
 	curr.SetBig(key, value)
 }

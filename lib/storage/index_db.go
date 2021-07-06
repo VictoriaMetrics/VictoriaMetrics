@@ -187,7 +187,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	db.tagCache.UpdateStats(&cs)
 	m.TagCacheSize += cs.EntriesCount
 	m.TagCacheSizeBytes += cs.BytesSize
-	m.TagCacheRequests += cs.GetBigCalls
+	m.TagCacheRequests += cs.GetCalls
 	m.TagCacheMisses += cs.Misses
 
 	cs.Reset()
