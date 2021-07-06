@@ -28,21 +28,33 @@ We will use:
 
 You need to add the VictoriaMetrics helm repository to install VictoriaMetrics components. We’re going to use VictoriaMetrics single-node. You can do this by running the following command:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 helm repo add vm https://victoriametrics.github.io/helm-charts/
 ```
 
+</div>
+
 Update helm repositories:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 helm repo update
 ```
 
+</div>
+
 To verify that everything is set up correctly you may run this command:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 helm search repo vm/
 ```
+
+</div>
 
 The expected output is:
 
@@ -62,6 +74,8 @@ vm/victoria-metrics-single    0.7.4         1.62.0      Victoria Metrics Single 
 
 Run this command in your terminal:
 
+<div class="with-copy" markdown="1">
+
 ```yaml
 cat <<EOF | helm install victoria-metrics vm/victoria-metrics-single -f -
 server:
@@ -69,6 +83,8 @@ server:
     enabled: true
 EOF
 ```
+
+</div>
 
 * By running `helm install victoria-metrics vm/victoria-metrics-single` we will install `VictoriaMetrics Single` to default namespace inside your cluster
 * By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to `VictoriaMetrics Single`
@@ -118,9 +134,13 @@ For us it’s important to remember the url for the datasource (copy lines from 
 
 Verify that VictoriaMetrics pod is up and running by executing the following command:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 kubectl get pods
 ```
+
+</div>
 
 The expected output is:
 
@@ -134,12 +154,19 @@ victoria-metrics-victoria-metrics-single-server-0   1/1     Running   0         
 
 Add the Grafana helm repository. 
 
+<div class="with-copy" markdown="1">
+
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 ```
+
+</div>
+
 See more info on Grafana ArtifactHUB [https://artifacthub.io/packages/helm/grafana/grafana](https://artifacthub.io/packages/helm/grafana/grafana)
 By installing the Chart with the release name `my-grafana`, you add the VictoriaMetrics datasource with official dashboard and kubernetes dashboard:
+
+<div class="with-copy" markdown="1">
 
 ```yaml
 cat <<EOF | helm install my-grafana grafana/grafana -f -
@@ -181,6 +208,9 @@ cat <<EOF | helm install my-grafana grafana/grafana -f -
         datasource: victoriametrics
 EOF
 ```
+
+</div>
+
 By running this command we:
 * Install Grafana from helm repository.
 * Provision VictoriaMetrics datasource with the url from the output above which we copied before.
@@ -188,17 +218,31 @@ By running this command we:
 * Add this [https://grafana.com/grafana/dashboards/14205](https://grafana.com/grafana/dashboards/14205) dashboard to see Kubernetes cluster metrics.
 
 
-See the output log in your terminal. Copy, paste and run these commands. 
-The first one will show `admin` password for Grafana admin.
-The second and the third will forward Grafana to `127.0.0.1:3000`:
+Check the output log in your terminal.
+To see the password for Grafana `admin` user use the following command:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 kubectl get secret --namespace default my-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+```
 
+</div>
+
+Expose Grafana service on `127.0.0.1:3000`:
+
+<div class="with-copy" markdown="1">
+
+```bash
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=my-grafana" -o jsonpath="{.items[0].metadata.name}")
 
 kubectl --namespace default port-forward $POD_NAME 3000
 ```
+
+</div>
+
+Now Grafana should be accessible on the [http://127.0.0.1:3000](http://127.0.0.1:3000) address.
+
 
 **4. Check the obtained result in your browser**
 
