@@ -13,7 +13,6 @@ func BenchmarkAddMulti(b *testing.B) {
 		start := uint64(time.Now().UnixNano())
 		sa := createRangeSet(start, itemsCount)
 		a := sa.AppendTo(nil)
-		Release(sa)
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkAddMulti(b, a)
 		})
@@ -25,7 +24,6 @@ func BenchmarkAdd(b *testing.B) {
 		start := uint64(time.Now().UnixNano())
 		sa := createRangeSet(start, itemsCount)
 		a := sa.AppendTo(nil)
-		Release(sa)
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkAdd(b, a)
 		})
@@ -40,8 +38,6 @@ func BenchmarkUnionNoOverlap(b *testing.B) {
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkUnion(b, sa, sb)
 		})
-		Release(sa)
-		Release(sb)
 	}
 }
 
@@ -53,8 +49,6 @@ func BenchmarkUnionPartialOverlap(b *testing.B) {
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkUnion(b, sa, sb)
 		})
-		Release(sa)
-		Release(sb)
 	}
 }
 
@@ -66,8 +60,6 @@ func BenchmarkUnionFullOverlap(b *testing.B) {
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkUnion(b, sa, sb)
 		})
-		Release(sa)
-		Release(sb)
 	}
 }
 
@@ -80,7 +72,6 @@ func benchmarkAdd(b *testing.B, a []uint64) {
 			for _, x := range a {
 				s.Add(x)
 			}
-			Release(&s)
 		}
 	})
 }
@@ -100,7 +91,6 @@ func benchmarkAddMulti(b *testing.B, a []uint64) {
 				s.AddMulti(a[n:m])
 				n = m
 			}
-			Release(&s)
 		}
 	})
 }
@@ -114,8 +104,6 @@ func benchmarkUnion(b *testing.B, sa, sb *Set) {
 			sbCopy := sb.Clone()
 			saCopy.Union(sb)
 			sbCopy.Union(sa)
-			Release(saCopy)
-			Release(sbCopy)
 		}
 	})
 }
@@ -162,8 +150,6 @@ func benchmarkIntersect(b *testing.B, sa, sb *Set) {
 			sbCopy := sb.Clone()
 			saCopy.Intersect(sb)
 			sbCopy.Intersect(sa)
-			Release(saCopy)
-			Release(sbCopy)
 		}
 	})
 }
@@ -393,7 +379,6 @@ func BenchmarkSetHasHit(b *testing.B) {
 					}
 				}
 			})
-			Release(&s)
 		})
 	}
 }
@@ -455,7 +440,6 @@ func BenchmarkSetHasMiss(b *testing.B) {
 					}
 				}
 			})
-			Release(&s)
 		})
 	}
 }

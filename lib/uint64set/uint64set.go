@@ -6,8 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 // Set is a fast set for uint64.
@@ -35,18 +33,6 @@ func (s *bucket32Sorter) Less(i, j int) bool {
 func (s *bucket32Sorter) Swap(i, j int) {
 	a := *s
 	a[i], a[j] = a[j], a[i]
-}
-
-// Release releases resources occupied by s.
-//
-// s mustn't be used after Release call.
-func Release(s *Set) {
-	if s == nil {
-		return
-	}
-	for i := range s.buckets {
-		releaseBucket32(&s.buckets[i])
-	}
 }
 
 // Clone returns an independent copy of s.
@@ -261,18 +247,34 @@ func (s *Set) sort() {
 
 // Union adds all the items from a to s.
 func (s *Set) Union(a *Set) {
+	s.union(a, false)
+}
+
+// UnionMayOwn adds all the items from a to s.
+//
+// It may own a if s is empty. This means that `a` cannot be used
+// after the call to UnionMayOwn.
+func (s *Set) UnionMayOwn(a *Set) {
+	s.union(a, true)
+}
+
+func (s *Set) union(a *Set, mayOwn bool) {
 	if a.Len() == 0 {
 		// Fast path - nothing to union.
 		return
 	}
 	if s.Len() == 0 {
 		// Fast path - copy `a` to `s`.
-		a = a.Clone()
+		if !mayOwn {
+			a = a.Clone()
+		}
 		*s = *a
 		return
 	}
 	// Make shallow copy of `a`, since it can be modified by a.sort().
-	a = a.cloneShallow()
+	if !mayOwn {
+		a = a.cloneShallow()
+	}
 	a.sort()
 	s.sort()
 	i := 0
@@ -299,7 +301,7 @@ func (s *Set) Union(a *Set) {
 			break
 		}
 		if s.buckets[i].hi == a.buckets[j].hi {
-			s.buckets[i].union(&a.buckets[j])
+			s.buckets[i].union(&a.buckets[j], mayOwn)
 			i++
 			j++
 		}
@@ -410,12 +412,6 @@ type bucket32 struct {
 	buckets []*bucket16
 }
 
-func releaseBucket32(b32 *bucket32) {
-	for _, b16 := range b32.buckets {
-		putBucket16(b16)
-	}
-}
-
 func (b *bucket32) getLen() int {
 	n := 0
 	for i := range b.buckets {
@@ -424,7 +420,7 @@ func (b *bucket32) getLen() int {
 	return n
 }
 
-func (b *bucket32) union(a *bucket32) {
+func (b *bucket32) union(a *bucket32, mayOwn bool) {
 	i := 0
 	j := 0
 	bBucketsLen := len(b.buckets)
@@ -435,14 +431,22 @@ func (b *bucket32) union(a *bucket32) {
 		if i >= bBucketsLen {
 			for j < len(a.b16his) {
 				b16 := b.addBucket16(a.b16his[j])
-				a.buckets[j].copyTo(b16)
+				if mayOwn {
+					*b16 = *a.buckets[j]
+				} else {
+					a.buckets[j].copyTo(b16)
+				}
 				j++
 			}
 			break
 		}
 		for j < len(a.b16his) && a.b16his[j] < b.b16his[i] {
 			b16 := b.addBucket16(a.b16his[j])
-			a.buckets[j].copyTo(b16)
+			if mayOwn {
+				*b16 = *a.buckets[j]
+			} else {
+				a.buckets[j].copyTo(b16)
+			}
 			j++
 		}
 		if j >= len(a.b16his) {
@@ -554,7 +558,7 @@ func (b *bucket32) copyTo(dst *bucket32) {
 	if len(b.buckets) > 0 {
 		dst.buckets = make([]*bucket16, len(b.buckets))
 		for i, b16 := range b.buckets {
-			b16Dst := getBucket16()
+			b16Dst := &bucket16{}
 			b16.copyTo(b16Dst)
 			dst.buckets[i] = b16Dst
 		}
@@ -628,8 +632,7 @@ func (b *bucket32) addSlow(hi, lo uint16) bool {
 
 func (b *bucket32) addBucket16(hi uint16) *bucket16 {
 	b.b16his = append(b.b16his, hi)
-	b16 := getBucket16()
-	b.buckets = append(b.buckets, b16)
+	b.buckets = append(b.buckets, &bucket16{})
 	return b.buckets[len(b.buckets)-1]
 }
 
@@ -644,7 +647,7 @@ func (b *bucket32) addBucketAtPos(hi uint16, pos int) *bucket16 {
 	b.b16his = append(b.b16his[:pos+1], b.b16his[pos:]...)
 	b.b16his[pos] = hi
 	b.buckets = append(b.buckets[:pos+1], b.buckets[pos:]...)
-	b16 := getBucket16()
+	b16 := &bucket16{}
 	b.buckets[pos] = b16
 	return b16
 }
@@ -706,40 +709,6 @@ type bucket16 struct {
 }
 
 const smallPoolSize = 56
-
-func getBucket16() *bucket16 {
-	select {
-	case b16 := <-bucket16Pool:
-		return b16
-	default:
-		return &bucket16{}
-	}
-}
-
-func putBucket16(b16 *bucket16) {
-	b16.reset()
-	select {
-	case bucket16Pool <- b16:
-	default:
-		// Drop b16 in order to reduce memory usage
-	}
-}
-
-// Use a chan instead of sync.Pool for reducing memory usage on systems with big number of CPU cores,
-// since sync.Pool holds per-CPU pools of potentially big bucket16 structs (more than 64KB each).
-var bucket16Pool = make(chan *bucket16, 100*cgroup.AvailableCPUs())
-
-func (b *bucket16) reset() {
-	if bits := b.bits; bits != nil {
-		for i := range bits {
-			bits[i] = 0
-		}
-	}
-	for i := range b.smallPool {
-		b.smallPool[i] = 0
-	}
-	b.smallPoolLen = 0
-}
 
 func (b *bucket16) isZero() bool {
 	return b.bits == nil && b.smallPoolLen == 0
