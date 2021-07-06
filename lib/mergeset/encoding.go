@@ -562,4 +562,4 @@ func putInmemoryBlock(ib *inmemoryBlock) {
 // Every inmemoryBlock struct occupies at least 64KB of memory, e.g. quite big amounts of memory.
 // Use a chan instead of sync.Pool in order to reduce memory usage on systems
 // with big number of CPU cores.
-var ibPoolCh = make(chan *inmemoryBlock, cgroup.AvailableCPUs())
+var ibPoolCh = make(chan *inmemoryBlock, 100*cgroup.AvailableCPUs())
