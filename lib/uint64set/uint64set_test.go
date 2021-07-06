@@ -46,7 +46,6 @@ func TestSetOps(t *testing.T) {
 		if !sbOrig.Equal(sb) {
 			t.Fatalf("sbOrig must be equal to sb after sa.Union(sb); got\n%v\nvs\n%v", sbOrig, sb)
 		}
-		Release(sa)
 
 		// Verify sb.Union(sa)
 		sa = saOrig.Clone()
@@ -57,7 +56,27 @@ func TestSetOps(t *testing.T) {
 		if !saOrig.Equal(sa) {
 			t.Fatalf("saOrig must be equal to sa after sb.Union(sa); got\n%v\nvs\n%v", saOrig, sa)
 		}
-		Release(sb)
+
+		// Verify sa.UnionMayOwn(sb)
+		sa = saOrig.Clone()
+		sb = sbOrig.Clone()
+		sa.UnionMayOwn(sb)
+		if err := expectEqual(sa, mUnion); err != nil {
+			t.Fatalf("invalid sa.UnionMayOwn(sb): %s", err)
+		}
+		if !sbOrig.Equal(sb) {
+			t.Fatalf("sbOrig must be equal to sb after sa.UnionMayOwn(sb); got\n%v\nvs\n%v", sbOrig, sb)
+		}
+
+		// Verify sb.UnionMayOwn(sa)
+		sa = saOrig.Clone()
+		sb.UnionMayOwn(sa)
+		if err := expectEqual(sb, mUnion); err != nil {
+			t.Fatalf("invalid sb.UnionMayOwn(sa): %s", err)
+		}
+		if !saOrig.Equal(sa) {
+			t.Fatalf("saOrig must be equal to sa after sb.UnionMayOwn(sa); got\n%v\nvs\n%v", saOrig, sa)
+		}
 
 		// Verify sa.Intersect(sb)
 		sa = saOrig.Clone()
@@ -69,7 +88,6 @@ func TestSetOps(t *testing.T) {
 		if !sbOrig.Equal(sb) {
 			t.Fatalf("sbOrig must be equal to sb after sa.Intersect(sb); got\n%v\nvs\n%v", sbOrig, sb)
 		}
-		Release(sa)
 
 		// Verify sb.Intersect(sa)
 		sa = saOrig.Clone()
@@ -80,8 +98,6 @@ func TestSetOps(t *testing.T) {
 		if !saOrig.Equal(sa) {
 			t.Fatalf("saOrig must be equal to sa after sb.Intersect(sa); got\n%v\nvs\n%v", saOrig, sa)
 		}
-		Release(sa)
-		Release(sb)
 
 		// Verify sa.Subtract(sb)
 		mSubtractAB := make(map[uint64]bool)
@@ -100,7 +116,6 @@ func TestSetOps(t *testing.T) {
 		if !sbOrig.Equal(sb) {
 			t.Fatalf("sbOrig must be equal to sb after sa.Subtract(sb); got\n%v\nvs\n%v", sbOrig, sb)
 		}
-		Release(sa)
 
 		// Verify sb.Subtract(sa)
 		mSubtractBA := make(map[uint64]bool)
@@ -118,8 +133,6 @@ func TestSetOps(t *testing.T) {
 		if !saOrig.Equal(sa) {
 			t.Fatalf("saOrig must be equal to sa after sb.Subtract(sa); got\n%v\nvs\n%v", saOrig, sa)
 		}
-		Release(sa)
-		Release(sb)
 	}
 
 	f(nil, nil)
@@ -264,7 +277,6 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		if n := sCopy.Len(); n != 0 {
 			t.Fatalf("unexpected sCopy.Len() after double deleting the item; got %d; want 0", n)
 		}
-		Release(sNil)
 	}
 
 	// Verify forward Add
@@ -398,7 +410,6 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		if itemsCount > 0 && calls != 1 {
 			t.Fatalf("Unexpected number of ForEach callback calls; got %d; want %d", calls, 1)
 		}
-		Release(&s)
 
 		// Verify ForEach on nil set.
 		var s1 *Set
@@ -438,10 +449,38 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		if n := s3.Len(); n != expectedLen {
 			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
 		}
-		Release(&s1)
-		Release(&s2)
-		Release(&s3)
-		Release(&s4)
+	}
+
+	// Verify UnionMayOwn
+	{
+		const unionOffset = 12345
+		var s1, s2 Set
+		for i := 0; i < itemsCount; i++ {
+			s1.Add(uint64(i) + offset)
+			s2.Add(uint64(i) + offset + unionOffset)
+		}
+		s1.UnionMayOwn(&s2)
+		expectedLen := 2 * itemsCount
+		if itemsCount > unionOffset {
+			expectedLen = itemsCount + unionOffset
+		}
+		if n := s1.Len(); n != expectedLen {
+			t.Fatalf("unexpected s1.Len() after union; got %d; want %d", n, expectedLen)
+		}
+
+		// Verify union on empty set.
+		var s3 Set
+		expectedLen = s1.Len()
+		s3.UnionMayOwn(&s1)
+		if n := s3.Len(); n != expectedLen {
+			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
+		}
+		var s4 Set
+		expectedLen = s3.Len()
+		s3.UnionMayOwn(&s4)
+		if n := s3.Len(); n != expectedLen {
+			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
+		}
 	}
 
 	// Verify intersect
@@ -482,10 +521,6 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		if n := s4.Len(); n != expectedLen {
 			t.Fatalf("unexpected s4.Len() after intersect with empty set; got %d; want %d", n, expectedLen)
 		}
-		Release(&s1)
-		Release(&s2)
-		Release(&s3)
-		Release(&s4)
 	}
 
 	// Verify subtract
@@ -512,9 +547,6 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		if n := s3.Len(); n != 0 {
 			t.Fatalf("unexpected s3.Len() after subtract from empty set; got %d; want %d", n, expectedLen)
 		}
-		Release(&s1)
-		Release(&s2)
-		Release(&s3)
 	}
 
 	// Verify Del
@@ -565,7 +597,6 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 			t.Fatalf("missing bit %d on sCopy", uint64(i)+offset)
 		}
 	}
-	Release(sCopy)
 }
 
 func TestSetSparseItems(t *testing.T) {
