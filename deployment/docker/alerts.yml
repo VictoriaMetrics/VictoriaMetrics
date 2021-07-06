@@ -32,16 +32,16 @@ groups:
     rules:
       - alert: DiskRunsOutOfSpaceIn3Days
         expr: |
-          vm_free_disk_space_bytes / ignoring(path) (
-           (
-            sum(rate(vm_rows_added_to_storage_total[1d])) -
-            sum(rate(vm_deduplicated_samples_total[1d])) without(type)
-           )
-          *
-           (
-            sum(vm_data_size_bytes{type!="indexdb"}) /
-            sum(vm_rows{type!="indexdb"})
-           )
+          vm_free_disk_space_bytes / ignoring(path)
+          (
+             (
+              rate(vm_rows_added_to_storage_total[1d]) -
+              ignoring(type) rate(vm_deduplicated_samples_total{type="merge"}[1d])
+             )
+            * scalar(
+              sum(vm_data_size_bytes{type!="indexdb"}) /
+              sum(vm_rows{type!="indexdb"})
+             )
           ) < 3 * 24 * 3600
         for: 30m
         labels:
