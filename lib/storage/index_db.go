@@ -2021,6 +2021,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	if metricIDsForTimeRange.Len() <= maxTimeRangeMetrics {
 		return nil, metricIDsForTimeRange, nil
 	}
+	uint64set.Release(metricIDsForTimeRange)
 	return nil, nil, fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
 		maxMetrics, tr.String())
 }
@@ -2313,6 +2314,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 	}
 
 	sortedMetricIDs := metricIDs.AppendTo(nil)
+	uint64set.Release(metricIDs)
 
 	// Filter out deleted metricIDs.
 	dmis := is.db.s.getDeletedMetricIDs()
@@ -2340,9 +2342,11 @@ func (is *indexSearch) searchMetricIDsInternal(tfss []*TagFilters, tr TimeRange,
 			}
 		}
 		if err := is.updateMetricIDsForTagFilters(metricIDs, tfs, tr, maxMetrics+1); err != nil {
+			uint64set.Release(metricIDs)
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
+			uint64set.Release(metricIDs)
 			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 		}
 	}
@@ -2380,9 +2384,11 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		if err != nil {
 			return err
 		}
+		uint64set.Release(minMetricIDs)
 		minMetricIDs = mIDs
 	}
-	metricIDs.UnionMayOwn(minMetricIDs)
+	metricIDs.Union(minMetricIDs)
+	uint64set.Release(minMetricIDs)
 	return nil
 }
 
@@ -2734,8 +2740,9 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*
 				return
 			}
 			if metricIDs.Len() < maxMetrics {
-				metricIDs.UnionMayOwn(m)
+				metricIDs.Union(m)
 			}
+			uint64set.Release(m)
 		}(minDate)
 		minDate++
 	}
@@ -2763,7 +2770,8 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 		if err != nil {
 			return err
 		}
-		metricIDs.UnionMayOwn(m)
+		metricIDs.Union(m)
+		uint64set.Release(m)
 		atomic.AddUint64(&is.db.dateRangeSearchHits, 1)
 		return nil
 	}
@@ -2790,8 +2798,9 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 				return
 			}
 			if metricIDs.Len() < maxMetrics {
-				metricIDs.UnionMayOwn(m)
+				metricIDs.Union(m)
 			}
+			uint64set.Release(m)
 		}(minDate)
 		minDate++
 	}
@@ -2978,6 +2987,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		} else {
 			metricIDs.Intersect(m)
 		}
+		uint64set.Release(m)
 	}
 	if metricIDs.Len() == 0 {
 		// There is no need in applying tfsPostponed, since the result is empty.
