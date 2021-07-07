@@ -309,10 +309,10 @@ It is recommended leaving the following amounts of spare resources on every node
 Some capacity planning tips for VictoriaMetrics cluster:
 
 * The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor.
+* Cluster capacity for active time series (e.g. time series with recently ingested samples) can be increased by adding more `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmstorage` node.
+* Query latency can be reduced by increasing the number of `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmselect` node.
 * The total number of CPU cores needed for all the `vminsert` nodes can be calculated from the ingestion rate: `CPUs = ingestion_rate / 100K`.
 * The `-rpc.disableCompression` command-line flag at `vminsert` nodes can increase ingestion capacity at the cost of higher network bandwidth usage between `vminsert` and `vmstorage`.
-* The recommended RAM and CPU resources for `vmselect` nodes highly depend on the type of queries. Queries over small number of time series usually require small number of CPU cores and small amount of RAM per each `vmselect` node, while queries over big number of time series (>10K) require bigger number of CPU cores and bigger amounts of RAM.
-* It is recommended increasing CPU and RAM resources per `vmselect` node if lower query latency is needed, while adding new `vmselect` nodes only when the cluster is overloaded with incoming select qps.
 
 
 ## High availability
