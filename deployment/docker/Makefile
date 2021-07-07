@@ -8,13 +8,12 @@ GO_BUILDER_IMAGE := golang:1.16.5
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
 BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
 VMUI_VERSION=v0.1.0
-VMUI_RELEASE=https://github.com/VictoriaMetrics/vmui/releases
 
-vmui:
-	cd app/vmselect/ui && \
-	wget ${VMUI_RELEASE}/download/${VMUI_VERSION}/static.zip \
-	-O /tmp/static.zip; unzip /tmp/static.zip -d /tmp; \
-	rm -rf ./*; mv /tmp/build/* ./
+vmui-update:
+	curl -L https://github.com/VictoriaMetrics/vmui/releases/download/${VMUI_VERSION}/static.zip > vmui-static.zip && \
+	unzip vmui-static.zip -d vmui-static && \
+	rm -rf app/vmselect/ui/* && mv vmui-static/build/* app/vmselect/ui && \
+	rm -rf vmui-static vmui-static.zip
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \

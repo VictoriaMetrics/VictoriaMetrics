@@ -30,10 +30,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// static content
-//go:embed ui
-var files embed.FS
-
 var (
 	httpListenAddr        = flag.String("httpListenAddr", ":8481", "Address to listen for http connections")
 	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. Cache isn't saved if empty")
@@ -133,21 +129,32 @@ var (
 	})
 )
 
+// static content
+//go:embed ui
+var uiFiles embed.FS
+
+var uiFileServer = http.FileServer(http.FS(uiFiles))
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
 		if r.Method != "GET" {
 			return false
 		}
-		fmt.Fprintf(w, "vmselect - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
+		fmt.Fprintf(w, `vmselect - a component of VictoriaMetrics cluster<br/>
+<a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
+<a href="ui">Web UI</a><br>
+`)
 		return true
 	}
 	// ui access.
 	if strings.HasPrefix(r.URL.Path, "/ui") {
-		http.FileServer(http.FS(files)).ServeHTTP(w, r)
+		uiFileServer.ServeHTTP(w, r)
 		return true
 	}
+
 	startTime := time.Now()
-  defer requestDuration.UpdateDuration(startTime)
+	defer requestDuration.UpdateDuration(startTime)
+
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:
