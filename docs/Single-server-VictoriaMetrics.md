@@ -1099,46 +1099,28 @@ on the interval `[now - max_lookback ... now]` is scraped for each time series. 
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
 
+
 ## Capacity planning
 
-A rough estimation of the required resources for ingestion path:
+VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-* RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
-  Time series is considered active if new data points have been added to it recently or if it has been recently queried.
-  The number of active time series may be obtained from `vm_cache_entries{type="storage/hour_metric_ids"}` metric
-  exported on the `/metrics` page.
-  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with `-memory.allowedPercent` or `-memory.allowedBytes` flags.
+VictoriaMetrics capacity scales linearly with the available resources. The needed amounts of CPU and RAM highly depends on the workload. It is recommended setting up a test VictoriaMetrics for your production workload and iteratively scaling CPU and RAM resources until it becomes stable according to [troubleshooting docs](#troubleshooting). A single-node VictoriaMetrics works perfectly with the following production workload according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html):
 
-* CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
-  the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data or for time series with high number of labels.
-  See [this article](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) for details.
-  If you see lower numbers per CPU core, then it is likely active time series info doesn't fit caches,
-  so you need more RAM for lowering CPU usage.
+* Ingestion rate: 1.5+ million samples per second
+* Active time series: 50+ million
+* Total time series: 5+ billion
+* Time series churn rate: 150+ million of new series per day
+* Total number of samples: 10+ trillion
+* Queries: 200+ qps
+* Query latency (99th percentile): 1 second
 
-* Storage space: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
-  of 100K data points per second.
-  The actual storage size heavily depends on data randomness (entropy) and the average number of samples per time series.
-  Higher randomness means higher storage size requirements. Lower average number of samples per time series means higher storage requirement.
-  Read [this article](https://medium.com/faun/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
-  for details.
+The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag) can be extrapolated from disk space usage in a test run. For example, if `-storageDataPath` directory size becomes 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period).
 
-* Network usage: outbound traffic is negligible. Ingress traffic is ~100 bytes per ingested data point via
-  [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
-  The actual ingress bandwidth usage depends on the average number of labels per ingested metric and the average size
-  of label values. The higher number of per-metric labels and longer label values mean the higher ingress bandwidth.
+It is recommended leaving the following amounts of spare resources for reducing the probability of issues related to temporary spikes in the workload:
 
-The required resources for query path:
-
-* RAM size: depends on the number of time series to scan in each query and the `step`
-  argument passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
-  The higher number of scanned time series and lower `step` argument results in the higher RAM usage.
-
-* CPU cores: a CPU core per 30 millions of scanned data points per second.
-  This means that heavy queries that touch big number of time series (over 10K) and/or big number data points (over 100M)
-  usually require more CPU resources than tiny queries that touch a few time series with small number of data points.
-
-* Network usage: depends on the frequency and the type of incoming requests. Typical Grafana dashboards usually
-  require negligible network bandwidth.
+* 50% of free RAM
+* 50% of spare CPU
+* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag.
 
 
 ## High availability
