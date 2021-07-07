@@ -154,6 +154,9 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
+	defer requestDuration.UpdateDuration(startTime)
+
 	if r.URL.Path == "/" {
 		if r.Method != "GET" {
 			return false
@@ -242,6 +245,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
+	requestDuration = metrics.NewHistogram(`vminsert_request_duration_seconds`)
+
 	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/prometheus/", protocol="promremotewrite"}`)
 	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/prometheus/", protocol="promremotewrite"}`)
 
