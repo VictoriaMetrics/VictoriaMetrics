@@ -284,7 +284,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/clouddms/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/cloudtasks/apiv2": {
@@ -312,6 +312,15 @@
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/cloudtasks/apiv2beta3",
     "release_level": "beta",
+    "library_type": ""
+  },
+  "cloud.google.com/go/compute/apiv1": {
+    "distribution_name": "cloud.google.com/go/compute/apiv1",
+    "description": "Google Compute Engine API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/compute/apiv1",
+    "release_level": "alpha",
     "library_type": ""
   },
   "cloud.google.com/go/compute/metadata": {
@@ -356,6 +365,15 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/datacatalog/apiv1beta1",
+    "release_level": "beta",
+    "library_type": ""
+  },
+  "cloud.google.com/go/dataflow/apiv1beta3": {
+    "distribution_name": "cloud.google.com/go/dataflow/apiv1beta3",
+    "description": "Dataflow API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/dataflow/apiv1beta3",
     "release_level": "beta",
     "library_type": ""
   },
@@ -413,6 +431,15 @@
     "release_level": "alpha",
     "library_type": ""
   },
+  "cloud.google.com/go/datastream/apiv1alpha1": {
+    "distribution_name": "cloud.google.com/go/datastream/apiv1alpha1",
+    "description": "Datastream API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/datastream/apiv1alpha1",
+    "release_level": "alpha",
+    "library_type": ""
+  },
   "cloud.google.com/go/debugger/apiv2": {
     "distribution_name": "cloud.google.com/go/debugger/apiv2",
     "description": "Stackdriver Debugger API",
@@ -437,7 +464,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/dialogflow/cx/apiv3",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/dialogflow/cx/apiv3beta1": {
@@ -464,7 +491,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/documentai/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/documentai/apiv1beta3": {
@@ -509,6 +536,15 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/essentialcontacts/apiv1",
+    "release_level": "ga",
+    "library_type": ""
+  },
+  "cloud.google.com/go/eventarc/apiv1": {
+    "distribution_name": "cloud.google.com/go/eventarc/apiv1",
+    "description": "Eventarc API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/eventarc/apiv1",
     "release_level": "beta",
     "library_type": ""
   },
@@ -734,7 +770,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/metastore/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/metastore/apiv1alpha": {
@@ -1013,7 +1049,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/resourcesettings/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/retail/apiv2": {
@@ -1076,7 +1112,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/security/privateca/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/security/privateca/apiv1beta1": {
@@ -1166,7 +1202,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/serviceusage/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/shell/apiv1": {
@@ -1240,6 +1276,15 @@
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest",
     "release_level": "ga",
     "library_type": "GAPIC_MANUAL"
+  },
+  "cloud.google.com/go/storage/internal/apiv1": {
+    "distribution_name": "cloud.google.com/go/storage/internal/apiv1",
+    "description": "Cloud Storage API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/storage/internal/apiv1",
+    "release_level": "alpha",
+    "library_type": ""
   },
   "cloud.google.com/go/talent/apiv4": {
     "distribution_name": "cloud.google.com/go/talent/apiv4",
@@ -1391,6 +1436,15 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/workflows/apiv1beta",
+    "release_level": "beta",
+    "library_type": ""
+  },
+  "cloud.google.com/go/workflows/executions/apiv1": {
+    "distribution_name": "cloud.google.com/go/workflows/executions/apiv1",
+    "description": "Workflow Executions API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/workflows/executions/apiv1",
     "release_level": "beta",
     "library_type": ""
   },
