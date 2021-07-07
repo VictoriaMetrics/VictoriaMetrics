@@ -234,7 +234,6 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 // Put puts idxb under the key k into idxbc.
 func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
 	idxbc.mu.Lock()
-
 	// Remove superfluous entries.
 	if overflow := len(idxbc.m) - getMaxCachedIndexBlocksPerPart(); overflow > 0 {
 		// Remove 10% of items from the cache.
@@ -292,6 +291,9 @@ type inmemoryBlockCache struct {
 	m  map[inmemoryBlockCacheKey]*inmemoryBlockCacheEntry
 	mu sync.RWMutex
 
+	perKeyMisses     map[inmemoryBlockCacheKey]int
+	perKeyMissesLock sync.Mutex
+
 	cleanerStopCh chan struct{}
 	cleanerWG     sync.WaitGroup
 }
@@ -316,7 +318,7 @@ type inmemoryBlockCacheEntry struct {
 func newInmemoryBlockCache() *inmemoryBlockCache {
 	var ibc inmemoryBlockCache
 	ibc.m = make(map[inmemoryBlockCacheKey]*inmemoryBlockCacheEntry)
-
+	ibc.perKeyMisses = make(map[inmemoryBlockCacheKey]int)
 	ibc.cleanerStopCh = make(chan struct{})
 	ibc.cleanerWG.Add(1)
 	go func() {
@@ -330,6 +332,7 @@ func (ibc *inmemoryBlockCache) MustClose() {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
 	ibc.m = nil
+	ibc.perKeyMisses = nil
 }
 
 // cleaner periodically cleans least recently used items.
@@ -357,6 +360,10 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 		}
 	}
 	ibc.mu.Unlock()
+
+	ibc.perKeyMissesLock.Lock()
+	ibc.perKeyMisses = make(map[inmemoryBlockCacheKey]int, len(ibc.perKeyMisses))
+	ibc.perKeyMissesLock.Unlock()
 }
 
 func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
@@ -373,14 +380,25 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 		}
 		return ibe.ib
 	}
+	ibc.perKeyMissesLock.Lock()
+	ibc.perKeyMisses[k]++
+	ibc.perKeyMissesLock.Unlock()
 	atomic.AddUint64(&ibc.misses, 1)
 	return nil
 }
 
 // Put puts ib under key k into ibc.
 func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
-	ibc.mu.Lock()
+	ibc.perKeyMissesLock.Lock()
+	doNotCache := ibc.perKeyMisses[k] == 1
+	ibc.perKeyMissesLock.Unlock()
+	if doNotCache {
+		// Do not cache ib if it has been requested only once (aka one-time-wonders items).
+		// This should reduce memory usage for the ibc cache.
+		return
+	}
 
+	ibc.mu.Lock()
 	// Clean superfluous entries in cache.
 	if overflow := len(ibc.m) - getMaxCachedInmemoryBlocksPerPart(); overflow > 0 {
 		// Remove 10% of items from the cache.
