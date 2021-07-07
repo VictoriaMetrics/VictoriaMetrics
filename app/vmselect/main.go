@@ -23,10 +23,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// static content
-//go:embed ui
-var files embed.FS
-
 var (
 	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
@@ -82,15 +78,23 @@ var (
 	})
 )
 
+// static content
+//go:embed ui
+var uiFiles embed.FS
+
+var uiFileServer = http.FileServer(http.FS(uiFiles))
+
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// ui access.
 	if strings.HasPrefix(r.URL.Path, "/ui") {
-		http.FileServer(http.FS(files)).ServeHTTP(w, r)
+		uiFileServer.ServeHTTP(w, r)
 		return true
 	}
+
 	startTime := time.Now()
-  defer requestDuration.UpdateDuration(startTime)
+	defer requestDuration.UpdateDuration(startTime)
+
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:

@@ -22,7 +22,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl` binary and puts it into the `bin` folder.
 
@@ -51,7 +51,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make vmctl-arm` or `make vmctl-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-arm` or `vmctl-arm64` binary respectively and puts it into the `bin` folder.
 
