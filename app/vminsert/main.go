@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
@@ -91,6 +92,9 @@ func Stop() {
 
 // RequestHandler is a handler for Prometheus remote storage write API
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
+	defer requestDuration.UpdateDuration(startTime)
+
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	switch path {
 	case "/prometheus/api/v1/write", "/api/v1/write":
@@ -183,6 +187,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
+	requestDuration = metrics.NewHistogram(`vminsert_request_duration_seconds`)
+
 	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
 	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/write", protocol="promremotewrite"}`)
 

@@ -80,6 +80,7 @@ var (
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
+	defer requestDuration.UpdateDuration(startTime)
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:
@@ -436,6 +437,8 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 var (
+	requestDuration = metrics.NewHistogram(`vmselect_request_duration_seconds`)
+
 	labelValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/label/{}/values"}`)
 	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/label/{}/values"}`)
 
