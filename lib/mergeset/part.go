@@ -156,6 +156,9 @@ type indexBlockCache struct {
 	m  map[uint64]*indexBlockCacheEntry
 	mu sync.RWMutex
 
+	perKeyMisses     map[uint64]int
+	perKeyMissesLock sync.Mutex
+
 	cleanerStopCh chan struct{}
 	cleanerWG     sync.WaitGroup
 }
@@ -172,6 +175,7 @@ type indexBlockCacheEntry struct {
 func newIndexBlockCache() *indexBlockCache {
 	var idxbc indexBlockCache
 	idxbc.m = make(map[uint64]*indexBlockCacheEntry)
+	idxbc.perKeyMisses = make(map[uint64]int)
 	idxbc.cleanerStopCh = make(chan struct{})
 	idxbc.cleanerWG.Add(1)
 	go func() {
@@ -185,6 +189,7 @@ func (idxbc *indexBlockCache) MustClose() {
 	close(idxbc.cleanerStopCh)
 	idxbc.cleanerWG.Wait()
 	idxbc.m = nil
+	idxbc.perKeyMisses = nil
 }
 
 // cleaner periodically cleans least recently used items.
@@ -212,6 +217,10 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 		}
 	}
 	idxbc.mu.Unlock()
+
+	idxbc.perKeyMissesLock.Lock()
+	idxbc.perKeyMisses = make(map[uint64]int, len(idxbc.perKeyMisses))
+	idxbc.perKeyMissesLock.Unlock()
 }
 
 func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
@@ -227,12 +236,24 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 		}
 		return idxbe.idxb
 	}
+	idxbc.perKeyMissesLock.Lock()
+	idxbc.perKeyMisses[k]++
+	idxbc.perKeyMissesLock.Unlock()
 	atomic.AddUint64(&idxbc.misses, 1)
 	return nil
 }
 
 // Put puts idxb under the key k into idxbc.
 func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
+	idxbc.perKeyMissesLock.Lock()
+	doNotCache := idxbc.perKeyMisses[k] == 1
+	idxbc.perKeyMissesLock.Unlock()
+	if doNotCache {
+		// Do not cache ib if it has been requested only once (aka one-time-wonders items).
+		// This should reduce memory usage for the ibc cache.
+		return
+	}
+
 	idxbc.mu.Lock()
 	// Remove superfluous entries.
 	if overflow := len(idxbc.m) - getMaxCachedIndexBlocksPerPart(); overflow > 0 {
