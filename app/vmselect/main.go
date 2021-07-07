@@ -41,9 +41,8 @@ var (
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
-		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
-		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
+	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
+		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 	storageNodes         = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
@@ -142,13 +141,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "vmselect - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
 		return true
 	}
-	startTime := time.Now()
 	// ui access.
 	if strings.HasPrefix(r.URL.Path, "/ui") {
 		http.FileServer(http.FS(files)).ServeHTTP(w, r)
 		return true
 	}
-
+	startTime := time.Now()
+  defer requestDuration.UpdateDuration(startTime)
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:
@@ -186,7 +185,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			d := time.Since(actualStartTime)
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-				requestURI := getRequestURI(r)
+				requestURI := httpserver.GetRequestURI(r)
 				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
 					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
 				slowQueries.Inc()
@@ -259,7 +258,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		graphiteTagValuesRequests.Inc()
 		if err := graphite.TagValuesHandler(startTime, at, tagName, w, r); err != nil {
 			graphiteTagValuesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -344,7 +343,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
 			exportErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -352,7 +351,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		exportNativeRequests.Inc()
 		if err := prometheus.ExportNativeHandler(startTime, at, w, r); err != nil {
 			exportNativeErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -360,7 +359,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		exportCSVRequests.Inc()
 		if err := prometheus.ExportCSVHandler(startTime, at, w, r); err != nil {
 			exportCSVErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -368,7 +367,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		federateRequests.Inc()
 		if err := prometheus.FederateHandler(startTime, at, w, r); err != nil {
 			federateErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -377,7 +376,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsFindHandler(startTime, at, w, r); err != nil {
 			graphiteMetricsFindErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -386,7 +385,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsExpandHandler(startTime, at, w, r); err != nil {
 			graphiteMetricsExpandErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -395,7 +394,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsIndexHandler(startTime, at, w, r); err != nil {
 			graphiteMetricsIndexErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -403,7 +402,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		graphiteTagsTagSeriesRequests.Inc()
 		if err := graphite.TagsTagSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsTagSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -411,7 +410,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		graphiteTagsTagMultiSeriesRequests.Inc()
 		if err := graphite.TagsTagMultiSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsTagMultiSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -419,7 +418,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		graphiteTagsRequests.Inc()
 		if err := graphite.TagsHandler(startTime, at, w, r); err != nil {
 			graphiteTagsErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -427,7 +426,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		graphiteTagsFindSeriesRequests.Inc()
 		if err := graphite.TagsFindSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsFindSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -436,7 +435,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteTagsHandler(startTime, at, w, r); err != nil {
 			graphiteTagsAutoCompleteTagsErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -445,7 +444,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteValuesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsAutoCompleteValuesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -453,7 +452,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		graphiteTagsDelSeriesRequests.Inc()
 		if err := graphite.TagsDelSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsDelSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -492,7 +491,7 @@ func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, at, r); err != nil {
 			deleteErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -515,7 +514,7 @@ func isGraphiteTagsPath(path string) bool {
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.Warnf("error in %q: %s", r.RequestURI, err)
+	logger.Warnf("error in %q: %s", httpserver.GetRequestURI(r), err)
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	statusCode := http.StatusUnprocessableEntity
@@ -527,24 +526,9 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	prometheus.WriteErrorResponse(w, statusCode, err)
 }
 
-func getRequestURI(r *http.Request) string {
-	requestURI := r.RequestURI
-	if r.Method != "POST" {
-		return requestURI
-	}
-	_ = r.ParseForm()
-	queryArgs := r.PostForm.Encode()
-	if len(queryArgs) == 0 {
-		return requestURI
-	}
-	delimiter := "?"
-	if strings.Contains(requestURI, delimiter) {
-		delimiter = "&"
-	}
-	return requestURI + delimiter + queryArgs
-}
-
 var (
+	requestDuration = metrics.NewHistogram(`vmselect_request_duration_seconds`)
+
 	labelValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
 	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
 

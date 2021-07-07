@@ -1,0 +1,23 @@
+/* modification for button copy */
+.btn-copy {
+    position: absolute;
+    color: #FFF;
+    background: rgba(0, 0, 0, .15);
+    border: 0;
+    padding: 2px 10px;
+    cursor: pointer;
+    right: 0px;
+    top: 0px;
+}
+
+.btn-copy:hover {
+    background: rgba(0, 0, 0, .25);
+}
+
+/* shift snippet syntax type label if Copy button is enabled */
+.with-copy div.highlighter-rouge:after {
+    right: 50px !important;
+}
+.markdown-body .highlight pre, .markdown-body pre {
+    padding: 20px !important;
+}

@@ -37,9 +37,8 @@ var (
 		"Zero value disables final merge")
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
-	minScrapeInterval     = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
-		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
-		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
+	minScrapeInterval     = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
+		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
@@ -533,7 +532,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().IndexBlocksCacheSize)
 	})
 	metrics.NewGauge(`vm_cache_entries{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagCacheSize)
+		return float64(idbm().TagFiltersCacheSize)
 	})
 	metrics.NewGauge(`vm_cache_entries{type="indexdb/uselessTagFilters"}`, func() float64 {
 		return float64(idbm().UselessTagFiltersCacheSize)
@@ -576,7 +575,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().NextDayMetricIDCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagCacheSizeBytes)
+		return float64(idbm().TagFiltersCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/uselessTagFilters"}`, func() float64 {
 		return float64(idbm().UselessTagFiltersCacheSizeBytes)
@@ -607,7 +606,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().IndexBlocksCacheRequests)
 	})
 	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagCacheRequests)
+		return float64(idbm().TagFiltersCacheRequests)
 	})
 	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/uselessTagFilters"}`, func() float64 {
 		return float64(idbm().UselessTagFiltersCacheRequests)
@@ -638,7 +637,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().IndexBlocksCacheMisses)
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagCacheMisses)
+		return float64(idbm().TagFiltersCacheMisses)
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/uselessTagFilters"}`, func() float64 {
 		return float64(idbm().UselessTagFiltersCacheMisses)

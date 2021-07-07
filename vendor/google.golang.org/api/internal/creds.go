@@ -99,7 +99,7 @@ func credentialsFromJSON(ctx context.Context, data []byte, ds *DialSettings) (*g
 }
 
 func isSelfSignedJWTFlow(data []byte, ds *DialSettings) (bool, error) {
-	if (ds.EnableJwtWithScope || ds.HasCustomAudience() || len(ds.GetScopes()) == 0) &&
+	if (ds.EnableJwtWithScope || ds.HasCustomAudience()) &&
 		ds.ImpersonationConfig == nil {
 		// Check if JSON is a service account and if so create a self-signed JWT.
 		var f struct {

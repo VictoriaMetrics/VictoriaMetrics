@@ -34,7 +34,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/groups":
 		data, err := rh.listGroups()
 		if err != nil {
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -43,7 +43,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/alerts":
 		data, err := rh.listAlerts()
 		if err != nil {
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -61,7 +61,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		// /api/v1/<groupName>/<alertID>/status
 		data, err := rh.alert(r.URL.Path)
 		if err != nil {
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

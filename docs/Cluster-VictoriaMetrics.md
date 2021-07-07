@@ -298,40 +298,25 @@ Data replication can be used for increasing storage durability. See [these docs]
 
 ## Capacity planning
 
-Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware.
+VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-### vminsert
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps determining bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
 
-* The recommended total number of vCPU cores for all the `vminsert` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
-* The recommended number of vCPU cores per each `vminsert` instance should equal to the number of `vmstorage` instances in the cluster.
-* The amount of RAM per each `vminsert` instance should be 1GB or more. RAM is used as a buffer for spikes in ingestion rate.
-  The maximum amount of used RAM per `vminsert` node can be tuned with `-memory.allowedPercent` or `-memory.allowedBytes` command-line flags.
-  For instance, `-memory.allowedPercent=20` limits the maximum amount of used RAM to 20% of the available RAM on the host system.
-* Sometimes `-rpc.disableCompression` command-line flag on `vminsert` instances could increase ingestion capacity at the cost
-  of higher network bandwidth usage between `vminsert` and `vmstorage`.
+The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
-### vmstorage
+It is recommended leaving the following amounts of spare resources on every node type for reducing the probability of issues related to temporary spikes in the workload:
 
-* The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
-* The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = 2 * active_time_series * 1KB`.
-  Time series is active if it received at least a single data point during the last hour or if it has been queried during the last hour.
-  The required RAM per each `vmstorage` should be multiplied by `-replicationFactor` if [replication](#replication-and-data-safety) is enabled.
-  Additional RAM can be required for query processing.
-  Calculated RAM requrements may differ from actual RAM requirements due to various factors:
-  * The average number of labels per time series. More labels require more RAM.
-  * The average length of label names and label values. Longer labels require more RAM.
-  * The type of queries. Heavy queries that scan big number of time series over long time ranges require more RAM.
-* The recommended total amount of storage space for all the `vmstorage` instances can be calculated
-  from the ingestion rate and retention: `storage_space = ingestion_rate * retention_seconds`.
+* 50% of free RAM
+* 50% of spare CPU
+* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes.
 
-### vmselect
+Some capacity planning tips for VictoriaMetrics cluster:
 
-The recommended hardware for `vmselect` instances highly depends on the type of queries. Lightweight queries over small number of time series usually require
-small number of vCPU cores and small amount of RAM on `vmselect`, while heavy queries over big number of time series (>10K) usually require
-bigger number of vCPU cores and bigger amounts of RAM.
-
-In general it is recommended increasing the number of vCPU cores and RAM per `vmselect` node for higher query performance,
-while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
+* The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor.
+* Cluster capacity for active time series (e.g. time series with recently ingested samples) can be increased by adding more `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmstorage` node.
+* Query latency can be reduced by increasing the number of `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmselect` node.
+* The total number of CPU cores needed for all the `vminsert` nodes can be calculated from the ingestion rate: `CPUs = ingestion_rate / 100K`.
+* The `-rpc.disableCompression` command-line flag at `vminsert` nodes can increase ingestion capacity at the cost of higher network bandwidth usage between `vminsert` and `vmstorage`.
 
 
 ## High availability
@@ -597,7 +582,7 @@ Below is the output for `/path/to/vmselect -help`:
   -cacheDataPath string
     	Path to directory for cache files. Cache isn't saved if empty
   -dedup.minScrapeInterval duration
-    	Remove superflouos samples from time series if they are located closer to each other than this duration. This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. Deduplication is disabled if the -dedup.minScrapeInterval is 0
+    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -708,7 +693,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -bigMergeConcurrency int
     	The maximum number of CPU cores to use for big merges. Default value is used if set to 0
   -dedup.minScrapeInterval duration
-    	Remove superflouos samples from time series if they are located closer to each other than this duration. This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. Deduplication is disabled if the -dedup.minScrapeInterval is 0
+    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueriesOutsideRetention
     	Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -enableTCP6

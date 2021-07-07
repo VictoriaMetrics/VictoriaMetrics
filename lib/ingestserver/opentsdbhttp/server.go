@@ -89,7 +89,7 @@ func newRequestHandler(insertHandler func(r *http.Request) error) http.Handler {
 		writeRequests.Inc()
 		if err := insertHandler(r); err != nil {
 			writeErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

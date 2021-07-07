@@ -539,7 +539,8 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...interface{}) {
 	errStr := fmt.Sprintf(format, args...)
 	remoteAddr := GetQuotedRemoteAddr(r)
-	errStr = fmt.Sprintf("remoteAddr: %s; %s", remoteAddr, errStr)
+	requestURI := GetRequestURI(r)
+	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
 	logger.WarnfSkipframes(1, "%s", errStr)
 
 	// Extract statusCode from args
@@ -599,4 +600,22 @@ func WriteAPIHelp(w io.Writer, pathList [][2]string) {
 		p = path.Join(*pathPrefix, p)
 		fmt.Fprintf(w, "<a href=%q>%s</a> - %s<br/>", p, p, doc)
 	}
+}
+
+// GetRequestURI returns requestURI for r.
+func GetRequestURI(r *http.Request) string {
+	requestURI := r.RequestURI
+	if r.Method != "POST" {
+		return requestURI
+	}
+	_ = r.ParseForm()
+	queryArgs := r.PostForm.Encode()
+	if len(queryArgs) == 0 {
+		return requestURI
+	}
+	delimiter := "?"
+	if strings.Contains(requestURI, delimiter) {
+		delimiter = "&"
+	}
+	return requestURI + delimiter + queryArgs
 }

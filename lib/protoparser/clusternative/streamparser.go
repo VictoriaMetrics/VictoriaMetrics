@@ -113,11 +113,10 @@ var (
 )
 
 type unmarshalWork struct {
-	wg            *sync.WaitGroup
-	callback      func(rows []storage.MetricRow)
-	reqBuf        []byte
-	mrs           []storage.MetricRow
-	lastResetTime uint64
+	wg       *sync.WaitGroup
+	callback func(rows []storage.MetricRow)
+	reqBuf   []byte
+	mrs      []storage.MetricRow
 }
 
 // Unmarshal implements common.UnmarshalWork
