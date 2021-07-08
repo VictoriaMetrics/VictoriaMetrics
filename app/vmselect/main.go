@@ -142,13 +142,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		fmt.Fprintf(w, `vmselect - a component of VictoriaMetrics cluster<br/>
 <a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
-<a href="ui">Web UI</a><br>
 `)
-		return true
-	}
-	// ui access.
-	if strings.HasPrefix(r.URL.Path, "/ui") {
-		uiFileServer.ServeHTTP(w, r)
 		return true
 	}
 
@@ -246,6 +240,12 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpRequests.Get(at).Inc()
 		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
 	}()
+	if strings.HasPrefix(p.Suffix, "prometheus/ui") {
+		// ui access.
+		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken, "prometheus"}, "/")
+		http.StripPrefix(prefix, uiFileServer).ServeHTTP(w, r)
+		return true
+	}
 	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/label/") {
 		s := p.Suffix[len("prometheus/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
