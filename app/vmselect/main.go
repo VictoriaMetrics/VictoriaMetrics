@@ -78,17 +78,16 @@ var (
 	})
 )
 
-// static content
-//go:embed ui
-var uiFiles embed.FS
+//go:embed vmui
+var vmuiFiles embed.FS
 
-var uiFileServer = http.FileServer(http.FS(uiFiles))
+var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	// ui access.
-	if strings.HasPrefix(r.URL.Path, "/ui") {
-		uiFileServer.ServeHTTP(w, r)
+	// vmui access.
+	if strings.HasPrefix(r.URL.Path, "/vmui") {
+		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
 
