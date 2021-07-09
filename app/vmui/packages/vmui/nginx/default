@@ -1,0 +1,48 @@
+server  {
+    listen 80;
+    root /var/www/html;
+    index index.html;
+
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+    add_header X-Frame-Options "sameorigin";
+
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+
+    location ~* \.(jpg|jpeg|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|otf|webm|htc|ttf|woff|woff2)$ {
+        expires    0;
+        access_log off;
+        add_header Pragma public;
+        add_header Cache-Control "public, max-age=604800"; #one week
+        add_header X-Asset "yes";
+    }
+
+    location = /favicon.ico {
+        log_not_found off;
+        access_log off;
+    }
+
+    location ~ \.(html|gz)$ {
+        expires    0;
+        add_header Pragma "public";
+        add_header Cache-Control "max-age=600, public, must-revalidate, proxy-revalidate";
+    }
+
+    location = /robots.txt {
+        allow all;
+        log_not_found off;
+        access_log off;
+    }
+
+    error_log /dev/stdout warn;
+    access_log /dev/stdout extended_json;
+#    access_log /var/log/nginx/vmui-access.log;
+#    error_log /var/log/nginx/vmui-error.log;
+
+}

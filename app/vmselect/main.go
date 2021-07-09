@@ -129,11 +129,10 @@ var (
 	})
 )
 
-// static content
-//go:embed ui
-var uiFiles embed.FS
+//go:embed vmui
+var vmuiFiles embed.FS
 
-var uiFileServer = http.FileServer(http.FS(uiFiles))
+var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
@@ -240,10 +239,10 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpRequests.Get(at).Inc()
 		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
 	}()
-	if strings.HasPrefix(p.Suffix, "prometheus/ui") {
-		// ui access.
+	if strings.HasPrefix(p.Suffix, "prometheus/vmui") {
+		// vmui access.
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken, "prometheus"}, "/")
-		http.StripPrefix(prefix, uiFileServer).ServeHTTP(w, r)
+		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/label/") {
