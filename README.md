@@ -231,7 +231,7 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
       - `tags/autoComplete/values` - returns tag values matching the given `valuePrefix` and/or `expr`. See [these docs](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support).
       - `tags/delSeries` - deletes series matching the given `path`. See [these docs](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb).
 
-* URL with basic Web UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmui/`.
+* URL with basic Web UI: `http://<vmselect>:8481/select/<accountID>/vmui/`.
 
 * URL for query stats across all tenants: `http://<vmselect>:8481/api/v1/status/top_queries`. It lists with the most frequently executed queries and queries taking the most duration.
 

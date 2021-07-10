@@ -129,11 +129,6 @@ var (
 	})
 )
 
-//go:embed vmui
-var vmuiFiles embed.FS
-
-var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
-
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
 		if r.Method != "GET" {
@@ -233,15 +228,20 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+//go:embed vmui
+var vmuiFiles embed.FS
+
+var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
+
 func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	defer func() {
 		// Count per-tenant cumulative durations and total requests
 		httpRequests.Get(at).Inc()
 		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
 	}()
-	if strings.HasPrefix(p.Suffix, "prometheus/vmui") {
+	if strings.HasPrefix(p.Suffix, "vmui") {
 		// vmui access.
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken, "prometheus"}, "/")
+		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
