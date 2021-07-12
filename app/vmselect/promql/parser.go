@@ -10,13 +10,13 @@ import (
 // IsRollup verifies whether s is a rollup with non-empty window.
 //
 // It returns the wrapped query with the corresponding window, step and offset.
-func IsRollup(s string) (childQuery string, window, step, offset string) {
+func IsRollup(s string) (childQuery string, window, step, offset *metricsql.DurationExpr) {
 	expr, err := parsePromQLWithCache(s)
 	if err != nil {
 		return
 	}
 	re, ok := expr.(*metricsql.RollupExpr)
-	if !ok || len(re.Window) == 0 {
+	if !ok || re.Window == nil {
 		return
 	}
 	wrappedQuery := re.Expr.AppendString(nil)
@@ -27,13 +27,13 @@ func IsRollup(s string) (childQuery string, window, step, offset string) {
 // wrapped into rollup.
 //
 // It returns the wrapped query with the corresponding window with offset.
-func IsMetricSelectorWithRollup(s string) (childQuery string, window, offset string) {
+func IsMetricSelectorWithRollup(s string) (childQuery string, window, offset *metricsql.DurationExpr) {
 	expr, err := parsePromQLWithCache(s)
 	if err != nil {
 		return
 	}
 	re, ok := expr.(*metricsql.RollupExpr)
-	if !ok || len(re.Window) == 0 || len(re.Step) > 0 {
+	if !ok || re.Window == nil || re.Step != nil {
 		return
 	}
 	me, ok := re.Expr.(*metricsql.MetricExpr)
