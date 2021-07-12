@@ -196,10 +196,16 @@ func (idxbc *indexBlockCache) MustClose() {
 func (idxbc *indexBlockCache) cleaner() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+	perKeyMissesTicker := time.NewTicker(2 * time.Minute)
+	defer perKeyMissesTicker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			idxbc.cleanByTimeout()
+		case <-perKeyMissesTicker.C:
+			idxbc.perKeyMissesLock.Lock()
+			idxbc.perKeyMisses = make(map[uint64]int, len(idxbc.perKeyMisses))
+			idxbc.perKeyMissesLock.Unlock()
 		case <-idxbc.cleanerStopCh:
 			return
 		}
@@ -217,10 +223,6 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 		}
 	}
 	idxbc.mu.Unlock()
-
-	idxbc.perKeyMissesLock.Lock()
-	idxbc.perKeyMisses = make(map[uint64]int, len(idxbc.perKeyMisses))
-	idxbc.perKeyMissesLock.Unlock()
 }
 
 func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
@@ -360,10 +362,16 @@ func (ibc *inmemoryBlockCache) MustClose() {
 func (ibc *inmemoryBlockCache) cleaner() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+	perKeyMissesTicker := time.NewTicker(2 * time.Minute)
+	defer perKeyMissesTicker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			ibc.cleanByTimeout()
+		case <-perKeyMissesTicker.C:
+			ibc.perKeyMissesLock.Lock()
+			ibc.perKeyMisses = make(map[inmemoryBlockCacheKey]int, len(ibc.perKeyMisses))
+			ibc.perKeyMissesLock.Unlock()
 		case <-ibc.cleanerStopCh:
 			return
 		}
@@ -381,10 +389,6 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 		}
 	}
 	ibc.mu.Unlock()
-
-	ibc.perKeyMissesLock.Lock()
-	ibc.perKeyMisses = make(map[inmemoryBlockCacheKey]int, len(ibc.perKeyMisses))
-	ibc.perKeyMissesLock.Unlock()
 }
 
 func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
