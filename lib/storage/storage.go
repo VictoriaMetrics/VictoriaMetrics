@@ -2094,7 +2094,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 
 	atomic.AddUint64(&dmc.syncsCount, 1)
 
-	if dmc.EntriesCount() > memory.Allowed()/128 {
+	if dmc.SizeBytes() > uint64(memory.Allowed())/256 {
 		dmc.resetLocked()
 	}
 }
