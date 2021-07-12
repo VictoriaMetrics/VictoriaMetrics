@@ -423,11 +423,14 @@ func (p *parser) parseSingleExpr() (Expr, error) {
 }
 
 func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
-	if isPositiveNumberPrefix(p.lex.Token) || isInfOrNaN(p.lex.Token) {
-		return p.parsePositiveNumberExpr()
+	if isPositiveDuration(p.lex.Token) {
+		return p.parsePositiveDuration()
 	}
 	if isStringPrefix(p.lex.Token) {
 		return p.parseStringExpr()
+	}
+	if isPositiveNumberPrefix(p.lex.Token) || isInfOrNaN(p.lex.Token) {
+		return p.parsePositiveNumberExpr()
 	}
 	if isIdentPrefix(p.lex.Token) {
 		return p.parseIdentExpr()
@@ -1221,29 +1224,29 @@ func (lfe *labelFilterExpr) toLabelFilter() (*LabelFilter, error) {
 	return &lf, nil
 }
 
-func (p *parser) parseWindowAndStep() (string, string, bool, error) {
+func (p *parser) parseWindowAndStep() (*DurationExpr, *DurationExpr, bool, error) {
 	if p.lex.Token != "[" {
-		return "", "", false, fmt.Errorf(`windowAndStep: unexpected token %q; want "["`, p.lex.Token)
+		return nil, nil, false, fmt.Errorf(`windowAndStep: unexpected token %q; want "["`, p.lex.Token)
 	}
 	err := p.lex.Next()
 	if err != nil {
-		return "", "", false, err
+		return nil, nil, false, err
 	}
-	var window string
+	var window *DurationExpr
 	if !strings.HasPrefix(p.lex.Token, ":") {
 		window, err = p.parsePositiveDuration()
 		if err != nil {
-			return "", "", false, err
+			return nil, nil, false, err
 		}
 	}
-	var step string
+	var step *DurationExpr
 	inheritStep := false
 	if strings.HasPrefix(p.lex.Token, ":") {
 		// Parse step
 		p.lex.Token = p.lex.Token[1:]
 		if p.lex.Token == "" {
 			if err := p.lex.Next(); err != nil {
-				return "", "", false, err
+				return nil, nil, false, err
 			}
 			if p.lex.Token == "]" {
 				inheritStep = true
@@ -1252,63 +1255,94 @@ func (p *parser) parseWindowAndStep() (string, string, bool, error) {
 		if p.lex.Token != "]" {
 			step, err = p.parsePositiveDuration()
 			if err != nil {
-				return "", "", false, err
+				return nil, nil, false, err
 			}
 		}
 	}
 	if p.lex.Token != "]" {
-		return "", "", false, fmt.Errorf(`windowAndStep: unexpected token %q; want "]"`, p.lex.Token)
+		return nil, nil, false, fmt.Errorf(`windowAndStep: unexpected token %q; want "]"`, p.lex.Token)
 	}
 	if err := p.lex.Next(); err != nil {
-		return "", "", false, err
+		return nil, nil, false, err
 	}
 	return window, step, inheritStep, nil
 }
 
-func (p *parser) parseOffset() (string, error) {
+func (p *parser) parseOffset() (*DurationExpr, error) {
 	if !isOffset(p.lex.Token) {
-		return "", fmt.Errorf(`offset: unexpected token %q; want "offset"`, p.lex.Token)
+		return nil, fmt.Errorf(`offset: unexpected token %q; want "offset"`, p.lex.Token)
 	}
 	if err := p.lex.Next(); err != nil {
-		return "", err
+		return nil, err
 	}
-	d, err := p.parseDuration()
+	de, err := p.parseDuration()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return d, nil
+	return de, nil
 }
 
-func (p *parser) parseDuration() (string, error) {
-	isNegative := false
-	if p.lex.Token == "-" {
-		isNegative = true
+func (p *parser) parseDuration() (*DurationExpr, error) {
+	isNegative := p.lex.Token == "-"
+	if isNegative {
 		if err := p.lex.Next(); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
-	if !isPositiveDuration(p.lex.Token) {
-		return "", fmt.Errorf(`duration: unexpected token %q; want "duration"`, p.lex.Token)
-	}
-	d := p.lex.Token
-	if err := p.lex.Next(); err != nil {
-		return "", err
+	de, err := p.parsePositiveDuration()
+	if err != nil {
+		return nil, err
 	}
 	if isNegative {
-		d = "-" + d
+		de.s = "-" + de.s
 	}
-	return d, nil
+	return de, nil
 }
 
-func (p *parser) parsePositiveDuration() (string, error) {
-	d, err := p.parseDuration()
+func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
+	s := p.lex.Token
+	if isPositiveDuration(s) {
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+	} else {
+		if !isPositiveNumberPrefix(s) {
+			return nil, fmt.Errorf(`duration: unexpected token %q; want "duration"`, s)
+		}
+		// Verify the duration in seconds without explicit suffix.
+		if _, err := p.parsePositiveNumberExpr(); err != nil {
+			return nil, fmt.Errorf(`duration: parse error: %s`, err)
+		}
+	}
+	de := &DurationExpr{
+		s: s,
+	}
+	return de, nil
+}
+
+// DurationExpr contains the duration
+type DurationExpr struct {
+	s string
+}
+
+// AppendString appends string representation of de to dst and returns the result.
+func (de *DurationExpr) AppendString(dst []byte) []byte {
+	if de == nil {
+		return dst
+	}
+	return append(dst, de.s...)
+}
+
+// Duration returns the duration from de in milliseconds.
+func (de *DurationExpr) Duration(step int64) int64 {
+	if de == nil {
+		return 0
+	}
+	d, err := DurationValue(de.s, step)
 	if err != nil {
-		return "", err
+		panic(fmt.Errorf("BUG: cannot parse duration %q: %s", de.s, err))
 	}
-	if strings.HasPrefix(d, "-") {
-		return "", fmt.Errorf("positiveDuration: expecting positive duration; got %q", d)
-	}
-	return d, nil
+	return d
 }
 
 // parseIdentExpr parses expressions starting with `ident` token.
@@ -1628,17 +1662,17 @@ type RollupExpr struct {
 	// Window contains optional window value from square brackets
 	//
 	// For example, `http_requests_total[5m]` will have Window value `5m`.
-	Window string
+	Window *DurationExpr
 
 	// Offset contains optional value from `offset` part.
 	//
 	// For example, `foobar{baz="aa"} offset 5m` will have Offset value `5m`.
-	Offset string
+	Offset *DurationExpr
 
 	// Step contains optional step value from square brackets.
 	//
 	// For example, `foobar[1h:3m]` will have Step value '3m'.
-	Step string
+	Step *DurationExpr
 
 	// If set to true, then `foo[1h:]` would print the same
 	// instead of `foo[1h]`.
@@ -1647,7 +1681,7 @@ type RollupExpr struct {
 
 // ForSubquery returns true if re represents subquery.
 func (re *RollupExpr) ForSubquery() bool {
-	return len(re.Step) > 0 || re.InheritStep
+	return re.Step != nil || re.InheritStep
 }
 
 // AppendString appends string representation of re to dst and returns the result.
@@ -1671,22 +1705,20 @@ func (re *RollupExpr) AppendString(dst []byte) []byte {
 	if needParens {
 		dst = append(dst, ')')
 	}
-	if len(re.Window) > 0 || re.InheritStep || len(re.Step) > 0 {
+	if re.Window != nil || re.InheritStep || re.Step != nil {
 		dst = append(dst, '[')
-		if len(re.Window) > 0 {
-			dst = append(dst, re.Window...)
-		}
-		if len(re.Step) > 0 {
+		dst = re.Window.AppendString(dst)
+		if re.Step != nil {
 			dst = append(dst, ':')
-			dst = append(dst, re.Step...)
+			dst = re.Step.AppendString(dst)
 		} else if re.InheritStep {
 			dst = append(dst, ':')
 		}
 		dst = append(dst, ']')
 	}
-	if len(re.Offset) > 0 {
+	if re.Offset != nil {
 		dst = append(dst, " offset "...)
-		dst = append(dst, re.Offset...)
+		dst = re.Offset.AppendString(dst)
 	}
 	return dst
 }

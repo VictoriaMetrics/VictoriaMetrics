@@ -13,6 +13,8 @@ sort: 15
 * FEATURE: vmselect: embed [vmui](https://github.com/VictoriaMetrics/vmui) into a single-node VictoriaMetrics and into `vmselect` component of cluster version. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1413). The web interface is available at the following paths:
   * `/vmui/` for a single-node VictoriaMetrics
   * `/select/<accountID>/vmui/` for `vmselect` at cluster version of VictoriaMetrics
+* FEATURE: support durations anywhere in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html). For example, `sum_over_time(m[1h]) / 1h` is a valid query, which is equivalent to `sum_over_time(m[1h]) / 3600`.
+* FEATURE: support durations without suffxies in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html). For example, `rate(m[3600])` is a valid query, which is equivalent to `rate(m[1h])`.
 
 * BUGFIX: vmagent: remove `{ %space %}` typo in `/targets` output. The typo has been introduced in v1.62.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1408).
 * BUGFIX: vmagent: fix CSS styles on `/targets` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1422).

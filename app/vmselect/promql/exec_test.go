@@ -232,9 +232,31 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("time()[:100] offset 0", func(t *testing.T) {
+		t.Parallel()
+		q := `time()[:100] offset 0`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time() offset 1h40s0ms", func(t *testing.T) {
 		t.Parallel()
 		q := `time() offset 1h40s0ms`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-2800, -2600, -2400, -2200, -2000, -1800},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time() offset 3640", func(t *testing.T) {
+		t.Parallel()
+		q := `time() offset 3640`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{-2800, -2600, -2400, -2200, -2000, -1800},
@@ -361,6 +383,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run("1h", func(t *testing.T) {
+		t.Parallel()
+		q := `1h`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3600, 3600, 3600, 3600, 3600, 3600},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("sum_over_time(time()[1h]) / 1h", func(t *testing.T) {
+		t.Parallel()
+		q := `sum_over_time(time()[1h]) / 1h`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-3.5, -2.5, -1.5, -0.5, 0.5, 1.5},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time()[:100s] offset 100s", func(t *testing.T) {
 		t.Parallel()
 		q := `time()[:100s] offset 100s`
@@ -375,6 +419,17 @@ func TestExecSuccess(t *testing.T) {
 	t.Run("time()[300s:100s] offset 100s", func(t *testing.T) {
 		t.Parallel()
 		q := `time()[300s:100s] offset 100s`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time()[300:100] offset 100", func(t *testing.T) {
+		t.Parallel()
+		q := `time()[300:100] offset 100`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
