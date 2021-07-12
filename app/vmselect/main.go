@@ -239,14 +239,9 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpRequests.Get(at).Inc()
 		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
 	}()
-	// Expose vmui at /select/<accountID>/vmui and at /select/<accountID>/prometheus/vmui .
-	// The /select/<accountID>/prometheus/vmui is needed for server-side Prometheus datasource in Grafana.
-	if strings.HasPrefix(p.Suffix, "vmui") || strings.HasPrefix(p.Suffix, "prometheus/vmui") {
+	if strings.HasPrefix(p.Suffix, "vmui") {
 		// vmui access.
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
-		if strings.HasPrefix(p.Suffix, "prometheus/") {
-			prefix += "/prometheus"
-		}
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
