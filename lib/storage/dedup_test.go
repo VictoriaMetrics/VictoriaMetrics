@@ -6,6 +6,28 @@ import (
 	"time"
 )
 
+func TestNeedsDedup(t *testing.T) {
+	f := func(interval int64, timestamps []int64, expectedResult bool) {
+		t.Helper()
+		result := needsDedup(timestamps, interval)
+		if result != expectedResult {
+			t.Fatalf("unexpected result for needsDedup(%d, %d); got %v; want %v", timestamps, interval, result, expectedResult)
+		}
+	}
+	f(-1, nil, false)
+	f(-1, []int64{1}, false)
+	f(0, []int64{1, 2}, false)
+	f(10, []int64{1}, false)
+	f(10, []int64{1, 2}, true)
+	f(10, []int64{9, 10}, false)
+	f(10, []int64{9, 10, 19}, true)
+	f(10, []int64{9, 19}, false)
+	f(10, []int64{0, 9, 19}, true)
+	f(10, []int64{0, 19}, false)
+	f(10, []int64{0, 35, 40}, false)
+	f(10, []int64{0, 35, 40, 41}, true)
+}
+
 func TestDeduplicateSamples(t *testing.T) {
 	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
 	defer SetMinScrapeIntervalForDeduplication(0)
