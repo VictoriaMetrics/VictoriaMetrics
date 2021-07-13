@@ -1106,10 +1106,10 @@ VictoriaMetrics capacity scales linearly with the available resources. The neede
 
 The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag) can be extrapolated from disk space usage in a test run. For example, if `-storageDataPath` directory size becomes 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period).
 
-It is recommended leaving the following amounts of spare resources for reducing the probability of issues related to temporary spikes in the workload:
+It is recommended leaving the following amounts of spare resources:
 
-* 50% of free RAM
-* 50% of spare CPU
+* 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
+* 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
 * At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag.
 
 
