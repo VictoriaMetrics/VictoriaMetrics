@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/aws"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -45,6 +46,16 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	bearerToken = flagutil.NewArray("remoteWrite.bearerToken", "Optional bearer auth token to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	useSigV4 = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional aws region to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional roleARN to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AccessKey  to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	bearerTokenFile = flagutil.NewArray("remoteWrite.bearerTokenFile", "Optional path to bearer token file to use for -remoteWrite.url. "+
 		"The token is re-read from the file every second. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
@@ -78,6 +89,7 @@ type client struct {
 	errorsCount     *metrics.Counter
 	packetsDropped  *metrics.Counter
 	retriesCount    *metrics.Counter
+	awsConfig       *aws.Config
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -88,6 +100,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize auth config: %s", err)
 	}
+
 	tlsCfg := authCfg.NewTLSConfig()
 	tr := &http.Transport{
 		Dial:                statDial,
@@ -109,7 +122,13 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		}
 		tr.Proxy = http.ProxyURL(urlProxy)
 	}
+
+	awsCfg, err := getAwsConfig(argIdx)
+	if err != nil {
+		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite idx: %d, err: %s", argIdx, err)
+	}
 	c := &client{
+		awsConfig:      awsCfg,
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authCfg:        authCfg,
@@ -148,6 +167,19 @@ func (c *client) MustStop() {
 	close(c.stopCh)
 	c.wg.Wait()
 	logger.Infof("stopped client for -remoteWrite.url=%q", c.sanitizedURL)
+}
+
+func getAwsConfig(argIdx int) (*aws.Config, error) {
+
+	if !useSigV4.GetOptionalArg(argIdx) {
+		return nil, nil
+	}
+
+	cfg, err := aws.NewConfig(awsRegion.GetOptionalArg(argIdx), awsRoleARN.GetOptionalArg(argIdx), awsAccessKey.GetOptionalArg(argIdx), awsSecretKey.GetOptionalArg(argIdx))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create aws Config for remoteWrite idx: %d, err: %w", argIdx, err)
+	}
+	return cfg, nil
 }
 
 func getAuthConfig(argIdx int) (*promauth.Config, error) {
@@ -233,6 +265,13 @@ func (c *client) runWorker() {
 	}
 }
 
+// sings request on best-effort.
+func mustSignHTTPRequest(req *http.Request, awsCfg *aws.Config, payloadHash string) {
+	if err := aws.SignRequestWithConfig(req, awsCfg, "aps", payloadHash); err != nil {
+		logger.Errorf("cannot sign remoteWrite request: %s", err)
+	}
+}
+
 // sendBlock returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlock(block []byte) bool {
@@ -242,6 +281,11 @@ func (c *client) sendBlock(block []byte) bool {
 	c.bytesSent.Add(len(block))
 	c.blocksSent.Inc()
 
+	var payloadHash string
+	// calculate payloadHash if needed.
+	if c.awsConfig != nil {
+		payloadHash = aws.HashHex(block)
+	}
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
@@ -254,6 +298,9 @@ again:
 	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 	if ah := c.authCfg.GetAuthHeader(); ah != "" {
 		req.Header.Set("Authorization", ah)
+	}
+	if c.awsConfig != nil {
+		mustSignHTTPRequest(req, c.awsConfig, payloadHash)
 	}
 
 	startTime := time.Now()

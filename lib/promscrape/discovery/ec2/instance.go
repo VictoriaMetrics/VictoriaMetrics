@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/aws"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -29,7 +30,7 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	var rs []Reservation
 	pageToken := ""
 	for {
-		data, err := getEC2APIResponse(cfg, action, pageToken)
+		data, err := aws.GetEC2APIResponse(cfg.awsConfig, action, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
