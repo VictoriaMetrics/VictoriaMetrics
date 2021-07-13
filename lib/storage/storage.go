@@ -169,6 +169,18 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
 	}
 
+	// Check whether the cache directory must be removed
+	// It is removed if it contains reset_cache_on_startup file.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
+	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
+		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		fs.MustRemoveAllWithDoneCallback(s.cachePath, wg.Done)
+		wg.Wait()
+		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
+	}
+
 	// Protect from concurrent opens.
 	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
