@@ -58,6 +58,10 @@ func writePrometheusMetrics(w io.Writer) {
 	fmt.Fprintf(w, "vm_app_uptime_seconds %d\n", int(time.Since(startTime).Seconds()))
 
 	// Export flags as metrics.
+	isSetMap := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		isSetMap[f.Name] = true
+	})
 	flag.VisitAll(func(f *flag.Flag) {
 		lname := strings.ToLower(f.Name)
 		value := f.Value.String()
@@ -65,7 +69,11 @@ func writePrometheusMetrics(w io.Writer) {
 			// Do not expose passwords and keys to prometheus.
 			value = "secret"
 		}
-		fmt.Fprintf(w, "flag{name=%q, value=%q} 1\n", f.Name, value)
+		isSet := "false"
+		if isSetMap[f.Name] {
+			isSet = "true"
+		}
+		fmt.Fprintf(w, "flag{name=%q, value=%q, is_set=%q} 1\n", f.Name, value, isSet)
 	})
 }
 
