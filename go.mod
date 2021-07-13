@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/metrics v1.17.3
 	github.com/VictoriaMetrics/metricsql v0.16.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/aws/aws-sdk-go v1.39.1
+	github.com/aws/aws-sdk-go v1.39.5
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
@@ -19,7 +19,7 @@ require (
 	github.com/go-kit/kit v0.11.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4
-	github.com/influxdata/influxdb v1.9.2
+	github.com/influxdata/influxdb v1.9.3
 	github.com/klauspost/compress v1.13.1
 	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
@@ -39,8 +39,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	google.golang.org/api v0.50.0
-	google.golang.org/genproto v0.0.0-20210701191553-46259e63a0a9 // indirect
-	google.golang.org/grpc v1.39.0 // indirect
+	google.golang.org/genproto v0.0.0-20210713002101-d411969a0d9a // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
 
