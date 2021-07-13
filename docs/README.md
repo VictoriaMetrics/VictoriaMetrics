@@ -1405,6 +1405,11 @@ These limits are approximate, so VictoriaMetrics can underflow/overflow the limi
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
 
+## Cache removal
+
+VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
+
+
 ## Data migration
 
 Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
