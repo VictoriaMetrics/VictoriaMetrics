@@ -29,7 +29,7 @@ Then run the built image with:
 docker run --rm --name vmui -p 8080:8080 victoriametrics/vmui
 ```
 
-Then naviate to `http://localhost:8080` in order to see the web UI.
+Then navigate to `http://localhost:8080` in order to see the web UI.
 
 
 ## Static build
