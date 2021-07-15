@@ -1,5 +1,27 @@
 # Changes
 
+## [0.87.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.86.0...v0.87.0) (2021-07-13)
+
+
+### Features
+
+* **container:** allow updating security group on existing clusters ([528ffc9](https://www.github.com/googleapis/google-cloud-go/commit/528ffc9bd63090129a8b1355cd31273f8c23e34c))
+* **monitoring/dashboard:** added validation only mode when writing dashboards feat: added alert chart widget ([652d7c2](https://www.github.com/googleapis/google-cloud-go/commit/652d7c277da2f6774729064ab65d557875c81567))
+* **networkmanagment:** start generating apiv1 ([907592c](https://www.github.com/googleapis/google-cloud-go/commit/907592c576abfc65c01bbcd30c1a6094916cdc06))
+* **secretmanager:** Tune Secret Manager auto retry parameters ([528ffc9](https://www.github.com/googleapis/google-cloud-go/commit/528ffc9bd63090129a8b1355cd31273f8c23e34c))
+* **video/transcoder:** start generating apiv1 ([907592c](https://www.github.com/googleapis/google-cloud-go/commit/907592c576abfc65c01bbcd30c1a6094916cdc06))
+
+
+### Bug Fixes
+
+* **compute:** properly generate PUT requests ([#4426](https://www.github.com/googleapis/google-cloud-go/issues/4426)) ([a7491a5](https://www.github.com/googleapis/google-cloud-go/commit/a7491a533e4ad75eb6d5f89718d4dafb0c5b4167))
+* **internal:** fix relative pathing for generator ([#4397](https://www.github.com/googleapis/google-cloud-go/issues/4397)) ([25e0eae](https://www.github.com/googleapis/google-cloud-go/commit/25e0eaecf9feb1caa97988c5398ac58f6ca17391))
+
+
+### Miscellaneous Chores
+
+* **all:** fix release version ([#4427](https://www.github.com/googleapis/google-cloud-go/issues/4427)) ([2c0d267](https://www.github.com/googleapis/google-cloud-go/commit/2c0d2673ccab7281b6432215ee8279f9efd04a15))
+
 ## [0.86.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.85.0...v0.86.0) (2021-07-01)
 
 

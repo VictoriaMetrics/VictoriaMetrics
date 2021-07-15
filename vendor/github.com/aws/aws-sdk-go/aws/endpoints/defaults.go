@@ -903,6 +903,7 @@ var awsPartition = partition{
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
+				"ap-northeast-3": endpoint{},
 				"ap-south-1":     endpoint{},
 				"ap-southeast-1": endpoint{},
 				"ap-southeast-2": endpoint{},
@@ -2393,17 +2394,6 @@ var awsPartition = partition{
 				"us-east-2":  endpoint{},
 				"us-west-1":  endpoint{},
 				"us-west-2":  endpoint{},
-			},
-		},
-		"ec2metadata": service{
-			PartitionEndpoint: "aws-global",
-			IsRegionalized:    boxedFalse,
-
-			Endpoints: endpoints{
-				"aws-global": endpoint{
-					Hostname:  "169.254.169.254/latest",
-					Protocols: []string{"http"},
-				},
 			},
 		},
 		"ecs": service{
@@ -7861,17 +7851,6 @@ var awscnPartition = partition{
 				"cn-northwest-1": endpoint{},
 			},
 		},
-		"ec2metadata": service{
-			PartitionEndpoint: "aws-global",
-			IsRegionalized:    boxedFalse,
-
-			Endpoints: endpoints{
-				"aws-global": endpoint{
-					Hostname:  "169.254.169.254/latest",
-					Protocols: []string{"http"},
-				},
-			},
-		},
 		"ecs": service{
 
 			Endpoints: endpoints{
@@ -9109,17 +9088,6 @@ var awsusgovPartition = partition{
 					CredentialScope: credentialScope{
 						Region: "us-gov-west-1",
 					},
-				},
-			},
-		},
-		"ec2metadata": service{
-			PartitionEndpoint: "aws-global",
-			IsRegionalized:    boxedFalse,
-
-			Endpoints: endpoints{
-				"aws-global": endpoint{
-					Hostname:  "169.254.169.254/latest",
-					Protocols: []string{"http"},
 				},
 			},
 		},
@@ -10595,17 +10563,6 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{},
 			},
 		},
-		"ec2metadata": service{
-			PartitionEndpoint: "aws-global",
-			IsRegionalized:    boxedFalse,
-
-			Endpoints: endpoints{
-				"aws-global": endpoint{
-					Hostname:  "169.254.169.254/latest",
-					Protocols: []string{"http"},
-				},
-			},
-		},
 		"ecs": service{
 
 			Endpoints: endpoints{
@@ -11010,17 +10967,6 @@ var awsisobPartition = partition{
 			},
 			Endpoints: endpoints{
 				"us-isob-east-1": endpoint{},
-			},
-		},
-		"ec2metadata": service{
-			PartitionEndpoint: "aws-global",
-			IsRegionalized:    boxedFalse,
-
-			Endpoints: endpoints{
-				"aws-global": endpoint{
-					Hostname:  "169.254.169.254/latest",
-					Protocols: []string{"http"},
-				},
 			},
 		},
 		"ecs": service{
