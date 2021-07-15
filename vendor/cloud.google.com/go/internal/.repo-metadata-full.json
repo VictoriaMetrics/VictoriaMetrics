@@ -14,7 +14,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/aiplatform/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/analytics/admin/apiv1alpha": {
@@ -50,7 +50,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/apigeeconnect/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/appengine/apiv1": {
@@ -568,7 +568,7 @@
   },
   "cloud.google.com/go/firestore/apiv1/admin": {
     "distribution_name": "cloud.google.com/go/firestore/apiv1/admin",
-    "description": "Google Cloud Firestore Admin API",
+    "description": "Cloud Firestore API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/firestore/apiv1/admin",
@@ -635,7 +635,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/gsuiteaddons/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/iam": {
@@ -818,6 +818,15 @@
     "release_level": "alpha",
     "library_type": ""
   },
+  "cloud.google.com/go/networkmanagement/apiv1": {
+    "distribution_name": "cloud.google.com/go/networkmanagement/apiv1",
+    "description": "Network Management API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/networkmanagement/apiv1",
+    "release_level": "beta",
+    "library_type": ""
+  },
   "cloud.google.com/go/notebooks/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/notebooks/apiv1beta1",
     "description": "Notebooks API",
@@ -968,7 +977,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/pubsublite/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/recaptchaenterprise/apiv1": {
@@ -1211,7 +1220,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/shell/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/spanner": {
@@ -1319,7 +1328,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/tpu/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/trace/apiv1": {
@@ -1347,6 +1356,15 @@
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/translate/apiv3",
     "release_level": "ga",
+    "library_type": ""
+  },
+  "cloud.google.com/go/video/transcoder/apiv1": {
+    "distribution_name": "cloud.google.com/go/video/transcoder/apiv1",
+    "description": "Transcoder API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/video/transcoder/apiv1",
+    "release_level": "beta",
     "library_type": ""
   },
   "cloud.google.com/go/video/transcoder/apiv1beta1": {
@@ -1400,7 +1418,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/vpcaccess/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": ""
   },
   "cloud.google.com/go/webrisk/apiv1": {
