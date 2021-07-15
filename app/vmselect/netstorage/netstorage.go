@@ -25,7 +25,8 @@ var (
 	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels")
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
+	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan. This option allows limiting memory usage")
+	maxSamplesPerSeries          = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 )
 
 // Result is a single timeseries result.
@@ -368,6 +369,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 	pts.brs = pts.brs[:0]
 
 	// Wait until work is complete
+	samples := 0
 	sbs := make([]*sortBlock, 0, brsLen)
 	var firstErr error
 	for _, upw := range upws {
@@ -376,8 +378,17 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 			firstErr = err
 		}
 		if firstErr == nil {
-			sbs = append(sbs, upw.sbs...)
-		} else {
+			for _, sb := range upw.sbs {
+				samples += len(sb.Timestamps)
+			}
+			if samples < *maxSamplesPerSeries {
+				sbs = append(sbs, upw.sbs...)
+			} else {
+				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+					"or reduce time range for the query", *maxSamplesPerSeries)
+			}
+		}
+		if firstErr != nil {
 			for _, sb := range upw.sbs {
 				putSortBlock(sb)
 			}
