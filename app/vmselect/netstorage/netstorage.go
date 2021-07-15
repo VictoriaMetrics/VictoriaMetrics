@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastrand"
 )
 
 var (
@@ -119,7 +120,6 @@ func putTimeseriesWork(tsw *timeseriesWork) {
 var tswPool sync.Pool
 
 var timeseriesWorkChs []chan *timeseriesWork
-var timeseriesWorkIdx uint32
 
 func init() {
 	timeseriesWorkChs = make([]chan *timeseriesWork, gomaxprocs)
@@ -130,9 +130,14 @@ func init() {
 }
 
 func scheduleTimeseriesWork(tsw *timeseriesWork) {
+	if len(timeseriesWorkChs) == 1 {
+		// Fast path for a single CPU core
+		timeseriesWorkChs[0] <- tsw
+		return
+	}
 	attempts := 0
 	for {
-		idx := atomic.AddUint32(&timeseriesWorkIdx, 1) % uint32(len(timeseriesWorkChs))
+		idx := fastrand.Uint32n(uint32(len(timeseriesWorkChs)))
 		select {
 		case timeseriesWorkChs[idx] <- tsw:
 			return
@@ -308,9 +313,14 @@ func init() {
 }
 
 func scheduleUnpackWork(uw *unpackWork) {
+	if len(unpackWorkChs) == 1 {
+		// Fast path for a single CPU core
+		unpackWorkChs[0] <- uw
+		return
+	}
 	attempts := 0
 	for {
-		idx := atomic.AddUint32(&unpackWorkIdx, 1) % uint32(len(unpackWorkChs))
+		idx := fastrand.Uint32n(uint32(len(unpackWorkChs)))
 		select {
 		case unpackWorkChs[idx] <- uw:
 			return
