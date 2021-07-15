@@ -8,6 +8,8 @@ sort: 15
 
 * FEATURE: add `-search.maxSamplesPerSeries` command-line flag for limiting the number of raw samples a single query could process per each time series. This option can prevent from out of memory errors when a query processes tens of millions of raw samples per series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1067).
 
+* BUGFIX: return series with `a op b` labels and `N` values for `(a op b) default N` if `(a op b)` returns series with all NaN values. Previously such series were removed.
+
 
 ## [v1.63.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.63.0)
 

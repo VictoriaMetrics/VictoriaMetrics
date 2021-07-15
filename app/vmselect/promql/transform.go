@@ -1823,8 +1823,15 @@ func newTransformFuncSort(isDesc bool) transformFunc {
 			b := rvs[j].Values
 			n := len(a) - 1
 			for n >= 0 {
-				if !math.IsNaN(a[n]) && !math.IsNaN(b[n]) && a[n] != b[n] {
-					break
+				if !math.IsNaN(a[n]) {
+					if math.IsNaN(b[n]) {
+						return false
+					}
+					if a[n] != b[n] {
+						break
+					}
+				} else if !math.IsNaN(b[n]) {
+					return true
 				}
 				n--
 			}
