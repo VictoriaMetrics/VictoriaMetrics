@@ -1785,6 +1785,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16384)
   -search.maxQueueDuration duration
     	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxSamplesPerSeries int
+    	The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage (default 30000000)
   -search.maxStalenessInterval duration
     	The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
@@ -1798,7 +1800,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxTagValues int
     	The maximum number of tag values returned from /api/v1/label/<label_name>/values (default 100000)
   -search.maxUniqueTimeseries int
-    	The maximum number of unique time series each search can scan (default 300000)
+    	The maximum number of unique time series each search can scan. This option allows limiting memory usage (default 300000)
   -search.minStalenessInterval duration
     	The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
   -search.queryStats.lastQueriesCount int

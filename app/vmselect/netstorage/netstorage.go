@@ -31,8 +31,11 @@ import (
 	xxhash "github.com/cespare/xxhash/v2"
 )
 
-var replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
-	"See -replicationFactor command-line flag for vminsert nodes")
+var (
+	replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
+		"See -replicationFactor command-line flag for vminsert nodes")
+	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
+)
 
 // Result is a single timeseries result.
 //
@@ -376,6 +379,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 	pts.addrs = pts.addrs[:0]
 
 	// Wait until work is complete
+	samples := 0
 	sbs := make([]*sortBlock, 0, addrsLen)
 	var firstErr error
 	for _, upw := range upws {
@@ -384,8 +388,17 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 			firstErr = err
 		}
 		if firstErr == nil {
-			sbs = append(sbs, upw.sbs...)
-		} else {
+			for _, sb := range upw.sbs {
+				samples += len(sb.Timestamps)
+			}
+			if samples < *maxSamplesPerSeries {
+				sbs = append(sbs, upw.sbs...)
+			} else {
+				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+					"or reduce time range for the query", *maxSamplesPerSeries)
+			}
+		}
+		if firstErr != nil {
 			for _, sb := range upw.sbs {
 				putSortBlock(sb)
 			}

@@ -650,6 +650,8 @@ Below is the output for `/path/to/vmselect -help`:
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16384)
   -search.maxQueueDuration duration
     	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxSamplesPerSeries int
+    	The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage (default 30000000)
   -search.maxStalenessInterval duration
     	The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
