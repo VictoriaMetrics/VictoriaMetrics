@@ -1,32 +1,32 @@
-# Kubernetes monitoring with VictoriaMetrics Single
+# Kubernetes monitoring via VictoriaMetrics Single
 
 
 **This guide covers:**
 
-* The setup of VictoriaMetrics single node in Kubernetes via helm charts
+* The setup of VictoriaMetrics single node in Kubernetes via Helm charts
 * How to store metrics 
 * How to scrape metrics from k8s components using service discovery 
-* How to Visualize stored data 
-
+* How to visualize stored data 
+* How to store metrics in [VictoriaMetrics](https://victoriametrics.com) tsdb
 
 **Precondition**
 
 
 We will use:
 * [Kubernetes cluster 1.19.9-gke.1900](https://cloud.google.com/kubernetes-engine)
-> We use GKE cluster from GCP but feel free to use any kubernetes setup eg [Amazon EKS](https://aws.amazon.com/ru/eks/)
-* [helm 3 ](https://helm.sh/docs/intro/install)
+> We use GKE cluster from GCP but this guide also applies on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
+* [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
 <p align="center">
-  <img src="guide-vmsingle-k8s-scheme.png">
+  <img src="guide-vmsingle-k8s-scheme.png" width="800" alt="VictoriaMetrics Single on Kubernetes cluster">
 </p>
 
-**1. VictoriaMetrics helm repository**
+### 1. VictoriaMetrics Helm repository
 
-> For this guide we will use helm 3 but if you already use helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
+> For this guide we will use Helm 3 but if you already use Helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
 
-You need to add the VictoriaMetrics helm repository to install VictoriaMetrics components. We’re going to use VictoriaMetrics single-node. You can do this by running the following command:
+You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use VictoriaMetrics single-node. You can do this by running the following command:
 
 <div class="with-copy" markdown="1">
 
@@ -36,7 +36,7 @@ helm repo add vm https://victoriametrics.github.io/helm-charts/
 
 </div>
 
-Update helm repositories:
+Update Helm repositories:
 
 <div class="with-copy" markdown="1">
 
@@ -70,7 +70,7 @@ vm/victoria-metrics-single   	0.7.5        	1.62.0     	Victoria Metrics Single 
 ```
 
 
-**2. Install VictoriaMetrics Single from helm Chart**
+### 2. Install VictoriaMetrics Single from Helm Chart
 
 Run this command in your terminal:
 
@@ -84,7 +84,7 @@ helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics
 
 * By running `helm install vmsingle vm/victoria-metrics-single` we will install `VictoriaMetrics Single` to default namespace inside your cluster
 * By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to `VictoriaMetrics Single`
-* On line 166 from guide-vmsingle-values.yaml we added `metric_ralabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
+* On line 166 from [https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml) we added `metric_ralabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
 
 
 As a result of the command you will see the following output:
@@ -147,9 +147,9 @@ vmsingle-victoria-metrics-single-server-0   1/1     Running   0          68s
 ```
 
 
-**3. Install and connect Grafana to VictoriaMetrics with helm**
+### 3. Install and connect Grafana to VictoriaMetrics with Helm
 
-Add the Grafana helm repository. 
+Add the Grafana Helm repository. 
 
 <div class="with-copy" markdown="1">
 
@@ -160,7 +160,6 @@ helm repo update
 
 </div>
 
-See more info on Grafana ArtifactHUB [https://artifacthub.io/packages/helm/grafana/grafana](https://artifacthub.io/packages/helm/grafana/grafana)
 By installing the Chart with the release name `my-grafana`, you add the VictoriaMetrics datasource with official dashboard and kubernetes dashboard:
 
 <div class="with-copy" markdown="1">
@@ -209,7 +208,7 @@ EOF
 </div>
 
 By running this command we:
-* Install Grafana from helm repository.
+* Install Grafana from Helm repository.
 * Provision VictoriaMetrics datasource with the url from the output above which we copied before.
 * Add this [https://grafana.com/grafana/dashboards/10229](https://grafana.com/grafana/dashboards/10229) dashboard for VictoriaMetrics.
 * Add this [https://grafana.com/grafana/dashboards/14205](https://grafana.com/grafana/dashboards/14205) dashboard to see Kubernetes cluster metrics.
@@ -241,7 +240,7 @@ kubectl --namespace default port-forward $POD_NAME 3000
 Now Grafana should be accessible on the [http://127.0.0.1:3000](http://127.0.0.1:3000) address.
 
 
-**4. Check the obtained result in your browser**
+### 4. Check the obtained result in your browser
 
 To check that VictoriaMetrics has collected metrics from the k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously obtained from kubectl. 
 
@@ -259,8 +258,8 @@ VictoriaMetrics dashboard also available to use:
   <img src="guide-vmsingle-grafana.png" width="800" alt="">
 </p>
 
-**5. Final thoughts**
+### 5. Final thoughts
 
 * We have set up TimeSeries Database for your k8s cluster.
-* We collected metrics from all running pods, nodes, … and stored them in VictoriaMetrics database.
-* We can visualize the resources used in your Kubernetes cluster by using Grafana dashboards.
+* Collected metrics from all running pods,nodes, … and store them in VictoriaMetrics database.
+* Visualize resources used in Kubernetes cluster by Grafana dashboards.
