@@ -153,7 +153,7 @@ func (c *Cache) cacheSizeWatcher() {
 		var cs fastcache.Stats
 		curr := c.curr.Load().(*fastcache.Cache)
 		curr.UpdateStats(&cs)
-		if cs.BytesSize >= uint64(c.maxBytes)/2 {
+		if cs.BytesSize >= uint64(0.95*float64(c.maxBytes)/2) {
 			break
 		}
 	}
