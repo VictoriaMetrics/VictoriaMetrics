@@ -6,7 +6,7 @@ sort: 1
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
-[![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](http://slack.victoriametrics.com/)
+[![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 [![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
@@ -350,6 +350,7 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
 * [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
 * [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config)
+* [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config)
 * [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)
 * [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)
 * [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
@@ -580,15 +581,9 @@ VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v
 
 By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
 
-VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
-
-* Any number [time series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) via `match[]` query arg.
-* Optional `start` and `end` query args for limiting the time range for the selected labels or label values.
-
-See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details.
-
 Additionally VictoriaMetrics provides the following handlers:
 
+* `/vmui` - Basic Web UI
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
   * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
@@ -667,7 +662,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -683,7 +678,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -697,7 +692,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
@@ -1098,46 +1093,28 @@ on the interval `[now - max_lookback ... now]` is scraped for each time series. 
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
 
+
 ## Capacity planning
 
-A rough estimation of the required resources for ingestion path:
+VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-* RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
-  Time series is considered active if new data points have been added to it recently or if it has been recently queried.
-  The number of active time series may be obtained from `vm_cache_entries{type="storage/hour_metric_ids"}` metric
-  exported on the `/metrics` page.
-  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with `-memory.allowedPercent` or `-memory.allowedBytes` flags.
+VictoriaMetrics capacity scales linearly with the available resources. The needed amounts of CPU and RAM highly depends on the workload - the number of active time series, series churn rate, query types, query qps, etc. It is recommended setting up a test VictoriaMetrics for your production workload and iteratively scaling CPU and RAM resources until it becomes stable according to [troubleshooting docs](#troubleshooting). A single-node VictoriaMetrics works perfectly with the following production workload according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html):
 
-* CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
-  the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data or for time series with high number of labels.
-  See [this article](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) for details.
-  If you see lower numbers per CPU core, then it is likely active time series info doesn't fit caches,
-  so you need more RAM for lowering CPU usage.
+* Ingestion rate: 1.5+ million samples per second
+* Active time series: 50+ million
+* Total time series: 5+ billion
+* Time series churn rate: 150+ million of new series per day
+* Total number of samples: 10+ trillion
+* Queries: 200+ qps
+* Query latency (99th percentile): 1 second
 
-* Storage space: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
-  of 100K data points per second.
-  The actual storage size heavily depends on data randomness (entropy) and the average number of samples per time series.
-  Higher randomness means higher storage size requirements. Lower average number of samples per time series means higher storage requirement.
-  Read [this article](https://medium.com/faun/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
-  for details.
+The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag) can be extrapolated from disk space usage in a test run. For example, if `-storageDataPath` directory size becomes 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period).
 
-* Network usage: outbound traffic is negligible. Ingress traffic is ~100 bytes per ingested data point via
-  [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
-  The actual ingress bandwidth usage depends on the average number of labels per ingested metric and the average size
-  of label values. The higher number of per-metric labels and longer label values mean the higher ingress bandwidth.
+It is recommended leaving the following amounts of spare resources:
 
-The required resources for query path:
-
-* RAM size: depends on the number of time series to scan in each query and the `step`
-  argument passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
-  The higher number of scanned time series and lower `step` argument results in the higher RAM usage.
-
-* CPU cores: a CPU core per 30 millions of scanned data points per second.
-  This means that heavy queries that touch big number of time series (over 10K) and/or big number data points (over 100M)
-  usually require more CPU resources than tiny queries that touch a few time series with small number of data points.
-
-* Network usage: depends on the frequency and the type of incoming requests. Typical Grafana dashboards usually
-  require negligible network bandwidth.
+* 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
+* 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
+* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag.
 
 
 ## High availability
@@ -1432,6 +1409,11 @@ These limits are approximate, so VictoriaMetrics can underflow/overflow the limi
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
 
+## Cache removal
+
+VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
+
+
 ## Data migration
 
 Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
@@ -1537,7 +1519,7 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 
 Feel free asking any questions regarding VictoriaMetrics:
 
-* [slack](http://slack.victoriametrics.com/)
+* [slack](https://slack.victoriametrics.com/)
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
@@ -1605,7 +1587,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -csvTrimTimestamp duration
     	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -dedup.minScrapeInterval duration
-    	Remove superflouos samples from time series if they are located closer to each other than this duration. This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. Deduplication is disabled if the -dedup.minScrapeInterval is 0
+    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -deleteAuthKey string
     	authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
@@ -1733,7 +1715,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.consulSDCheckInterval duration
     	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
   -promscrape.digitaloceanSDCheckInterval duration
-        Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config for details (default 1m0s)    	
+    	Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config for details (default 1m0s)
   -promscrape.disableCompression
     	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.disableKeepAlive
@@ -1744,6 +1726,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
     	Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+  -promscrape.dockerSDCheckInterval duration
+    	Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config for details (default 30s)
   -promscrape.dockerswarmSDCheckInterval duration
     	Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details (default 30s)
   -promscrape.dropOriginalLabels
@@ -1757,7 +1741,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.gceSDCheckInterval duration
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
   -promscrape.httpSDCheckInterval duration
-        Interval for checking for changes in http service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details (default 1m0s)    	
+    	Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
     	How frequently to reload the full state from Kuberntes API server (default 30m0s)
   -promscrape.kubernetesSDCheckInterval duration

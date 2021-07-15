@@ -99,15 +99,15 @@ func (w *Writer) open() error {
 	if attrs.KMSKeyName != "" && w.o.encryptionKey != nil {
 		return errors.New("storage: cannot use KMSKeyName with a customer-supplied encryption key")
 	}
+	if w.ChunkSize < 0 {
+		return errors.New("storage: Writer.ChunkSize must be non-negative")
+	}
 	pr, pw := io.Pipe()
 	w.pw = pw
 	w.opened = true
 
 	go w.monitorCancel()
 
-	if w.ChunkSize < 0 {
-		return errors.New("storage: Writer.ChunkSize must be non-negative")
-	}
 	mediaOpts := []googleapi.MediaOption{
 		googleapi.ChunkSize(w.ChunkSize),
 	}

@@ -6,6 +6,28 @@ import (
 	"time"
 )
 
+func TestNeedsDedup(t *testing.T) {
+	f := func(interval int64, timestamps []int64, expectedResult bool) {
+		t.Helper()
+		result := needsDedup(timestamps, interval)
+		if result != expectedResult {
+			t.Fatalf("unexpected result for needsDedup(%d, %d); got %v; want %v", timestamps, interval, result, expectedResult)
+		}
+	}
+	f(-1, nil, false)
+	f(-1, []int64{1}, false)
+	f(0, []int64{1, 2}, false)
+	f(10, []int64{1}, false)
+	f(10, []int64{1, 2}, true)
+	f(10, []int64{9, 10}, false)
+	f(10, []int64{9, 10, 19}, true)
+	f(10, []int64{9, 19}, false)
+	f(10, []int64{0, 9, 19}, true)
+	f(10, []int64{0, 19}, false)
+	f(10, []int64{0, 35, 40}, false)
+	f(10, []int64{0, 35, 40, 41}, true)
+}
+
 func TestDeduplicateSamples(t *testing.T) {
 	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
 	defer SetMinScrapeIntervalForDeduplication(0)
@@ -45,6 +67,16 @@ func TestDeduplicateSamples(t *testing.T) {
 		}
 		if j != len(timestampsCopy) {
 			t.Fatalf("superfluous timestamps found starting from index %d: %v", j, timestampsCopy[j:])
+		}
+
+		// Verify that the second call to DeduplicatSamples doesn't modify samples.
+		valuesCopy := append([]float64{}, values...)
+		timestampsCopy, valuesCopy = DeduplicateSamples(timestampsCopy, valuesCopy)
+		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
+			t.Fatalf("invalid DeduplicateSamples(%v) timestamps for the second call;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
+		}
+		if !reflect.DeepEqual(valuesCopy, values) {
+			t.Fatalf("invalid DeduplicateSamples(%v) values for the second call;\ngot\n%v\nwant\n%v", timestamps, values, valuesCopy)
 		}
 	}
 	f(time.Millisecond, nil, []int64{})
@@ -95,6 +127,16 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 		}
 		if j != len(timestampsCopy) {
 			t.Fatalf("superfluous timestamps found starting from index %d: %v", j, timestampsCopy[j:])
+		}
+
+		// Verify that the second call to DeduplicatSamples doesn't modify samples.
+		valuesCopy := append([]int64{}, values...)
+		timestampsCopy, valuesCopy = deduplicateSamplesDuringMerge(timestampsCopy, valuesCopy)
+		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
+			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) timestamps for the second call;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
+		}
+		if !reflect.DeepEqual(valuesCopy, values) {
+			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) values for the second call;\ngot\n%v\nwant\n%v", timestamps, values, valuesCopy)
 		}
 	}
 	f(time.Millisecond, nil, []int64{})

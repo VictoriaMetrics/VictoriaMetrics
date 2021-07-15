@@ -24,9 +24,8 @@ import (
 
 var (
 	httpListenAddr    = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections")
-	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
-		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
-		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
+	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
+		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
 		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
 )
@@ -97,6 +96,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/'>https://docs.victoriametrics.com/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
+			{"/vmui", "Web UI"},
 			{"/targets", "discovered targets list"},
 			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"/metrics", "available service metrics"},

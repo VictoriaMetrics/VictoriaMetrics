@@ -25,7 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 	"github.com/valyala/fastjson/fastfloat"
 	"github.com/valyala/quicktemplate"
 )
@@ -991,15 +990,9 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return err
 	}
-	if childQuery, windowStr, offsetStr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
-		window, err := parsePositiveDuration(windowStr, step)
-		if err != nil {
-			return fmt.Errorf("cannot parse window: %w", err)
-		}
-		offset, err := parseDuration(offsetStr, step)
-		if err != nil {
-			return fmt.Errorf("cannot parse offset: %w", err)
-		}
+	if childQuery, windowExpr, offsetExpr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
+		window := windowExpr.Duration(step)
+		offset := offsetExpr.Duration(step)
 		start -= offset
 		end := start
 		start = end - window
@@ -1014,22 +1007,13 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		queryDuration.UpdateDuration(startTime)
 		return nil
 	}
-	if childQuery, windowStr, stepStr, offsetStr := promql.IsRollup(query); childQuery != "" {
-		newStep, err := parsePositiveDuration(stepStr, step)
-		if err != nil {
-			return fmt.Errorf("cannot parse step: %w", err)
-		}
+	if childQuery, windowExpr, stepExpr, offsetExpr := promql.IsRollup(query); childQuery != "" {
+		newStep := stepExpr.Duration(step)
 		if newStep > 0 {
 			step = newStep
 		}
-		window, err := parsePositiveDuration(windowStr, step)
-		if err != nil {
-			return fmt.Errorf("cannot parse window: %w", err)
-		}
-		offset, err := parseDuration(offsetStr, step)
-		if err != nil {
-			return fmt.Errorf("cannot parse offset: %w", err)
-		}
+		window := windowExpr.Duration(step)
+		offset := offsetExpr.Duration(step)
 		start -= offset
 		end := start
 		start = end - window
@@ -1085,20 +1069,6 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 }
 
 var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/query"}`)
-
-func parseDuration(s string, step int64) (int64, error) {
-	if len(s) == 0 {
-		return 0, nil
-	}
-	return metricsql.DurationValue(s, step)
-}
-
-func parsePositiveDuration(s string, step int64) (int64, error) {
-	if len(s) == 0 {
-		return 0, nil
-	}
-	return metricsql.PositiveDurationValue(s, step)
-}
 
 // QueryRangeHandler processes /api/v1/query_range request.
 //

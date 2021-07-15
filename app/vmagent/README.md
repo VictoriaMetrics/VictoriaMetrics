@@ -173,6 +173,8 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `openstack_sd_configs` - is for scraping OpenStack targets.
   See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details.
   [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
+* `docker_sd_configs` - is for scraping Docker targets.
+  See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config) for details.
 * `dockerswarm_sd_configs` - is for scraping Docker Swarm targets.
   See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config) for details.
 * `eureka_sd_configs` - is for scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka).
@@ -447,7 +449,7 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -476,7 +478,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 

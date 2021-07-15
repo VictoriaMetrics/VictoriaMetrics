@@ -117,7 +117,7 @@ func Test_parseContainers(t *testing.T) {
 			},
 			want: []container{
 				{
-					Id:    "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
+					ID:    "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 					Names: []string{"/crow-server"},
 					Labels: map[string]string{
 						"com.docker.compose.config-hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -161,7 +161,7 @@ func Test_parseContainers(t *testing.T) {
 					},
 				},
 				{
-					Id:    "0e0f72a6eb7d9fb443f0426a66f7b8dd7d3283ab7e3a308b2bed584ac03a33dc",
+					ID:    "0e0f72a6eb7d9fb443f0426a66f7b8dd7d3283ab7e3a308b2bed584ac03a33dc",
 					Names: []string{"/crow-web"},
 					Labels: map[string]string{
 						"com.docker.compose.config-hash":      "d99ebd0fde8512366c2d78c367e95ddc74528bb60b7cf0c991c9f4835981e00e",
@@ -320,7 +320,7 @@ func Test_addContainerLabels(t *testing.T) {
 		{
 			name: "get labels from a container",
 			c: container{
-				Id:    "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
+				ID:    "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 				Names: []string{"/crow-server"},
 				Labels: map[string]string{
 					"com.docker.compose.config-hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",

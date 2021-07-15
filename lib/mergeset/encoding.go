@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -541,16 +542,24 @@ func putLensBuffer(lb *lensBuffer) {
 }
 
 func getInmemoryBlock() *inmemoryBlock {
-	v := ibPool.Get()
-	if v == nil {
+	select {
+	case ib := <-ibPoolCh:
+		return ib
+	default:
 		return &inmemoryBlock{}
 	}
-	return v.(*inmemoryBlock)
 }
 
 func putInmemoryBlock(ib *inmemoryBlock) {
 	ib.Reset()
-	ibPool.Put(ib)
+	select {
+	case ibPoolCh <- ib:
+	default:
+		// drop ib in order to reduce memory usage on systems with big number of CPU cores
+	}
 }
 
-var ibPool sync.Pool
+// Every inmemoryBlock struct occupies at least 64KB of memory, e.g. quite big amounts of memory.
+// Use a chan instead of sync.Pool in order to reduce memory usage on systems
+// with big number of CPU cores.
+var ibPoolCh = make(chan *inmemoryBlock, 100*cgroup.AvailableCPUs())

@@ -81,4 +81,4 @@ func validateIdent(s string) error {
 	return nil
 }
 
-var identRegexp = regexp.MustCompile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+var identRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")

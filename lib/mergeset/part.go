@@ -156,6 +156,9 @@ type indexBlockCache struct {
 	m  map[uint64]*indexBlockCacheEntry
 	mu sync.RWMutex
 
+	perKeyMisses     map[uint64]int
+	perKeyMissesLock sync.Mutex
+
 	cleanerStopCh chan struct{}
 	cleanerWG     sync.WaitGroup
 }
@@ -172,6 +175,7 @@ type indexBlockCacheEntry struct {
 func newIndexBlockCache() *indexBlockCache {
 	var idxbc indexBlockCache
 	idxbc.m = make(map[uint64]*indexBlockCacheEntry)
+	idxbc.perKeyMisses = make(map[uint64]int)
 	idxbc.cleanerStopCh = make(chan struct{})
 	idxbc.cleanerWG.Add(1)
 	go func() {
@@ -185,16 +189,23 @@ func (idxbc *indexBlockCache) MustClose() {
 	close(idxbc.cleanerStopCh)
 	idxbc.cleanerWG.Wait()
 	idxbc.m = nil
+	idxbc.perKeyMisses = nil
 }
 
 // cleaner periodically cleans least recently used items.
 func (idxbc *indexBlockCache) cleaner() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+	perKeyMissesTicker := time.NewTicker(2 * time.Minute)
+	defer perKeyMissesTicker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			idxbc.cleanByTimeout()
+		case <-perKeyMissesTicker.C:
+			idxbc.perKeyMissesLock.Lock()
+			idxbc.perKeyMisses = make(map[uint64]int, len(idxbc.perKeyMisses))
+			idxbc.perKeyMissesLock.Unlock()
 		case <-idxbc.cleanerStopCh:
 			return
 		}
@@ -206,6 +217,7 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	idxbc.mu.Lock()
 	for k, idxbe := range idxbc.m {
 		// Delete items accessed more than two minutes ago.
+		// This time should be enough for repeated queries.
 		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 2*60 {
 			delete(idxbc.m, k)
 		}
@@ -226,14 +238,25 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 		}
 		return idxbe.idxb
 	}
+	idxbc.perKeyMissesLock.Lock()
+	idxbc.perKeyMisses[k]++
+	idxbc.perKeyMissesLock.Unlock()
 	atomic.AddUint64(&idxbc.misses, 1)
 	return nil
 }
 
 // Put puts idxb under the key k into idxbc.
 func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
-	idxbc.mu.Lock()
+	idxbc.perKeyMissesLock.Lock()
+	doNotCache := idxbc.perKeyMisses[k] == 1
+	idxbc.perKeyMissesLock.Unlock()
+	if doNotCache {
+		// Do not cache ib if it has been requested only once (aka one-time-wonders items).
+		// This should reduce memory usage for the ibc cache.
+		return
+	}
 
+	idxbc.mu.Lock()
 	// Remove superfluous entries.
 	if overflow := len(idxbc.m) - getMaxCachedIndexBlocksPerPart(); overflow > 0 {
 		// Remove 10% of items from the cache.
@@ -291,6 +314,9 @@ type inmemoryBlockCache struct {
 	m  map[inmemoryBlockCacheKey]*inmemoryBlockCacheEntry
 	mu sync.RWMutex
 
+	perKeyMisses     map[inmemoryBlockCacheKey]int
+	perKeyMissesLock sync.Mutex
+
 	cleanerStopCh chan struct{}
 	cleanerWG     sync.WaitGroup
 }
@@ -315,7 +341,7 @@ type inmemoryBlockCacheEntry struct {
 func newInmemoryBlockCache() *inmemoryBlockCache {
 	var ibc inmemoryBlockCache
 	ibc.m = make(map[inmemoryBlockCacheKey]*inmemoryBlockCacheEntry)
-
+	ibc.perKeyMisses = make(map[inmemoryBlockCacheKey]int)
 	ibc.cleanerStopCh = make(chan struct{})
 	ibc.cleanerWG.Add(1)
 	go func() {
@@ -329,16 +355,23 @@ func (ibc *inmemoryBlockCache) MustClose() {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
 	ibc.m = nil
+	ibc.perKeyMisses = nil
 }
 
 // cleaner periodically cleans least recently used items.
 func (ibc *inmemoryBlockCache) cleaner() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+	perKeyMissesTicker := time.NewTicker(2 * time.Minute)
+	defer perKeyMissesTicker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			ibc.cleanByTimeout()
+		case <-perKeyMissesTicker.C:
+			ibc.perKeyMissesLock.Lock()
+			ibc.perKeyMisses = make(map[inmemoryBlockCacheKey]int, len(ibc.perKeyMisses))
+			ibc.perKeyMissesLock.Unlock()
 		case <-ibc.cleanerStopCh:
 			return
 		}
@@ -349,7 +382,8 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
-		// Delete items accessed more than a two minutes ago.
+		// Delete items accessed more than two minutes ago.
+		// This time should be enough for repeated queries.
 		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 2*60 {
 			delete(ibc.m, k)
 		}
@@ -371,14 +405,25 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 		}
 		return ibe.ib
 	}
+	ibc.perKeyMissesLock.Lock()
+	ibc.perKeyMisses[k]++
+	ibc.perKeyMissesLock.Unlock()
 	atomic.AddUint64(&ibc.misses, 1)
 	return nil
 }
 
 // Put puts ib under key k into ibc.
 func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
-	ibc.mu.Lock()
+	ibc.perKeyMissesLock.Lock()
+	doNotCache := ibc.perKeyMisses[k] == 1
+	ibc.perKeyMissesLock.Unlock()
+	if doNotCache {
+		// Do not cache ib if it has been requested only once (aka one-time-wonders items).
+		// This should reduce memory usage for the ibc cache.
+		return
+	}
 
+	ibc.mu.Lock()
 	// Clean superfluous entries in cache.
 	if overflow := len(ibc.m) - getMaxCachedInmemoryBlocksPerPart(); overflow > 0 {
 		// Remove 10% of items from the cache.

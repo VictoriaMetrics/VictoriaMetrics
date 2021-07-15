@@ -277,6 +277,7 @@ copy-docs:
 # Cluster docs are supposed to be ordered as 9th.
 # For The rest of docs is ordered manually.t
 docs-sync:
+	cp README.md docs/README.md
 	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md ORDER=1 $(MAKE) copy-docs
 	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=3 $(MAKE) copy-docs
 	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=4 $(MAKE) copy-docs
