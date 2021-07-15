@@ -663,7 +663,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.queryStats.lastQueriesCount int
     	Query stats for /api/v1/status/top_queries is tracked on this number of last queries. Zero value disables query stats tracking (default 20000)
   -search.queryStats.minQueryDuration duration
-    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats
+    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey string
     	Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
   -search.treatDotsAsIsInRegexps
