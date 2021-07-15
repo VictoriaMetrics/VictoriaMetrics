@@ -167,6 +167,23 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
 ```
 
+* Usage with official [docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml) with  `vmsingle` instance:
+```
+  vmbackup:
+    image: victoriametrics/vmbackup:latest
+    volumes:
+      - vmdata:/storage
+      - /data:/data
+    command:
+      - '--storageDataPath=/storage'
+      - '--snapshot.createURL=http://victoriametrics:8428/snapshot/create'
+      - '--snapshotName=your_snapshot_name_here'
+      - '--dst=fs:///data'
+    networks:
+      - vm_net
+```
+Note that you need to specify `--snapshot.createURL`  to make a snapshot.
+
 * Run `vmbackup -help` in order to see all the available options:
 
 ```
