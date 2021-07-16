@@ -75,6 +75,11 @@ func (fs *FS) Init() error {
 	if len(fs.CustomEndpoint) > 0 {
 		// Use provided custom endpoint for S3
 		logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
+		// hack for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1449
+		if sess.Config.Region == nil || *sess.Config.Region == "" {
+			logger.Infof("Region is not defined for custom S3 endpoint, using `us-east-1` as default")
+			sess.Config.WithRegion("us-east-1")
+		}
 		sess.Config.WithEndpoint(fs.CustomEndpoint)
 
 		// Disable prefixing endpoint with bucket name
