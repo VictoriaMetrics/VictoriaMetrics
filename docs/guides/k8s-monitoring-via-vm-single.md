@@ -3,7 +3,7 @@
 
 **This guide covers:**
 
-* The setup of VictoriaMetrics single node in Kubernetes via Helm charts
+* The setup of a [VictoriaMetrics Single server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) in [Kubernetes](https://kubernetes.io/) via Helm charts
 * How to store metrics 
 * How to scrape metrics from k8s components using service discovery 
 * How to visualize stored data 
@@ -11,10 +11,9 @@
 
 **Precondition**
 
-
 We will use:
 * [Kubernetes cluster 1.19.9-gke.1900](https://cloud.google.com/kubernetes-engine)
-> We use GKE cluster from GCP but this guide is also applied on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
+> We use GKE cluster from [GCP](https://cloud.google.com/) but this guide is also applied on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
 * [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
