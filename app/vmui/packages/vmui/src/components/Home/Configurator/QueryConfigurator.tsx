@@ -37,7 +37,7 @@ const QueryConfigurator: FC = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
-  const [popoverSettings, setPopoverSettings] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const refSettings = useRef<SVGGElement | any>(null);
 
   const queryContainer = useRef<HTMLDivElement>(null);
@@ -97,16 +97,15 @@ const QueryConfigurator: FC = () => {
                   <Box flexGrow={1} mr={2}>
                     {/* for portal QueryEditor */}
                     <div ref={queryContainer} />
-                    {popoverSettings}
                   </Box>
                   <div>
                     <Tooltip title="Query Editor Settings">
-                      <IconButton onClick={() => setPopoverSettings(!popoverSettings)}>
+                      <IconButton onClick={() => setPopoverOpen(!popoverOpen)}>
                         <SettingsIcon ref={refSettings}/>
                       </IconButton>
                     </Tooltip>
-                    <Popover open={popoverSettings} transformOrigin={{vertical: -20, horizontal: "left"}}
-                      onClose={() => setPopoverSettings(false)}
+                    <Popover open={popoverOpen} transformOrigin={{vertical: -20, horizontal: "left"}}
+                      onClose={() => setPopoverOpen(false)}
                       anchorEl={refSettings.current}>
                       <Box p={2}>
                         {<FormControlLabel
