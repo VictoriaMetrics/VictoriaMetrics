@@ -21,7 +21,7 @@ const HomeLayout: FC = () => {
     <>
       <AppBar position="static">
         <Toolbar>
-          <Box mr={2} display="flex">
+          <Box display="flex">
             <Typography variant="h5">
               <span style={{fontWeight: "bolder"}}>VM</span>
               <span style={{fontWeight: "lighter"}}>UI</span>
@@ -43,7 +43,7 @@ const HomeLayout: FC = () => {
               Create an issue
             </Link>
           </div>
-          <Box flexGrow={1}>
+          <Box ml={4} flexGrow={1}>
             <ExecutionControls/>
           </Box>
           <DisplayTypeSwitch/>
