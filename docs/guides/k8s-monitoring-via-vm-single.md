@@ -3,8 +3,7 @@
 
 **This guide covers:**
 
-* The setup of a [VictoriaMetrics Single server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) in [Kubernetes](https://kubernetes.io/) via Helm charts
-* How to store metrics 
+* The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) in [Kubernetes](https://kubernetes.io/) via Helm charts
 * How to scrape metrics from k8s components using service discovery 
 * How to visualize stored data 
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com) tsdb
@@ -25,7 +24,7 @@ We will use:
 
 > For this guide we will use Helm 3 but if you already use Helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
 
-You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use VictoriaMetrics single-node. You can do this by running the following command:
+You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html). You can do this by running the following command:
 
 <div class="with-copy" markdown="1">
 
@@ -69,11 +68,11 @@ vm/victoria-metrics-single   	0.7.5        	1.62.0     	Victoria Metrics Single 
 ```
 
 
-### 2. Install VictoriaMetrics Single from Helm Chart
+### 2. Install [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) from Helm Chart
 
 Run this command in your terminal:
 
-<div class="with-copy" markdown="1">
+<div class="with-copy" markdown="1">.html
 
 ```yaml
 helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml
@@ -81,8 +80,8 @@ helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics
 
 </div>
 
-* By running `helm install vmsingle vm/victoria-metrics-single` we will install `VictoriaMetrics Single` to default namespace inside your cluster
-* By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to `VictoriaMetrics Single`
+* By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
+* By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 * On line 166 from [https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml) we added `metric_ralabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
 
 
@@ -241,7 +240,7 @@ Now Grafana should be accessible on the [http://127.0.0.1:3000](http://127.0.0.1
 
 ### 4. Check the obtained result in your browser
 
-To check that VictoriaMetrics has collected metrics from the k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously obtained from kubectl. 
+To check that VictoriaMetrics has collects metrics from the k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously obtained from kubectl. 
 
 <p align="center">
   <img src="guide-vmsingle-grafana-dashboards.png" width="800" alt="">
