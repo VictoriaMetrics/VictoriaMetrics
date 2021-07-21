@@ -4,6 +4,7 @@ import {defaultKeymap} from "@codemirror/next/commands";
 import React, {FC, useEffect, useRef, useState} from "react";
 import { PromQLExtension } from "codemirror-promql";
 import { basicSetup } from "@codemirror/next/basic-setup";
+import {isMacOs} from "../../../utils/detect-os";
 
 export interface QueryEditorProps {
   setQuery: (query: string) => void;
@@ -52,11 +53,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
       extensions: [
         basicSetup,
         keymap(defaultKeymap),
-        listenerExtension, 
+        listenerExtension,
         promQL.asExtension(),
         keymap([
           {
-            key: "Ctrl-Enter",
+            key: isMacOs() ? "Cmd-Enter" : "Ctrl-Enter",
             run: (): boolean => {
               runQuery();
               return true;
