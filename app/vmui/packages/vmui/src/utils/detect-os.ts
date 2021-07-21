@@ -1,9 +1,13 @@
-const desktopOs = ["Windows", "Mac", "Linux"];
+const desktopOs = {
+  windows: "Windows",
+  mac: "Mac OS",
+  linux: "Linux"
+};
 
 export const getOs = () : string => {
-  return desktopOs.find(os => navigator.userAgent.indexOf(os) >= 0) || "unknown";
+  return Object.values(desktopOs).find(os => navigator.userAgent.indexOf(os) >= 0) || "unknown";
 };
 
 export const isMacOs = (): boolean => {
-  return getOs() === "Mac";
+  return getOs() === desktopOs.mac;
 };
