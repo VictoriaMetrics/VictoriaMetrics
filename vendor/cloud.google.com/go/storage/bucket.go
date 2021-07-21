@@ -244,6 +244,13 @@ type BucketAttrs struct {
 	// for more information.
 	UniformBucketLevelAccess UniformBucketLevelAccess
 
+	// PublicAccessPrevention is the setting for the bucket's
+	// PublicAccessPrevention policy, which can be used to prevent public access
+	// of data in the bucket. See
+	// https://cloud.google.com/storage/docs/public-access-prevention for more
+	// information.
+	PublicAccessPrevention PublicAccessPrevention
+
 	// DefaultObjectACL is the list of access controls to
 	// apply to new objects when no object ACL is provided.
 	DefaultObjectACL []ACLRule
@@ -351,6 +358,41 @@ type UniformBucketLevelAccess struct {
 	// LockedTime specifies the deadline for changing Enabled from true to
 	// false.
 	LockedTime time.Time
+}
+
+// PublicAccessPrevention configures the Public Access Prevention feature, which
+// can be used to disallow public access to any data in a bucket. See
+// https://cloud.google.com/storage/docs/public-access-prevention for more
+// information.
+type PublicAccessPrevention int
+
+const (
+	// PublicAccessPreventionUnknown is a zero value, used only if this field is
+	// not set in a call to GCS.
+	PublicAccessPreventionUnknown PublicAccessPrevention = iota
+
+	// PublicAccessPreventionUnspecified corresponds to a value of "unspecified"
+	// and is the default for buckets.
+	PublicAccessPreventionUnspecified
+
+	// PublicAccessPreventionEnforced corresponds to a value of "enforced". This
+	// enforces Public Access Prevention on the bucket.
+	PublicAccessPreventionEnforced
+
+	publicAccessPreventionUnknown     string = ""
+	publicAccessPreventionUnspecified        = "unspecified"
+	publicAccessPreventionEnforced           = "enforced"
+)
+
+func (p PublicAccessPrevention) String() string {
+	switch p {
+	case PublicAccessPreventionUnspecified:
+		return publicAccessPreventionUnspecified
+	case PublicAccessPreventionEnforced:
+		return publicAccessPreventionEnforced
+	default:
+		return publicAccessPreventionUnknown
+	}
 }
 
 // Lifecycle is the lifecycle configuration for objects in the bucket.
@@ -551,6 +593,7 @@ func newBucket(b *raw.Bucket) (*BucketAttrs, error) {
 		Website:                  toBucketWebsite(b.Website),
 		BucketPolicyOnly:         toBucketPolicyOnly(b.IamConfiguration),
 		UniformBucketLevelAccess: toUniformBucketLevelAccess(b.IamConfiguration),
+		PublicAccessPrevention:   toPublicAccessPrevention(b.IamConfiguration),
 		Etag:                     b.Etag,
 		LocationType:             b.LocationType,
 	}, nil
@@ -578,11 +621,15 @@ func (b *BucketAttrs) toRawBucket() *raw.Bucket {
 		bb = &raw.BucketBilling{RequesterPays: true}
 	}
 	var bktIAM *raw.BucketIamConfiguration
-	if b.UniformBucketLevelAccess.Enabled || b.BucketPolicyOnly.Enabled {
-		bktIAM = &raw.BucketIamConfiguration{
-			UniformBucketLevelAccess: &raw.BucketIamConfigurationUniformBucketLevelAccess{
+	if b.UniformBucketLevelAccess.Enabled || b.BucketPolicyOnly.Enabled || b.PublicAccessPrevention != PublicAccessPreventionUnknown {
+		bktIAM = &raw.BucketIamConfiguration{}
+		if b.UniformBucketLevelAccess.Enabled || b.BucketPolicyOnly.Enabled {
+			bktIAM.UniformBucketLevelAccess = &raw.BucketIamConfigurationUniformBucketLevelAccess{
 				Enabled: true,
-			},
+			}
+		}
+		if b.PublicAccessPrevention != PublicAccessPreventionUnknown {
+			bktIAM.PublicAccessPrevention = b.PublicAccessPrevention.String()
 		}
 	}
 	return &raw.Bucket{
@@ -660,6 +707,13 @@ type BucketAttrsToUpdate struct {
 	// See https://cloud.google.com/storage/docs/uniform-bucket-level-access
 	// for more information.
 	UniformBucketLevelAccess *UniformBucketLevelAccess
+
+	// PublicAccessPrevention is the setting for the bucket's
+	// PublicAccessPrevention policy, which can be used to prevent public access
+	// of data in the bucket. See
+	// https://cloud.google.com/storage/docs/public-access-prevention for more
+	// information.
+	PublicAccessPrevention PublicAccessPrevention
 
 	// StorageClass is the default storage class of the bucket. This defines
 	// how objects in the bucket are stored and determines the SLA
@@ -770,6 +824,12 @@ func (ua *BucketAttrsToUpdate) toRawBucket() *raw.Bucket {
 				ForceSendFields: []string{"Enabled"},
 			},
 		}
+	}
+	if ua.PublicAccessPrevention != PublicAccessPreventionUnknown {
+		if rb.IamConfiguration == nil {
+			rb.IamConfiguration = &raw.BucketIamConfiguration{}
+		}
+		rb.IamConfiguration.PublicAccessPrevention = ua.PublicAccessPrevention.String()
 	}
 	if ua.Encryption != nil {
 		if ua.Encryption.DefaultKMSKeyName == "" {
@@ -1136,6 +1196,20 @@ func toUniformBucketLevelAccess(b *raw.BucketIamConfiguration) UniformBucketLeve
 	return UniformBucketLevelAccess{
 		Enabled:    true,
 		LockedTime: lt,
+	}
+}
+
+func toPublicAccessPrevention(b *raw.BucketIamConfiguration) PublicAccessPrevention {
+	if b == nil {
+		return PublicAccessPreventionUnknown
+	}
+	switch b.PublicAccessPrevention {
+	case publicAccessPreventionUnspecified:
+		return PublicAccessPreventionUnspecified
+	case publicAccessPreventionEnforced:
+		return PublicAccessPreventionEnforced
+	default:
+		return PublicAccessPreventionUnknown
 	}
 }
 

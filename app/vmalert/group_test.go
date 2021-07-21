@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 )
 
 func init() {
@@ -34,7 +34,7 @@ func TestUpdateWith(t *testing.T) {
 			[]config.Rule{{
 				Alert: "foo",
 				Expr:  "up > 0",
-				For:   config.NewPromDuration(time.Second),
+				For:   utils.NewPromDuration(time.Second),
 				Labels: map[string]string{
 					"bar": "baz",
 				},
@@ -46,7 +46,7 @@ func TestUpdateWith(t *testing.T) {
 			[]config.Rule{{
 				Alert: "foo",
 				Expr:  "up > 10",
-				For:   config.NewPromDuration(time.Second),
+				For:   utils.NewPromDuration(time.Second),
 				Labels: map[string]string{
 					"baz": "bar",
 				},

@@ -14,7 +14,7 @@ Single-node version [scales perfectly](https://medium.com/@valyala/measuring-ver
 with the number of CPU cores, RAM and available storage space.
 Single-node version is easier to configure and operate comparing to cluster version, so think twice before sticking to cluster version.
 
-Join [our Slack](http://slack.victoriametrics.com/) or [contact us](mailto:info@victoriametrics.com) with consulting and support questions.
+Join [our Slack](https://slack.victoriametrics.com/) or [contact us](mailto:info@victoriametrics.com) with consulting and support questions.
 
 
 ## Prominent features
@@ -101,7 +101,7 @@ vmstorage-prod
 
 ### Development Builds
 
-1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
+1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
 2. Run `make` from [the repository root](https://github.com/VictoriaMetrics/VictoriaMetrics). It should build `vmstorage`, `vmselect`
    and `vminsert` binaries and put them into the `bin` folder.
 
@@ -235,6 +235,8 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
       - `tags/autoComplete/values` - returns tag values matching the given `valuePrefix` and/or `expr`. See [these docs](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support).
       - `tags/delSeries` - deletes series matching the given `path`. See [these docs](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb).
 
+* URL with basic Web UI: `http://<vmselect>:8481/select/<accountID>/vmui/`.
+
 * URL for query stats across all tenants: `http://<vmselect>:8481/api/v1/status/top_queries`. It lists with the most frequently executed queries and queries taking the most duration.
 
 * URL for time series deletion: `http://<vmselect>:8481/delete/<accountID>/prometheus/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`.
@@ -298,40 +300,25 @@ Data replication can be used for increasing storage durability. See [these docs]
 
 ## Capacity planning
 
-Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware.
+VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-### vminsert
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of active time series, series churn rate, query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps determining bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
 
-* The recommended total number of vCPU cores for all the `vminsert` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
-* The recommended number of vCPU cores per each `vminsert` instance should equal to the number of `vmstorage` instances in the cluster.
-* The amount of RAM per each `vminsert` instance should be 1GB or more. RAM is used as a buffer for spikes in ingestion rate.
-  The maximum amount of used RAM per `vminsert` node can be tuned with `-memory.allowedPercent` or `-memory.allowedBytes` command-line flags.
-  For instance, `-memory.allowedPercent=20` limits the maximum amount of used RAM to 20% of the available RAM on the host system.
-* Sometimes `-rpc.disableCompression` command-line flag on `vminsert` instances could increase ingestion capacity at the cost
-  of higher network bandwidth usage between `vminsert` and `vmstorage`.
+The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
-### vmstorage
+It is recommended leaving the following amounts of spare resources:
 
-* The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
-* The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = 2 * active_time_series * 1KB`.
-  Time series is active if it received at least a single data point during the last hour or if it has been queried during the last hour.
-  The required RAM per each `vmstorage` should be multiplied by `-replicationFactor` if [replication](#replication-and-data-safety) is enabled.
-  Additional RAM can be required for query processing.
-  Calculated RAM requrements may differ from actual RAM requirements due to various factors:
-  * The average number of labels per time series. More labels require more RAM.
-  * The average length of label names and label values. Longer labels require more RAM.
-  * The type of queries. Heavy queries that scan big number of time series over long time ranges require more RAM.
-* The recommended total amount of storage space for all the `vmstorage` instances can be calculated
-  from the ingestion rate and retention: `storage_space = ingestion_rate * retention_seconds`.
+* 50% of free RAM across all the node types for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
+* 50% of spare CPU across all the node types for reducing the probability of slowdowns during temporary spikes in workload.
+* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes.
 
-### vmselect
+Some capacity planning tips for VictoriaMetrics cluster:
 
-The recommended hardware for `vmselect` instances highly depends on the type of queries. Lightweight queries over small number of time series usually require
-small number of vCPU cores and small amount of RAM on `vmselect`, while heavy queries over big number of time series (>10K) usually require
-bigger number of vCPU cores and bigger amounts of RAM.
-
-In general it is recommended increasing the number of vCPU cores and RAM per `vmselect` node for higher query performance,
-while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
+* The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor.
+* Cluster capacity for active time series (e.g. time series with recently ingested samples) can be increased by adding more `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmstorage` node.
+* Query latency can be reduced by increasing the number of `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmselect` node.
+* The total number of CPU cores needed for all the `vminsert` nodes can be calculated from the ingestion rate: `CPUs = ingestion_rate / 100K`.
+* The `-rpc.disableCompression` command-line flag at `vminsert` nodes can increase ingestion capacity at the cost of higher network bandwidth usage between `vminsert` and `vmstorage`.
 
 
 ## High availability
@@ -377,9 +364,8 @@ so up to 2 `vmstorage` nodes can be lost without data loss. The minimum number o
 the remaining 3 `vmstorage` nodes could provide the `-replicationFactor=3` for newly ingested data.
 
 When the replication is enabled, `-replicationFactor=N` and `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
-The `-replicationFactor=N` improves query performance when up to `N-1` vmstorage nodes respond slowly and/or temporarily unavailable. Sometimes `-replicationFactor` at `vmselect` nodes can result in partial responses. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
-The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms
-when [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication) is used additionally to replication.
+The `-replicationFactor=N` improves query performance when up to `N-1` vmstorage nodes respond slowly and/or temporarily unavailable, since `vmselect` doesn't wait for responses from up to `N-1` `vmstorage` nodes. Sometimes `-replicationFactor` at `vmselect` nodes can result in partial responses. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
+The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to bigger values according to [deduplication docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
 so it is recommended performing regular backups. See [these docs](#backups) for details.

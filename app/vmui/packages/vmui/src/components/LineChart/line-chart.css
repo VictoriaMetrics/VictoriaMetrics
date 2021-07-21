@@ -1,0 +1,15 @@
+.line {
+  fill: none;
+  stroke-width: 2;
+}
+
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+
+/* Style the dots by assigning a fill and stroke */
+.dot {
+  fill: #621773;
+  stroke: #fff;
+}

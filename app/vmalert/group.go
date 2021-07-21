@@ -55,7 +55,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Type:              cfg.Type,
 		Name:              cfg.Name,
 		File:              cfg.File,
-		Interval:          cfg.Interval,
+		Interval:          cfg.Interval.Duration(),
 		Concurrency:       cfg.Concurrency,
 		Checksum:          cfg.Checksum,
 		ExtraFilterLabels: cfg.ExtraFilterLabels,

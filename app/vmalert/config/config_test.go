@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
@@ -264,7 +263,7 @@ func TestGroup_Validate(t *testing.T) {
 				Rules: []Rule{
 					{
 						Expr: "sumSeries(time('foo.bar',10))",
-						For:  PromDuration{milliseconds: 10},
+						For:  utils.NewPromDuration(10 * time.Millisecond),
 					},
 					{
 						Expr: "sum(up == 0 ) by (host)",
@@ -280,7 +279,7 @@ func TestGroup_Validate(t *testing.T) {
 				Rules: []Rule{
 					{
 						Expr: "sum(up == 0 ) by (host)",
-						For:  PromDuration{milliseconds: 10},
+						For:  utils.NewPromDuration(10 * time.Millisecond),
 					},
 					{
 						Expr: "sumSeries(time('foo.bar',10))",
@@ -348,7 +347,7 @@ func TestHashRule(t *testing.T) {
 			true,
 		},
 		{
-			Rule{Alert: "alert", Expr: "up == 1", For: NewPromDuration(time.Minute)},
+			Rule{Alert: "alert", Expr: "up == 1", For: utils.NewPromDuration(time.Minute)},
 			Rule{Alert: "alert", Expr: "up == 1"},
 			true,
 		},

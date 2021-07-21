@@ -19,13 +19,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastrand"
 )
 
 var (
 	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels")
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
+	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan. This option allows limiting memory usage")
+	maxSamplesPerSeries          = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 )
 
 // Result is a single timeseries result.
@@ -79,8 +81,6 @@ func (rss *Results) mustClose() {
 	rss.tbf = nil
 }
 
-var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs*16)
-
 type timeseriesWork struct {
 	mustStop *uint32
 	rss      *Results
@@ -119,16 +119,42 @@ func putTimeseriesWork(tsw *timeseriesWork) {
 
 var tswPool sync.Pool
 
+var timeseriesWorkChs []chan *timeseriesWork
+
 func init() {
-	for i := 0; i < gomaxprocs; i++ {
-		go timeseriesWorker(uint(i))
+	timeseriesWorkChs = make([]chan *timeseriesWork, gomaxprocs)
+	for i := range timeseriesWorkChs {
+		timeseriesWorkChs[i] = make(chan *timeseriesWork, 16)
+		go timeseriesWorker(timeseriesWorkChs[i], uint(i))
 	}
 }
 
-func timeseriesWorker(workerID uint) {
+func scheduleTimeseriesWork(tsw *timeseriesWork) {
+	if len(timeseriesWorkChs) == 1 {
+		// Fast path for a single CPU core
+		timeseriesWorkChs[0] <- tsw
+		return
+	}
+	attempts := 0
+	for {
+		idx := fastrand.Uint32n(uint32(len(timeseriesWorkChs)))
+		select {
+		case timeseriesWorkChs[idx] <- tsw:
+			return
+		default:
+			attempts++
+			if attempts >= len(timeseriesWorkChs) {
+				timeseriesWorkChs[idx] <- tsw
+				return
+			}
+		}
+	}
+}
+
+func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
 	var rs Result
 	var rsLastResetTime uint64
-	for tsw := range timeseriesWorkCh {
+	for tsw := range ch {
 		if atomic.LoadUint32(tsw.mustStop) != 0 {
 			tsw.doneCh <- nil
 			continue
@@ -181,7 +207,7 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 		tsw.pts = &rss.packedTimeseries[i]
 		tsw.f = f
 		tsw.mustStop = &mustStop
-		timeseriesWorkCh <- tsw
+		scheduleTimeseriesWork(tsw)
 		tsws[i] = tsw
 	}
 	seriesProcessedTotal := len(rss.packedTimeseries)
@@ -213,8 +239,6 @@ type packedTimeseries struct {
 	metricName string
 	brs        []blockRef
 }
-
-var unpackWorkCh = make(chan *unpackWork, gomaxprocs*128)
 
 type unpackWorkItem struct {
 	br blockRef
@@ -277,15 +301,42 @@ func putUnpackWork(upw *unpackWork) {
 
 var unpackWorkPool sync.Pool
 
+var unpackWorkChs []chan *unpackWork
+var unpackWorkIdx uint32
+
 func init() {
-	for i := 0; i < gomaxprocs; i++ {
-		go unpackWorker()
+	unpackWorkChs = make([]chan *unpackWork, gomaxprocs)
+	for i := range unpackWorkChs {
+		unpackWorkChs[i] = make(chan *unpackWork, 128)
+		go unpackWorker(unpackWorkChs[i])
 	}
 }
 
-func unpackWorker() {
+func scheduleUnpackWork(uw *unpackWork) {
+	if len(unpackWorkChs) == 1 {
+		// Fast path for a single CPU core
+		unpackWorkChs[0] <- uw
+		return
+	}
+	attempts := 0
+	for {
+		idx := fastrand.Uint32n(uint32(len(unpackWorkChs)))
+		select {
+		case unpackWorkChs[idx] <- uw:
+			return
+		default:
+			attempts++
+			if attempts >= len(unpackWorkChs) {
+				unpackWorkChs[idx] <- uw
+				return
+			}
+		}
+	}
+}
+
+func unpackWorker(ch <-chan *unpackWork) {
 	var tmpBlock storage.Block
-	for upw := range unpackWorkCh {
+	for upw := range ch {
 		upw.unpack(&tmpBlock)
 	}
 }
@@ -313,7 +364,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 	upw.tbf = tbf
 	for _, br := range pts.brs {
 		if len(upw.ws) >= unpackBatchSize {
-			unpackWorkCh <- upw
+			scheduleUnpackWork(upw)
 			upws = append(upws, upw)
 			upw = getUnpackWork()
 			upw.tbf = tbf
@@ -323,11 +374,12 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 			tr: tr,
 		})
 	}
-	unpackWorkCh <- upw
+	scheduleUnpackWork(upw)
 	upws = append(upws, upw)
 	pts.brs = pts.brs[:0]
 
 	// Wait until work is complete
+	samples := 0
 	sbs := make([]*sortBlock, 0, brsLen)
 	var firstErr error
 	for _, upw := range upws {
@@ -336,8 +388,17 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 			firstErr = err
 		}
 		if firstErr == nil {
-			sbs = append(sbs, upw.sbs...)
-		} else {
+			for _, sb := range upw.sbs {
+				samples += len(sb.Timestamps)
+			}
+			if samples < *maxSamplesPerSeries {
+				sbs = append(sbs, upw.sbs...)
+			} else {
+				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+					"or reduce time range for the query", *maxSamplesPerSeries)
+			}
+		}
+		if firstErr != nil {
 			for _, sb := range upw.sbs {
 				putSortBlock(sb)
 			}

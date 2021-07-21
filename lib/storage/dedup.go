@@ -24,9 +24,11 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
+	return deduplicateInternal(minScrapeInterval, srcTimestamps, srcValues)
+}
 
-	// Slow path - dedup data points.
-	tsNext := (srcTimestamps[0] - srcTimestamps[0]%minScrapeInterval) + minScrapeInterval
+func deduplicateInternal(interval int64, srcTimestamps []int64, srcValues []float64) ([]int64, []float64) {
+	tsNext := (srcTimestamps[0] - srcTimestamps[0]%interval) + interval
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
 	for i := 1; i < len(srcTimestamps); i++ {
@@ -38,10 +40,10 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 		dstValues = append(dstValues, srcValues[i])
 
 		// Update tsNext
-		tsNext += minScrapeInterval
+		tsNext += interval
 		if ts >= tsNext {
 			// Slow path for updating ts.
-			tsNext = (ts - ts%minScrapeInterval) + minScrapeInterval
+			tsNext = (ts - ts%interval) + interval
 		}
 	}
 	return dstTimestamps, dstValues
@@ -55,9 +57,11 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64) ([]int64, [
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
+	return deduplicateDuringMergeInternal(minScrapeInterval, srcTimestamps, srcValues)
+}
 
-	// Slow path - dedup data points.
-	tsNext := (srcTimestamps[0] - srcTimestamps[0]%minScrapeInterval) + minScrapeInterval
+func deduplicateDuringMergeInternal(interval int64, srcTimestamps, srcValues []int64) ([]int64, []int64) {
+	tsNext := (srcTimestamps[0] - srcTimestamps[0]%interval) + interval
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
 	for i := 1; i < len(srcTimestamps); i++ {
@@ -69,25 +73,28 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64) ([]int64, [
 		dstValues = append(dstValues, srcValues[i])
 
 		// Update tsNext
-		tsNext += minScrapeInterval
+		tsNext += interval
 		if ts >= tsNext {
 			// Slow path for updating ts.
-			tsNext = (ts - ts%minScrapeInterval) + minScrapeInterval
+			tsNext = (ts - ts%interval) + interval
 		}
 	}
 	return dstTimestamps, dstValues
 }
 
-func needsDedup(timestamps []int64, minDelta int64) bool {
-	if len(timestamps) == 0 {
+func needsDedup(timestamps []int64, interval int64) bool {
+	if len(timestamps) == 0 || interval <= 0 {
 		return false
 	}
-	prevTimestamp := timestamps[0]
+	tsNext := (timestamps[0] - timestamps[0]%interval) + interval
 	for _, ts := range timestamps[1:] {
-		if ts-prevTimestamp < minDelta {
+		if ts < tsNext {
 			return true
 		}
-		prevTimestamp = ts
+		tsNext += interval
+		if ts >= tsNext {
+			tsNext = (ts - ts%interval) + interval
+		}
 	}
 	return false
 }

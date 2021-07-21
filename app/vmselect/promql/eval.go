@@ -336,6 +336,12 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		rv := evalString(ec, se.S)
 		return rv, nil
 	}
+	if de, ok := e.(*metricsql.DurationExpr); ok {
+		d := de.Duration(ec.Step)
+		dSec := float64(d) / 1000
+		rv := evalNumber(ec, dSec)
+		return rv, nil
+	}
 	return nil, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
 }
 
@@ -473,12 +479,8 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	ecNew := ec
 	var offset int64
-	if len(re.Offset) > 0 {
-		var err error
-		offset, err = metricsql.DurationValue(re.Offset, ec.Step)
-		if err != nil {
-			return nil, err
-		}
+	if re.Offset != nil {
+		offset = re.Offset.Duration(ec.Step)
 		ecNew = newEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset
@@ -526,24 +528,11 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 
 func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
-	var step int64
-	if len(re.Step) > 0 {
-		var err error
-		step, err = metricsql.PositiveDurationValue(re.Step, ec.Step)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	step := re.Step.Duration(ec.Step)
+	if step == 0 {
 		step = ec.Step
 	}
-	var window int64
-	if len(re.Window) > 0 {
-		var err error
-		window, err = metricsql.PositiveDurationValue(re.Window, ec.Step)
-		if err != nil {
-			return nil, err
-		}
-	}
+	window := re.Window.Duration(ec.Step)
 
 	ecSQ := newEvalConfig(ec)
 	ecSQ.Start -= window + maxSilenceInterval + step
@@ -652,18 +641,11 @@ var (
 )
 
 func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowStr string) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
 	}
-	var window int64
-	if len(windowStr) > 0 {
-		var err error
-		window, err = metricsql.PositiveDurationValue(windowStr, ec.Step)
-		if err != nil {
-			return nil, err
-		}
-	}
+	window := windowExpr.Duration(ec.Step)
 
 	// Search for partial results in cache.
 	tssCached, start := rollupResultCacheV.Get(ec, expr, window)

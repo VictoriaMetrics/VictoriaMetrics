@@ -6,11 +6,28 @@ sort: 15
 
 ## tip
 
+* FEATURE: add `-search.maxSamplesPerSeries` command-line flag for limiting the number of raw samples a single query could process per each time series. This option can prevent from out of memory errors when a query processes tens of millions of raw samples per series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1067).
+
+* BUGFIX: return series with `a op b` labels and `N` values for `(a op b) default N` if `(a op b)` returns series with all NaN values. Previously such series were removed.
+
+
+## [v1.63.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.63.0)
+
+* FEATURE: reduce memory usage by up to 30% on production workloads.
+* FEATURE: vmselect: embed [vmui](https://github.com/VictoriaMetrics/vmui) into a single-node VictoriaMetrics and into `vmselect` component of cluster version. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1413). The web interface is available at the following paths:
+  * `/vmui/` for a single-node VictoriaMetrics
+  * `/select/<accountID>/vmui/` for `vmselect` at cluster version of VictoriaMetrics
+* FEATURE: support durations anywhere in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html). For example, `sum_over_time(m[1h]) / 1h` is a valid query, which is equivalent to `sum_over_time(m[1h]) / 3600`.
+* FEATURE: support durations without suffixes in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html). For example, `rate(m[3600])` is a valid query, which is equivalent to `rate(m[1h])`.
+* FEATURE: export `vmselect_request_duration_seconds` and `vminsert_request_duration_seconds` [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) at `/metrics` page. These histograms can be used for determining latency distribution and SLI/SLO for the served requests. For example, the following query would return the percent of queries that took less than 500ms during the last hour: `histogram_share(500ms, sum(rate(vmselect_request_duration_seconds_bucket[1h])) by (vmrange))`.
 * FEATURE: vmagent: dynamically reload client TLS certificates from disk on every [mTLS connection](https://developers.cloudflare.com/cloudflare-one/identity/devices/mutual-tls-authentication). This should allow using `vmagent` with [Istio service mesh](https://istio.io/latest/about/service-mesh/). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420).
-* FEATURE: reduce memory usage when performing heavy queries over big number of time series.
+* FEATURE: log http request path plus all the query args on errors during request processing. Previously only http request path was logged without query args, so it could be hard debugging such errors.
+* FEATURE: add `is_set` label to `flag` metrics. This allows determining explicitly set command-line flags with the query `flag{is_set="true"}`.
+* FEATURE: add ability to remove caches stored inside `<-storageDataPath>/cache` on startup if `reset_cache_on_startup` file is present there. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447).
 
 * BUGFIX: vmagent: remove `{ %space %}` typo in `/targets` output. The typo has been introduced in v1.62.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1408).
 * BUGFIX: vmagent: fix CSS styles on `/targets` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1422).
+* BUGFIX: vmalert: accept Prometheus-like durations in `interval` config option inside `group` section. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1444).
 * BUGFIX: properly update `vm_merge_need_free_disk_space` metric at `/metrics` page when there is no enough free disk space for performing optimal merges. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1373).
 
 

@@ -4,7 +4,7 @@ sort: 11
 
 # Case studies and talks
 
-Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](http://slack.victoriametrics.com/)
+Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
 * [adidas](#adidas)
@@ -112,7 +112,7 @@ We hed been running Prometheus for about a year in a test environment and it was
 Then we discovered VictoriaMetrics. Our scale isn't that big so we don't have on-prem S3 and no Kubernetes. VM's single node instance provided
 the same result with far less maintenance overhead and lower hardware requirements.
 
-After testing it a few months and with great support from the maintainers on [Slack](http://slack.victoriametrics.com/),
+After testing it a few months and with great support from the maintainers on [Slack](https://slack.victoriametrics.com/),
 we decided to go with it. VM's support for the ingestion of InfluxDB metrics was an additional bonus as our hardware team uses
 SNMPCollector to collect metrics from network devices and switching from InfluxDB to VictoriaMetrics required just a simple change in the config file. 
 
@@ -321,7 +321,7 @@ Numbers with current, limited roll out:
 
 > Our initial requirements for monitoring solution: the metrics must be stored for 15 days, the solution must be scalable and must offer high availability of the metrics. It must being integrated into Grafana and allowing the use of PromQL when creating/editing dashboards in Grafana to obtain metrics from the Prometheus datasource. The solution also needs to receive data from Prometheus using HTTPS and needs to request a login and password to write/read the metrics. Details are available [in this article](https://nordicapis.com/api-monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics/).
 
-> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, ElasticSearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](http://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
+> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, ElasticSearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](https://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
 
 > We started using VictoriaMetrics in the production environment days before the start of BlackFriday in 2020, the period of greatest use of the Sensedia API-Platform by customers. There was a record in the generation of metrics and there was no instability with the monitoring stack.
 
@@ -395,7 +395,7 @@ Numbers:
 * Enough headroom/scaling capacity for future growth which is planned to be up to 100M active time series.
 * Ability to split DB replicas per workload. Alert queries go to one replica and user queries go to another (speed for users, effective cache).
 
-> Optimizing for those points and our specific workload, VictoriaMetrics proved to be the best option. As icing on the cake we’ve got [PromQL extensions](https://docs.victoriametrics.com/MetricsQL.html) - `default 0` and `histogram` are my favorite ones. We really like having a lot of tsdb params easily available via config options which makes tsdb easy to tune for each specific use case. We've also found a great community in [Slack channel](http://slack.victoriametrics.com/) and responsive and helpful maintainer support.
+> Optimizing for those points and our specific workload, VictoriaMetrics proved to be the best option. As icing on the cake we’ve got [PromQL extensions](https://docs.victoriametrics.com/MetricsQL.html) - `default 0` and `histogram` are my favorite ones. We really like having a lot of tsdb params easily available via config options which makes tsdb easy to tune for each specific use case. We've also found a great community in [Slack channel](https://slack.victoriametrics.com/) and responsive and helpful maintainer support.
 
 Alex Ulstein, Head of Monitoring, Wix.com
 

@@ -223,7 +223,7 @@ and scales horizontally to multiple nodes.
 
 Questions about VictoriaMetrics can be asked via the following channels:
 
-- [Slack channel](http://slack.victoriametrics.com/)
+- [Slack channel](https://slack.victoriametrics.com/)
 - [Telegram channel](https://t.me/VictoriaMetrics_en)
 - [Google group](https://groups.google.com/forum/#!forum/victorametrics-users)
 

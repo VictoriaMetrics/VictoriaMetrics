@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
@@ -91,13 +92,16 @@ func Stop() {
 
 // RequestHandler is a handler for Prometheus remote storage write API
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
+	defer requestDuration.UpdateDuration(startTime)
+
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	switch path {
 	case "/prometheus/api/v1/write", "/api/v1/write":
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(r); err != nil {
 			prometheusWriteErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -106,7 +110,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		vmimportRequests.Inc()
 		if err := vmimport.InsertHandler(r); err != nil {
 			vmimportErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -115,7 +119,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -124,7 +128,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(r); err != nil {
 			prometheusimportErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -133,7 +137,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		nativeimportRequests.Inc()
 		if err := native.InsertHandler(r); err != nil {
 			nativeimportErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -142,7 +146,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(r); err != nil {
 			influxWriteErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -183,6 +187,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
+	requestDuration = metrics.NewHistogram(`vminsert_request_duration_seconds`)
+
 	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
 	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/write", protocol="promremotewrite"}`)
 
