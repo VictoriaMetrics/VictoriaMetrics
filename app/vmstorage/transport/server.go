@@ -29,6 +29,7 @@ var (
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
+	maxMetricsPointSearch        = flag.Int("search.maxMetricsPointSearch", 300e3, "control search metrics point number")
 
 	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -1070,6 +1071,7 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
+	count := 0
 	// Send found blocks to vmselect.
 	for ctx.sr.NextMetricBlock() {
 		ctx.mb.MetricName = ctx.sr.MetricBlockRef.MetricName
@@ -1077,6 +1079,10 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 
 		vmselectMetricBlocksRead.Inc()
 		vmselectMetricRowsRead.Add(ctx.mb.Block.RowsCount())
+		if count > *maxMetricsPointSearch {
+			fmt.Errorf("more than -search.maxMetricsPointSearch=%d point,discard more points", *maxMetricsPointSearch)
+			break
+		}
 
 		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {
