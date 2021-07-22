@@ -99,6 +99,11 @@ name: <string>
 extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
 
+# Optional list of labels added to every rule within a group.
+# It has priority over external.label flag values and rule labels.
+external_labels:
+  [ <labelname>: <labelvalue> ... ]
+
 rules:
   [ - <rule> ... ]
 ```

@@ -31,6 +31,10 @@ type Group struct {
 	// request withing a group. Is compatible only with VM datasources.
 	// See https://docs.victoriametrics.com#prometheus-querying-api-enhancements
 	ExtraFilterLabels map[string]string `yaml:"extra_filter_labels"`
+	// ExternalLabels is a set of label value pairs, that will be added to every rule.
+	// Its useful to have such labels on per-tenant basis.
+	// It has priority over external.label flag values and rule labels.
+	ExternalLabels map[string]string `yaml:"external_labels"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
 	Checksum string

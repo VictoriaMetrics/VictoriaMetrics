@@ -18,15 +18,17 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu                sync.RWMutex
-	Name              string
-	File              string
-	Rules             []Rule
-	Type              datasource.Type
-	Interval          time.Duration
-	Concurrency       int
-	Checksum          string
+	mu          sync.RWMutex
+	Name        string
+	File        string
+	Rules       []Rule
+	Type        datasource.Type
+	Interval    time.Duration
+	Concurrency int
+	Checksum    string
+
 	ExtraFilterLabels map[string]string
+	ExternalLabels    map[string]string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -50,6 +52,23 @@ func newGroupMetrics(name, file string) *groupMetrics {
 	return m
 }
 
+// merges group rule labels into result map
+// set2 has priority over set1.
+func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
+	r := map[string]string{}
+	for k, v := range set1 {
+		r[k] = v
+	}
+	for k, v := range set2 {
+		if prevV, ok := r[k]; ok {
+			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
+				k, prevV, groupName, ruleName, k, v)
+		}
+		r[k] = v
+	}
+	return r
+}
+
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
 		Type:              cfg.Type,
@@ -59,6 +78,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Concurrency:       cfg.Concurrency,
 		Checksum:          cfg.Checksum,
 		ExtraFilterLabels: cfg.ExtraFilterLabels,
+		ExternalLabels:    cfg.ExternalLabels,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -74,16 +94,13 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
 		// override rule labels with external labels
-		for k, v := range labels {
-			if prevV, ok := r.Labels[k]; ok {
-				logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
-					k, prevV, g.Name, r.Name(), k, v)
-			}
-			if r.Labels == nil {
-				r.Labels = map[string]string{}
-			}
-			r.Labels[k] = v
+		if labels != nil {
+			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, labels)
 		}
+		if cfg.ExternalLabels != nil {
+			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, cfg.ExternalLabels)
+		}
+
 		rules[i] = g.newRule(qb, r)
 	}
 	g.Rules = rules
@@ -110,6 +127,7 @@ func (g *Group) ID() uint64 {
 
 // Restore restores alerts state for group rules
 func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
+	labels = mergeLabels(g.Name, "", labels, g.ExternalLabels)
 	for _, rule := range g.Rules {
 		rr, ok := rule.(*AlertingRule)
 		if !ok {
@@ -169,6 +187,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
 	g.ExtraFilterLabels = newGroup.ExtraFilterLabels
+	g.ExternalLabels = newGroup.ExternalLabels
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil
