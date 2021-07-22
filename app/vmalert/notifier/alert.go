@@ -90,13 +90,13 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, funcs
 	eg := new(utils.ErrGroup)
 	r := make(map[string]string, len(annotations))
 	for key, text := range annotations {
-		r[key] = text
 		buf.Reset()
 		builder.Reset()
 		builder.Grow(len(tplHeader) + len(text))
 		builder.WriteString(tplHeader)
 		builder.WriteString(text)
 		if err := templateAnnotation(&buf, builder.String(), data, funcs); err != nil {
+			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
 		}
