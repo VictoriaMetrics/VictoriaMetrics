@@ -310,7 +310,6 @@ func putUnpackWork(upw *unpackWork) {
 var unpackWorkPool sync.Pool
 
 var unpackWorkChs []chan *unpackWork
-var unpackWorkIdx uint32
 
 func init() {
 	unpackWorkChs = make([]chan *unpackWork, gomaxprocs)
