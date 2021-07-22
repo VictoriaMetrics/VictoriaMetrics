@@ -1082,7 +1082,7 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 		vmselectMetricRowsRead.Add(rowsCount)
 		count += rowsCount
 		if count > *maxMetricsPointSearch {
-			fmt.Errorf("more than -search.maxMetricsPointSearch=%d point,discard more points", *maxMetricsPointSearch)
+			logger.Errorf("more than -search.maxMetricsPointSearch=%d point,discard more points", *maxMetricsPointSearch)
 			break
 		}
 
