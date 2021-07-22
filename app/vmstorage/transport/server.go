@@ -1078,7 +1078,9 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 		ctx.sr.MetricBlockRef.BlockRef.MustReadBlock(&ctx.mb.Block, fetchData)
 
 		vmselectMetricBlocksRead.Inc()
-		vmselectMetricRowsRead.Add(ctx.mb.Block.RowsCount())
+		rowsCount := ctx.mb.Block.RowsCount()
+		vmselectMetricRowsRead.Add(rowsCount)
+		count += rowsCount
 		if count > *maxMetricsPointSearch {
 			fmt.Errorf("more than -search.maxMetricsPointSearch=%d point,discard more points", *maxMetricsPointSearch)
 			break
