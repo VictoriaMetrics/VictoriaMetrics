@@ -6,6 +6,7 @@ sort: 16
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
 * [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Fly's Prometheus Metrics](https://fly.io/blog/measuring-fly/)
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
@@ -38,6 +39,7 @@ sort: 16
 * [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
 * [Monitoring Kubernetes clusters with VictoriaMetrics and Grafana](https://blog.cybozu.io/entry/2021/03/18/115743)
 * [Multi-tenancy monitoring system for Kubernetes cluster using VictoriaMetrics and operators](https://blog.kintone.io/entry/2021/03/31/175256)
+* [Monitoring as Code на базе VictoriaMetrics и Grafana](https://habr.com/ru/post/568090/)
 
 
 ## Our articles
