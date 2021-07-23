@@ -31,3 +31,9 @@ code {
 .one-line-scroll .cm-wrap {
   height: 24px;
 }
+.cm-content, .cm-gutter { min-height: 51px; }
+
+.one-line-scroll .cm-content,
+.one-line-scroll .cm-gutter {
+  min-height: auto;
+}

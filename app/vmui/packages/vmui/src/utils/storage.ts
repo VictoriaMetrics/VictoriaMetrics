@@ -1,4 +1,9 @@
-export type StorageKeys = "PREFERRED_URL" | "LAST_QUERY" | "BASIC_AUTH_DATA" | "BEARER_AUTH_DATA" | "AUTH_TYPE";
+export type StorageKeys = "PREFERRED_URL"
+    | "LAST_QUERY"
+    | "BASIC_AUTH_DATA"
+    | "BEARER_AUTH_DATA"
+    | "AUTH_TYPE"
+    | "AUTOCOMPLETE";
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
