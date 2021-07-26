@@ -64,7 +64,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - Functions for label manipulation:
   - `alias(q, name)` for setting metric name across all the time series `q`. For example, `alias(foo, "bar")` would give `bar` name to all the `foo` series.
   - `label_set(q, label1, value1, ... labelN, valueN)` for setting the given values for the given labels on `q`. For example, `label_set(foo, "bar", "baz")` would add `{bar="baz"}` label to all the `foo` series.
-  - `label_map(q, label, srcValue1, dstValue1, ... srcValueN, dstValueN)` for mapping `label` values from `src*` to `dst*`. For example, `label_map(foo, "instance", "127.0.0.1", "locahost")` would rename `foo{instance="127.0.0.1"}` to `foo{instance="localhost"}`.
+  - `label_map(q, label, srcValue1, dstValue1, ... srcValueN, dstValueN)` for mapping `label` values from `src*` to `dst*`. For example, `label_map(foo, "instance", "127.0.0.1", "localhost")` would rename `foo{instance="127.0.0.1"}` to `foo{instance="localhost"}`.
   - `label_uppercase(q, label1, ... labelN)` for uppercasing values for the given labels. For example, `label_uppercase(foo, "instance")` would transform `foo{instance="bar"}` to `foo{instance="BAR"}`.
   - `label_lowercase(q, label2, ... labelN)` for lowercasing value for the given labels. For example, `label_lowercase(foo, "instance")` would transform `foo{instance="BAR"}` to `foo{instance="bar"}`.
   - `label_del(q, label1, ... labelN)` for deleting the given labels from `q`. For example, `label_del(foo, "bar")` would delete `bar` label from all the `foo` series.
