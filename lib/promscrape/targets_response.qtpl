@@ -6,7 +6,7 @@
 {% func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels bool) %}
 
 {% for _, js := range jts %}
-job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
+job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
 {% newline %}
 {% for _, ts := range js.targetsStatus %}
     {% code
