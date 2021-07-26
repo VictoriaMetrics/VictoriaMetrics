@@ -119,32 +119,22 @@ func putTimeseriesWork(tsw *timeseriesWork) {
 
 var tswPool sync.Pool
 
-var timeseriesWorkChs []chan *timeseriesWork
-
-func init() {
-	timeseriesWorkChs = make([]chan *timeseriesWork, gomaxprocs)
-	for i := range timeseriesWorkChs {
-		timeseriesWorkChs[i] = make(chan *timeseriesWork, 16)
-		go timeseriesWorker(timeseriesWorkChs[i], uint(i))
-	}
-}
-
-func scheduleTimeseriesWork(tsw *timeseriesWork) {
-	if len(timeseriesWorkChs) == 1 {
+func scheduleTimeseriesWork(workChs []chan *timeseriesWork, tsw *timeseriesWork) {
+	if len(workChs) == 1 {
 		// Fast path for a single CPU core
-		timeseriesWorkChs[0] <- tsw
+		workChs[0] <- tsw
 		return
 	}
 	attempts := 0
 	for {
-		idx := fastrand.Uint32n(uint32(len(timeseriesWorkChs)))
+		idx := fastrand.Uint32n(uint32(len(workChs)))
 		select {
-		case timeseriesWorkChs[idx] <- tsw:
+		case workChs[idx] <- tsw:
 			return
 		default:
 			attempts++
-			if attempts >= len(timeseriesWorkChs) {
-				timeseriesWorkChs[idx] <- tsw
+			if attempts >= len(workChs) {
+				workChs[idx] <- tsw
 				return
 			}
 		}
@@ -152,8 +142,11 @@ func scheduleTimeseriesWork(tsw *timeseriesWork) {
 }
 
 func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
-	var rs Result
-	var rsLastResetTime uint64
+	v := resultPool.Get()
+	if v == nil {
+		v = &result{}
+	}
+	r := v.(*result)
 	for tsw := range ch {
 		if atomic.LoadUint32(tsw.mustStop) != 0 {
 			tsw.doneCh <- nil
@@ -165,28 +158,37 @@ func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
 			tsw.doneCh <- fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 			continue
 		}
-		if err := tsw.pts.Unpack(&rs, rss.tbf, rss.tr, rss.fetchData); err != nil {
+		if err := tsw.pts.Unpack(&r.rs, rss.tbf, rss.tr, rss.fetchData); err != nil {
 			atomic.StoreUint32(tsw.mustStop, 1)
 			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %w", err)
 			continue
 		}
-		if len(rs.Timestamps) > 0 || !rss.fetchData {
-			if err := tsw.f(&rs, workerID); err != nil {
+		if len(r.rs.Timestamps) > 0 || !rss.fetchData {
+			if err := tsw.f(&r.rs, workerID); err != nil {
 				atomic.StoreUint32(tsw.mustStop, 1)
 				tsw.doneCh <- err
 				continue
 			}
 		}
-		tsw.rowsProcessed = len(rs.Values)
+		tsw.rowsProcessed = len(r.rs.Values)
 		tsw.doneCh <- nil
 		currentTime := fasttime.UnixTimestamp()
-		if cap(rs.Values) > 1024*1024 && 4*len(rs.Values) < cap(rs.Values) && currentTime-rsLastResetTime > 10 {
-			// Reset rs in order to preseve memory usage after processing big time series with millions of rows.
-			rs = Result{}
-			rsLastResetTime = currentTime
+		if cap(r.rs.Values) > 1024*1024 && 4*len(r.rs.Values) < cap(r.rs.Values) && currentTime-r.lastResetTime > 10 {
+			// Reset r.rs in order to preseve memory usage after processing big time series with millions of rows.
+			r.rs = Result{}
+			r.lastResetTime = currentTime
 		}
 	}
+	r.rs.reset()
+	resultPool.Put(r)
 }
+
+type result struct {
+	rs            Result
+	lastResetTime uint64
+}
+
+var resultPool sync.Pool
 
 // RunParallel runs f in parallel for all the results from rss.
 //
@@ -198,6 +200,30 @@ func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
 func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 	defer rss.mustClose()
 
+	// Spin up local workers.
+	//
+	// Do not use a global workChs with a global pool of workers, since it may lead to a deadlock in the following case:
+	// - RunParallel is called with f, which blocks without forward progress.
+	// - All the workers in the global pool became blocked in f.
+	// - workChs is filled up, so it cannot accept new work items from other RunParallel calls.
+	workers := len(rss.packedTimeseries)
+	if workers > gomaxprocs {
+		workers = gomaxprocs
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	workChs := make([]chan *timeseriesWork, workers)
+	var workChsWG sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		workChs[i] = make(chan *timeseriesWork, 16)
+		workChsWG.Add(1)
+		go func(workerID int) {
+			defer workChsWG.Done()
+			timeseriesWorker(workChs[workerID], uint(workerID))
+		}(i)
+	}
+
 	// Feed workers with work.
 	tsws := make([]*timeseriesWork, len(rss.packedTimeseries))
 	var mustStop uint32
@@ -207,7 +233,7 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 		tsw.pts = &rss.packedTimeseries[i]
 		tsw.f = f
 		tsw.mustStop = &mustStop
-		scheduleTimeseriesWork(tsw)
+		scheduleTimeseriesWork(workChs, tsw)
 		tsws[i] = tsw
 	}
 	seriesProcessedTotal := len(rss.packedTimeseries)
@@ -227,6 +253,13 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 
 	perQueryRowsProcessed.Update(float64(rowsProcessedTotal))
 	perQuerySeriesProcessed.Update(float64(seriesProcessedTotal))
+
+	// Shut down local workers
+	for _, workCh := range workChs {
+		close(workCh)
+	}
+	workChsWG.Wait()
+
 	return firstErr
 }
 
@@ -302,7 +335,6 @@ func putUnpackWork(upw *unpackWork) {
 var unpackWorkPool sync.Pool
 
 var unpackWorkChs []chan *unpackWork
-var unpackWorkIdx uint32
 
 func init() {
 	unpackWorkChs = make([]chan *unpackWork, gomaxprocs)
