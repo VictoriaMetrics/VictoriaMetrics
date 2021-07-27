@@ -17,3 +17,6 @@
 terraform.tfstate
 terraform.tfstate.*
 .terraform/
+Gemfile.lock
+/_site
+_site
