@@ -22,7 +22,6 @@ share/doc/vmetrics/PerTenantStatistic.md
 share/doc/vmetrics/Quick-Start.md
 share/doc/vmetrics/README.md
 share/doc/vmetrics/Release-Guide.md
-share/doc/vmetrics/SampleSizeCalculations.md
 share/doc/vmetrics/Single-server-VictoriaMetrics.md
 share/doc/vmetrics/latest.png
 share/doc/vmetrics/logo.png

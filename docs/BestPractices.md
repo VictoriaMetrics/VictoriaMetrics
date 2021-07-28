@@ -1,5 +1,5 @@
 ---
-sort: 20
+sort: 19
 ---
 
 # VM best practices 
