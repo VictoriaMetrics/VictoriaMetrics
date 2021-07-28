@@ -654,6 +654,10 @@ Below is the output for `/path/to/vmselect -help`:
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16384)
   -search.maxQueueDuration duration
     	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxSamplesPerQuery int
+    	The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries (default 1000000000)
+  -search.maxSamplesPerSeries int
+    	The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery (default 30000000)
   -search.maxStalenessInterval duration
     	The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
@@ -665,7 +669,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.queryStats.lastQueriesCount int
     	Query stats for /api/v1/status/top_queries is tracked on this number of last queries. Zero value disables query stats tracking (default 20000)
   -search.queryStats.minQueryDuration duration
-    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats
+    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey string
     	Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
   -search.treatDotsAsIsInRegexps
@@ -760,7 +764,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -search.maxTagValues int
     	The maximum number of tag values returned per search (default 100000)
   -search.maxUniqueTimeseries int
-    	The maximum number of unique time series each search can scan (default 300000)
+    	The maximum number of unique time series a single query can process. This allows protecting against heavy queries, which select unexpectedly high number of series. See also -search.maxSamplesPerQuery and -search.maxSamplesPerSeries (default 300000)
   -smallMergeConcurrency int
     	The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string

@@ -1785,6 +1785,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16384)
   -search.maxQueueDuration duration
     	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxSamplesPerQuery int
+    	The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries (default 1000000000)
   -search.maxSamplesPerSeries int
     	The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage (default 30000000)
   -search.maxStalenessInterval duration

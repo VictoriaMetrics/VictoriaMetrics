@@ -28,6 +28,7 @@ var (
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan. This option allows limiting memory usage")
 	maxSamplesPerSeries          = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
+	maxSamplesPerQuery           = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
 )
 
 // Result is a single timeseries result.
@@ -423,7 +424,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 			for _, sb := range upw.sbs {
 				samples += len(sb.Timestamps)
 			}
-			if samples < *maxSamplesPerSeries {
+			if *maxSamplesPerSeries <= 0 || samples < *maxSamplesPerSeries {
 				sbs = append(sbs, upw.sbs...)
 			} else {
 				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
@@ -1006,6 +1007,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	m := make(map[string][]blockRef, maxSeriesCount)
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 	blocksRead := 0
+	samples := 0
 	tbf := getTmpBlocksFile()
 	var buf []byte
 	for sr.NextMetricBlock() {
@@ -1015,7 +1017,14 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
-		buf = sr.MetricBlockRef.BlockRef.Marshal(buf[:0])
+		br := sr.MetricBlockRef.BlockRef
+		samples += br.RowsCount()
+		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
+			putTmpBlocksFile(tbf)
+			putStorageSearch(sr)
+			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+		}
+		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
 			putTmpBlocksFile(tbf)
@@ -1026,7 +1035,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 		metricNameStrUnsafe := bytesutil.ToUnsafeString(metricName)
 		brs := m[metricNameStrUnsafe]
 		brs = append(brs, blockRef{
-			partRef: sr.MetricBlockRef.BlockRef.PartRef(),
+			partRef: br.PartRef(),
 			addr:    addr,
 		})
 		if len(brs) > 1 {
