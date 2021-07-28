@@ -1,5 +1,5 @@
 ---
-sort: 19
+sort: 18
 ---
 
 # VictoriaMetrics Cluster Per Tenant Statistic
