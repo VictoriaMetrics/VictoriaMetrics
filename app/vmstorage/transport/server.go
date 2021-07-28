@@ -28,8 +28,7 @@ var (
 	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
-	maxMetricsPointSearch        = flag.Int("search.maxMetricsPointSearch", 300e3, "control search metrics point number")
+	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series a single query can process. This allows protecting against heavy queries, which select unexpectedly high number of series. See also -search.maxSamplesPerQuery and -search.maxSamplesPerSeries")
 
 	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -1071,20 +1070,13 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
-	count := 0
 	// Send found blocks to vmselect.
 	for ctx.sr.NextMetricBlock() {
 		ctx.mb.MetricName = ctx.sr.MetricBlockRef.MetricName
 		ctx.sr.MetricBlockRef.BlockRef.MustReadBlock(&ctx.mb.Block, fetchData)
 
 		vmselectMetricBlocksRead.Inc()
-		rowsCount := ctx.mb.Block.RowsCount()
-		vmselectMetricRowsRead.Add(rowsCount)
-		count += rowsCount
-		if count > *maxMetricsPointSearch {
-			logger.Errorf("more than -search.maxMetricsPointSearch=%d point,discard more points", *maxMetricsPointSearch)
-			break
-		}
+		vmselectMetricRowsRead.Add(ctx.mb.Block.RowsCount())
 
 		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {

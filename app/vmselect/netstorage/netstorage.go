@@ -35,7 +35,8 @@ import (
 var (
 	replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
 		"See -replicationFactor command-line flag for vminsert nodes")
-	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
+	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
+	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
 )
 
 // Result is a single timeseries result.
@@ -433,7 +434,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 			for _, sb := range upw.sbs {
 				samples += len(sb.Timestamps)
 			}
-			if samples < *maxSamplesPerSeries {
+			if *maxSamplesPerSeries <= 0 || samples < *maxSamplesPerSeries {
 				sbs = append(sbs, upw.sbs...)
 			} else {
 				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
@@ -1390,6 +1391,7 @@ func ProcessSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.Se
 	}
 	var wg syncwg.WaitGroup
 	var stopped uint32
+	var samples uint64
 	processBlock := func(mb *storage.MetricBlock) error {
 		wg.Add(1)
 		defer wg.Done()
@@ -1399,6 +1401,10 @@ func ProcessSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.Se
 		if !fetchData {
 			tbfw.RegisterEmptyBlock(mb)
 			return nil
+		}
+		n := atomic.AddUint64(&samples, uint64(mb.Block.RowsCount()))
+		if *maxSamplesPerQuery > 0 && n > uint64(*maxSamplesPerQuery) {
+			return fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
 		if err := tbfw.RegisterAndWriteBlock(mb); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
