@@ -219,15 +219,6 @@ func (tfs *TagFilters) Reset(accountID, projectID uint32) {
 	tfs.commonPrefix = marshalCommonPrefix(tfs.commonPrefix[:0], nsPrefixTagToMetricIDs, accountID, projectID)
 }
 
-func (tfs *TagFilters) marshal(dst []byte) []byte {
-	dst = encoding.MarshalUint32(dst, tfs.accountID)
-	dst = encoding.MarshalUint32(dst, tfs.projectID)
-	for i := range tfs.tfs {
-		dst = tfs.tfs[i].MarshalNoAccountIDProjectID(dst)
-	}
-	return dst
-}
-
 // tagFilter represents a filter used for filtering tags.
 type tagFilter struct {
 	key        []byte

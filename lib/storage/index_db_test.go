@@ -1626,12 +1626,12 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		}
 	}
 
-	// Check that all the metrics are found in updateMetricIDsAll
-	var metricIDs uint64set.Set
-	if err := is2.updateMetricIDsAll(&metricIDs, metricsPerDay*days); err != nil {
+	// Check that all the metrics are found in global index
+	metricIDs, err := is2.getMetricIDsForDate(0, metricsPerDay*days)
+	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if !allMetricIDs.Equal(&metricIDs) {
+	if !allMetricIDs.Equal(metricIDs) {
 		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
 	}
 
