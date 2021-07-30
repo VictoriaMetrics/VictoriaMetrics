@@ -1253,12 +1253,10 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock)
 	tmpBufPool.Put(bb)
 	if err == nil {
 		metricName := mb.MetricName
-		metricNameStrUnsafe := bytesutil.ToUnsafeString(metricName)
-		addrs := tbfw.m[metricNameStrUnsafe]
+		addrs := tbfw.m[string(metricName)]
 		addrs = append(addrs, addr)
 		if len(addrs) > 1 {
-			// An optimization: avoid memory allocation and copy for already existing metricName key in tbfw.m.
-			tbfw.m[metricNameStrUnsafe] = addrs
+			tbfw.m[string(metricName)] = addrs
 		} else {
 			// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 			// in both tbfw.orderedMetricNames and tbfw.m.
