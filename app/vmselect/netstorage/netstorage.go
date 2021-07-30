@@ -1032,15 +1032,13 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
 		metricName := sr.MetricBlockRef.MetricName
-		metricNameStrUnsafe := bytesutil.ToUnsafeString(metricName)
-		brs := m[metricNameStrUnsafe]
+		brs := m[string(metricName)]
 		brs = append(brs, blockRef{
 			partRef: br.PartRef(),
 			addr:    addr,
 		})
 		if len(brs) > 1 {
-			// An optimization: do not allocate a string for already existing metricName key in m
-			m[metricNameStrUnsafe] = brs
+			m[string(metricName)] = brs
 		} else {
 			// An optimization for big number of time series with long metricName values:
 			// use only a single copy of metricName for both orderedMetricNames and m.
