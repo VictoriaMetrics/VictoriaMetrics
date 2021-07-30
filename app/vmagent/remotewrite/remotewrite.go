@@ -29,7 +29,7 @@ var (
 		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
 	remoteWriteMultitenantURLs = flagutil.NewArray("remoteWrite.multitenantURL", "Base path for remote storage URL to write data to. It must support Prometheus remote_write API. "+
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428 . "+
-		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
+		"Pass multiple -remoteWrite.multitenantURL flags in order to write data concurrently to multiple remote storage systems")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
@@ -85,8 +85,8 @@ func InitSecretFlags() {
 func Init(p *httpserver.Path) {
 	rwctxLock.Lock()
 	defer rwctxLock.Unlock()
-	if len(*remoteWriteURLs) == 0 {
-		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
+	if len(*remoteWriteURLs) == 0  && len(*remoteWriteMultitenantURLs) == 0 {
+		logger.Fatalf("at least one `-remoteWrite.url` or `-remoteWrite.multitenantURL` command-line flag must be set")
 	}
 
 	//  Create one writecontext per tenant
@@ -149,23 +149,24 @@ func Init(p *httpserver.Path) {
 
 	rwctxs := []*remoteWriteCtx{}
 
+	if len(*remoteWriteURLs) > 0 {
+		for i, remoteWriteURL := range *remoteWriteURLs {
+			sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
+			if *showRemoteWriteURL {
+				sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
+			}
+			rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+			rwctxs = append(rwctxs, rwctx)
+		}
+	}
+
 	if len(*remoteWriteMultitenantURLs) > 0 && p != nil {
 		for i, remoteWriteMultitenantURL := range *remoteWriteMultitenantURLs {
 			sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 			if *showRemoteWriteURL {
 				sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteMultitenantURL)
 			}
-
 			remoteWriteURL := fmt.Sprintf("%s/%s/%s/%s", remoteWriteMultitenantURL, p.Prefix, p.AuthToken, p.Suffix)
-			rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
-			rwctxs = append(rwctxs, rwctx)
-		}
-	} else {
-		for i, remoteWriteURL := range *remoteWriteURLs {
-			sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-			if *showRemoteWriteURL {
-				sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
-			}
 			rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 			rwctxs = append(rwctxs, rwctx)
 		}
