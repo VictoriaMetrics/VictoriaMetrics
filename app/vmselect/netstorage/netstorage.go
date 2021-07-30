@@ -125,7 +125,7 @@ var tswPool sync.Pool
 
 func scheduleTimeseriesWork(workChs []chan *timeseriesWork, tsw *timeseriesWork) {
 	if len(workChs) == 1 {
-		// Fast path for a single CPU core
+		// Fast path for a single worker
 		workChs[0] <- tsw
 		return
 	}
@@ -145,6 +145,29 @@ func scheduleTimeseriesWork(workChs []chan *timeseriesWork, tsw *timeseriesWork)
 	}
 }
 
+func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
+	if atomic.LoadUint32(tsw.mustStop) != 0 {
+		return nil
+	}
+	rss := tsw.rss
+	if rss.deadline.Exceeded() {
+		atomic.StoreUint32(tsw.mustStop, 1)
+		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
+	}
+	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr, rss.fetchData, rss.at); err != nil {
+		atomic.StoreUint32(tsw.mustStop, 1)
+		return fmt.Errorf("error during time series unpacking: %w", err)
+	}
+	if len(r.Timestamps) > 0 || !rss.fetchData {
+		if err := tsw.f(r, workerID); err != nil {
+			atomic.StoreUint32(tsw.mustStop, 1)
+			return err
+		}
+	}
+	tsw.rowsProcessed = len(r.Values)
+	return nil
+}
+
 func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
 	v := resultPool.Get()
 	if v == nil {
@@ -152,38 +175,15 @@ func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
 	}
 	r := v.(*result)
 	for tsw := range ch {
-		if atomic.LoadUint32(tsw.mustStop) != 0 {
-			tsw.doneCh <- nil
-			continue
-		}
-		rss := tsw.rss
-		if rss.deadline.Exceeded() {
-			atomic.StoreUint32(tsw.mustStop, 1)
-			tsw.doneCh <- fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
-			continue
-		}
-		if err := tsw.pts.Unpack(rss.tbf, &r.rs, rss.tr, rss.fetchData, rss.at); err != nil {
-			atomic.StoreUint32(tsw.mustStop, 1)
-			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %w", err)
-			continue
-		}
-		if len(r.rs.Timestamps) > 0 || !rss.fetchData {
-			if err := tsw.f(&r.rs, workerID); err != nil {
-				atomic.StoreUint32(tsw.mustStop, 1)
-				tsw.doneCh <- err
-				continue
-			}
-		}
-		tsw.rowsProcessed = len(r.rs.Values)
-		tsw.doneCh <- nil
-		currentTime := fasttime.UnixTimestamp()
-		if cap(r.rs.Values) > 1024*1024 && 4*len(r.rs.Values) < cap(r.rs.Values) && currentTime-r.lastResetTime > 10 {
-			// Reset r.rs in order to preseve memory usage after processing big time series with millions of rows.
-			r.rs = Result{}
-			r.lastResetTime = currentTime
-		}
+		err := tsw.do(&r.rs, workerID)
+		tsw.doneCh <- err
 	}
-	r.rs.reset()
+	currentTime := fasttime.UnixTimestamp()
+	if cap(r.rs.Values) > 1024*1024 && 4*len(r.rs.Values) < cap(r.rs.Values) && currentTime-r.lastResetTime > 10 {
+		// Reset r.rs in order to preseve memory usage after processing big time series with millions of rows.
+		r.rs = Result{}
+		r.lastResetTime = currentTime
+	}
 	resultPool.Put(r)
 }
 
@@ -343,32 +343,22 @@ func putUnpackWork(upw *unpackWork) {
 
 var unpackWorkPool sync.Pool
 
-var unpackWorkChs []chan *unpackWork
-
-func init() {
-	unpackWorkChs = make([]chan *unpackWork, gomaxprocs)
-	for i := range unpackWorkChs {
-		unpackWorkChs[i] = make(chan *unpackWork, 128)
-		go unpackWorker(unpackWorkChs[i])
-	}
-}
-
-func scheduleUnpackWork(uw *unpackWork) {
-	if len(unpackWorkChs) == 1 {
-		// Fast path for a single CPU core
-		unpackWorkChs[0] <- uw
+func scheduleUnpackWork(workChs []chan *unpackWork, uw *unpackWork) {
+	if len(workChs) == 1 {
+		// Fast path for a single worker
+		workChs[0] <- uw
 		return
 	}
 	attempts := 0
 	for {
-		idx := fastrand.Uint32n(uint32(len(unpackWorkChs)))
+		idx := fastrand.Uint32n(uint32(len(workChs)))
 		select {
-		case unpackWorkChs[idx] <- uw:
+		case workChs[idx] <- uw:
 			return
 		default:
 			attempts++
-			if attempts >= len(unpackWorkChs) {
-				unpackWorkChs[idx] <- uw
+			if attempts >= len(workChs) {
+				workChs[idx] <- uw
 				return
 			}
 		}
@@ -376,19 +366,29 @@ func scheduleUnpackWork(uw *unpackWork) {
 }
 
 func unpackWorker(ch <-chan *unpackWork) {
-	var tmpBlock storage.Block
-	for upw := range ch {
-		upw.unpack(&tmpBlock)
+	v := tmpBlockPool.Get()
+	if v == nil {
+		v = &storage.Block{}
 	}
+	tmpBlock := v.(*storage.Block)
+	for upw := range ch {
+		upw.unpack(tmpBlock)
+	}
+	tmpBlockPool.Put(v)
 }
+
+var tmpBlockPool sync.Pool
 
 // unpackBatchSize is the maximum number of blocks that may be unpacked at once by a single goroutine.
 //
-// This batch is needed in order to reduce contention for upackWorkCh in multi-CPU system.
-var unpackBatchSize = 32 * cgroup.AvailableCPUs()
+// It is better to load a single goroutine for up to one second on a system with many CPU cores
+// in order to reduce inter-CPU memory ping-pong.
+// A single goroutine can unpack up to 40 millions of rows per second, while a single block contains up to 8K rows.
+// So the batch size should be 40M / 8K = 5K.
+var unpackBatchSize = 5000
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
+func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
 	dst.reset()
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
@@ -398,15 +398,40 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 		return nil
 	}
 
-	// Feed workers with work
+	// Spin up local workers.
+	// Do not use global workers pool, since it increases inter-CPU memory ping-poing,
+	// which reduces the scalability on systems with many CPU cores.
 	addrsLen := len(pts.addrs)
+	workers := addrsLen / unpackBatchSize
+	if workers > gomaxprocs {
+		workers = gomaxprocs
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	workChs := make([]chan *unpackWork, workers)
+	var workChsWG sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		// Use unbuffered channel on purpose, since there are high chances
+		// that only a single unpackWork is needed to unpack.
+		// The unbuffered channel should reduce inter-CPU ping-pong in this case,
+		// which should improve the performance in a system with many CPU cores.
+		workChs[i] = make(chan *unpackWork)
+		workChsWG.Add(1)
+		go func(workerID int) {
+			defer workChsWG.Done()
+			unpackWorker(workChs[workerID])
+		}(i)
+	}
+
+	// Feed workers with work
 	upws := make([]*unpackWork, 0, 1+addrsLen/unpackBatchSize)
 	upw := getUnpackWork()
 	upw.tbf = tbf
 	upw.at = at
 	for _, addr := range pts.addrs {
 		if len(upw.ws) >= unpackBatchSize {
-			scheduleUnpackWork(upw)
+			scheduleUnpackWork(workChs, upw)
 			upws = append(upws, upw)
 			upw = getUnpackWork()
 			upw.tbf = tbf
@@ -417,7 +442,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 			tr:   tr,
 		})
 	}
-	scheduleUnpackWork(upw)
+	scheduleUnpackWork(workChs, upw)
 	upws = append(upws, upw)
 	pts.addrs = pts.addrs[:0]
 
@@ -448,6 +473,13 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 		}
 		putUnpackWork(upw)
 	}
+
+	// Shut down local workers
+	for _, workCh := range workChs {
+		close(workCh)
+	}
+	workChsWG.Wait()
+
 	if firstErr != nil {
 		return firstErr
 	}
