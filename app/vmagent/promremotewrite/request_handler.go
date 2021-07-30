@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -20,19 +21,19 @@ var (
 )
 
 // InsertHandler processes remote write for prometheus.
-func InsertHandler(req *http.Request) error {
+func InsertHandler(p *httpserver.Path, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(req, func(tss []prompb.TimeSeries) error {
-			return insertRows(tss, extraLabels)
+			return insertRows(p, tss, extraLabels)
 		})
 	})
 }
 
-func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(p *httpserver.Path, timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -68,7 +69,7 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(&ctx.WriteRequest)
+	remotewrite.Push(p, &ctx.WriteRequest)
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil

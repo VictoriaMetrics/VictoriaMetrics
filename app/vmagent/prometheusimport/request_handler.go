@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -18,7 +19,7 @@ var (
 )
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
-func InsertHandler(req *http.Request) error {
+func InsertHandler(p *httpserver.Path, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
@@ -30,12 +31,12 @@ func InsertHandler(req *http.Request) error {
 	return writeconcurrencylimiter.Do(func() error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
-			return insertRows(rows, extraLabels)
+			return insertRows(p, rows, extraLabels)
 		}, nil)
 	})
 }
 
-func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(p *httpserver.Path, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -69,7 +70,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(&ctx.WriteRequest)
+	remotewrite.Push(p, &ctx.WriteRequest)
 	rowsInserted.Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
 	return nil

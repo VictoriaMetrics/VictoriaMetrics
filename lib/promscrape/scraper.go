@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -49,7 +50,7 @@ func CheckConfig() error {
 // Init initializes Prometheus scraper with config from the `-promscrape.config`.
 //
 // Scraped data is passed to pushData.
-func Init(pushData func(wr *prompbmarshal.WriteRequest)) {
+func Init(pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)) {
 	globalStopCh = make(chan struct{})
 	scraperWG.Add(1)
 	go func() {
@@ -72,7 +73,7 @@ var (
 	PendingScrapeConfigs int32
 )
 
-func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
+func runScraper(configFile string, pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
 	if configFile == "" {
 		// Nothing to scrape.
 		return
@@ -160,13 +161,13 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
 
 type scrapeConfigs struct {
-	pushData func(wr *prompbmarshal.WriteRequest)
+	pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)
 	wg       sync.WaitGroup
 	stopCh   chan struct{}
 	scfgs    []*scrapeConfig
 }
 
-func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest)) *scrapeConfigs {
+func newScrapeConfigs(pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)) *scrapeConfigs {
 	return &scrapeConfigs{
 		pushData: pushData,
 		stopCh:   make(chan struct{}),
@@ -207,7 +208,7 @@ func (scs *scrapeConfigs) stop() {
 
 type scrapeConfig struct {
 	name          string
-	pushData      func(wr *prompbmarshal.WriteRequest)
+	pushData      func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)
 	getScrapeWork func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork
 	checkInterval time.Duration
 	cfgCh         chan *Config
@@ -256,7 +257,7 @@ type scraperGroup struct {
 	wg       sync.WaitGroup
 	mLock    sync.Mutex
 	m        map[string]*scraper
-	pushData func(wr *prompbmarshal.WriteRequest)
+	pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)
 
 	changesCount    *metrics.Counter
 	activeScrapers  *metrics.Counter
@@ -264,7 +265,7 @@ type scraperGroup struct {
 	scrapersStopped *metrics.Counter
 }
 
-func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest)) *scraperGroup {
+func newScraperGroup(name string, pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)) *scraperGroup {
 	sg := &scraperGroup{
 		name:     name,
 		m:        make(map[string]*scraper),
@@ -358,7 +359,7 @@ type scraper struct {
 	stopCh chan struct{}
 }
 
-func newScraper(sw *ScrapeWork, group string, pushData func(wr *prompbmarshal.WriteRequest)) *scraper {
+func newScraper(sw *ScrapeWork, group string, pushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)) *scraper {
 	sc := &scraper{
 		stopCh: make(chan struct{}),
 	}

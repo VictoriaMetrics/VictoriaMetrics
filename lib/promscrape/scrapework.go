@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -163,7 +164,7 @@ type scrapeWork struct {
 	GetStreamReader func() (*streamReader, error)
 
 	// PushData is called for pushing collected data.
-	PushData func(wr *prompbmarshal.WriteRequest)
+	PushData func(p *httpserver.Path, wr *prompbmarshal.WriteRequest)
 
 	// ScrapeGroup is name of ScrapeGroup that
 	// scrapeWork belongs to
@@ -316,7 +317,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	startTime := time.Now()
-	sw.PushData(&wc.writeRequest)
+	sw.PushData(nil, &wc.writeRequest)
 	pushDataDuration.UpdateDuration(startTime)
 	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
@@ -358,7 +359,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 			}
 			sw.updateSeriesAdded(wc)
 			startTime := time.Now()
-			sw.PushData(&wc.writeRequest)
+			sw.PushData(nil, &wc.writeRequest)
 			pushDataDuration.UpdateDuration(startTime)
 			wc.resetNoRows()
 			return nil
@@ -386,7 +387,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	startTime := time.Now()
-	sw.PushData(&wc.writeRequest)
+	sw.PushData(nil, &wc.writeRequest)
 	pushDataDuration.UpdateDuration(startTime)
 	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
