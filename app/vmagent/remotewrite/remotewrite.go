@@ -85,7 +85,7 @@ func InitSecretFlags() {
 func Init(p *httpserver.Path) {
 	rwctxLock.Lock()
 	defer rwctxLock.Unlock()
-	if len(*remoteWriteURLs) == 0  && len(*remoteWriteMultitenantURLs) == 0 {
+	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` or `-remoteWrite.multitenantURL` command-line flag must be set")
 	}
 
@@ -136,7 +136,7 @@ func Init(p *httpserver.Path) {
 	}
 	allRelabelConfigs.Store(rcs)
 
-	maxInmemoryBlocks := memory.Allowed() / len(*remoteWriteURLs) / maxRowsPerBlock / 100
+	maxInmemoryBlocks := memory.Allowed() / (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)) / maxRowsPerBlock / 100
 	if maxInmemoryBlocks > 400 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
