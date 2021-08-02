@@ -89,9 +89,7 @@ func main() {
 
 	logger.Infof("starting vmagent at %q...", *httpListenAddr)
 	startTime := time.Now()
-	if len(*remoteWriteURLs) > 0 {
-		remotewrite.Init(nil)
-	}
+	remotewrite.Init(nil)
 	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
 	if len(*influxListenAddr) > 0 {

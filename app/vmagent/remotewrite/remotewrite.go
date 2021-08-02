@@ -88,6 +88,10 @@ func Init(p *httpserver.Path) {
 	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` or `-remoteWrite.multitenantURL` command-line flag must be set")
 	}
+	// Do not Init MultitenantURLs they are dynamically initialized
+	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) > 0 && p == nil {
+		return
+	}
 
 	//  Create one writecontext per tenant
 	writeContextIndex := defaultWriteToken
