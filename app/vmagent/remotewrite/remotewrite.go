@@ -27,7 +27,7 @@ var (
 	remoteWriteURLs = flagutil.NewArray("remoteWrite.url", "Remote storage URL to write data to. It must support Prometheus remote_write API. "+
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
-	remoteWriteMultitenantURLs = flagutil.NewArray("remoteWrite.multitenantURL", "Base path for remote storage URL to write data to. It must support Prometheus remote_write API. "+
+	remoteWriteMultitenantURLs = flagutil.NewArray("remoteWrite.multitenantURL", "Base path for remote storage URL to write data to. It must support VictoriaMetrics remote_write tenants API (identified by accountID or accountID:projectID). "+
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428 . "+
 		"Pass multiple -remoteWrite.multitenantURL flags in order to write data concurrently to multiple remote storage systems")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
@@ -170,8 +170,8 @@ func Init(p *httpserver.Path) {
 			if *showRemoteWriteURL {
 				sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteMultitenantURL)
 			}
-			remoteWriteURL := fmt.Sprintf("%s/%s/%s/%s", remoteWriteMultitenantURL, p.Prefix, p.AuthToken, p.Suffix)
-			rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+			remoteWriteMultitenantURL := fmt.Sprintf("%s/%s/%s/%s", remoteWriteMultitenantURL, p.Prefix, p.AuthToken, p.Suffix)
+			rwctx := newRemoteWriteCtx(i, remoteWriteMultitenantURL, maxInmemoryBlocks, sanitizedURL)
 			rwctxs = append(rwctxs, rwctx)
 		}
 	}
