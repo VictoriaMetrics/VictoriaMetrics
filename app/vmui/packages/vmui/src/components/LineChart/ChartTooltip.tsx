@@ -37,7 +37,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({data, time}) => {
       <Box>
         <Typography variant="body2">
           {data.metrics.map(({key, value}) =>
-            <Box mb={.25} key={key} display="flex" flexDirection="row" alignItems="center">
+            <Box component="span" mb={.25} key={key} display="flex" flexDirection="row" alignItems="center">
               <span>{key}:&nbsp;</span>
               <span style={{fontWeight: "bold"}}>{value}</span>
             </Box>)}

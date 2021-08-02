@@ -1425,15 +1425,17 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	for i := minSrcParts; i <= maxSrcParts; i++ {
 		for j := 0; j <= len(src)-i; j++ {
 			a := src[j : j+i]
+			rowsCount := getRowsCount(a)
+			if rowsCount > maxRows {
+				needFreeSpace = true
+			}
 			if a[0].p.ph.RowsCount*uint64(len(a)) < a[len(a)-1].p.ph.RowsCount {
 				// Do not merge parts with too big difference in rows count,
 				// since this results in unbalanced merges.
 				continue
 			}
-			rowsCount := getRowsCount(a)
 			if rowsCount > maxRows {
 				// There is no need in verifying remaining parts with higher number of rows
-				needFreeSpace = true
 				break
 			}
 			m := float64(rowsCount) / float64(a[len(a)-1].p.ph.RowsCount)

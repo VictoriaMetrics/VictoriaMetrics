@@ -1,5 +1,26 @@
 # Changes
 
+## [0.88.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.87.0...v0.88.0) (2021-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cloudbuild/apiv1:** Proto had a prior definitions of WorkerPool resources which were never supported. This change replaces those resources with definitions that are currently supported.
+
+### Features
+
+* **cloudbuild/apiv1:** add a WorkerPools API ([19ea3f8](https://www.github.com/googleapis/google-cloud-go/commit/19ea3f830212582bfee21d9e09f0034f9ce76547))
+* **cloudbuild/apiv1:** Implementation of Build Failure Info: - Added message FailureInfo field ([19ea3f8](https://www.github.com/googleapis/google-cloud-go/commit/19ea3f830212582bfee21d9e09f0034f9ce76547))
+* **osconfig/agentendpoint:** OSConfig AgentEndpoint: add basic os info to RegisterAgentRequest, add WindowsApplication type to Inventory ([8936bc3](https://www.github.com/googleapis/google-cloud-go/commit/8936bc3f2d0fb2f6514f6e019fa247b8f41bd43c))
+* **resourcesettings:** Publish Cloud ResourceSettings v1 API ([43ad3cb](https://www.github.com/googleapis/google-cloud-go/commit/43ad3cb7be981fff9dc5dcf4510f1cd7bea99957))
+
+
+### Bug Fixes
+
+* **internal/godocfx:** set exit code, print cmd output, no go get ... ([#4445](https://www.github.com/googleapis/google-cloud-go/issues/4445)) ([cc70f77](https://www.github.com/googleapis/google-cloud-go/commit/cc70f77ac279a62e24e1b07f6e53fd126b7286b0))
+* **internal:** detect module for properly generating docs URLs ([#4460](https://www.github.com/googleapis/google-cloud-go/issues/4460)) ([1eaba8b](https://www.github.com/googleapis/google-cloud-go/commit/1eaba8bd694f7552a8e3e09b4f164de8b6ca23f0)), refs [#4447](https://www.github.com/googleapis/google-cloud-go/issues/4447)
+* **kms:** Updating WORKSPACE files to use the newest version of the Typescript generator. ([8936bc3](https://www.github.com/googleapis/google-cloud-go/commit/8936bc3f2d0fb2f6514f6e019fa247b8f41bd43c))
+
 ## [0.87.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.86.0...v0.87.0) (2021-07-13)
 
 
