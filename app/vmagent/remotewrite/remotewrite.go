@@ -57,7 +57,7 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries")
 )
 
-var defaultWriteToken = "0"
+var defaultWriteToken = "default"
 var rwctxsMap = map[string][]*remoteWriteCtx{}
 
 var rwctxLock = sync.Mutex{}
