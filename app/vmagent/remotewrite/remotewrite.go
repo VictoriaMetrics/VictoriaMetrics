@@ -153,7 +153,7 @@ func Init(p *httpserver.Path) {
 
 	rwctxs := []*remoteWriteCtx{}
 
-	if len(*remoteWriteURLs) > 0 {
+	if len(*remoteWriteURLs) > 0 && p == nil {
 		for i, remoteWriteURL := range *remoteWriteURLs {
 			sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 			if *showRemoteWriteURL {
