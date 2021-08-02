@@ -18,10 +18,30 @@ groups:
         expr: up{job=~"vmselect|vminsert|vmstorage|vmagent|vmalert"} == 0
         for: 2m
         labels:
-          severity: "critical"
+          severity: critical
         annotations:
           summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
           description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minutes."
+
+      - alert: ProcessNearFDLimits
+        expr: (process_max_fds - process_open_fds) < 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Number of free file descriptors is less than 100 for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 5m"
+          description: "Exhausting OS file descriptors limit can cause severe degradation of the process.
+          Consider to increase the limit as fast as possible."
+
+      - alert: TooHighMemoryUsage
+        expr: (process_resident_memory_anon_bytes / vm_available_memory_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "It is more than 90% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          description: "Too high memory usage may result into multiple issues such as OOMs or degraded performance.
+           Consider to either increase available memory or decrease the load on the process."
 
   # Alerts group for VM cluster assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/11176 is installed.
