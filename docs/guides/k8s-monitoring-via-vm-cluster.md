@@ -20,7 +20,7 @@ We will use:
   <img src="guide-vmcluster-k8s-scheme.png" width="800" alt="VictoriaMetrics Cluster on Kubernetes cluster">
 </p>
 
-### 1. VictoriaMetrics Helm repository
+## 1. VictoriaMetrics Helm repository
 
 > For this guide we will use Helm 3 but if you already use Helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
 
@@ -67,7 +67,7 @@ vm/victoria-metrics-operator 	0.1.17       	0.16.0     	Victoria Metrics Operato
 vm/victoria-metrics-single   	0.7.5        	1.62.0     	Victoria Metrics Single version - high-performa...
 ```
 
-### 2. Install VictoriaMetrics Cluster from the Helm chart
+## 2. Install VictoriaMetrics Cluster from the Helm chart
 
 Run this command in your terminal:
 
@@ -176,7 +176,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-0                 1/1     Running  
 vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running   0          16m
 ```
 
-### 3. Install vmagent from the Helm chart
+## 3. Install vmagent from the Helm chart
 
 To scrape metrics from Kubernetes with a [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) we need to install [vmagent](https://docs.victoriametrics.com/vmagent.html) with additional configuration. To do so, please run these commands in your terminal:
 
@@ -434,7 +434,7 @@ vmagent-victoria-metrics-agent-69974b95b4-mhjph                1/1     Running  
 ```
 
 
-### 4. Install and connect Grafana to VictoriaMetrics with Helm
+## 4. Install and connect Grafana to VictoriaMetrics with Helm
 
 Add the Grafana Helm repository. 
 
@@ -521,7 +521,7 @@ kubectl --namespace default port-forward $POD_NAME 3000
 ```
 </div>
 
-### 5. Check the result you obtained in your browser
+## 5. Check the result you obtained in your browser
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously got from kubectl. 
 
@@ -544,7 +544,7 @@ vmagent has it’s own dashboard:
   <img src="guide-vmcluster-vmagent-grafana-dash.png" width="800" alt="vmagent dashboard">
 </p>
 
-### 6. Final thoughts
+## 6. Final thoughts
 
 * We set up TimeSeries Database for your Kubernetes cluster.
 * We collected metrics from all running pods,nodes, … and stored them in a VictoriaMetrics database.
