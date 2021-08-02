@@ -40,6 +40,7 @@ sort: 16
 * [Monitoring Kubernetes clusters with VictoriaMetrics and Grafana](https://blog.cybozu.io/entry/2021/03/18/115743)
 * [Multi-tenancy monitoring system for Kubernetes cluster using VictoriaMetrics and operators](https://blog.kintone.io/entry/2021/03/31/175256)
 * [Monitoring as Code на базе VictoriaMetrics и Grafana](https://habr.com/ru/post/568090/)
+* [Push Prometheus metrics to VictoriaMetrics or other exporters](https://pythonawesome.com/push-prometheus-metrics-to-victoriametrics-or-other-exporters/)
 
 
 ## Our articles
