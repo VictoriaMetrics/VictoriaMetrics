@@ -468,8 +468,8 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
 		return true
-	case "prometheus/api/v1/alerts":
-		// Return dumb placehloder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
+	case "prometheus/api/v1/alerts", "prometheus/alerts":
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
