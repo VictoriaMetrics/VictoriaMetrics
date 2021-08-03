@@ -71,7 +71,7 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
             aria-haspopup="true"
             style={{cursor: "pointer"}}
             onMouseEnter={handlePopoverOpen}
-            onMouseLeave={handlePopoverClose}>�:&nbsp;</span>
+            onMouseLeave={handlePopoverClose}>:&nbsp;</span>
           <Popover
             open={open}
             anchorEl={anchorEl}
