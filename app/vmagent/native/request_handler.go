@@ -5,19 +5,22 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="native"}`)
-	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="native"}`)
+	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="native"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="native"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="native"}`)
 )
 
 // InsertHandler processes `/api/v1/import` request.
@@ -43,6 +46,12 @@ func insertRows(p *httpserver.Path, block *parser.Block, extraLabels []prompbmar
 	// since relabeling can prevent from inserting the rows.
 	rowsLen := len(block.Values)
 	rowsInserted.Add(rowsLen)
+	if p != nil {
+		at, err := auth.NewToken(p.AuthToken)
+		if err == nil {
+			rowsTenantInserted.Get(at).Add(rowsLen)
+		}
+	}
 	rowsPerInsert.Update(float64(rowsLen))
 
 	tssDst := ctx.WriteRequest.Timeseries[:0]

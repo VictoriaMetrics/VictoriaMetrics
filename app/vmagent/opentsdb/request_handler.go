@@ -5,15 +5,18 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentsdb"}`)
-	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentsdb"}`)
+	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentsdb"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="opentsdb"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentsdb"}`)
 )
 
 // InsertHandler processes remote write for OpenTSDB put protocol.
@@ -60,6 +63,12 @@ func insertRows(rows []parser.Row) error {
 	ctx.Samples = samples
 	remotewrite.Push(nil, &ctx.WriteRequest)
 	rowsInserted.Add(len(rows))
+	if p != nil {
+		at, err := auth.NewToken(p.AuthToken)
+		if err == nil {
+			rowsTenantInserted.Get(at).Add(len(rows))
+		}
+	}
 	rowsPerInsert.Update(float64(len(rows)))
 	return nil
 }

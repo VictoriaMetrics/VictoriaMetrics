@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -15,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -26,8 +28,9 @@ var (
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="influx"}`)
-	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="influx"}`)
+	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="influx"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="influx"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="influx"}`)
 )
 
 // InsertHandlerForReader processes remote write for influx line protocol.
@@ -133,6 +136,12 @@ func insertRows(p *httpserver.Path, db string, rows []parser.Row, extraLabels []
 	ctx.commonLabels = commonLabels
 	remotewrite.Push(p, &ctx.ctx.WriteRequest)
 	rowsInserted.Add(rowsTotal)
+	if p != nil {
+		at, err := auth.NewToken(p.AuthToken)
+		if err == nil {
+			rowsTenantInserted.Get(at).Add(rowsTotal)
+		}
+	}
 	rowsPerInsert.Update(float64(rowsTotal))
 
 	return nil
