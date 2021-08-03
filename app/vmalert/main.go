@@ -266,6 +266,8 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group) {
 		}
 		newGroupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
 		if err != nil {
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
 			logger.Errorf("cannot parse configuration file: %s", err)
 			continue
 		}
