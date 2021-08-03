@@ -50,17 +50,18 @@ const HomeLayout: FC = () => {
           <UrlCopy url={fetchUrl}/>
         </Toolbar>
       </AppBar>
-      <Box display="flex" flexDirection="column" style={{height: "calc(100vh - 64px)"}}>
+      <Box display="flex" flexDirection="column" style={{minHeight: "calc(100vh - 64px)"}}>
         <Box m={2}>
           <QueryConfigurator/>
         </Box>
-        <Box flexShrink={1} style={{overflowY: "scroll"}}>
+        <Box flexShrink={1}>
           {isLoading && <Fade in={isLoading} style={{
             transitionDelay: isLoading ? "300ms" : "0ms",
           }}>
             <Box alignItems="center" flexDirection="column" display="flex"
               style={{
                 width: "100%",
+                maxWidth: "calc(100vh - 32px)",
                 position: "absolute",
                 height: "150px",
                 background: "linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,.7), rgba(255,255,255,0))"
