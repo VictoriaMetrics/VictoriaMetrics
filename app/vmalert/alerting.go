@@ -42,6 +42,9 @@ type AlertingRule struct {
 	// resets on every successful Exec
 	// may be used as Health state
 	lastExecError error
+	// stores the number of samples returned during
+	// the last evaluation
+	lastExecSamples int
 
 	metrics *alertingRuleMetrics
 }
@@ -50,6 +53,7 @@ type alertingRuleMetrics struct {
 	errors  *gauge
 	pending *gauge
 	active  *gauge
+	samples *gauge
 }
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
@@ -76,8 +80,8 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
 	ar.metrics.pending = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
-			ar.mu.Lock()
-			defer ar.mu.Unlock()
+			ar.mu.RLock()
+			defer ar.mu.RUnlock()
 			var num int
 			for _, a := range ar.alerts {
 				if a.State == notifier.StatePending {
@@ -88,8 +92,8 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		})
 	ar.metrics.active = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
 		func() float64 {
-			ar.mu.Lock()
-			defer ar.mu.Unlock()
+			ar.mu.RLock()
+			defer ar.mu.RUnlock()
 			var num int
 			for _, a := range ar.alerts {
 				if a.State == notifier.StateFiring {
@@ -100,12 +104,18 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		})
 	ar.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_error{%s}`, labels),
 		func() float64 {
-			ar.mu.Lock()
-			defer ar.mu.Unlock()
+			ar.mu.RLock()
+			defer ar.mu.RUnlock()
 			if ar.lastExecError == nil {
 				return 0
 			}
 			return 1
+		})
+	ar.metrics.samples = getOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
+		func() float64 {
+			ar.mu.RLock()
+			defer ar.mu.RUnlock()
+			return float64(ar.lastExecSamples)
 		})
 	return ar
 }
@@ -115,6 +125,7 @@ func (ar *AlertingRule) Close() {
 	metrics.UnregisterMetric(ar.metrics.active.name)
 	metrics.UnregisterMetric(ar.metrics.pending.name)
 	metrics.UnregisterMetric(ar.metrics.errors.name)
+	metrics.UnregisterMetric(ar.metrics.samples.name)
 }
 
 // String implements Stringer interface
@@ -194,6 +205,7 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 
 	ar.lastExecError = err
 	ar.lastExecTime = time.Now()
+	ar.lastExecSamples = len(qMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
@@ -384,6 +396,7 @@ func (ar *AlertingRule) RuleAPI() APIAlertingRule {
 		Expression:  ar.Expr,
 		For:         ar.For.String(),
 		LastError:   lastErr,
+		LastSamples: ar.lastExecSamples,
 		LastExec:    ar.lastExecTime,
 		Labels:      ar.Labels,
 		Annotations: ar.Annotations,
