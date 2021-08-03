@@ -33,6 +33,10 @@ type apiConfig struct {
 	// Real credentials used for accessing EC2 API.
 	creds     *apiCredentials
 	credsLock sync.Mutex
+
+	// A map from AZ name to AZ id.
+	azMap     map[string]string
+	azMapLock sync.Mutex
 }
 
 // apiCredentials represents aws api credentials
