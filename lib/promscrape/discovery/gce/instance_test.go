@@ -158,6 +158,7 @@ func TestParseInstanceListSuccess(t *testing.T) {
 			"__meta_gce_instance_id":                        "7897352091592122",
 			"__meta_gce_instance_name":                      "play-1m-1-vmagent",
 			"__meta_gce_instance_status":                    "RUNNING",
+			"__meta_gce_interface_ipv4_nic0":                "10.11.2.7",
 			"__meta_gce_label_cluster_num":                  "1",
 			"__meta_gce_label_cluster_retention":            "1m",
 			"__meta_gce_label_env":                          "play",
