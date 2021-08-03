@@ -42,6 +42,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"stddev_over_time":   newRollupFuncOneArg(rollupStddev),
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
 	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
+	"present_over_time":  newRollupFuncOneArg(rollupPresent),
 
 	// Additional rollup funcs.
 	"default_rollup":        newRollupFuncOneArg(rollupDefault), // default rollup func
@@ -97,23 +98,24 @@ var rollupFuncs = map[string]newRollupFunc{
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
 var rollupAggrFuncs = map[string]rollupFunc{
 	// Standard rollup funcs from PromQL.
-	"changes":          rollupChanges,
-	"delta":            rollupDelta,
-	"deriv":            rollupDerivSlow,
-	"deriv_fast":       rollupDerivFast,
-	"idelta":           rollupIdelta,
-	"increase":         rollupDelta,     // + rollupFuncsRemoveCounterResets
-	"irate":            rollupIderiv,    // + rollupFuncsRemoveCounterResets
-	"rate":             rollupDerivFast, // + rollupFuncsRemoveCounterResets
-	"resets":           rollupResets,
-	"avg_over_time":    rollupAvg,
-	"min_over_time":    rollupMin,
-	"max_over_time":    rollupMax,
-	"sum_over_time":    rollupSum,
-	"count_over_time":  rollupCount,
-	"stddev_over_time": rollupStddev,
-	"stdvar_over_time": rollupStdvar,
-	"absent_over_time": rollupAbsent,
+	"changes":           rollupChanges,
+	"delta":             rollupDelta,
+	"deriv":             rollupDerivSlow,
+	"deriv_fast":        rollupDerivFast,
+	"idelta":            rollupIdelta,
+	"increase":          rollupDelta,     // + rollupFuncsRemoveCounterResets
+	"irate":             rollupIderiv,    // + rollupFuncsRemoveCounterResets
+	"rate":              rollupDerivFast, // + rollupFuncsRemoveCounterResets
+	"resets":            rollupResets,
+	"avg_over_time":     rollupAvg,
+	"min_over_time":     rollupMin,
+	"max_over_time":     rollupMax,
+	"sum_over_time":     rollupSum,
+	"count_over_time":   rollupCount,
+	"stddev_over_time":  rollupStddev,
+	"stdvar_over_time":  rollupStdvar,
+	"absent_over_time":  rollupAbsent,
+	"present_over_time": rollupPresent,
 
 	// Additional rollup funcs.
 	"range_over_time":     rollupRange,
@@ -157,6 +159,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"stddev_over_time":    true,
 	"stdvar_over_time":    true,
 	"absent_over_time":    true,
+	"present_over_time":   true,
 	"sum2_over_time":      true,
 	"geomean_over_time":   true,
 	"distinct_over_time":  true,
@@ -1279,6 +1282,15 @@ func rollupGeomean(rfa *rollupFuncArg) float64 {
 
 func rollupAbsent(rfa *rollupFuncArg) float64 {
 	if len(rfa.values) == 0 {
+		return 1
+	}
+	return nan
+}
+
+func rollupPresent(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	if len(rfa.values) > 0 {
 		return 1
 	}
 	return nan
