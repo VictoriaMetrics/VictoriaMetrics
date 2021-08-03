@@ -5,18 +5,21 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="promremotewrite"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="promremotewrite"}`)
 	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="promremotewrite"}`)
 )
 
@@ -71,6 +74,12 @@ func insertRows(p *httpserver.Path, timeseries []prompb.TimeSeries, extraLabels 
 	ctx.Samples = samples
 	remotewrite.Push(p, &ctx.WriteRequest)
 	rowsInserted.Add(rowsTotal)
+	if p != nil {
+		at, err := auth.NewToken(p.AuthToken)
+		if err == nil {
+			rowsTenantInserted.Get(at).Add(rowsTotal)
+		}
+	}
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }
