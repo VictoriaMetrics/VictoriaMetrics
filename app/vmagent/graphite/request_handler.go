@@ -7,15 +7,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="graphite"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="graphite"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="graphite"}`)
+	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="graphite"}`)
+	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="graphite"}`)
 )
 
 // InsertHandler processes remote write for graphite plaintext protocol.
