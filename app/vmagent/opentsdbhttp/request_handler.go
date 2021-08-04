@@ -5,16 +5,19 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentsdbhttp"}`)
-	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentsdbhttp"}`)
+	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentsdbhttp"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="opentsdbhttp"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentsdbhttp"}`)
 )
 
 // InsertHandler processes HTTP OpenTSDB put requests.
@@ -67,6 +70,12 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx.Samples = samples
 	remotewrite.Push(nil, &ctx.WriteRequest)
 	rowsInserted.Add(len(rows))
+	if p != nil {
+		at, err := auth.NewToken(p.AuthToken)
+		if err == nil {
+			rowsTenantInserted.Get(at).Add(len(rows))
+		}
+	}
 	rowsPerInsert.Update(float64(len(rows)))
 	return nil
 }
