@@ -40,6 +40,7 @@ type APIAlertingRule struct {
 	Expression  string            `json:"expression"`
 	For         string            `json:"for"`
 	LastError   string            `json:"last_error"`
+	LastSamples int               `json:"last_samples"`
 	LastExec    time.Time         `json:"last_exec"`
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
@@ -47,12 +48,13 @@ type APIAlertingRule struct {
 
 // APIRecordingRule represents RecordingRule for WEB view
 type APIRecordingRule struct {
-	ID         string            `json:"id"`
-	Name       string            `json:"name"`
-	Type       string            `json:"type"`
-	GroupID    string            `json:"group_id"`
-	Expression string            `json:"expression"`
-	LastError  string            `json:"last_error"`
-	LastExec   time.Time         `json:"last_exec"`
-	Labels     map[string]string `json:"labels"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"`
+	GroupID     string            `json:"group_id"`
+	Expression  string            `json:"expression"`
+	LastError   string            `json:"last_error"`
+	LastSamples int               `json:"last_samples"`
+	LastExec    time.Time         `json:"last_exec"`
+	Labels      map[string]string `json:"labels"`
 }
