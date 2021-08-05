@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -26,6 +27,9 @@ var (
 	remoteWriteURLs = flagutil.NewArray("remoteWrite.url", "Remote storage URL to write data to. It must support Prometheus remote_write API. "+
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
+	remoteWriteMultitenantURLs = flagutil.NewArray("remoteWrite.multitenantURL", "Base path for remote storage URL to write data to. It must support VictoriaMetrics remote_write tenants API (identified by accountID or accountID:projectID). "+
+		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428 . "+
+		"Pass multiple -remoteWrite.multitenantURL flags in order to write data concurrently to multiple remote storage systems")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
@@ -53,7 +57,10 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries")
 )
 
-var rwctxs []*remoteWriteCtx
+var defaultWriteToken = "default"
+var rwctxsMap = map[string][]*remoteWriteCtx{}
+
+var rwctxLock = sync.Mutex{}
 
 // Contains the current relabelConfigs.
 var allRelabelConfigs atomic.Value
@@ -75,10 +82,27 @@ func InitSecretFlags() {
 // It must be called after flag.Parse().
 //
 // Stop must be called for graceful shutdown.
-func Init() {
-	if len(*remoteWriteURLs) == 0 {
-		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
+func Init(p *httpserver.Path) {
+	rwctxLock.Lock()
+	defer rwctxLock.Unlock()
+	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) == 0 {
+		logger.Fatalf("at least one `-remoteWrite.url` or `-remoteWrite.multitenantURL` command-line flag must be set")
 	}
+	// Do not Init MultitenantURLs they are dynamically initialized
+	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) > 0 && p == nil {
+		return
+	}
+
+	//  Create one writecontext per tenant
+	writeContextIndex := defaultWriteToken
+
+	if p != nil {
+		writeContextIndex = p.AuthToken
+	}
+	if _, ok := rwctxsMap[writeContextIndex]; ok {
+		return
+	}
+
 	if *maxHourlySeries > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
@@ -116,7 +140,7 @@ func Init() {
 	}
 	allRelabelConfigs.Store(rcs)
 
-	maxInmemoryBlocks := memory.Allowed() / len(*remoteWriteURLs) / maxRowsPerBlock / 100
+	maxInmemoryBlocks := memory.Allowed() / (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)) / maxRowsPerBlock / 100
 	if maxInmemoryBlocks > 400 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
@@ -126,14 +150,33 @@ func Init() {
 	if maxInmemoryBlocks < 2 {
 		maxInmemoryBlocks = 2
 	}
-	for i, remoteWriteURL := range *remoteWriteURLs {
-		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-		if *showRemoteWriteURL {
-			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
+
+	rwctxs := []*remoteWriteCtx{}
+
+	if len(*remoteWriteURLs) > 0 && p == nil {
+		for i, remoteWriteURL := range *remoteWriteURLs {
+			sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
+			if *showRemoteWriteURL {
+				sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
+			}
+			rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+			rwctxs = append(rwctxs, rwctx)
 		}
-		rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
-		rwctxs = append(rwctxs, rwctx)
 	}
+
+	if len(*remoteWriteMultitenantURLs) > 0 && p != nil {
+		for i, remoteWriteMultitenantURL := range *remoteWriteMultitenantURLs {
+			sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
+			if *showRemoteWriteURL {
+				sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteMultitenantURL)
+			}
+			remoteWriteMultitenantURL := fmt.Sprintf("%s/%s/%s/%s", remoteWriteMultitenantURL, p.Prefix, p.AuthToken, p.Suffix)
+			rwctx := newRemoteWriteCtx(i, remoteWriteMultitenantURL, maxInmemoryBlocks, sanitizedURL)
+			rwctxs = append(rwctxs, rwctx)
+		}
+	}
+
+	rwctxsMap[writeContextIndex] = rwctxs
 
 	// Start config reloader.
 	configReloaderWG.Add(1)
@@ -166,17 +209,32 @@ var configReloaderWG sync.WaitGroup
 func Stop() {
 	close(stopCh)
 	configReloaderWG.Wait()
-
-	for _, rwctx := range rwctxs {
-		rwctx.MustStop()
+	for _, rwctxs := range rwctxsMap {
+		for _, rwctx := range rwctxs {
+			rwctx.MustStop()
+		}
+		rwctxs = nil
 	}
-	rwctxs = nil
+	rwctxsMap = nil
 }
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
-func Push(wr *prompbmarshal.WriteRequest) {
+func Push(p *httpserver.Path, wr *prompbmarshal.WriteRequest) {
+	// if a queue is not created for this tenant, create it dynamically using the auth.Token
+	var rwctxs []*remoteWriteCtx
+	writeContextIndex := defaultWriteToken
+
+	// if no tenant speficied, p is nil
+	if p != nil {
+		writeContextIndex = p.AuthToken
+	}
+	if _, ok := rwctxsMap[writeContextIndex]; !ok {
+		Init(p)
+	}
+	rwctxs = rwctxsMap[writeContextIndex]
+
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
 	pcsGlobal := rcs.global
