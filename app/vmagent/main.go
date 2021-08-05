@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -88,7 +89,7 @@ func main() {
 
 	logger.Infof("starting vmagent at %q...", *httpListenAddr)
 	startTime := time.Now()
-	remotewrite.Init()
+	remotewrite.Init(nil)
 	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
 	if len(*influxListenAddr) > 0 {
@@ -159,11 +160,82 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		})
 		return true
 	}
+
+	p, err := httpserver.ParsePath(r.URL.Path)
+	if err == nil && p.Prefix == "insert" {
+
+		_, err := auth.NewToken(p.AuthToken)
+		if err != nil {
+			httpserver.Errorf(w, r, "auth error: %s", err)
+			return true
+		}
+
+		switch p.Suffix {
+		case "prometheus/", "prometheus", "prometheus/api/v1/write":
+			prometheusWriteRequests.Inc()
+			if err := promremotewrite.InsertHandler(p, r); err != nil {
+				prometheusWriteErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		case "prometheus/api/v1/import":
+			vmimportRequests.Inc()
+			if err := vmimport.InsertHandler(p, r); err != nil {
+				vmimportErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		case "prometheus/api/v1/import/csv":
+			csvimportRequests.Inc()
+			if err := csvimport.InsertHandler(p, r); err != nil {
+				csvimportErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		case "prometheus/api/v1/import/prometheus":
+			prometheusimportRequests.Inc()
+			if err := prometheusimport.InsertHandler(p, r); err != nil {
+				prometheusimportErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		case "prometheus/api/v1/import/native":
+			nativeimportRequests.Inc()
+			if err := native.InsertHandler(p, r); err != nil {
+				nativeimportErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		case "influx/write", "influx/api/v2/write":
+			influxWriteRequests.Inc()
+			if err := influx.InsertHandlerForHTTP(p, r); err != nil {
+				influxWriteErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		default:
+			// This link is not multitenant
+		}
+
+	}
+
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	switch path {
 	case "/api/v1/write":
 		prometheusWriteRequests.Inc()
-		if err := promremotewrite.InsertHandler(r); err != nil {
+		if err := promremotewrite.InsertHandler(nil, r); err != nil {
 			prometheusWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -172,7 +244,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import":
 		vmimportRequests.Inc()
-		if err := vmimport.InsertHandler(r); err != nil {
+		if err := vmimport.InsertHandler(nil, r); err != nil {
 			vmimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -181,7 +253,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import/csv":
 		csvimportRequests.Inc()
-		if err := csvimport.InsertHandler(r); err != nil {
+		if err := csvimport.InsertHandler(nil, r); err != nil {
 			csvimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -190,7 +262,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import/prometheus":
 		prometheusimportRequests.Inc()
-		if err := prometheusimport.InsertHandler(r); err != nil {
+		if err := prometheusimport.InsertHandler(nil, r); err != nil {
 			prometheusimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -199,7 +271,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import/native":
 		nativeimportRequests.Inc()
-		if err := native.InsertHandler(r); err != nil {
+		if err := native.InsertHandler(nil, r); err != nil {
 			nativeimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -208,7 +280,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
-		if err := influx.InsertHandlerForHTTP(r); err != nil {
+		if err := influx.InsertHandlerForHTTP(nil, r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
