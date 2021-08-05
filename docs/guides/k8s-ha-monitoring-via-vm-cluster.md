@@ -246,6 +246,7 @@ kubectl get pods | grep vmagent
 ```
 </div>
 
+
 The expected output is:
 
 ```bash
@@ -260,8 +261,10 @@ Run this comman to check that Victoria Metrics Cluster and `vmagent` are up and 
 ```bash
 kubectl get pods | grep victoria-metrics
 ```
+</div>
 
 The expected output is:
+
 ```bash
 vmagent-victoria-metrics-agent-57ddbdc55d-h4ljb                1/1     Running   0          75s
 vmcluster-victoria-metrics-cluster-vminsert-78b84d8cd9-s8v7x   1/1     Running   0          89s
@@ -283,8 +286,10 @@ Run the next command to see list of services:
 ```bash
 k get svc | grep vmselect
 ```
+</div>
 
 The expected output:
+
 ```bash
 vmcluster-victoria-metrics-cluster-vmselect    ClusterIP   10.88.2.69    <none>        8481/TCP                     1m
 ```
@@ -296,13 +301,16 @@ Run the following command to make `vmselect`'s port accessable from the local ma
 ```bash
 kubectl port-forward svc/vmcluster-victoria-metrics-cluster-vmselect 8481:8481
 ```
+</div>
 
 Execute the following command to get metrics via `curl`:
+
 ```bash
 curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmselect.*"})&start=-10m&step=1m' | jq
 ```
 
 The expected output is:
+
 ```bash
 {
   "status": "success",
@@ -384,6 +392,7 @@ To test Hight Availability works we need to shutdown one of the `vmstorages`. To
 ```bash
 kubectl scale sts vmcluster-victoria-metrics-cluster-vmstorage --replicas=2
 ```
+</div>
 
 Verify that now we have running two `vmstorages` in the cluster by executing the following command:
 
@@ -392,6 +401,7 @@ Verify that now we have running two `vmstorages` in the cluster by executing the
 ```bash
 kubectl get pods  | grep vmstorage
 ```
+</div>
 
 The expected output is:
 ```bash
