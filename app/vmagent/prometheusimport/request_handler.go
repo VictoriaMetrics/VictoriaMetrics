@@ -6,7 +6,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -17,12 +16,12 @@ import (
 
 var (
 	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="prometheus"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="prometheus"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="prometheus"}`)
 	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="prometheus"}`)
 )
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
-func InsertHandler(p *httpserver.Path, req *http.Request) error {
+func InsertHandler(at *auth.Token, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
@@ -34,12 +33,12 @@ func InsertHandler(p *httpserver.Path, req *http.Request) error {
 	return writeconcurrencylimiter.Do(func() error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
-			return insertRows(p, rows, extraLabels)
+			return insertRows(at, rows, extraLabels)
 		}, nil)
 	})
 }
 
-func insertRows(p *httpserver.Path, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -73,13 +72,10 @@ func insertRows(p *httpserver.Path, rows []parser.Row, extraLabels []prompbmarsh
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(p, &ctx.WriteRequest)
+	remotewrite.PushWithAuthToken(at, &ctx.WriteRequest)
 	rowsInserted.Add(len(rows))
-	if p != nil {
-		at, err := auth.NewToken(p.AuthToken)
-		if err == nil {
-			rowsTenantInserted.Get(at).Add(len(rows))
-		}
+	if at != nil {
+		rowsTenantInserted.Get(at).Add(len(rows))
 	}
 	rowsPerInsert.Update(float64(len(rows)))
 	return nil
