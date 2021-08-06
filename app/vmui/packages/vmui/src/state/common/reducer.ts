@@ -2,6 +2,7 @@ import {DisplayType} from "../../components/Home/Configurator/DisplayTypeSwitch"
 import {TimeParams, TimePeriod} from "../../types";
 import {dateFromSeconds, getDurationFromPeriod, getTimeperiodForDuration} from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
+import {getDefaultServer} from "../../utils/default-server-url";
 
 export interface TimeState {
   duration: string;
@@ -31,8 +32,9 @@ export type Action =
     | { type: "TOGGLE_AUTOREFRESH"}
     | { type: "TOGGLE_AUTOCOMPLETE"}
 
+
 export const initialState: AppState = {
-  serverUrl: getFromStorage("PREFERRED_URL") as string || "https://", // https://demo.promlabs.com or https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus",
+  serverUrl: getFromStorage("PREFERRED_URL") as string || getDefaultServer(), // https://demo.promlabs.com or https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus",
   displayType: "chart",
   query: getFromStorage("LAST_QUERY") as string || "\n", // demo_memory_usage_bytes
   time: {
