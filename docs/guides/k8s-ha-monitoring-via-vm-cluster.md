@@ -18,7 +18,7 @@
 
 ## 1. VictoriaMetrics Helm repository
 
-Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository) section found in previous guides. 
+Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository) section in previous guides. 
 
 
 ## 2. Install VictoriaMetrics Cluster from the Helm chart
