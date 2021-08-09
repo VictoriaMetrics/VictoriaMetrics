@@ -11,7 +11,7 @@
 
 **Preconditions**
 
-* [Kubernetes cluster 1.19.12-gke.2100](https://cloud.google.com/kubernetes-engine). We use the GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/).
+* [Kubernetes cluster 1.19.12-gke.2100](https://cloud.google.com/kubernetes-engine). We use GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/).
 * [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 * [jq](https://stedolan.github.io/jq/download/) tool
