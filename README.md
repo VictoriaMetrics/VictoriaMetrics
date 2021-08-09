@@ -1264,8 +1264,8 @@ or similar auth proxy.
 * There is no need for VictoriaMetrics tuning since it uses reasonable defaults for command-line flags,
   which are automatically adjusted for the available CPU and RAM resources.
 * There is no need for Operating System tuning since VictoriaMetrics is optimized for default OS settings.
-  The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a),
-  so Prometheus instances could establish more connections to VictoriaMetrics.
+  The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
+  The recommendation is not specific for VictoriaMetrics only but also for any service which handles many HTTP connections and stores data on disk.
 * The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
   since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
   If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
