@@ -255,7 +255,7 @@ vmagent-victoria-metrics-agent-57ddbdc55d-h4ljb                1/1     Running  
 
 ## 4. Verifying HA of VictoraMetrics Cluster
 
-Run this command to check that the Victoria Metrics Cluster and `vmagent` are up and running:
+Run the following command to check that VictoriaMetrics services are up and running:
 <div class="with-copy" markdown="1">
 
 ```bash
