@@ -278,7 +278,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running  
 vmcluster-victoria-metrics-cluster-vmstorage-2                 1/1     Running   0          34s
 ```
 
-To verify that metrics are present in the VictoriaMetrics TSDB you can send a curl request to the `vmselect` service from kubernetes or you may setup Grafana and check it via the web interface. 
+To verify that metrics are present in the VictoriaMetrics send a curl request to the `vmselect` service from kubernetes or setup Grafana and check it via the web interface. 
 
 Run the following command to see the list of services:
 <div class="with-copy" markdown="1">
