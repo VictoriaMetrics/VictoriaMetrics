@@ -7,7 +7,7 @@
 * How to store metrics 
 * How to scrape metrics from k8s components using a service discovery 
 * How to visualize stored data 
-* How to store metrics in the [VictoriaMetrics](https://victoriametrics.com) TSDB
+* How to store metrics in [VictoriaMetrics](https://victoriametrics.com)
 
 **Preconditions**
 
