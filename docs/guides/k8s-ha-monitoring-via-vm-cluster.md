@@ -371,7 +371,7 @@ To test via Grafana, we need to install it first. [Install and connect Grafana t
   <img src="guide-vmcluster-k8s-ha-explore.png" width="800" alt="grafana explore">
 </p>
 
-Choose `victoriametrics` as the datasource and enter `count(up{kubernetes_pod_name=~".*vmselect.*"})` to the **Metric browser** field as shown on the screenshot, then press **Run query** button:
+Choose `victoriametrics` from the list of datasources and enter `count(up{kubernetes_pod_name=~".*vmselect.*"})` to the **Metric browser** field as shown on the screenshot, then press **Run query** button:
 
 <p align="center">
   <img src="guide-vmcluster-k8s-ha-explore-count-up.png" width="800" alt="">
