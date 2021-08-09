@@ -75,7 +75,7 @@ TEST SUITE: None
 NOTES:
 Write API:
 
-The VictoriaMetrics write api can be accessed via port 8480 with the following DNS name from within your cluster:
+The VictoriaMetrics write api can be accessed via port 8480 via the following DNS name from within your cluster:
 vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local
 
 Get the VictoriaMetrics insert service URL by running these commands in the same shell:
