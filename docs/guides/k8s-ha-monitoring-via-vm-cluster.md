@@ -55,7 +55,7 @@ EOF
 ```
 </div>
 
-* The `Helm install vmcluster vm/victoria-metrics-cluster` command installs the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside the cluster.
+* The `Helm install vmcluster vm/victoria-metrics-cluster` command installs [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/).
 * `dedup.minScrapeInterval: 1ms` configures [de-deplication](https://docs.victoriametrics.com/#deduplication) for the cluster that de-duplicates data points in the same time series if they fall within the same discrete 1s bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept.
 * `replicationFactor: 2` Replication factor for the ingested data, i.e. how many copies should be madeamong distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on theremote storage side.
 * `podAnnotations: prometheus.io/scrape: "true"` enables the scraping of metrics from the vmselect, vminsert and vmstorage pods.
