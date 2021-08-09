@@ -417,7 +417,7 @@ The expected output is:
   <img src="guide-vmcluster-k8s-ha-explore-count-up-graph.png" width="800" alt="">
 </p>
 
-As you can see, after we scaled down the `vmstorage` replicas number from three to two pods, the metrics are still available and correct. The response is not partial as it was before scaling. Also we see that query `count(up{kubernetes_pod_name=~".*vmselect.*"})` returns the same value as before.
+As you can see, after we scaled down the `vmstorage` replicas number from three to two pods, metrics are still available and correct. The response is not partial as it was before scaling. Also we see that query `count(up{kubernetes_pod_name=~".*vmselect.*"})` returns the same value as before.
 
 To confirm that the number of `vmstorage` pods is equivalent to two, execute the following request in Grafana Explore:
 
