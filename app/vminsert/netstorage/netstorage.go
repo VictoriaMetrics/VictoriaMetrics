@@ -245,7 +245,10 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		// sn.dial() should be called by sn.checkHealth() on unsuccessful call to sendBufToReplicasNonblocking().
 		return false
 	}
+	startTime := time.Now()
 	err := sendToConn(sn.bc, br.buf)
+	duration := time.Since(startTime)
+	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
 		// Successfully sent buf to bc.
 		sn.rowsSent.Add(br.rows)
@@ -383,6 +386,10 @@ type storageNode struct {
 	// The number of rows rerouted to the given vmstorage node
 	// from other nodes when they were unhealthy.
 	rowsReroutedToHere *metrics.Counter
+
+	// The total duration spent for sending data to vmstorage node.
+	// This metric is useful for determining the saturation of vminsert->vmstorage link.
+	sendDurationSeconds *metrics.FloatCounter
 }
 
 // storageNodes contains a list of vmstorage node clients.
@@ -418,6 +425,7 @@ func InitStorageNodes(addrs []string) {
 			rowsSent:             metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
 			rowsReroutedFromHere: metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
 			rowsReroutedToHere:   metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
+			sendDurationSeconds:  metrics.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = metrics.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {

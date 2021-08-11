@@ -14,6 +14,7 @@ sort: 15
 * FEATURE: add `-search.maxSamplesPerQuery` command-line flag for limiting the number of raw samples a single query can process across all the time series. This option can protect from heavy queries, which select too big number of raw samples. Thanks to @jiangxinlingdu for [the initial pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1478).
 * FEATURE: improve performance for queries that process big number of time series and/or samples on systems with big number of CPU cores.
 * FEATURE: vmalert: expose `vmalert_alerting_rules_last_evaluation_samples` and `vmalert_recording_rules_last_evaluation_samples` metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1494).
+* FEATURE: vminsert: expose `vm_rpc_send_duration_seconds_total` counter, which can be used for determining high saturation of every `vminsert -> vmstorage` link with an alerting query `rate(vm_rpc_send_duration_seconds_total) > 0.9s`. This query triggers when the link is saturated by more than 90%.
 
 * BUGFIX: fix corner cases for queries on time ranges exceeding 40 days. Previously some series can be missing in query results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1486).
 * BUGFIX: vmselect: return dummy response at `/rules` page in the same way as for `/api/v1/rules` page. The `/rules` page is requested by Grafana 8. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1493) for details.
