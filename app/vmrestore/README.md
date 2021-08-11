@@ -86,7 +86,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -customS3Endpoint string
     	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -envflag.enable
-    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
