@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.88.0
+# cloud.google.com/go v0.91.1
 ## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
@@ -28,7 +28,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.7
+# github.com/aws/aws-sdk-go v1.40.21
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -158,12 +158,12 @@ github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.29.0
+# github.com/prometheus/common v0.30.0
 ## explicit
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.7.1
+# github.com/prometheus/procfs v0.7.2
 ## explicit
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
@@ -239,7 +239,7 @@ golang.org/x/lint/golint
 # golang.org/x/mod v0.4.2
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210716203947-853a461950ff
+# golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -251,7 +251,7 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
+# golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5
 ## explicit
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -263,13 +263,14 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
+# golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.6
+# golang.org/x/text v0.3.7
+## explicit
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -291,7 +292,7 @@ golang.org/x/tools/internal/typeparams
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.51.0
+# google.golang.org/api v0.53.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -318,14 +319,14 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f
-## explicit
+# google.golang.org/genproto v0.0.0-20210811021853-ddbe55d93216
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/googleapis/type/expr
-# google.golang.org/grpc v1.39.0
+# google.golang.org/grpc v1.40.0
+## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
