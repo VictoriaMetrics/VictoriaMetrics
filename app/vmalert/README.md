@@ -503,7 +503,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.url string
     	Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
   -remoteWrite.disablePathAppend
-    	Optionally disable appending '/api/v1/write' to the remoteWrite url, enabling configuring an absolute path
+     Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -replay.maxDatapointsPerQuery int
     	Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
