@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -183,6 +185,9 @@ type scrapeWork struct {
 	// prevLabelsLen contains the number labels scraped during the previous scrape.
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
 	prevLabelsLen int
+
+	activeSeriesBuf []byte
+	activeSeries    [][]byte
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
@@ -233,6 +238,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		timestamp += scrapeInterval.Milliseconds()
 		select {
 		case <-stopCh:
+			sw.sendStaleMarkers()
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixNano() / 1e6
@@ -315,9 +321,8 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
-	startTime := time.Now()
-	sw.PushData(&wc.writeRequest)
-	pushDataDuration.UpdateDuration(startTime)
+	sw.updateActiveSeries(wc)
+	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
@@ -326,6 +331,12 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	leveledbytebufferpool.Put(body)
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
+}
+
+func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
+	startTime := time.Now()
+	sw.PushData(wr)
+	pushDataDuration.UpdateDuration(startTime)
 }
 
 func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
@@ -357,9 +368,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 					"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 			}
 			sw.updateSeriesAdded(wc)
-			startTime := time.Now()
-			sw.PushData(&wc.writeRequest)
-			pushDataDuration.UpdateDuration(startTime)
+			sw.pushData(&wc.writeRequest)
 			wc.resetNoRows()
 			return nil
 		}, sw.logError)
@@ -385,9 +394,10 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
-	startTime := time.Now()
-	sw.PushData(&wc.writeRequest)
-	pushDataDuration.UpdateDuration(startTime)
+	// Do not call sw.updateActiveSeries(wc), since wc doesn't contain the full list of scraped metrics.
+	// Do not track active series in streaming mode, since this may need too big amounts of memory
+	// when the target exports too big number of metrics.
+	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
@@ -473,6 +483,58 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 			sw.seriesAdded++
 		}
 	}
+}
+
+func (sw *scrapeWork) updateActiveSeries(wc *writeRequestCtx) {
+	b := sw.activeSeriesBuf[:0]
+	as := sw.activeSeries[:0]
+	for _, ts := range wc.writeRequest.Timeseries {
+		bLen := len(b)
+		for _, label := range ts.Labels {
+			b = encoding.MarshalBytes(b, bytesutil.ToUnsafeBytes(label.Name))
+			b = encoding.MarshalBytes(b, bytesutil.ToUnsafeBytes(label.Value))
+		}
+		as = append(as, b[bLen:])
+	}
+	sw.activeSeriesBuf = b
+	sw.activeSeries = as
+}
+
+func (sw *scrapeWork) sendStaleMarkers() {
+	series := make([]prompbmarshal.TimeSeries, 0, len(sw.activeSeries))
+	staleMarkSamples := []prompbmarshal.Sample{
+		{
+			Value:     decimal.StaleNaN,
+			Timestamp: time.Now().UnixNano() / 1e6,
+		},
+	}
+	for _, b := range sw.activeSeries {
+		var labels []prompbmarshal.Label
+		for len(b) > 0 {
+			tail, name, err := encoding.UnmarshalBytes(b)
+			if err != nil {
+				logger.Panicf("BUG: cannot unmarshal label name from activeSeries: %s", err)
+			}
+			b = tail
+			tail, value, err := encoding.UnmarshalBytes(b)
+			if err != nil {
+				logger.Panicf("BUG: cannot unmarshal label value from activeSeries: %s", err)
+			}
+			b = tail
+			labels = append(labels, prompbmarshal.Label{
+				Name:  bytesutil.ToUnsafeString(name),
+				Value: bytesutil.ToUnsafeString(value),
+			})
+		}
+		series = append(series, prompbmarshal.TimeSeries{
+			Labels:  labels,
+			Samples: staleMarkSamples,
+		})
+	}
+	wr := &prompbmarshal.WriteRequest{
+		Timeseries: series,
+	}
+	sw.pushData(wr)
 }
 
 func (sw *scrapeWork) finalizeSeriesAdded(lastScrapeSize int) int {
