@@ -377,6 +377,15 @@
     "release_level": "beta",
     "library_type": ""
   },
+  "cloud.google.com/go/datafusion/apiv1": {
+    "distribution_name": "cloud.google.com/go/datafusion/apiv1",
+    "description": "Cloud Data Fusion API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/datafusion/apiv1",
+    "release_level": "beta",
+    "library_type": ""
+  },
   "cloud.google.com/go/datalabeling/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/datalabeling/apiv1beta1",
     "description": "Data Labeling API",
@@ -654,6 +663,15 @@
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/iam/credentials/apiv1",
     "release_level": "ga",
+    "library_type": ""
+  },
+  "cloud.google.com/go/iap/apiv1": {
+    "distribution_name": "cloud.google.com/go/iap/apiv1",
+    "description": "Cloud Identity-Aware Proxy API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/iap/apiv1",
+    "release_level": "beta",
     "library_type": ""
   },
   "cloud.google.com/go/iot/apiv1": {
@@ -1293,6 +1311,15 @@
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest/internal/apiv2",
     "release_level": "alpha",
+    "library_type": ""
+  },
+  "cloud.google.com/go/storagetransfer/apiv1": {
+    "distribution_name": "cloud.google.com/go/storagetransfer/apiv1",
+    "description": "Storage Transfer API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/storagetransfer/apiv1",
+    "release_level": "beta",
     "library_type": ""
   },
   "cloud.google.com/go/talent/apiv4": {
