@@ -19,13 +19,14 @@ import (
 // Client is an asynchronous HTTP client for writing
 // timeseries via remote write protocol.
 type Client struct {
-	addr           string
-	c              *http.Client
-	input          chan prompbmarshal.TimeSeries
-	baUser, baPass string
-	flushInterval  time.Duration
-	maxBatchSize   int
-	maxQueueSize   int
+	addr              string
+	c                 *http.Client
+	input             chan prompbmarshal.TimeSeries
+	baUser, baPass    string
+	flushInterval     time.Duration
+	maxBatchSize      int
+	maxQueueSize      int
+	disablePathAppend bool
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
@@ -56,6 +57,8 @@ type Config struct {
 	WriteTimeout time.Duration
 	// Transport will be used by the underlying http.Client
 	Transport *http.Transport
+	// DisablePathAppend can be used to not automatically append '/api/v1/write' to the remote write url
+	DisablePathAppend bool
 }
 
 const (
@@ -94,14 +97,15 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Timeout:   cfg.WriteTimeout,
 			Transport: cfg.Transport,
 		},
-		addr:          strings.TrimSuffix(cfg.Addr, "/"),
-		baUser:        cfg.BasicAuthUser,
-		baPass:        cfg.BasicAuthPass,
-		flushInterval: cfg.FlushInterval,
-		maxBatchSize:  cfg.MaxBatchSize,
-		maxQueueSize:  cfg.MaxQueueSize,
-		doneCh:        make(chan struct{}),
-		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
+		addr:              strings.TrimSuffix(cfg.Addr, "/"),
+		baUser:            cfg.BasicAuthUser,
+		baPass:            cfg.BasicAuthPass,
+		flushInterval:     cfg.FlushInterval,
+		maxBatchSize:      cfg.MaxBatchSize,
+		maxQueueSize:      cfg.MaxQueueSize,
+		doneCh:            make(chan struct{}),
+		input:             make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
+		disablePathAppend: cfg.DisablePathAppend,
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {
@@ -231,7 +235,9 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if c.baPass != "" {
 		req.SetBasicAuth(c.baUser, c.baPass)
 	}
-	req.URL.Path += writePath
+	if !c.disablePathAppend {
+		req.URL.Path += writePath
+	}
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
