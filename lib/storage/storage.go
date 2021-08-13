@@ -18,6 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -1696,9 +1697,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	for i := range mrs {
 		mr := &mrs[i]
 		if math.IsNaN(mr.Value) {
-			// Just skip NaNs, since the underlying encoding
-			// doesn't know how to work with them.
-			continue
+			if !decimal.IsStaleNaN(mr.Value) {
+				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
+				// doesn't know how to work with them.
+				continue
+			}
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.

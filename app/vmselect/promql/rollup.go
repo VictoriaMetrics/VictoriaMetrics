@@ -271,16 +271,16 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:          tagValue,
-			Func:              rf,
-			Start:             start,
-			End:               end,
-			Step:              step,
-			Window:            window,
-			MayAdjustWindow:   !rollupFuncsCannotAdjustWindow[name],
-			CanDropLastSample: name == "default_rollup",
-			LookbackDelta:     lookbackDelta,
-			Timestamps:        sharedTimestamps,
+			TagValue:           tagValue,
+			Func:               rf,
+			Start:              start,
+			End:                end,
+			Step:               step,
+			Window:             window,
+			MayAdjustWindow:    !rollupFuncsCannotAdjustWindow[name],
+			CanDropStalePoints: name == "default_rollup",
+			LookbackDelta:      lookbackDelta,
+			Timestamps:         sharedTimestamps,
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
@@ -402,10 +402,10 @@ type rollupConfig struct {
 	// when using window smaller than 2 x scrape_interval.
 	MayAdjustWindow bool
 
-	// Whether the last sample can be dropped during rollup calculations.
-	// The last sample can be dropped for `default_rollup()` function only.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748 .
-	CanDropLastSample bool
+	// Whether points after Prometheus stale marks can be dropped during rollup calculations.
+	// Stale points can be dropped only if `default_rollup()` function is used.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526 .
+	CanDropStalePoints bool
 
 	Timestamps []int64
 
@@ -506,6 +506,10 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
+	if !rc.CanDropStalePoints {
+		// Remove Prometheus staleness marks from values, so rollup functions don't hit NaN values.
+		values, timestamps = dropStaleNaNs(values, timestamps)
+	}
 	scrapeInterval := getScrapeInterval(timestamps)
 	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
@@ -519,7 +523,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
-		if rc.CanDropLastSample && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
+		if rc.CanDropStalePoints && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
 			// Implicit window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
 			// according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 			window = rc.LookbackDelta
@@ -537,10 +541,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	j := 0
 	ni := 0
 	nj := 0
-	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
-	// Do not drop trailing data points for queries, which return 2 or 1 point (aka instant queries).
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
-	canDropLastSample := rc.CanDropLastSample && len(rc.Timestamps) > 2
 	f := rc.Func
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
@@ -560,16 +560,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if canDropLastSample && j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) {
-			// Drop trailing data points in the following cases:
-			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
-			// - if time series contains only a single raw sample
-			// This should prevent from double counting when a label changes in time series (for instance,
-			// during new deployment in K8S). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
-			rfa.prevValue = nan
-			rfa.values = nil
-			rfa.timestamps = nil
-		}
 		if i > 0 {
 			rfa.realPrevValue = values[i-1]
 		} else {
@@ -588,6 +578,31 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	putRollupFuncArg(rfa)
 
 	return dstValues
+}
+
+func dropStaleNaNs(values []float64, timestamps []int64) ([]float64, []int64) {
+	hasStaleSamples := false
+	for _, v := range values {
+		if decimal.IsStaleNaN(v) {
+			hasStaleSamples = true
+			break
+		}
+	}
+	if !hasStaleSamples {
+		// Fast path: values have noe Prometheus staleness marks.
+		return values, timestamps
+	}
+	// Slow path: drop Prometheus staleness marks from values.
+	dstValues := make([]float64, 0, len(values))
+	dstTimestamps := make([]int64, 0, len(timestamps))
+	for i, v := range values {
+		if decimal.IsStaleNaN(v) {
+			continue
+		}
+		dstValues = append(dstValues, v)
+		dstTimestamps = append(dstTimestamps, timestamps[i])
+	}
+	return dstValues, dstTimestamps
 }
 
 func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint int) int {
@@ -1826,11 +1841,20 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 	return values[0]
 }
 
-var rollupDefault = rollupLast
+func rollupDefault(rfa *rollupFuncArg) float64 {
+	values := rfa.values
+	if len(values) == 0 {
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
+	}
+	// Intentionally do not skip the possible last Prometheus staleness mark.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526 .
+	return values[len(values)-1]
+}
 
 func rollupLast(rfa *rollupFuncArg) float64 {
-	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
 		// Do not take into account rfa.prevValue, since it may lead
