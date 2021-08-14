@@ -704,8 +704,6 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 }
 
 func removeCounterResets(values []float64) {
-	// There is no need in handling NaNs here, since they are impossible
-	// on values from vmstorage.
 	if len(values) == 0 {
 		return
 	}
@@ -723,7 +721,9 @@ func removeCounterResets(values []float64) {
 			}
 		}
 		prevValue = v
-		values[i] = v + correction
+		if !decimal.IsStaleNaN(v) {
+			values[i] = v + correction
+		}
 	}
 }
 
