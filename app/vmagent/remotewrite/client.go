@@ -78,6 +78,7 @@ type client struct {
 	errorsCount     *metrics.Counter
 	packetsDropped  *metrics.Counter
 	retriesCount    *metrics.Counter
+	sendDuration    *metrics.FloatCounter
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -133,6 +134,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
 	c.packetsDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_packets_dropped_total{url=%q}`, c.sanitizedURL))
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
+	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q}`, c.sanitizedURL))
 	for i := 0; i < concurrency; i++ {
 		c.wg.Add(1)
 		go func() {
@@ -204,7 +206,9 @@ func (c *client) runWorker() {
 			return
 		}
 		go func() {
+			startTime := time.Now()
 			ch <- c.sendBlock(block)
+			c.sendDuration.Add(time.Since(startTime).Seconds())
 		}()
 		select {
 		case ok := <-ch:
