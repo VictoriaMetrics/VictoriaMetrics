@@ -74,7 +74,7 @@ job={%q= jobName %} (0/0 up)
         <tbody>
           {% for _, ts := range js.targetsStatus %}
             {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
-            <tr {% if !ts.up %}class="alert alert-danger" role="alert"{% endif %}>
+            <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert"{% endif %}>
               <td><a href="{%s ts.endpoint %}">{%s ts.endpoint %}</a><br></td>
               <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
               <td title="Original labels: {%= formatLabel(ts.originalLabels) %}">
