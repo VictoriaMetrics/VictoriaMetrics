@@ -8,12 +8,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -25,8 +27,9 @@ var (
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="influx"}`)
-	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="influx"}`)
+	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="influx"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="influx"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="influx"}`)
 )
 
 // InsertHandlerForReader processes remote write for influx line protocol.
@@ -35,7 +38,7 @@ var (
 func InsertHandlerForReader(r io.Reader) error {
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
-			return insertRows(db, rows, nil)
+			return insertRows(nil, db, rows, nil)
 		})
 	})
 }
@@ -43,7 +46,7 @@ func InsertHandlerForReader(r io.Reader) error {
 // InsertHandlerForHTTP processes remote write for influx line protocol.
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
-func InsertHandlerForHTTP(req *http.Request) error {
+func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
@@ -55,12 +58,12 @@ func InsertHandlerForHTTP(req *http.Request) error {
 		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 		db := q.Get("db")
 		return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
-			return insertRows(db, rows, extraLabels)
+			return insertRows(at, db, rows, extraLabels)
 		})
 	})
 }
 
-func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -130,8 +133,11 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 	ctx.ctx.Labels = labels
 	ctx.ctx.Samples = samples
 	ctx.commonLabels = commonLabels
-	remotewrite.Push(&ctx.ctx.WriteRequest)
+	remotewrite.PushWithAuthToken(at, &ctx.ctx.WriteRequest)
 	rowsInserted.Add(rowsTotal)
+	if at != nil {
+		rowsTenantInserted.Get(at).Add(rowsTotal)
+	}
 	rowsPerInsert.Update(float64(rowsTotal))
 
 	return nil

@@ -16,3 +16,6 @@
 /package/*.deb
 /package/*.rpm
 .DS_store
+Gemfile.lock
+/_site
+_site

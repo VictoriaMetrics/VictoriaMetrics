@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 	xxhash "github.com/cespare/xxhash/v2"
 )
@@ -25,11 +27,14 @@ import (
 var (
 	remoteWriteURLs = flagutil.NewArray("remoteWrite.url", "Remote storage URL to write data to. It must support Prometheus remote_write API. "+
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
-		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
+		"Pass multiple -remoteWrite.url flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.multitenantURL")
+	remoteWriteMultitenantURLs = flagutil.NewArray("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
+		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
+		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
-		"isn't enough for sending high volume of collected data to remote storage. Default value if 2 * numberOfAvailableCPUs")
+		"isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flagutil.NewBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
@@ -53,7 +58,22 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries")
 )
 
-var rwctxs []*remoteWriteCtx
+var (
+	// rwctxsDefault contains statically populated entries when -remoteWrite.url is specified.
+	rwctxsDefault []*remoteWriteCtx
+
+	// rwctxsMap contains dynamically populated entries when -remoteWrite.multitenantURL is specified.
+	rwctxsMap     = make(map[tenantmetrics.TenantID][]*remoteWriteCtx)
+	rwctxsMapLock sync.Mutex
+
+	// Data without tenant id is written to defaultAuthToken if -remoteWrite.multitenantURL is specified.
+	defaultAuthToken = &auth.Token{}
+)
+
+// MultitenancyEnabled returns true if -remoteWrite.multitenantURL is specified.
+func MultitenancyEnabled() bool {
+	return len(*remoteWriteMultitenantURLs) > 0
+}
 
 // Contains the current relabelConfigs.
 var allRelabelConfigs atomic.Value
@@ -76,8 +96,11 @@ func InitSecretFlags() {
 //
 // Stop must be called for graceful shutdown.
 func Init() {
-	if len(*remoteWriteURLs) == 0 {
-		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
+	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) == 0 {
+		logger.Fatalf("at least one `-remoteWrite.url` or `-remoteWrite.multitenantURL` command-line flag must be set")
+	}
+	if len(*remoteWriteURLs) > 0 && len(*remoteWriteMultitenantURLs) > 0 {
+		logger.Fatalf("cannot set both `-remoteWrite.url` and `-remoteWrite.multitenantURL` command-line flags")
 	}
 	if *maxHourlySeries > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
@@ -116,23 +139,8 @@ func Init() {
 	}
 	allRelabelConfigs.Store(rcs)
 
-	maxInmemoryBlocks := memory.Allowed() / len(*remoteWriteURLs) / maxRowsPerBlock / 100
-	if maxInmemoryBlocks > 400 {
-		// There is no much sense in keeping higher number of blocks in memory,
-		// since this means that the producer outperforms consumer and the queue
-		// will continue growing. It is better storing the queue to file.
-		maxInmemoryBlocks = 400
-	}
-	if maxInmemoryBlocks < 2 {
-		maxInmemoryBlocks = 2
-	}
-	for i, remoteWriteURL := range *remoteWriteURLs {
-		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-		if *showRemoteWriteURL {
-			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
-		}
-		rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
-		rwctxs = append(rwctxs, rwctx)
+	if len(*remoteWriteURLs) > 0 {
+		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 	}
 
 	// Start config reloader.
@@ -157,6 +165,37 @@ func Init() {
 	}()
 }
 
+func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
+	if len(urls) == 0 {
+		logger.Panicf("BUG: urls must be non-empty")
+	}
+
+	maxInmemoryBlocks := memory.Allowed() / len(urls) / maxRowsPerBlock / 100
+	if maxInmemoryBlocks > 400 {
+		// There is no much sense in keeping higher number of blocks in memory,
+		// since this means that the producer outperforms consumer and the queue
+		// will continue growing. It is better storing the queue to file.
+		maxInmemoryBlocks = 400
+	}
+	if maxInmemoryBlocks < 2 {
+		maxInmemoryBlocks = 2
+	}
+	rwctxs := make([]*remoteWriteCtx, len(urls))
+	for i, remoteWriteURL := range urls {
+		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
+		if at != nil {
+			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
+			remoteWriteURL = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL, at.AccountID, at.ProjectID)
+			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
+		}
+		if *showRemoteWriteURL {
+			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
+		}
+		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+	}
+	return rwctxs
+}
+
 var stopCh = make(chan struct{})
 var configReloaderWG sync.WaitGroup
 
@@ -167,16 +206,55 @@ func Stop() {
 	close(stopCh)
 	configReloaderWG.Wait()
 
-	for _, rwctx := range rwctxs {
+	for _, rwctx := range rwctxsDefault {
 		rwctx.MustStop()
 	}
-	rwctxs = nil
+	rwctxsDefault = nil
+
+	// There is no need in locking rwctxsMapLock here, since nobody should call Push during the Stop call.
+	for _, rwctxs := range rwctxsMap {
+		for _, rwctx := range rwctxs {
+			rwctx.MustStop()
+		}
+	}
+	rwctxsMap = nil
 }
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
 func Push(wr *prompbmarshal.WriteRequest) {
+	PushWithAuthToken(nil, wr)
+}
+
+// PushWithAuthToken sends wr to remote storage systems set via `-remoteWrite.multitenantURL`.
+//
+// Note that wr may be modified by Push due to relabeling and rounding.
+func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
+		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
+		at = defaultAuthToken
+	}
+	var rwctxs []*remoteWriteCtx
+	if at == nil {
+		rwctxs = rwctxsDefault
+	} else {
+		if len(*remoteWriteMultitenantURLs) == 0 {
+			logger.Panicf("BUG: remoteWriteMultitenantURLs must be non-empty for non-nil at")
+		}
+		rwctxsMapLock.Lock()
+		tenantID := tenantmetrics.TenantID{
+			AccountID: at.AccountID,
+			ProjectID: at.ProjectID,
+		}
+		rwctxs = rwctxsMap[tenantID]
+		if rwctxs == nil {
+			rwctxs = newRemoteWriteCtxs(at, *remoteWriteMultitenantURLs)
+			rwctxsMap[tenantID] = rwctxs
+		}
+		rwctxsMapLock.Unlock()
+	}
+
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
 	pcsGlobal := rcs.global

@@ -13,6 +13,6 @@
     "data":{"resultType":"matrix",
       "result":[
 	      {"metric":{"__name__":"not_nan_as_missing_data","item":"x"},"values":[["{TIME_S-2m}","2"]]},
-	      {"metric":{"__name__":"not_nan_as_missing_data","item":"y"},"values":[["{TIME_S-2m}","4"],["{TIME_S-1m}","3"]]}
+	      {"metric":{"__name__":"not_nan_as_missing_data","item":"y"},"values":[["{TIME_S-2m}","4"],["{TIME_S-1m}","3"],["{TIME_S}", "3"]]}
       ]}}
 }

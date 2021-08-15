@@ -42,6 +42,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"stddev_over_time":   newRollupFuncOneArg(rollupStddev),
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
 	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
+	"present_over_time":  newRollupFuncOneArg(rollupPresent),
 
 	// Additional rollup funcs.
 	"default_rollup":        newRollupFuncOneArg(rollupDefault), // default rollup func
@@ -97,23 +98,24 @@ var rollupFuncs = map[string]newRollupFunc{
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
 var rollupAggrFuncs = map[string]rollupFunc{
 	// Standard rollup funcs from PromQL.
-	"changes":          rollupChanges,
-	"delta":            rollupDelta,
-	"deriv":            rollupDerivSlow,
-	"deriv_fast":       rollupDerivFast,
-	"idelta":           rollupIdelta,
-	"increase":         rollupDelta,     // + rollupFuncsRemoveCounterResets
-	"irate":            rollupIderiv,    // + rollupFuncsRemoveCounterResets
-	"rate":             rollupDerivFast, // + rollupFuncsRemoveCounterResets
-	"resets":           rollupResets,
-	"avg_over_time":    rollupAvg,
-	"min_over_time":    rollupMin,
-	"max_over_time":    rollupMax,
-	"sum_over_time":    rollupSum,
-	"count_over_time":  rollupCount,
-	"stddev_over_time": rollupStddev,
-	"stdvar_over_time": rollupStdvar,
-	"absent_over_time": rollupAbsent,
+	"changes":           rollupChanges,
+	"delta":             rollupDelta,
+	"deriv":             rollupDerivSlow,
+	"deriv_fast":        rollupDerivFast,
+	"idelta":            rollupIdelta,
+	"increase":          rollupDelta,     // + rollupFuncsRemoveCounterResets
+	"irate":             rollupIderiv,    // + rollupFuncsRemoveCounterResets
+	"rate":              rollupDerivFast, // + rollupFuncsRemoveCounterResets
+	"resets":            rollupResets,
+	"avg_over_time":     rollupAvg,
+	"min_over_time":     rollupMin,
+	"max_over_time":     rollupMax,
+	"sum_over_time":     rollupSum,
+	"count_over_time":   rollupCount,
+	"stddev_over_time":  rollupStddev,
+	"stdvar_over_time":  rollupStdvar,
+	"absent_over_time":  rollupAbsent,
+	"present_over_time": rollupPresent,
 
 	// Additional rollup funcs.
 	"range_over_time":     rollupRange,
@@ -157,6 +159,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"stddev_over_time":    true,
 	"stdvar_over_time":    true,
 	"absent_over_time":    true,
+	"present_over_time":   true,
 	"sum2_over_time":      true,
 	"geomean_over_time":   true,
 	"distinct_over_time":  true,
@@ -268,16 +271,16 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:          tagValue,
-			Func:              rf,
-			Start:             start,
-			End:               end,
-			Step:              step,
-			Window:            window,
-			MayAdjustWindow:   !rollupFuncsCannotAdjustWindow[name],
-			CanDropLastSample: name == "default_rollup",
-			LookbackDelta:     lookbackDelta,
-			Timestamps:        sharedTimestamps,
+			TagValue:        tagValue,
+			Func:            rf,
+			Start:           start,
+			End:             end,
+			Step:            step,
+			Window:          window,
+			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
+			LookbackDelta:   lookbackDelta,
+			Timestamps:      sharedTimestamps,
+			isDefaultRollup: name == "default_rollup",
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
@@ -399,15 +402,13 @@ type rollupConfig struct {
 	// when using window smaller than 2 x scrape_interval.
 	MayAdjustWindow bool
 
-	// Whether the last sample can be dropped during rollup calculations.
-	// The last sample can be dropped for `default_rollup()` function only.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748 .
-	CanDropLastSample bool
-
 	Timestamps []int64
 
 	// LoookbackDelta is the analog to `-query.lookback-delta` from Prometheus world.
 	LookbackDelta int64
+
+	// Whether default_rollup is used.
+	isDefaultRollup bool
 }
 
 var (
@@ -516,7 +517,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
-		if rc.CanDropLastSample && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
+		if rc.isDefaultRollup && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
 			// Implicit window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
 			// according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 			window = rc.LookbackDelta
@@ -534,10 +535,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	j := 0
 	ni := 0
 	nj := 0
-	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
-	// Do not drop trailing data points for queries, which return 2 or 1 point (aka instant queries).
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
-	canDropLastSample := rc.CanDropLastSample && len(rc.Timestamps) > 2
 	f := rc.Func
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
@@ -557,16 +554,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if canDropLastSample && j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) {
-			// Drop trailing data points in the following cases:
-			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
-			// - if time series contains only a single raw sample
-			// This should prevent from double counting when a label changes in time series (for instance,
-			// during new deployment in K8S). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
-			rfa.prevValue = nan
-			rfa.values = nil
-			rfa.timestamps = nil
-		}
 		if i > 0 {
 			rfa.realPrevValue = values[i-1]
 		} else {
@@ -1284,6 +1271,15 @@ func rollupAbsent(rfa *rollupFuncArg) float64 {
 	return nan
 }
 
+func rollupPresent(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	if len(rfa.values) > 0 {
+		return 1
+	}
+	return nan
+}
+
 func rollupCount(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
@@ -1814,11 +1810,20 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 	return values[0]
 }
 
-var rollupDefault = rollupLast
+func rollupDefault(rfa *rollupFuncArg) float64 {
+	values := rfa.values
+	if len(values) == 0 {
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
+	}
+	// Intentionally do not skip the possible last Prometheus staleness mark.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526 .
+	return values[len(values)-1]
+}
 
 func rollupLast(rfa *rollupFuncArg) float64 {
-	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
 		// Do not take into account rfa.prevValue, since it may lead

@@ -452,12 +452,6 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_missing_tsids_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingTSIDsForMetricID)
 	})
-	metrics.NewGauge(`vm_date_metric_ids_search_calls_total`, func() float64 {
-		return float64(idbm().DateMetricIDsSearchCalls)
-	})
-	metrics.NewGauge(`vm_date_metric_ids_search_hits_total`, func() float64 {
-		return float64(idbm().DateMetricIDsSearchHits)
-	})
 	metrics.NewGauge(`vm_index_blocks_with_metric_ids_processed_total`, func() float64 {
 		return float64(idbm().IndexBlocksWithMetricIDsProcessed)
 	})
@@ -613,6 +607,9 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_date_range_hits_total`, func() float64 {
 		return float64(idbm().DateRangeSearchHits)
 	})
+	metrics.NewGauge(`vm_global_search_calls_total`, func() float64 {
+		return float64(idbm().GlobalSearchCalls)
+	})
 
 	metrics.NewGauge(`vm_missing_metric_names_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingMetricNamesForMetricID)
@@ -658,9 +655,6 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_entries{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheSize)
 	})
-	metrics.NewGauge(`vm_cache_entries{type="indexdb/uselessTagFilters"}`, func() float64 {
-		return float64(idbm().UselessTagFiltersCacheSize)
-	})
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
 	})
@@ -701,9 +695,6 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheSizeBytes)
 	})
-	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/uselessTagFilters"}`, func() float64 {
-		return float64(idbm().UselessTagFiltersCacheSizeBytes)
-	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSizeBytes)
 	})
@@ -732,9 +723,6 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheRequests)
 	})
-	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/uselessTagFilters"}`, func() float64 {
-		return float64(idbm().UselessTagFiltersCacheRequests)
-	})
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheRequests())
 	})
@@ -762,9 +750,6 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheMisses)
-	})
-	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/uselessTagFilters"}`, func() float64 {
-		return float64(idbm().UselessTagFiltersCacheMisses)
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheMisses())

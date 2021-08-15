@@ -31,7 +31,7 @@ type FastQueue struct {
 
 	lastInmemoryBlockReadTime uint64
 
-	mustStop bool
+	stopDeadline uint64
 }
 
 // MustOpenFastQueue opens persistent queue at the given path.
@@ -66,7 +66,9 @@ func (fq *FastQueue) UnblockAllReaders() {
 	defer fq.mu.Unlock()
 
 	// Unblock blocked readers
-	fq.mustStop = true
+	// Allow for up to 5 seconds for sending Prometheus stale markers.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526
+	fq.stopDeadline = fasttime.UnixTimestamp() + 5
 	fq.cond.Broadcast()
 }
 
@@ -167,7 +169,7 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 	defer fq.mu.Unlock()
 
 	for {
-		if fq.mustStop {
+		if fq.stopDeadline > 0 && fasttime.UnixTimestamp() > fq.stopDeadline {
 			return dst, false
 		}
 		if len(fq.ch) > 0 {
@@ -189,7 +191,9 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 			dst = data
 			continue
 		}
-
+		if fq.stopDeadline > 0 {
+			return dst, false
+		}
 		// There are no blocks. Wait for new block.
 		fq.pq.ResetIfEmpty()
 		fq.cond.Wait()

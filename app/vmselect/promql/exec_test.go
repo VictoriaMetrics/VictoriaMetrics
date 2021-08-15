@@ -698,6 +698,39 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run("present_over_time(time())", func(t *testing.T) {
+		t.Parallel()
+		q := `present_over_time(time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("present_over_time(time()[100:300])", func(t *testing.T) {
+		t.Parallel()
+		q := `present_over_time(time()[100:300])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1, nan, nan, 1, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("present_over_time(time()<10m)", func(t *testing.T) {
+		t.Parallel()
+		q := `present_over_time(time()<1600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("absent(123)", func(t *testing.T) {
 		t.Parallel()
 		q := `absent(123)`
@@ -1041,6 +1074,21 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{-2000, -2400, -2800, -3200, -3600, -4000},
 			Timestamps: timestampsExpected,
 		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("default_for_nan_series", func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(0, "foo", "bar")/0 default 7`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{7, 7, 7, 7, 7, 7},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -1691,10 +1739,12 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1123.456, 1323.456, 1523.456, 1723.456, 1923.456, 2123.456},
 			Timestamps: timestampsExpected,
 		}
-		r2.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("123.456"),
-		}}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("123.456"),
+			},
+		}
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
@@ -6941,19 +6991,21 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName, pos int) {
 	t.Helper()
 	if string(mn.MetricGroup) != string(mnExpected.MetricGroup) {
-		t.Fatalf(`unexpected MetricGroup at #%d; got %q; want %q`, pos, mn.MetricGroup, mnExpected.MetricGroup)
+		t.Fatalf(`unexpected MetricGroup at #%d; got %q; want %q; metricGot=%s, metricExpected=%s`,
+			pos, mn.MetricGroup, mnExpected.MetricGroup, mn.String(), mnExpected.String())
 	}
 	if len(mn.Tags) != len(mnExpected.Tags) {
-		t.Fatalf(`unexpected tags count at #%d; got %d; want %d`, pos, len(mn.Tags), len(mnExpected.Tags))
+		t.Fatalf(`unexpected tags count at #%d; got %d; want %d; metricGot=%s, metricExpected=%s`, pos, len(mn.Tags), len(mnExpected.Tags), mn.String(), mnExpected.String())
 	}
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		tagExpected := &mnExpected.Tags[i]
 		if string(tag.Key) != string(tagExpected.Key) {
-			t.Fatalf(`unexpected tag key at #%d,%d; got %q; want %q`, pos, i, tag.Key, tagExpected.Key)
+			t.Fatalf(`unexpected tag key at #%d,%d; got %q; want %q; metricGot=%s, metricExpected=%s`, pos, i, tag.Key, tagExpected.Key, mn.String(), mnExpected.String())
 		}
 		if string(tag.Value) != string(tagExpected.Value) {
-			t.Fatalf(`unexpected tag value for key %q at #%d,%d; got %q; want %q`, tag.Key, pos, i, tag.Value, tagExpected.Value)
+			t.Fatalf(`unexpected tag value for key %q at #%d,%d; got %q; want %q; metricGot=%s, metricExpected=%s`,
+				tag.Key, pos, i, tag.Value, tagExpected.Value, mn.String(), mnExpected.String())
 		}
 	}
 }

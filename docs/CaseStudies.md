@@ -108,7 +108,7 @@ After using Cacti, Graphite and StatsD for years, we wanted to upgrade our monit
 - is scalable
 - has a simple client that allows for provisioning and discovery with Puppet
 
-We hed been running Prometheus for about a year in a test environment and it was working well but there was a need/wish for a few more years of retention than the old system provided. We tested Thanos which was a bit resource hungry but worked great for about half a year.
+We had been running Prometheus for about a year in a test environment and it was working well but there was a need/wish for a few more years of retention than the old system provided. We tested Thanos which was a bit resource hungry but worked great for about half a year.
 Then we discovered VictoriaMetrics. Our scale isn't that big so we don't have on-prem S3 and no Kubernetes. VM's single node instance provided
 the same result with far less maintenance overhead and lower hardware requirements.
 

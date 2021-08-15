@@ -51,8 +51,6 @@ type queue struct {
 
 	lastMetainfoFlushTime uint64
 
-	mustStop bool
-
 	blocksDropped *metrics.Counter
 	bytesDropped  *metrics.Counter
 
@@ -370,9 +368,6 @@ func (q *queue) metainfoPath() string {
 func (q *queue) MustWriteBlock(block []byte) {
 	if uint64(len(block)) > q.maxBlockSize {
 		logger.Panicf("BUG: too big block to send: %d bytes; it mustn't exceed %d bytes", len(block), q.maxBlockSize)
-	}
-	if q.mustStop {
-		logger.Panicf("BUG: MustWriteBlock cannot be called after MustClose")
 	}
 	if q.readerOffset > q.writerOffset {
 		logger.Panicf("BUG: readerOffset=%d shouldn't exceed writerOffset=%d", q.readerOffset, q.writerOffset)
