@@ -259,6 +259,8 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line lib/promscrape/targets_response.qtpl:77
 			if !ts.up {
 //line lib/promscrape/targets_response.qtpl:77
+				qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:77
 				qw422016.N().S(`class="alert alert-danger" role="alert"`)
 //line lib/promscrape/targets_response.qtpl:77
 			}
