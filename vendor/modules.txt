@@ -292,7 +292,7 @@ golang.org/x/tools/internal/typeparams
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.53.0
+# google.golang.org/api v0.54.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
