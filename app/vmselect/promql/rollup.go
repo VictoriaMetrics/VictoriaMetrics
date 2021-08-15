@@ -271,16 +271,16 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:           tagValue,
-			Func:               rf,
-			Start:              start,
-			End:                end,
-			Step:               step,
-			Window:             window,
-			MayAdjustWindow:    !rollupFuncsCannotAdjustWindow[name],
-			CanDropStalePoints: name == "default_rollup",
-			LookbackDelta:      lookbackDelta,
-			Timestamps:         sharedTimestamps,
+			TagValue:        tagValue,
+			Func:            rf,
+			Start:           start,
+			End:             end,
+			Step:            step,
+			Window:          window,
+			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
+			LookbackDelta:   lookbackDelta,
+			Timestamps:      sharedTimestamps,
+			isDefaultRollup: name == "default_rollup",
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
@@ -402,15 +402,13 @@ type rollupConfig struct {
 	// when using window smaller than 2 x scrape_interval.
 	MayAdjustWindow bool
 
-	// Whether points after Prometheus stale marks can be dropped during rollup calculations.
-	// Stale points can be dropped only if `default_rollup()` function is used.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526 .
-	CanDropStalePoints bool
-
 	Timestamps []int64
 
 	// LoookbackDelta is the analog to `-query.lookback-delta` from Prometheus world.
 	LookbackDelta int64
+
+	// Whether default_rollup is used.
+	isDefaultRollup bool
 }
 
 var (
@@ -506,10 +504,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	if !rc.CanDropStalePoints {
-		// Remove Prometheus staleness marks from values, so rollup functions don't hit NaN values.
-		values, timestamps = dropStaleNaNs(values, timestamps)
-	}
 	scrapeInterval := getScrapeInterval(timestamps)
 	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
@@ -523,7 +517,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
-		if rc.CanDropStalePoints && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
+		if rc.isDefaultRollup && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
 			// Implicit window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
 			// according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 			window = rc.LookbackDelta
@@ -578,31 +572,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	putRollupFuncArg(rfa)
 
 	return dstValues
-}
-
-func dropStaleNaNs(values []float64, timestamps []int64) ([]float64, []int64) {
-	hasStaleSamples := false
-	for _, v := range values {
-		if decimal.IsStaleNaN(v) {
-			hasStaleSamples = true
-			break
-		}
-	}
-	if !hasStaleSamples {
-		// Fast path: values have noe Prometheus staleness marks.
-		return values, timestamps
-	}
-	// Slow path: drop Prometheus staleness marks from values.
-	dstValues := make([]float64, 0, len(values))
-	dstTimestamps := make([]int64, 0, len(timestamps))
-	for i, v := range values {
-		if decimal.IsStaleNaN(v) {
-			continue
-		}
-		dstValues = append(dstValues, v)
-		dstTimestamps = append(dstTimestamps, timestamps[i])
-	}
-	return dstValues, dstTimestamps
 }
 
 func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint int) int {
