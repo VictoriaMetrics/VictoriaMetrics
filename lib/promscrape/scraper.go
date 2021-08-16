@@ -301,6 +301,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 	additionsCount := 0
 	deletionsCount := 0
 	swsMap := make(map[string][]prompbmarshal.Label, len(sws))
+	var swsToStart []*ScrapeWork
 	for _, sw := range sws {
 		key := sw.key()
 		originalLabels := swsMap[key]
@@ -320,31 +321,45 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 			// The scraper for the given key already exists.
 			continue
 		}
+		swsToStart = append(swsToStart, sw)
+	}
 
-		// Start a scraper for the missing key.
+	// Stop deleted scrapers before starting new scrapers in order to prevent
+	// series overlap when old scrape target is substituted by new scrape target.
+	var stoppedChs []<-chan struct{}
+	for key, sc := range sg.m {
+		if _, ok := swsMap[key]; !ok {
+			close(sc.stopCh)
+			stoppedChs = append(stoppedChs, sc.stoppedCh)
+			delete(sg.m, key)
+			deletionsCount++
+		}
+	}
+	// Wait until all the deleted scrapers are stopped before starting new scrapers.
+	for _, ch := range stoppedChs {
+		<-ch
+	}
+
+	// Start new scrapers only after the deleted scrapers are stopped.
+	for _, sw := range swsToStart {
 		sc := newScraper(sw, sg.name, sg.pushData)
 		sg.activeScrapers.Inc()
 		sg.scrapersStarted.Inc()
 		sg.wg.Add(1)
 		tsmGlobal.Register(sw)
 		go func(sw *ScrapeWork) {
-			defer sg.wg.Done()
+			defer func() {
+				sg.wg.Done()
+				close(sc.stoppedCh)
+			}()
 			sc.sw.run(sc.stopCh)
 			tsmGlobal.Unregister(sw)
 			sg.activeScrapers.Dec()
 			sg.scrapersStopped.Inc()
 		}(sw)
+		key := sw.key()
 		sg.m[key] = sc
 		additionsCount++
-	}
-
-	// Stop deleted scrapers, which are missing in sws.
-	for key, sc := range sg.m {
-		if _, ok := swsMap[key]; !ok {
-			close(sc.stopCh)
-			delete(sg.m, key)
-			deletionsCount++
-		}
 	}
 
 	if additionsCount > 0 || deletionsCount > 0 {
@@ -354,13 +369,19 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 }
 
 type scraper struct {
-	sw     scrapeWork
+	sw scrapeWork
+
+	// stopCh is unblocked when the given scraper must be stopped.
 	stopCh chan struct{}
+
+	// stoppedCh is unblocked when the given scraper is stopped.
+	stoppedCh chan struct{}
 }
 
 func newScraper(sw *ScrapeWork, group string, pushData func(wr *prompbmarshal.WriteRequest)) *scraper {
 	sc := &scraper{
-		stopCh: make(chan struct{}),
+		stopCh:    make(chan struct{}),
+		stoppedCh: make(chan struct{}),
 	}
 	c := newClient(sw)
 	sc.sw.Config = sw
