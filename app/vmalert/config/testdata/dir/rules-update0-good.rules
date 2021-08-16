@@ -3,7 +3,7 @@ groups:
     interval: 2s
     concurrency: 2
     type: prometheus
-    external_labels:
+    labels:
       cluster: main
     rules:
       - alert: up

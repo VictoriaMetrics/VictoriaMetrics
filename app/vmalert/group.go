@@ -28,7 +28,7 @@ type Group struct {
 	Checksum    string
 
 	ExtraFilterLabels map[string]string
-	ExternalLabels    map[string]string
+	Labels            map[string]string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -78,7 +78,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Concurrency:       cfg.Concurrency,
 		Checksum:          cfg.Checksum,
 		ExtraFilterLabels: cfg.ExtraFilterLabels,
-		ExternalLabels:    cfg.ExternalLabels,
+		Labels:            cfg.Labels,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -93,12 +93,13 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
-		// override rule labels with external labels
-		if labels != nil {
-			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, labels)
+		// apply group labels
+		if len(cfg.Labels) > 0 {
+			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, g.Labels)
 		}
-		if cfg.ExternalLabels != nil {
-			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, cfg.ExternalLabels)
+		// apply external labels
+		if len(labels) > 0 {
+			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, labels)
 		}
 
 		rules[i] = g.newRule(qb, r)
@@ -127,7 +128,7 @@ func (g *Group) ID() uint64 {
 
 // Restore restores alerts state for group rules
 func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
-	labels = mergeLabels(g.Name, "", labels, g.ExternalLabels)
+	labels = mergeLabels(g.Name, "", g.Labels, labels)
 	for _, rule := range g.Rules {
 		rr, ok := rule.(*AlertingRule)
 		if !ok {
@@ -187,7 +188,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
 	g.ExtraFilterLabels = newGroup.ExtraFilterLabels
-	g.ExternalLabels = newGroup.ExternalLabels
+	g.Labels = newGroup.Labels
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil

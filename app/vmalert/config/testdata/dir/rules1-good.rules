@@ -1,6 +1,6 @@
 groups:
   - name: duplicatedGroupDiffFiles
-    external_labels:
+    labels:
        dc: gcp
     rules:
       - alert: VMRows
