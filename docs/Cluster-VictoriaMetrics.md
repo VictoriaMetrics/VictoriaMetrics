@@ -332,12 +332,14 @@ If you need multi-AZ setup, then it is recommended running independed clusters i
 [vmagent](https://docs.victoriametrics.com/vmagent.html) in front of these clusters, so it could replicate incoming data
 into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
 
-Another solution is to use multi-level cluster setup, where the top level of `vminsert` nodes [replicate](#replication-and-data-safety) data among the lower level of `vminsert` nodes located at different availability zones. These `vminsert` nodes then spread the data among `vmstorage` nodes in each AZ. See [these docs](#multi-level-cluster-setup) for more details.
+Another solution is to use [multi-level cluster setup](#multi-level-cluster-setup).
 
 
 ## Multi-level cluster setup
 
 `vminsert` nodes can accept data from another `vminsert` nodes starting from [v1.60.0](https://docs.victoriametrics.com/CHANGELOG.html#v1600) if `-clusternativeListenAddr` command-line flag is set. For example, if `vminsert` is started with `-clusternativeListenAddr=:8400` command-line flag, then it can accept data from another `vminsert` nodes at TCP port 8400 in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies with flexible configs. For example, the top level of `vminsert` nodes can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ), while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes located in the same AZ. Such setup guarantees cluster availability if some AZ becomes unavailable. The data from all the `vmstorage` nodes in all the AZs can be read via `vmselect` nodes, which are configured to query all the `vmstorage` nodes in all the availability zones (e.g. all the `vmstorage` addresses are passed via `-storageNode` command-line flag to `vmselect` nodes). Additionally, `-replicationFactor=k+1` must be passed to `vmselect` nodes, where `k` is the lowest number of `vmstorage` nodes in a single AZ. See [replication docs](#replication-and-data-safety) for more details.
+
+Another option is to set up [vmagent](https://docs.victoriametrics.com/vmagent.html) for replicating the data among multiple VictoriaMetrics clusters. See [these docs](https://docs.victoriametrics.com/vmagent.html#multitenancy) for details.
 
 
 ## Helm
@@ -471,7 +473,7 @@ Below is the output for `/path/to/vminsert -help`:
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
-    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
@@ -587,7 +589,7 @@ Below is the output for `/path/to/vmselect -help`:
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
-    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
@@ -654,6 +656,10 @@ Below is the output for `/path/to/vmselect -help`:
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16384)
   -search.maxQueueDuration duration
     	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxSamplesPerQuery int
+    	The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries (default 1000000000)
+  -search.maxSamplesPerSeries int
+    	The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery (default 30000000)
   -search.maxStalenessInterval duration
     	The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
@@ -665,7 +671,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.queryStats.lastQueriesCount int
     	Query stats for /api/v1/status/top_queries is tracked on this number of last queries. Zero value disables query stats tracking (default 20000)
   -search.queryStats.minQueryDuration duration
-    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats
+    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey string
     	Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
   -search.treatDotsAsIsInRegexps
@@ -700,7 +706,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
-    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -finalMergeDelay duration
@@ -760,7 +766,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -search.maxTagValues int
     	The maximum number of tag values returned per search (default 100000)
   -search.maxUniqueTimeseries int
-    	The maximum number of unique time series each search can scan (default 300000)
+    	The maximum number of unique time series a single query can process. This allows protecting against heavy queries, which select unexpectedly high number of series. See also -search.maxSamplesPerQuery and -search.maxSamplesPerSeries (default 300000)
   -smallMergeConcurrency int
     	The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string

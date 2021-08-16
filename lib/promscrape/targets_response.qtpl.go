@@ -37,6 +37,8 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets_response.qtpl:9
 		qw422016.N().D(js.targetsTotal)
 //line lib/promscrape/targets_response.qtpl:9
+		qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:9
 		qw422016.N().S(`up)`)
 //line lib/promscrape/targets_response.qtpl:10
 		qw422016.N().S(`
@@ -256,6 +258,8 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 			qw422016.N().S(`<tr`)
 //line lib/promscrape/targets_response.qtpl:77
 			if !ts.up {
+//line lib/promscrape/targets_response.qtpl:77
+				qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:77
 				qw422016.N().S(`class="alert alert-danger" role="alert"`)
 //line lib/promscrape/targets_response.qtpl:77

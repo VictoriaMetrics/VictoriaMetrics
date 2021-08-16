@@ -42,11 +42,11 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		}
 		rcs.global = global
 	}
-	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
-		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
-			len(*relabelConfigPaths), len(*remoteWriteURLs))
+	if len(*relabelConfigPaths) > (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)) {
+		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url or -remoteWrite.multitenantURL args: %d",
+			len(*relabelConfigPaths), (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)))
 	}
-	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
+	rcs.perURL = make([]*promrelabel.ParsedConfigs, (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
 			// Skip empty relabel config.

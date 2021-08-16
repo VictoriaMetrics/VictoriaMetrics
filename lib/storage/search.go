@@ -48,6 +48,11 @@ func (br *BlockRef) Marshal(dst []byte) []byte {
 	return br.bh.Marshal(dst)
 }
 
+// RowsCount returns the number of rows in br.
+func (br *BlockRef) RowsCount() int {
+	return int(br.bh.RowsCount)
+}
+
 // PartRef returns PartRef from br.
 func (br *BlockRef) PartRef() PartRef {
 	return PartRef{

@@ -381,14 +381,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
-	case "/api/v1/rules":
+	case "/api/v1/rules", "/rules":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
 		return true
-	case "/api/v1/alerts":
-		// Return dumb placehloder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
+	case "/api/v1/alerts", "/alerts":
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)

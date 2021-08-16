@@ -698,6 +698,39 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run("present_over_time(time())", func(t *testing.T) {
+		t.Parallel()
+		q := `present_over_time(time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("present_over_time(time()[100:300])", func(t *testing.T) {
+		t.Parallel()
+		q := `present_over_time(time()[100:300])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1, nan, nan, 1, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("present_over_time(time()<10m)", func(t *testing.T) {
+		t.Parallel()
+		q := `present_over_time(time()<1600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("absent(123)", func(t *testing.T) {
 		t.Parallel()
 		q := `absent(123)`

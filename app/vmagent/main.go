@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -159,11 +160,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		})
 		return true
 	}
+
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	switch path {
 	case "/api/v1/write":
 		prometheusWriteRequests.Inc()
-		if err := promremotewrite.InsertHandler(r); err != nil {
+		if err := promremotewrite.InsertHandler(nil, r); err != nil {
 			prometheusWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -172,7 +174,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import":
 		vmimportRequests.Inc()
-		if err := vmimport.InsertHandler(r); err != nil {
+		if err := vmimport.InsertHandler(nil, r); err != nil {
 			vmimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -181,7 +183,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import/csv":
 		csvimportRequests.Inc()
-		if err := csvimport.InsertHandler(r); err != nil {
+		if err := csvimport.InsertHandler(nil, r); err != nil {
 			csvimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -190,7 +192,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import/prometheus":
 		prometheusimportRequests.Inc()
-		if err := prometheusimport.InsertHandler(r); err != nil {
+		if err := prometheusimport.InsertHandler(nil, r); err != nil {
 			prometheusimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -199,7 +201,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/import/native":
 		nativeimportRequests.Inc()
-		if err := native.InsertHandler(r); err != nil {
+		if err := native.InsertHandler(nil, r); err != nil {
 			nativeimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -208,7 +210,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
-		if err := influx.InsertHandlerForHTTP(r); err != nil {
+		if err := influx.InsertHandlerForHTTP(nil, r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -245,7 +247,90 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
+	if remotewrite.MultitenancyEnabled() {
+		return processMultitenantRequest(w, r, path)
+	}
 	return false
+}
+
+func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path string) bool {
+	p, err := httpserver.ParsePath(path)
+	if err != nil {
+		// Cannot parse multitenant path. Skip it - probably it will be parsed later.
+		return false
+	}
+	if p.Prefix != "insert" {
+		httpserver.Errorf(w, r, `unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
+		return true
+	}
+	at, err := auth.NewToken(p.AuthToken)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
+		return true
+	}
+	switch p.Suffix {
+	case "prometheus/", "prometheus", "prometheus/api/v1/write":
+		prometheusWriteRequests.Inc()
+		if err := promremotewrite.InsertHandler(at, r); err != nil {
+			prometheusWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "prometheus/api/v1/import":
+		vmimportRequests.Inc()
+		if err := vmimport.InsertHandler(at, r); err != nil {
+			vmimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "prometheus/api/v1/import/csv":
+		csvimportRequests.Inc()
+		if err := csvimport.InsertHandler(at, r); err != nil {
+			csvimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "prometheus/api/v1/import/prometheus":
+		prometheusimportRequests.Inc()
+		if err := prometheusimport.InsertHandler(at, r); err != nil {
+			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "prometheus/api/v1/import/native":
+		nativeimportRequests.Inc()
+		if err := native.InsertHandler(at, r); err != nil {
+			nativeimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "influx/write", "influx/api/v2/write":
+		influxWriteRequests.Inc()
+		if err := influx.InsertHandlerForHTTP(at, r); err != nil {
+			influxWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "influx/query":
+		influxQueryRequests.Inc()
+		influxutils.WriteDatabaseNames(w)
+		return true
+	default:
+		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
+		return true
+	}
 }
 
 var (

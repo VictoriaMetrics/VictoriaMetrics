@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -14,10 +15,11 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	azMap := getAZMap(cfg)
 	var ms []map[string]string
 	for _, r := range rs {
 		for _, inst := range r.InstanceSet.Items {
-			ms = inst.appendTargetLabels(ms, r.OwnerID, cfg.port)
+			ms = inst.appendTargetLabels(ms, r.OwnerID, cfg.port, azMap)
 		}
 	}
 	return ms, nil
@@ -25,11 +27,10 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 
 func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
-	action := "DescribeInstances"
 	var rs []Reservation
 	pageToken := ""
 	for {
-		data, err := getEC2APIResponse(cfg, action, pageToken)
+		data, err := getEC2APIResponse(cfg, "DescribeInstances", pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
@@ -132,29 +133,87 @@ func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	return &v, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string, port int) []map[string]string {
+func getAZMap(cfg *apiConfig) map[string]string {
+	cfg.azMapLock.Lock()
+	defer cfg.azMapLock.Unlock()
+
+	if cfg.azMap != nil {
+		return cfg.azMap
+	}
+
+	azs, err := getAvailabilityZones(cfg)
+	cfg.azMap = make(map[string]string, len(azs))
+	if err != nil {
+		logger.Warnf("couldn't load availability zones map, so __meta_ec2_availability_zone_id label isn't set: %s", err)
+		return cfg.azMap
+	}
+	for _, az := range azs {
+		cfg.azMap[az.ZoneName] = az.ZoneID
+	}
+	return cfg.azMap
+}
+
+func getAvailabilityZones(cfg *apiConfig) ([]AvailabilityZone, error) {
+	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
+	data, err := getEC2APIResponse(cfg, "DescribeAvailabilityZones", "")
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain availability zones: %w", err)
+	}
+	azr, err := parseAvailabilityZonesResponse(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse availability zones list: %w", err)
+	}
+	return azr.AvailabilityZoneInfo.Items, nil
+}
+
+// AvailabilityZonesResponse represents the response for https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
+type AvailabilityZonesResponse struct {
+	AvailabilityZoneInfo AvailabilityZoneInfo `xml:"availabilityZoneInfo"`
+}
+
+// AvailabilityZoneInfo represents availabilityZoneInfo for https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
+type AvailabilityZoneInfo struct {
+	Items []AvailabilityZone `xml:"item"`
+}
+
+// AvailabilityZone represents availabilityZone for https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_AvailabilityZone.html
+type AvailabilityZone struct {
+	ZoneName string `xml:"zoneName"`
+	ZoneID   string `xml:"zoneId"`
+}
+
+func parseAvailabilityZonesResponse(data []byte) (*AvailabilityZonesResponse, error) {
+	var v AvailabilityZonesResponse
+	if err := xml.Unmarshal(data, &v); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal DescribeAvailabilityZonesResponse from %q: %w", data, err)
+	}
+	return &v, nil
+}
+
+func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string, port int, azMap map[string]string) []map[string]string {
 	if len(inst.PrivateIPAddress) == 0 {
 		// Cannot scrape instance without private IP address
 		return ms
 	}
 	addr := discoveryutils.JoinHostPort(inst.PrivateIPAddress, port)
 	m := map[string]string{
-		"__address__":                   addr,
-		"__meta_ec2_architecture":       inst.Architecture,
-		"__meta_ec2_ami":                inst.ImageID,
-		"__meta_ec2_availability_zone":  inst.Placement.AvailabilityZone,
-		"__meta_ec2_instance_id":        inst.ID,
-		"__meta_ec2_instance_lifecycle": inst.Lifecycle,
-		"__meta_ec2_instance_state":     inst.State.Name,
-		"__meta_ec2_instance_type":      inst.Type,
-		"__meta_ec2_owner_id":           ownerID,
-		"__meta_ec2_platform":           inst.Platform,
-		"__meta_ec2_primary_subnet_id":  inst.SubnetID,
-		"__meta_ec2_private_dns_name":   inst.PrivateDNSName,
-		"__meta_ec2_private_ip":         inst.PrivateIPAddress,
-		"__meta_ec2_public_dns_name":    inst.PublicDNSName,
-		"__meta_ec2_public_ip":          inst.PublicIPAddress,
-		"__meta_ec2_vpc_id":             inst.VPCID,
+		"__address__":                     addr,
+		"__meta_ec2_architecture":         inst.Architecture,
+		"__meta_ec2_ami":                  inst.ImageID,
+		"__meta_ec2_availability_zone":    inst.Placement.AvailabilityZone,
+		"__meta_ec2_availability_zone_id": azMap[inst.Placement.AvailabilityZone],
+		"__meta_ec2_instance_id":          inst.ID,
+		"__meta_ec2_instance_lifecycle":   inst.Lifecycle,
+		"__meta_ec2_instance_state":       inst.State.Name,
+		"__meta_ec2_instance_type":        inst.Type,
+		"__meta_ec2_owner_id":             ownerID,
+		"__meta_ec2_platform":             inst.Platform,
+		"__meta_ec2_primary_subnet_id":    inst.SubnetID,
+		"__meta_ec2_private_dns_name":     inst.PrivateDNSName,
+		"__meta_ec2_private_ip":           inst.PrivateIPAddress,
+		"__meta_ec2_public_dns_name":      inst.PublicDNSName,
+		"__meta_ec2_public_ip":            inst.PublicIPAddress,
+		"__meta_ec2_vpc_id":               inst.VPCID,
 	}
 	if len(inst.VPCID) > 0 {
 		subnets := make([]string, 0, len(inst.NetworkInterfaceSet.Items))

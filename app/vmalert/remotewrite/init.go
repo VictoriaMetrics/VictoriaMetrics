@@ -27,6 +27,7 @@ var (
 		"By default system CA is used")
 	tlsServerName = flag.String("remoteWrite.tlsServerName", "", "Optional TLS server name to use for connections to -remoteWrite.url. "+
 		"By default the server name from -remoteWrite.url is used")
+	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 )
 
 // Init creates Client object from given flags.
@@ -42,13 +43,14 @@ func Init(ctx context.Context) (*Client, error) {
 	}
 
 	return NewClient(ctx, Config{
-		Addr:          *addr,
-		Concurrency:   *concurrency,
-		MaxQueueSize:  *maxQueueSize,
-		MaxBatchSize:  *maxBatchSize,
-		FlushInterval: *flushInterval,
-		BasicAuthUser: *basicAuthUsername,
-		BasicAuthPass: *basicAuthPassword,
-		Transport:     t,
+		Addr:              *addr,
+		Concurrency:       *concurrency,
+		MaxQueueSize:      *maxQueueSize,
+		MaxBatchSize:      *maxBatchSize,
+		FlushInterval:     *flushInterval,
+		BasicAuthUser:     *basicAuthUsername,
+		BasicAuthPass:     *basicAuthPassword,
+		DisablePathAppend: *disablePathAppend,
+		Transport:         t,
 	})
 }

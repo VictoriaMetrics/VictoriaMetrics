@@ -1,7 +1,5 @@
 import React, {FC, useEffect, useState} from "react";
 import {Box, FormControlLabel, IconButton, Switch, Tooltip} from "@material-ui/core";
-import PlayCircleOutlineIcon from "@material-ui/icons/PlayCircleOutline";
-
 import EqualizerIcon from "@material-ui/icons/Equalizer";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
 import CircularProgressWithLabel from "../../common/CircularProgressWithLabel";
@@ -70,23 +68,19 @@ export const ExecutionControls: FC = () => {
   };
 
   return <Box display="flex" alignItems="center">
-    <Box mr={2}>
-      <Tooltip title="Execute Query">
-        <IconButton onClick={()=>dispatch({type: "RUN_QUERY"})}>
-          <PlayCircleOutlineIcon className={classes.colorizing} fontSize="large"/>
-        </IconButton>
-      </Tooltip>
-    </Box>
     {<FormControlLabel
       control={<Switch size="small" className={classes.colorizing} checked={autoRefresh} onChange={handleChange} />}
       label="Auto-refresh"
     />}
 
     {autoRefresh && <>
-      <CircularProgressWithLabel className={classes.colorizing} label={delay} value={progress} onClick={() => {iterateDelays();}} />
-      <Box ml={1}>
-        <IconButton onClick={() => {iterateDelays();}}><EqualizerIcon style={{color: "white"}} /></IconButton>
-      </Box>
+      <CircularProgressWithLabel className={classes.colorizing} label={delay} value={progress}
+        onClick={() => {iterateDelays();}} />
+      <Tooltip title="Change delay refresh">
+        <Box ml={1}>
+          <IconButton onClick={() => {iterateDelays();}}><EqualizerIcon style={{color: "white"}} /></IconButton>
+        </Box>
+      </Tooltip>
     </>}
   </Box>;
 };

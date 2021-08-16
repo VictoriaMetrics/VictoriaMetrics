@@ -8,6 +8,56 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
+func TestDescribeAvailabilityZonesResponse(t *testing.T) {
+	data := `<DescribeAvailabilityZonesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+    <requestId>e23c5a54-a29c-43ee-8b55-0c13c26e9e01</requestId>
+    <availabilityZoneInfo>
+        <item>
+            <optInStatus>opt-in-not-required</optInStatus>
+            <zoneName>us-west-2a</zoneName>
+            <zoneId>usw2-az1</zoneId>
+            <zoneState>available</zoneState>
+            <regionName>us-west-2</regionName>
+            <messageSet/>
+            <NetworkBorderGroup>us-west-2-lax-1</NetworkBorderGroup>
+        </item>
+        <item>
+            <groupName>us-west-2</groupName>
+            <optInStatus>opt-in-not-required</optInStatus>
+            <zoneName>us-west-2b</zoneName>
+            <zoneId>usw2-az2</zoneId>
+            <zoneState>available</zoneState>
+            <regionName>us-west-2</regionName>
+            <messageSet/>
+            <NetworkBorderGroup>us-west-2-lax-1</NetworkBorderGroup>
+        </item>
+    </availabilityZoneInfo>
+</DescribeAvailabilityZonesResponse>
+`
+
+	azr, err := parseAvailabilityZonesResponse([]byte(data))
+	if err != nil {
+		t.Fatalf("unexpected error when parsing data: %s", err)
+	}
+	azrExpected := &AvailabilityZonesResponse{
+		AvailabilityZoneInfo: AvailabilityZoneInfo{
+			Items: []AvailabilityZone{
+				{
+					ZoneName: "us-west-2a",
+					ZoneID:   "usw2-az1",
+				},
+				{
+					ZoneName: "us-west-2b",
+					ZoneID:   "usw2-az2",
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(azr, azrExpected) {
+		t.Fatalf("unexpected DescribeAvailabilityZonesResponse parsed;\ngot\n%+v\nwant\n%+v", azr, azrExpected)
+	}
+}
+
 func TestParseInstancesResponse(t *testing.T) {
 	data := `<?xml version="1.0" encoding="UTF-8"?>
 <DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2013-10-15/">
@@ -188,31 +238,34 @@ func TestParseInstancesResponse(t *testing.T) {
 	ownerID := rs.OwnerID
 	port := 423
 	inst := rs.InstanceSet.Items[0]
-	labelss := inst.appendTargetLabels(nil, ownerID, port)
+	labelss := inst.appendTargetLabels(nil, ownerID, port, map[string]string{
+		"eu-west-2c": "foobar-zone",
+	})
 	var sortedLabelss [][]prompbmarshal.Label
 	for _, labels := range labelss {
 		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
 	}
 	expectedLabels := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
-			"__address__":                   "172.31.11.152:423",
-			"__meta_ec2_architecture":       "x86_64",
-			"__meta_ec2_availability_zone":  "eu-west-2c",
-			"__meta_ec2_ami":                "ami-0eb89db7593b5d434",
-			"__meta_ec2_instance_id":        "i-0e730b692d9c15460",
-			"__meta_ec2_instance_lifecycle": "spot",
-			"__meta_ec2_instance_state":     "running",
-			"__meta_ec2_instance_type":      "t2.micro",
-			"__meta_ec2_owner_id":           "793614593844",
-			"__meta_ec2_platform":           "windows",
-			"__meta_ec2_primary_subnet_id":  "subnet-57044c3e",
-			"__meta_ec2_private_dns_name":   "ip-172-31-11-152.eu-west-2.compute.internal",
-			"__meta_ec2_private_ip":         "172.31.11.152",
-			"__meta_ec2_public_dns_name":    "ec2-3-8-232-141.eu-west-2.compute.amazonaws.com",
-			"__meta_ec2_public_ip":          "3.8.232.141",
-			"__meta_ec2_subnet_id":          ",subnet-57044c3e,",
-			"__meta_ec2_tag_foo":            "bar",
-			"__meta_ec2_vpc_id":             "vpc-f1eaad99",
+			"__address__":                     "172.31.11.152:423",
+			"__meta_ec2_architecture":         "x86_64",
+			"__meta_ec2_availability_zone":    "eu-west-2c",
+			"__meta_ec2_availability_zone_id": "foobar-zone",
+			"__meta_ec2_ami":                  "ami-0eb89db7593b5d434",
+			"__meta_ec2_instance_id":          "i-0e730b692d9c15460",
+			"__meta_ec2_instance_lifecycle":   "spot",
+			"__meta_ec2_instance_state":       "running",
+			"__meta_ec2_instance_type":        "t2.micro",
+			"__meta_ec2_owner_id":             "793614593844",
+			"__meta_ec2_platform":             "windows",
+			"__meta_ec2_primary_subnet_id":    "subnet-57044c3e",
+			"__meta_ec2_private_dns_name":     "ip-172-31-11-152.eu-west-2.compute.internal",
+			"__meta_ec2_private_ip":           "172.31.11.152",
+			"__meta_ec2_public_dns_name":      "ec2-3-8-232-141.eu-west-2.compute.amazonaws.com",
+			"__meta_ec2_public_ip":            "3.8.232.141",
+			"__meta_ec2_subnet_id":            ",subnet-57044c3e,",
+			"__meta_ec2_tag_foo":              "bar",
+			"__meta_ec2_vpc_id":               "vpc-f1eaad99",
 		}),
 	}
 	if !reflect.DeepEqual(sortedLabelss, expectedLabels) {
