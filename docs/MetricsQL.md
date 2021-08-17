@@ -160,3 +160,6 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `zscore(q) by (group)` - returns independent [z-score](https://en.wikipedia.org/wiki/Standard_score) values for every point in every `group` of `q`.
   Useful for detecting anomalies in the group of related time series.
 - `timezone_offset("tz")` - returns offset in seconds for the given timezone `tz` relative to UTC. This can be useful when combining with datetime-related functions. For example, `day_of_week(time()+timezone_offset("America/Los_Angeles"))` would return weekdays for `America/Los_Angeles` time zone. Special `Local` time zone can be used for returning an offset for the time zone set on the host where VictoriaMetrics runs. See [the list of supported timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+- `bitmap_and(q, mask)` - calculates bitwise `v & mask` for every `v` point returned from `q`.
+- `bitmap_or(q, mask)` - calculates bitwise `v | mask` for every `v` point returned from `q`.
+- `bitmap_xor(q, mask)` - calculates bitwise `v ^ mask` for every `v` point returned from `q`.
