@@ -1424,6 +1424,7 @@ Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It 
 * From Prometheus to VictoriaMetrics
 * From InfluxDB to VictoriaMetrics
 * From VictoriaMetrics to VictoriaMetrics
+* From OpenTSDB to VictoriaMetrics
 
 See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
 
