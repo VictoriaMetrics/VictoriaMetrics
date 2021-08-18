@@ -66,8 +66,6 @@ func CompressDict(dst, src []byte, cd *CDict) []byte {
 }
 
 func compressDictLevel(dst, src []byte, cd *CDict, compressionLevel int) []byte {
-	concurrencyLimitCh <- struct{}{}
-
 	var cctx, cctxDict *cctxWrapper
 	if cd == nil {
 		cctx = cctxPool.Get().(*cctxWrapper)
@@ -82,9 +80,6 @@ func compressDictLevel(dst, src []byte, cd *CDict, compressionLevel int) []byte 
 	} else {
 		cctxDictPool.Put(cctxDict)
 	}
-
-	<-concurrencyLimitCh
-
 	return dst
 }
 
@@ -189,8 +184,6 @@ func Decompress(dst, src []byte) ([]byte, error) {
 //
 // The given dictionary dd is used for the decompression.
 func DecompressDict(dst, src []byte, dd *DDict) ([]byte, error) {
-	concurrencyLimitCh <- struct{}{}
-
 	var dctx, dctxDict *dctxWrapper
 	if dd == nil {
 		dctx = dctxPool.Get().(*dctxWrapper)
@@ -206,9 +199,6 @@ func DecompressDict(dst, src []byte, dd *DDict) ([]byte, error) {
 	} else {
 		dctxDictPool.Put(dctxDict)
 	}
-
-	<-concurrencyLimitCh
-
 	return dst, err
 }
 
@@ -311,11 +301,6 @@ func decompressInternal(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict)
 	runtime.KeepAlive(src)
 	return n
 }
-
-var concurrencyLimitCh = func() chan struct{} {
-	gomaxprocs := runtime.GOMAXPROCS(-1)
-	return make(chan struct{}, gomaxprocs)
-}()
 
 func errStr(result C.size_t) string {
 	errCode := C.ZSTD_getErrorCode(result)
