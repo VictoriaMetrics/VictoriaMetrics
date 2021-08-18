@@ -93,13 +93,18 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
-		// apply group labels
-		if len(cfg.Labels) > 0 {
-			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, g.Labels)
-		}
+		var extraLabels map[string]string
 		// apply external labels
 		if len(labels) > 0 {
-			r.Labels = mergeLabels(g.Name, r.Name(), r.Labels, labels)
+			extraLabels = labels
+		}
+		// apply group labels, it has priority on external labels
+		if len(cfg.Labels) > 0 {
+			extraLabels = mergeLabels(g.Name, r.Name(), extraLabels, g.Labels)
+		}
+		// apply rules labels, it has priority on other labels
+		if len(extraLabels) > 0 {
+			r.Labels = mergeLabels(g.Name, r.Name(), extraLabels, r.Labels)
 		}
 
 		rules[i] = g.newRule(qb, r)
@@ -128,7 +133,7 @@ func (g *Group) ID() uint64 {
 
 // Restore restores alerts state for group rules
 func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
-	labels = mergeLabels(g.Name, "", g.Labels, labels)
+	labels = mergeLabels(g.Name, "", labels, g.Labels)
 	for _, rule := range g.Rules {
 		rr, ok := rule.(*AlertingRule)
 		if !ok {
