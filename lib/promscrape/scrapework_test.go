@@ -128,6 +128,9 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		if pushDataCalls == 0 {
 			t.Fatalf("missing pushData calls")
 		}
+		if len(timeseriesExpected) != 0 {
+			t.Fatalf("%d series weren't pushed", len(timeseriesExpected))
+		}
 	}
 
 	f(``, &ScrapeWork{}, `
