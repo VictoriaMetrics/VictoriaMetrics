@@ -12,6 +12,7 @@ sort: 15
 * FEATURE: vmselect: add `-search.noStaleMarkers` command-line flag for stale markers handling in queries.
 
 * BUGFIX: vmagent: stop scrapers for deleted targets before starting scrapers for added targets. This should prevent from possible time series overlap when old targets are substituted by new targets (for example, during new deployment in Kubernetes). The overlap could lead to incorrect query results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1509).
+* BUGFIX: vmagent: send Prometheus stale markers for the previously scraped metrics on failed scrapes like Prometheus does. See [this article](https://www.robustperception.io/staleness-and-promql).
 * BUGFIX: upgrade base Docker image from Alpine 3.14.0 to Alpine 3.14.1 . This fixes potential security issues - see [Alpine 3.14.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.14.1-released.html).
 
 

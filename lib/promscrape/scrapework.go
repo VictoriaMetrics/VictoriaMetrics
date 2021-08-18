@@ -239,7 +239,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		timestamp += scrapeInterval.Milliseconds()
 		select {
 		case <-stopCh:
-			sw.sendStaleMarkers()
+			sw.sendStaleMarkers(false)
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixNano() / 1e6
@@ -322,6 +322,9 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
+	if up == 0 {
+		sw.sendStaleMarkers(true)
+	}
 	sw.updateActiveSeries(wc)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
@@ -332,6 +335,19 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	leveledbytebufferpool.Put(body)
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
+}
+
+func isAutogenSeries(name string) bool {
+	switch name {
+	case "up",
+		"scrape_duration_seconds",
+		"scrape_samples_scraped",
+		"scrape_samples_post_metric_relabeling",
+		"scrape_series_added":
+		return true
+	default:
+		return false
+	}
 }
 
 func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
@@ -504,7 +520,7 @@ func (sw *scrapeWork) updateActiveSeries(wc *writeRequestCtx) {
 	sw.activeSeries = as
 }
 
-func (sw *scrapeWork) sendStaleMarkers() {
+func (sw *scrapeWork) sendStaleMarkers(skipAutogenSeries bool) {
 	series := make([]prompbmarshal.TimeSeries, 0, len(sw.activeSeries))
 	staleMarkSamples := []prompbmarshal.Sample{
 		{
@@ -514,6 +530,7 @@ func (sw *scrapeWork) sendStaleMarkers() {
 	}
 	for _, b := range sw.activeSeries {
 		var labels []prompbmarshal.Label
+		skipSeries := false
 		for len(b) > 0 {
 			tail, name, err := encoding.UnmarshalBytes(b)
 			if err != nil {
@@ -525,15 +542,24 @@ func (sw *scrapeWork) sendStaleMarkers() {
 				logger.Panicf("BUG: cannot unmarshal label value from activeSeries: %s", err)
 			}
 			b = tail
+			if skipAutogenSeries && string(name) == "__name__" && isAutogenSeries(bytesutil.ToUnsafeString(value)) {
+				skipSeries = true
+			}
 			labels = append(labels, prompbmarshal.Label{
 				Name:  bytesutil.ToUnsafeString(name),
 				Value: bytesutil.ToUnsafeString(value),
 			})
 		}
+		if skipSeries {
+			continue
+		}
 		series = append(series, prompbmarshal.TimeSeries{
 			Labels:  labels,
 			Samples: staleMarkSamples,
 		})
+	}
+	if len(series) == 0 {
+		return
 	}
 	wr := &prompbmarshal.WriteRequest{
 		Timeseries: series,
