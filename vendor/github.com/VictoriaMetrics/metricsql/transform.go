@@ -89,6 +89,9 @@ var transformFuncs = map[string]bool{
 	"sort_by_label":      true,
 	"sort_by_label_desc": true,
 	"timezone_offset":    true,
+	"bitmap_and":         true,
+	"bitmap_or":          true,
+	"bitmap_xor":         true,
 }
 
 // IsTransformFunc returns whether funcName is known transform function.

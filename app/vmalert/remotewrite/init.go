@@ -11,7 +11,8 @@ import (
 
 var (
 	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
-		"and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
+		"and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
+		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend")
 	basicAuthUsername = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
 	basicAuthPassword = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 
@@ -27,6 +28,7 @@ var (
 		"By default system CA is used")
 	tlsServerName = flag.String("remoteWrite.tlsServerName", "", "Optional TLS server name to use for connections to -remoteWrite.url. "+
 		"By default the server name from -remoteWrite.url is used")
+	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 )
 
 // Init creates Client object from given flags.
@@ -42,13 +44,14 @@ func Init(ctx context.Context) (*Client, error) {
 	}
 
 	return NewClient(ctx, Config{
-		Addr:          *addr,
-		Concurrency:   *concurrency,
-		MaxQueueSize:  *maxQueueSize,
-		MaxBatchSize:  *maxBatchSize,
-		FlushInterval: *flushInterval,
-		BasicAuthUser: *basicAuthUsername,
-		BasicAuthPass: *basicAuthPassword,
-		Transport:     t,
+		Addr:              *addr,
+		Concurrency:       *concurrency,
+		MaxQueueSize:      *maxQueueSize,
+		MaxBatchSize:      *maxBatchSize,
+		FlushInterval:     *flushInterval,
+		BasicAuthUser:     *basicAuthUsername,
+		BasicAuthPass:     *basicAuthPassword,
+		DisablePathAppend: *disablePathAppend,
+		Transport:         t,
 	})
 }

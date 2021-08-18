@@ -132,6 +132,72 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("bitmap_and(0xB3, 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(0xB3, 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{17, 17, 17, 17, 17, 17},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_and(time(), 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(time(), 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 16, 16, 0, 0, 16},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_or(0xA2, 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_or(0xA2, 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{179, 179, 179, 179, 179, 179},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_or(time(), 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_or(time(), 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1017, 1201, 1401, 1617, 1817, 2001},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_xor(0xB3, 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_xor(0xB3, 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{162, 162, 162, 162, 162, 162},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_xor(time(), 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_xor(time(), 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1017, 1185, 1385, 1617, 1817, 1985},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("timezone_offset(UTC)", func(t *testing.T) {
 		t.Parallel()
 		q := `timezone_offset("UTC")`
@@ -6891,6 +6957,10 @@ func TestExecError(t *testing.T) {
 	f(`count_gt_over_time()`)
 	f(`count_eq_over_time()`)
 	f(`count_ne_over_time()`)
+	f(`timezone_offset()`)
+	f(`bitmap_and()`)
+	f(`bitmap_or()`)
+	f(`bitmap_xor()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

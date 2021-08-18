@@ -23,6 +23,7 @@ var (
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
 		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
+	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -764,10 +765,7 @@ func getRollupMemoryLimiter() *memoryLimiter {
 func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		if name != "default_rollup" {
-			// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
-			rs.Values, rs.Timestamps = dropStaleNaNs(rs.Values, rs.Timestamps)
-		}
+		rs.Values, rs.Timestamps = dropStaleNaNs(name, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
 		defer putTimeseries(ts)
@@ -801,10 +799,7 @@ func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs 
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		if name != "default_rollup" {
-			// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
-			rs.Values, rs.Timestamps = dropStaleNaNs(rs.Values, rs.Timestamps)
-		}
+		rs.Values, rs.Timestamps = dropStaleNaNs(name, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
 			if tsm := newTimeseriesMap(name, sharedTimestamps, &rs.MetricName); tsm != nil {
@@ -901,7 +896,13 @@ func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {
 	dst.IsNegative = src.IsNegative
 }
 
-func dropStaleNaNs(values []float64, timestamps []int64) ([]float64, []int64) {
+func dropStaleNaNs(name string, values []float64, timestamps []int64) ([]float64, []int64) {
+	if *noStaleMarkers || name == "default_rollup" {
+		// Do not drop Prometheus staleness marks (aka stale NaNs) for default_rollup() function,
+		// since it uses them for Prometheus-style staleness detection.
+		return values, timestamps
+	}
+	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
 	hasStaleSamples := false
 	for _, v := range values {
 		if decimal.IsStaleNaN(v) {

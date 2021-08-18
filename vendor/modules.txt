@@ -21,14 +21,14 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.17.3
 ## explicit
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.17.0
+# github.com/VictoriaMetrics/metricsql v0.18.0
 ## explicit
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.21
+# github.com/aws/aws-sdk-go v1.40.22
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -205,7 +205,7 @@ github.com/valyala/fastrand
 # github.com/valyala/fasttemplate v1.2.1
 ## explicit
 github.com/valyala/fasttemplate
-# github.com/valyala/gozstd v1.11.0
+# github.com/valyala/gozstd v1.12.0
 ## explicit
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.1.2
@@ -293,7 +293,7 @@ golang.org/x/tools/internal/typeparams
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.53.0
+# google.golang.org/api v0.54.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
