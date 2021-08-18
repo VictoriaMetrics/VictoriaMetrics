@@ -27,7 +27,7 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
-	disableStaleMarkers = flag.Bool("promscrape.disableStaleMarkers", false, "Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	noStaleMarkers = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -487,7 +487,7 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 }
 
 func (sw *scrapeWork) updateActiveSeries(wc *writeRequestCtx) {
-	if *disableStaleMarkers {
+	if *noStaleMarkers {
 		return
 	}
 	b := sw.activeSeriesBuf[:0]

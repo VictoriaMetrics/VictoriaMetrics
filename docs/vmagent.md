@@ -250,7 +250,7 @@ You can read more about relabeling in the following articles:
 
 ## Prometheus staleness markers
 
-Starting from [v1.64.0](https://docs.victoriametrics.com/CHANGELOG.html#v1640), `vmagent` sends [Prometheus staleness markers](https://www.robustperception.io/staleness-and-promql) for scraped metrics when the scrape target is removed from the list of targets. Prometheus staleness markers aren't sent in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.disableStaleMarkers` command-line is set.
+Starting from [v1.64.0](https://docs.victoriametrics.com/CHANGELOG.html#v1640), `vmagent` sends [Prometheus staleness markers](https://www.robustperception.io/staleness-and-promql) for scraped metrics when the scrape target is removed from the list of targets. Prometheus staleness markers aren't sent in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
 
 
 ## Stream parsing mode
@@ -652,7 +652,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.disableKeepAlive
     	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
-  -promscrape.disableStaleMarkers
+  -promscrape.noStaleMarkers
     	Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.discovery.concurrency int
     	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
