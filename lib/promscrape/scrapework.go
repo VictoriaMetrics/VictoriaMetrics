@@ -239,7 +239,8 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		timestamp += scrapeInterval.Milliseconds()
 		select {
 		case <-stopCh:
-			sw.sendStaleMarkers(false)
+			t := time.Now().UnixNano() / 1e6
+			sw.sendStaleMarkers(t, false)
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixNano() / 1e6
@@ -323,7 +324,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	if up == 0 {
-		sw.sendStaleMarkers(true)
+		sw.sendStaleMarkers(scrapeTimestamp, true)
 	}
 	sw.updateActiveSeries(wc)
 	sw.pushData(&wc.writeRequest)
@@ -520,12 +521,12 @@ func (sw *scrapeWork) updateActiveSeries(wc *writeRequestCtx) {
 	sw.activeSeries = as
 }
 
-func (sw *scrapeWork) sendStaleMarkers(skipAutogenSeries bool) {
+func (sw *scrapeWork) sendStaleMarkers(timestamp int64, skipAutogenSeries bool) {
 	series := make([]prompbmarshal.TimeSeries, 0, len(sw.activeSeries))
 	staleMarkSamples := []prompbmarshal.Sample{
 		{
 			Value:     decimal.StaleNaN,
-			Timestamp: time.Now().UnixNano() / 1e6,
+			Timestamp: timestamp,
 		},
 	}
 	for _, b := range sw.activeSeries {
