@@ -27,17 +27,17 @@ type UploadInput struct {
 	//
 	// When using this action with an access point, you must direct requests to
 	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this action with an access point through the AWS SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide.
 	//
 	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this action using S3 on Outposts through the AWS SDKs, you provide
-	// the Outposts bucket ARN in place of the bucket name. For more information
-	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// using this action using S3 on Outposts through the Amazon Web Services SDKs,
+	// you provide the Outposts bucket ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// Bucket is a required field
@@ -153,19 +153,19 @@ type UploadInput struct {
 	// encryption key was transmitted without error.
 	SSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-server-side-encryption-customer-key-MD5" type:"string"`
 
-	// Specifies the AWS KMS Encryption Context to use for object encryption. The
-	// value of this header is a base64-encoded UTF-8 string holding JSON with the
-	// encryption context key-value pairs.
+	// Specifies the Amazon Web Services KMS Encryption Context to use for object
+	// encryption. The value of this header is a base64-encoded UTF-8 string holding
+	// JSON with the encryption context key-value pairs.
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
 	// If x-amz-server-side-encryption is present and has the value of aws:kms,
-	// this header specifies the ID of the AWS Key Management Service (AWS KMS)
-	// symmetrical customer managed customer master key (CMK) that was used for
-	// the object. If you specify x-amz-server-side-encryption:aws:kms, but do not
-	// providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3 uses the AWS
-	// managed CMK in AWS to protect the data. If the KMS key does not exist in
-	// the same account issuing the command, you must use the full ARN and not just
-	// the ID.
+	// this header specifies the ID of the Amazon Web Services Key Management Service
+	// (Amazon Web Services KMS) symmetrical customer managed customer master key
+	// (CMK) that was used for the object. If you specify x-amz-server-side-encryption:aws:kms,
+	// but do not providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3
+	// uses the Amazon Web Services managed CMK in Amazon Web Services to protect
+	// the data. If the KMS key does not exist in the same account issuing the command,
+	// you must use the full ARN and not just the ID.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
