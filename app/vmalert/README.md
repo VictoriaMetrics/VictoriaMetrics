@@ -374,7 +374,7 @@ The shortlist of configuration flags is the following:
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
   -disableAlertgroupLabel
-        Whether to disable adding group's name as label to generated alerts and time series.
+    	Whether to disable adding group's name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
