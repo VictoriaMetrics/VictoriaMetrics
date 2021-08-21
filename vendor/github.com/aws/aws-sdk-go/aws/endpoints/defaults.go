@@ -3808,6 +3808,7 @@ var awsPartition = partition{
 
 			Endpoints: endpoints{
 				"ap-northeast-1": endpoint{},
+				"ap-south-1":     endpoint{},
 				"ap-southeast-2": endpoint{},
 				"eu-central-1":   endpoint{},
 				"eu-west-1":      endpoint{},
@@ -10883,6 +10884,12 @@ var awsisoPartition = partition{
 						Region: "us-iso-east-1",
 					},
 				},
+			},
+		},
+		"route53resolver": service{
+
+			Endpoints: endpoints{
+				"us-iso-east-1": endpoint{},
 			},
 		},
 		"runtime.sagemaker": service{
