@@ -170,6 +170,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"ascent_over_time":    true,
 	"descent_over_time":   true,
 	"zscore_over_time":    true,
+	"first_over_time":     true,
 	"last_over_time":      true,
 }
 
