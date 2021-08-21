@@ -1318,7 +1318,7 @@
     "description": "Storage Transfer API",
     "language": "Go",
     "client_library_type": "generated",
-    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/latest/storagetransfer/apiv1",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/storagetransfer/latest/apiv1",
     "release_level": "beta",
     "library_type": ""
   },
