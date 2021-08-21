@@ -377,6 +377,8 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+  -disableAlertgroupLabel
+    	Whether to disable adding group's name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
