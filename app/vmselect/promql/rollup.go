@@ -43,6 +43,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
 	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
 	"present_over_time":  newRollupFuncOneArg(rollupPresent),
+	"last_over_time":        newRollupFuncOneArg(rollupLast),
 
 	// Additional rollup funcs.
 	"default_rollup":        newRollupFuncOneArg(rollupDefault), // default rollup func
@@ -50,7 +51,6 @@ var rollupFuncs = map[string]newRollupFunc{
 	"sum2_over_time":        newRollupFuncOneArg(rollupSum2),
 	"geomean_over_time":     newRollupFuncOneArg(rollupGeomean),
 	"first_over_time":       newRollupFuncOneArg(rollupFirst),
-	"last_over_time":        newRollupFuncOneArg(rollupLast),
 	"distinct_over_time":    newRollupFuncOneArg(rollupDistinct),
 	"increases_over_time":   newRollupFuncOneArg(rollupIncreases),
 	"decreases_over_time":   newRollupFuncOneArg(rollupDecreases),

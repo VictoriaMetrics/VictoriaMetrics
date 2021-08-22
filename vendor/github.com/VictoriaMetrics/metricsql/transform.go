@@ -29,7 +29,7 @@ var transformFuncs = map[string]bool{
 	"month":              true,
 	"round":              true,
 	"scalar":             true,
-	"sign":               true,
+	"sgn":                true,
 	"sort":               true,
 	"sort_desc":          true,
 	"sqrt":               true,

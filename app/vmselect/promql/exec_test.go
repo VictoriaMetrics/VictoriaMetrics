@@ -1954,9 +1954,9 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
-	t.Run(`sign(time()-1400)`, func(t *testing.T) {
+	t.Run(`sgn(time()-1400)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sign(time()-1400)`
+		q := `sgn(time()-1400)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{-1, -1, 0, 1, 1, 1},
@@ -6871,7 +6871,7 @@ func TestExecError(t *testing.T) {
 	f(`label_mismatch()`)
 	f(`round()`)
 	f(`round(1,2,3)`)
-	f(`sign()`)
+	f(`sgn()`)
 	f(`scalar()`)
 	f(`sort(1,2)`)
 	f(`sort_desc()`)
