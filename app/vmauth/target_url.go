@@ -42,6 +42,7 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, error) {
 	if !strings.HasPrefix(u.Path, "/") {
 		u.Path = "/" + u.Path
 	}
+	u.Path = strings.TrimSuffix(u.Path, "/")
 	for _, e := range ui.URLMap {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
