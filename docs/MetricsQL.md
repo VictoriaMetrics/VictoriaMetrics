@@ -752,7 +752,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `max(q) by (group_labels)` returns the maximum value per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp. This function is supported by PromQL.
 
-### median
+#### median
 
 `median(q) by (group_labels)` returns the median value per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 
