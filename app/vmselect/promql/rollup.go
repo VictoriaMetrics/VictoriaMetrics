@@ -43,7 +43,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
 	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
 	"present_over_time":  newRollupFuncOneArg(rollupPresent),
-	"last_over_time":        newRollupFuncOneArg(rollupLast),
+	"last_over_time":     newRollupFuncOneArg(rollupLast),
 
 	// Additional rollup funcs.
 	"default_rollup":        newRollupFuncOneArg(rollupDefault), // default rollup func
