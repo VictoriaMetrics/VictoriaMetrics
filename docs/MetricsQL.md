@@ -823,7 +823,7 @@ VictoriaMetrics performs subqueries in the following way:
 * It calculates the outer rollup function over the results of the inner rollup function using the `step` value passed by Grafana to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
 
 
-## Implicit query convesions
+## Implicit query conversions
 
 VictoriaMetrics performs the following implicit conversions for incoming queries before starting the calculations:
 
