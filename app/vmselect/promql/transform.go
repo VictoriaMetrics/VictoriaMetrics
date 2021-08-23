@@ -63,7 +63,7 @@ var transformFuncs = map[string]transformFunc{
 	"minute":             newTransformFuncDateTime(transformMinute),
 	"month":              newTransformFuncDateTime(transformMonth),
 	"round":              transformRound,
-	"sgn":               transformSign,
+	"sgn":                transformSign,
 	"scalar":             transformScalar,
 	"sort":               newTransformFuncSort(false),
 	"sort_desc":          newTransformFuncSort(true),
