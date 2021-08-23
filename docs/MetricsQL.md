@@ -148,7 +148,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### histogram_over_time
 
-`histogram_over_time(series_selector[d])` calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) over raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The resulting histograms are useful to pass to [histogram_quantile](#histogram_qunatile) for calculating quantiles over multiple gauges. For example, the following query calculates median temperature by country over the last 24 hours: `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmrange,country))`.
+`histogram_over_time(series_selector[d])` calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) over raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The resulting histograms are useful to pass to [histogram_quantile](#histogram_quantile) for calculating quantiles over multiple gauges. For example, the following query calculates median temperature by country over the last 24 hours: `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmrange,country))`.
 
 #### hoeffding_bound_lower
 
