@@ -11,8 +11,8 @@ require (
 	github.com/VictoriaMetrics/metrics v1.17.3
 	github.com/VictoriaMetrics/metricsql v0.20.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/aws/aws-sdk-go v1.40.27
-	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/aws/aws-sdk-go v1.40.29
+	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/fatih/color v1.12.0 // indirect
@@ -20,6 +20,7 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4
+	github.com/googleapis/gax-go/v2 v2.1.0 // indirect
 	github.com/influxdata/influxdb v1.9.3
 	github.com/klauspost/compress v1.13.4
 	github.com/mattn/go-isatty v0.0.13 // indirect
@@ -37,10 +38,10 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
-	golang.org/x/sys v0.0.0-20210820121016-41cdb8703e55
+	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/api v0.54.0
-	google.golang.org/genproto v0.0.0-20210821163610-241b8fcbd6c8 // indirect
+	google.golang.org/genproto v0.0.0-20210824181836-a4879c3d0e89 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
 
