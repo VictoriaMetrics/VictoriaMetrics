@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/fasthttp"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var configMap = discoveryutils.NewConfigMap()
@@ -15,6 +16,9 @@ var configMap = discoveryutils.NewConfigMap()
 type apiConfig struct {
 	client *discoveryutils.Client
 	path   string
+
+	fetchErrors *metrics.Counter
+	parseErrors *metrics.Counter
 }
 
 // httpGroupTarget respresent prometheus GroupTarget
@@ -44,8 +48,10 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
 	cfg := &apiConfig{
-		client: client,
-		path:   parsedURL.RequestURI(),
+		client:      client,
+		path:        parsedURL.RequestURI(),
+		fetchErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_http_errors_total{type="fetch",url=%q}`, sdc.URL)),
+		parseErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_http_errors_total{type="parse",url=%q}`, sdc.URL)),
 	}
 	return cfg, nil
 }
@@ -64,9 +70,15 @@ func getHTTPTargets(cfg *apiConfig) ([]httpGroupTarget, error) {
 		request.Header.Set("Accept", "application/json")
 	})
 	if err != nil {
+		cfg.fetchErrors.Inc()
 		return nil, fmt.Errorf("cannot read http_sd api response: %w", err)
 	}
-	return parseAPIResponse(data, cfg.path)
+	tg, err := parseAPIResponse(data, cfg.path)
+	if err != nil {
+		cfg.parseErrors.Inc()
+		return nil, err
+	}
+	return tg, nil
 }
 
 func parseAPIResponse(data []byte, path string) ([]httpGroupTarget, error) {
