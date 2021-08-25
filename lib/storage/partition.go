@@ -35,27 +35,26 @@ var (
 	historicalSmallIndexBlocksCacheMisses   uint64
 )
 
-func maxRowsPerSmallPart() uint64 {
+func maxSmallPartSize() uint64 {
 	// Small parts are cached in the OS page cache,
-	// so limit the number of rows for small part by the remaining free RAM.
+	// so limit their size by the remaining free RAM.
 	mem := memory.Remaining()
-	// Production data shows that each row occupies ~1 byte in the compressed part.
 	// It is expected no more than defaultPartsToMerge/2 parts exist
 	// in the OS page cache before they are merged into bigger part.
 	// Half of the remaining RAM must be left for lib/mergeset parts,
 	// so the maxItems is calculated using the below code:
-	maxRows := uint64(mem) / defaultPartsToMerge
-	if maxRows < 10e6 {
-		maxRows = 10e6
+	maxSize := uint64(mem) / defaultPartsToMerge
+	if maxSize < 10e6 {
+		maxSize = 10e6
 	}
-	return maxRows
+	return maxSize
 }
 
-// The maximum number of rows per big part.
+// The maximum size of big part.
 //
 // This number limits the maximum time required for building big part.
 // This time shouldn't exceed a few days.
-const maxRowsPerBigPart = 1e12
+const maxBigPartSize = 1e12
 
 // The maximum number of small parts in the partition.
 const maxSmallPartsPerPartition = 256
@@ -977,26 +976,21 @@ func SetFinalMergeDelay(delay time.Duration) {
 	finalMergeDelaySeconds = uint64(delay.Seconds() + 1)
 }
 
-func maxRowsByPath(path string) uint64 {
-	freeSpace := fs.MustGetFreeSpace(path)
-
-	// Calculate the maximum number of rows in the output merge part
-	// by dividing the freeSpace by the maximum number of concurrent
-	// workers for big parts.
-	// This assumes each row is compressed into 1 byte
-	// according to production data.
-	maxRows := freeSpace / uint64(bigMergeWorkersCount)
-	if maxRows > maxRowsPerBigPart {
-		maxRows = maxRowsPerBigPart
+func getMaxOutBytes(path string, workersCount int) uint64 {
+	n := fs.MustGetFreeSpace(path)
+	// Divide free space by the max number concurrent merges.
+	maxOutBytes := n / uint64(workersCount)
+	if maxOutBytes > maxBigPartSize {
+		maxOutBytes = maxBigPartSize
 	}
-	return maxRows
+	return maxOutBytes
 }
 
 func (pt *partition) mergeBigParts(isFinal bool) error {
-	maxRows := maxRowsByPath(pt.bigPartsPath)
+	maxOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
 
 	pt.partsLock.Lock()
-	pws, needFreeSpace := getPartsToMerge(pt.bigParts, maxRows, isFinal)
+	pws, needFreeSpace := getPartsToMerge(pt.bigParts, maxOutBytes, isFinal)
 	pt.partsLock.Unlock()
 
 	atomicSetBool(&pt.bigMergeNeedFreeDiskSpace, needFreeSpace)
@@ -1005,29 +999,29 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 
 func (pt *partition) mergeSmallParts(isFinal bool) error {
 	// Try merging small parts to a big part at first.
-	maxBigPartRows := maxRowsByPath(pt.bigPartsPath)
+	maxBigPartOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
 	pt.partsLock.Lock()
-	pws, needFreeSpace := getPartsToMerge(pt.smallParts, maxBigPartRows, isFinal)
+	pws, needFreeSpace := getPartsToMerge(pt.smallParts, maxBigPartOutBytes, isFinal)
 	pt.partsLock.Unlock()
 	atomicSetBool(&pt.bigMergeNeedFreeDiskSpace, needFreeSpace)
 
-	rowsCount := getRowsCount(pws)
-	if rowsCount > maxRowsPerSmallPart() {
+	outSize := getPartsSize(pws)
+	if outSize > maxSmallPartSize() {
 		// Merge small parts to a big part.
 		return pt.mergeParts(pws, pt.stopCh)
 	}
 
 	// Make sure that the output small part fits small parts storage.
-	maxSmallPartRows := maxRowsByPath(pt.smallPartsPath)
-	if rowsCount <= maxSmallPartRows {
+	maxSmallPartOutBytes := getMaxOutBytes(pt.smallPartsPath, smallMergeWorkersCount)
+	if outSize <= maxSmallPartOutBytes {
 		// Merge small parts to a small part.
 		return pt.mergeParts(pws, pt.stopCh)
 	}
 
-	// The output small part doesn't fit small parts storage. Try merging small parts according to maxSmallPartRows limit.
+	// The output small part doesn't fit small parts storage. Try merging small parts according to maxSmallPartOutBytes limit.
 	pt.releasePartsToMerge(pws)
 	pt.partsLock.Lock()
-	pws, needFreeSpace = getPartsToMerge(pt.smallParts, maxSmallPartRows, isFinal)
+	pws, needFreeSpace = getPartsToMerge(pt.smallParts, maxSmallPartOutBytes, isFinal)
 	pt.partsLock.Unlock()
 	atomicSetBool(&pt.smallMergeNeedFreeDiskSpace, needFreeSpace)
 
@@ -1088,13 +1082,15 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		bsrs = append(bsrs, bsr)
 	}
 
+	outSize := uint64(0)
 	outRowsCount := uint64(0)
 	outBlocksCount := uint64(0)
 	for _, pw := range pws {
+		outSize += pw.p.size
 		outRowsCount += pw.p.ph.RowsCount
 		outBlocksCount += pw.p.ph.BlocksCount
 	}
-	isBigPart := outRowsCount > maxRowsPerSmallPart()
+	isBigPart := outSize > maxSmallPartSize()
 	nocache := isBigPart
 
 	// Prepare BlockStreamWriter for destination part.
@@ -1343,9 +1339,9 @@ func (pt *partition) removeStaleParts() {
 
 // getPartsToMerge returns optimal parts to merge from pws.
 //
-// The returned parts will contain less than maxRows rows.
-// The function returns true if pws contains parts, which cannot be merged because of maxRows limit.
-func getPartsToMerge(pws []*partWrapper, maxRows uint64, isFinal bool) ([]*partWrapper, bool) {
+// The summary size of the returned parts must be smaller than maxOutBytes.
+// The function returns true if pws contains parts, which cannot be merged because of maxOutBytes limit.
+func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) ([]*partWrapper, bool) {
 	pwsRemaining := make([]*partWrapper, 0, len(pws))
 	for _, pw := range pws {
 		if !pw.isInMerge {
@@ -1357,11 +1353,11 @@ func getPartsToMerge(pws []*partWrapper, maxRows uint64, isFinal bool) ([]*partW
 	needFreeSpace := false
 	if isFinal {
 		for len(pms) == 0 && maxPartsToMerge >= finalPartsToMerge {
-			pms, needFreeSpace = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxRows)
+			pms, needFreeSpace = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
 			maxPartsToMerge--
 		}
 	} else {
-		pms, needFreeSpace = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxRows)
+		pms, needFreeSpace = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
 	}
 	for _, pw := range pms {
 		if pw.isInMerge {
@@ -1372,10 +1368,18 @@ func getPartsToMerge(pws []*partWrapper, maxRows uint64, isFinal bool) ([]*partW
 	return pms, needFreeSpace
 }
 
+// minMergeMultiplier is the minimum multiplier for the size of the output part
+// compared to the size of the maximum input part for the merge.
+//
+// Higher value reduces write amplification (disk write IO induced by the merge),
+// while increases the number of unmerged parts.
+// The 1.7 is good enough for production workloads.
+const minMergeMultiplier = 1.7
+
 // appendPartsToMerge finds optimal parts to merge from src, appends
 // them to dst and returns the result.
-// The function returns true if src contains parts, which cannot be merged because of maxRows limit.
-func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows uint64) ([]*partWrapper, bool) {
+// The function returns true if src contains parts, which cannot be merged because of maxOutBytes limit.
+func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutBytes uint64) ([]*partWrapper, bool) {
 	if len(src) < 2 {
 		// There is no need in merging zero or one part :)
 		return dst, false
@@ -1387,10 +1391,10 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	// Filter out too big parts.
 	// This should reduce N for O(N^2) algorithm below.
 	skippedBigParts := 0
-	maxInPartRows := maxRows / 2
+	maxInPartBytes := uint64(float64(maxOutBytes) / minMergeMultiplier)
 	tmp := make([]*partWrapper, 0, len(src))
 	for _, pw := range src {
-		if pw.p.ph.RowsCount > maxInPartRows {
+		if pw.p.size > maxInPartBytes {
 			skippedBigParts++
 			continue
 		}
@@ -1399,15 +1403,15 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	src = tmp
 	needFreeSpace := skippedBigParts > 1
 
-	// Sort src parts by rows count and backwards timestamp.
+	// Sort src parts by size and backwards timestamp.
 	// This should improve adjanced points' locality in the merged parts.
 	sort.Slice(src, func(i, j int) bool {
-		a := &src[i].p.ph
-		b := &src[j].p.ph
-		if a.RowsCount == b.RowsCount {
-			return a.MinTimestamp > b.MinTimestamp
+		a := src[i].p
+		b := src[j].p
+		if a.size == b.size {
+			return a.ph.MinTimestamp > b.ph.MinTimestamp
 		}
-		return a.RowsCount < b.RowsCount
+		return a.size < b.size
 	})
 
 	maxSrcParts := maxPartsToMerge
@@ -1425,20 +1429,20 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	for i := minSrcParts; i <= maxSrcParts; i++ {
 		for j := 0; j <= len(src)-i; j++ {
 			a := src[j : j+i]
-			rowsCount := getRowsCount(a)
-			if rowsCount > maxRows {
+			outSize := getPartsSize(a)
+			if outSize > maxOutBytes {
 				needFreeSpace = true
 			}
-			if a[0].p.ph.RowsCount*uint64(len(a)) < a[len(a)-1].p.ph.RowsCount {
-				// Do not merge parts with too big difference in rows count,
+			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
+				// Do not merge parts with too big difference in size,
 				// since this results in unbalanced merges.
 				continue
 			}
-			if rowsCount > maxRows {
-				// There is no need in verifying remaining parts with higher number of rows
+			if outSize > maxOutBytes {
+				// There is no need in verifying remaining parts with bigger sizes.
 				break
 			}
-			m := float64(rowsCount) / float64(a[len(a)-1].p.ph.RowsCount)
+			m := float64(outSize) / float64(a[len(a)-1].p.size)
 			if m < maxM {
 				continue
 			}
@@ -1448,20 +1452,21 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	}
 
 	minM := float64(maxPartsToMerge) / 2
-	if minM < 1.7 {
-		minM = 1.7
+	if minM < minMergeMultiplier {
+		minM = minMergeMultiplier
 	}
 	if maxM < minM {
-		// There is no sense in merging parts with too small m.
+		// There is no sense in merging parts with too small m,
+		// since this leads to high disk write IO.
 		return dst, needFreeSpace
 	}
 	return append(dst, pws...), needFreeSpace
 }
 
-func getRowsCount(pws []*partWrapper) uint64 {
+func getPartsSize(pws []*partWrapper) uint64 {
 	n := uint64(0)
 	for _, pw := range pws {
-		n += pw.p.ph.RowsCount
+		n += pw.p.size
 	}
 	return n
 }

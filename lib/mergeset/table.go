@@ -50,13 +50,11 @@ const defaultPartsToMerge = 15
 // write amplification.
 const finalPartsToMerge = 2
 
-// maxItemsPerPart is the absolute maximum number of items per part.
+// maxPartSize is the maximum part size in bytes.
 //
-// This number should be limited by the amount of time required to merge
-// such number of items. The required time shouldn't exceed a day.
-//
-// TODO: adjust this number using production stats.
-const maxItemsPerPart = 100e9
+// This number should be limited by the amount of time required to merge parts of this summary size.
+// The required time shouldn't exceed a day.
+const maxPartSize = 400e9
 
 // maxItemsPerCachedPart is the maximum items per created part by the merge,
 // which must be cached in the OS page cache.
@@ -790,13 +788,15 @@ func (tb *Table) startPartMergers() {
 }
 
 func (tb *Table) mergeExistingParts(isFinal bool) error {
-	maxItems := tb.maxOutPartItems()
-	if maxItems > maxItemsPerPart {
-		maxItems = maxItemsPerPart
+	n := fs.MustGetFreeSpace(tb.path)
+	// Divide free space by the max number of concurrent merges.
+	maxOutBytes := n / uint64(mergeWorkersCount)
+	if maxOutBytes > maxPartSize {
+		maxOutBytes = maxPartSize
 	}
 
 	tb.partsLock.Lock()
-	pws := getPartsToMerge(tb.parts, maxItems, isFinal)
+	pws := getPartsToMerge(tb.parts, maxOutBytes, isFinal)
 	tb.partsLock.Unlock()
 
 	return tb.mergeParts(pws, tb.stopCh, false)
@@ -1043,33 +1043,6 @@ func getCompressLevelForPartItems(itemsCount, blocksCount uint64) int {
 
 func (tb *Table) nextMergeIdx() uint64 {
 	return atomic.AddUint64(&tb.mergeIdx, 1)
-}
-
-var (
-	maxOutPartItemsLock     sync.Mutex
-	maxOutPartItemsDeadline uint64
-	lastMaxOutPartItems     uint64
-)
-
-func (tb *Table) maxOutPartItems() uint64 {
-	maxOutPartItemsLock.Lock()
-	if maxOutPartItemsDeadline < fasttime.UnixTimestamp() {
-		lastMaxOutPartItems = tb.maxOutPartItemsSlow()
-		maxOutPartItemsDeadline = fasttime.UnixTimestamp() + 2
-	}
-	n := lastMaxOutPartItems
-	maxOutPartItemsLock.Unlock()
-	return n
-}
-
-func (tb *Table) maxOutPartItemsSlow() uint64 {
-	freeSpace := fs.MustGetFreeSpace(tb.path)
-
-	// Calculate the maximum number of items in the output merge part
-	// by dividing the freeSpace by 4 and by the number of concurrent
-	// mergeWorkersCount.
-	// This assumes each item is compressed into 4 bytes.
-	return freeSpace / uint64(mergeWorkersCount) / 4
 }
 
 var mergeWorkersCount = cgroup.AvailableCPUs()
@@ -1371,8 +1344,8 @@ func validatePath(pathPrefix, path string) (string, error) {
 //
 // if isFinal is set, then merge harder.
 //
-// The returned parts will contain less than maxItems items.
-func getPartsToMerge(pws []*partWrapper, maxItems uint64, isFinal bool) []*partWrapper {
+// The summary size of the returned parts must be smaller than the maxOutBytes.
+func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) []*partWrapper {
 	pwsRemaining := make([]*partWrapper, 0, len(pws))
 	for _, pw := range pws {
 		if !pw.isInMerge {
@@ -1383,11 +1356,11 @@ func getPartsToMerge(pws []*partWrapper, maxItems uint64, isFinal bool) []*partW
 	var dst []*partWrapper
 	if isFinal {
 		for len(dst) == 0 && maxPartsToMerge >= finalPartsToMerge {
-			dst = appendPartsToMerge(dst[:0], pwsRemaining, maxPartsToMerge, maxItems)
+			dst = appendPartsToMerge(dst[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
 			maxPartsToMerge--
 		}
 	} else {
-		dst = appendPartsToMerge(dst[:0], pwsRemaining, maxPartsToMerge, maxItems)
+		dst = appendPartsToMerge(dst[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
 	}
 	for _, pw := range dst {
 		if pw.isInMerge {
@@ -1398,9 +1371,17 @@ func getPartsToMerge(pws []*partWrapper, maxItems uint64, isFinal bool) []*partW
 	return dst
 }
 
+// minMergeMultiplier is the minimum multiplier for the size of the output part
+// compared to the size of the maximum input part for the merge.
+//
+// Higher value reduces write amplification (disk write IO induced by the merge),
+// while increases the number of unmerged parts.
+// The 1.7 is good enough for production workloads.
+const minMergeMultiplier = 1.7
+
 // appendPartsToMerge finds optimal parts to merge from src, appends
 // them to dst and returns the result.
-func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems uint64) []*partWrapper {
+func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutBytes uint64) []*partWrapper {
 	if len(src) < 2 {
 		// There is no need in merging zero or one part :)
 		return dst
@@ -1411,18 +1392,18 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 
 	// Filter out too big parts.
 	// This should reduce N for O(n^2) algorithm below.
-	maxInPartItems := maxItems / 2
+	maxInPartBytes := uint64(float64(maxOutBytes) / minMergeMultiplier)
 	tmp := make([]*partWrapper, 0, len(src))
 	for _, pw := range src {
-		if pw.p.ph.itemsCount > maxInPartItems {
+		if pw.p.size > maxInPartBytes {
 			continue
 		}
 		tmp = append(tmp, pw)
 	}
 	src = tmp
 
-	// Sort src parts by itemsCount.
-	sort.Slice(src, func(i, j int) bool { return src[i].p.ph.itemsCount < src[j].p.ph.itemsCount })
+	// Sort src parts by size.
+	sort.Slice(src, func(i, j int) bool { return src[i].p.size < src[j].p.size })
 
 	maxSrcParts := maxPartsToMerge
 	if maxSrcParts > len(src) {
@@ -1439,20 +1420,20 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 	for i := minSrcParts; i <= maxSrcParts; i++ {
 		for j := 0; j <= len(src)-i; j++ {
 			a := src[j : j+i]
-			if a[0].p.ph.itemsCount*uint64(len(a)) < a[len(a)-1].p.ph.itemsCount {
-				// Do not merge parts with too big difference in items count,
+			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
+				// Do not merge parts with too big difference in size,
 				// since this results in unbalanced merges.
 				continue
 			}
-			itemsSum := uint64(0)
+			outBytes := uint64(0)
 			for _, pw := range a {
-				itemsSum += pw.p.ph.itemsCount
+				outBytes += pw.p.size
 			}
-			if itemsSum > maxItems {
+			if outBytes > maxOutBytes {
 				// There is no sense in checking the remaining bigger parts.
 				break
 			}
-			m := float64(itemsSum) / float64(a[len(a)-1].p.ph.itemsCount)
+			m := float64(outBytes) / float64(a[len(a)-1].p.size)
 			if m < maxM {
 				continue
 			}
@@ -1462,11 +1443,12 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 	}
 
 	minM := float64(maxPartsToMerge) / 2
-	if minM < 1.7 {
-		minM = 1.7
+	if minM < minMergeMultiplier {
+		minM = minMergeMultiplier
 	}
 	if maxM < minM {
-		// There is no sense in merging parts with too small m.
+		// There is no sense in merging parts with too small m,
+		// since this leads to high disk write IO.
 		return dst
 	}
 	return append(dst, pws...)
