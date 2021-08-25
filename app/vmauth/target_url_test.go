@@ -26,7 +26,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	}, "", "http://foo.bar/.")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "/", "http://foo.bar/")
+	}, "/", "http://foo.bar")
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/federate"),
+	}, "/", "http://foo.bar/federate")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 	}, "a/b?c=d", "http://foo.bar/a/b?c=d")
