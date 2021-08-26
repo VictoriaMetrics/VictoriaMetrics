@@ -32,8 +32,7 @@ type Group struct {
 	// See https://docs.victoriametrics.com#prometheus-querying-api-enhancements
 	ExtraFilterLabels map[string]string `yaml:"extra_filter_labels"`
 	// Labels is a set of label value pairs, that will be added to every rule.
-	// Its useful to have such labels on per-tenant basis.
-	// It has priority on rule labels.
+	// It has priority over the rule labels.
 	Labels map[string]string `yaml:"labels"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
