@@ -35,16 +35,16 @@ Prometheus doesn't drop data during the VictoriaMetrics restart. See [this artic
   
   * tls, -tlsCertFile and -tlsKeyFile for switching from HTTP to HTTPS.
   * httpAuth.username and -httpAuth.password for protecting all the HTTP endpoints with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
-  * deleteAuthKey for protecting /api/v1/admin/tsdb/delete_series endpoint. See how to [delete time series](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-delete-time-series).
-  * snapshotAuthKey for protecting /snapshot* endpoints. See [how to work with snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
-  * forceMergeAuthKey for protecting /internal/force_merge endpoint. See [force merge docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#forced-merge).
-  * search.resetCacheAuthKey for protecting /internal/resetRollupResultCache endpoint. See [backfilling](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#backfilling) for more details.
+  * deleteAuthKey for protecting /api/v1/admin/tsdb/delete_series endpoint. See how to [delete time series](https://docs.victoriametrics.com/#how-to-delete-time-series).
+  * snapshotAuthKey for protecting /snapshot* endpoints. See [how to work with snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
+  * forceMergeAuthKey for protecting /internal/force_merge endpoint. See [force merge docs](https://docs.victoriametrics.com/#forced-merge).
+  * search.resetCacheAuthKey for protecting /internal/resetRollupResultCache endpoint. See [backfilling](https://docs.victoriametrics.com/vmbackup.html#backfilling) for more details.
 		
   Explicitly set internal network interface to TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats. For example, substitute -graphiteListenAddr=:2003 with -graphiteListenAddr=<internal_iface_ip>:2003.
-It is preferable to authorize all  incoming requests from untrusted networks with [vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md) or a similar auth proxy.
+It is preferable to authorize all  incoming requests from untrusted networks with [vmauth](https://docs.victoriametrics.com/vmauth.html) or a similar auth proxy.
 
 ## Backup Recommendations 
-  VictoriaMetrics supports backups via [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md) and [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md) tools. We also provide  the vmbackuper tool for our paid, enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for additional details. 
+  VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools. We also provide the [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) in [enterprise package](https://victoriametrics.com/enterprise.html).
 
 ## Networking 
   Network usage: outbound traffic is negligible. Ingress traffic is ~100 bytes per ingested data point via [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). The actual ingress bandwidth usage depends on the average number of labels per ingested metric and the average size of label values. A higher number of per-metric labels and longer label values result inhigher ingress bandwidth.
