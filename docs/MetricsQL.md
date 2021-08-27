@@ -770,7 +770,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### quantile
 
-`quantile(phi, q) by (group_labels)` calculates `phi`-quantile per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp. This function is supported by PromQL.
+`quantile(phi, q) by (group_labels)` calculates `phi`-quantile per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp. This function is supported by PromQL. See also [quantiles](#quantiles).
+
+#### quantiles
+
+`quantiles("quantileLabel", phi1, ..., phiN, q)` calculates `phi*`-quantiles for all the time series returned by `q` and return them in time series with `{quantileLabel="phi*"}` label. The aggregate is calculated individually per each group of points with the same timestamp. See also [quantile](#quantile).
 
 #### stddev
 
