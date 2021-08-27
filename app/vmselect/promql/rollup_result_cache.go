@@ -23,11 +23,18 @@ import (
 var (
 	cacheTimestampOffset = flag.Duration("search.cacheTimestampOffset", 5*time.Minute, "The maximum duration since the current time for response data, "+
 		"which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses "+
-		"due to time synchronization issues between VictoriaMetrics and data sources")
+		"due to time synchronization issues between VictoriaMetrics and data sources. See also -search.disableAutoCacheReset")
+	disableAutoCacheReset = flag.Bool("search.disableAutoCacheReset", false, "Whether to disable automatic response cache reset if a sample with timestamp "+
+		"outside -search.cacheTimestampOffset is inserted into VictoriaMetrics")
 )
 
 // ResetRollupResultCacheIfNeeded resets rollup result cache if mrs contains timestamps outside `now - search.cacheTimestampOffset`.
 func ResetRollupResultCacheIfNeeded(mrs []storage.MetricRow) {
+	if *disableAutoCacheReset {
+		// Do not reset response cache if -search.disableAutoCacheReset is set.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1570 .
+		return
+	}
 	checkRollupResultCacheResetOnce.Do(func() {
 		rollupResultResetMetricRowSample.Store(&storage.MetricRow{})
 		go checkRollupResultCacheReset()
