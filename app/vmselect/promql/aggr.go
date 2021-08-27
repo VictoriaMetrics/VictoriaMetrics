@@ -48,6 +48,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"outliersk":      aggrFuncOutliersK,
 	"mode":           newAggrFunc(aggrFuncMode),
 	"zscore":         aggrFuncZScore,
+	"quantiles":      aggrFuncQuantiles,
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -881,6 +882,42 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 		return tss
 	}
 	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
+func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if len(args) < 3 {
+		return nil, fmt.Errorf("unexpected number of args: %d; expecting at least 3 args", len(args))
+	}
+	dstLabel, err := getString(args[0], 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain dstLabel: %w", err)
+	}
+	phiArgs := args[1 : len(args)-1]
+	argOrig := args[len(args)-1]
+	var rvs []*timeseries
+	for i, phiArg := range phiArgs {
+		phis, err := getScalar(phiArg, i+1)
+		if err != nil {
+			return nil, err
+		}
+		if len(phis) == 0 {
+			logger.Panicf("BUG: expecting at least a single sample")
+		}
+		phi := phis[0]
+		afe := newAggrQuantileFunc(phis)
+		arg := copyTimeseries(argOrig)
+		tss, err := aggrFuncExt(afe, arg, &afa.ae.Modifier, afa.ae.Limit, false)
+		if err != nil {
+			return nil, fmt.Errorf("cannot calculate quantile %g: %w", phi, err)
+		}
+		for _, ts := range tss {
+			ts.MetricName.RemoveTag(dstLabel)
+			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phi))
+		}
+		rvs = append(rvs, tss...)
+	}
+	return rvs, nil
 }
 
 func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {

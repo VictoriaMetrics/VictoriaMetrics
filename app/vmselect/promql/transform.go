@@ -2016,6 +2016,17 @@ func transformEnd(tfa *transformFuncArg) float64 {
 	return float64(tfa.ec.End) / 1e3
 }
 
+// copyTimeseries returns a copy of tss.
+func copyTimeseries(tss []*timeseries) []*timeseries {
+	rvs := make([]*timeseries, len(tss))
+	for i, src := range tss {
+		var dst timeseries
+		dst.CopyFromShallowTimestamps(src)
+		rvs[i] = &dst
+	}
+	return rvs
+}
+
 // copyTimeseriesMetricNames returns a copy of tss with real copy of MetricNames,
 // but with shallow copy of Timestamps and Values if makeCopy is set.
 //
@@ -2033,7 +2044,7 @@ func copyTimeseriesMetricNames(tss []*timeseries, makeCopy bool) []*timeseries {
 	return rvs
 }
 
-// copyShallow returns a copy of arg with shallow copies of MetricNames,
+// copyTimeseriesShallow returns a copy of arg with shallow copies of MetricNames,
 // Timestamps and Values.
 func copyTimeseriesShallow(arg []*timeseries) []*timeseries {
 	rvs := make([]*timeseries, len(arg))
