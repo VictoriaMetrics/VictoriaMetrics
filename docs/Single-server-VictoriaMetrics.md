@@ -28,6 +28,7 @@ See additional docs at our [Wiki](https://github.com/VictoriaMetrics/VictoriaMet
 
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
 See [features available for enterprise customers](https://victoriametrics.com/enterprise.html).
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Case studies and talks
@@ -103,7 +104,7 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
   * [Arbitrary CSV data](#how-to-import-csv-data).
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
 * Can deal with high cardinality and high churn rate issues using [series limiter](#cardinality-limiter).
-* Ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
+* Ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/enterprise.html).
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
@@ -623,6 +624,7 @@ and it is easier to use when migrating from Graphite to VictoriaMetrics.
 [VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 It supports `Storage-Step` http request header, which must be set to a step between data points stored in VictoriaMetrics when configuring Graphite datasource in Grafana.
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ### Graphite Metrics API usage
@@ -1229,7 +1231,7 @@ such as Thanos, Uber M3, InfluxDB or TimescaleDB. See [vertical scalability benc
 
 So try single-node VictoriaMetrics at first and then [switch to cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
 horizontally scalable long-term remote storage for really large Prometheus deployments.
-[Contact us](mailto:info@victoriametrics.com) for paid support.
+[Contact us](mailto:info@victoriametrics.com) for enterprise support.
 
 
 ## Alerting
@@ -1468,7 +1470,8 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
-We also provide `vmbackupmanager` tool for paid enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for details.
+We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Profiling
