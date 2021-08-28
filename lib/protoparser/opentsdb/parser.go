@@ -57,10 +57,11 @@ func (r *Row) reset() {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
+	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "put ") {
 		return tagsPool, fmt.Errorf("missing `put ` prefix in %q", s)
 	}
-	s = s[len("put "):]
+  s = strings.TrimSpace(s[len("put "):])
 	n := strings.IndexByte(s, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between metric and timestamp in %q", s)
@@ -69,7 +70,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if len(r.Metric) == 0 {
 		return tagsPool, fmt.Errorf("metric cannot be empty")
 	}
-	tail := s[n+1:]
+	tail := strings.TrimSpace(s[n+1:])
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between timestamp and value in %q", s)
@@ -79,7 +80,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, fmt.Errorf("cannot parse timestamp from %q: %w", tail[:n], err)
 	}
 	r.Timestamp = int64(timestamp)
-	tail = tail[n+1:]
+	tail = strings.TrimSpace(tail[n+1:])
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between value and the first tag in %q", s)
@@ -148,6 +149,7 @@ func unmarshalTags(dst []Tag, s string) ([]Tag, error) {
 		}
 		tag := &dst[len(dst)-1]
 
+		s = strings.TrimSpace(s)
 		n := strings.IndexByte(s, ' ')
 		if n < 0 {
 			// The last tag found
