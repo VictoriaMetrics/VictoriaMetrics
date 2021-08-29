@@ -16,9 +16,9 @@ type apiConfig struct {
 
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	switch sdc.Role {
-	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
+	case "node", "pod", "service", "endpoints", "endpointslice", "ingress":
 	default:
-		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`", sdc.Role)
+		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslice` or `ingress`", sdc.Role)
 	}
 	ac, err := sdc.HTTPClientConfig.NewConfig(baseDir)
 	if err != nil {

@@ -263,8 +263,8 @@ func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) obje
 }
 
 func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
-	if role == "endpoints" || role == "endpointslices" {
-		// endpoints and endpointslices watchers query pod and service objects. So start watchers for these roles as well.
+	if role == "endpoints" || role == "endpointslice" {
+		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
 		gw.startWatchersForRole("pod", nil)
 		gw.startWatchersForRole("service", nil)
 	}
@@ -285,7 +285,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 		if needStart {
 			uw.reloadObjects()
 			go uw.watchForUpdates()
-			if role == "endpoints" || role == "endpointslices" {
+			if role == "endpoints" || role == "endpointslice" {
 				// Refresh endpoints and enpointslices targets in background, since they depend on other object types such as pod and service.
 				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
 				go func() {
@@ -754,7 +754,7 @@ func getObjectTypeByRole(role string) string {
 		return "services"
 	case "endpoints":
 		return "endpoints"
-	case "endpointslices":
+	case "endpointslice":
 		return "endpointslices"
 	case "ingress":
 		return "ingresses"
@@ -774,7 +774,7 @@ func getObjectParsersForRole(role string) (parseObjectFunc, parseObjectListFunc)
 		return parseService, parseServiceList
 	case "endpoints":
 		return parseEndpoints, parseEndpointsList
-	case "endpointslices":
+	case "endpointslice":
 		return parseEndpointSlice, parseEndpointSliceList
 	case "ingress":
 		return parseIngress, parseIngressList
