@@ -79,7 +79,7 @@ type ObjectReference struct {
 
 // EndpointPort implements k8s endpoint port.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointport-v1beta1-discovery-k8s-io
+// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointport-v1-discovery-k8s-io
 type EndpointPort struct {
 	AppProtocol string
 	Name        string
