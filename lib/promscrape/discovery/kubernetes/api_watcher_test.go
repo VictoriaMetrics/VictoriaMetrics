@@ -128,11 +128,11 @@ func TestGetAPIPathsWithNamespaces(t *testing.T) {
 		"/api/v1/namespaces/y/endpoints?labelSelector=bbb",
 	})
 
-	// role=endpointslices
-	f("endpointslices", nil, nil, []string{"/apis/discovery.k8s.io/v1/endpointslices"})
-	f("endpointslices", []string{"x", "y"}, []Selector{
+	// role=endpointslice
+	f("endpointslice", nil, nil, []string{"/apis/discovery.k8s.io/v1/endpointslices"})
+	f("endpointslice", []string{"x", "y"}, []Selector{
 		{
-			Role:  "endpointslices",
+			Role:  "endpointslice",
 			Field: "field",
 			Label: "label",
 		},
@@ -672,11 +672,11 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 		{
 			name: "7 endpointslices slice with 1 service update",
 			sdc: &SDConfig{
-				Role: "endpointslices",
+				Role: "endpointslice",
 			},
 			expectedTargetsLen: 7,
 			initAPIObjectsByRole: map[string][]byte{
-				"endpointslices": []byte(`{
+				"endpointslice": []byte(`{
   "kind": "EndpointSliceList",
   "apiVersion": "discovery.k8s.io/v1",
   "metadata": {
