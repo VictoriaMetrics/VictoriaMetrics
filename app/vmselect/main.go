@@ -239,6 +239,19 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		httpRequests.Get(at).Inc()
 		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
 	}()
+	if p.Suffix == "" {
+		if r.Method != "GET" {
+			return false
+		}
+		fmt.Fprintf(w, "<h2>VictoriaMetrics cluster - vmselect</h2></br>")
+		fmt.Fprintf(w, "See <a href='https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format'>docs</a></br>")
+		fmt.Fprintf(w, "Useful endpoints:</br>")
+		fmt.Fprintf(w, `<a href="vmui">Web UI</a><br>`)
+		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/tsdb">tsdb status page</a><br>`)
+		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/top_queries">top queries</a><br>`)
+		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/active_queries">active queries</a><br>`)
+		return true
+	}
 	if strings.HasPrefix(p.Suffix, "vmui") {
 		// vmui access.
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
