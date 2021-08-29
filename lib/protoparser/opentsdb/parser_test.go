@@ -221,4 +221,90 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		},
 	})
+
+	// Multi spaces
+	f("put  foobar 789 -123.456 a=b", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
+			Tags: []Tag{
+				{
+					Key:   "a",
+					Value: "b",
+				},
+			},
+		}},
+	})
+	f("put foobar  789 -123.456 a=b", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
+			Tags: []Tag{
+				{
+					Key:   "a",
+					Value: "b",
+				},
+			},
+		}},
+	})
+	f("put foobar 789  -123.456 a=b", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
+			Tags: []Tag{
+				{
+					Key:   "a",
+					Value: "b",
+				},
+			},
+		}},
+	})
+	f("put foobar 789 -123.456  a=b", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
+			Tags: []Tag{
+				{
+					Key:   "a",
+					Value: "b",
+				},
+			},
+		}},
+	})
+	f("put foobar 789 -123.456 a=b  c=d", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
+			Tags: []Tag{
+				{
+					Key:   "a",
+					Value: "b",
+				},
+				{
+					Key:   "c",
+					Value: "d",
+				},
+			},
+		}},
+	})
+	// Soace after tags
+	f("put foobar 789 -123.456 a=b ", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
+			Tags: []Tag{
+				{
+					Key:   "a",
+					Value: "b",
+				},
+			},
+		}},
+	})
+
 }
