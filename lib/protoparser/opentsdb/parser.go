@@ -57,11 +57,12 @@ func (r *Row) reset() {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
-	s = strings.TrimSpace(s)
+	s = trimLeadingSpaces(s)
 	if !strings.HasPrefix(s, "put ") {
 		return tagsPool, fmt.Errorf("missing `put ` prefix in %q", s)
 	}
-  s = strings.TrimSpace(s[len("put "):])
+	s = s[len("put "):]
+	s = trimLeadingSpaces(s)
 	n := strings.IndexByte(s, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between metric and timestamp in %q", s)
@@ -70,7 +71,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if len(r.Metric) == 0 {
 		return tagsPool, fmt.Errorf("metric cannot be empty")
 	}
-	tail := strings.TrimSpace(s[n+1:])
+	tail := trimLeadingSpaces(s[n+1:])
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between timestamp and value in %q", s)
@@ -80,7 +81,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, fmt.Errorf("cannot parse timestamp from %q: %w", tail[:n], err)
 	}
 	r.Timestamp = int64(timestamp)
-	tail = strings.TrimSpace(tail[n+1:])
+	tail = trimLeadingSpaces(tail[n+1:])
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between value and the first tag in %q", s)
@@ -142,6 +143,10 @@ var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="opentsdb"}`)
 
 func unmarshalTags(dst []Tag, s string) ([]Tag, error) {
 	for {
+		s = trimLeadingSpaces(s)
+		if len(s) == 0 {
+			return dst, nil
+		}
 		if cap(dst) > len(dst) {
 			dst = dst[:len(dst)+1]
 		} else {
@@ -149,7 +154,6 @@ func unmarshalTags(dst []Tag, s string) ([]Tag, error) {
 		}
 		tag := &dst[len(dst)-1]
 
-		s = strings.TrimSpace(s)
 		n := strings.IndexByte(s, ' ')
 		if n < 0 {
 			// The last tag found
@@ -193,4 +197,11 @@ func (t *Tag) unmarshal(s string) error {
 	t.Key = s[:n]
 	t.Value = s[n+1:]
 	return nil
+}
+
+func trimLeadingSpaces(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	return s
 }
