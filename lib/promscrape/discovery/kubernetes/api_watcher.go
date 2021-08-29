@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -159,6 +160,14 @@ func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 // groupWatcher watches for Kubernetes objects on the given apiServer with the given namespaces,
 // selectors using the given client.
 type groupWatcher struct {
+	// Old Kubernetes doesn't support /apis/networking.k8s.io/v1/, so /apis/networking.k8s.io/v1beta1/ must be used instead.
+	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
+	useNetworkingV1Beta1 uint32
+
+	// Old Kubernetes doesn't support /apis/discovery.k8s.io/v1/, so discovery.k8s.io/v1beta1/ must be used instead.
+	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
+	useDiscoveryV1Beta1 uint32
+
 	apiServer     string
 	namespaces    []string
 	selectors     []Selector
@@ -294,6 +303,14 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 
 // doRequest performs http request to the given requestURL.
 func (gw *groupWatcher) doRequest(requestURL string) (*http.Response, error) {
+	if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && atomic.LoadUint32(&gw.useNetworkingV1Beta1) == 1 {
+		// Update networking URL for old Kubernetes API, which supports only v1beta1 path.
+		requestURL = strings.Replace(requestURL, "/apis/networking.k8s.io/v1/", "/apis/networking.k8s.io/v1beta1/", 1)
+	}
+	if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && atomic.LoadUint32(&gw.useDiscoveryV1Beta1) == 1 {
+		// Update discovery URL for old Kuberentes API, which supports only v1beta1 path.
+		requestURL = strings.Replace(requestURL, "/apis/discovery.k8s.io/v1/", "/apis/discovery.k8s.io/v1beta1/", 1)
+	}
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
@@ -301,7 +318,21 @@ func (gw *groupWatcher) doRequest(requestURL string) (*http.Response, error) {
 	if ah := gw.getAuthHeader(); ah != "" {
 		req.Header.Set("Authorization", ah)
 	}
-	return gw.client.Do(req)
+	resp, err := gw.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && atomic.LoadUint32(&gw.useNetworkingV1Beta1) == 0 {
+			atomic.StoreUint32(&gw.useNetworkingV1Beta1, 1)
+			return gw.doRequest(requestURL)
+		}
+		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && atomic.LoadUint32(&gw.useDiscoveryV1Beta1) == 0 {
+			atomic.StoreUint32(&gw.useDiscoveryV1Beta1, 1)
+			return gw.doRequest(requestURL)
+		}
+	}
+	return resp, nil
 }
 
 func (gw *groupWatcher) registerPendingAPIWatchers() {
@@ -682,10 +713,10 @@ func getAPIPath(objectType, namespace, query string) string {
 		suffix += "?" + query
 	}
 	if objectType == "ingresses" {
-		return "/apis/networking.k8s.io/v1beta1/" + suffix
+		return "/apis/networking.k8s.io/v1/" + suffix
 	}
 	if objectType == "endpointslices" {
-		return "/apis/discovery.k8s.io/v1beta1/" + suffix
+		return "/apis/discovery.k8s.io/v1/" + suffix
 	}
 	return "/api/v1/" + suffix
 }

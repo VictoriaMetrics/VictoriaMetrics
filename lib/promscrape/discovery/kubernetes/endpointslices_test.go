@@ -32,9 +32,9 @@ func TestParseEndpointSliceListFail(t *testing.T) {
 func TestParseEndpointSliceListSuccess(t *testing.T) {
 	data := `{
   "kind": "EndpointSliceList",
-  "apiVersion": "discovery.k8s.io/v1beta1",
+  "apiVersion": "discovery.k8s.io/v1",
   "metadata": {
-    "selfLink": "/apis/discovery.k8s.io/v1beta1/endpointslices",
+    "selfLink": "/apis/discovery.k8s.io/v1/endpointslices",
     "resourceVersion": "1177"
   },
   "items": [
@@ -42,7 +42,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
       "metadata": {
         "name": "kubernetes",
         "namespace": "default",
-        "selfLink": "/apis/discovery.k8s.io/v1beta1/namespaces/default/endpointslices/kubernetes",
+        "selfLink": "/apis/discovery.k8s.io/v1/namespaces/default/endpointslices/kubernetes",
         "uid": "a60d9173-5fe4-4bc3-87a6-269daee71f8a",
         "resourceVersion": "159",
         "generation": 1,
@@ -54,7 +54,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
           {
             "manager": "kube-apiserver",
             "operation": "Update",
-            "apiVersion": "discovery.k8s.io/v1beta1",
+            "apiVersion": "discovery.k8s.io/v1",
             "time": "2020-09-07T14:27:22Z",
             "fieldsType": "FieldsV1",
             "fieldsV1": {"f:addressType":{},"f:endpoints":{},"f:metadata":{"f:labels":{".":{},"f:kubernetes.io/service-name":{}}},"f:ports":{}}
@@ -85,7 +85,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
         "name": "kube-dns-22mvb",
         "generateName": "kube-dns-",
         "namespace": "kube-system",
-        "selfLink": "/apis/discovery.k8s.io/v1beta1/namespaces/kube-system/endpointslices/kube-dns-22mvb",
+        "selfLink": "/apis/discovery.k8s.io/v1/namespaces/kube-system/endpointslices/kube-dns-22mvb",
         "uid": "7c95c854-f34c-48e1-86f5-bb8269113c11",
         "resourceVersion": "604",
         "generation": 5,
@@ -111,7 +111,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
           {
             "manager": "kube-controller-manager",
             "operation": "Update",
-            "apiVersion": "discovery.k8s.io/v1beta1",
+            "apiVersion": "discovery.k8s.io/v1",
             "time": "2020-09-07T14:28:35Z",
             "fieldsType": "FieldsV1",
             "fieldsV1": {"f:addressType":{},"f:endpoints":{},"f:metadata":{"f:annotations":{".":{},"f:endpoints.kubernetes.io/last-change-trigger-time":{}},"f:generateName":{},"f:labels":{".":{},"f:endpointslice.kubernetes.io/managed-by":{},"f:kubernetes.io/service-name":{}},"f:ownerReferences":{".":{},"k:{\"uid\":\"509e80d8-6d05-487b-bfff-74f5768f1024\"}":{".":{},"f:apiVersion":{},"f:blockOwnerDeletion":{},"f:controller":{},"f:kind":{},"f:name":{},"f:uid":{}}}},"f:ports":{}}
