@@ -66,12 +66,13 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	selectors := sdc.Selectors
 	proxyURL := sdc.ProxyURL.URL()
 	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, proxyURL)
+	role := sdc.role()
 	return &apiWatcher{
-		role:             sdc.Role,
+		role:             role,
 		swcFunc:          swcFunc,
 		gw:               gw,
 		swosByURLWatcher: make(map[*urlWatcher]map[string][]interface{}),
-		swosCount:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, sdc.Role)),
+		swosCount:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
 	}
 }
 
