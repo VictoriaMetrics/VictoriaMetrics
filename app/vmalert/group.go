@@ -297,19 +297,14 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 }
 
 var (
-	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
-	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
-	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+	execTotal  = metrics.NewCounter(`vmalert_execution_total`)
+	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
 
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
 func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) error {
 	execTotal.Inc()
-	execStart := time.Now()
-	defer func() {
-		execDuration.UpdateDuration(execStart)
-	}()
 
 	tss, err := rule.Exec(ctx)
 	if err != nil {
