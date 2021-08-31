@@ -63,7 +63,7 @@ var transformFuncs = map[string]transformFunc{
 	"minute":             newTransformFuncDateTime(transformMinute),
 	"month":              newTransformFuncDateTime(transformMonth),
 	"round":              transformRound,
-	"sign":               transformSign,
+	"sgn":                transformSign,
 	"scalar":             transformScalar,
 	"sort":               newTransformFuncSort(false),
 	"sort_desc":          newTransformFuncSort(true),
@@ -124,6 +124,9 @@ var transformFuncs = map[string]transformFunc{
 	"sort_by_label":      newTransformFuncSortByLabel(false),
 	"sort_by_label_desc": newTransformFuncSortByLabel(true),
 	"timezone_offset":    transformTimezoneOffset,
+	"bitmap_and":         newTransformBitmap(bitmapAnd),
+	"bitmap_or":          newTransformBitmap(bitmapOr),
+	"bitmap_xor":         newTransformBitmap(bitmapXor),
 }
 
 func getTransformFunc(s string) transformFunc {
@@ -1914,6 +1917,37 @@ func transformPi(tfa *transformFuncArg) ([]*timeseries, error) {
 	return evalNumber(tfa.ec, math.Pi), nil
 }
 
+func bitmapAnd(a, b uint64) uint64 {
+	return a & b
+}
+
+func bitmapOr(a, b uint64) uint64 {
+	return a | b
+}
+
+func bitmapXor(a, b uint64) uint64 {
+	return a ^ b
+}
+
+func newTransformBitmap(bitmapFunc func(a, b uint64) uint64) func(tfa *transformFuncArg) ([]*timeseries, error) {
+	return func(tfa *transformFuncArg) ([]*timeseries, error) {
+		args := tfa.args
+		if err := expectTransformArgsNum(args, 2); err != nil {
+			return nil, err
+		}
+		ns, err := getScalar(args[1], 1)
+		if err != nil {
+			return nil, err
+		}
+		tf := func(values []float64) {
+			for i, v := range values {
+				values[i] = float64(bitmapFunc(uint64(v), uint64(ns[i])))
+			}
+		}
+		return doTransformValues(args[0], tf, tfa.fe)
+	}
+}
+
 func transformTimezoneOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 1); err != nil {
@@ -1982,6 +2016,17 @@ func transformEnd(tfa *transformFuncArg) float64 {
 	return float64(tfa.ec.End) / 1e3
 }
 
+// copyTimeseries returns a copy of tss.
+func copyTimeseries(tss []*timeseries) []*timeseries {
+	rvs := make([]*timeseries, len(tss))
+	for i, src := range tss {
+		var dst timeseries
+		dst.CopyFromShallowTimestamps(src)
+		rvs[i] = &dst
+	}
+	return rvs
+}
+
 // copyTimeseriesMetricNames returns a copy of tss with real copy of MetricNames,
 // but with shallow copy of Timestamps and Values if makeCopy is set.
 //
@@ -1999,7 +2044,7 @@ func copyTimeseriesMetricNames(tss []*timeseries, makeCopy bool) []*timeseries {
 	return rvs
 }
 
-// copyShallow returns a copy of arg with shallow copies of MetricNames,
+// copyTimeseriesShallow returns a copy of arg with shallow copies of MetricNames,
 // Timestamps and Values.
 func copyTimeseriesShallow(arg []*timeseries) []*timeseries {
 	rvs := make([]*timeseries, len(arg))

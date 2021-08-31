@@ -132,6 +132,72 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("bitmap_and(0xB3, 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(0xB3, 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{17, 17, 17, 17, 17, 17},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_and(time(), 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(time(), 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 16, 16, 0, 0, 16},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_or(0xA2, 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_or(0xA2, 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{179, 179, 179, 179, 179, 179},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_or(time(), 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_or(time(), 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1017, 1201, 1401, 1617, 1817, 2001},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_xor(0xB3, 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_xor(0xB3, 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{162, 162, 162, 162, 162, 162},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_xor(time(), 0x11)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_xor(time(), 0x11)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1017, 1185, 1385, 1617, 1817, 1985},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("timezone_offset(UTC)", func(t *testing.T) {
 		t.Parallel()
 		q := `timezone_offset("UTC")`
@@ -1888,9 +1954,9 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
-	t.Run(`sign(time()-1400)`, func(t *testing.T) {
+	t.Run(`sgn(time()-1400)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sign(time()-1400)`
+		q := `sgn(time()-1400)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{-1, -1, 0, 1, 1, 1},
@@ -5395,6 +5461,30 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`quantiles("phi", 0.2, 0.5)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(quantiles("phi", 0.2, 0.5, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6.666666666666667, 8, 9.333333333333334, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("phi"),
+			Value: []byte("0.2"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10.666666666666666, 12, 13.333333333333334},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("phi"),
+			Value: []byte("0.5"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`median()`, func(t *testing.T) {
 		t.Parallel()
 		q := `median(label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
@@ -6805,7 +6895,7 @@ func TestExecError(t *testing.T) {
 	f(`label_mismatch()`)
 	f(`round()`)
 	f(`round(1,2,3)`)
-	f(`sign()`)
+	f(`sgn()`)
 	f(`scalar()`)
 	f(`sort(1,2)`)
 	f(`sort_desc()`)
@@ -6891,6 +6981,11 @@ func TestExecError(t *testing.T) {
 	f(`count_gt_over_time()`)
 	f(`count_eq_over_time()`)
 	f(`count_ne_over_time()`)
+	f(`timezone_offset()`)
+	f(`bitmap_and()`)
+	f(`bitmap_or()`)
+	f(`bitmap_xor()`)
+	f(`quantiles()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

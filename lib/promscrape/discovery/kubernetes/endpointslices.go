@@ -146,16 +146,17 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 	return m
 }
 
-// EndpointSliceList - implements kubernetes endpoint slice list object,
-// that groups service endpoints slices.
-// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointslice-v1beta1-discovery-k8s-io
+// EndpointSliceList - implements kubernetes endpoint slice list object, that groups service endpoints slices.
+//
+// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointslicelist-v1-discovery-k8s-io
 type EndpointSliceList struct {
 	Metadata ListMeta
 	Items    []*EndpointSlice
 }
 
 // EndpointSlice - implements kubernetes endpoint slice.
-// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointslice-v1beta1-discovery-k8s-io
+//
+// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointslice-v1-discovery-k8s-io
 type EndpointSlice struct {
 	Metadata    ObjectMeta
 	Endpoints   []Endpoint
@@ -164,7 +165,8 @@ type EndpointSlice struct {
 }
 
 // Endpoint implements kubernetes object endpoint for endpoint slice.
-// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpoint-v1beta1-discovery-k8s-io
+//
+// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpoint-v1-discovery-k8s-io
 type Endpoint struct {
 	Addresses  []string
 	Conditions EndpointConditions
@@ -174,7 +176,8 @@ type Endpoint struct {
 }
 
 // EndpointConditions implements kubernetes endpoint condition.
-// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointconditions-v1beta1-discovery-k8s-io
+//
+// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointconditions-v1-discovery-k8s-io
 type EndpointConditions struct {
 	Ready bool
 }

@@ -2209,6 +2209,23 @@ Lines: 1
 00015c73 00020e76 F0000769 00000000
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/proc/net/stat
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/stat/arp_cache
+Lines: 3
+entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls
+00000014  00000001 00000002 00000003  00000004 00000005  00000006  00000007 00000008  00000009 0000000a 0000000b 0000000c
+00000014  0000000d 0000000e 0000000f  00000010 00000011  00000012  00000013 00000014  00000015 00000016 00000017 00000018
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/stat/ndisc_cache
+Lines: 3
+entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls
+00000024  000000f0 000000f1 000000f2  000000f3 000000f4  000000f5  000000f6 000000f7  000000f8 000000f9 000000fa 000000fb
+00000024  000000fc 000000fd 000000fe  000000ff 00000100  00000101  00000102 00000103  00000104 00000105 00000106 00000107
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/net/tcp
 Lines: 4
   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode

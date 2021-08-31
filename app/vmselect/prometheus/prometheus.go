@@ -49,6 +49,8 @@ const defaultStep = 5 * 60 * 1000
 
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
 func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer federateDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
@@ -101,7 +103,6 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	federateDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -109,6 +110,8 @@ var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/fe
 
 // ExportCSVHandler exports data in CSV format from /api/v1/export/csv
 func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer exportCSVDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
@@ -174,7 +177,6 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return fmt.Errorf("error during exporting data to csv: %w", err)
 	}
-	exportCSVDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -182,6 +184,8 @@ var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/a
 
 // ExportNativeHandler exports data in native format from /api/v1/export/native.
 func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer exportNativeDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
@@ -245,7 +249,6 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	exportNativeDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -255,6 +258,8 @@ var bbPool bytesutil.ByteBufferPool
 
 // ExportHandler exports data in raw format from /api/v1/export.
 func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer exportDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
@@ -285,7 +290,6 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if err := exportHandler(w, matches, etf, start, end, format, maxRowsPerLine, reduceMemUsage, deadline); err != nil {
 		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %w", matches, start, end, err)
 	}
-	exportDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -437,6 +441,8 @@ var exportBlockPool = &sync.Pool{
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#delete-series
 func DeleteHandler(startTime time.Time, r *http.Request) error {
+	defer deleteDuration.UpdateDuration(startTime)
+
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
@@ -457,7 +463,6 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if deletedCount > 0 {
 		promql.ResetRollupResultCache()
 	}
-	deleteDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -467,6 +472,8 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
 func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
+	defer labelValuesDuration.UpdateDuration(startTime)
+
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
@@ -533,7 +540,6 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	labelValuesDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -609,6 +615,8 @@ var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 
 // LabelsCountHandler processes /api/v1/labels/count request.
 func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer labelsCountDuration.UpdateDuration(startTime)
+
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	labelEntries, err := netstorage.GetLabelEntries(deadline)
 	if err != nil {
@@ -621,7 +629,6 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	labelsCountDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -635,6 +642,8 @@ const secsPerDay = 3600 * 24
 //
 // It can accept `match[]` filters in order to narrow down the search.
 func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer tsdbStatusDuration.UpdateDuration(startTime)
+
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
@@ -688,7 +697,6 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	tsdbStatusDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -717,6 +725,8 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
 func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer labelsDuration.UpdateDuration(startTime)
+
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
@@ -781,7 +791,6 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	labelsDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -844,6 +853,8 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 
 // SeriesCountHandler processes /api/v1/series/count request.
 func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer seriesCountDuration.UpdateDuration(startTime)
+
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	n, err := netstorage.GetSeriesCount(deadline)
 	if err != nil {
@@ -856,7 +867,6 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	seriesCountDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -866,6 +876,8 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
 func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer seriesDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
@@ -951,7 +963,6 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return fmt.Errorf("error during data fetching: %w", err)
 	}
-	seriesDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -961,6 +972,8 @@ var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer queryDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	query := r.FormValue("query")
 	if len(query) == 0 {
@@ -1064,7 +1077,6 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	queryDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -1074,6 +1086,8 @@ var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer queryRangeDuration.UpdateDuration(startTime)
+
 	ct := startTime.UnixNano() / 1e6
 	query := r.FormValue("query")
 	if len(query) == 0 {
@@ -1098,7 +1112,6 @@ func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err := queryRangeHandler(startTime, w, query, start, end, step, r, ct, etf); err != nil {
 		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
-	queryRangeDuration.UpdateDuration(startTime)
 	return nil
 }
 
@@ -1311,6 +1324,8 @@ func getLatencyOffsetMilliseconds() int64 {
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
 func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer queryStatsDuration.UpdateDuration(startTime)
+
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
@@ -1335,7 +1350,6 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	queryStatsDuration.UpdateDuration(startTime)
 	return nil
 }
 

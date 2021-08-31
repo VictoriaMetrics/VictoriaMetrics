@@ -133,7 +133,7 @@ func (p *part) MustClose() {
 	p.valuesFile.MustClose()
 	p.indexFile.MustClose()
 
-	isBig := p.ph.RowsCount > maxRowsPerSmallPart()
+	isBig := p.size > maxSmallPartSize()
 	p.ibCache.MustClose(isBig)
 }
 

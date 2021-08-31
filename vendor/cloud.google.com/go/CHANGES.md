@@ -1,5 +1,14 @@
 # Changes
 
+## [0.92.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.91.0...v0.92.0) (2021-08-16)
+
+
+### Features
+
+* **all:** remove testing deps ([#4580](https://www.github.com/googleapis/google-cloud-go/issues/4580)) ([15c1eb9](https://www.github.com/googleapis/google-cloud-go/commit/15c1eb9730f0b514edb911161f9c59e8d790a5ec)), refs [#4061](https://www.github.com/googleapis/google-cloud-go/issues/4061)
+* **internal/detect:** add helper to detect projectID from env ([#4582](https://www.github.com/googleapis/google-cloud-go/issues/4582)) ([cc65d94](https://www.github.com/googleapis/google-cloud-go/commit/cc65d945688ac446602bce6ef86a935714dfe2f8)), refs [#1294](https://www.github.com/googleapis/google-cloud-go/issues/1294)
+* **spannertest:** Add validation of duplicated column names ([#4611](https://www.github.com/googleapis/google-cloud-go/issues/4611)) ([84f86a6](https://www.github.com/googleapis/google-cloud-go/commit/84f86a605c809ab36dd3cb4b3ab1df15a5302083))
+
 ## [0.91.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.90.0...v0.91.0) (2021-08-11)
 
 

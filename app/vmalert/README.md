@@ -347,6 +347,17 @@ See full description for these flags in `./vmalert --help`.
 * `query` template function is disabled for performance reasons (might be changed in future);
 
 
+## Monitoring
+
+`vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page. 
+We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported 
+metrics may be analyzed later.
+
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add 
+a review to the dashboard.
+
+
 ## Configuration
 
 Pass `-help` to `vmalert` in order to see the full list of supported
@@ -380,6 +391,8 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+  -disableAlertgroupLabel
+    	Whether to disable adding group's name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
@@ -491,6 +504,8 @@ The shortlist of configuration flags is the following:
     	Optional basic auth username for -remoteWrite.url
   -remoteWrite.concurrency int
     	Defines number of writers for concurrent writing into remote querier (default 1)
+  -remoteWrite.disablePathAppend
+    	Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
     	Defines interval of flushes to remote write endpoint (default 5s)
   -remoteWrite.maxBatchSize int
@@ -508,9 +523,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.tlsServerName string
     	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
-    	Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
-  -remoteWrite.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
+    	Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
   -replay.maxDatapointsPerQuery int
     	Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int

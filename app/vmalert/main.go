@@ -52,6 +52,8 @@ eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup.")
 
+	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's name as label to generated alerts and time series.")
+
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The `-rule` flag must be specified.")
 )
 
@@ -272,6 +274,9 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group) {
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
+			// set success to 1 since previous reload
+			// could have been unsuccessful
+			configSuccess.Set(1)
 			// config didn't change - skip it
 			continue
 		}

@@ -384,6 +384,8 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+  -disableAlertgroupLabel
+    	Whether to disable adding group's name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
@@ -495,6 +497,8 @@ The shortlist of configuration flags is the following:
     	Optional basic auth username for -remoteWrite.url
   -remoteWrite.concurrency int
     	Defines number of writers for concurrent writing into remote querier (default 1)
+  -remoteWrite.disablePathAppend
+    	Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
     	Defines interval of flushes to remote write endpoint (default 5s)
   -remoteWrite.maxBatchSize int
@@ -512,9 +516,9 @@ The shortlist of configuration flags is the following:
   -remoteWrite.tlsServerName string
     	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
-    	Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
+      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
   -remoteWrite.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
+      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -replay.maxDatapointsPerQuery int
     	Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
