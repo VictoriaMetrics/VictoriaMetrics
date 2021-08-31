@@ -66,5 +66,6 @@ func Init(extraParams []Param) (QuerierBuilder, error) {
 		lookBack:         *lookBack,
 		queryStep:        *queryStep,
 		dataSourceType:   NewPrometheusType(),
+		extraParams:      extraParams,
 	}, nil
 }
