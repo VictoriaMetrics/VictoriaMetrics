@@ -3,6 +3,8 @@ groups:
     interval: 2s
     concurrency: 2
     type: prometheus
+    labels:
+      cluster: main
     rules:
       - alert: up
         expr: up == 0

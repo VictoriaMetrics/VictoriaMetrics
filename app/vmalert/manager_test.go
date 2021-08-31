@@ -148,7 +148,7 @@ func TestManagerUpdate(t *testing.T) {
 							Name:   "VMRows",
 							Expr:   "vm_rows > 0",
 							For:    5 * time.Minute,
-							Labels: map[string]string{"label": "bar"},
+							Labels: map[string]string{"dc": "gcp", "label": "bar"},
 							Annotations: map[string]string{
 								"summary":     "{{ $value }}",
 								"description": "{{$labels}}",

@@ -148,6 +148,7 @@ func (g *Group) toAPI() APIGroup {
 		Interval:          g.Interval.String(),
 		Concurrency:       g.Concurrency,
 		ExtraFilterLabels: g.ExtraFilterLabels,
+		Labels:            g.Labels,
 	}
 	for _, r := range g.Rules {
 		switch v := r.(type) {
