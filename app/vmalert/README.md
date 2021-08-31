@@ -304,6 +304,8 @@ to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#ran
 of the configured `-datasource.url`. Returned data then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [Remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
+Vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
+to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
 
 #### Recording rules
 
