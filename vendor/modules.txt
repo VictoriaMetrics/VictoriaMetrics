@@ -1,5 +1,4 @@
 # cloud.google.com/go v0.93.3
-## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -116,7 +115,6 @@ github.com/golang/protobuf/ptypes/timestamp
 ## explicit
 github.com/golang/snappy
 # github.com/googleapis/gax-go/v2 v2.1.0
-## explicit
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -266,7 +264,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/api v0.54.0
+# google.golang.org/api v0.55.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -293,8 +291,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210825212027-de86158e7fda
-## explicit
+# google.golang.org/genproto v0.0.0-20210828152312-66f60bf46e71
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
