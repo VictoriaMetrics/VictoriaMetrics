@@ -27,6 +27,7 @@ type APIGroup struct {
 	Interval          string             `json:"interval"`
 	Concurrency       int                `json:"concurrency"`
 	ExtraFilterLabels map[string]string  `json:"extra_filter_labels"`
+	Labels            map[string]string  `json:"labels,omitempty"`
 	AlertingRules     []APIAlertingRule  `json:"alerting_rules"`
 	RecordingRules    []APIRecordingRule `json:"recording_rules"`
 }

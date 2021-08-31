@@ -95,6 +95,13 @@ name: <string>
 extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
 
+# Optional list of labels added to every rule within a group.
+# It has priority over the external labels.
+# Labels are commonly used for adding environment
+# or tenant-specific tag.
+labels:
+  [ <labelname>: <labelvalue> ... ]
+
 rules:
   [ - <rule> ... ]
 ```
