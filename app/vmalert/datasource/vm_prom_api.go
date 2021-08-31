@@ -140,6 +140,10 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 	q := r.URL.Query()
 	q.Add("start", fmt.Sprintf("%d", start.Unix()))
 	q.Add("end", fmt.Sprintf("%d", end.Unix()))
+	// prevent queries from caching and boundaries aligning
+	// when querying VictoriaMetrics datasource.
+	// Is needed only for replay feature.
+	q.Add("nocache", "1")
 	r.URL.RawQuery = q.Encode()
 	s.setPrometheusReqParams(r, query)
 }
