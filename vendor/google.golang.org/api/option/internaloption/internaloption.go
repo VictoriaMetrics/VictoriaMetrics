@@ -66,6 +66,21 @@ func (e enableDirectPath) Apply(o *internal.DialSettings) {
 	o.EnableDirectPath = bool(e)
 }
 
+// AllowNonDefaultServiceAccount returns a ClientOption that overrides the default
+// requirement for using the default service account for DirectPath.
+//
+// It should only be used internally by generated clients.
+// This is an EXPERIMENTAL API and may be changed or removed in the future.
+func AllowNonDefaultServiceAccount(nd bool) option.ClientOption {
+	return allowNonDefaultServiceAccount(nd)
+}
+
+type allowNonDefaultServiceAccount bool
+
+func (a allowNonDefaultServiceAccount) Apply(o *internal.DialSettings) {
+	o.AllowNonDefaultServiceAccount = bool(a)
+}
+
 // WithDefaultAudience returns a ClientOption that specifies a default audience
 // to be used as the audience field ("aud") for the JWT token authentication.
 //
