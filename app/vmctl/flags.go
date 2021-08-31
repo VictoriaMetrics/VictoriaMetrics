@@ -40,6 +40,7 @@ var (
 			Value: "http://localhost:8428",
 			Usage: "VictoriaMetrics address to perform import requests. \n" +
 				"Should be the same as --httpListenAddr value for single-node version or vminsert component. \n" +
+				"When importing into the clustered version do not forget to set additionally --vm-account-id flag. \n" +
 				"Please note, that `vmctl` performs initial readiness check for the given address by checking `/health` endpoint.",
 		},
 		&cli.StringFlag{
@@ -55,6 +56,7 @@ var (
 		&cli.StringFlag{
 			Name: vmAccountID,
 			Usage: "AccountID is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). \n" +
+				"AccountID is required when importing into the clustered version of VictoriaMetrics. \n" +
 				"It is possible to set it as accountID:projectID, where projectID is also arbitrary 32-bit integer. \n" +
 				"If projectID isn't set, then it equals to 0",
 		},

@@ -10,56 +10,63 @@ Features:
 - [x] OpenTSDB: migrate data from OpenTSDB to VictoriaMetrics
 - [ ] Storage Management: data re-balancing between nodes 
 
+vmctl acts as a proxy between data source ([Prometheus](#migrating-data-from-prometheus), 
+[InfluxDB](#migrating-data-from-influxdb-1x), [VictoriaMetrics](##migrating-data-from-victoriametrics), etc.)
+and destination - VictoriaMetrics single or cluster version. To see the full list of supported modes 
+run the following command:
+```
+./vmctl --help                                        
+NAME:
+   vmctl - VictoriaMetrics command-line tool
+
+USAGE:
+   vmctl [global options] command [command options] [arguments...]
+
+COMMANDS:
+   opentsdb    Migrate timeseries from OpenTSDB
+   influx      Migrate timeseries from InfluxDB
+   prometheus  Migrate timeseries from Prometheus
+   vm-native   Migrate time series between VictoriaMetrics installations via native binary format
+```
+
+Each mode has its own unique set of flags specific (e.g. prefixed with `influx` for influx mode)
+to the data source and common list of flags for destination (prefixed with `vm` for VictoriaMetrics):
+```
+./vmctl influx --help
+OPTIONS:
+   --influx-addr value              Influx server addr (default: "http://localhost:8086")
+   --influx-user value              Influx user [$INFLUX_USERNAME]
+...
+   --vm-addr vmctl                             VictoriaMetrics address to perform import requests. 
+Should be the same as --httpListenAddr value for single-node version or vminsert component. 
+When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
+Please note, that vmctl performs initial readiness check for the given address by checking `/health` endpoint. (default: "http://localhost:8428")
+   --vm-user value        VictoriaMetrics username for basic auth [$VM_USERNAME]
+   --vm-password value    VictoriaMetrics password for basic auth [$VM_PASSWORD]
+```
+
+When doing a migration user needs to specify flags for source (where and how to fetch data) and for
+destination (where to migrate data). Every mode has additional details and nuances, please see 
+them below in corresponding sections.
+
+For the destination flags see the full description by running the following command:
+```
+./vmctl influx --help | grep vm-
+```
+
+Some flags like [--vm-extra-label](#adding-extra-labels) or [--vm-significant-figures](#significant-figures)
+has additional sections with description below. Details about tweaking and adjusting settings
+are explained in [Tuning](#tuning) section.
+
+Please note, that if you're going to import data into VictoriaMetrics cluster do not
+forget to specify the `--vm-account-id` flag. See more details for cluster version 
+[here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
 ## Articles
 
 * [How to migrate data from Prometheus](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043)
 * [How to migrate data from Prometheus. Filtering and modifying time series](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-filtering-and-modifying-time-series-6d40cea4bf21)
 
-## How to build
-
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.
-
-
-### Development build
-
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
-2. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl` binary and puts it into the `bin` folder.
-
-### Production build
-
-1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-prod` binary and puts it into the `bin` folder.
-
-### Building docker images
-
-Run `make package-vmctl`. It builds `victoriametrics/vmctl:<PKG_TAG>` docker image locally.
-`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
-The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
-
-The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
-
-```bash
-ROOT_IMAGE=scratch make package-vmctl
-```
-
-### ARM build
-
-ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
-
-#### Development ARM build
-
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
-2. Run `make vmctl-arm` or `make vmctl-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-arm` or `vmctl-arm64` binary respectively and puts it into the `bin` folder.
-
-#### Production ARM build
-
-1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-arm-prod` or `make vmctl-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-arm-prod` or `vmctl-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ## Migrating data from OpenTSDB
 
@@ -472,7 +479,8 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 [Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
 3. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
-
+4. When importing into cluster version it is additionally required to specify the `--vm-account-id` flag.
+See more details for cluster version [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 ## Tuning
 
@@ -551,4 +559,49 @@ results such as `average`, `rate`, etc.
  `vmctl` allows to add extra labels to all imported series. It can be achived with flag `--vm-extra-label label=value`. 
  If multiple labels needs to be added, set flag for each label, for example, `--vm-extra-label label1=value1 --vm-extra-label label2=value2`.
  If timeseries already have label, that must be added with `--vm-extra-label` flag, flag has priority and will override label value from timeseries.
- 
+
+## How to build
+
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.
+
+
+### Development build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+2. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmctl` binary and puts it into the `bin` folder.
+
+### Production build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmctl-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmctl-prod` binary and puts it into the `bin` folder.
+
+### Building docker images
+
+Run `make package-vmctl`. It builds `victoriametrics/vmctl:<PKG_TAG>` docker image locally.
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
+
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
+
+```bash
+ROOT_IMAGE=scratch make package-vmctl
+```
+
+### ARM build
+
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
+#### Development ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+2. Run `make vmctl-arm` or `make vmctl-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmctl-arm` or `vmctl-arm64` binary respectively and puts it into the `bin` folder.
+
+#### Production ARM build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmctl-arm-prod` or `make vmctl-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmctl-arm-prod` or `vmctl-arm64-prod` binary respectively and puts it into the `bin` folder.
