@@ -91,7 +91,10 @@ func main() {
 		if err != nil {
 			logger.Fatalf("cannot parse configuration file: %s", err)
 		}
-		q, err := datasource.Init()
+		// prevent queries from caching and boundaries aligning
+		// when querying VictoriaMetrics datasource.
+		noCache := datasource.Param{Key: "nocache", Value: "1"}
+		q, err := datasource.Init([]datasource.Param{noCache})
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}
@@ -139,7 +142,7 @@ var (
 )
 
 func newManager(ctx context.Context) (*manager, error) {
-	q, err := datasource.Init()
+	q, err := datasource.Init(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
