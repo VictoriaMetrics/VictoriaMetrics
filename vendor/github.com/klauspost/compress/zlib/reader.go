@@ -25,7 +25,7 @@ package zlib
 
 import (
 	"bufio"
-	"errors"
+	"compress/zlib"
 	"hash"
 	"hash/adler32"
 	"io"
@@ -37,11 +37,11 @@ const zlibDeflate = 8
 
 var (
 	// ErrChecksum is returned when reading ZLIB data that has an invalid checksum.
-	ErrChecksum = errors.New("zlib: invalid checksum")
+	ErrChecksum = zlib.ErrChecksum
 	// ErrDictionary is returned when reading ZLIB data that has an invalid dictionary.
-	ErrDictionary = errors.New("zlib: invalid dictionary")
+	ErrDictionary = zlib.ErrDictionary
 	// ErrHeader is returned when reading ZLIB data that has an invalid header.
-	ErrHeader = errors.New("zlib: invalid header")
+	ErrHeader = zlib.ErrHeader
 )
 
 type reader struct {
