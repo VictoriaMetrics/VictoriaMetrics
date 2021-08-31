@@ -100,7 +100,9 @@ extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
 
 # Optional list of labels added to every rule within a group.
-# It has priority on rule labels.
+# It has priority over the external labels.
+# Labels are commonly used for adding environment
+# or tenant-specific tag.
 labels:
   [ <labelname>: <labelvalue> ... ]
 
@@ -512,7 +514,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.url string
     	Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
   -remoteWrite.disablePathAppend
-    	Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
+     Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -replay.maxDatapointsPerQuery int
     	Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
