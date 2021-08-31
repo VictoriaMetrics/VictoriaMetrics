@@ -4564,16 +4564,15 @@ func (c *S3) GetObjectRequest(input *GetObjectInput) (req *request.Request, outp
 // For more information about SSE-C, see Server-Side Encryption (Using Customer-Provided
 // Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html).
 //
-// Assuming you have permission to read object tags (permission for the s3:GetObjectVersionTagging
-// action), the response also returns the x-amz-tagging-count header that provides
-// the count of number of tags associated with the object. You can use GetObjectTagging
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+// Assuming you have the relevant permission to read object tags, the response
+// also returns the x-amz-tagging-count header that provides the count of number
+// of tags associated with the object. You can use GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
 // to retrieve the tag set associated with an object.
 //
 // Permissions
 //
-// You need the s3:GetObject permission for this operation. For more information,
-// see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
+// You need the relevant read object (or version) permission for this operation.
+// For more information, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
 // If the object you request does not exist, the error Amazon S3 returns depends
 // on whether you also have the s3:ListBucket permission.
 //
@@ -5482,8 +5481,8 @@ func (c *S3) HeadObjectRequest(input *HeadObjectInput) (req *request.Request, ou
 //
 // Permissions
 //
-// You need the s3:GetObject permission for this operation. For more information,
-// see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
+// You need the relevant read object (or version) permission for this operation.
+// For more information, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
 // If the object you request does not exist, the error Amazon S3 returns depends
 // on whether you also have the s3:ListBucket permission.
 //
@@ -15715,7 +15714,8 @@ type DeleteObjectInput struct {
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
 	// Indicates whether S3 Object Lock should bypass Governance-mode restrictions
-	// to process this operation.
+	// to process this operation. To use this header, you must have the s3:PutBucketPublicAccessBlock
+	// permission.
 	BypassGovernanceRetention *bool `location:"header" locationName:"x-amz-bypass-governance-retention" type:"boolean"`
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
@@ -16072,8 +16072,8 @@ type DeleteObjectsInput struct {
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
 	// Specifies whether you want to delete this object even if it has a Governance-type
-	// Object Lock in place. You must have sufficient permissions to perform this
-	// operation.
+	// Object Lock in place. To use this header, you must have the s3:PutBucketPublicAccessBlock
+	// permission.
 	BypassGovernanceRetention *bool `location:"header" locationName:"x-amz-bypass-governance-retention" type:"boolean"`
 
 	// Container for the request.
