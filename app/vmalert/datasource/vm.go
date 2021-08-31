@@ -18,11 +18,11 @@ type VMStorage struct {
 	appendTypePrefix bool
 	lookBack         time.Duration
 	queryStep        time.Duration
-	roundDigits      string
 
 	dataSourceType     Type
 	evaluationInterval time.Duration
 	extraLabels        []string
+	extraParams        []Param
 }
 
 // Clone makes clone of VMStorage, shares http client.

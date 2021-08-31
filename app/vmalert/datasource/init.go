@@ -31,8 +31,15 @@ var (
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
 )
 
+// Param represents an HTTP GET param
+type Param struct {
+	Key, Value string
+}
+
 // Init creates a Querier from provided flag values.
-func Init() (QuerierBuilder, error) {
+// Provided extraParams will be added as GET params to
+// each request.
+func Init(extraParams []Param) (QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, fmt.Errorf("datasource.url is empty")
 	}
@@ -43,9 +50,11 @@ func Init() (QuerierBuilder, error) {
 	}
 	tr.MaxIdleConnsPerHost = *maxIdleConnections
 
-	var rd string
 	if *roundDigits > 0 {
-		rd = fmt.Sprintf("%d", *roundDigits)
+		extraParams = append(extraParams, Param{
+			Key:   "round_digits",
+			Value: fmt.Sprintf("%d", *roundDigits),
+		})
 	}
 
 	return &VMStorage{
@@ -56,7 +65,6 @@ func Init() (QuerierBuilder, error) {
 		appendTypePrefix: *appendTypePrefix,
 		lookBack:         *lookBack,
 		queryStep:        *queryStep,
-		roundDigits:      rd,
 		dataSourceType:   NewPrometheusType(),
 	}, nil
 }
