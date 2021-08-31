@@ -24,8 +24,6 @@ Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-set
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
-See additional docs at our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki).
-
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
 See [features available for enterprise customers](https://victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
