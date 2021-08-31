@@ -340,6 +340,17 @@ See full description for these flags in `./vmalert --help`.
 * `query` template function is disabled for performance reasons (might be changed in future);
 
 
+## Monitoring
+
+`vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page. 
+We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported 
+metrics may be analyzed later.
+
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add 
+a review to the dashboard.
+
+
 ## Configuration
 
 Pass `-help` to `vmalert` in order to see the full list of supported

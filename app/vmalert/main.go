@@ -274,6 +274,9 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group) {
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
+			// set success to 1 since previous reload
+			// could have been unsuccessful
+			configSuccess.Set(1)
 			// config didn't change - skip it
 			continue
 		}
