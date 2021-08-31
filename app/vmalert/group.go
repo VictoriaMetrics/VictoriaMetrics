@@ -174,12 +174,6 @@ func (g *Group) updateWith(newGroup *Group) error {
 	return nil
 }
 
-var (
-	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
-	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
-	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
-)
-
 func (g *Group) close() {
 	if g.doneCh == nil {
 		return
@@ -220,7 +214,16 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{nts, rw}
+	e := &executor{rw: rw}
+	for _, nt := range nts {
+		ent := eNotifier{
+			Notifier:         nt,
+			alertsSent:       getOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", nt.Addr())),
+			alertsSendErrors: getOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", nt.Addr())),
+		}
+		e.notifiers = append(e.notifiers, ent)
+	}
+
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -263,8 +266,14 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 }
 
 type executor struct {
-	notifiers []notifier.Notifier
+	notifiers []eNotifier
 	rw        *remotewrite.Client
+}
+
+type eNotifier struct {
+	notifier.Notifier
+	alertsSent       *counter
+	alertsSendErrors *counter
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
@@ -297,6 +306,8 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 }
 
 var (
+	alertsFired = metrics.NewCounter(`vmalert_alerts_fired_total`)
+
 	execTotal  = metrics.NewCounter(`vmalert_execution_total`)
 	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
 
@@ -345,11 +356,11 @@ func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) 
 		return nil
 	}
 
-	alertsSent.Add(len(alerts))
 	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers {
+		nt.alertsSent.Add(len(alerts))
 		if err := nt.Send(ctx, alerts); err != nil {
-			alertsSendErrors.Inc()
+			nt.alertsSendErrors.Inc()
 			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %w", rule, err))
 		}
 	}

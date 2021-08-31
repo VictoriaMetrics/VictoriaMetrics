@@ -57,12 +57,12 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmalert v1.64.0 or higher",
+  "description": "Overview for VictoriaMetrics vmalert v1.65.0 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1630326134615,
+  "iteration": 1630393200659,
   "links": [
     {
       "asDropdown": false,
@@ -1286,9 +1286,9 @@
           "targets": [
             {
               "exemplar": false,
-              "expr": "sum(rate(vmalert_alerts_sent_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
+              "expr": "sum(rate(vmalert_alerts_sent_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, addr)",
               "interval": "",
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} => {{addr}}",
               "refId": "A"
             }
           ],
@@ -1382,9 +1382,9 @@
           "targets": [
             {
               "exemplar": false,
-              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(instance)",
+              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(instance, addr)",
               "interval": "",
-              "legendFormat": "{{instance}}",
+              "legendFormat": "{{instance}} => {{addr}}",
               "refId": "A"
             }
           ],
@@ -2295,6 +2295,6 @@
   "timepicker": {},
   "timezone": "",
   "title": "vmalert",
-  "uid": "GBXGMhVnz",
+  "uid": "LzldHAVnz",
   "version": 1
 }

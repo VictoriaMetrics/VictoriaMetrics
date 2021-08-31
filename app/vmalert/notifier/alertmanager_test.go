@@ -10,6 +10,14 @@ import (
 	"time"
 )
 
+func TestAlertManager_Addr(t *testing.T) {
+	const addr = "http://localhost"
+	am := NewAlertManager(addr, "", "", nil, nil)
+	if am.Addr() != addr {
+		t.Errorf("expected to have %q; got %q", addr, am.Addr())
+	}
+}
+
 func TestAlertManager_Send(t *testing.T) {
 	const baUser, baPass = "foo", "bar"
 	mux := http.NewServeMux()
