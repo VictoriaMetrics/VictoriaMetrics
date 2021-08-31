@@ -22,7 +22,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.1.0 // indirect
 	github.com/influxdata/influxdb v1.9.3
-	github.com/klauspost/compress v1.13.4
+	github.com/klauspost/compress v1.13.5
 	github.com/lithammer/go-jump-consistent-hash v1.0.2
 	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
