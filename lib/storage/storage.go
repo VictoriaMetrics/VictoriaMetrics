@@ -714,6 +714,14 @@ func (s *Storage) MustClose() {
 	if err := s.flockF.Close(); err != nil {
 		logger.Panicf("FATAL: cannot close lock file %q: %s", s.flockF.Name(), err)
 	}
+
+	// Stop series limiters.
+	if sl := s.hourlySeriesLimiter; sl != nil {
+		sl.MustStop()
+	}
+	if sl := s.dailySeriesLimiter; sl != nil {
+		sl.MustStop()
+	}
 }
 
 func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {

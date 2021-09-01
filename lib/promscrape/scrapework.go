@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
@@ -26,7 +27,8 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
-	noStaleMarkers = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -103,6 +105,9 @@ type ScrapeWork struct {
 	// The offset for the first scrape.
 	ScrapeOffset time.Duration
 
+	// Optional limit on the number of unique series the scrape target can expose.
+	SeriesLimit int
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
@@ -114,11 +119,11 @@ func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
-		"ScrapeAlignInterval=%s, ScrapeOffset=%s",
+		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
 		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
-		sw.ScrapeAlignInterval, sw.ScrapeOffset)
+		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit)
 	return key
 }
 
@@ -177,6 +182,9 @@ type scrapeWork struct {
 	seriesMap     map[uint64]struct{}
 	seriesAdded   int
 	labelsHashBuf []byte
+
+	// Optional limiter on the number of unique series per scrape target.
+	seriesLimiter *bloomfilter.Limiter
 
 	// prevBodyLen contains the previous response body length for the given scrape work.
 	// It is used as a hint in order to reduce memory usage for body buffers.
@@ -241,6 +249,9 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		case <-stopCh:
 			t := time.Now().UnixNano() / 1e6
 			sw.sendStaleMarkersForLastScrape(t, true)
+			if sw.seriesLimiter != nil {
+				sw.seriesLimiter.MustStop()
+			}
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixNano() / 1e6
@@ -481,13 +492,31 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 		sw.seriesMap = make(map[uint64]struct{}, len(wc.writeRequest.Timeseries))
 	}
 	m := sw.seriesMap
+	seriesLimit := *seriesLimitPerTarget
+	if sw.Config.SeriesLimit > 0 {
+		seriesLimit = sw.Config.SeriesLimit
+	}
+	if sw.seriesLimiter == nil && seriesLimit > 0 {
+		sw.seriesLimiter = bloomfilter.NewLimiter(seriesLimit, 24*time.Hour)
+	}
+	hsl := sw.seriesLimiter
+	dstSeries := wc.writeRequest.Timeseries[:0]
 	for _, ts := range wc.writeRequest.Timeseries {
 		h := sw.getLabelsHash(ts.Labels)
+		if hsl != nil && !hsl.Add(h) {
+			// The limit on the number of hourly unique series per scrape target has been exceeded.
+			// Drop the metric.
+			metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{job=%q,target=%q}`,
+				sw.Config.jobNameOriginal, sw.Config.ScrapeURL)).Inc()
+			continue
+		}
+		dstSeries = append(dstSeries, ts)
 		if _, ok := m[h]; !ok {
 			m[h] = struct{}{}
 			sw.seriesAdded++
 		}
 	}
+	wc.writeRequest.Timeseries = dstSeries
 }
 
 func (sw *scrapeWork) updateLastScrape(response string) {

@@ -40,7 +40,7 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared with Prometheus.
 * Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
 * Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/). See [these docs](#stream-parsing-mode).
-* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series sent to remote storage systems. See [these docs](#cardinality-limiter).
+* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can load scrape configs from multiple files. See [these docs](#loading-scrape-configs-from-multiple-files).
 
 ## Quick Start
@@ -200,7 +200,12 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
   By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
+* `series_limit: N` - for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
 * `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics. See [these docs](#stream-parsing-mode).
+* `scrape_align_interval: duration` - for aligning scrapes to the given interval instead of using random offset in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
+* `scrape_offset: duration` - for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
+* `relabel_debug: true` - for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
+* `metric_relabel_debug: true` - for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -362,6 +367,10 @@ scrape_configs:
 ```
 
 ## Cardinality limiter
+
+By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced across all the scrape targets by specifying `-promscrape.seriesLimitPerTarget` command-line option. The limit also can be specified via `series_limit` option at `scrape_config` section. All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric, which shows the number of metrics dropped due to the exceeded limit.
+
+See also `sample_limit` option at [scrape_config section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
 
