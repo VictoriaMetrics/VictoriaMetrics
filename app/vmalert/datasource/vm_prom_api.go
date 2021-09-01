@@ -155,11 +155,11 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 		// override step with user-specified value
 		q.Set("step", s.queryStep.String())
 	}
-	if s.roundDigits != "" {
-		q.Set("round_digits", s.roundDigits)
-	}
 	for _, l := range s.extraLabels {
 		q.Add("extra_label", l)
+	}
+	for _, p := range s.extraParams {
+		q.Add(p.Key, p.Value)
 	}
 	r.URL.RawQuery = q.Encode()
 }

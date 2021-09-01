@@ -302,4 +302,3 @@ groups:
             is saturated by more than 90% and vmagent won't be able to keep up.\n
             This usually means that `-remoteWrite.queues` command-line flag must be increased in order to increase
             the number of connections per each remote storage."
-

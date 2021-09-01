@@ -6,6 +6,7 @@
 package internaloption
 
 import (
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/internal"
 	"google.golang.org/api/option"
 )
@@ -120,4 +121,16 @@ type enableJwtWithScope bool
 
 func (w enableJwtWithScope) Apply(o *internal.DialSettings) {
 	o.EnableJwtWithScope = bool(w)
+}
+
+// WithCredentials returns a client option to specify credentials which will be used to authenticate API calls.
+// This credential takes precedence over all other credential options.
+func WithCredentials(creds *google.Credentials) option.ClientOption {
+	return (*withCreds)(creds)
+}
+
+type withCreds google.Credentials
+
+func (w *withCreds) Apply(o *internal.DialSettings) {
+	o.InternalCredentials = (*google.Credentials)(w)
 }

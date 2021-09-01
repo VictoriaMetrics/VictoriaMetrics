@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/internal/trace"
 	"google.golang.org/api/googleapi"
 	raw "google.golang.org/api/storage/v1"
+	storagepb "google.golang.org/genproto/googleapis/storage/v2"
 )
 
 // ACLRole is the level of access to grant.
@@ -244,6 +245,14 @@ func toObjectACLRules(items []*raw.ObjectAccessControl) []ACLRule {
 	return rs
 }
 
+func fromProtoToObjectACLRules(items []*storagepb.ObjectAccessControl) []ACLRule {
+	var rs []ACLRule
+	for _, item := range items {
+		rs = append(rs, fromProtoToObjectACLRule(item))
+	}
+	return rs
+}
+
 func toBucketACLRules(items []*raw.BucketAccessControl) []ACLRule {
 	var rs []ACLRule
 	for _, item := range items {
@@ -260,6 +269,17 @@ func toObjectACLRule(a *raw.ObjectAccessControl) ACLRule {
 		Domain:      a.Domain,
 		Email:       a.Email,
 		ProjectTeam: toObjectProjectTeam(a.ProjectTeam),
+	}
+}
+
+func fromProtoToObjectACLRule(a *storagepb.ObjectAccessControl) ACLRule {
+	return ACLRule{
+		Entity:      ACLEntity(a.GetEntity()),
+		EntityID:    a.GetEntityId(),
+		Role:        ACLRole(a.GetRole()),
+		Domain:      a.GetDomain(),
+		Email:       a.GetEmail(),
+		ProjectTeam: fromProtoToObjectProjectTeam(a.GetProjectTeam()),
 	}
 }
 
@@ -281,6 +301,17 @@ func toRawObjectACL(rules []ACLRule) []*raw.ObjectAccessControl {
 	r := make([]*raw.ObjectAccessControl, 0, len(rules))
 	for _, rule := range rules {
 		r = append(r, rule.toRawObjectAccessControl("")) // bucket name unnecessary
+	}
+	return r
+}
+
+func toProtoObjectACL(rules []ACLRule) []*storagepb.ObjectAccessControl {
+	if len(rules) == 0 {
+		return nil
+	}
+	r := make([]*storagepb.ObjectAccessControl, 0, len(rules))
+	for _, rule := range rules {
+		r = append(r, rule.toProtoObjectAccessControl("")) // bucket name unnecessary
 	}
 	return r
 }
@@ -314,6 +345,14 @@ func (r ACLRule) toRawObjectAccessControl(bucket string) *raw.ObjectAccessContro
 	}
 }
 
+func (r ACLRule) toProtoObjectAccessControl(bucket string) *storagepb.ObjectAccessControl {
+	return &storagepb.ObjectAccessControl{
+		Entity: string(r.Entity),
+		Role:   string(r.Role),
+		// The other fields are not settable.
+	}
+}
+
 func toBucketProjectTeam(p *raw.BucketAccessControlProjectTeam) *ProjectTeam {
 	if p == nil {
 		return nil
@@ -331,5 +370,15 @@ func toObjectProjectTeam(p *raw.ObjectAccessControlProjectTeam) *ProjectTeam {
 	return &ProjectTeam{
 		ProjectNumber: p.ProjectNumber,
 		Team:          p.Team,
+	}
+}
+
+func fromProtoToObjectProjectTeam(p *storagepb.ProjectTeam) *ProjectTeam {
+	if p == nil {
+		return nil
+	}
+	return &ProjectTeam{
+		ProjectNumber: p.GetProjectNumber(),
+		Team:          p.GetTeam(),
 	}
 }
