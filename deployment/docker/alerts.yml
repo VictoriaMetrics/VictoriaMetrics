@@ -221,10 +221,23 @@ groups:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=116&var-instance={{ $labels.instance }}"
-          summary: "Metrics ingested to vminsert on ({{ $labels.instance }}) are exceeding labels limit"
+          summary: "Metrics ingested to vminsert on {{ $labels.instance }} are exceeding labels limit"
           description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
            This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
            correctly or that clients which send these metrics aren't misbehaving."
+
+      - alert: VminsertVmstorageConnectionIsSaturated
+        expr: rate(vm_rpc_send_duration_seconds_total[5m]) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=139&var-instance={{ $labels.instance }}"
+          summary: "Connection between vminsert on {{ $labels.instance }} and vmstorage on {{ $labels.addr }} is saturated"
+          description: "The connection between vminsert (instance {{ $labels.instance }}) and vmstorage (instance {{ $labels.addr }})
+            is saturated by more than 90% and vminsert won't be able to keep up.\n
+            This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase
+            the total number of vminsert -> vmstorage links."
 
 
   # Alerts group for vmagent assumes that Grafana dashboard
