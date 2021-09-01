@@ -218,6 +218,13 @@ func Stop() {
 		}
 	}
 	rwctxsMap = nil
+
+	if sl := hourlySeriesLimiter; sl != nil {
+		sl.MustStop()
+	}
+	if sl := dailySeriesLimiter; sl != nil {
+		sl.MustStop()
+	}
 }
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.

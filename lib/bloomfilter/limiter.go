@@ -1,6 +1,7 @@
 package bloomfilter
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -11,21 +12,40 @@ import (
 type Limiter struct {
 	maxItems int
 	v        atomic.Value
+
+	wg     sync.WaitGroup
+	stopCh chan struct{}
 }
 
 // NewLimiter creates new Limiter, which can hold up to maxItems unique items during the given refreshInterval.
 func NewLimiter(maxItems int, refreshInterval time.Duration) *Limiter {
 	l := &Limiter{
 		maxItems: maxItems,
+		stopCh:   make(chan struct{}),
 	}
 	l.v.Store(newLimiter(maxItems))
+	l.wg.Add(1)
 	go func() {
+		defer l.wg.Done()
+		t := time.NewTicker(refreshInterval)
+		defer t.Stop()
 		for {
-			time.Sleep(refreshInterval)
-			l.v.Store(newLimiter(maxItems))
+			select {
+			case <-t.C:
+				l.v.Store(newLimiter(maxItems))
+			case <-l.stopCh:
+				return
+			}
 		}
 	}()
 	return l
+}
+
+// MustStop stops the given limiter.
+// It is expected that nobody access the limiter at MustStop call.
+func (l *Limiter) MustStop() {
+	close(l.stopCh)
+	l.wg.Wait()
 }
 
 // MaxItems returns the maxItems passed to NewLimiter.

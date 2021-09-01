@@ -151,6 +151,7 @@ type ScrapeConfig struct {
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval time.Duration              `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset        time.Duration              `yaml:"scrape_offset,omitempty"`
+	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
 	// This is set in loadConfig
@@ -773,6 +774,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval,
 		scrapeOffset:         sc.ScrapeOffset,
+		seriesLimit:          sc.SeriesLimit,
 	}
 	return swc, nil
 }
@@ -799,6 +801,7 @@ type scrapeWorkConfig struct {
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
 	scrapeOffset         time.Duration
+	seriesLimit          int
 }
 
 type targetLabelsGetter interface {
@@ -1066,6 +1069,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		StreamParse:          swc.streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
+		SeriesLimit:          swc.seriesLimit,
 
 		jobNameOriginal: swc.jobName,
 	}
