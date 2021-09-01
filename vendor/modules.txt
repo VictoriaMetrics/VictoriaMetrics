@@ -265,7 +265,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/api v0.55.0
+# google.golang.org/api v0.56.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
