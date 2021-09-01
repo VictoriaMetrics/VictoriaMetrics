@@ -62,7 +62,7 @@
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1630480472267,
+  "iteration": 1630485687361,
   "links": [
     {
       "icon": "doc",
@@ -875,7 +875,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "Errors rate shows rate for multiple metrics that track possible errors in vmagent, such as network or parsing errors.",
+      "description": "Shows the persistent queue size of pending samples in bytes which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.",
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -891,7 +891,7 @@
         "y": 16
       },
       "hiddenSeries": false,
-      "id": 69,
+      "id": 17,
       "legend": {
         "alignAsTable": true,
         "avg": true,
@@ -908,12 +908,11 @@
       "linewidth": 1,
       "links": [
         {
-          "targetBlank": true,
           "title": "Troubleshooting",
           "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
-      "nullPointMode": "null as zero",
+      "nullPointMode": "null",
       "options": {
         "alertThreshold": true
       },
@@ -928,44 +927,21 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vmagent_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(protocol)",
+          "exemplar": true,
+          "expr": "sum(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}) by (url)",
           "interval": "",
-          "legendFormat": "{{protocol}} (request)",
+          "legendFormat": "{{url}}",
           "refId": "A"
-        },
-        {
-          "expr": "sum(rate(vm_protoparser_read_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(type)",
-          "interval": "",
-          "legendFormat": "{{type}} (parse)",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(rate(vm_ingestserver_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(type)",
-          "interval": "",
-          "legendFormat": "{{type}} (ingest)",
-          "refId": "C"
-        },
-        {
-          "expr": "sum(rate(vm_protoparser_unmarshal_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(type)",
-          "interval": "",
-          "legendFormat": "{{type}} (unmarshal)",
-          "refId": "D"
-        },
-        {
-          "expr": "sum(rate(vm_promscrape_dial_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
-          "interval": "",
-          "legendFormat": "scrape dial",
-          "refId": "E"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Errors rate  ($instance)",
+      "title": "Persistent queue size  ($instance) to ($url)",
       "tooltip": {
         "shared": true,
-        "sort": 2,
+        "sort": 0,
         "value_type": "individual"
       },
       "type": "graph",
@@ -978,7 +954,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "bytes",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -986,7 +962,7 @@
           "show": true
         },
         {
-          "format": "none",
+          "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1111,7 +1087,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "Shows the persistent queue size of pending samples in bytes which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.",
+      "description": "Errors rate shows rate for multiple metrics that track possible errors in vmagent, such as network or parsing errors.",
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -1127,7 +1103,7 @@
         "y": 24
       },
       "hiddenSeries": false,
-      "id": 17,
+      "id": 69,
       "legend": {
         "alignAsTable": true,
         "avg": true,
@@ -1144,11 +1120,12 @@
       "linewidth": 1,
       "links": [
         {
+          "targetBlank": true,
           "title": "Troubleshooting",
           "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
         }
       ],
-      "nullPointMode": "null",
+      "nullPointMode": "null as zero",
       "options": {
         "alertThreshold": true
       },
@@ -1163,21 +1140,44 @@
       "steppedLine": false,
       "targets": [
         {
-          "exemplar": true,
-          "expr": "sum(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}) by (url)",
+          "expr": "sum(rate(vmagent_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(protocol)",
           "interval": "",
-          "legendFormat": "{{url}}",
+          "legendFormat": "{{protocol}} (request)",
           "refId": "A"
+        },
+        {
+          "expr": "sum(rate(vm_protoparser_read_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(type)",
+          "interval": "",
+          "legendFormat": "{{type}} (parse)",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(vm_ingestserver_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(type)",
+          "interval": "",
+          "legendFormat": "{{type}} (ingest)",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(vm_protoparser_unmarshal_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(type)",
+          "interval": "",
+          "legendFormat": "{{type}} (unmarshal)",
+          "refId": "D"
+        },
+        {
+          "expr": "sum(rate(vm_promscrape_dial_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
+          "interval": "",
+          "legendFormat": "scrape dial",
+          "refId": "E"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Persistent queue size  ($instance) to ($url)",
+      "title": "Errors rate  ($instance)",
       "tooltip": {
         "shared": true,
-        "sort": 0,
+        "sort": 2,
         "value_type": "individual"
       },
       "type": "graph",
@@ -1190,7 +1190,7 @@
       },
       "yaxes": [
         {
-          "format": "bytes",
+          "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1198,7 +1198,7 @@
           "show": true
         },
         {
-          "format": "short",
+          "format": "none",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1426,13 +1426,118 @@
       }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "$ds",
+      "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "hiddenSeries": false,
+      "id": 86,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": false,
+        "show": true,
+        "sort": "current",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.1.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(rate(vm_log_messages_total{job=\"$job\", instance=~\"$instance\"}[5m])) by (level) ",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Logging rate ($instance)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
       "collapsed": true,
       "datasource": "$ds",
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 28,
       "panels": [
@@ -2042,7 +2147,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 49
       },
       "id": 71,
       "panels": [
@@ -2474,7 +2579,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 50
       },
       "id": 58,
       "panels": [
@@ -3199,7 +3304,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 51
       },
       "id": 45,
       "panels": [
@@ -4075,7 +4180,7 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {
