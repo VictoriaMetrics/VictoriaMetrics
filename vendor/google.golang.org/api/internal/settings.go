@@ -29,6 +29,7 @@ type DialSettings struct {
 	Credentials                   *google.Credentials
 	CredentialsFile               string // if set, Token Source is ignored.
 	CredentialsJSON               []byte
+	InternalCredentials           *google.Credentials
 	UserAgent                     string
 	APIKey                        string
 	Audiences                     []string
