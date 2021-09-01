@@ -7,7 +7,7 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
   - package-ecosystem: "bundler"
     directory: "/docs"
     schedule:
@@ -15,7 +15,7 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/app/vmui/packages/vmui/web"
     schedule:
-      interval: "daily"
+      interval: "weekly"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -23,4 +23,4 @@ updates:
   - package-ecosystem: "npm"
     directory: "/app/vmui"
     schedule:
-      interval: "daily"
+      interval: "weekly"
