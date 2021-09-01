@@ -333,6 +333,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		HonorLabels: true,
 		SampleLimit: 1,
+		SeriesLimit: 123,
 	}, `
 		up 0 123
 		scrape_samples_scraped 2 123

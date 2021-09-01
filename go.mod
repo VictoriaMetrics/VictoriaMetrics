@@ -1,7 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
-	cloud.google.com/go v0.94.0 // indirect
 	cloud.google.com/go/storage v1.16.1
 	github.com/VictoriaMetrics/fastcache v1.6.0
 

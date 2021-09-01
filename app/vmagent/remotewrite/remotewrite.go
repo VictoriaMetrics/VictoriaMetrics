@@ -53,9 +53,9 @@ var (
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
-		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries")
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
-		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries")
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 )
 
 var (
@@ -218,6 +218,13 @@ func Stop() {
 		}
 	}
 	rwctxsMap = nil
+
+	if sl := hourlySeriesLimiter; sl != nil {
+		sl.MustStop()
+	}
+	if sl := dailySeriesLimiter; sl != nil {
+		sl.MustStop()
+	}
 }
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.

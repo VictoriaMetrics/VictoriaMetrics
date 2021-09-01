@@ -1344,6 +1344,7 @@ scrape_configs:
     stream_parse: true
     scrape_align_interval: 1s
     scrape_offset: 0.5s
+    series_limit: 123
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1400,6 +1401,7 @@ scrape_configs:
 			StreamParse:         true,
 			ScrapeAlignInterval: time.Second,
 			ScrapeOffset:        500 * time.Millisecond,
+			SeriesLimit:         123,
 			jobNameOriginal:     "snmp",
 		},
 	})

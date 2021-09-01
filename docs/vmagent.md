@@ -40,7 +40,7 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared with Prometheus.
 * Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
 * Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/). See [these docs](#stream-parsing-mode).
-* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series sent to remote storage systems. See [these docs](#cardinality-limiter).
+* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can load scrape configs from multiple files. See [these docs](#loading-scrape-configs-from-multiple-files).
 
 ## Quick Start
@@ -200,7 +200,12 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
   By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
+* `series_limit: N` - for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
 * `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics. See [these docs](#stream-parsing-mode).
+* `scrape_align_interval: duration` - for aligning scrapes to the given interval instead of using random offset in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
+* `scrape_offset: duration` - for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
+* `relabel_debug: true` - for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
+* `metric_relabel_debug: true` - for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -362,6 +367,10 @@ scrape_configs:
 ```
 
 ## Cardinality limiter
+
+By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced across all the scrape targets by specifying `-promscrape.seriesLimitPerTarget` command-line option. The limit also can be specified via `series_limit` option at `scrape_config` section. All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric, which shows the number of metrics dropped due to the exceeded limit.
+
+See also `sample_limit` option at [scrape_config section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
 
@@ -676,8 +685,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.disableKeepAlive
     	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
-  -promscrape.noStaleMarkers
-    	Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.discovery.concurrency int
     	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
@@ -709,8 +716,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.noStaleMarkers
+    	Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.openstackSDCheckInterval duration
     	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
+  -promscrape.seriesLimitPerTarget int
+    	Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info
   -promscrape.streamParse
     	Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.suppressDuplicateScrapeTargetErrors
@@ -741,12 +752,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
   -remoteWrite.maxDailySeries int
-    	The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -remoteWrite.maxHourlySeries
+    	The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
   -remoteWrite.maxDiskUsagePerURL size
     	The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. Disk usage is unlimited if the value is set to 0
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -remoteWrite.maxHourlySeries int
-    	The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -remoteWrite.maxDailySeries
+    	The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
   -remoteWrite.multitenantURL array
     	Base path for multitenant remote storage URL to write data to. See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url
     	Supports an array of values separated by comma or specified via multiple flags.
