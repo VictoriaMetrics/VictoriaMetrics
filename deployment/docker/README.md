@@ -4,7 +4,7 @@ To spin-up VictoriaMetrics, vmagent, vmalert, Alertmanager and Grafana run the f
 
 `docker-compose up`
 
-For clustered version check [docker compose in cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
+For clustered version check [docker compose in cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster/deployment/docker).
 
 ## VictoriaMetrics
 
