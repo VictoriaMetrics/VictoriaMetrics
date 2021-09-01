@@ -56,11 +56,20 @@ var (
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
-	Global        GlobalConfig   `yaml:"global"`
-	ScrapeConfigs []ScrapeConfig `yaml:"scrape_configs"`
+	Global            GlobalConfig   `yaml:"global,omitempty"`
+	ScrapeConfigs     []ScrapeConfig `yaml:"scrape_configs"`
+	ScrapeConfigFiles []string       `yaml:"scrape_config_files"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
+}
+
+func (cfg *Config) marshal() []byte {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal Config: %s", err)
+	}
+	return data
 }
 
 func (cfg *Config) mustStart() {
@@ -229,16 +238,45 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 }
 
 // loadConfig loads Prometheus config from the given path.
-func loadConfig(path string) (cfg *Config, data []byte, err error) {
-	data, err = ioutil.ReadFile(path)
+func loadConfig(path string) (*Config, error) {
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
+		return nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
-	var cfgObj Config
-	if err := cfgObj.parse(data, path); err != nil {
-		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
+	var c Config
+	if err := c.parseData(data, path); err != nil {
+		return nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
-	return &cfgObj, data, nil
+	return &c, nil
+}
+
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]ScrapeConfig, error) {
+	var scrapeConfigs []ScrapeConfig
+	for _, filePath := range scrapeConfigFiles {
+		filePath := getFilepath(baseDir, filePath)
+		paths := []string{filePath}
+		if strings.Contains(filePath, "*") {
+			ps, err := filepath.Glob(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("invalid pattern %q in `scrape_config_files`: %w", filePath, err)
+			}
+			sort.Strings(ps)
+			paths = ps
+		}
+		for _, path := range paths {
+			data, err := ioutil.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("cannot load %q from `scrape_config_files`: %w", filePath, err)
+			}
+			data = envtemplate.Replace(data)
+			var scs []ScrapeConfig
+			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
+				return nil, fmt.Errorf("cannot parse %q from `scrape_config_files`: %w", filePath, err)
+			}
+			scrapeConfigs = append(scrapeConfigs, scs...)
+		}
+	}
+	return scrapeConfigs, nil
 }
 
 // IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
@@ -246,7 +284,7 @@ func IsDryRun() bool {
 	return *dryRun
 }
 
-func (cfg *Config) parse(data []byte, path string) error {
+func (cfg *Config) parseData(data []byte, path string) error {
 	if err := unmarshalMaybeStrict(data, cfg); err != nil {
 		return fmt.Errorf("cannot unmarshal data: %w", err)
 	}
@@ -255,6 +293,26 @@ func (cfg *Config) parse(data []byte, path string) error {
 		return fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
 	}
 	cfg.baseDir = filepath.Dir(absPath)
+
+	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
+	scs, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
+	if err != nil {
+		return fmt.Errorf("cannot load `scrape_config_files` from %q: %w", path, err)
+	}
+	cfg.ScrapeConfigFiles = nil
+	cfg.ScrapeConfigs = append(cfg.ScrapeConfigs, scs...)
+
+	// Check that all the scrape configs have unique JobName
+	m := make(map[string]struct{}, len(cfg.ScrapeConfigs))
+	for i := range cfg.ScrapeConfigs {
+		jobName := cfg.ScrapeConfigs[i].JobName
+		if _, ok := m[jobName]; ok {
+			return fmt.Errorf("duplicate `job_name` in `scrape_configs` loaded from %q: %q", path, jobName)
+		}
+		m[jobName] = struct{}{}
+	}
+
+	// Initialize cfg.ScrapeConfigs
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)

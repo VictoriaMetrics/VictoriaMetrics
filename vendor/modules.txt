@@ -1,5 +1,4 @@
-# cloud.google.com/go v0.91.1
-## explicit
+# cloud.google.com/go v0.93.3
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -21,14 +20,14 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.17.3
 ## explicit
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.18.0
+# github.com/VictoriaMetrics/metricsql v0.21.0
 ## explicit
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.22
+# github.com/aws/aws-sdk-go v1.40.33
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -83,7 +82,7 @@ github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/cespare/xxhash/v2 v2.1.1
+# github.com/cespare/xxhash/v2 v2.1.2
 ## explicit
 github.com/cespare/xxhash/v2
 # github.com/cheggaaa/pb/v3 v3.0.8
@@ -106,9 +105,7 @@ github.com/go-logfmt/logfmt
 ## explicit
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.2
-github.com/golang/protobuf/internal/gengogrpc
 github.com/golang/protobuf/proto
-github.com/golang/protobuf/protoc-gen-go
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
@@ -116,8 +113,10 @@ github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.4
 ## explicit
 github.com/golang/snappy
-# github.com/googleapis/gax-go/v2 v2.0.5
+# github.com/googleapis/gax-go/v2 v2.1.0
 github.com/googleapis/gax-go/v2
+github.com/googleapis/gax-go/v2/apierror
+github.com/googleapis/gax-go/v2/apierror/internal/proto
 # github.com/influxdata/influxdb v1.9.3
 ## explicit
 github.com/influxdata/influxdb/client/v2
@@ -125,17 +124,14 @@ github.com/influxdata/influxdb/models
 github.com/influxdata/influxdb/pkg/escape
 # github.com/jmespath/go-jmespath v0.4.0
 github.com/jmespath/go-jmespath
-# github.com/jstemmer/go-junit-report v0.9.1
-github.com/jstemmer/go-junit-report
-github.com/jstemmer/go-junit-report/formatter
-github.com/jstemmer/go-junit-report/parser
-# github.com/klauspost/compress v1.13.4
+# github.com/klauspost/compress v1.13.5
 ## explicit
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/huff0
+github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zlib
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
@@ -164,7 +160,7 @@ github.com/prometheus/client_model/go
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.7.2
+# github.com/prometheus/procfs v0.7.3
 ## explicit
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
@@ -234,13 +230,7 @@ go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 ## explicit
 go.uber.org/atomic
-# golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
-golang.org/x/lint
-golang.org/x/lint/golint
-# golang.org/x/mod v0.4.2
-golang.org/x/mod/module
-golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d
+# golang.org/x/net v0.0.0-20210825183410-e898025ed96a
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -252,7 +242,7 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5
+# golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 ## explicit
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -264,9 +254,8 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
+# golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e
 ## explicit
-golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -276,24 +265,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.1.5
-golang.org/x/tools/cmd/goimports
-golang.org/x/tools/go/ast/astutil
-golang.org/x/tools/go/gcexportdata
-golang.org/x/tools/go/internal/gcimporter
-golang.org/x/tools/internal/event
-golang.org/x/tools/internal/event/core
-golang.org/x/tools/internal/event/keys
-golang.org/x/tools/internal/event/label
-golang.org/x/tools/internal/fastwalk
-golang.org/x/tools/internal/gocommand
-golang.org/x/tools/internal/gopathwalk
-golang.org/x/tools/internal/imports
-golang.org/x/tools/internal/typeparams
-# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
-golang.org/x/xerrors
-golang.org/x/xerrors/internal
-# google.golang.org/api v0.54.0
+# google.golang.org/api v0.55.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -320,14 +292,15 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210811021853-ddbe55d93216
+# google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2
+## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
+google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/googleapis/type/expr
 # google.golang.org/grpc v1.40.0
-## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -373,14 +346,14 @@ google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
 # google.golang.org/protobuf v1.27.1
-google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
-google.golang.org/protobuf/compiler/protogen
+google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
 google.golang.org/protobuf/internal/descopts
 google.golang.org/protobuf/internal/detrand
 google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/json
 google.golang.org/protobuf/internal/encoding/messageset
 google.golang.org/protobuf/internal/encoding/tag
 google.golang.org/protobuf/internal/encoding/text
@@ -405,7 +378,6 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-google.golang.org/protobuf/types/pluginpb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit
 gopkg.in/yaml.v2

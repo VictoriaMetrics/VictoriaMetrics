@@ -67,7 +67,15 @@ func TestLoadStaticConfigs(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	cfg, _, err := loadConfig("testdata/prometheus.yml")
+	cfg, err := loadConfig("testdata/prometheus.yml")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if cfg == nil {
+		t.Fatalf("expecting non-nil config")
+	}
+
+	cfg, err = loadConfig("testdata/prometheus-with-scrape-config-files.yml")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -76,7 +84,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	// Try loading non-existing file
-	cfg, _, err = loadConfig("testdata/non-existing-file")
+	cfg, err = loadConfig("testdata/non-existing-file")
 	if err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
@@ -85,7 +93,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	// Try loading invalid file
-	cfg, _, err = loadConfig("testdata/file_sd_1.yml")
+	cfg, err = loadConfig("testdata/file_sd_1.yml")
 	if err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
@@ -114,7 +122,7 @@ scrape_configs:
         replacement: black:9115  # The blackbox exporter's real hostname:port.%
 `
 	var cfg Config
-	if err := cfg.parse([]byte(data), "sss"); err != nil {
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parase data: %s", err)
 	}
 	sws := cfg.getStaticScrapeWork()
@@ -170,7 +178,7 @@ scrape_configs:
   - files: [testdata/file_sd.json]
 `
 	var cfg Config
-	if err := cfg.parse([]byte(data), "sss"); err != nil {
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parase data: %s", err)
 	}
 	sws := cfg.getFileSDScrapeWork(nil)
@@ -186,7 +194,7 @@ scrape_configs:
   - files: [testdata/file_sd_1.yml]
 `
 	var cfgNew Config
-	if err := cfgNew.parse([]byte(dataNew), "sss"); err != nil {
+	if err := cfgNew.parseData([]byte(dataNew), "sss"); err != nil {
 		t.Fatalf("cannot parse data: %s", err)
 	}
 	swsNew := cfgNew.getFileSDScrapeWork(sws)
@@ -201,7 +209,7 @@ scrape_configs:
   file_sd_configs:
   - files: [testdata/prometheus.yml]
 `
-	if err := cfg.parse([]byte(data), "sss"); err != nil {
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws = cfg.getFileSDScrapeWork(swsNew)
@@ -216,7 +224,7 @@ scrape_configs:
   file_sd_configs:
   - files: [testdata/empty_target_file_sd.yml]
 `
-	if err := cfg.parse([]byte(data), "sss"); err != nil {
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws = cfg.getFileSDScrapeWork(swsNew)
@@ -227,7 +235,7 @@ scrape_configs:
 
 func getFileSDScrapeWork(data []byte, path string) ([]*ScrapeWork, error) {
 	var cfg Config
-	if err := cfg.parse(data, path); err != nil {
+	if err := cfg.parseData(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse data: %w", err)
 	}
 	return cfg.getFileSDScrapeWork(nil), nil
@@ -235,7 +243,7 @@ func getFileSDScrapeWork(data []byte, path string) ([]*ScrapeWork, error) {
 
 func getStaticScrapeWork(data []byte, path string) ([]*ScrapeWork, error) {
 	var cfg Config
-	if err := cfg.parse(data, path); err != nil {
+	if err := cfg.parseData(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse data: %w", err)
 	}
 	return cfg.getStaticScrapeWork(), nil
@@ -261,6 +269,17 @@ func TestGetStaticScrapeWorkFailure(t *testing.T) {
 scrape_configs:
 - static_configs:
   - targets: ["foo"]
+`)
+
+	// Duplicate job_name
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+    targets: ["foo"]
+- job_name: foo
+  static_configs:
+    targets: ["bar"]
 `)
 
 	// Invalid scheme
@@ -484,6 +503,14 @@ scrape_configs:
 - job_name: aa
   relabel_configs:
   - action: foobar
+  static_configs:
+  - targets: ["s"]
+`)
+
+	// Invalid scrape_config_files contents
+	f(`
+scrape_config_files:
+- job_name: aa
   static_configs:
   - targets: ["s"]
 `)

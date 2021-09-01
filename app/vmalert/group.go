@@ -18,15 +18,17 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu                sync.RWMutex
-	Name              string
-	File              string
-	Rules             []Rule
-	Type              datasource.Type
-	Interval          time.Duration
-	Concurrency       int
-	Checksum          string
+	mu          sync.RWMutex
+	Name        string
+	File        string
+	Rules       []Rule
+	Type        datasource.Type
+	Interval    time.Duration
+	Concurrency int
+	Checksum    string
+
 	ExtraFilterLabels map[string]string
+	Labels            map[string]string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -50,6 +52,23 @@ func newGroupMetrics(name, file string) *groupMetrics {
 	return m
 }
 
+// merges group rule labels into result map
+// set2 has priority over set1.
+func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
+	r := map[string]string{}
+	for k, v := range set1 {
+		r[k] = v
+	}
+	for k, v := range set2 {
+		if prevV, ok := r[k]; ok {
+			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
+				k, prevV, groupName, ruleName, k, v)
+		}
+		r[k] = v
+	}
+	return r
+}
+
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
 		Type:              cfg.Type,
@@ -59,6 +78,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Concurrency:       cfg.Concurrency,
 		Checksum:          cfg.Checksum,
 		ExtraFilterLabels: cfg.ExtraFilterLabels,
+		Labels:            cfg.Labels,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -73,17 +93,20 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
-		// override rule labels with external labels
-		for k, v := range labels {
-			if prevV, ok := r.Labels[k]; ok {
-				logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
-					k, prevV, g.Name, r.Name(), k, v)
-			}
-			if r.Labels == nil {
-				r.Labels = map[string]string{}
-			}
-			r.Labels[k] = v
+		var extraLabels map[string]string
+		// apply external labels
+		if len(labels) > 0 {
+			extraLabels = labels
 		}
+		// apply group labels, it has priority on external labels
+		if len(cfg.Labels) > 0 {
+			extraLabels = mergeLabels(g.Name, r.Name(), extraLabels, g.Labels)
+		}
+		// apply rules labels, it has priority on other labels
+		if len(extraLabels) > 0 {
+			r.Labels = mergeLabels(g.Name, r.Name(), extraLabels, r.Labels)
+		}
+
 		rules[i] = g.newRule(qb, r)
 	}
 	g.Rules = rules
@@ -110,6 +133,7 @@ func (g *Group) ID() uint64 {
 
 // Restore restores alerts state for group rules
 func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
+	labels = mergeLabels(g.Name, "", labels, g.Labels)
 	for _, rule := range g.Rules {
 		rr, ok := rule.(*AlertingRule)
 		if !ok {
@@ -169,16 +193,11 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
 	g.ExtraFilterLabels = newGroup.ExtraFilterLabels
+	g.Labels = newGroup.Labels
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil
 }
-
-var (
-	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
-	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
-	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
-)
 
 func (g *Group) close() {
 	if g.doneCh == nil {
@@ -220,7 +239,16 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{nts, rw}
+	e := &executor{rw: rw}
+	for _, nt := range nts {
+		ent := eNotifier{
+			Notifier:         nt,
+			alertsSent:       getOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", nt.Addr())),
+			alertsSendErrors: getOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", nt.Addr())),
+		}
+		e.notifiers = append(e.notifiers, ent)
+	}
+
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -263,8 +291,14 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 }
 
 type executor struct {
-	notifiers []notifier.Notifier
+	notifiers []eNotifier
 	rw        *remotewrite.Client
+}
+
+type eNotifier struct {
+	notifier.Notifier
+	alertsSent       *counter
+	alertsSendErrors *counter
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
@@ -297,19 +331,16 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 }
 
 var (
-	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
-	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
-	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+	alertsFired = metrics.NewCounter(`vmalert_alerts_fired_total`)
+
+	execTotal  = metrics.NewCounter(`vmalert_execution_total`)
+	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
 
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
 func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) error {
 	execTotal.Inc()
-	execStart := time.Now()
-	defer func() {
-		execDuration.UpdateDuration(execStart)
-	}()
 
 	tss, err := rule.Exec(ctx)
 	if err != nil {
@@ -350,11 +381,11 @@ func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) 
 		return nil
 	}
 
-	alertsSent.Add(len(alerts))
 	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers {
+		nt.alertsSent.Add(len(alerts))
 		if err := nt.Send(ctx, alerts); err != nil {
-			alertsSendErrors.Inc()
+			nt.alertsSendErrors.Inc()
 			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %w", rule, err))
 		}
 	}

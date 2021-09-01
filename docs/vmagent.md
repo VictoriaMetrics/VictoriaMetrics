@@ -40,8 +40,8 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared with Prometheus.
 * Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
 * Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/). See [these docs](#stream-parsing-mode).
-* Can deal with high cardinality and high churn rate issues by limiting the number of unique time series sent to remote storage systems. See [these docs](#cardinality-limiter).
-
+* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series sent to remote storage systems. See [these docs](#cardinality-limiter).
+* Can load scrape configs from multiple files. See [these docs](#loading-scrape-configs-from-multiple-files).
 
 ## Quick Start
 
@@ -207,6 +207,30 @@ command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` 
 entries to 60s. Run `vmagent -help` in order to see default values for the `-promscrape.*CheckInterval` flags.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
+
+
+## Loading scrape configs from multiple files
+
+`vmagent` supports loading scrape configs from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory plus a `single_scrape_config.yml` file:
+
+```yml
+scrape_config_files:
+- configs/*.yml
+- single_scrape_config.yml
+```
+
+Every referred file can contain arbitrary number of any [supported scrape configs](#how-to-collect-metrics-in-prometheus-format). There is no need in specifying top-level `scrape_configs` section in these files. For example:
+
+```yml
+- job_name: foo
+  static_configs:
+  - targets: ["vmagent:8429"]
+- job_name: bar
+  kubernetes_sd_configs:
+  - role: pod
+```
+
+`vmagent` dynamically reloads these files on `SIGHUP` signal or on the request to `http://vmagent:8429/-/reload`.
 
 
 ## Adding labels to metrics

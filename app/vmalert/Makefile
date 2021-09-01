@@ -56,6 +56,7 @@ test-vmalert:
 	go test -v -race -cover ./app/vmalert/datasource
 	go test -v -race -cover ./app/vmalert/notifier
 	go test -v -race -cover ./app/vmalert/config
+	go test -v -race -cover ./app/vmalert/remotewrite
 
 run-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \

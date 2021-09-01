@@ -39,7 +39,7 @@ services:
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:8.0.0
+    image: grafana/grafana:8.1.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -49,6 +49,7 @@ services:
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
+      - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     networks:
       - vm_net
     restart: always

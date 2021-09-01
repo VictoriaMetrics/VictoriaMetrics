@@ -4,7 +4,7 @@ sort: 9
 
 # vmgateway
 
-***vmgateway is a part of [enterprise package](https://victoriametrics.com/enterprise.html)***
+***vmgateway is a part of [enterprise package](https://victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">

@@ -128,21 +128,21 @@ func TestGetAPIPathsWithNamespaces(t *testing.T) {
 		"/api/v1/namespaces/y/endpoints?labelSelector=bbb",
 	})
 
-	// role=endpointslices
-	f("endpointslices", nil, nil, []string{"/apis/discovery.k8s.io/v1beta1/endpointslices"})
-	f("endpointslices", []string{"x", "y"}, []Selector{
+	// role=endpointslice
+	f("endpointslice", nil, nil, []string{"/apis/discovery.k8s.io/v1/endpointslices"})
+	f("endpointslice", []string{"x", "y"}, []Selector{
 		{
-			Role:  "endpointslices",
+			Role:  "endpointslice",
 			Field: "field",
 			Label: "label",
 		},
 	}, []string{
-		"/apis/discovery.k8s.io/v1beta1/namespaces/x/endpointslices?labelSelector=label&fieldSelector=field",
-		"/apis/discovery.k8s.io/v1beta1/namespaces/y/endpointslices?labelSelector=label&fieldSelector=field",
+		"/apis/discovery.k8s.io/v1/namespaces/x/endpointslices?labelSelector=label&fieldSelector=field",
+		"/apis/discovery.k8s.io/v1/namespaces/y/endpointslices?labelSelector=label&fieldSelector=field",
 	})
 
 	// role=ingress
-	f("ingress", nil, nil, []string{"/apis/networking.k8s.io/v1beta1/ingresses"})
+	f("ingress", nil, nil, []string{"/apis/networking.k8s.io/v1/ingresses"})
 	f("ingress", []string{"x", "y"}, []Selector{
 		{
 			Role:  "node",
@@ -161,8 +161,8 @@ func TestGetAPIPathsWithNamespaces(t *testing.T) {
 			Label: "baaa",
 		},
 	}, []string{
-		"/apis/networking.k8s.io/v1beta1/namespaces/x/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
-		"/apis/networking.k8s.io/v1beta1/namespaces/y/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
+		"/apis/networking.k8s.io/v1/namespaces/x/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
+		"/apis/networking.k8s.io/v1/namespaces/y/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
 	})
 }
 
@@ -577,9 +577,9 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			initAPIObjectsByRole: map[string][]byte{
 				"ingress": []byte(`{
   "kind": "IngressList",
-  "apiVersion": "extensions/v1beta1",
+  "apiVersion": "extensions/v1",
   "metadata": {
-    "selfLink": "/apis/extensions/v1beta1/ingresses",
+    "selfLink": "/apis/extensions/v1/ingresses",
     "resourceVersion": "351452"
   },
   "items": [
@@ -672,15 +672,15 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 		{
 			name: "7 endpointslices slice with 1 service update",
 			sdc: &SDConfig{
-				Role: "endpointslices",
+				Role: "endpointslice",
 			},
 			expectedTargetsLen: 7,
 			initAPIObjectsByRole: map[string][]byte{
-				"endpointslices": []byte(`{
+				"endpointslice": []byte(`{
   "kind": "EndpointSliceList",
-  "apiVersion": "discovery.k8s.io/v1beta1",
+  "apiVersion": "discovery.k8s.io/v1",
   "metadata": {
-    "selfLink": "/apis/discovery.k8s.io/v1beta1/endpointslices",
+    "selfLink": "/apis/discovery.k8s.io/v1/endpointslices",
     "resourceVersion": "1177"
   },
   "items": [

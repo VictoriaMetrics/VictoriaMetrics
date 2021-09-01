@@ -20,10 +20,9 @@ Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-set
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
-See additional docs at our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki).
-
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
 See [features available for enterprise customers](https://victoriametrics.com/enterprise.html).
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Case studies and talks
@@ -64,8 +63,8 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
   [Outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 * [Uses 10x less RAM than InfluxDB](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893)
   and [up to 7x less RAM than Prometheus, Thanos or Cortex](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f)
-  when dealing with millions of unique time series (aka high cardinality).
-* Optimized for time series with high churn rate. Think about [prometheus-operator](https://github.com/coreos/prometheus-operator) metrics from frequent deployments in Kubernetes.
+  when dealing with millions of unique time series (aka [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality)).
+* Optimized for time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). Think about [prometheus-operator](https://github.com/coreos/prometheus-operator) metrics from frequent deployments in Kubernetes.
 * High data compression, so [up to 70x more data points](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
   may be crammed into limited storage comparing to TimescaleDB
   and [up to 7x less storage space is required comparing to Prometheus, Thanos or Cortex](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f).
@@ -98,8 +97,8 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
-* Can deal with high cardinality and high churn rate issues using [series limiter](#cardinality-limiter).
-* Ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
+* Can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues using [series limiter](#cardinality-limiter).
+* Ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/enterprise.html).
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
@@ -619,6 +618,7 @@ and it is easier to use when migrating from Graphite to VictoriaMetrics.
 [VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 It supports `Storage-Step` http request header, which must be set to a step between data points stored in VictoriaMetrics when configuring Graphite datasource in Grafana.
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ### Graphite Metrics API usage
@@ -758,7 +758,7 @@ Note that background merges may never occur for data from previous months, so st
 In this case [forced merge](#forced-merge) may help freeing up storage space.
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
-before actually deleting the metrics.  By default this query will only scan active series in the past 5 minutes, so you may need to
+before actually deleting the metrics.  By default this query will only scan series in the past 5 minutes, so you may need to
 adjust `start` and `end` to a suitable range to achieve match hits.
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
@@ -1094,7 +1094,7 @@ with scrape intervals exceeding `5m`.
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-VictoriaMetrics capacity scales linearly with the available resources. The needed amounts of CPU and RAM highly depends on the workload - the number of active time series, series churn rate, query types, query qps, etc. It is recommended setting up a test VictoriaMetrics for your production workload and iteratively scaling CPU and RAM resources until it becomes stable according to [troubleshooting docs](#troubleshooting). A single-node VictoriaMetrics works perfectly with the following production workload according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html):
+VictoriaMetrics capacity scales linearly with the available resources. The needed amounts of CPU and RAM highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series), series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics for your production workload and iteratively scaling CPU and RAM resources until it becomes stable according to [troubleshooting docs](#troubleshooting). A single-node VictoriaMetrics works perfectly with the following production workload according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html):
 
 * Ingestion rate: 1.5+ million samples per second
 * Active time series: 50+ million
@@ -1203,6 +1203,7 @@ There is no downsampling support at the moment, but:
   in [this article](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 * VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
+* The downsampling doesn't improve query performance on a long time range if the time range contains big number of time series due to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The query performance depends on the number of unique time series on the selected time range, while downsampling doesn't reduce the number of unique time series in the database - it can reduce only the number of samples per each time series.
 
 These properties reduce the need of downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
@@ -1225,7 +1226,7 @@ such as Thanos, Uber M3, InfluxDB or TimescaleDB. See [vertical scalability benc
 
 So try single-node VictoriaMetrics at first and then [switch to cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
 horizontally scalable long-term remote storage for really large Prometheus deployments.
-[Contact us](mailto:info@victoriametrics.com) for paid support.
+[Contact us](mailto:info@victoriametrics.com) for enterprise support.
 
 
 ## Alerting
@@ -1294,18 +1295,18 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
 The most interesting metrics are:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
-  aka active time series.
-* `increase(vm_new_timeseries_created_total[1h])` - time series churn rate during the previous hour.
+  aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
+* `increase(vm_new_timeseries_created_total[1h])` - time series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) during the previous hour.
 * `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
 * `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
 * `sum(vm_data_size_bytes)` - the total size of data on disk.
 * `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
   If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  of the current number of active time series.
+  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
 * `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
   If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  of the current number of active time series.
+  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
 
 VictoriaMetrics also exposes currently running queries with their execution times at `/api/v1/status/active_queries` page.
 
@@ -1325,8 +1326,8 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 
 By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
 
-* `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of active time series.
-* `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily churn rate.
+* `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
+* `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
 Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
 
@@ -1367,7 +1368,7 @@ These limits are approximate, so VictoriaMetrics can underflow/overflow the limi
     See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
-  then it is likely you have too many active time series for the current amount of RAM.
+  then it is likely you have too many [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series) for the current amount of RAM.
   VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics such as `vm_slow_row_inserts_total` and `vm_slow_metric_name_loads_total`, which could be used
   as an indicator of low amounts of RAM. It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
   ingestion and query performance in this case.
@@ -1394,7 +1395,7 @@ These limits are approximate, so VictoriaMetrics can underflow/overflow the limi
   It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
   each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
-* Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page. See [these docs](#tsdb-stats) for details.
+* Metrics and labels leading to [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) or [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) can be determined at `/api/v1/status/tsdb` page. See [these docs](#tsdb-stats) for details.
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
@@ -1464,7 +1465,8 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
-We also provide `vmbackupmanager` tool for paid enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for details.
+We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Profiling
@@ -1720,8 +1722,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.disableKeepAlive
     	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
-  -promscrape.noStaleMarkers
-    	Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.discovery.concurrency int
     	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
@@ -1753,6 +1753,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.noStaleMarkers
+    	Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.openstackSDCheckInterval duration
     	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
   -promscrape.streamParse
@@ -1769,7 +1771,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Data with timestamps outside the retentionPeriod is automatically deleted
     	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -search.cacheTimestampOffset duration
-    	The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
+    	The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources. See also -search.disableAutoCacheReset (default 5m0s)
+  -search.disableAutoCacheReset
+    	Whether to disable automatic response cache reset if a sample with timestamp outside -search.cacheTimestampOffset is inserted into VictoriaMetrics
   -search.disableCache
     	Whether to disable response caching. This may be useful during data backfilling
   -search.latencyOffset duration

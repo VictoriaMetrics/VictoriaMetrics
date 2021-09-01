@@ -99,6 +99,13 @@ name: <string>
 extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
 
+# Optional list of labels added to every rule within a group.
+# It has priority over the external labels.
+# Labels are commonly used for adding environment
+# or tenant-specific tag.
+labels:
+  [ <labelname>: <labelvalue> ... ]
+
 rules:
   [ - <rule> ... ]
 ```
@@ -308,6 +315,8 @@ to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#ran
 of the configured `-datasource.url`. Returned data then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [Remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
+Vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
+to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
 
 #### Recording rules
 
@@ -344,6 +353,17 @@ See full description for these flags in `./vmalert --help`.
 * `query` template function is disabled for performance reasons (might be changed in future);
 
 
+## Monitoring
+
+`vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page. 
+We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported 
+metrics may be analyzed later.
+
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add 
+a review to the dashboard.
+
+
 ## Configuration
 
 Pass `-help` to `vmalert` in order to see the full list of supported
@@ -377,6 +397,8 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+  -disableAlertgroupLabel
+    	Whether to disable adding group's name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6

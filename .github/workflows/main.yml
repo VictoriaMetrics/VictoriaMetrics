@@ -60,7 +60,7 @@ jobs:
           GOOS=darwin go build -mod=vendor ./app/vmctl
           CGO_ENABLED=0 GOOS=windows go build -mod=vendor ./app/vmagent
       - name: Publish coverage
-        uses: codecov/codecov-action@v2.0.2
+        uses: codecov/codecov-action@v2.0.3
         with:
           file: ./coverage.txt
 

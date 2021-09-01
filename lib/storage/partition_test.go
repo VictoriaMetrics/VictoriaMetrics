@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-func TestPartitionMaxRowsByPath(t *testing.T) {
-	n := maxRowsByPath(".")
+func TestPartitionGetMaxOutBytes(t *testing.T) {
+	n := getMaxOutBytes(".", 1)
 	if n < 1e3 {
-		t.Fatalf("too small number of rows can be created in the current directory: %d", n)
+		t.Fatalf("too small free space remained in the current directory: %d", n)
 	}
 }
 
@@ -35,10 +35,10 @@ func TestAppendPartsToMerge(t *testing.T) {
 }
 
 func TestAppendPartsToMergeNeedFreeSpace(t *testing.T) {
-	f := func(a []uint64, maxItems int, expectedNeedFreeSpace bool) {
+	f := func(sizes []uint64, maxOutBytes int, expectedNeedFreeSpace bool) {
 		t.Helper()
-		pws := newTestPartWrappersForRowsCount(a)
-		_, needFreeSpace := appendPartsToMerge(nil, pws, defaultPartsToMerge, uint64(maxItems))
+		pws := newTestPartWrappersForSizes(sizes)
+		_, needFreeSpace := appendPartsToMerge(nil, pws, defaultPartsToMerge, uint64(maxOutBytes))
 		if needFreeSpace != expectedNeedFreeSpace {
 			t.Fatalf("unexpected needFreeSpace; got %v; want %v", needFreeSpace, expectedNeedFreeSpace)
 		}
@@ -46,7 +46,7 @@ func TestAppendPartsToMergeNeedFreeSpace(t *testing.T) {
 	f(nil, 1000, false)
 	f([]uint64{1000}, 100, false)
 	f([]uint64{1000}, 1100, false)
-	f([]uint64{100, 200}, 180, true)
+	f([]uint64{120, 200}, 180, true)
 	f([]uint64{100, 200}, 310, false)
 	f([]uint64{100, 110, 109, 1}, 300, true)
 	f([]uint64{100, 110, 109, 1}, 330, false)
@@ -55,8 +55,8 @@ func TestAppendPartsToMergeNeedFreeSpace(t *testing.T) {
 func TestAppendPartsToMergeManyParts(t *testing.T) {
 	// Verify that big number of parts are merged into minimal number of parts
 	// using minimum merges.
-	var a []uint64
-	maxOutPartRows := uint64(0)
+	var sizes []uint64
+	maxOutSize := uint64(0)
 	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 1024; i++ {
 		n := uint64(uint32(r.NormFloat64() * 1e9))
@@ -64,15 +64,15 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 			n = -n
 		}
 		n++
-		maxOutPartRows += n
-		a = append(a, n)
+		maxOutSize += n
+		sizes = append(sizes, n)
 	}
-	pws := newTestPartWrappersForRowsCount(a)
+	pws := newTestPartWrappersForSizes(sizes)
 
 	iterationsCount := 0
-	rowsMerged := uint64(0)
+	sizeMergedTotal := uint64(0)
 	for {
-		pms, _ := appendPartsToMerge(nil, pws, defaultPartsToMerge, maxOutPartRows)
+		pms, _ := appendPartsToMerge(nil, pws, defaultPartsToMerge, maxOutSize)
 		if len(pms) == 0 {
 			break
 		}
@@ -81,61 +81,58 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 			m[pw] = true
 		}
 		var pwsNew []*partWrapper
-		rowsCount := uint64(0)
+		size := uint64(0)
 		for _, pw := range pws {
 			if m[pw] {
-				rowsCount += pw.p.ph.RowsCount
+				size += pw.p.size
 			} else {
 				pwsNew = append(pwsNew, pw)
 			}
 		}
 		pw := &partWrapper{
-			p: &part{},
+			p: &part{
+				size: size,
+			},
 		}
-		pw.p.ph = partHeader{
-			RowsCount: rowsCount,
-		}
-		rowsMerged += rowsCount
+		sizeMergedTotal += size
 		pwsNew = append(pwsNew, pw)
 		pws = pwsNew
 		iterationsCount++
 	}
-	rowsCount := newTestRowsCountFromPartWrappers(pws)
-	rowsTotal := uint64(0)
-	for _, rc := range rowsCount {
-		rowsTotal += uint64(rc)
+	sizes = newTestSizesFromPartWrappers(pws)
+	sizeTotal := uint64(0)
+	for _, size := range sizes {
+		sizeTotal += uint64(size)
 	}
-	overhead := float64(rowsMerged) / float64(rowsTotal)
+	overhead := float64(sizeMergedTotal) / float64(sizeTotal)
 	if overhead > 2.1 {
-		t.Fatalf("too big overhead; rowsCount=%d, iterationsCount=%d, rowsTotal=%d, rowsMerged=%d, overhead=%f",
-			rowsCount, iterationsCount, rowsTotal, rowsMerged, overhead)
+		t.Fatalf("too big overhead; sizes=%d, iterationsCount=%d, sizeTotal=%d, sizeMergedTotal=%d, overhead=%f",
+			sizes, iterationsCount, sizeTotal, sizeMergedTotal, overhead)
 	}
-	if len(rowsCount) > 18 {
-		t.Fatalf("too many rowsCount %d; rowsCount=%d, iterationsCount=%d, rowsTotal=%d, rowsMerged=%d, overhead=%f",
-			len(rowsCount), rowsCount, iterationsCount, rowsTotal, rowsMerged, overhead)
+	if len(sizes) > 18 {
+		t.Fatalf("too many sizes %d; sizes=%d, iterationsCount=%d, sizeTotal=%d, sizeMergedTotal=%d, overhead=%f",
+			len(sizes), sizes, iterationsCount, sizeTotal, sizeMergedTotal, overhead)
 	}
 }
 
-func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount, expectedRowsCount []uint64) {
+func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialSizes, expectedSizes []uint64) {
 	t.Helper()
 
-	pws := newTestPartWrappersForRowsCount(initialRowsCount)
+	pws := newTestPartWrappersForSizes(initialSizes)
 
 	// Verify appending to nil.
 	pms, _ := appendPartsToMerge(nil, pws, maxPartsToMerge, 1e9)
-	rowsCount := newTestRowsCountFromPartWrappers(pms)
-	if !reflect.DeepEqual(rowsCount, expectedRowsCount) {
-		t.Fatalf("unexpected rowsCount for maxPartsToMerge=%d, initialRowsCount=%d; got\n%d; want\n%d",
-			maxPartsToMerge, initialRowsCount, rowsCount, expectedRowsCount)
+	sizes := newTestSizesFromPartWrappers(pms)
+	if !reflect.DeepEqual(sizes, expectedSizes) {
+		t.Fatalf("unexpected size for maxPartsToMerge=%d, initialSizes=%d; got\n%d; want\n%d",
+			maxPartsToMerge, initialSizes, sizes, expectedSizes)
 	}
 
 	// Verify appending to prefix
 	prefix := []*partWrapper{
 		{
 			p: &part{
-				ph: partHeader{
-					RowsCount: 1234,
-				},
+				size: 1234,
 			},
 		},
 		{},
@@ -143,33 +140,31 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 	}
 	pms, _ = appendPartsToMerge(prefix, pws, maxPartsToMerge, 1e9)
 	if !reflect.DeepEqual(pms[:len(prefix)], prefix) {
-		t.Fatalf("unexpected prefix for maxPartsToMerge=%d, initialRowsCount=%d; got\n%+v; want\n%+v",
-			maxPartsToMerge, initialRowsCount, pms[:len(prefix)], prefix)
+		t.Fatalf("unexpected prefix for maxPartsToMerge=%d, initialSizes=%d; got\n%+v; want\n%+v",
+			maxPartsToMerge, initialSizes, pms[:len(prefix)], prefix)
 	}
 
-	rowsCount = newTestRowsCountFromPartWrappers(pms[len(prefix):])
-	if !reflect.DeepEqual(rowsCount, expectedRowsCount) {
-		t.Fatalf("unexpected prefixed rowsCount for maxPartsToMerge=%d, initialRowsCount=%d; got\n%d; want\n%d",
-			maxPartsToMerge, initialRowsCount, rowsCount, expectedRowsCount)
+	sizes = newTestSizesFromPartWrappers(pms[len(prefix):])
+	if !reflect.DeepEqual(sizes, expectedSizes) {
+		t.Fatalf("unexpected prefixed sizes for maxPartsToMerge=%d, initialSizes=%d; got\n%d; want\n%d",
+			maxPartsToMerge, initialSizes, sizes, expectedSizes)
 	}
 }
 
-func newTestRowsCountFromPartWrappers(pws []*partWrapper) []uint64 {
-	var rowsCount []uint64
+func newTestSizesFromPartWrappers(pws []*partWrapper) []uint64 {
+	var sizes []uint64
 	for _, pw := range pws {
-		rowsCount = append(rowsCount, pw.p.ph.RowsCount)
+		sizes = append(sizes, pw.p.size)
 	}
-	return rowsCount
+	return sizes
 }
 
-func newTestPartWrappersForRowsCount(rowsCount []uint64) []*partWrapper {
+func newTestPartWrappersForSizes(sizes []uint64) []*partWrapper {
 	var pws []*partWrapper
-	for _, rc := range rowsCount {
+	for _, size := range sizes {
 		pw := &partWrapper{
 			p: &part{
-				ph: partHeader{
-					RowsCount: rc,
-				},
+				size: size,
 			},
 		}
 		pws = append(pws, pw)

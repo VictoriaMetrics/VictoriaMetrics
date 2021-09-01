@@ -354,7 +354,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notif
 	}
 	// label defined here to make override possible by
 	// time series labels.
-	if ar.GroupName != "" {
+	if !*disableAlertGroupLabel && ar.GroupName != "" {
 		a.Labels[alertGroupNameLabel] = ar.GroupName
 	}
 	for _, l := range m.Labels {

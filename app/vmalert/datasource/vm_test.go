@@ -385,7 +385,7 @@ func TestRequestParams(t *testing.T) {
 			"round digits",
 			false,
 			&VMStorage{
-				roundDigits: "10",
+				extraParams: []Param{{"round_digits", "10"}},
 			},
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("query=%s&round_digits=10&time=%d", query, timestamp.Unix())
@@ -418,6 +418,20 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("end=%d&extra_label=env%%3Dprod&extra_label=query%%3Des%%3Dcape&query=%s&start=%d",
 					timestamp.Unix(), query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"extra params",
+			false,
+			&VMStorage{
+				extraParams: []Param{
+					{Key: "nocache", Value: "1"},
+					{Key: "max_lookback", Value: "1h"},
+				},
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("max_lookback=1h&nocache=1&query=%s&time=%d", query, timestamp.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},

@@ -18,8 +18,11 @@ var SDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*t
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
 type SDConfig struct {
-	APIServer        string                    `yaml:"api_server,omitempty"`
-	Role             string                    `yaml:"role"`
+	APIServer string `yaml:"api_server,omitempty"`
+
+	// Use role() function for accessing the Role field
+	Role string `yaml:"role"`
+
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
 	ProxyURL         proxy.URL                 `yaml:"proxy_url,omitempty"`
 	Namespaces       Namespaces                `yaml:"namespaces,omitempty"`
@@ -27,6 +30,15 @@ type SDConfig struct {
 
 	cfg      *apiConfig
 	startErr error
+}
+
+func (sdc *SDConfig) role() string {
+	if sdc.Role == "endpointslices" {
+		// The endpointslices role isn't supported by Prometheus, but it is used by VictoriaMetrics operator.
+		// Support it for backwards compatibility.
+		return "endpointslice"
+	}
+	return sdc.Role
 }
 
 // Namespaces represents namespaces for SDConfig

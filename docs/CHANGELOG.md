@@ -6,13 +6,32 @@ sort: 15
 
 ## tip
 
+* FEATURE: vmagent: add ability to read scrape configs from multiple files specified in `scrape_config_files` section. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1559).
+* FEATURE: vmagent: reduce memory usage and CPU usage when [Prometheus staleness tracking](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) is enabled for metrics exported from the deleted or disappeared scrape targets.
+* FEATURE: vmagent: discover `role: ingress` and `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) via v1 API instead of v1beta1 API if Kubernetes supports it. This fixes service discovery in Kubernetes v1.22 and newer versions. See [these docs](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122).
+* FEATURE: take into account failed queries in `vm_request_duration_seconds` summary at `/metrics`. Previously only successful queries were taken into account. This could result in skewed summary. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1537).
+* FEATURE: vmalert: add an official dashboard for vmalert. See [these docs](https://docs.victoriametrics.com/vmalert.html#monitoring).
+* FEATURE: vmalert: add ability to set additional labels per group via `labels` config section. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1471).
+* FEATURE: vmalert: add `-disableAlertgroupLabel` command-line flag for disabling the label with alert group name. This may be needed for proper deduplication in Alertmanager. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1532).
+* FEATURE: update Go builder from v1.16.7 to v1.17.0. This improves data ingestion and query performance by up to 5% according to benchmarks. See [the release post for Go1.17](https://go.dev/blog/go1.17).
+* FEATURE: vmagent: expose `promscrape_discovery_http_errors_total` metric, which can be used for monitoring the number of failed discovery attempts per each `http_sd` config.
+* FEATURE: do not reset response cache when a sample with old timestamp is ingested into VictoriaMetrics if `-search.disableAutoCacheReset` command-line option is set. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1570).
+* FEATURE: add `quantiles("quantileLabel", phi1, ..., phiN, q)` aggregate function to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html), which calculates the given `phi*` quantiles over time series returned by `q`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1573).
+
+* BUGFIX: rename `sign` function to `sgn` in order to be consistent with PromQL. See [this pull request from Prometheus](https://github.com/prometheus/prometheus/pull/8457).
+* BUGFIX: vmagent: add `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) in order to be consistent with Prometheus. Previously this role was supported with incorrect name: `role: endpointslices`. Now both `endpointslice` and `endpointslices` are supported. See [the corresponding code in Prometheus](https://github.com/prometheus/prometheus/blob/2ec6c7dbb82b72834021e01f1773eb90a67a371f/discovery/kubernetes/kubernetes.go#L99).
+* BUGFIX: improve the detection of the needed free space for background merge operation. This should prevent from possible out of disk space crashes during big merges. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1560).
+* BUGFIX: vmauth: remove trailing slash from the full url before requesting it from the backend. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1554).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix timeout error when snapshot takes longer than 10 seconds. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1571).
+* BUGFIX: properly parse OpenTSDB `put` messages with multiple spaces between message elements. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1574). Thanks to @envzhu for the fix.
+
 
 ## [v1.64.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.64.1)
 
 * FEATURE: add `bitmap_and(q, mask)`, `bitmap_or(q, mask)` and `bitmak_xor(q, mask)` functions to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). These functions allow performing bitwise operations over data points in time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1541).
 * FEATURE: vmalert: add `-remoteWrite.disablePathAppend` command-line flag, which can be used when custom `-remoteWrite.url` must be specified. For example, `./vmalert -disablePathAppend -remoteWrite.url='http://foo.bar/a/b/c?d=e'` would write data to `http://foo.bar/a/b/c?d=e` instead of `http://foo.bar/a/b/c?d=e/api/v1/write`. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1536).
 * FEATURE: vmagent: add `-promscrape.noStaleMarkers` command-line flag for disabling sending Prometheus stale markers for metrics from disappeared scrape targets. This option may be used for reducing memory usage when scraping big number of metrics with big number of labels and when stale markers aren't needed.
-* FEATURE: vmselect: add `-search.noStaleMarkers` command-line flag for stale markers handling in queries.
+* FEATURE: vmselect: add `-search.noStaleMarkers` command-line flag for disabling stale markers handling in queries. This may save some CPU time when the queried data doesn't contain stale markers.
 
 * BUGFIX: vmagent: stop scrapers for deleted targets before starting scrapers for added targets. This should prevent from possible time series overlap when old targets are substituted by new targets (for example, during new deployment in Kubernetes). The overlap could lead to incorrect query results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1509).
 * BUGFIX: vmagent: send Prometheus stale markers for the previously scraped metrics on failed scrapes like Prometheus does. See [this article](https://www.robustperception.io/staleness-and-promql).
