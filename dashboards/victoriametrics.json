@@ -91,7 +91,7 @@
       "id": 6,
       "panels": [
         {
-          "datasource": null,
+          "datasource": "$ds",
           "description": "",
           "gridPos": {
             "h": 2,
@@ -373,7 +373,7 @@
           "type": "stat"
         },
         {
-          "datasource": null,
+          "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
               "color": {

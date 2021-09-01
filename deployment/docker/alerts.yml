@@ -248,3 +248,16 @@ groups:
           description: "Vmagent fails to push data via remote write protocol to destination \"{{ $labels.url }}\"\n
             Ensure that destination is up and reachable."
 
+      - alert: RemoteWriteConnectionIsSaturated
+        expr: rate(vmagent_remotewrite_send_duration_seconds_total[5m]) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=84&var-instance={{ $labels.instance }}"
+          summary: "Remote write connection from \"{{ $labels.job }}\" (instance {{ $labels.instance }}) to {{ $labels.url }} is saturated"
+          description: "The remote write connection between vmagent \"{{ $labels.job }}\" (instance {{ $labels.instance }}) and destination \"{{ $labels.url }}\"
+            is saturated by more than 90% and vmagent won't be able to keep up.\n
+            This usually means that `-remoteWrite.queues` command-line flag must be increased in order to increase
+            the number of connections per each remote storage."
+
