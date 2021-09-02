@@ -1215,7 +1215,7 @@ only a single data point out of 20 initial data points per each 5m interval.
 
 ## Multi-tenancy
 
-Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) instead.
+Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) instead.
 
 
 ## Scalability and cluster version
