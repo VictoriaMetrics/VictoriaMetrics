@@ -71,7 +71,12 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 //
 // Do not put broken and closed connections to the pool!
 func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
-	bc.SetDeadline(time.Time{})
+	if err := bc.SetDeadline(time.Time{}); err != nil {
+		// Close the connection instead of returning it to the pool,
+		// since it may be broken.
+		_ = bc.Close()
+		return
+	}
 	cp.mu.Lock()
 	cp.conns = append(cp.conns, bc)
 	cp.mu.Unlock()
