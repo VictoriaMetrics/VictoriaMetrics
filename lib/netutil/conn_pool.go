@@ -3,6 +3,7 @@ package netutil
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 )
@@ -70,6 +71,7 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 //
 // Do not put broken and closed connections to the pool!
 func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
+	bc.SetDeadline(time.Time{})
 	cp.mu.Lock()
 	cp.conns = append(cp.conns, bc)
 	cp.mu.Unlock()
