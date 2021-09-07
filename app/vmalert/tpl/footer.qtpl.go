@@ -51,40 +51,36 @@ func StreamFooter(qw422016 *qt422016.Writer) {
               if (group.length > 0) {
                 group.click();
               }
-
-
             });
-
-
         </script>
     </body>
 </html>
 `)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 }
 
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 func WriteFooter(qq422016 qtio422016.Writer) {
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	StreamFooter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 }
 
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 func Footer() string {
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	WriteFooter(qb422016)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 	return qs422016
-//line app/vmalert/tpl/footer.qtpl:40
+//line app/vmalert/tpl/footer.qtpl:36
 }
