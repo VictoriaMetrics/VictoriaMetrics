@@ -1,0 +1,36 @@
+{% func Footer() %}
+        </main>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script type="text/javascript">
+            function expandAll() {
+               $('.collapse').addClass('show');
+            }
+            function collapseAll() {
+               $('.collapse').removeClass('show');
+            }
+
+            $(document).ready(function() {
+              // prevent collapse logic on link click
+              $(".group-heading a").click(function(e) {
+                e.stopPropagation();
+              });
+
+              $(".group-heading").click(function(e) {
+                 let target = $(this).attr('data-bs-target');
+                 let el = $('#'+target);
+                  new bootstrap.Collapse(el, {
+                    toggle: true
+                  });
+              });
+
+              var hash = window.location.hash.substr(1);
+              let group = $('#'+hash);
+              if (group.length > 0) {
+                group.click();
+              }
+            });
+        </script>
+    </body>
+</html>
+{% endfunc %}
