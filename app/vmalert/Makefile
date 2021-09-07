@@ -1,6 +1,9 @@
 # All these commands must run from repository root.
 
-vmalert:
+templates-gen: install-qtc
+	qtc	-dir=./app/vmalert
+
+vmalert: templates-gen
 	APP_NAME=vmalert $(MAKE) app-local
 
 vmalert-race:

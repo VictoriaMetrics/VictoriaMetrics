@@ -9,6 +9,7 @@ import (
 type APIAlert struct {
 	ID          string            `json:"id"`
 	Name        string            `json:"name"`
+	RuleID      string            `json:"rule_id"`
 	GroupID     string            `json:"group_id"`
 	Expression  string            `json:"expression"`
 	State       string            `json:"state"`
@@ -58,4 +59,9 @@ type APIRecordingRule struct {
 	LastSamples int               `json:"last_samples"`
 	LastExec    time.Time         `json:"last_exec"`
 	Labels      map[string]string `json:"labels"`
+}
+
+type GroupAlerts struct {
+	Group  APIGroup
+	Alerts []*APIAlert
 }
