@@ -23,13 +23,19 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
-		httpserver.WriteAPIHelp(w, [][2]string{
+		WriteWelcome(w, [][2]string{
 			{"/api/v1/groups", "list all loaded groups and rules"},
 			{"/api/v1/alerts", "list all active alerts"},
 			{"/api/v1/groupID/alertID/status", "get alert status by ID"},
 			{"/metrics", "list of application metrics"},
 			{"/-/reload", "reload configuration"},
 		})
+		return true
+	case "/alerts":
+		WriteListAlerts(w, rh.groupAlerts())
+		return true
+	case "/groups":
+		WriteListGroups(w, rh.groups())
 		return true
 	case "/api/v1/groups":
 		data, err := rh.listGroups()
@@ -58,14 +64,26 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		if !strings.HasSuffix(r.URL.Path, "/status") {
 			return false
 		}
-		// /api/v1/<groupName>/<alertID>/status
-		data, err := rh.alert(r.URL.Path)
+		alert, err := rh.alertByPath(strings.TrimPrefix(r.URL.Path, "/api/v1/"))
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Write(data)
+
+		// /api/v1/<groupID>/<alertID>/status
+		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
+			data, err := json.Marshal(alert)
+			if err != nil {
+				httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
+				return true
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Write(data)
+			return true
+		}
+
+		// <groupID>/<alertID>/status
+		WriteAlert(w, alert)
 		return true
 	}
 }
@@ -77,20 +95,25 @@ type listGroupsResponse struct {
 	Status string `json:"status"`
 }
 
-func (rh *requestHandler) listGroups() ([]byte, error) {
+func (rh *requestHandler) groups() []APIGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	lr := listGroupsResponse{Status: "success"}
+	var groups []APIGroup
 	for _, g := range rh.m.groups {
-		lr.Data.Groups = append(lr.Data.Groups, g.toAPI())
+		groups = append(groups, g.toAPI())
 	}
 
 	// sort list of alerts for deterministic output
-	sort.Slice(lr.Data.Groups, func(i, j int) bool {
-		return lr.Data.Groups[i].Name < lr.Data.Groups[j].Name
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].Name < groups[j].Name
 	})
 
+	return groups
+}
+func (rh *requestHandler) listGroups() ([]byte, error) {
+	lr := listGroupsResponse{Status: "success"}
+	lr.Data.Groups = rh.groups()
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
@@ -106,6 +129,30 @@ type listAlertsResponse struct {
 		Alerts []*APIAlert `json:"alerts"`
 	} `json:"data"`
 	Status string `json:"status"`
+}
+
+func (rh *requestHandler) groupAlerts() []GroupAlerts {
+	rh.m.groupsMu.RLock()
+	defer rh.m.groupsMu.RUnlock()
+
+	var groupAlerts []GroupAlerts
+	for _, g := range rh.m.groups {
+		var alerts []*APIAlert
+		for _, r := range g.Rules {
+			a, ok := r.(*AlertingRule)
+			if !ok {
+				continue
+			}
+			alerts = append(alerts, a.AlertsAPI()...)
+		}
+		if len(alerts) > 0 {
+			groupAlerts = append(groupAlerts, GroupAlerts{
+				Group:  g.toAPI(),
+				Alerts: alerts,
+			})
+		}
+	}
+	return groupAlerts
 }
 
 func (rh *requestHandler) listAlerts() ([]byte, error) {
@@ -138,18 +185,17 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	return b, nil
 }
 
-func (rh *requestHandler) alert(path string) ([]byte, error) {
+func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	parts := strings.SplitN(strings.TrimPrefix(path, "/api/v1/"), "/", 3)
+	parts := strings.SplitN(strings.TrimLeft(path, "/"), "/", 3)
 	if len(parts) != 3 {
 		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`path %q cointains /status suffix but doesn't match pattern "/group/alert/status"`, path),
+			Err:        fmt.Errorf(`path %q cointains /status suffix but doesn't match pattern "/groupID/alertID/status"`, path),
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-
 	groupID, err := uint64FromPath(parts[0])
 	if err != nil {
 		return nil, badRequest(fmt.Errorf(`cannot parse groupID: %w`, err))
@@ -162,7 +208,7 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 	if err != nil {
 		return nil, errResponse(err, http.StatusNotFound)
 	}
-	return json.Marshal(resp)
+	return resp, nil
 }
 
 func uint64FromPath(path string) (uint64, error) {

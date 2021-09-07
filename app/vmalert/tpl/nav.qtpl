@@ -1,0 +1,25 @@
+{% code
+type NavItem struct {
+	Name string
+	Url  string
+}
+%}
+
+{% func PrintNavItems(current string, items []NavItem) %}
+<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            {% for _, item := range items  %}
+                <li class="nav-item">
+                    <a class="nav-link{% if current == item.Name %} active{% endif %}" href="{%s item.Url %}">
+                        {%s item.Name %}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+  </div>
+</nav>
+{% endfunc %}
+
+
