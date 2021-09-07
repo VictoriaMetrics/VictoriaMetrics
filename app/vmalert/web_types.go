@@ -61,6 +61,7 @@ type APIRecordingRule struct {
 	Labels      map[string]string `json:"labels"`
 }
 
+// GroupAlerts represents a group of alerts for WEB view
 type GroupAlerts struct {
 	Group  APIGroup
 	Alerts []*APIAlert
