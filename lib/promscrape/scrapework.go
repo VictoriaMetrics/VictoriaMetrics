@@ -501,13 +501,14 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 	}
 	hsl := sw.seriesLimiter
 	dstSeries := wc.writeRequest.Timeseries[:0]
+	job := sw.Config.Job()
 	for _, ts := range wc.writeRequest.Timeseries {
 		h := sw.getLabelsHash(ts.Labels)
 		if hsl != nil && !hsl.Add(h) {
 			// The limit on the number of hourly unique series per scrape target has been exceeded.
 			// Drop the metric.
-			metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job=%q,scrape_target=%q}`,
-				sw.Config.jobNameOriginal, sw.Config.ScrapeURL)).Inc()
+			metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+				sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL)).Inc()
 			continue
 		}
 		dstSeries = append(dstSeries, ts)
