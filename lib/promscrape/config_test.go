@@ -1341,10 +1341,8 @@ scrape_configs:
     sample_limit: 100
     disable_keepalive: true
     disable_compression: true
-    stream_parse: true
     scrape_align_interval: 1s
     scrape_offset: 0.5s
-    series_limit: 123
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1358,6 +1356,10 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: 127.0.0.1:9116  # The SNMP exporter's real hostname:port.
+      - target_label: __series_limit__
+        replacement: 1234
+      - target_label: __stream_parse__
+        replacement: true
 `, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
@@ -1385,6 +1387,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name:  "__series_limit__",
+					Value: "1234",
+				},
+				{
+					Name:  "__stream_parse__",
+					Value: "true",
+				},
+				{
 					Name:  "instance",
 					Value: "192.168.1.2",
 				},
@@ -1401,7 +1411,7 @@ scrape_configs:
 			StreamParse:         true,
 			ScrapeAlignInterval: time.Second,
 			ScrapeOffset:        500 * time.Millisecond,
-			SeriesLimit:         123,
+			SeriesLimit:         1234,
 			jobNameOriginal:     "snmp",
 		},
 	})
