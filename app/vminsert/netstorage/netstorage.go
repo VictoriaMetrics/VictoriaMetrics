@@ -404,9 +404,6 @@ func InitStorageNodes(addrs []string) {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
-	if len(addrs) > 255 {
-		logger.Panicf("BUG: too much addresses: %d; max supported %d addresses", len(addrs), 255)
-	}
 
 	// Sort addrs in order to guarantee identical series->vmstorage mapping across all the vminsert nodes.
 	addrsCopy := append([]string{}, addrs...)
