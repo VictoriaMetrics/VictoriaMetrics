@@ -2472,7 +2472,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	}
 	for i, tfw := range tfws {
 		tf := tfw.tf
-		if tf.isNegative {
+		if tf.isNegative || tf.isEmptyMatch {
 			tfwsRemaining = append(tfwsRemaining, tfw)
 			continue
 		}
@@ -2577,7 +2577,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			return nil, err
 		}
 		storeFilterLoopsCount(&tfw, filterLoopsCount)
-		if tf.isNegative {
+		if tf.isNegative || tf.isEmptyMatch {
 			metricIDs.Subtract(m)
 		} else {
 			metricIDs.Intersect(m)
@@ -2733,6 +2733,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 		logger.Panicf("BUG: unexpected tf.prefix %q; must start with commonPrefix %q", tf.prefix, commonPrefix)
 	}
 	kb := kbPool.Get()
+	defer kbPool.Put(kb)
 	if date != 0 {
 		// Use per-date search.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
@@ -2746,8 +2747,27 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 	tfNew.isNegative = false // isNegative for the original tf is handled by the caller.
 	tfNew.prefix = kb.B
 	metricIDs, loopsCount, err := is.getMetricIDsForTagFilter(&tfNew, maxMetrics, maxLoopsCount)
-	kbPool.Put(kb)
-	return metricIDs, loopsCount, err
+	if err != nil {
+		return nil, loopsCount, err
+	}
+	if tf.isNegative || !tf.isEmptyMatch {
+		return metricIDs, loopsCount, nil
+	}
+	// The tag filter, which matches empty label such as {foo=~"bar|"}
+	// Convert it to negative filter, which matches {foo=~".+",foo!~"bar|"}.
+	// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1601
+	// See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395
+	maxLoopsCount -= loopsCount
+	if err := tfNew.Init(kb.B, tf.key, []byte(".+"), false, true); err != nil {
+		logger.Panicf(`BUG: cannot init tag filter: {%q=~".+"}: %s`, tf.key, err)
+	}
+	m, lc, err := is.getMetricIDsForTagFilter(&tfNew, maxMetrics, maxLoopsCount)
+	loopsCount += lc
+	if err != nil {
+		return nil, loopsCount, err
+	}
+	m.Subtract(metricIDs)
+	return m, loopsCount, nil
 }
 
 func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *tagFilter) (int64, int64, uint64) {

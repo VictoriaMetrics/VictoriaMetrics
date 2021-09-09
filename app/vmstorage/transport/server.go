@@ -1158,7 +1158,6 @@ func (ctx *vmselectRequestCtx) setupTfss(s *storage.Storage, tr storage.TimeRang
 			}
 		}
 		tfss = append(tfss, tfs)
-		tfss = append(tfss, tfs.Finalize()...)
 	}
 	ctx.tfss = tfss
 	return nil
