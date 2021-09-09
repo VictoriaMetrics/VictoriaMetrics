@@ -14,13 +14,61 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 type RelabelConfig struct {
-	SourceLabels []string `yaml:"source_labels,flow,omitempty"`
-	Separator    *string  `yaml:"separator,omitempty"`
-	TargetLabel  string   `yaml:"target_label,omitempty"`
-	Regex        *string  `yaml:"regex,omitempty"`
-	Modulus      uint64   `yaml:"modulus,omitempty"`
-	Replacement  *string  `yaml:"replacement,omitempty"`
-	Action       string   `yaml:"action,omitempty"`
+	SourceLabels []string        `yaml:"source_labels,flow,omitempty"`
+	Separator    *string         `yaml:"separator,omitempty"`
+	TargetLabel  string          `yaml:"target_label,omitempty"`
+	Regex        *MultiLineRegex `yaml:"regex,omitempty"`
+	Modulus      uint64          `yaml:"modulus,omitempty"`
+	Replacement  *string         `yaml:"replacement,omitempty"`
+	Action       string          `yaml:"action,omitempty"`
+}
+
+// MultiLineRegex contains a regex, which can be split into multiple lines.
+//
+// These lines are joined with "|" then.
+// For example:
+//
+// regex:
+// - foo
+// - bar
+//
+// is equivalent to:
+//
+// regex: "foo|bar"
+type MultiLineRegex struct {
+	s string
+}
+
+// UnmarshalYAML unmarshals mlr from YAML passed to f.
+func (mlr *MultiLineRegex) UnmarshalYAML(f func(interface{}) error) error {
+	var v interface{}
+	if err := f(&v); err != nil {
+		return err
+	}
+	var a []string
+	switch x := v.(type) {
+	case string:
+		a = []string{x}
+	case []interface{}:
+		a = make([]string, len(x))
+		for i, xx := range x {
+			s, ok := xx.(string)
+			if !ok {
+				return fmt.Errorf("`regex` must contain array of strings; got %T", xx)
+			}
+			a[i] = s
+		}
+	default:
+		return fmt.Errorf("unexpected type for `regex`: %T; want string or []string", v)
+	}
+	mlr.s = strings.Join(a, "|")
+	return nil
+}
+
+// MarshalYAML marshals mlr to YAML.
+func (mlr *MultiLineRegex) MarshalYAML() (interface{}, error) {
+	a := strings.Split(mlr.s, "|")
+	return a, nil
 }
 
 // ParsedConfigs represents parsed relabel configs.
@@ -107,18 +155,19 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	regexCompiled := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
 	if rc.Regex != nil {
-		regex := *rc.Regex
+		regex := rc.Regex.s
+		regexOrig := regex
 		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
-			regex = "^(?:" + *rc.Regex + ")$"
+			regex = "^(?:" + regex + ")$"
 		}
 		re, err := regexp.Compile(regex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regex, err)
 		}
 		regexCompiled = re
-		reOriginal, err := regexp.Compile(*rc.Regex)
+		reOriginal, err := regexp.Compile(regexOrig)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse `regex` %q: %w", *rc.Regex, err)
+			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regexOrig, err)
 		}
 		regexOriginalCompiled = reOriginal
 	}
@@ -169,6 +218,24 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		if modulus < 1 {
 			return nil, fmt.Errorf("unexpected `modulus` for `action=hashmod`: %d; must be greater than 0", modulus)
 		}
+	case "keep_metrics":
+		if rc.Regex == nil || rc.Regex.s == "" {
+			return nil, fmt.Errorf("`regex` must be non-empty for `action=keep_metrics`")
+		}
+		if len(sourceLabels) > 0 {
+			return nil, fmt.Errorf("`source_labels` must be empty for `action=keep_metrics`; got %q", sourceLabels)
+		}
+		sourceLabels = []string{"__name__"}
+		action = "keep"
+	case "drop_metrics":
+		if rc.Regex == nil || rc.Regex.s == "" {
+			return nil, fmt.Errorf("`regex` must be non-empty for `action=drop_metrics`")
+		}
+		if len(sourceLabels) > 0 {
+			return nil, fmt.Errorf("`source_labels` must be empty for `action=drop_metrics`; got %q", sourceLabels)
+		}
+		sourceLabels = []string{"__name__"}
+		action = "drop"
 	case "labelmap":
 	case "labelmap_all":
 	case "labeldrop":

@@ -255,6 +255,23 @@ and also provides the following actions:
 * `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`.
 * `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal.
 * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
+* `keep_metrics`: keeps all the metrics with names matching the given `regex`.
+* `drop_metrics`: drops all the metrics with names matching the given `regex`.
+
+The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
+
+```yaml
+- action: keep_metrics
+  regex: "metric_a|metric_b|foo_.+"
+```
+
+```yaml
+- action: keep_metrics
+  regex:
+  - "metric_a"
+  - "metric_b"
+  - "foo_.+"
+```
 
 The relabeling can be defined in the following places:
 

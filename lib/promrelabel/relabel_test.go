@@ -564,6 +564,37 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
+	t.Run("keep_metrics-miss", func(t *testing.T) {
+		f(`
+- action: keep_metrics
+  regex:
+  - foo
+  - bar
+`, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "xxx",
+			},
+		}, true, []prompbmarshal.Label{})
+	})
+	t.Run("keep_metrics-hit", func(t *testing.T) {
+		f(`
+- action: keep_metrics
+  regex:
+  - foo
+  - bar
+`, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo",
+			},
+		})
+	})
 	t.Run("drop-miss", func(t *testing.T) {
 		f(`
 - action: drop
@@ -607,6 +638,37 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			{
 				Name:  "foo",
 				Value: "yyy",
+			},
+		}, true, []prompbmarshal.Label{})
+	})
+	t.Run("drop_metrics-miss", func(t *testing.T) {
+		f(`
+- action: drop_metrics
+  regex:
+  - foo
+  - bar
+`, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "xxx",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "xxx",
+			},
+		})
+	})
+	t.Run("drop_metrics-hit", func(t *testing.T) {
+		f(`
+- action: drop_metrics
+  regex:
+  - foo
+  - bar
+`, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo",
 			},
 		}, true, []prompbmarshal.Label{})
 	})

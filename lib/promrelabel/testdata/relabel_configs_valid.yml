@@ -22,3 +22,13 @@
   source_labels: [foo, bar]
 - action: drop_if_equal
   source_labels: [foo, bar]
+- action: keep
+  source_labels: [__name__]
+  regex:
+  - 'fo.*o'
+  - 'bar'
+  - 'baz.+'
+- action: keep_metrics
+  regex: [foo bar baz]
+- action: drop_metrics
+  regex: "foo|bar|baz"
