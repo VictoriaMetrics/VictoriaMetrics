@@ -28,7 +28,6 @@ may fail;
 * by default, rules execution is sequential within one group, but persisting of execution results to remote
 storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
 recording rule is reused in next one;
-* `vmalert` has no UI, just an API for getting groups and rules statuses.
 
 ## QuickStart
 
@@ -247,6 +246,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 ### WEB
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
+* `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status" ` - get alert status by ID.
