@@ -253,7 +253,7 @@ Labels can be added to metrics by the following mechanisms:
 ## Relabeling
 
 `vmagent` supports [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config).
-and also provides the following actions:
+It provides the following additional actions:
 
 * `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`.
 * `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`.
