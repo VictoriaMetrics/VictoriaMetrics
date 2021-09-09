@@ -506,7 +506,7 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 		if hsl != nil && !hsl.Add(h) {
 			// The limit on the number of hourly unique series per scrape target has been exceeded.
 			// Drop the metric.
-			metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{job=%q,target=%q}`,
+			metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job=%q,scrape_target=%q}`,
 				sw.Config.jobNameOriginal, sw.Config.ScrapeURL)).Inc()
 			continue
 		}
