@@ -32,7 +32,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
 			name = tf.value
-		} else if !tf.isNegative {
+		} else if !tf.isNegative && !tf.isEmptyMatch {
 			hasPositiveFilter = true
 		}
 	}
@@ -102,8 +102,6 @@ func (tfs *TagFilters) AddGraphiteQuery(query []byte, paths []string, isNegative
 // Add adds the given tag filter to tfs.
 //
 // MetricGroup must be encoded with nil key.
-//
-// Finalize must be called after tfs is constructed.
 func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 	// Verify whether tag filter is empty.
 	if len(value) == 0 {
@@ -155,38 +153,6 @@ func (tfs *TagFilters) addTagFilter() *tagFilter {
 		tfs.tfs = append(tfs.tfs, tagFilter{})
 	}
 	return &tfs.tfs[len(tfs.tfs)-1]
-}
-
-// Finalize finalizes tfs and may return complementary TagFilters,
-// which must be added to the resulting set of tag filters.
-func (tfs *TagFilters) Finalize() []*TagFilters {
-	var tfssNew []*TagFilters
-	for i := range tfs.tfs {
-		tf := &tfs.tfs[i]
-		if !tf.isNegative && tf.isEmptyMatch {
-			// tf matches empty value, so it must be accompanied with `key!~".+"` tag filter
-			// in order to match time series without the given label.
-			tfssNew = append(tfssNew, tfs.cloneWithNegativeFilter(tf))
-		}
-	}
-	return tfssNew
-}
-
-func (tfs *TagFilters) cloneWithNegativeFilter(tfNegative *tagFilter) *TagFilters {
-	tfsNew := NewTagFilters()
-	for i := range tfs.tfs {
-		tf := &tfs.tfs[i]
-		if tf == tfNegative {
-			if err := tfsNew.Add(tf.key, []byte(".+"), true, true); err != nil {
-				logger.Panicf("BUG: unexpected error when creating a tag filter key=~'.+': %s", err)
-			}
-		} else {
-			if err := tfsNew.Add(tf.key, tf.value, tf.isNegative, tf.isRegexp); err != nil {
-				logger.Panicf("BUG: unexpected error when cloning a tag filter %s: %s", tf, err)
-			}
-		}
-	}
-	return tfsNew
 }
 
 // String returns human-readable value for tfs.
