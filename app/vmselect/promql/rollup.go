@@ -198,6 +198,7 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"first_over_time":       true,
 	"last_over_time":        true,
 	"mode_over_time":        true,
+	"rollup_candlestick":    true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
