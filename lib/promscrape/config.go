@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1048,6 +1049,26 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		})
 		promrelabel.SortLabels(labels)
 	}
+	// Read series_limit option from __series_limit__ label.
+	// See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
+	seriesLimit := swc.seriesLimit
+	if s := promrelabel.GetLabelValueByName(labels, "__series_limit__"); len(s) > 0 {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __series_limit__=%q: %w", s, err)
+		}
+		seriesLimit = n
+	}
+	// Read stream_parse option from __stream_parse__ label.
+	// See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+	streamParse := swc.streamParse
+	if s := promrelabel.GetLabelValueByName(labels, "__stream_parse__"); len(s) > 0 {
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __stream_parse__=%q: %w", s, err)
+		}
+		streamParse = b
+	}
 	// Reduce memory usage by interning all the strings in labels.
 	internLabelStrings(labels)
 	sw := &ScrapeWork{
@@ -1066,10 +1087,10 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		SampleLimit:          swc.sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
-		StreamParse:          swc.streamParse,
+		StreamParse:          streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
-		SeriesLimit:          swc.seriesLimit,
+		SeriesLimit:          seriesLimit,
 
 		jobNameOriginal: swc.jobName,
 	}

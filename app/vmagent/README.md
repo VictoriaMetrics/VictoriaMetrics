@@ -297,21 +297,27 @@ Starting from [v1.64.0](https://docs.victoriametrics.com/CHANGELOG.html#v1640), 
 
 ## Stream parsing mode
 
-By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled either globally for all of the scrape targets by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
+By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled in the following places:
 
-  ```yml
-  scrape_configs:
-  - job_name: 'big-federate'
-    stream_parse: true
-    static_configs:
-    - targets:
-      - big-prometeus1
-      - big-prometeus2
-    honor_labels: true
-    metrics_path: /federate
-    params:
-      'match[]': ['{__name__!=""}']
-  ```
+- Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
+- Via `stream_parse: true` option at `scrape_configs` section. In this case all the scrape targets defined in this section are scraped in stream parsing mode.
+- Via `__stream_parse__=true` label, which can be set via [relabeling](#relabeling) at `relabel_configs` section. In this case stream parsing mode is enabled for the corresponding scrape targets. Typical use case: to set the label via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets exposing big number of metrics.
+
+Examples:
+
+```yml
+scrape_configs:
+- job_name: 'big-federate'
+  stream_parse: true
+  static_configs:
+  - targets:
+    - big-prometeus1
+    - big-prometeus2
+  honor_labels: true
+  metrics_path: /federate
+  params:
+    'match[]': ['{__name__!=""}']
+```
 
 Note that `sample_limit` option doesn't prevent from data push to remote storage if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed.
 
@@ -381,7 +387,13 @@ scrape_configs:
 
 ## Cardinality limiter
 
-By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced across all the scrape targets by specifying `-promscrape.seriesLimitPerTarget` command-line option. The limit also can be specified via `series_limit` option at `scrape_config` section. All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric, which shows the number of metrics dropped due to the exceeded limit.
+By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced in the following places:
+
+- Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually to all the scrape targets defined in the file pointed by `-promscrape.config`.
+- Via `series_limit` config option at `scrape_config` section. This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
+- Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section. This limit is applied to the corresponding scrape targets. Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets, which may expose too high number of time series.
+
+All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric.
 
 See also `sample_limit` option at [scrape_config section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
 
