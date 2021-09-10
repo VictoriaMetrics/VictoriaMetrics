@@ -18,58 +18,83 @@ import (
 //
 // This converts `foo{bar="baz",x=~"a.+"}` to `{foo=bar="baz",foo=x=~"a.+"} filter.
 func convertToCompositeTagFilterss(tfss []*TagFilters) []*TagFilters {
-	tfssNew := make([]*TagFilters, len(tfss))
-	for i, tfs := range tfss {
-		tfssNew[i] = convertToCompositeTagFilters(tfs)
+	tfssNew := make([]*TagFilters, 0, len(tfss))
+	for _, tfs := range tfss {
+		tfssNew = append(tfss, convertToCompositeTagFilters(tfs)...)
 	}
 	return tfssNew
 }
 
-func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
+func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
+	tfssCompiled := make([]*TagFilters, 0)
+
 	// Search for metric name filter, which must be used for creating composite filters.
-	var name []byte
+	var names [][]byte
 	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
-			name = tf.value
+			names = [][]byte{tf.value}
+		} else if len(tf.key) == 0 && !tf.isNegative && tf.isRegexp && len(tf.orSuffixes) > 0 {
+			names = names[:0]
+			for _, orSuffix := range tf.orSuffixes {
+				names = append(names, []byte(orSuffix))
+			}
 		} else if !tf.isNegative && !tf.isEmptyMatch {
 			hasPositiveFilter = true
 		}
 	}
-	if len(name) == 0 {
+	if len(names) == 0 {
+		tfssCompiled = append(tfssCompiled, tfs)
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
-		return tfs
+		return tfssCompiled
 	}
-	tfsNew := make([]tagFilter, 0, len(tfs.tfs))
+
 	var compositeKey []byte
 	compositeFilters := 0
-	for _, tf := range tfs.tfs {
-		if len(tf.key) == 0 {
-			if !hasPositiveFilter || tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
-				tfsNew = append(tfsNew, tf)
+	for _, name := range names {
+		tfsNew := make([]tagFilter, 0, len(tfs.tfs))
+		for _, tf := range tfs.tfs {
+			if len(tf.key) == 0 {
+				sameOrSuffixes := true
+				if len(names) != len(tf.orSuffixes) {
+					sameOrSuffixes = false
+				} else {
+					for i, orSuffix := range tf.orSuffixes {
+						if string(names[i]) != orSuffix {
+							sameOrSuffixes = false
+							break
+						}
+					}
+				}
+				if !hasPositiveFilter || tf.isNegative || tf.isRegexp && !sameOrSuffixes || !tf.isRegexp && string(tf.value) != string(name) {
+					tfsNew = append(tfsNew, tf)
+				}
+				continue
 			}
-			continue
+			if string(tf.key) == "__graphite__" || bytes.Equal(tf.key, graphiteReverseTagKey) {
+				tfsNew = append(tfsNew, tf)
+				continue
+			}
+
+			compositeKey = marshalCompositeTagKey(compositeKey[:0], name, tf.key)
+			var tfNew tagFilter
+			if err := tfNew.Init(tfs.commonPrefix, compositeKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
+				logger.Panicf("BUG: unexpected error when creating composite tag filter for name=%q and key=%q: %s", name, tf.key, err)
+			}
+			tfsNew = append(tfsNew, tfNew)
+			compositeFilters++
 		}
-		if string(tf.key) == "__graphite__" || bytes.Equal(tf.key, graphiteReverseTagKey) {
-			tfsNew = append(tfsNew, tf)
-			continue
-		}
-		compositeKey = marshalCompositeTagKey(compositeKey[:0], name, tf.key)
-		var tfNew tagFilter
-		if err := tfNew.Init(tfs.commonPrefix, compositeKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
-			logger.Panicf("BUG: unexpected error when creating composite tag filter for name=%q and key=%q: %s", name, tf.key, err)
-		}
-		tfsNew = append(tfsNew, tfNew)
-		compositeFilters++
+		tfsCompiled := NewTagFilters()
+		tfsCompiled.tfs = tfsNew
+		tfssCompiled = append(tfssCompiled, tfsCompiled)
 	}
 	if compositeFilters == 0 {
+		tfssCompiled = append(tfssCompiled[:0], tfs)
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
-		return tfs
+		return tfssCompiled
 	}
-	tfsCompiled := NewTagFilters()
-	tfsCompiled.tfs = tfsNew
 	atomic.AddUint64(&compositeFilterSuccessConversions, 1)
-	return tfsCompiled
+	return tfssCompiled
 }
 
 var (
