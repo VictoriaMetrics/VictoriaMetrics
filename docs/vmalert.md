@@ -236,7 +236,7 @@ groups:
 
 If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must
 contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
-`vmselect` automatically adds the specified tenant to urls per each recording rule in this case.
+`vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
 
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
