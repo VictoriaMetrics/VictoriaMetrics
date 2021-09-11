@@ -248,7 +248,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		select {
 		case <-stopCh:
 			t := time.Now().UnixNano() / 1e6
-			sw.sendStaleMarkersForLastScrape(t, true)
+			sw.sendStaleSeries("", t, true)
 			if sw.seriesLimiter != nil {
 				sw.seriesLimiter.MustStop()
 			}
@@ -344,9 +344,8 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	if up == 0 {
 		bodyString = ""
-		sw.sendStaleMarkersForLastScrape(scrapeTimestamp, false)
 	}
-	sw.updateLastScrape(bodyString)
+	sw.sendStaleSeries(bodyString, scrapeTimestamp, false)
 	return err
 }
 
@@ -519,23 +518,29 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 	wc.writeRequest.Timeseries = dstSeries
 }
 
-func (sw *scrapeWork) updateLastScrape(response string) {
+func (sw *scrapeWork) sendStaleSeries(currScrape string, timestamp int64, addAutoSeries bool) {
 	if *noStaleMarkers {
 		return
 	}
-	sw.lastScrape = append(sw.lastScrape[:0], response...)
-}
-
-func (sw *scrapeWork) sendStaleMarkersForLastScrape(timestamp int64, addAutoSeries bool) {
-	bodyString := bytesutil.ToUnsafeString(sw.lastScrape)
-	if len(bodyString) == 0 && !addAutoSeries {
+	lastScrape := bytesutil.ToUnsafeString(sw.lastScrape)
+	if parser.AreIdenticalSeriesFast(lastScrape, currScrape) {
+		// Fast path: the current scrape contains the same set of series as the previous scrape.
 		return
 	}
+	// Slow path: the current scrape contains different set of series than the previous scrape.
+	// Detect missing series in the current scrape and send stale markers for them.
+	bodyString := lastScrape
+	if currScrape != "" {
+		bodyString = parser.GetDiffWithStaleRows(lastScrape, currScrape)
+	}
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-	wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
-	srcRows := wc.rows.Rows
-	for i := range srcRows {
-		sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
+	defer writeRequestCtxPool.Put(wc)
+	if bodyString != "" {
+		wc.rows.Unmarshal(bodyString)
+		srcRows := wc.rows.Rows
+		for i := range srcRows {
+			sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
+		}
 	}
 	if addAutoSeries {
 		sw.addAutoTimeseries(wc, "up", 0, timestamp)
@@ -556,7 +561,7 @@ func (sw *scrapeWork) sendStaleMarkersForLastScrape(timestamp int64, addAutoSeri
 		}
 	}
 	sw.pushData(&wc.writeRequest)
-	writeRequestCtxPool.Put(wc)
+	sw.lastScrape = append(sw.lastScrape[:0], currScrape...)
 }
 
 func (sw *scrapeWork) finalizeSeriesAdded(lastScrapeSize int) int {
