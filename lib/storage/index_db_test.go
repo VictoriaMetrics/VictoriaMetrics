@@ -932,6 +932,9 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err != nil {
 			return fmt.Errorf("cannot search with a filter matching empty tag: %w", err)
 		}
+		if !testHasTSID(tsidsFound, tsid) {
+			return fmt.Errorf("tsids is missing when matching a filter with empty tag tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
+		}
 
 		// Search with filters matching empty tags (multiple filters)
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1601
@@ -948,6 +951,9 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search with multipel filters matching empty tags: %w", err)
+		}
+		if !testHasTSID(tsidsFound, tsid) {
+			return fmt.Errorf("tsids is missing when matching multiple filters with empty tags tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
 		}
 
 		// Search with regexps.
