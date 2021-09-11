@@ -296,7 +296,15 @@ You can read more about relabeling in the following articles:
 
 ## Prometheus staleness markers
 
-Starting from [v1.64.0](https://docs.victoriametrics.com/CHANGELOG.html#v1640), `vmagent` sends [Prometheus staleness markers](https://www.robustperception.io/staleness-and-promql) for scraped metrics when the scrape target is removed from the list of targets. Prometheus staleness markers aren't sent in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
+`vmagent` sends [Prometheus staleness markers](https://www.robustperception.io/staleness-and-promql) to `-remoteWrite.url` in the following cases:
+
+* If they are passed to `vmagent` via [Prometheus remote_write protocol](#prometheus-remote_write-proxy).
+* If the metric disappears from the list of scraped metrics, then stale marker is sent to this particular metrics.
+* If the scrape target becomes temporarily unavailable, then stale markers are sent for all the metrics scraped from this target.
+* If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
+* Stale markers are sent for all the scraped metrics on graceful shutdown of `vmagent`.
+
+Prometheus staleness markers aren't sent in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
 
 
 ## Stream parsing mode
