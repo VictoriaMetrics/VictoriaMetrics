@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -363,4 +364,218 @@ func prevBackslashesCount(s string) int {
 		s = s[:len(s)-1]
 	}
 	return n
+}
+
+// GetDiffWithStaleRows returns rows from s1, which are missing in s2.
+//
+// The returned rows have default value 0 and have no timestamps.
+func GetDiffWithStaleRows(s1, s2 string) string {
+	var r1, r2 Rows
+	r1.Unmarshal(s1)
+	r2.Unmarshal(s2)
+	rows1 := r1.Rows
+	rows2 := r2.Rows
+	m := make(map[string]bool, len(rows2))
+	for i := range rows2 {
+		r := &rows2[i]
+		key := marshalMetricNameWithTags(r)
+		m[key] = true
+	}
+	var diff []byte
+	for i := range rows1 {
+		r := &rows1[i]
+		key := marshalMetricNameWithTags(r)
+		if !m[key] {
+			logger.Infof("missing %s", key)
+			diff = append(diff, key...)
+			diff = append(diff, " 0\n"...)
+		} else {
+			logger.Infof("found %s", key)
+		}
+	}
+	return string(diff)
+}
+
+func marshalMetricNameWithTags(r *Row) string {
+	if len(r.Tags) == 0 {
+		return r.Metric
+	}
+	var b []byte
+	b = append(b, r.Metric...)
+	b = append(b, '{')
+	for i, t := range r.Tags {
+		b = append(b, t.Key...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, t.Value)
+		if i+1 < len(r.Tags) {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
+}
+
+// AreIdenticalSeriesFast returns true if s1 and s2 contains identical Prometheus series with possible different values.
+//
+// This function is optimized for speed.
+func AreIdenticalSeriesFast(s1, s2 string) bool {
+	for {
+		if len(s1) == 0 {
+			// The last byte on the line reached.
+			return len(s2) == 0
+		}
+		if len(s2) == 0 {
+			// The last byte on s2 reached, while s1 has non-empty contents.
+			return false
+		}
+
+		// Extract the next pair of lines from s1 and s2.
+		var x1, x2 string
+		n1 := strings.IndexByte(s1, '\n')
+		if n1 < 0 {
+			x1 = s1
+			s1 = ""
+		} else {
+			x1 = s1[:n1]
+			s1 = s1[n1+1:]
+		}
+		if n := strings.IndexByte(x1, '#'); n >= 0 {
+			// Drop comment.
+			x1 = x1[:n]
+		}
+		n2 := strings.IndexByte(s2, '\n')
+		if n2 < 0 {
+			if n1 >= 0 {
+				return false
+			}
+			x2 = s2
+			s2 = ""
+		} else {
+			if n1 < 0 {
+				return false
+			}
+			x2 = s2[:n2]
+			s2 = s2[n2+1:]
+		}
+		if n := strings.IndexByte(x2, '#'); n >= 0 {
+			// Drop comment.
+			x2 = x2[:n]
+		}
+
+		// Skip whitespaces in front of lines
+		for len(x1) > 0 && x1[0] == ' ' {
+			if len(x2) == 0 || x2[0] != ' ' {
+				return false
+			}
+			x1 = x1[1:]
+			x2 = x2[1:]
+		}
+		if len(x1) == 0 {
+			// The last byte on x1 reached.
+			if len(x2) != 0 {
+				return false
+			}
+			continue
+		}
+		if len(x2) == 0 {
+			// The last byte on x2 reached, while x1 has non-empty contents.
+			return false
+		}
+		// Compare metric names
+		n := strings.IndexByte(x1, ' ')
+		if n < 0 {
+			// Invalid Prometheus line - it must contain at least a single space between metric name and value
+			return false
+		}
+		n++
+		if n > len(x2) || x1[:n] != x2[:n] {
+			// Metric names mismatch
+			return false
+		}
+		x1 = x1[n:]
+		x2 = x2[n:]
+
+		// The space could belong to metric name in the following cases:
+		//   foo {bar="baz"} 1
+		//   foo{ bar="baz"} 2
+		//   foo{bar="baz", aa="b"} 3
+		//   foo{bar="b az"} 4
+		//   foo   5
+		// Continue comparing the remaining parts until space or newline.
+		for {
+			n1 := strings.IndexByte(x1, ' ')
+			if n1 < 0 {
+				// Fast path.
+				// Treat x1 as a value.
+				// Skip values at x1 and x2.
+				n2 := strings.IndexByte(x2, ' ')
+				if n2 >= 0 {
+					// x2 contains additional parts.
+					return false
+				}
+				break
+			}
+			n1++
+			// Slow path.
+			// The x1[:n1] can be either a part of metric name or a value if timestamp is present:
+			//   foo 12 34
+			if isNumeric(x1[:n1-1]) {
+				// Skip numeric part (most likely a value before timestamp) in x1 and x2
+				n2 := strings.IndexByte(x2, ' ')
+				if n2 < 0 {
+					// x2 contains less parts than x1
+					return false
+				}
+				n2++
+				if !isNumeric(x2[:n2-1]) {
+					// x1 contains numeric part, while x2 contains non-numeric part
+					return false
+				}
+				x1 = x1[n1:]
+				x2 = x2[n2:]
+			} else {
+				// The non-numeric part from x1 must match the corresponding part from x2.
+				if n1 > len(x2) || x1[:n1] != x2[:n1] {
+					// Parts mismatch
+					return false
+				}
+				x1 = x1[n1:]
+				x2 = x2[n1:]
+			}
+		}
+	}
+}
+
+func isNumeric(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if numericChars[s[i]] {
+			continue
+		}
+		if i == 0 && s == "NaN" || s == "nan" || s == "Inf" || s == "inf" {
+			return true
+		}
+		if i == 1 && (s[0] == '-' || s[0] == '+') && (s[1:] == "Inf" || s[1:] == "inf") {
+			return true
+		}
+		return false
+	}
+	return true
+}
+
+var numericChars = [256]bool{
+	'0': true,
+	'1': true,
+	'2': true,
+	'3': true,
+	'4': true,
+	'5': true,
+	'6': true,
+	'7': true,
+	'8': true,
+	'9': true,
+	'-': true,
+	'+': true,
+	'e': true,
+	'E': true,
+	'.': true,
 }
