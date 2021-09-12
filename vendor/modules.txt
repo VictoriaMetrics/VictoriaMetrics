@@ -1,4 +1,5 @@
-# cloud.google.com/go v0.93.3
+# cloud.google.com/go v0.94.1
+## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -28,7 +29,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.37
+# github.com/aws/aws-sdk-go v1.40.41
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -148,7 +149,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/lithammer/go-jump-consistent-hash
 # github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.13
+# github.com/mattn/go-isatty v0.0.14
 ## explicit
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.13
@@ -241,7 +242,7 @@ go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 ## explicit
 go.uber.org/atomic
-# golang.org/x/net v0.0.0-20210825183410-e898025ed96a
+# golang.org/x/net v0.0.0-20210908191846-a5e095526f91
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -265,7 +266,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e
+# golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -306,7 +307,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2
+# google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
