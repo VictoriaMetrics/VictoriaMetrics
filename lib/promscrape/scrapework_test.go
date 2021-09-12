@@ -325,7 +325,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{job="xx",instance="foo.com"} 4 123
 		scrape_duration_seconds{job="xx",instance="foo.com"} 0 123
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
-		scrape_series_added{job="xx",instance="foo.com"} 1 123
+		scrape_series_added{job="xx",instance="foo.com"} 4 123
 	`)
 	f(`
 		foo{bar="baz"} 34.44

@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-func TestGetDiffWithStaleRows(t *testing.T) {
+func TestGetRowsDiff(t *testing.T) {
 	f := func(s1, s2, resultExpected string) {
 		t.Helper()
-		result := GetDiffWithStaleRows(s1, s2)
+		result := GetRowsDiff(s1, s2)
 		if result != resultExpected {
-			t.Fatalf("unexpected result for GetDiffWithStaleRows(%q, %q); got %q; want %q", s1, s2, result, resultExpected)
+			t.Fatalf("unexpected result for GetRowsDiff(%q, %q); got %q; want %q", s1, s2, result, resultExpected)
 		}
 	}
 	f("", "", "")

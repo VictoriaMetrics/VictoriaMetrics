@@ -366,10 +366,10 @@ func prevBackslashesCount(s string) int {
 	return n
 }
 
-// GetDiffWithStaleRows returns rows from s1, which are missing in s2.
+// GetRowsDiff returns rows from s1, which are missing in s2.
 //
 // The returned rows have default value 0 and have no timestamps.
-func GetDiffWithStaleRows(s1, s2 string) string {
+func GetRowsDiff(s1, s2 string) string {
 	var r1, r2 Rows
 	r1.Unmarshal(s1)
 	r2.Unmarshal(s2)
@@ -386,11 +386,8 @@ func GetDiffWithStaleRows(s1, s2 string) string {
 		r := &rows1[i]
 		key := marshalMetricNameWithTags(r)
 		if !m[key] {
-			logger.Infof("missing %s", key)
 			diff = append(diff, key...)
 			diff = append(diff, " 0\n"...)
-		} else {
-			logger.Infof("found %s", key)
 		}
 	}
 	return string(diff)
