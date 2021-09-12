@@ -1068,14 +1068,7 @@ Example contents for `-relabelConfig` file:
   regex: true
 ```
 
-VictoriaMetrics provides the following extra actions for relabeling rules:
-
-* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
-* `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
-* `keep_if_equal`: keeps the entry if all label values from `source_labels` are equal.
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
-
-See also [relabeling in vmagent](https://docs.victoriametrics.com/vmagent.html#relabeling).
+See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details about relabeling in VictoriaMetrics.
 
 
 ## Federation
