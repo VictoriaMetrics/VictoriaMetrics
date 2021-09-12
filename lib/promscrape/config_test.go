@@ -153,11 +153,11 @@ scrape_configs:
 				Value: "http",
 			},
 			{
-				Name: "__scrape_interval__",
+				Name:  "__scrape_interval__",
 				Value: "1m0s",
 			},
 			{
-				Name: "__scrape_timeout__",
+				Name:  "__scrape_timeout__",
 				Value: "10s",
 			},
 			{
@@ -590,11 +590,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -638,11 +638,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -686,11 +686,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -756,11 +756,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -807,11 +807,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -893,11 +893,11 @@ scrape_configs:
 					Value: "https",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "54s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "5s",
 				},
 				{
@@ -943,11 +943,11 @@ scrape_configs:
 					Value: "https",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "54s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "5s",
 				},
 				{
@@ -986,11 +986,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "8s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "8s",
 				},
 				{
@@ -1027,11 +1027,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "8s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "8s",
 				},
 				{
@@ -1106,11 +1106,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1185,11 +1185,11 @@ scrape_configs:
 					Value: "mailto",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1278,11 +1278,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1327,11 +1327,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1372,11 +1372,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1435,11 +1435,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1516,11 +1516,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
@@ -1579,11 +1579,11 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "__scrape_interval__",
+					Name:  "__scrape_interval__",
 					Value: "1m0s",
 				},
 				{
-					Name: "__scrape_timeout__",
+					Name:  "__scrape_timeout__",
 					Value: "10s",
 				},
 				{
