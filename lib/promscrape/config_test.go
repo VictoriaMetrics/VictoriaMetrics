@@ -153,6 +153,14 @@ scrape_configs:
 				Value: "http",
 			},
 			{
+				Name: "__scrape_interval__",
+				Value: "1m0s",
+			},
+			{
+				Name: "__scrape_timeout__",
+				Value: "10s",
+			},
+			{
 				Name:  "instance",
 				Value: "8.8.8.8",
 			},
@@ -582,6 +590,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "__vm_filepath",
 					Value: "",
 				},
@@ -622,6 +638,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "__vm_filepath",
 					Value: "",
 				},
@@ -660,6 +684,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
 				},
 				{
 					Name:  "__vm_filepath",
@@ -724,6 +756,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -767,6 +807,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "datacenter",
 					Value: "foobar",
 				},
@@ -794,7 +842,7 @@ global:
   scrape_timeout: 34s
 scrape_configs:
 - job_name: foo
-  scrape_interval: 543s
+  scrape_interval: 54s
   scrape_timeout: 12s
   metrics_path: /foo/bar
   scheme: https
@@ -809,6 +857,7 @@ scrape_configs:
   - targets: ["foo.bar", "aaa"]
     labels:
       x: y
+      __scrape_timeout__: "5s"
 - job_name: qwer
   tls_config:
     server_name: foobar
@@ -821,8 +870,8 @@ scrape_configs:
 `, []*ScrapeWork{
 		{
 			ScrapeURL:       "https://foo.bar:443/foo/bar?p=x%26y&p=%3D",
-			ScrapeInterval:  543 * time.Second,
-			ScrapeTimeout:   12 * time.Second,
+			ScrapeInterval:  54 * time.Second,
+			ScrapeTimeout:   5 * time.Second,
 			HonorLabels:     true,
 			HonorTimestamps: true,
 			DenyRedirects:   true,
@@ -844,6 +893,14 @@ scrape_configs:
 					Value: "https",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "54s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "5s",
+				},
+				{
 					Name:  "instance",
 					Value: "foo.bar:443",
 				},
@@ -863,8 +920,8 @@ scrape_configs:
 		},
 		{
 			ScrapeURL:       "https://aaa:443/foo/bar?p=x%26y&p=%3D",
-			ScrapeInterval:  543 * time.Second,
-			ScrapeTimeout:   12 * time.Second,
+			ScrapeInterval:  54 * time.Second,
+			ScrapeTimeout:   5 * time.Second,
 			HonorLabels:     true,
 			HonorTimestamps: true,
 			DenyRedirects:   true,
@@ -884,6 +941,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "https",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "54s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "5s",
 				},
 				{
 					Name:  "instance",
@@ -921,6 +986,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "8s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "8s",
+				},
+				{
 					Name:  "instance",
 					Value: "1.2.3.4:80",
 				},
@@ -952,6 +1025,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "8s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "8s",
 				},
 				{
 					Name:  "instance",
@@ -1025,6 +1106,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "hash",
 					Value: "82",
 				},
@@ -1094,6 +1183,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "mailto",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
 				},
 				{
 					Name:  "instance",
@@ -1181,6 +1278,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -1222,6 +1327,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -1257,6 +1370,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
 				},
 				{
 					Name:  "instance",
@@ -1312,6 +1433,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
 				},
 				{
 					Name:  "foo",
@@ -1387,6 +1516,14 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
+				},
+				{
 					Name:  "__series_limit__",
 					Value: "1234",
 				},
@@ -1440,6 +1577,14 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name: "__scrape_interval__",
+					Value: "1m0s",
+				},
+				{
+					Name: "__scrape_timeout__",
+					Value: "10s",
 				},
 				{
 					Name:  "instance",

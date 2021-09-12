@@ -986,7 +986,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 	}
 
-	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
+	labels := mergeLabels(swc, target, extraLabels, metaLabels)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
 		originalLabels = append([]prompbmarshal.Label{}, labels...)
@@ -1049,6 +1049,23 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		})
 		promrelabel.SortLabels(labels)
 	}
+	// Read __scrape_interval__ and __scrape_timeout__ from labels.
+	scrapeInterval := swc.scrapeInterval
+	if s := promrelabel.GetLabelValueByName(labels, "__scrape_interval__"); len(s) > 0 {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
+		}
+		scrapeInterval = d
+	}
+	scrapeTimeout := swc.scrapeTimeout
+	if s := promrelabel.GetLabelValueByName(labels, "__scrape_timeout__"); len(s) > 0 {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
+		}
+		scrapeTimeout = d
+	}
 	// Read series_limit option from __series_limit__ label.
 	// See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
 	seriesLimit := swc.seriesLimit
@@ -1073,8 +1090,8 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	internLabelStrings(labels)
 	sw := &ScrapeWork{
 		ScrapeURL:            scrapeURL,
-		ScrapeInterval:       swc.scrapeInterval,
-		ScrapeTimeout:        swc.scrapeTimeout,
+		ScrapeInterval:       scrapeInterval,
+		ScrapeTimeout:        scrapeTimeout,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
 		DenyRedirects:        swc.denyRedirects,
@@ -1144,17 +1161,19 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 	return m
 }
 
-func mergeLabels(job, scheme, target, metricsPath string, extraLabels, externalLabels, metaLabels map[string]string, params map[string][]string) []prompbmarshal.Label {
+func mergeLabels(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) []prompbmarshal.Label {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string, 4+len(externalLabels)+len(params)+len(extraLabels)+len(metaLabels))
-	for k, v := range externalLabels {
+	m := make(map[string]string, 4+len(swc.externalLabels)+len(swc.params)+len(extraLabels)+len(metaLabels))
+	for k, v := range swc.externalLabels {
 		m[k] = v
 	}
-	m["job"] = job
+	m["job"] = swc.jobName
 	m["__address__"] = target
-	m["__scheme__"] = scheme
-	m["__metrics_path__"] = metricsPath
-	for k, args := range params {
+	m["__scheme__"] = swc.scheme
+	m["__metrics_path__"] = swc.metricsPath
+	m["__scrape_interval__"] = swc.scrapeInterval.String()
+	m["__scrape_timeout__"] = swc.scrapeTimeout.String()
+	for k, args := range swc.params {
 		if len(args) == 0 {
 			continue
 		}
