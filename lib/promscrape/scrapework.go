@@ -69,6 +69,8 @@ type ScrapeWork struct {
 	//     * __address__
 	//     * __scheme__
 	//     * __metrics_path__
+	//     * __scrape_interval__
+	//     * __scrape_timeout__
 	//     * __param_<name>
 	//     * __meta_*
 	//     * user-defined labels set via `relabel_configs` section in `scrape_config`
