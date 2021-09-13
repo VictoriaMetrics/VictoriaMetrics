@@ -34,8 +34,8 @@ to the data source and common list of flags for destination (prefixed with `vm` 
 ```
 ./vmctl influx --help
 OPTIONS:
-   --influx-addr value              Influx server addr (default: "http://localhost:8086")
-   --influx-user value              Influx user [$INFLUX_USERNAME]
+   --influx-addr value              InfluxDB server addr (default: "http://localhost:8086")
+   --influx-user value              InfluxDB user [$INFLUX_USERNAME]
 ...
    --vm-addr vmctl                             VictoriaMetrics address to perform import requests. 
 Should be the same as --httpListenAddr value for single-node version or vminsert component. 
@@ -216,16 +216,16 @@ Found 40000 timeseries to import. Continue? [Y/n] y
 
 ### Data mapping
 
-Vmctl maps Influx data the same way as VictoriaMetrics does by using the following rules:
+Vmctl maps InfluxDB data the same way as VictoriaMetrics does by using the following rules:
 
-* `influx-database` arg is mapped into `db` label value unless `db` tag exists in the Influx line.
+* `influx-database` arg is mapped into `db` label value unless `db` tag exists in the InfluxDB line.
 * Field names are mapped to time series names prefixed with {measurement}{separator} value, 
 where {separator} equals to _ by default. 
 It can be changed with `--influx-measurement-field-separator` command-line flag.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels format as-is.
 
-For example, the following Influx line:
+For example, the following InfluxDB line:
 ```
 foo,tag1=value1,tag2=value2 field1=12,field2=40
 ```
@@ -294,7 +294,7 @@ if flags `--prom-filter-time-start` or `--prom-filter-time-end` were set. The ex
 Please note that stats are not taking into account timeseries or samples filtering. This will be done during importing process.
  
 The importing process takes the snapshot blocks revealed from Explore procedure and processes them one by one
-accumulating timeseries and samples. Please note, that `vmctl` relies on responses from Influx on this stage,
+accumulating timeseries and samples. Please note, that `vmctl` relies on responses from InfluxDB on this stage,
 so ensure that Explore queries are executed without errors or limits. Please see this 
 [issue](https://github.com/VictoriaMetrics/vmctl/issues/30) for details.
 The data processed in chunks and then sent to VM.
@@ -484,7 +484,7 @@ See more details for cluster version [here](https://github.com/VictoriaMetrics/V
 
 ## Tuning
 
-### Influx mode
+### InfluxDB mode
 
 The flag `--influx-concurrency` controls how many concurrent requests may be sent to InfluxDB while fetching
 timeseries. Please set it wisely to avoid InfluxDB overwhelming.
