@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -15,6 +16,10 @@ var (
 		"E.g. http://127.0.0.1:8428")
 	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
 	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
+	basicAuthPasswordFile = flag.String("remoteRead.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteRead.url")
+	bearerToken           = flag.String("remoteRead.bearerToken", "", "Optional bearer auth token to use for -remoteRead.url.")
+	bearerTokenFile       = flag.String("remoteRead.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteRead.url.")
+
 	tlsInsecureSkipVerify = flag.Bool("remoteRead.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteRead.url")
 	tlsCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
 	tlsKeyFile            = flag.String("remoteRead.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url")
@@ -34,6 +39,15 @@ func Init() (datasource.QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
+	baCfg := &promauth.BasicAuthConfig{
+		Username:     *basicAuthUsername,
+		Password:     *basicAuthPassword,
+		PasswordFile: *basicAuthPasswordFile,
+	}
+	authCfg, err := promauth.NewConfig(".", nil, baCfg, *bearerToken, *bearerTokenFile, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure auth: %w", err)
+	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, 0, 0, false, c), nil
+	return datasource.NewVMStorage(*addr, authCfg, 0, 0, false, c), nil
 }
