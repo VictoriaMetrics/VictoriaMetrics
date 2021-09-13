@@ -280,6 +280,8 @@ with new configs.
 Cluster should remain in working state if at least a single node of each type remains available during
 the update process. See [cluster availability](#cluster-availability) section for details.
 
+See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
+
 
 ## Cluster availability
 
