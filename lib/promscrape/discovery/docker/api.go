@@ -13,8 +13,9 @@ import (
 var configMap = discoveryutils.NewConfigMap()
 
 type apiConfig struct {
-	client *discoveryutils.Client
-	port   int
+	client             *discoveryutils.Client
+	port               int
+	hostNetworkingHost string
 
 	// filtersQueryArg contains escaped `filters` query arg to add to each request to Docker Swarm API.
 	filtersQueryArg string
@@ -29,9 +30,14 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	hostNetworkingHost := sdc.HostNetworkingHost
+	if hostNetworkingHost == "" {
+		hostNetworkingHost = "localhost"
+	}
 	cfg := &apiConfig{
-		port:            sdc.Port,
-		filtersQueryArg: getFiltersQueryArg(sdc.Filters),
+		port:               sdc.Port,
+		hostNetworkingHost: hostNetworkingHost,
+		filtersQueryArg:    getFiltersQueryArg(sdc.Filters),
 	}
 	if cfg.port == 0 {
 		cfg.port = 80

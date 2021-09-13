@@ -18,9 +18,10 @@ var SDCheckInterval = flag.Duration("promscrape.dockerSDCheckInterval", 30*time.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config
 type SDConfig struct {
-	Host    string   `yaml:"host"`
-	Port    int      `yaml:"port,omitempty"`
-	Filters []Filter `yaml:"filters,omitempty"`
+	Host               string   `yaml:"host"`
+	Port               int      `yaml:"port,omitempty"`
+	Filters            []Filter `yaml:"filters,omitempty"`
+	HostNetworkingHost string   `yaml:"host_networking_host,omitempty"`
 
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`

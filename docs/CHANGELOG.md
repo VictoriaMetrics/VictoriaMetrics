@@ -21,6 +21,7 @@ sort: 15
 * BUGFIX: vmselect: reset connection timeouts after each request to `vmstorage`. This should prevent from `cannot read data in 0.000 seconds: unexpected EOF` warning in logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1562). Thanks to @mxlxm .
 * BUGFIX: keep metric name for time series returned from [rollup_candlestick](https://docs.victoriametrics.com/MetricsQL.html#rollup_candlestick) function, since the returned series don't change the meaning of the original series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1600).
 * BUGFIX: vmagent: properly use `https` scheme for wildcard TLS certificates for `role: ingress` targets in Kubernetes service discovery. See [this issue](https://github.com/prometheus/prometheus/issues/8902).
+* BUGFIX: vmagent: support host networking mode for `docker_sd_config`. See [this issue](https://github.com/prometheus/prometheus/issues/9116).
 
 
 ## [v1.65.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.65.0)
