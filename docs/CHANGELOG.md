@@ -247,7 +247,7 @@ Thanks to @johnseekins!
   * `process_resident_memory_peak_bytes` - peak RSS usage for the process.
   * `process_virtual_memory_peak_bytes` - peak virtual memory usage for the process.
 * FEATURE: accept and enforce `extra_label=<label_name>=<label_value>` query arg at [Graphite APIs](https://docs.victoriametrics.com/#graphite-api-usage).
-* FEATURE: use Influx field as metric name if measurement is empty and `-influxSkipSingleField` command-line is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1139).
+* FEATURE: use InfluxDB field as metric name if measurement is empty and `-influxSkipSingleField` command-line is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1139).
 * FEATURE: vmagent: add `-promscrape.consul.waitTime` command-line flag for tuning the maximum wait time for Consul service discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1144).
 * FEATURE: vmagent: add `vm_promscrape_discovery_kubernetes_stale_resource_versions_total` metric for monitoring the frequency of `too old resource version` errors during Kubernetes service discovery.
 * FEATURE: single-node VictoriaMetrics: log metrics with timestamps older than `-search.cacheTimestampOffset` compared to the current time. See [these docs](https://docs.victoriametrics.com/#backfilling) for details.
@@ -656,7 +656,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728 .
 * FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795 .
-* FEATURE: add `-influx.maxLineSize` command-line flag for configuring the maximum size for a single Influx line during parsing.
+* FEATURE: add `-influx.maxLineSize` command-line flag for configuring the maximum size for a single InfluxDB line during parsing.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807
 
 * BUGFIX: properly handle `inf` values during [background merge of LSM parts](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).

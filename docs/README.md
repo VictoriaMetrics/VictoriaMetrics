@@ -12,16 +12,15 @@
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
-It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap package](https://snapcraft.io/victoriametrics)
-and in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
-If you use Ubuntu, then just run `snap install victoriametrics` in order to install and run it.
+VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+in [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), in [Snap packages](https://snapcraft.io/victoriametrics)
+and in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics follow [these instructions](#how-to-start-victoriametrics).
 Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
 
-Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-[Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
-See [features available for enterprise customers](https://victoriametrics.com/enterprise.html).
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
+See [features available in enterprise package](https://victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
@@ -52,188 +51,101 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
 
 ## Prominent features
 
-* VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/vmagent.html).
-  See [these docs](#prometheus-setup) for details.
-* VictoriaMetrics supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-* VictoriaMetrics implements [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) query language backwards compatible with PromQL.
-* VictoriaMetrics provides global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics.
-  Later this data may be queried via a single query.
-* High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
-  and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
-  [Outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-* [Uses 10x less RAM than InfluxDB](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893)
-  and [up to 7x less RAM than Prometheus, Thanos or Cortex](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f)
-  when dealing with millions of unique time series (aka [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality)).
-* Optimized for time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). Think about [prometheus-operator](https://github.com/coreos/prometheus-operator) metrics from frequent deployments in Kubernetes.
-* High data compression, so [up to 70x more data points](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
-  may be crammed into limited storage comparing to TimescaleDB
-  and [up to 7x less storage space is required comparing to Prometheus, Thanos or Cortex](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f).
-* Optimized for storage with high-latency IO and low IOPS (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc).
-  See [graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
-* A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, M3DB, Cortex, InfluxDB or TimescaleDB.
-  See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae),
-  [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
-  and [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk
-  from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
-* Easy operation:
+VictoriaMetrics has the following prominent features:
+
+* It can be used as long-term storage for Prometheus. See [these docs](#prometheus-setup) for details.
+* It can be used as drop-in replacement for Prometheus in Grafana, because it supports [Prometheus querying API](#prometheus-querying-api-usage).
+* It can be used as drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
+* It features easy setup and operation:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d) without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory pointed by `-storageDataPath` command-line flag.
-  * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-  to S3 or GCS with [vmbackup](https://docs.victoriametrics.com/vmbackup.html) / [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
-  See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
-* Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-* Supports metrics' scraping, ingestion and [backfilling](#backfilling) via the following protocols:
-  * [Metrics from Prometheus exporters](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-  such as [node_exporter](https://github.com/prometheus/node_exporter). See [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for details.
-  * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
-  * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
-    if `-graphiteListenAddr` is set.
-  * [OpenTSDB put message](#sending-data-via-telnet-put-protocol) if `-opentsdbListenAddr` is set.
-  * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
-  * [JSON line format](#how-to-import-data-in-json-line-format).
-  * [Native binary format](#how-to-import-data-in-native-format).
+  * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) to S3 or GCS can be done with [vmbackup](https://docs.victoriametrics.com/vmbackup.html) / [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools. See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
+* It implements PromQL-based query language - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html), which provides improved functionality on top of PromQL.
+* It provides global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics. Later this data may be queried via a single query.
+* It provides high performance and good vertical and horizontal scalability for both [data ingestion](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b) and [data querying](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4). It [outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+* It [uses 10x less RAM than InfluxDB](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and [up to 7x less RAM than Prometheus, Thanos or Cortex](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f) when dealing with millions of unique time series (aka [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality)).
+* It is optimized for time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+* It provides high data compression, so [up to 70x more data points](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) may be crammed into limited storage comparing to TimescaleDB and [up to 7x less storage space is required compared to Prometheus, Thanos or Cortex](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f).
+* It is optimized for storage with high-latency IO and low IOPS (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc). See [disk IO graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
+* A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, M3DB, Cortex, InfluxDB or TimescaleDB. See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae), [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683) and [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
+* It protects the storage from data corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+* It supports metrics' scraping, ingestion and [backfilling](#backfilling) via the following protocols:
+  * [Metrics scraping from Prometheus exporters](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+  * [Prometheus remote write API](#prometheus-setup).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
+  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
+  * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+  * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
+  * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
+  * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
-* Supports metrics' relabeling. See [these docs](#relabeling) for details.
-* Can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues using [series limiter](#cardinality-limiter).
-* Ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/enterprise.html).
-* Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
-* See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
+  * [Native binary format](#how-to-import-data-in-native-format).
+* It supports metrics' relabeling. See [these docs](#relabeling) for details.
+* It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
+* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/enterprise.html).
+* It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
 
 ## Operation
 
-### Table of contents
-
-* [How to start VictoriaMetrics](#how-to-start-victoriametrics)
-  * [Environment variables](#environment-variables)
-  * [Configuration with snap package](#configuration-with-snap-package)
-* [Prometheus setup](#prometheus-setup)
-* [Grafana setup](#grafana-setup)
-* [How to upgrade VictoriaMetrics](#how-to-upgrade-victoriametrics)
-* [How to apply new config to VictoriaMetrics](#how-to-apply-new-config-to-victoriametrics)
-* [How to scrape Prometheus exporters such as node_exporter](#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-* [How to send data from InfluxDB-compatible agents such as Telegraf](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-* [How to send data from Graphite-compatible agents such as StatsD](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
-* [Querying Graphite data](#querying-graphite-data)
-* [How to send data from OpenTSDB-compatible agents](#how-to-send-data-from-opentsdb-compatible-agents)
-* [Prometheus querying API usage](#prometheus-querying-api-usage)
-  * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
-* [Graphite API usage](#graphite-api-usage)
-  * [Graphite Render API usage](#graphite-render-api-usage)
-  * [Graphite Metrics API usage](#graphite-metrics-api-usage)
-  * [Graphite Tags API usage](#graphite-tags-api-usage)
-* [How to build from sources](#how-to-build-from-sources)
-  * [Development build](#development-build)
-  * [Production build](#production-build)
-  * [ARM build](#arm-build)
-  * [Pure Go build (CGO_ENABLED=0)](#pure-go-build-cgo_enabled0)
-  * [Building docker images](#building-docker-images)
-* [Start with docker-compose](#start-with-docker-compose)
-* [Setting up service](#setting-up-service)
-* [How to work with snapshots](#how-to-work-with-snapshots)
-* [How to delete time series](#how-to-delete-time-series)
-* [Forced merge](#forced-merge)
-* [How to export time series](#how-to-export-time-series)
-  * [How to export data in native format](#how-to-export-data-in-native-format)
-  * [How to export data in JSON line format](#how-to-export-data-in-json-line-format)
-  * [How to export CSV data](#how-to-export-csv-data)
-* [How to import time series data](#how-to-import-time-series-data)
-  * [How to import data in native format](#how-to-import-data-in-native-format)
-  * [How to import data in json line format](#how-to-import-data-in-json-line-format)
-  * [How to import CSV data](#how-to-import-csv-data)
-  * [How to import data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format)
-* [Relabeling](#relabeling)
-* [Federation](#federation)
-* [Capacity planning](#capacity-planning)
-* [High availability](#high-availability)
-* [Deduplication](#deduplication)
-* [Retention](#retention)
-* [Multiple retentions](#multiple-retentions)
-* [Downsampling](#downsampling)
-* [Multi-tenancy](#multi-tenancy)
-* [Scalability and cluster version](#scalability-and-cluster-version)
-* [Alerting](#alerting)
-* [Security](#security)
-* [Tuning](#tuning)
-* [Monitoring](#monitoring)
-* [TSDB stats](#tsdb-stats)
-* [Cardinality limiter](#cardinality-limiter)
-* [Troubleshooting](#troubleshooting)
-* [Data migration](#data-migration)
-* [Backfilling](#backfilling)
-* [Data updates](#data-updates)
-* [Replication](#replication)
-* [Backups](#backups)
-* [Profiling](#profiling)
-* [Integrations](#integrations)
-* [Third-party contributions](#third-party-contributions)
-* [Contacts](#contacts)
-* [Community and contributions](#community-and-contributions)
-* [Reporting bugs](#reporting-bugs)
-* [VictoriaMetrics Logo](#victoria-metrics-logo)
-  * [Logo Usage Guidelines](#logo-usage-guidelines)
-    * [Font used](#font-used)
-    * [Color Palette](#color-palette)
-  * [We kindly ask](#we-kindly-ask)
-* [List of command-line flags](#list-of-command-line-flags)
-
-
 ## How to start VictoriaMetrics
 
-Start VictoriaMetrics [executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
-or [docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) with the desired command-line flags.
+Just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
 
 The following command-line flags are used the most:
 
-* `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
+* `-storageDataPath` - VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
 * `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [these docs](#retention) for more details.
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
-See how to [ingest data to VictoriaMetrics](#how-to-import-time-series-data), how to [query VictoriaMetrics](#grafana-setup)
-and how to [handle alerts](#alerting).
+See how to [ingest data to VictoriaMetrics](#how-to-import-time-series-data), how to [query VictoriaMetrics via Grafana](#grafana-setup), how to [query VictoriaMetrics via Graphite API](#graphite-api-usage) and how to [handle alerts](#alerting).
+
 VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
+
 
 ### Environment variables
 
 Each flag value can be set via environment variables according to these rules:
 
-* The `-envflag.enable` flag must be set
-* Each `.` char in flag name must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
-* For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
-* It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+* The `-envflag.enable` flag must be set.
+* Each `.` char in flag name must be substituted with `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`).
+* For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`).
+* Environment var prefix can be set via `-envflag.prefix` flag. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`.
+
 
 ### Configuration with snap package
 
 
- Command-line flags can be changed with following command:
+Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victoriametrics).
+
+Command-line flags for Snap package can be set with following command:
 
 ```text
 echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
 snap restart victoriametrics
 ```
-  Or add needed command-line flags to the file `$SNAP_DATA/var/snap/victoriametrics/current/extra_flags`.
 
- Note you cannot change value for `-storageDataPath` flag, for safety snap package has limited access to host system.
+Do not change value for `-storageDataPath` flag, because snap package has limited access to host filesystem.
 
 
- Changing scrape configuration is possible with text editor:
-    ```text
-    vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
-    ```
- After changes was made, trigger config re-read with command `curl 127.0.0.1:8248/-/reload`.
+Changing scrape configuration is possible with text editor:
+
+```text
+vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
+```
+
+After changes were made, trigger config re-read with the command `curl 127.0.0.1:8248/-/reload`.
 
 
 ## Prometheus setup
 
-Prometheus must be configured with [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-in order to send data to VictoriaMetrics. Add the following lines
-to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`):
+Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
 
 ```yml
 remote_write:
@@ -251,7 +163,7 @@ Prometheus writes incoming data to local storage and replicates it to remote sto
 This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
 even if remote storage is unavailable.
 
-If you plan to send data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
+If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
 of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
 
 ```yml
@@ -260,11 +172,11 @@ global:
     datacenter: dc-123
 ```
 
-This instructs Prometheus to add `datacenter=dc-123` label to each time series sent to remote storage.
+This instructs Prometheus to add `datacenter=dc-123` label to each sample before sending it to remote storage.
 The label name can be arbitrary - `datacenter` is just an example. The label value must be unique
-across Prometheus instances, so those time series may be filtered and grouped by this label.
+across Prometheus instances, so time series could be filtered and grouped by this label.
 
-For highly loaded Prometheus instances (400k+ samples per second) the following tuning may be applied:
+For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
 
 ```yaml
 remote_write:
@@ -275,14 +187,13 @@ remote_write:
       max_shards: 30
 ```
 
-Using remote write increases memory usage for Prometheus up to ~25% and depends on the shape of data. If you are experiencing issues with
-too high memory consumption try to lower `max_samples_per_send` and `capacity` params (keep in mind that these two params are tightly connected).
+Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
+too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. Keep in mind that these two params are tightly connected.
 Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, since previous versions may have issues with `remote_write`.
 
-Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html)
-and [vmalert](https://docs.victoriametrics.com/vmalert.html),
+Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html) and [vmalert](https://docs.victoriametrics.com/vmalert.html),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
 
@@ -296,27 +207,22 @@ http://<victoriametrics-addr>:8428
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
-Then build graphs with the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). VictoriaMetrics supports [Prometheus querying API](#prometheus-querying-api-usage),
-which is used by Grafana.
+Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
 
 ## How to upgrade VictoriaMetrics
 
-It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
-say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
-It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
-It is also safe downgrading to the previous version unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is also safe downgrading to older versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
 
-The following steps must be performed during the upgrade / downgrade:
+The following steps must be performed during the upgrade / downgrade procedure:
 
 * Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
-Prometheus doesn't drop data during VictoriaMetrics restart.
-See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
 
 ## How to apply new config to VictoriaMetrics
@@ -327,15 +233,12 @@ VictoriaMetrics is configured via command-line flags, so it must be restarted wh
 * Wait until the process stops. This can take a few seconds.
 * Start VictoriaMetrics with the new command-line flags.
 
-Prometheus doesn't drop data during VictoriaMetrics restart.
-See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies alos to [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
-VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file).
-Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets.
-Currently the following [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) types are supported:
+VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file). Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets. Currently the following [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) types are supported:
 
 * [static_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config)
 * [file_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config)
@@ -352,7 +255,7 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
 
 
-Other `*_sd_config` types will be supported in the future.
+File a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need support for other `*_sd_config` types.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
@@ -371,21 +274,18 @@ For instance, put the following lines into `Telegraf` config, so it sends data t
   urls = ["http://<victoriametrics-addr>:8428"]
 ```
 
-Another option is to enable TCP and UDP receiver for Influx line protocol via `-influxListenAddr` command-line flag
-and stream plain Influx line protocol data to the configured TCP and/or UDP addresses.
+Another option is to enable TCP and UDP receiver for InfluxDB line protocol via `-influxListenAddr` command-line flag
+and stream plain InfluxDB line protocol data to the configured TCP and/or UDP addresses.
 
-VictoriaMetrics maps Influx data using the following rules:
+VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the Influx line.
-* Field names are mapped to time series names prefixed with `{measurement}{separator}` value,
-  where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag.
-  See also `-influxSkipSingleField` command-line flag.
-  If `{measurement}` is empty or `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
+  unless `db` tag exists in the InfluxDB line.
+* Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
 
-For example, the following Influx line:
+For example, the following InfluxDB line:
 
 ```raw
 foo,tag1=value1,tag2=value2 field1=12,field2=40
@@ -398,7 +298,7 @@ foo_field1{tag1="value1", tag2="value2"} 12
 foo_field2{tag1="value1", tag2="value2"} 40
 ```
 
-Example for writing data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
+Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 to local VictoriaMetrics using `curl`:
 
 ```bash
@@ -419,7 +319,7 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
 ```
 
-Note that Influx line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
+Note that InfluxDB line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
 while VictoriaMetrics stores them with *milliseconds* precision.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
@@ -889,7 +789,7 @@ The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv
 Time series data can be imported via any supported ingestion protocol:
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](#prometheus-setup) for details.
-* Influx line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
+* InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -1632,18 +1532,18 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
     	Supports an array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize size
-    	The maximum size in bytes for a single Influx line during parsing
+    	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
   -influxListenAddr string
-    	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
+    	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
   -influxMeasurementFieldSeparator string
-    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
+    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol (default "_")
   -influxSkipMeasurement
     	Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
   -influxSkipSingleField
-    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field
+    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field
   -influxTrimTimestamp duration
-    	Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+    	Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -insert.maxQueueDuration duration
     	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
   -logNewSeries
