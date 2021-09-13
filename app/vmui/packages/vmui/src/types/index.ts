@@ -4,6 +4,7 @@ export interface TimeParams {
   start: number; // timestamp in seconds
   end: number; // timestamp in seconds
   step?: number; // seconds
+  date: string
 }
 
 export interface TimePeriod {
