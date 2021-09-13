@@ -477,7 +477,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 * `vmagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses. The number of dropped blocks can be monitored via `vmagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
 
-* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos.
+* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos, which typically emit `out of order sample` errors. The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling).
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
