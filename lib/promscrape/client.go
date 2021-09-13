@@ -155,7 +155,7 @@ func newClient(sw *ScrapeWork) *client {
 }
 
 func (c *client) GetStreamReader() (*streamReader, error) {
-	deadline := time.Now().Add(c.hc.ReadTimeout)
+	deadline := time.Now().Add(c.sc.Timeout)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	req, err := http.NewRequestWithContext(ctx, "GET", c.scrapeURL, nil)
 	if err != nil {

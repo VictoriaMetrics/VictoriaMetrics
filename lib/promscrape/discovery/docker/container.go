@@ -39,7 +39,7 @@ func getContainersLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addContainersLabels(containers, networkLabels, cfg.port), nil
+	return addContainersLabels(containers, networkLabels, cfg.port, cfg.hostNetworkingHost), nil
 }
 
 func getContainers(cfg *apiConfig) ([]container, error) {
@@ -58,7 +58,7 @@ func parseContainers(data []byte) ([]container, error) {
 	return containers, nil
 }
 
-func addContainersLabels(containers []container, networkLabels map[string]map[string]string, defaultPort int) []map[string]string {
+func addContainersLabels(containers []container, networkLabels map[string]map[string]string, defaultPort int, hostNetworkingHost string) []map[string]string {
 	var ms []map[string]string
 	for i := range containers {
 		c := &containers[i]
@@ -86,8 +86,12 @@ func addContainersLabels(containers []container, networkLabels map[string]map[st
 			}
 			if !added {
 				// Use fallback port when no exposed ports are available or if all are non-TCP
+				addr := hostNetworkingHost
+				if c.HostConfig.NetworkMode != "host" {
+					addr = discoveryutils.JoinHostPort(n.IPAddress, defaultPort)
+				}
 				m := map[string]string{
-					"__address__":              discoveryutils.JoinHostPort(n.IPAddress, defaultPort),
+					"__address__":              addr,
 					"__meta_docker_network_ip": n.IPAddress,
 				}
 				addCommonLabels(m, c, networkLabels[n.NetworkID])
