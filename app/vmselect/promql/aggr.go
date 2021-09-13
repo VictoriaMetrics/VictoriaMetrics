@@ -576,7 +576,7 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 			var dst timeseries
 			dst.CopyFromShallowTimestamps(tss[0])
 			dst.MetricName.RemoveTag(dstLabel)
-			dst.MetricName.AddTag(dstLabel, strconv.FormatFloat(v, 'g', -1, 64))
+			dst.MetricName.AddTag(dstLabel, strconv.FormatFloat(v, 'f', -1, 64))
 			for i := range dst.Values {
 				count := 0
 				for _, ts := range tss {

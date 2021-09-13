@@ -6662,6 +6662,37 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+	t.Run(`count_values_big_numbers`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(
+			count_values("xxx", (alias(772424014, "first"), alias(772424230, "second"))),
+			"xxx"
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("772424014"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("772424230"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`count_values`, func(t *testing.T) {
 		t.Parallel()
 		q := `count_values("xxx", label_set(10, "foo", "bar") or label_set(time()/100, "foo", "bar", "baz", "xx"))`
