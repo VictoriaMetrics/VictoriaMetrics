@@ -7,14 +7,18 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
 	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
 		"and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
 		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend")
-	basicAuthUsername = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
-	basicAuthPassword = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
+	basicAuthUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	basicAuthPassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
+	basicAuthPasswordFile = flag.String("remoteWrite.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteWrite.url")
+	bearerToken           = flag.String("remoteWrite.bearerToken", "", "Optional bearer auth token to use for -remoteWrite.url.")
+	bearerTokenFile       = flag.String("remoteWrite.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteWrite.url.")
 
 	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
@@ -43,14 +47,23 @@ func Init(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
+	baCfg := &promauth.BasicAuthConfig{
+		Username:     *basicAuthUsername,
+		Password:     *basicAuthPassword,
+		PasswordFile: *basicAuthPasswordFile,
+	}
+	authCfg, err := promauth.NewConfig(".", nil, baCfg, *bearerToken, *bearerTokenFile, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure auth: %w", err)
+	}
+
 	return NewClient(ctx, Config{
 		Addr:              *addr,
+		AuthCfg:           authCfg,
 		Concurrency:       *concurrency,
 		MaxQueueSize:      *maxQueueSize,
 		MaxBatchSize:      *maxBatchSize,
 		FlushInterval:     *flushInterval,
-		BasicAuthUser:     *basicAuthUsername,
-		BasicAuthPass:     *basicAuthPassword,
 		DisablePathAppend: *disablePathAppend,
 		Transport:         t,
 	})

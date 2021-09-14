@@ -10,10 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/snappy"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 // Client is an asynchronous HTTP client for writing
@@ -21,8 +23,8 @@ import (
 type Client struct {
 	addr              string
 	c                 *http.Client
+	authCfg           *promauth.Config
 	input             chan prompbmarshal.TimeSeries
-	baUser, baPass    string
 	flushInterval     time.Duration
 	maxBatchSize      int
 	maxQueueSize      int
@@ -35,10 +37,8 @@ type Client struct {
 // Config is config for remote write.
 type Config struct {
 	// Addr of remote storage
-	Addr string
-
-	BasicAuthUser string
-	BasicAuthPass string
+	Addr    string
+	AuthCfg *promauth.Config
 
 	// Concurrency defines number of readers that
 	// concurrently read from the queue and flush data
@@ -98,8 +98,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Transport: cfg.Transport,
 		},
 		addr:              strings.TrimSuffix(cfg.Addr, "/"),
-		baUser:            cfg.BasicAuthUser,
-		baPass:            cfg.BasicAuthPass,
+		authCfg:           cfg.AuthCfg,
 		flushInterval:     cfg.FlushInterval,
 		maxBatchSize:      cfg.MaxBatchSize,
 		maxQueueSize:      cfg.MaxQueueSize,
@@ -232,8 +231,10 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
-	if c.baPass != "" {
-		req.SetBasicAuth(c.baUser, c.baPass)
+	if c.authCfg != nil {
+		if auth := c.authCfg.GetAuthHeader(); auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
 	}
 	if !c.disablePathAppend {
 		req.URL.Path += writePath
