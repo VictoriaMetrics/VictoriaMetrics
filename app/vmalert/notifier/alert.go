@@ -14,17 +14,26 @@ import (
 // Alert the triggered alert
 // TODO: Looks like alert name isn't unique
 type Alert struct {
-	GroupID     uint64
-	Name        string
-	Labels      map[string]string
+	// GroupID contains the ID of the parent rules group
+	GroupID uint64
+	// Name represents Alert name
+	Name string
+	// Labels is the list of label-value pairs attached to the Alert
+	Labels map[string]string
+	// Annotations is the list of annotations generated on Alert evaluation
 	Annotations map[string]string
-	State       AlertState
-
-	Expr  string
+	// State represents the current state of the Alert
+	State AlertState
+	// Expr contains expression that was executed to generate the Alert
+	Expr string
+	// Start defines the moment of time when Alert has triggered
 	Start time.Time
-	End   time.Time
+	// End defines the moment of time when Alert supposed to expire
+	End time.Time
+	// Value stores the value returned from evaluating expression from Expr field
 	Value float64
-	ID    uint64
+	// ID is the unique identifer for the Alert
+	ID uint64
 }
 
 // AlertState type indicates the Alert state

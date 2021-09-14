@@ -256,7 +256,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		http.Error(w, errMsg, http.StatusServiceUnavailable)
 		return
 	case "/ping":
-		// This is needed for compatibility with Influx agents.
+		// This is needed for compatibility with InfluxDB agents.
 		// See https://docs.influxdata.com/influxdb/v1.7/tools/api/#ping-http-endpoint
 		status := http.StatusNoContent
 		if verbose := r.FormValue("verbose"); verbose == "true" {

@@ -53,5 +53,6 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, error) {
 	if ui.URLPrefix != nil {
 		return ui.URLPrefix.mergeURLs(&u), nil
 	}
+	missingRouteRequests.Inc()
 	return nil, fmt.Errorf("missing route for %q", u.String())
 }

@@ -25,7 +25,7 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
   See [Quick Start](#quick-start) for details.
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Accepts data via all ingestion protocols supported by VictoriaMetrics:
-  * Influx line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+  * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
   * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
   * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
@@ -57,13 +57,13 @@ Example command line:
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-If you only need to collect Influx data, then the following command is sufficient:
+If you only need to collect InfluxDB data, then the following command is sufficient:
 
 ```
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
+Then send InfluxDB data to `http://vmagent-host:8429`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
 
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 
@@ -477,7 +477,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 * `vmagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses. The number of dropped blocks can be monitored via `vmagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
 
-* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos.
+* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos, which typically emit `out of order sample` errors. The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling).
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
@@ -645,18 +645,18 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
     	Supports an array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize size
-    	The maximum size in bytes for a single Influx line during parsing
+    	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
   -influxListenAddr string
-    	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
+    	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
   -influxMeasurementFieldSeparator string
-    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
+    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol (default "_")
   -influxSkipMeasurement
     	Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
   -influxSkipSingleField
-    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field
+    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field
   -influxTrimTimestamp duration
-    	Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+    	Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -insert.maxQueueDuration duration
     	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
   -loggerDisableTimestamps

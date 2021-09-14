@@ -7,6 +7,7 @@ sort: 15
 ## tip
 
 * FEATURE: vmalert: add web UI with the list of alerting groups, alerts and alert statuses. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1602).
+* FEATURE: vmalert: add `-rule.maxResolveDuration` command-line flag, which could be used for limiting the auto-resolve duration for the alerting rule. By default it is limited to 3x evaluation interval. This could be too high for big evaluation intervals. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1586).
 * FEATURE: vmagent: send stale markers for disappeared metrics like Prometheus does. Previously stale markers were sent only when the scrape target disappears or when it becomes temporarily unavailable. See [these docs](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) for details.
 * FEATURE: vmagent: add ability to set `series_limit` option for a particular scrape target via `__series_limit__` label. This allows setting the limit on the number of time series on a per-target basis. See [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter) for details.
 * FEATURE: vmagent: add ability to set `stream_parse` option for a particular scrape target via `__stream_parse__` label. This allows managing the stream parsing mode on a per-target basis. See [these docs](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode) for details.
@@ -16,6 +17,8 @@ sort: 15
 * FEATURE: allow splitting long `regex` in relabeling filters into an array of shorter regexps, which can be put into multiple lines for better readability and maintainability. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
 * FEATURE: vmagent: reduce CPU usage when calculating the number of newly added series per scrape (this number is sent to remote storage in `scrape_series_added` metric).
 * FEATURE: vmagent: reduce CPU usage when applying `series_limit` to scrape targets with constant set of metrics. See more information about `series_limit` [here](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
+* FEATURE: vminsert: disable rerouting by default when a few of `vmstorage` nodes start accepting data at lower speed than the rest of `vmstorage` nodes. This should improve VictoriaMetrics cluster stability during rolling restarts and during spikes in [time series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The rerouting can be enabled by passing `-disableRerouting=false` command-line flag to `vminsert`.
+* FEATURE: vmauth: do not put invalid auth tokens into log by default due to security reasons. The logging can be returned back by passing `-logInvalidAuthTokens` command-line flag to `vmauth`. Requests with invalid auth tokens are counted at `vmagent_http_request_errors_total{reason="invalid_auth_token"}` metric exposed by `vmauth` at `/metrics` page.
 
 * BUGFIX: properly handle queries with multiple filters matching empty labels such as `metric{label1=~"foo|",label2="bar|"}`. This filter must match the following series: `metric`, `metric{label1="foo"}`, `metric{label2="bar"}` and `metric{label1="foo",label2="bar"}`. Previously it was matching only `metric{label1="foo",label2="bar"}`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1601).
 * BUGFIX: vmselect: reset connection timeouts after each request to `vmstorage`. This should prevent from `cannot read data in 0.000 seconds: unexpected EOF` warning in logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1562). Thanks to @mxlxm .
@@ -247,7 +250,7 @@ Thanks to @johnseekins!
   * `process_resident_memory_peak_bytes` - peak RSS usage for the process.
   * `process_virtual_memory_peak_bytes` - peak virtual memory usage for the process.
 * FEATURE: accept and enforce `extra_label=<label_name>=<label_value>` query arg at [Graphite APIs](https://docs.victoriametrics.com/#graphite-api-usage).
-* FEATURE: use Influx field as metric name if measurement is empty and `-influxSkipSingleField` command-line is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1139).
+* FEATURE: use InfluxDB field as metric name if measurement is empty and `-influxSkipSingleField` command-line is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1139).
 * FEATURE: vmagent: add `-promscrape.consul.waitTime` command-line flag for tuning the maximum wait time for Consul service discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1144).
 * FEATURE: vmagent: add `vm_promscrape_discovery_kubernetes_stale_resource_versions_total` metric for monitoring the frequency of `too old resource version` errors during Kubernetes service discovery.
 * FEATURE: single-node VictoriaMetrics: log metrics with timestamps older than `-search.cacheTimestampOffset` compared to the current time. See [these docs](https://docs.victoriametrics.com/#backfilling) for details.
@@ -656,7 +659,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728 .
 * FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795 .
-* FEATURE: add `-influx.maxLineSize` command-line flag for configuring the maximum size for a single Influx line during parsing.
+* FEATURE: add `-influx.maxLineSize` command-line flag for configuring the maximum size for a single InfluxDB line during parsing.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807
 
 * BUGFIX: properly handle `inf` values during [background merge of LSM parts](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).

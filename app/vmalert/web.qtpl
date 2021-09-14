@@ -63,6 +63,13 @@ var navItems = []tpl.NavItem{
                  {% if rNotOk[g.Name] > 0 %}<span class="badge bg-danger" title="Number of rules withs status Error">{%d rNotOk[g.Name] %}</span> {% endif %}
                 <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.Name] %}</span>
                 <p class="fs-6 fw-lighter">{%s g.File %}</p>
+                {% if len(g.ExtraFilterLabels) > 0 %}
+                    <div class="fs-6 fw-lighter">Extra filter labels
+                    {% for k, v := range g.ExtraFilterLabels %}
+                            <span class="float-left badge bg-primary">{%s k %}={%s v %}</span>
+                    {% endfor %}
+                    </div>
+                {% endif %}
             </div>
             <div class="collapse" id="rules-{%s g.ID %}">
                 <table class="table table-striped table-hover table-sm">

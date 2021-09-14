@@ -192,7 +192,7 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
     where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`.
   - `<suffix>` may have the following values:
      - `prometheus` and `prometheus/api/v1/write` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-     - `influx/write` and `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
+     - `influx/write` and `influx/api/v2/write` - for inserting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
      - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html).
        This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag.
        See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -469,7 +469,7 @@ Below is the output for `/path/to/vminsert -help`:
   -csvTrimTimestamp duration
     	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -disableRerouting
-    	Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. By default the re-routing is enabled. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster
+    	Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate (default true)
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -503,18 +503,18 @@ Below is the output for `/path/to/vminsert -help`:
     	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
     	Supports an array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize size
-    	The maximum size in bytes for a single Influx line during parsing
+    	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
   -influxListenAddr string
-    	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vminsert>:8480/insert/<accountID>/influx/write
+    	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
   -influxMeasurementFieldSeparator string
-    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
+    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol (default "_")
   -influxSkipMeasurement
     	Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
   -influxSkipSingleField
-    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field
+    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field
   -influxTrimTimestamp duration
-    	Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+    	Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -insert.maxQueueDuration duration
     	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
   -loggerDisableTimestamps

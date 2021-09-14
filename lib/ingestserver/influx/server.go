@@ -24,7 +24,7 @@ var (
 	writeErrorsUDP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="influx", name="write", net="udp"}`)
 )
 
-// Server accepts Influx line protocol over TCP and UDP.
+// Server accepts InfluxDB line protocol over TCP and UDP.
 type Server struct {
 	addr  string
 	lnTCP net.Listener
@@ -33,22 +33,22 @@ type Server struct {
 	cm    ingestserver.ConnsMap
 }
 
-// MustStart starts Influx server on the given addr.
+// MustStart starts InfluxDB server on the given addr.
 //
 // The incoming connections are processed with insertHandler.
 //
 // MustStop must be called on the returned server when it is no longer needed.
 func MustStart(addr string, insertHandler func(r io.Reader) error) *Server {
-	logger.Infof("starting TCP Influx server at %q", addr)
+	logger.Infof("starting TCP InfluxDB server at %q", addr)
 	lnTCP, err := netutil.NewTCPListener("influx", addr)
 	if err != nil {
-		logger.Fatalf("cannot start TCP Influx server at %q: %s", addr, err)
+		logger.Fatalf("cannot start TCP InfluxDB server at %q: %s", addr, err)
 	}
 
-	logger.Infof("starting UDP Influx server at %q", addr)
+	logger.Infof("starting UDP InfluxDB server at %q", addr)
 	lnUDP, err := net.ListenPacket(netutil.GetUDPNetwork(), addr)
 	if err != nil {
-		logger.Fatalf("cannot start UDP Influx server at %q: %s", addr, err)
+		logger.Fatalf("cannot start UDP InfluxDB server at %q: %s", addr, err)
 	}
 
 	s := &Server{
@@ -61,30 +61,30 @@ func MustStart(addr string, insertHandler func(r io.Reader) error) *Server {
 	go func() {
 		defer s.wg.Done()
 		s.serveTCP(insertHandler)
-		logger.Infof("stopped TCP Influx server at %q", addr)
+		logger.Infof("stopped TCP InfluxDB server at %q", addr)
 	}()
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		s.serveUDP(insertHandler)
-		logger.Infof("stopped UDP Influx server at %q", addr)
+		logger.Infof("stopped UDP InfluxDB server at %q", addr)
 	}()
 	return s
 }
 
 // MustStop stops the server.
 func (s *Server) MustStop() {
-	logger.Infof("stopping TCP Influx server at %q...", s.addr)
+	logger.Infof("stopping TCP InfluxDB server at %q...", s.addr)
 	if err := s.lnTCP.Close(); err != nil {
-		logger.Errorf("cannot close TCP Influx server: %s", err)
+		logger.Errorf("cannot close TCP InfluxDB server: %s", err)
 	}
-	logger.Infof("stopping UDP Influx server at %q...", s.addr)
+	logger.Infof("stopping UDP InfluxDB server at %q...", s.addr)
 	if err := s.lnUDP.Close(); err != nil {
-		logger.Errorf("cannot close UDP Influx server: %s", err)
+		logger.Errorf("cannot close UDP InfluxDB server: %s", err)
 	}
 	s.cm.CloseAll()
 	s.wg.Wait()
-	logger.Infof("TCP and UDP Influx servers at %q have been stopped", s.addr)
+	logger.Infof("TCP and UDP InfluxDB servers at %q have been stopped", s.addr)
 }
 
 func (s *Server) serveTCP(insertHandler func(r io.Reader) error) {
@@ -102,9 +102,9 @@ func (s *Server) serveTCP(insertHandler func(r io.Reader) error) {
 				if strings.Contains(err.Error(), "use of closed network connection") {
 					break
 				}
-				logger.Fatalf("unrecoverable error when accepting TCP Influx connections: %s", err)
+				logger.Fatalf("unrecoverable error when accepting TCP InfluxDB connections: %s", err)
 			}
-			logger.Fatalf("unexpected error when accepting TCP Influx connections: %s", err)
+			logger.Fatalf("unexpected error when accepting TCP InfluxDB connections: %s", err)
 		}
 		if !s.cm.Add(c) {
 			_ = c.Close()
@@ -120,7 +120,7 @@ func (s *Server) serveTCP(insertHandler func(r io.Reader) error) {
 			writeRequestsTCP.Inc()
 			if err := insertHandler(c); err != nil {
 				writeErrorsTCP.Inc()
-				logger.Errorf("error in TCP Influx conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
+				logger.Errorf("error in TCP InfluxDB conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
 			}
 		}()
 	}
@@ -153,14 +153,14 @@ func (s *Server) serveUDP(insertHandler func(r io.Reader) error) {
 							break
 						}
 					}
-					logger.Errorf("cannot read Influx UDP data: %s", err)
+					logger.Errorf("cannot read InfluxDB UDP data: %s", err)
 					continue
 				}
 				bb.B = bb.B[:n]
 				writeRequestsUDP.Inc()
 				if err := insertHandler(bb.NewReader()); err != nil {
 					writeErrorsUDP.Inc()
-					logger.Errorf("error in UDP Influx conn %q<->%q: %s", s.lnUDP.LocalAddr(), addr, err)
+					logger.Errorf("error in UDP InfluxDB conn %q<->%q: %s", s.lnUDP.LocalAddr(), addr, err)
 					continue
 				}
 			}

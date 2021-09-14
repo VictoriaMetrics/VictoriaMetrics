@@ -234,6 +234,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
     	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
     	TCP address to listen for http connections (default ":8427")
+  -logInvalidAuthTokens
+    	Whether to log requests with invalid auth tokens. Such requests are always counted at vmagent_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

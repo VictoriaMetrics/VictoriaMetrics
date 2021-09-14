@@ -189,26 +189,26 @@ var (
 		&cli.StringFlag{
 			Name:  influxAddr,
 			Value: "http://localhost:8086",
-			Usage: "Influx server addr",
+			Usage: "InfluxDB server addr",
 		},
 		&cli.StringFlag{
 			Name:    influxUser,
-			Usage:   "Influx user",
+			Usage:   "InfluxDB user",
 			EnvVars: []string{"INFLUX_USERNAME"},
 		},
 		&cli.StringFlag{
 			Name:    influxPassword,
-			Usage:   "Influx user password",
+			Usage:   "InfluxDB user password",
 			EnvVars: []string{"INFLUX_PASSWORD"},
 		},
 		&cli.StringFlag{
 			Name:     influxDB,
-			Usage:    "Influx database",
+			Usage:    "InfluxDB database",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  influxRetention,
-			Usage: "Influx retention policy",
+			Usage: "InfluxDB retention policy",
 			Value: "autogen",
 		},
 		&cli.IntFlag{
@@ -223,7 +223,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name: influxFilterSeries,
-			Usage: "Influx filter expression to select series. E.g. \"from cpu where arch='x86' AND hostname='host_2753'\".\n" +
+			Usage: "InfluxDB filter expression to select series. E.g. \"from cpu where arch='x86' AND hostname='host_2753'\".\n" +
 				"See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series",
 		},
 		&cli.StringFlag{
