@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -61,12 +60,7 @@ func Init(extraParams []Param) (QuerierBuilder, error) {
 		})
 	}
 
-	baCfg := &promauth.BasicAuthConfig{
-		Username:     *basicAuthUsername,
-		Password:     *basicAuthPassword,
-		PasswordFile: *basicAuthPasswordFile,
-	}
-	authCfg, err := promauth.NewConfig(".", nil, baCfg, *bearerToken, *bearerTokenFile, nil, nil)
+	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
