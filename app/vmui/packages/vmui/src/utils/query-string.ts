@@ -9,8 +9,9 @@ const stateToUrlParams = {
   "stacked": "g0.stacked",
 };
 
-// TODO need function for detect types. This function does not parse dates
+// TODO need function for detect types.
 // const decoder = (value: string)  => {
+// This function does not parse dates
 //   if (/^(\d+|\d*\.\d+)$/.test(value)) {
 //     return parseFloat(value);
 //   }
@@ -50,8 +51,9 @@ export const setQueryStringValue = (newValue: Record<string, unknown>): void => 
 
 export const getQueryStringValue = (
   key: string,
+  defaultValue?: any,
   queryString = window.location.search
-): string => {
+) => {
   const values = qs.parse(queryString, { ignoreQueryPrefix: true });
-  return String(get(values, key, ""));
+  return get(values, key, defaultValue || "");
 };
