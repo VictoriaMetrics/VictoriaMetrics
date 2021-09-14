@@ -7,14 +7,18 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
 	addr = flag.String("datasource.url", "", "VictoriaMetrics or vmselect url. Required parameter. "+
 		"E.g. http://127.0.0.1:8428")
-	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
-	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
-	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+	appendTypePrefix      = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+	basicAuthUsername     = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthPassword     = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+	basicAuthPasswordFile = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
+	bearerToken           = flag.String("datasource.bearerToken", "", "Optional bearer auth token to use for -datasource.url.")
+	bearerTokenFile       = flag.String("datasource.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.url.")
 
 	tlsInsecureSkipVerify = flag.Bool("datasource.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.url")
 	tlsCertFile           = flag.String("datasource.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.url")
@@ -57,10 +61,19 @@ func Init(extraParams []Param) (QuerierBuilder, error) {
 		})
 	}
 
+	baCfg := &promauth.BasicAuthConfig{
+		Username:     *basicAuthUsername,
+		Password:     *basicAuthPassword,
+		PasswordFile: *basicAuthPasswordFile,
+	}
+	authCfg, err := promauth.NewConfig(".", nil, baCfg, *bearerToken, *bearerTokenFile, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure auth: %w", err)
+	}
+
 	return &VMStorage{
 		c:                &http.Client{Transport: tr},
-		basicAuthUser:    *basicAuthUsername,
-		basicAuthPass:    *basicAuthPassword,
+		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(*addr, "/"),
 		appendTypePrefix: *appendTypePrefix,
 		lookBack:         *lookBack,
