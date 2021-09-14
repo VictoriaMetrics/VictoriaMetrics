@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -21,6 +22,8 @@ var (
 	httpListenAddr         = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
 	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	logInvalidAuthTokens   = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
+		`Such requests are always counted at vmagent_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 )
 
 func main() {
@@ -71,7 +74,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ac := authConfig.Load().(map[string]*UserInfo)
 	ui := ac[authToken]
 	if ui == nil {
-		httpserver.Errorf(w, r, "cannot find the provided auth token %q in config", authToken)
+		invalidAuthTokenRequests.Inc()
+		if *logInvalidAuthTokens {
+			httpserver.Errorf(w, r, "cannot find the provided auth token %q in config", authToken)
+		} else {
+			errStr := fmt.Sprintf("cannot find the provided auth token %q in config", authToken)
+			http.Error(w, errStr, http.StatusBadRequest)
+		}
 		return true
 	}
 	ui.requests.Inc()
@@ -99,7 +108,11 @@ func proxyRequest(w http.ResponseWriter, r *http.Request) {
 	reverseProxy.ServeHTTP(w, r)
 }
 
-var configReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+var (
+	configReloadRequests     = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+	invalidAuthTokenRequests = metrics.NewCounter(`vmagent_http_request_errors_total{reason="invalid_auth_token"}`)
+	missingRouteRequests     = metrics.NewCounter(`vmagent_http_request_errors_total{reason="missing_route"}`)
+)
 
 var reverseProxy = &httputil.ReverseProxy{
 	Director: func(r *http.Request) {
