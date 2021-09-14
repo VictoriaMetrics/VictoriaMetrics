@@ -17,9 +17,9 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 				t.Fatalf("cannot add tf=%s: %s", tf.String(), err)
 			}
 		}
-		resultCompileds := convertToCompositeTagFilters(tfsCompiled)
-		result := make([][]TagFilter, len(resultCompileds))
-		for i, resultCompiled := range resultCompileds {
+		resultsCompiled := convertToCompositeTagFilterss([]*TagFilters{tfsCompiled})
+		result := make([][]TagFilter, len(resultsCompiled))
+		for i, resultCompiled := range resultsCompiled {
 			if resultCompiled.accountID != accountID {
 				t.Fatalf("unexpected accountID; got %d; want %d", resultCompiled.accountID, accountID)
 			}
