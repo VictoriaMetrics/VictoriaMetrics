@@ -28,13 +28,16 @@ func convertToCompositeTagFilterss(tfss []*TagFilters) []*TagFilters {
 func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 	tfssCompiled := make([]*TagFilters, 0)
 
-	// Search for metric name filter, which must be used for creating composite filters.
+	// Search for filters on metric name, which will be used for creating composite filters.
 	var names [][]byte
 	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
 			names = [][]byte{tf.value}
 		} else if len(tf.key) == 0 && !tf.isNegative && tf.isRegexp && len(tf.orSuffixes) > 0 {
+			// Split the filter {__name__=~"name1|...|nameN", other_filters}
+			// into `name1{other_filters}`, ..., `nameN{other_filters}`
+			// and generate composite filters for each of them
 			names = names[:0]
 			for _, orSuffix := range tf.orSuffixes {
 				names = append(names, []byte(orSuffix))
