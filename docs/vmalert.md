@@ -375,8 +375,14 @@ The shortlist of configuration flags is the following:
     	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
     	Optional basic auth password for -datasource.url
+  -datasource.basicAuth.passwordFile string
+    	Optional path to basic auth password to use for -datasource.url
   -datasource.basicAuth.username string
     	Optional basic auth username for -datasource.url
+  -datasource.bearerToken string
+    	Optional bearer auth token to use for -datasource.url.
+  -datasource.bearerTokenFile string
+    	Optional path to bearer token file to use for -datasource.url.
   -datasource.lookback duration
     	Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
@@ -486,8 +492,14 @@ The shortlist of configuration flags is the following:
     	Auth key for /debug/pprof. It overrides httpAuth settings
   -remoteRead.basicAuth.password string
     	Optional basic auth password for -remoteRead.url
+  -remoteRead.basicAuth.passwordFile string
+    	Optional path to basic auth password to use for -remoteRead.url
   -remoteRead.basicAuth.username string
     	Optional basic auth username for -remoteRead.url
+  -remoteRead.bearerToken string
+    	Optional bearer auth token to use for -remoteRead.url.
+  -remoteRead.bearerTokenFile string
+    	Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.ignoreRestoreErrors
     	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
@@ -506,8 +518,14 @@ The shortlist of configuration flags is the following:
     	Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
   -remoteWrite.basicAuth.password string
     	Optional basic auth password for -remoteWrite.url
+  -remoteWrite.basicAuth.passwordFile string
+    	Optional path to basic auth password to use for -remoteWrite.url
   -remoteWrite.basicAuth.username string
     	Optional basic auth username for -remoteWrite.url
+  -remoteWrite.bearerToken string
+    	Optional bearer auth token to use for -remoteWrite.url.
+  -remoteWrite.bearerTokenFile string
+    	Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
     	Defines number of writers for concurrent writing into remote querier (default 1)
   -remoteWrite.disablePathAppend
