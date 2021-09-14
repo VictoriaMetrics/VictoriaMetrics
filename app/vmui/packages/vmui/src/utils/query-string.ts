@@ -52,6 +52,6 @@ export const getQueryStringValue = (
   key: string,
   queryString = window.location.search
 ): string => {
-  const values = qs.parse(queryString, { ignoreQueryPrefix: true});
+  const values = qs.parse(queryString, { ignoreQueryPrefix: true });
   return String(get(values, key, ""));
 };
