@@ -496,6 +496,11 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
+	case "graphite/functions":
+		graphiteFunctionsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, "%s", `{}`)
+		return true
 	case "prometheus/api/v1/rules", "prometheus/rules":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
@@ -648,6 +653,8 @@ var (
 
 	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/delSeries"}`)
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/delSeries"}`)
+
+	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/functions"}`)
 
 	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
 	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
