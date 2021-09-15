@@ -1256,7 +1256,6 @@ func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, deadline
 			}
 		}
 		tfss = append(tfss, tfs)
-		tfss = append(tfss, tfs.Finalize()...)
 	}
 	return tfss, nil
 }

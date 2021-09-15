@@ -6242,12 +6242,13 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`rollup_candlestick()`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(rollup_candlestick(round(rand(0),0.01)[:10s]))`
+		q := `sort(rollup_candlestick(alias(round(rand(0),0.01),"foobar")[:10s]))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0.02, 0.02, 0.03, 0, 0.03, 0.02},
 			Timestamps: timestampsExpected,
 		}
+		r1.MetricName.MetricGroup = []byte("foobar")
 		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
 			Value: []byte("low"),
@@ -6257,6 +6258,7 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{0.9, 0.32, 0.82, 0.13, 0.28, 0.86},
 			Timestamps: timestampsExpected,
 		}
+		r2.MetricName.MetricGroup = []byte("foobar")
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
 			Value: []byte("open"),
@@ -6266,6 +6268,7 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{0.1, 0.04, 0.49, 0.46, 0.57, 0.92},
 			Timestamps: timestampsExpected,
 		}
+		r3.MetricName.MetricGroup = []byte("foobar")
 		r3.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
 			Value: []byte("close"),
@@ -6275,6 +6278,7 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{0.9, 0.94, 0.97, 0.93, 0.98, 0.92},
 			Timestamps: timestampsExpected,
 		}
+		r4.MetricName.MetricGroup = []byte("foobar")
 		r4.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
 			Value: []byte("high"),
@@ -6656,6 +6660,37 @@ func TestExecSuccess(t *testing.T) {
 			Value: []byte("bar"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
+	t.Run(`count_values_big_numbers`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(
+			count_values("xxx", (alias(772424014, "first"), alias(772424230, "second"))),
+			"xxx"
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("772424014"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("772424230"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`count_values`, func(t *testing.T) {

@@ -85,12 +85,6 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	// vmui access.
-	if strings.HasPrefix(r.URL.Path, "/vmui") {
-		vmuiFileServer.ServeHTTP(w, r)
-		return true
-	}
-
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 
@@ -153,10 +147,31 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	//
 	// See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 	switch {
-	case strings.HasPrefix(path, "/prometheus"):
+	case strings.HasPrefix(path, "/prometheus/"):
 		path = path[len("/prometheus"):]
-	case strings.HasPrefix(path, "/graphite"):
+	case strings.HasPrefix(path, "/graphite/"):
 		path = path[len("/graphite"):]
+	}
+	// vmui access.
+	if strings.HasPrefix(path, "/vmui") {
+		r.URL.Path = path
+		vmuiFileServer.ServeHTTP(w, r)
+		return true
+	}
+	if strings.HasPrefix(path, "/graph") {
+		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		if path == "/graph" {
+			// Redirect to /graph/, otherwise vmui redirects to /vmui/, which can be inaccessible in user env.
+			// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
+			// is hidden behind vmauth or similar proxy.
+			_ = r.ParseForm()
+			newURL := "graph/?" + r.Form.Encode()
+			http.Redirect(w, r, newURL, http.StatusFound)
+			return true
+		}
+		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
+		vmuiFileServer.ServeHTTP(w, r)
+		return true
 	}
 
 	if strings.HasPrefix(path, "/api/v1/label/") {

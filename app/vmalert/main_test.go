@@ -94,14 +94,18 @@ groups:
 	*rulesCheckInterval = 200 * time.Millisecond
 	*rulePath = []string{f.Name()}
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	m := &manager{
 		querierBuilder: &fakeQuerier{},
 		groups:         make(map[uint64]*Group),
 		labels:         map[string]string{},
 	}
-	go configReload(ctx, m, nil)
+
+	syncCh := make(chan struct{})
+	go func() {
+		configReload(ctx, m, nil)
+		close(syncCh)
+	}()
 
 	lenLocked := func(m *manager) int {
 		m.groupsMu.RLock()
@@ -138,6 +142,9 @@ groups:
 	if groupsLen != 1 { // should remain unchanged
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
+
+	cancel()
+	<-syncCh
 }
 
 func writeToFile(t *testing.T, file, b string) {

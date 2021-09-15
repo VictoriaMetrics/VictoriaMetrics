@@ -7,7 +7,7 @@ import (
 )
 
 func TestConvertToCompositeTagFilters(t *testing.T) {
-	f := func(tfs, resultExpected []TagFilter) {
+	f := func(tfs []TagFilter, resultExpected [][]TagFilter) {
 		t.Helper()
 		tfsCompiled := NewTagFilters()
 		for _, tf := range tfs {
@@ -15,15 +15,19 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 				t.Fatalf("cannot add tf=%s: %s", tf.String(), err)
 			}
 		}
-		resultCompiled := convertToCompositeTagFilters(tfsCompiled)
-		result := make([]TagFilter, len(resultCompiled.tfs))
-		for i, tf := range resultCompiled.tfs {
-			result[i] = TagFilter{
-				Key:        tf.key,
-				Value:      tf.value,
-				IsNegative: tf.isNegative,
-				IsRegexp:   tf.isRegexp,
+		resultsCompiled := convertToCompositeTagFilterss([]*TagFilters{tfsCompiled})
+		result := make([][]TagFilter, len(resultsCompiled))
+		for i, resultCompiled := range resultsCompiled {
+			tfs := make([]TagFilter, len(resultCompiled.tfs))
+			for i, tf := range resultCompiled.tfs {
+				tfs[i] = TagFilter{
+					Key:        tf.key,
+					Value:      tf.value,
+					IsNegative: tf.isNegative,
+					IsRegexp:   tf.isRegexp,
+				}
 			}
+			result[i] = tfs
 		}
 		if !reflect.DeepEqual(result, resultExpected) {
 			t.Fatalf("unexpected result;\ngot\n%+v\nwant\n%+v", result, resultExpected)
@@ -31,7 +35,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 	}
 
 	// Empty filters
-	f(nil, []TagFilter{})
+	f(nil, [][]TagFilter{{}})
 
 	// A single non-name filter
 	f([]TagFilter{
@@ -41,12 +45,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("foo"),
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        []byte("foo"),
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -64,18 +70,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: true,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("foo"),
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
-		},
-		{
-			Key:        []byte("x"),
-			Value:      []byte("yy"),
-			IsNegative: true,
-			IsRegexp:   false,
+			{
+				Key:        []byte("foo"),
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+			{
+				Key:        []byte("x"),
+				Value:      []byte("yy"),
+				IsNegative: true,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -87,12 +95,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -110,18 +120,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
-		},
-		{
-			Key:        nil,
-			Value:      []byte("baz"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+			{
+				Key:        nil,
+				Value:      []byte("baz"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -139,12 +151,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("\xfe\x03barfoo"),
-			Value:      []byte("abc"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -162,18 +176,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: true,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
-		},
-		{
-			Key:        []byte("\xfe\x03barfoo"),
-			Value:      []byte("abc"),
-			IsNegative: true,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: true,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -197,18 +213,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   true,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("\xfe\x03barfoo"),
-			Value:      []byte("abc"),
-			IsNegative: true,
-			IsRegexp:   false,
-		},
-		{
-			Key:        []byte("\xfe\x03bara"),
-			Value:      []byte("b.+"),
-			IsNegative: false,
-			IsRegexp:   true,
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: true,
+				IsRegexp:   false,
+			},
+			{
+				Key:        []byte("\xfe\x03bara"),
+				Value:      []byte("b.+"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
 		},
 	})
 
@@ -232,18 +250,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
-		},
-		{
-			Key:        []byte("\xfe\x03bazfoo"),
-			Value:      []byte("abc"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+			{
+				Key:        []byte("\xfe\x03bazfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -261,12 +281,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   true,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("\xfe\x03barfoo"),
-			Value:      []byte("abc"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -284,12 +306,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   true,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("\xfe\x03barfoo"),
-			Value:      []byte("abc.+"),
-			IsNegative: false,
-			IsRegexp:   true,
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc.+"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
 		},
 	})
 
@@ -307,18 +331,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
-		},
-		{
-			Key:        []byte("__graphite__"),
-			Value:      []byte("foo.*.bar"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+			{
+				Key:        []byte("__graphite__"),
+				Value:      []byte("foo.*.bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -342,18 +368,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("\xfe\x03barfoo"),
-			Value:      []byte("abc"),
-			IsNegative: false,
-			IsRegexp:   false,
-		},
-		{
-			Key:        []byte("__graphite__"),
-			Value:      []byte("foo.*.bar"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+			{
+				Key:        []byte("__graphite__"),
+				Value:      []byte("foo.*.bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -371,12 +399,143 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        []byte("\xfe\x03barfoo"),
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+	})
+
+	// Multiple values regexp filter, which can be converted to non-regexp, with non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar|foo"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("foo"),
 			Value:      []byte("abc"),
 			IsNegative: false,
 			IsRegexp:   false,
+		},
+	}, [][]TagFilter{
+		{
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+		{
+			{
+				Key:        []byte("\xfe\x03foofoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+	})
+
+	// Two multiple values regexp filter, which can be converted to non-regexp, with non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar|foo"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        nil,
+			Value:      []byte("abc|def"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("face"),
+			Value:      []byte("air"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, [][]TagFilter{
+		{
+			{
+				Key:        nil,
+				Value:      []byte("bar|foo"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+			{
+				Key:        []byte("\xfe\x03abcface"),
+				Value:      []byte("air"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+		{
+			{
+				Key:        nil,
+				Value:      []byte("bar|foo"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+			{
+				Key:        []byte("\xfe\x03defface"),
+				Value:      []byte("air"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+	})
+
+	// Multiple values regexp filter with a single negative filter
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar|foo"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	}, [][]TagFilter{
+		{
+			{
+				Key:        nil,
+				Value:      []byte("bar|foo"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+			{
+				Key:        []byte("\xfe\x03barfoo"),
+				Value:      []byte("abc"),
+				IsNegative: true,
+				IsRegexp:   false,
+			},
+		},
+		{
+			{
+				Key:        nil,
+				Value:      []byte("bar|foo"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+			{
+				Key:        []byte("\xfe\x03foofoo"),
+				Value:      []byte("abc"),
+				IsNegative: true,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -394,18 +553,20 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: true,
 			IsRegexp:   false,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar.+"),
-			IsNegative: false,
-			IsRegexp:   true,
-		},
-		{
-			Key:        []byte("foo"),
-			Value:      []byte("abc"),
-			IsNegative: true,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar.+"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+			{
+				Key:        []byte("foo"),
+				Value:      []byte("abc"),
+				IsNegative: true,
+				IsRegexp:   false,
+			},
 		},
 	})
 
@@ -423,12 +584,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsNegative: false,
 			IsRegexp:   true,
 		},
-	}, []TagFilter{
+	}, [][]TagFilter{
 		{
-			Key:        nil,
-			Value:      []byte("bar"),
-			IsNegative: false,
-			IsRegexp:   false,
+			{
+				Key:        nil,
+				Value:      []byte("bar"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
 		},
 	})
 }

@@ -308,20 +308,24 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 	req.Header.Set("Metadata-Flavor", "Google")
 	req.Header.Set("User-Agent", userAgent)
 	var res *http.Response
+	var reqErr error
 	retryer := newRetryer()
 	for {
-		var err error
-		res, err = c.hc.Do(req)
-		if err == nil {
-			break
+		res, reqErr = c.hc.Do(req)
+		var code int
+		if res != nil {
+			code = res.StatusCode
 		}
-		if delay, shouldRetry := retryer.Retry(res.StatusCode, err); shouldRetry {
+		if delay, shouldRetry := retryer.Retry(code, reqErr); shouldRetry {
 			if err := gax.Sleep(ctx, delay); err != nil {
 				return "", "", err
 			}
 			continue
 		}
-		return "", "", err
+		break
+	}
+	if reqErr != nil {
+		return "", "", nil
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusNotFound {

@@ -213,7 +213,7 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, fieldsPool []Field, noEsc
 	tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool, noEscapeChars)
 	if err != nil {
 		dst = dst[:len(dst)-1]
-		logger.Errorf("cannot unmarshal Influx line %q: %s; skipping it", s, err)
+		logger.Errorf("cannot unmarshal InfluxDB line %q: %s; skipping it", s, err)
 		invalidLines.Inc()
 	}
 	return dst, tagsPool, fieldsPool
@@ -312,7 +312,7 @@ func parseFieldValue(s string, hasQuotedFields bool) (float64, error) {
 		if len(s) < 2 || s[len(s)-1] != '"' {
 			return 0, fmt.Errorf("missing closing quote for quoted field value %s", s)
 		}
-		// Try converting quoted string to number, since sometimes Influx agents
+		// Try converting quoted string to number, since sometimes InfluxDB agents
 		// send numbers as strings.
 		s = s[1 : len(s)-1]
 		return fastfloat.ParseBestEffort(s), nil

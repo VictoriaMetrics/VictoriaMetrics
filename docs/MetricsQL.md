@@ -4,7 +4,7 @@ sort: 13
 
 # MetricsQL
 
-VictoriaMetrics implements MetricsQL - query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+[VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) implements MetricsQL - query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 MetricsQL is backwards-compatible with PromQL, so Grafana dashboards backed by Prometheus datasource should work the same after switching from Prometheus to VictoriaMetrics.
 [Standalone MetricsQL package](https://godoc.org/github.com/VictoriaMetrics/metricsql) can be used for parsing MetricsQL in external apps.
 
@@ -24,7 +24,7 @@ Other PromQL functionality should work the same in MetricsQL. [File an issue](ht
 
 MetricsQL implements [PromQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) and provides additional functionality mentioned below, which is aimed towards solving practical cases. Feel free [filing a feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you think MetricsQL misses certain useful functionality.
 
-This functionality can be evaluated at [an editable Grafana dashboard](http://play-grafana.victoriametrics.com:3000/d/4ome8yJmz/node-exporter-on-victoriametrics-demo) or at your own [VcitoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
+This functionality can be evaluated at [an editable Grafana dashboard](https://play-grafana.victoriametrics.com/d/4ome8yJmz/node-exporter-on-victoriametrics-demo) or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
 - Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. This is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but usually works faster and is easier to use when migrating from Graphite. VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details.
 - Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)). For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`. It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.

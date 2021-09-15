@@ -866,15 +866,49 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for Graphite wildcard")
 		}
-		if tfsNew := tfs.Finalize(); len(tfsNew) > 0 {
-			return fmt.Errorf("unexpected non-empty tag filters returned by TagFilters.Finalize: %v", tfsNew)
-		}
 		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter for Graphite wildcard: %w", err)
 		}
 		if !testHasTSID(tsidsFound, tsid) {
 			return fmt.Errorf("tsids is missing in regexp for Graphite wildcard tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
+		}
+
+		// Search with a filter matching empty tag (a single filter)
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1601
+		tfs.Reset()
+		if err := tfs.Add(nil, mn.MetricGroup, false, false); err != nil {
+			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
+		}
+		if err := tfs.Add([]byte("non-existent-tag"), []byte("foo|"), false, true); err != nil {
+			return fmt.Errorf("cannot create regexp tag filter for non-existing tag: %w", err)
+		}
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		if err != nil {
+			return fmt.Errorf("cannot search with a filter matching empty tag: %w", err)
+		}
+		if !testHasTSID(tsidsFound, tsid) {
+			return fmt.Errorf("tsids is missing when matching a filter with empty tag tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
+		}
+
+		// Search with filters matching empty tags (multiple filters)
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1601
+		tfs.Reset()
+		if err := tfs.Add(nil, mn.MetricGroup, false, false); err != nil {
+			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
+		}
+		if err := tfs.Add([]byte("non-existent-tag1"), []byte("foo|"), false, true); err != nil {
+			return fmt.Errorf("cannot create regexp tag filter for non-existing tag1: %w", err)
+		}
+		if err := tfs.Add([]byte("non-existent-tag2"), []byte("bar|"), false, true); err != nil {
+			return fmt.Errorf("cannot create regexp tag filter for non-existing tag2: %w", err)
+		}
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		if err != nil {
+			return fmt.Errorf("cannot search with multipel filters matching empty tags: %w", err)
+		}
+		if !testHasTSID(tsidsFound, tsid) {
+			return fmt.Errorf("tsids is missing when matching multiple filters with empty tags tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
 		}
 
 		// Search with regexps.

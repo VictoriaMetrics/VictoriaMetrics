@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	maxLineSize   = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single Influx line during parsing")
-	trimTimestamp = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for Influx line protocol data to this duration. "+
+	maxLineSize   = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing")
+	trimTimestamp = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
 

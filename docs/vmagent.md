@@ -25,13 +25,13 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
   See [Quick Start](#quick-start) for details.
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Accepts data via all ingestion protocols supported by VictoriaMetrics:
-  * Influx line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+  * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
   * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
   * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
   * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
   * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format).
-  * Data in Prometheus exposition format. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
+  * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
   * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data).
 * Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
@@ -57,13 +57,13 @@ Example command line:
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-If you only need to collect Influx data, then the following command is sufficient:
+If you only need to collect InfluxDB data, then the following command is sufficient:
 
 ```
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
+Then send InfluxDB data to `http://vmagent-host:8429`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
 
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 
@@ -252,13 +252,30 @@ Labels can be added to metrics by the following mechanisms:
 
 ## Relabeling
 
-`vmagent` supports [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config).
-and also provides the following actions:
+`vmagent` and VictoriaMetrics support Prometheus-compatible relabeling].
+They provide the following additional actions on top of actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
 * `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`.
 * `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`.
 * `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal.
 * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
+* `keep_metrics`: keeps all the metrics with names matching the given `regex`.
+* `drop_metrics`: drops all the metrics with names matching the given `regex`.
+
+The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
+
+```yaml
+- action: keep_metrics
+  regex: "metric_a|metric_b|foo_.+"
+```
+
+```yaml
+- action: keep_metrics
+  regex:
+  - "metric_a"
+  - "metric_b"
+  - "foo_.+"
+```
 
 The relabeling can be defined in the following places:
 
@@ -279,26 +296,40 @@ You can read more about relabeling in the following articles:
 
 ## Prometheus staleness markers
 
-Starting from [v1.64.0](https://docs.victoriametrics.com/CHANGELOG.html#v1640), `vmagent` sends [Prometheus staleness markers](https://www.robustperception.io/staleness-and-promql) for scraped metrics when the scrape target is removed from the list of targets. Prometheus staleness markers aren't sent in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
+`vmagent` sends [Prometheus staleness markers](https://www.robustperception.io/staleness-and-promql) to `-remoteWrite.url` in the following cases:
+
+* If they are passed to `vmagent` via [Prometheus remote_write protocol](#prometheus-remote_write-proxy).
+* If the metric disappears from the list of scraped metrics, then stale marker is sent to this particular metrics.
+* If the scrape target becomes temporarily unavailable, then stale markers are sent for all the metrics scraped from this target.
+* If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
+* Stale markers are sent for all the scraped metrics on graceful shutdown of `vmagent`.
+
+Prometheus staleness markers aren't sent in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
 
 
 ## Stream parsing mode
 
-By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled either globally for all of the scrape targets by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
+By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled in the following places:
 
-  ```yml
-  scrape_configs:
-  - job_name: 'big-federate'
-    stream_parse: true
-    static_configs:
-    - targets:
-      - big-prometeus1
-      - big-prometeus2
-    honor_labels: true
-    metrics_path: /federate
-    params:
-      'match[]': ['{__name__!=""}']
-  ```
+- Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
+- Via `stream_parse: true` option at `scrape_configs` section. In this case all the scrape targets defined in this section are scraped in stream parsing mode.
+- Via `__stream_parse__=true` label, which can be set via [relabeling](#relabeling) at `relabel_configs` section. In this case stream parsing mode is enabled for the corresponding scrape targets. Typical use case: to set the label via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets exposing big number of metrics.
+
+Examples:
+
+```yml
+scrape_configs:
+- job_name: 'big-federate'
+  stream_parse: true
+  static_configs:
+  - targets:
+    - big-prometeus1
+    - big-prometeus2
+  honor_labels: true
+  metrics_path: /federate
+  params:
+    'match[]': ['{__name__!=""}']
+```
 
 Note that `sample_limit` option doesn't prevent from data push to remote storage if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed.
 
@@ -368,7 +399,13 @@ scrape_configs:
 
 ## Cardinality limiter
 
-By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced across all the scrape targets by specifying `-promscrape.seriesLimitPerTarget` command-line option. The limit also can be specified via `series_limit` option at `scrape_config` section. All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric, which shows the number of metrics dropped due to the exceeded limit.
+By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced in the following places:
+
+- Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually to all the scrape targets defined in the file pointed by `-promscrape.config`.
+- Via `series_limit` config option at `scrape_config` section. This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
+- Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section. This limit is applied to the corresponding scrape targets. Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets, which may expose too high number of time series.
+
+All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric.
 
 See also `sample_limit` option at [scrape_config section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
 
@@ -440,7 +477,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 * `vmagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses. The number of dropped blocks can be monitored via `vmagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
 
-* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos.
+* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos, which typically emit `out of order sample` errors. The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling).
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
@@ -608,18 +645,18 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
     	Supports an array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize size
-    	The maximum size in bytes for a single Influx line during parsing
+    	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
   -influxListenAddr string
-    	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
+    	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
   -influxMeasurementFieldSeparator string
-    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
+    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol (default "_")
   -influxSkipMeasurement
     	Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
   -influxSkipSingleField
-    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field
+    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field
   -influxTrimTimestamp duration
-    	Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+    	Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -insert.maxQueueDuration duration
     	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
   -loggerDisableTimestamps

@@ -10,14 +10,20 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
 	ctx           = context.Background()
 	basicAuthName = "foo"
 	basicAuthPass = "bar"
-	query         = "vm_rows"
-	queryRender   = "constantLine(10)"
+	baCfg         = &promauth.BasicAuthConfig{
+		Username: basicAuthName,
+		Password: basicAuthPass,
+	}
+	query       = "vm_rows"
+	queryRender = "constantLine(10)"
 )
 
 func TestVMInstantQuery(t *testing.T) {
@@ -73,7 +79,11 @@ func TestVMInstantQuery(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
+	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected: %s", err)
+	}
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
@@ -179,12 +189,16 @@ func TestVMRangeQuery(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
+	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected: %s", err)
+	}
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
 
-	_, err := pq.QueryRange(ctx, query, time.Now(), time.Time{})
+	_, err = pq.QueryRange(ctx, query, time.Now(), time.Time{})
 	expectError(t, err, "is missing")
 
 	_, err = pq.QueryRange(ctx, query, time.Time{}, time.Now())
@@ -216,6 +230,10 @@ func TestVMRangeQuery(t *testing.T) {
 }
 
 func TestRequestParams(t *testing.T) {
+	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected: %s", err)
+	}
 	query := "up"
 	timestamp := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
 	testCases := []struct {
@@ -308,10 +326,7 @@ func TestRequestParams(t *testing.T) {
 		{
 			"basic auth",
 			false,
-			&VMStorage{
-				basicAuthUser: "foo",
-				basicAuthPass: "bar",
-			},
+			&VMStorage{authCfg: authCfg},
 			func(t *testing.T, r *http.Request) {
 				u, p, _ := r.BasicAuth()
 				checkEqualString(t, "foo", u)
@@ -321,10 +336,7 @@ func TestRequestParams(t *testing.T) {
 		{
 			"basic auth range",
 			true,
-			&VMStorage{
-				basicAuthUser: "foo",
-				basicAuthPass: "bar",
-			},
+			&VMStorage{authCfg: authCfg},
 			func(t *testing.T, r *http.Request) {
 				u, p, _ := r.BasicAuth()
 				checkEqualString(t, "foo", u)

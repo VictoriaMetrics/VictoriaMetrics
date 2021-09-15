@@ -277,8 +277,8 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 		case <-t.C:
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
-
-			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, g.Interval)
+			resolveDuration := getResolveDuration(g.Interval)
+			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, resolveDuration)
 			for err := range errs {
 				if err != nil {
 					logger.Errorf("group %q: %s", g.Name, err)
@@ -288,6 +288,17 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
 	}
+}
+
+// resolveDuration for alerts is equal to 3 interval evaluations
+// so in case if vmalert stops sending updates for some reason,
+// notifier could automatically resolve the alert.
+func getResolveDuration(groupInterval time.Duration) time.Duration {
+	resolveInterval := groupInterval * 3
+	if *maxResolveDuration > 0 && (resolveInterval > *maxResolveDuration) {
+		return *maxResolveDuration
+	}
+	return resolveInterval
 }
 
 type executor struct {
@@ -301,12 +312,12 @@ type eNotifier struct {
 	alertsSendErrors *counter
 }
 
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, resolveDuration time.Duration) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, interval)
+			res <- e.exec(ctx, rule, resolveDuration)
 		}
 		close(res)
 		return res
@@ -319,7 +330,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, r, interval)
+				res <- e.exec(ctx, r, resolveDuration)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -339,7 +350,7 @@ var (
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
-func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Duration) error {
 	execTotal.Inc()
 
 	tss, err := rule.Exec(ctx)
@@ -365,10 +376,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, interval time.Duration) 
 	for _, a := range ar.alerts {
 		switch a.State {
 		case notifier.StateFiring:
-			// set End to execStart + 3 intervals
-			// so notifier can resolve it automatically if `vmalert`
-			// won't be able to send resolve for some reason
-			a.End = time.Now().Add(3 * interval)
+			a.End = time.Now().Add(resolveDuration)
 			alerts = append(alerts, *a)
 		case notifier.StateInactive:
 			// set End to execStart to notify

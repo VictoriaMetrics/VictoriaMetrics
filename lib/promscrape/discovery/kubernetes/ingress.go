@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func (ig *Ingress) key() string {
@@ -88,25 +89,43 @@ type HTTPIngressPath struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
 func (ig *Ingress) getTargetLabels(gw *groupWatcher) []map[string]string {
-	tlsHosts := make(map[string]bool)
-	for _, tls := range ig.Spec.TLS {
-		for _, host := range tls.Hosts {
-			tlsHosts[host] = true
-		}
-	}
 	var ms []map[string]string
 	for _, r := range ig.Spec.Rules {
 		paths := getIngressRulePaths(r.HTTP.Paths)
-		scheme := "http"
-		if tlsHosts[r.Host] {
-			scheme = "https"
-		}
+		scheme := getSchemeForHost(r.Host, ig.Spec.TLS)
 		for _, path := range paths {
 			m := getLabelsForIngressPath(ig, scheme, r.Host, path)
 			ms = append(ms, m)
 		}
 	}
 	return ms
+}
+
+func getSchemeForHost(host string, tlss []IngressTLS) string {
+	for _, tls := range tlss {
+		for _, hostPattern := range tls.Hosts {
+			if matchesHostPattern(hostPattern, host) {
+				return "https"
+			}
+		}
+	}
+	return "http"
+}
+
+func matchesHostPattern(pattern, host string) bool {
+	if pattern == host {
+		return true
+	}
+	if !strings.HasPrefix(pattern, "*.") {
+		return false
+	}
+	pattern = pattern[len("*."):]
+	n := strings.IndexByte(host, '.')
+	if n < 0 {
+		return false
+	}
+	host = host[n+1:]
+	return pattern == host
 }
 
 func getLabelsForIngressPath(ig *Ingress, scheme, host, path string) map[string]string {

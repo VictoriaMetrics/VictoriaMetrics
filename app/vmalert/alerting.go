@@ -419,6 +419,7 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 		// encode as strings to avoid rounding
 		ID:      fmt.Sprintf("%d", a.ID),
 		GroupID: fmt.Sprintf("%d", a.GroupID),
+		RuleID:  fmt.Sprintf("%d", ar.RuleID),
 
 		Name:        a.Name,
 		Expression:  ar.Expr,
@@ -426,7 +427,7 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 		Annotations: a.Annotations,
 		State:       a.State.String(),
 		ActiveAt:    a.Start,
-		Value:       strconv.FormatFloat(a.Value, 'e', -1, 64),
+		Value:       strconv.FormatFloat(a.Value, 'f', -1, 32),
 	}
 }
 

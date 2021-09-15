@@ -6,6 +6,87 @@ import (
 	"testing"
 )
 
+func TestGetRowsDiff(t *testing.T) {
+	f := func(s1, s2, resultExpected string) {
+		t.Helper()
+		result := GetRowsDiff(s1, s2)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for GetRowsDiff(%q, %q); got %q; want %q", s1, s2, result, resultExpected)
+		}
+	}
+	f("", "", "")
+	f("", "foo 1", "")
+	f("  ", "foo 1", "")
+	f("foo 123", "", "foo 0\n")
+	f("foo 123", "bar 3", "foo 0\n")
+	f("foo 123", "bar 3\nfoo 344", "")
+	f("foo{x=\"y\", z=\"a a a\"} 123", "bar 3\nfoo{x=\"y\", z=\"b b b\"} 344", "foo{x=\"y\",z=\"a a a\"} 0\n")
+	f("foo{bar=\"baz\"} 123\nx 3.4 5\ny 5 6", "x 34 342", "foo{bar=\"baz\"} 0\ny 0\n")
+}
+
+func TestAreIdenticalSeriesFast(t *testing.T) {
+	f := func(s1, s2 string, resultExpected bool) {
+		t.Helper()
+		result := AreIdenticalSeriesFast(s1, s2)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for AreIdenticalSeries(%q, %q); got %v; want %v", s1, s2, result, resultExpected)
+		}
+	}
+	f("", "", true)
+	f("", "a 1", false)    // different number of metrics
+	f(" ", " a 1", false)  // different number of metrics
+	f("a 1", "", false)    // different number of metrics
+	f(" a 1", " ", false)  // different number of metrics
+	f("foo", "foo", false) // missing value
+	f("foo 1", "foo 1", true)
+	f("foo 1", "foo 2", true)
+	f("foo 1 ", "foo 2 ", true)
+	f("foo 1  ", "foo 2 ", false) // different number of spaces
+	f("foo 1 ", "foo 2  ", false) // different number of spaces
+	f("foo nan", "foo -inf", true)
+	f("foo 1 # coment x", "foo 2 #comment y", true)
+	f(" foo 1", " foo 1", true)
+	f(" foo 1", "  foo 1", false) // different number of spaces in front of metric
+	f("  foo 1", " foo 1", false) // different number of spaces in front of metric
+	f("foo 1", "bar 1", false)    // different metric name
+	f("foo 1", "fooo 1", false)   // different metric name
+	f("foo  123", "foo  32.32", true)
+	f(`foo{bar="x"} -3.3e-6`, `foo{bar="x"} 23343`, true)
+	f(`foo{} 1`, `foo{} 234`, true)
+	f(`foo {x="y   x" }  234`, `foo {x="y   x" }  43.342`, true)
+	f(`foo {x="y x"} 234`, `foo{x="y x"} 43.342`, false) // different spaces
+	f("foo 2\nbar 3", "foo 34.43\nbar -34.3", true)
+	f("foo 2\nbar 3", "foo 34.43\nbarz -34.3", false) // different metric names
+	f("\nfoo 13\n", "\nfoo 3.4\n", true)
+	f("\nfoo 13", "\nfoo 3.4\n", false) // different number of blank lines
+	f("\nfoo 13\n", "\nfoo 3.4", false) // different number of blank lines
+	f("\n\nfoo 1", "\n\nfoo 34.43", true)
+	f("\n\nfoo 3434\n", "\n\nfoo 43\n", true)
+	f("\nfoo 1", "\n\nfoo 34.43", false) // different number of blank lines
+	f("#foo{bar}", "#baz", true)
+	f("", "#baz", false)             // different number of comments
+	f("#foo{bar}", "", false)        // different number of comments
+	f("#foo{bar}", "bar 3", false)   // different number of comments
+	f("foo{bar} 2", "#bar 3", false) // different number of comments
+	f("#foo\n", "#bar", false)       // different number of blank lines
+	f("#foo{bar}\n#baz", "#baz\n#xdsfds dsf", true)
+	f("# foo\nbar 234\nbaz{x=\"y\", z=\"\"} 3", "# foo\nbar 3.3\nbaz{x=\"y\", z=\"\"} 4323", true)
+	f("# foo\nbar 234\nbaz{x=\"z\", z=\"\"} 3", "# foo\nbar 3.3\nbaz{x=\"y\", z=\"\"} 4323", false) // different label value
+	f("foo {bar=\"xfdsdsffdsa\"} 1", "foo {x=\"y\"} 2", false)                                      // different labels
+	f("foo {x=\"z\"} 1", "foo {x=\"y\"} 2", false)                                                  // different label value
+
+	// Lines with timestamps
+	f("foo 1 2", "foo 234 4334", true)
+	f("foo 2", "foo 3 4", false) // missing timestamp
+	f("foo 2 1", "foo 3", false) // missing timestamp
+	f("foo{bar=\"b az\"} 2 5", "foo{bar=\"b az\"} +6.3 7.43", true)
+	f("foo{bar=\"b az\"} 2 5 # comment ss ", "foo{bar=\"b az\"} +6.3 7.43 # comment as ", true)
+	f("foo{bar=\"b az\"} 2 5 #comment", "foo{bar=\"b az\"} +6.3 7.43 #comment {foo=\"bar\"} 21.44", true)
+	f("foo{bar=\"b az\"} +Inf 5", "foo{bar=\"b az\"} NaN 7.43", true)
+	f("foo{bar=\"b az\"} +Inf 5", "foo{bar=\"b az\"} nan 7.43", true)
+	f("foo{bar=\"b az\"} +Inf 5", "foo{bar=\"b az\"} nansf 7.43", false) // invalid value
+}
+
 func TestPrevBackslashesCount(t *testing.T) {
 	f := func(s string, nExpected int) {
 		t.Helper()
@@ -104,6 +185,10 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// empty metric name
 	f(`{foo="bar"}`)
+
+	// Invalid quotes for label value
+	f(`{foo='bar'} 23`)
+	f("{foo=`bar`} 23")
 
 	// Missing value
 	f("aaa")

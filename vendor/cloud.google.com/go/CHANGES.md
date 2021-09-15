@@ -1,5 +1,12 @@
 # Changes
 
+### [0.94.1](https://www.github.com/googleapis/google-cloud-go/compare/v0.94.0...v0.94.1) (2021-09-02)
+
+
+### Bug Fixes
+
+* **compute/metadata:** fix retry logic to not panic on error ([#4714](https://www.github.com/googleapis/google-cloud-go/issues/4714)) ([75c63b9](https://www.github.com/googleapis/google-cloud-go/commit/75c63b94d2cf86606fffc3611f7e6150b667eedc)), refs [#4713](https://www.github.com/googleapis/google-cloud-go/issues/4713)
+
 ## [0.94.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.92.0...v0.94.0) (2021-08-31)
 
 

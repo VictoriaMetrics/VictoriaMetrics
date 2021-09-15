@@ -28,7 +28,6 @@ may fail;
 * by default, rules execution is sequential within one group, but persisting of execution results to remote
 storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
 recording rule is reused in next one;
-* `vmalert` has no UI, just an API for getting groups and rules statuses.
 
 ## QuickStart
 
@@ -237,7 +236,7 @@ groups:
 
 If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must
 contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
-`vmselect` automatically adds the specified tenant to urls per each recording rule in this case.
+`vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
 
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
@@ -247,6 +246,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 ### WEB
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
+* `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status" ` - get alert status by ID.
@@ -375,8 +375,14 @@ The shortlist of configuration flags is the following:
     	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
     	Optional basic auth password for -datasource.url
+  -datasource.basicAuth.passwordFile string
+    	Optional path to basic auth password to use for -datasource.url
   -datasource.basicAuth.username string
     	Optional basic auth username for -datasource.url
+  -datasource.bearerToken string
+    	Optional bearer auth token to use for -datasource.url.
+  -datasource.bearerTokenFile string
+    	Optional path to bearer token file to use for -datasource.url.
   -datasource.lookback duration
     	Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
@@ -486,8 +492,14 @@ The shortlist of configuration flags is the following:
     	Auth key for /debug/pprof. It overrides httpAuth settings
   -remoteRead.basicAuth.password string
     	Optional basic auth password for -remoteRead.url
+  -remoteRead.basicAuth.passwordFile string
+    	Optional path to basic auth password to use for -remoteRead.url
   -remoteRead.basicAuth.username string
     	Optional basic auth username for -remoteRead.url
+  -remoteRead.bearerToken string
+    	Optional bearer auth token to use for -remoteRead.url.
+  -remoteRead.bearerTokenFile string
+    	Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.ignoreRestoreErrors
     	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
@@ -506,8 +518,14 @@ The shortlist of configuration flags is the following:
     	Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
   -remoteWrite.basicAuth.password string
     	Optional basic auth password for -remoteWrite.url
+  -remoteWrite.basicAuth.passwordFile string
+    	Optional path to basic auth password to use for -remoteWrite.url
   -remoteWrite.basicAuth.username string
     	Optional basic auth username for -remoteWrite.url
+  -remoteWrite.bearerToken string
+    	Optional bearer auth token to use for -remoteWrite.url.
+  -remoteWrite.bearerTokenFile string
+    	Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
     	Defines number of writers for concurrent writing into remote querier (default 1)
   -remoteWrite.disablePathAppend
@@ -551,6 +569,8 @@ The shortlist of configuration flags is the following:
     	Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration
     	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -rule.maxResolveDuration duration
+    	Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.validateExpressions
     	Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates

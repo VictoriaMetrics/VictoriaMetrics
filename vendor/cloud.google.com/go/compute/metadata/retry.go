@@ -16,6 +16,7 @@ package metadata
 
 import (
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/googleapis/gax-go/v2"
@@ -43,6 +44,9 @@ type metadataRetryer struct {
 }
 
 func (r *metadataRetryer) Retry(status int, err error) (time.Duration, bool) {
+	if status == http.StatusOK {
+		return 0, false
+	}
 	retryOk := shouldRetry(status, err)
 	if !retryOk {
 		return 0, false

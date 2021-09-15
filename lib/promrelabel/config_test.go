@@ -3,7 +3,37 @@ package promrelabel
 import (
 	"reflect"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
+
+func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
+	f := func(data, resultExpected string) {
+		t.Helper()
+		var rcs []RelabelConfig
+		if err := yaml.UnmarshalStrict([]byte(data), &rcs); err != nil {
+			t.Fatalf("cannot unmarshal %q: %s", data, err)
+		}
+		result, err := yaml.Marshal(&rcs)
+		if err != nil {
+			t.Fatalf("cannot marshal %q: %s", data, err)
+		}
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected marshaled data; got\n%q\nwant\n%q", result, resultExpected)
+		}
+	}
+	f(``, "[]\n")
+	f(`
+- action: keep
+  regex: foobar
+`, "- regex:\n  - foobar\n  action: keep\n")
+	f(`
+- regex:
+  - 'fo.+'
+  - '.*ba[r-z]a'
+`, "- regex:\n  - fo.+\n  - .*ba[r-z]a\n")
+	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
+}
 
 func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	path := "testdata/relabel_configs_valid.yml"
@@ -11,8 +41,8 @@ func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
-	if n := pcs.Len(); n != 9 {
-		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, 9)
+	if n := pcs.Len(); n != 12 {
+		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, 12)
 	}
 }
 
@@ -85,7 +115,9 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			{
 				SourceLabels: []string{"aaa"},
 				TargetLabel:  "xxx",
-				Regex:        strPtr("foo[bar"),
+				Regex: &MultiLineRegex{
+					s: "foo[bar",
+				},
 			},
 		})
 	})
@@ -191,8 +223,40 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-}
-
-func strPtr(s string) *string {
-	return &s
+	t.Run("drop_metrics-missing-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "drop_metrics",
+			},
+		})
+	})
+	t.Run("drop_metrics-non-empty-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "drop_metrics",
+				SourceLabels: []string{"foo"},
+				Regex: &MultiLineRegex{
+					s: "bar",
+				},
+			},
+		})
+	})
+	t.Run("keep_metrics-missing-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keep_metrics",
+			},
+		})
+	})
+	t.Run("keep_metrics-non-empty-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keep_metrics",
+				SourceLabels: []string{"foo"},
+				Regex: &MultiLineRegex{
+					s: "bar",
+				},
+			},
+		})
+	})
 }
