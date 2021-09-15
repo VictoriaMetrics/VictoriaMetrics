@@ -28,6 +28,7 @@ sort: 15
 * BUGFIX: use Prometheus-compatible label value formatting for [count_values](https://docs.victoriametrics.com/MetricsQL.html#count_values) function. Previously big values could be improperly formatted, which could break query results, which rely on label value such as `... on(label) count_values("label", ...)`.
 * BUGFIX: vmagent: properly use `https` scheme for wildcard TLS certificates for `role: ingress` targets in Kubernetes service discovery. See [this issue](https://github.com/prometheus/prometheus/issues/8902).
 * BUGFIX: vmagent: support host networking mode for `docker_sd_config`. See [this issue](https://github.com/prometheus/prometheus/issues/9116).
+* BUGFIX: fix non-repeatable results from `quantile_over_time()` function when the number of input samples exceeds 1000. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1612).
 
 
 ## [v1.65.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.65.0)
