@@ -41,9 +41,11 @@ export const setQueryStringValue = (newValue: Record<string, unknown>): void => 
   const queryMap = new Map(Object.entries(stateToUrlParams));
   const newQsValue: string[] = [];
   queryMap.forEach((queryKey, stateKey) => {
-    const value = get(newValue, stateKey, "");
+    const queryKeyEncoded = encodeURIComponent(queryKey);
+    const value = get(newValue, stateKey, "") as string;
     if (value) {
-      newQsValue.push(`${queryKey}=${value}`);
+      const valueEncoded = encodeURIComponent(value);
+      newQsValue.push(`${queryKey}=${valueEncoded}`);
     }
   });
   setQueryStringWithoutPageReload(newQsValue.join("&"));
