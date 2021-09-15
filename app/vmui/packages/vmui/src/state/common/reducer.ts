@@ -33,13 +33,13 @@ export type Action =
     | { type: "TOGGLE_AUTOREFRESH"}
     | { type: "TOGGLE_AUTOCOMPLETE"}
 
-const duration = getQueryStringValue("g0.range_input", "1h");
-const endInput = getQueryStringValue("g0.end_input", undefined);
+const duration = getQueryStringValue("g0.range_input", "1h") as string;
+const endInput = getQueryStringValue("g0.end_input", undefined) as Date | undefined;
 
 export const initialState: AppState = {
   serverUrl: getFromStorage("PREFERRED_URL") as string || getDefaultServer(), // https://demo.promlabs.com or https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus",
   displayType: "chart",
-  query: getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n"), // demo_memory_usage_bytes
+  query: getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n") as string, // demo_memory_usage_bytes
   time: {
     duration,
     period: getTimeperiodForDuration(duration, endInput && new Date(endInput))
