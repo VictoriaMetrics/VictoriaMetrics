@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -43,7 +44,7 @@ var (
 		"See also '-search.maxLookback' flag, which has the same meaning due to historical reasons")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArray("selectNode", "Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
+	selectNodes = flagutil.NewArray("selectNode", "Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
 )
 
 // Default step used if not set.
@@ -492,6 +493,10 @@ func resetRollupResultCaches() {
 		return
 	}
 	for _, selectNode := range *selectNodes {
+		if _, _, err := net.SplitHostPort(selectNode); err != nil {
+			// Add missing port
+			selectNode += ":8481"
+		}
 		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
 		resp, err := httpClient.Get(callURL)
 		if err != nil {

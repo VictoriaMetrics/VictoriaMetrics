@@ -41,7 +41,7 @@ var (
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
-	storageNodes         = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
+	storageNodes         = flagutil.NewArray("storageNode", "Comma-separated dddresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -412,6 +413,10 @@ func InitStorageNodes(addrs []string) {
 
 	storageNodes = storageNodes[:0]
 	for _, addr := range addrs {
+		if _, _, err := net.SplitHostPort(addr); err != nil {
+			// Automatically add missing port.
+			addr += ":8400"
+		}
 		sn := &storageNode{
 			dialer: netutil.NewTCPDialer("vminsert", addr),
 

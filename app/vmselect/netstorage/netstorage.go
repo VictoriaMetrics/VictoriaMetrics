@@ -2578,6 +2578,10 @@ func InitStorageNodes(addrs []string) {
 	}
 
 	for _, addr := range addrs {
+		if _, _, err := net.SplitHostPort(addr); err != nil {
+			// Automatically add missing port.
+			addr += ":8401"
+		}
 		sn := &storageNode{
 			// There is no need in requests compression, since they are usually very small.
 			connPool: netutil.NewConnPool("vmselect", addr, handshake.VMSelectClient, 0),
