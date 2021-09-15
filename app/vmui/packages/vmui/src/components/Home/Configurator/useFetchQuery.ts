@@ -67,7 +67,6 @@ export const useFetchQuery = (): {
           headers
         });
         if (response.ok) {
-          saveToStorage("PREFERRED_URL", serverUrl);
           saveToStorage("LAST_QUERY", query);
           const resp = await response.json();
           setError(undefined);
