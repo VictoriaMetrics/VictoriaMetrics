@@ -218,7 +218,7 @@ github.com/valyala/gozstd
 # github.com/valyala/histogram v1.2.0
 ## explicit
 github.com/valyala/histogram
-# github.com/valyala/quicktemplate v1.6.3
+# github.com/valyala/quicktemplate v1.7.0
 ## explicit
 github.com/valyala/quicktemplate
 # go.opencensus.io v0.23.0
