@@ -490,6 +490,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 		}
 		reused := !atomic.CompareAndSwapUint32(&cc.reused, 0, 1)
 		traceGotConn(req, cc, reused)
+		body := req.Body
 		res, gotErrAfterReqBodyWrite, err := cc.roundTrip(req)
 		if err != nil && retry <= 6 {
 			if req, err = shouldRetryRequest(req, err, gotErrAfterReqBodyWrite); err == nil {
@@ -503,12 +504,17 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 				case <-time.After(time.Second * time.Duration(backoff)):
 					continue
 				case <-req.Context().Done():
-					return nil, req.Context().Err()
+					err = req.Context().Err()
 				}
 			}
 		}
 		if err != nil {
 			t.vlogf("RoundTrip failure: %v", err)
+			// If the error occurred after the body write started,
+			// the body writer will close the body. Otherwise, do so here.
+			if body != nil && !gotErrAfterReqBodyWrite {
+				body.Close()
+			}
 			return nil, err
 		}
 		return res, nil
@@ -547,7 +553,7 @@ func shouldRetryRequest(req *http.Request, err error, afterBodyWrite bool) (*htt
 	// If the request body can be reset back to its original
 	// state via the optional req.GetBody, do that.
 	if req.GetBody != nil {
-		// TODO: consider a req.Body.Close here? or audit that all caller paths do?
+		req.Body.Close()
 		body, err := req.GetBody()
 		if err != nil {
 			return nil, err
@@ -794,7 +800,7 @@ func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) {
 		// writing it.
 		maxConcurrentOkay = true
 	} else {
-		maxConcurrentOkay = int64(len(cc.streams)+1) < int64(cc.maxConcurrentStreams)
+		maxConcurrentOkay = int64(len(cc.streams)+1) <= int64(cc.maxConcurrentStreams)
 	}
 
 	st.canTakeNewRequest = cc.goAway == nil && !cc.closed && !cc.closing && maxConcurrentOkay &&
@@ -1085,13 +1091,14 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 
 	if werr != nil {
 		if hasBody {
-			req.Body.Close() // per RoundTripper contract
 			bodyWriter.cancel()
 		}
 		cc.forgetStreamID(cs.ID)
 		// Don't bother sending a RST_STREAM (our write already failed;
 		// no need to keep writing)
 		traceWroteRequest(cs.trace, werr)
+		// TODO(dneil): An error occurred while writing the headers.
+		// Should we return an error indicating that this request can be retried?
 		return nil, false, werr
 	}
 
@@ -1200,7 +1207,7 @@ func (cc *ClientConn) awaitOpenSlotForRequest(req *http.Request) error {
 			return errClientConnUnusable
 		}
 		cc.lastIdle = time.Time{}
-		if int64(len(cc.streams))+1 <= int64(cc.maxConcurrentStreams) {
+		if int64(len(cc.streams)) < int64(cc.maxConcurrentStreams) {
 			if waitingForConn != nil {
 				close(waitingForConn)
 			}

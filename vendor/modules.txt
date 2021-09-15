@@ -29,7 +29,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.41
+# github.com/aws/aws-sdk-go v1.40.43
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -133,7 +133,7 @@ github.com/influxdata/influxdb/models
 github.com/influxdata/influxdb/pkg/escape
 # github.com/jmespath/go-jmespath v0.4.0
 github.com/jmespath/go-jmespath
-# github.com/klauspost/compress v1.13.5
+# github.com/klauspost/compress v1.13.6
 ## explicit
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -240,7 +240,7 @@ go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 ## explicit
 go.uber.org/atomic
-# golang.org/x/net v0.0.0-20210908191846-a5e095526f91
+# golang.org/x/net v0.0.0-20210913180222-943fd674d43e
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -264,7 +264,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0
+# golang.org/x/sys v0.0.0-20210915083310-ed5796bab164
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
