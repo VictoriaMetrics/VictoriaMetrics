@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -93,7 +94,9 @@ func main() {
 	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
 	if len(*influxListenAddr) > 0 {
-		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
+		influxServer = influxserver.MustStart(*influxListenAddr, func(r io.Reader) error {
+			return influx.InsertHandlerForReader(r, false)
+		})
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)

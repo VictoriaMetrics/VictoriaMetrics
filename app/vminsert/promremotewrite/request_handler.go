@@ -25,7 +25,7 @@ func InsertHandler(req *http.Request) error {
 		return err
 	}
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, func(tss []prompb.TimeSeries) error {
+		return parser.ParseStream(req.Body, func(tss []prompb.TimeSeries) error {
 			return insertRows(tss, extraLabels)
 		})
 	})
