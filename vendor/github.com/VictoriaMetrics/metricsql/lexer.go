@@ -134,7 +134,7 @@ func scanString(s string) (string, error) {
 	for {
 		n := strings.IndexByte(s[i:], quote)
 		if n < 0 {
-			return "", fmt.Errorf("cannot find closing quote %ch for the string %q", quote, s)
+			return "", fmt.Errorf("cannot find closing quote %c for the string %q", quote, s)
 		}
 		i += n
 		bs := 0
