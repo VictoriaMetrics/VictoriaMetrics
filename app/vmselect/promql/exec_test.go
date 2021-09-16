@@ -5524,6 +5524,47 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`mad()`, func(t *testing.T) {
+		t.Parallel()
+		q := `mad(
+			alias(time(), "metric1"),
+			alias(time()*1.5, "metric2"),
+			label_set(time()*0.9, "baz", "sss"),
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`outliers_mad(1)`, func(t *testing.T) {
+		t.Parallel()
+		q := `outliers_mad(1, (
+			alias(time(), "metric1"),
+			alias(time()*1.5, "metric2"),
+			label_set(time()*0.9, "baz", "sss"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1500, 1800, 2100, 2400, 2700, 3000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("metric2")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`outliers_mad(5)`, func(t *testing.T) {
+		t.Parallel()
+		q := `outliers_mad(5, (
+			alias(time(), "metric1"),
+			alias(time()*1.5, "metric2"),
+			label_set(time()*0.9, "baz", "sss"),
+		))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`outliersk(0)`, func(t *testing.T) {
 		t.Parallel()
 		q := `outliersk(0, (
@@ -7000,6 +7041,9 @@ func TestExecError(t *testing.T) {
 	f(`hoeffding_bound_upper()`)
 	f(`hoeffding_bound_upper(1)`)
 	f(`hoeffding_bound_upper(0.99, foo, 1)`)
+	f(`mad()`)
+	f(`outliers_mad()`)
+	f(`outliers_mad(1)`)
 	f(`outliersk()`)
 	f(`outliersk(1)`)
 	f(`mode_over_time()`)
