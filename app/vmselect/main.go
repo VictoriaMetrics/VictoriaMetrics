@@ -198,7 +198,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
-
+	if strings.HasPrefix(path, "/functions") {
+		graphiteFunctionsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, "%s", `{}`)
+		return true
+	}
 	switch path {
 	case "/api/v1/query":
 		queryRequests.Inc()
@@ -543,6 +548,8 @@ var (
 
 	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/delSeries"}`)
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/delSeries"}`)
+
+	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_request_total{path="/functions"}`)
 
 	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
