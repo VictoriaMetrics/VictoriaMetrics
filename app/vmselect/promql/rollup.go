@@ -83,6 +83,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"ascent_over_time":      newRollupFuncOneArg(rollupAscentOverTime),
 	"descent_over_time":     newRollupFuncOneArg(rollupDescentOverTime),
 	"zscore_over_time":      newRollupFuncOneArg(rollupZScoreOverTime),
+	"quantiles_over_time":   newRollupQuantiles,
 
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
@@ -156,6 +157,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"sum_over_time":       true,
 	"count_over_time":     true,
 	"quantile_over_time":  true,
+	"quantiles_over_time": true,
 	"stddev_over_time":    true,
 	"stdvar_over_time":    true,
 	"absent_over_time":    true,
@@ -191,6 +193,7 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"min_over_time":         true,
 	"max_over_time":         true,
 	"quantile_over_time":    true,
+	"quantiles_over_time":   true,
 	"rollup":                true,
 	"geomean_over_time":     true,
 	"hoeffding_bound_lower": true,
@@ -250,15 +253,17 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	return aggrFuncNames, nil
 }
 
-func getRollupArgIdx(funcName string) int {
-	funcName = strings.ToLower(funcName)
+func getRollupArgIdx(fe *metricsql.FuncExpr) int {
+	funcName := strings.ToLower(fe.Name)
 	if rollupFuncs[funcName] == nil {
-		logger.Panicf("BUG: getRollupArgIdx is called for non-rollup func %q", funcName)
+		logger.Panicf("BUG: getRollupArgIdx is called for non-rollup func %q", fe.Name)
 	}
 	switch funcName {
 	case "quantile_over_time", "aggr_over_time",
 		"hoeffding_bound_lower", "hoeffding_bound_upper":
 		return 1
+	case "quantiles_over_time":
+		return len(fe.Args) - 1
 	default:
 		return 0
 	}
@@ -423,14 +428,16 @@ var (
 const maxSilenceInterval = 5 * 60 * 1000
 
 type timeseriesMap struct {
-	origin    *timeseries
-	labelName string
-	h         metrics.Histogram
-	m         map[string]*timeseries
+	origin *timeseries
+	h      metrics.Histogram
+	m      map[string]*timeseries
 }
 
 func newTimeseriesMap(funcName string, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
-	if strings.ToLower(funcName) != "histogram_over_time" {
+	funcName = strings.ToLower(funcName)
+	switch funcName {
+	case "histogram_over_time", "quantiles_over_time":
+	default:
 		return nil
 	}
 
@@ -440,13 +447,14 @@ func newTimeseriesMap(funcName string, sharedTimestamps []int64, mnSrc *storage.
 	}
 	var origin timeseries
 	origin.MetricName.CopyFrom(mnSrc)
-	origin.MetricName.ResetMetricGroup()
+	if !rollupFuncsKeepMetricGroup[funcName] {
+		origin.MetricName.ResetMetricGroup()
+	}
 	origin.Timestamps = sharedTimestamps
 	origin.Values = values
 	return &timeseriesMap{
-		origin:    &origin,
-		labelName: "vmrange",
-		m:         make(map[string]*timeseries),
+		origin: &origin,
+		m:      make(map[string]*timeseries),
 	}
 }
 
@@ -457,15 +465,15 @@ func (tsm *timeseriesMap) AppendTimeseriesTo(dst []*timeseries) []*timeseries {
 	return dst
 }
 
-func (tsm *timeseriesMap) GetOrCreateTimeseries(labelValue string) *timeseries {
+func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *timeseries {
 	ts := tsm.m[labelValue]
 	if ts != nil {
 		return ts
 	}
 	ts = &timeseries{}
 	ts.CopyFromShallowTimestamps(tsm.origin)
-	ts.MetricName.RemoveTag(tsm.labelName)
-	ts.MetricName.AddTag(tsm.labelName, labelValue)
+	ts.MetricName.RemoveTag(labelName)
+	ts.MetricName.AddTag(labelName, labelValue)
 	tsm.m[labelValue] = ts
 	return ts
 }
@@ -1024,6 +1032,57 @@ func rollupHoeffdingBoundInternal(rfa *rollupFuncArg, phis []float64) (float64, 
 	return bound, vAvg
 }
 
+func newRollupQuantiles(args []interface{}) (rollupFunc, error) {
+	if len(args) < 3 {
+		return nil, fmt.Errorf("unexpected number of args: %d; want at least 3 args", len(args))
+	}
+	tssPhi, ok := args[0].([]*timeseries)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for phi arg: %T; want string", args[0])
+	}
+	phiLabel, err := getString(tssPhi, 0)
+	if err != nil {
+		return nil, err
+	}
+	phiArgs := args[1 : len(args)-1]
+	phis := make([]float64, len(phiArgs))
+	phiStrs := make([]string, len(phiArgs))
+	for i, phiArg := range phiArgs {
+		phiValues, err := getScalar(phiArg, i+1)
+		if err != nil {
+			return nil, fmt.Errorf("cannot obtain phi from arg #%d: %w", i+1, err)
+		}
+		phis[i] = phiValues[0]
+		phiStrs[i] = fmt.Sprintf("%g", phiValues[0])
+	}
+	rf := func(rfa *rollupFuncArg) float64 {
+		// There is no need in handling NaNs here, since they must be cleaned up
+		// before calling rollup funcs.
+		values := rfa.values
+		if len(values) == 0 {
+			return rfa.prevValue
+		}
+		if len(values) == 1 {
+			// Fast path - only a single value.
+			return values[0]
+		}
+		hf := histogram.GetFast()
+		for _, v := range values {
+			hf.Update(v)
+		}
+		qs := hf.Quantiles(nil, phis)
+		histogram.PutFast(hf)
+		idx := rfa.idx
+		tsm := rfa.tsm
+		for i, phiStr := range phiStrs {
+			ts := tsm.GetOrCreateTimeseries(phiLabel, phiStr)
+			ts.Values[idx] = qs[i]
+		}
+		return nan
+	}
+	return rf, nil
+}
+
 func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
@@ -1064,7 +1123,7 @@ func rollupHistogram(rfa *rollupFuncArg) float64 {
 	}
 	idx := rfa.idx
 	tsm.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-		ts := tsm.GetOrCreateTimeseries(vmrange)
+		ts := tsm.GetOrCreateTimeseries("vmrange", vmrange)
 		ts.Values[idx] = float64(count)
 	})
 	return nan
