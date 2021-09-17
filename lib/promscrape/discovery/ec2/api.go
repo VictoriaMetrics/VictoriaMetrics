@@ -414,14 +414,14 @@ func getSTSAPIResponse(action, stsEndpoint, roleARN string, reqBuilder func(apiU
 }
 
 // getEC2APIResponse performs EC2 API request with given action.
-func getEC2APIResponse(cfg *apiConfig, action, nextPageToken string) ([]byte, error) {
+func getEC2APIResponse(cfg *apiConfig, action, filters, nextPageToken string) ([]byte, error) {
 	ac, err := cfg.getFreshAPICredentials()
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain fresh credentials for EC2 API: %w", err)
 	}
 	apiURL := fmt.Sprintf("%s?Action=%s", cfg.ec2Endpoint, url.QueryEscape(action))
-	if len(cfg.filters) > 0 {
-		apiURL += "&" + cfg.filters
+	if len(filters) > 0 {
+		apiURL += "&" + filters
 	}
 	if len(nextPageToken) > 0 {
 		apiURL += fmt.Sprintf("&NextToken=%s", url.QueryEscape(nextPageToken))
