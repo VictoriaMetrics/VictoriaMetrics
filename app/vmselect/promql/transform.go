@@ -74,59 +74,60 @@ var transformFuncs = map[string]transformFunc{
 	"year":   newTransformFuncDateTime(transformYear),
 
 	// New funcs
-	"label_set":          transformLabelSet,
-	"label_map":          transformLabelMap,
-	"label_uppercase":    transformLabelUppercase,
-	"label_lowercase":    transformLabelLowercase,
-	"label_del":          transformLabelDel,
-	"label_keep":         transformLabelKeep,
-	"label_copy":         transformLabelCopy,
-	"label_move":         transformLabelMove,
-	"label_transform":    transformLabelTransform,
-	"label_value":        transformLabelValue,
-	"label_match":        transformLabelMatch,
-	"label_mismatch":     transformLabelMismatch,
-	"union":              transformUnion,
-	"":                   transformUnion, // empty func is a synonym to union
-	"keep_last_value":    transformKeepLastValue,
-	"keep_next_value":    transformKeepNextValue,
-	"interpolate":        transformInterpolate,
-	"start":              newTransformFuncZeroArgs(transformStart),
-	"end":                newTransformFuncZeroArgs(transformEnd),
-	"step":               newTransformFuncZeroArgs(transformStep),
-	"running_sum":        newTransformFuncRunning(runningSum),
-	"running_max":        newTransformFuncRunning(runningMax),
-	"running_min":        newTransformFuncRunning(runningMin),
-	"running_avg":        newTransformFuncRunning(runningAvg),
-	"range_sum":          newTransformFuncRange(runningSum),
-	"range_max":          newTransformFuncRange(runningMax),
-	"range_min":          newTransformFuncRange(runningMin),
-	"range_avg":          newTransformFuncRange(runningAvg),
-	"range_first":        transformRangeFirst,
-	"range_last":         transformRangeLast,
-	"range_quantile":     transformRangeQuantile,
-	"smooth_exponential": transformSmoothExponential,
-	"remove_resets":      transformRemoveResets,
-	"rand":               newTransformRand(newRandFloat64),
-	"rand_normal":        newTransformRand(newRandNormFloat64),
-	"rand_exponential":   newTransformRand(newRandExpFloat64),
-	"pi":                 transformPi,
-	"sin":                newTransformFuncOneArg(transformSin),
-	"cos":                newTransformFuncOneArg(transformCos),
-	"asin":               newTransformFuncOneArg(transformAsin),
-	"acos":               newTransformFuncOneArg(transformAcos),
-	"prometheus_buckets": transformPrometheusBuckets,
-	"buckets_limit":      transformBucketsLimit,
-	"histogram_share":    transformHistogramShare,
-	"histogram_avg":      transformHistogramAvg,
-	"histogram_stdvar":   transformHistogramStdvar,
-	"histogram_stddev":   transformHistogramStddev,
-	"sort_by_label":      newTransformFuncSortByLabel(false),
-	"sort_by_label_desc": newTransformFuncSortByLabel(true),
-	"timezone_offset":    transformTimezoneOffset,
-	"bitmap_and":         newTransformBitmap(bitmapAnd),
-	"bitmap_or":          newTransformBitmap(bitmapOr),
-	"bitmap_xor":         newTransformBitmap(bitmapXor),
+	"label_set":           transformLabelSet,
+	"label_map":           transformLabelMap,
+	"label_uppercase":     transformLabelUppercase,
+	"label_lowercase":     transformLabelLowercase,
+	"label_del":           transformLabelDel,
+	"label_keep":          transformLabelKeep,
+	"label_copy":          transformLabelCopy,
+	"label_move":          transformLabelMove,
+	"label_transform":     transformLabelTransform,
+	"label_value":         transformLabelValue,
+	"label_match":         transformLabelMatch,
+	"label_mismatch":      transformLabelMismatch,
+	"union":               transformUnion,
+	"":                    transformUnion, // empty func is a synonym to union
+	"keep_last_value":     transformKeepLastValue,
+	"keep_next_value":     transformKeepNextValue,
+	"interpolate":         transformInterpolate,
+	"start":               newTransformFuncZeroArgs(transformStart),
+	"end":                 newTransformFuncZeroArgs(transformEnd),
+	"step":                newTransformFuncZeroArgs(transformStep),
+	"running_sum":         newTransformFuncRunning(runningSum),
+	"running_max":         newTransformFuncRunning(runningMax),
+	"running_min":         newTransformFuncRunning(runningMin),
+	"running_avg":         newTransformFuncRunning(runningAvg),
+	"range_sum":           newTransformFuncRange(runningSum),
+	"range_max":           newTransformFuncRange(runningMax),
+	"range_min":           newTransformFuncRange(runningMin),
+	"range_avg":           newTransformFuncRange(runningAvg),
+	"range_first":         transformRangeFirst,
+	"range_last":          transformRangeLast,
+	"range_quantile":      transformRangeQuantile,
+	"smooth_exponential":  transformSmoothExponential,
+	"remove_resets":       transformRemoveResets,
+	"rand":                newTransformRand(newRandFloat64),
+	"rand_normal":         newTransformRand(newRandNormFloat64),
+	"rand_exponential":    newTransformRand(newRandExpFloat64),
+	"pi":                  transformPi,
+	"sin":                 newTransformFuncOneArg(transformSin),
+	"cos":                 newTransformFuncOneArg(transformCos),
+	"asin":                newTransformFuncOneArg(transformAsin),
+	"acos":                newTransformFuncOneArg(transformAcos),
+	"prometheus_buckets":  transformPrometheusBuckets,
+	"buckets_limit":       transformBucketsLimit,
+	"histogram_share":     transformHistogramShare,
+	"histogram_avg":       transformHistogramAvg,
+	"histogram_stdvar":    transformHistogramStdvar,
+	"histogram_stddev":    transformHistogramStddev,
+	"sort_by_label":       newTransformFuncSortByLabel(false),
+	"sort_by_label_desc":  newTransformFuncSortByLabel(true),
+	"timezone_offset":     transformTimezoneOffset,
+	"bitmap_and":          newTransformBitmap(bitmapAnd),
+	"bitmap_or":           newTransformBitmap(bitmapOr),
+	"bitmap_xor":          newTransformBitmap(bitmapXor),
+	"histogram_quantiles": transformHistogramQuantiles,
 }
 
 func getTransformFunc(s string) transformFunc {
@@ -787,6 +788,43 @@ func stdvarForLeTimeseries(i int, xss []leTimeseries) float64 {
 		stdvar = 0
 	}
 	return stdvar
+}
+
+func transformHistogramQuantiles(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 3 {
+		return nil, fmt.Errorf("unexpected number of args: %d; expecting at least 3 args", len(args))
+	}
+	dstLabel, err := getString(args[0], 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain dstLabel: %w", err)
+	}
+	phiArgs := args[1 : len(args)-1]
+	tssOrig := args[len(args)-1]
+	// Calculate quantile individually per each phi.
+	var rvs []*timeseries
+	for _, phiArg := range phiArgs {
+		phiStr := fmt.Sprintf("%g", phiArg[0].Values[0])
+		tss := copyTimeseries(tssOrig)
+		tfaTmp := &transformFuncArg{
+			ec: tfa.ec,
+			fe: tfa.fe,
+			args: [][]*timeseries{
+				phiArg,
+				tss,
+			},
+		}
+		tssTmp, err := transformHistogramQuantile(tfaTmp)
+		if err != nil {
+			return nil, fmt.Errorf("cannot calculate quantile %s: %w", phiStr, err)
+		}
+		for _, ts := range tssTmp {
+			ts.MetricName.RemoveTag(dstLabel)
+			ts.MetricName.AddTag(dstLabel, phiStr)
+		}
+		rvs = append(rvs, tssTmp...)
+	}
+	return rvs, nil
 }
 
 func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
