@@ -966,30 +966,46 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 		return nil, fmt.Errorf("cannot obtain dstLabel: %w", err)
 	}
 	phiArgs := args[1 : len(args)-1]
-	argOrig := args[len(args)-1]
-	var rvs []*timeseries
+	phis := make([]float64, len(phiArgs))
 	for i, phiArg := range phiArgs {
-		phis, err := getScalar(phiArg, i+1)
+		phisLocal, err := getScalar(phiArg, i+1)
 		if err != nil {
 			return nil, err
 		}
 		if len(phis) == 0 {
 			logger.Panicf("BUG: expecting at least a single sample")
 		}
-		phi := phis[0]
-		afe := newAggrQuantileFunc(phis)
-		arg := copyTimeseries(argOrig)
-		tss, err := aggrFuncExt(afe, arg, &afa.ae.Modifier, afa.ae.Limit, false)
-		if err != nil {
-			return nil, fmt.Errorf("cannot calculate quantile %g: %w", phi, err)
-		}
-		for _, ts := range tss {
-			ts.MetricName.RemoveTag(dstLabel)
-			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phi))
-		}
-		rvs = append(rvs, tss...)
+		phis[i] = phisLocal[0]
 	}
-	return rvs, nil
+	argOrig := args[len(args)-1]
+	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		tssDst := make([]*timeseries, len(phiArgs))
+		for j := range tssDst {
+			ts := &timeseries{}
+			ts.CopyFromShallowTimestamps(tss[0])
+			ts.MetricName.RemoveTag(dstLabel)
+			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phis[j]))
+			tssDst[j] = ts
+		}
+		h := histogram.GetFast()
+		defer histogram.PutFast(h)
+		var qs []float64
+		for n := range tss[0].Values {
+			h.Reset()
+			for j := range tss {
+				v := tss[j].Values[n]
+				if !math.IsNaN(v) {
+					h.Update(v)
+				}
+			}
+			qs = h.Quantiles(qs[:0], phis)
+			for j := range tssDst {
+				tssDst[j].Values[n] = qs[j]
+			}
+		}
+		return tssDst
+	}
+	return aggrFuncExt(afe, argOrig, &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
