@@ -30,7 +30,7 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	var rs []Reservation
 	pageToken := ""
 	for {
-		data, err := getEC2APIResponse(cfg, "DescribeInstances", pageToken)
+		data, err := getEC2APIResponse(cfg, "DescribeInstances", cfg.filters, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
@@ -155,7 +155,7 @@ func getAZMap(cfg *apiConfig) map[string]string {
 
 func getAvailabilityZones(cfg *apiConfig) ([]AvailabilityZone, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
-	data, err := getEC2APIResponse(cfg, "DescribeAvailabilityZones", "")
+	data, err := getEC2APIResponse(cfg, "DescribeAvailabilityZones", "", "")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain availability zones: %w", err)
 	}
