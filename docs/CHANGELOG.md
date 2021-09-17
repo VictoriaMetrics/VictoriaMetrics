@@ -36,6 +36,7 @@ sort: 15
 * BUGFIX: vmagent: properly use `https` scheme for wildcard TLS certificates for `role: ingress` targets in Kubernetes service discovery. See [this issue](https://github.com/prometheus/prometheus/issues/8902).
 * BUGFIX: vmagent: support host networking mode for `docker_sd_config`. See [this issue](https://github.com/prometheus/prometheus/issues/9116).
 * BUGFIX: fix non-repeatable results from `quantile_over_time()` function when the number of input samples exceeds 1000. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1612).
+* BUGFIX: fix EC2 zone discovery when `filters` are specified in [ec2_sc_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1626).
 
 
 ## [v1.65.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.65.0)
