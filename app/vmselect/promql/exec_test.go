@@ -3428,6 +3428,46 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantiles()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(histogram_quantiles("phi", 0.2, 0.3,
+			label_set(0, "foo", "bar", "le", "10")
+			or label_set(100, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		), "phi")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{22, 22, 22, 22, 22, 22},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.2"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{28, 28, 28, 28, 28, 28},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.3"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_share(normal-bucket-count)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_share(35,
@@ -6980,6 +7020,7 @@ func TestExecError(t *testing.T) {
 	f(`timestamp()`)
 	f(`vector()`)
 	f(`histogram_quantile()`)
+	f(`histogram_quantiles()`)
 	f(`sum()`)
 	f(`count_values()`)
 	f(`quantile()`)

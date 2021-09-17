@@ -413,7 +413,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### histogram_quantile
 
-`histogram_quantile(phi, buckets)` calculates `phi`-quantile over the given [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350). For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m]) by (le))` would return median request duration for all the requests during the last 5 minutes. It accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile. See [this issue for details](https://github.com/prometheus/prometheus/issues/5706). This function is supported by PromQL (except of the `boundLabel` arg). See also [histogram_share](#histogram_share).
+`histogram_quantile(phi, buckets)` calculates `phi`-quantile over the given [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350). For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m]) by (le))` would return median request duration for all the requests during the last 5 minutes. It accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile. See [this issue for details](https://github.com/prometheus/prometheus/issues/5706). This function is supported by PromQL (except of the `boundLabel` arg). See also [histogram_quantiles](#histogram_quantiles) and [histogram_share](#histogram_share).
+
+#### histogram_quantiles
+
+`histogram_quantiles("phiLabel", phi1, ..., phiN, buckets)` calculates the given `phi*`-quantiles over the given [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350). Each calculated quantile is returned in a separate time series with the corresponding `{phiLabel="phi*"}` label. See also [histogram_quantile](#histogram_quantile).
 
 #### histogram_share
 
@@ -782,7 +786,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### quantiles
 
-`quantiles("quantileLabel", phi1, ..., phiN, q)` calculates `phi*`-quantiles for all the time series returned by `q` and return them in time series with `{quantileLabel="phi*"}` label. The aggregate is calculated individually per each group of points with the same timestamp. See also [quantile](#quantile).
+`quantiles("phiLabel", phi1, ..., phiN, q)` calculates `phi*`-quantiles for all the time series returned by `q` and return them in time series with `{phiLabel="phi*"}` label. The aggregate is calculated individually per each group of points with the same timestamp. See also [quantile](#quantile).
 
 #### stddev
 
