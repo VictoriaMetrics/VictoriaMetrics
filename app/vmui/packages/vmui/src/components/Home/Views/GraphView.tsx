@@ -3,18 +3,16 @@ import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 
 export interface GraphViewProps {
-  data: MetricResult[];
+  data?: MetricResult[];
 }
 
-const GraphView: FC<GraphViewProps> = ({data}) => {
+const GraphView: FC<GraphViewProps> = ({data = []}) => {
 
   const amountOfSeries = useMemo(() => data.length, [data]);
 
   return <>
     {(amountOfSeries > 0)
-      ? <>
-        <LineChart data={data} />
-      </>
+      ? <LineChart data={data} />
       : <div style={{textAlign: "center"}}>No data to show</div>}
   </>;
 };

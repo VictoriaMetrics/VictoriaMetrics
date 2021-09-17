@@ -64,12 +64,12 @@ export const formatDateForNativeInput = (date: Date): string => dayjs(date).form
 
 export const getDurationFromPeriod = (p: TimePeriod): string => {
   const dur = dayjs.duration(p.to.valueOf() - p.from.valueOf());
-  const durs: UnitTypeShort[] = ["d", "h", "m", "s"];
-  return durs
-    .map(d => ({val: dur.get(d), str: d}))
-    .filter(obj => obj.val !== 0)
-    .map(obj => `${obj.val}${obj.str}`)
-    .join(" ");
+  const ms = dur.asMilliseconds();
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / 1000 / 60) % 60);
+  const hours = Math.floor((ms  / 1000 / 3600 ) % 24);
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 };
 
 export const dateFromSeconds = (epochTimeInSeconds: number): Date =>

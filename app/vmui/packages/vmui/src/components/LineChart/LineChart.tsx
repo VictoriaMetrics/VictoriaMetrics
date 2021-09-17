@@ -2,21 +2,21 @@ import React, {FC, useMemo} from "react";
 import {Line} from "react-chartjs-2";
 import {Chart, ChartData, ChartOptions, ScatterDataPoint, TimeScale} from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
-import {MetricResult} from "../../api/types";
 import {getNameForMetric} from "../../utils/metric";
 import "chartjs-adapter-date-fns";
 import debounce from "lodash.debounce";
 import {TimePeriod} from "../../types";
-import {useAppDispatch} from "../../state/common/StateContext";
+import {useAppDispatch, useAppState} from "../../state/common/StateContext";
+import {dateFromSeconds, getTimeperiodForDuration} from "../../utils/time";
+import {GraphViewProps} from "../Home/Views/GraphView";
+import {useFetchQuery} from "../Home/Configurator/useFetchQuery";
 Chart.register(zoomPlugin);
 
-export interface LineChartProps {
-    data: MetricResult[];
-}
+const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
-const LineChart: FC<LineChartProps> = ({data}) => {
+  const {isLoading} = useFetchQuery();
+  const {time: {duration}} = useAppState();
   const dispatch = useAppDispatch();
-
 
   const getColorByName = (str: string): string => {
     let hash = 0;
@@ -42,12 +42,16 @@ const LineChart: FC<LineChartProps> = ({data}) => {
         backgroundColor: color
       };
     })
-  }), [data]);
+  }), [data, isLoading]);
+
+  const getRangeTimeScale = (chart: Chart) => {
+    const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeScale") || {}) as TimeScale;
+    return {min, max};
+  };
 
   const onZoomComplete = ({chart}: {chart: Chart}) => {
-    // TODO add limits
-    const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeScale") || {}) as TimeScale;
-    if (!min || !max) return;
+    const {min, max} = getRangeTimeScale(chart);
+    if (!min || !max || (max - min < 1000)) return;
     const period: TimePeriod = {
       from: new Date(min),
       to: new Date(max)
@@ -56,21 +60,38 @@ const LineChart: FC<LineChartProps> = ({data}) => {
   };
 
   const onPanComplete = ({chart}: {chart: Chart}) => {
-    // TODO check min/max. Prevent duration changes
-    const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeScale") || {}) as TimeScale;
+    const {min, max} = getRangeTimeScale(chart);
     if (!min || !max) return;
+    const {start,  end} = getTimeperiodForDuration(duration, new Date(max));
     const period: TimePeriod = {
-      from: new Date(min),
-      to: new Date(max)
+      from: dateFromSeconds(start),
+      to: dateFromSeconds(end)
     };
     dispatch({type: "SET_PERIOD", payload: period});
   };
 
   const options: ChartOptions = {
-    animation: false,
+    animation: {
+      delay: 0,
+      duration: 250,
+      easing: "linear",
+    },
     scales: {
       x: {
         type: "time",
+        time: {
+          tooltipFormat: "yyyy-MM-dd HH:mm:ss.SSS",
+          displayFormats: {
+            millisecond: "HH:mm:ss.SSS",
+            second: "HH:mm:ss",
+            minute: "HH:mm",
+            hour: "HH:mm"
+          },
+        },
+        ticks: {
+          source: "auto",
+          autoSkip: true,
+        }
       }
     },
     plugins: {
@@ -85,12 +106,14 @@ const LineChart: FC<LineChartProps> = ({data}) => {
       zoom: {
         pan: {
           enabled: true,
-          onPanComplete:  debounce(onPanComplete, 500)
+          mode: "x",
+          onPanComplete:  debounce(onPanComplete, 1500)
         },
         zoom: {
           wheel: {
-            enabled: true
+            enabled: true,
           },
+          mode: "x",
           onZoomComplete: debounce(onZoomComplete, 500)
         }
       }
