@@ -58,12 +58,12 @@ const HomeLayout: FC = () => {
           {isLoading && <Fade in={isLoading} style={{
             transitionDelay: isLoading ? "300ms" : "0ms",
           }}>
-            <Box alignItems="center" flexDirection="column" display="flex"
+            <Box alignItems="center" justifyContent="center" flexDirection="column" display="flex"
               style={{
                 width: "100%",
-                maxWidth: "calc(100vh - 32px)",
+                maxWidth: "calc(100vw - 32px)",
                 position: "absolute",
-                height: "150px",
+                height: "50%",
                 background: "linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,.7), rgba(255,255,255,0))"
               }}>
               <CircularProgress/>
