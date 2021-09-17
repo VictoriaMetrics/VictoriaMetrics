@@ -508,6 +508,7 @@ func TestRollupNewRollupFuncError(t *testing.T) {
 	f("holt_winters", nil)
 	f("predict_linear", nil)
 	f("quantile_over_time", nil)
+	f("quantiles_over_time", nil)
 
 	// Invalid arg type
 	scalarTs := []*timeseries{{
@@ -521,6 +522,7 @@ func TestRollupNewRollupFuncError(t *testing.T) {
 	f("predict_linear", []interface{}{123, 123})
 	f("predict_linear", []interface{}{me, 123})
 	f("quantile_over_time", []interface{}{123, 123})
+	f("quantiles_over_time", []interface{}{123, 123})
 }
 
 func TestRollupNoWindowNoPoints(t *testing.T) {

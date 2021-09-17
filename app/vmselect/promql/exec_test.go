@@ -4615,6 +4615,67 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`quantile_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `quantile_over_time(0.9, label_set(round(rand(0), 0.01), "__name__", "foo", "xx", "yy")[200s:5s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.89, 0.89, 0.95, 0.87, 0.92, 0.89},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foo")
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`quantiles_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(
+			quantiles_over_time("phi", 0.5, 0.9,
+				label_set(round(rand(0), 0.01), "__name__", "foo", "xx", "yy")[200s:5s]
+			),
+			"phi",
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.47, 0.57, 0.49, 0.54, 0.56, 0.53},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("foo")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.5"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.89, 0.89, 0.95, 0.87, 0.92, 0.89},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("foo")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.9"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]), "vmrange")`
