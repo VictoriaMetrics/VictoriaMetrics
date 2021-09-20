@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -19,12 +18,11 @@ var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maxi
 
 // ParseStream parses /api/v1/import lines from req and calls callback for the parsed rows.
 //
-// The callback can be called concurrently multiple times for streamed data from req.
+// The callback can be called concurrently multiple times for streamed data from reader.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(req *http.Request, callback func(rows []Row) error) error {
-	r := req.Body
-	if req.Header.Get("Content-Encoding") == "gzip" {
+func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) error {
+	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
