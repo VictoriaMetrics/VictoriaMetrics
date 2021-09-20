@@ -680,7 +680,7 @@ Below is the output for `/path/to/vmselect -help`:
     	Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
     	Supports an array of values separated by comma or specified via multiple flags.
   -storageNode array
-    	Comma-separated dddresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
+    	Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
     	Supports an array of values separated by comma or specified via multiple flags.
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
