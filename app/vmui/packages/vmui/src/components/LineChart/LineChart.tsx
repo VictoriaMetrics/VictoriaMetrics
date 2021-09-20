@@ -105,7 +105,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         pan: {
           enabled: true,
           mode: "x",
-          onPanComplete:  debounce(onPanComplete, 1500)
+          onPanComplete:  debounce(onPanComplete, 500)
         },
         zoom: {
           wheel: {
