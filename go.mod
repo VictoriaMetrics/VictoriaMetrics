@@ -1,7 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
-	cloud.google.com/go v0.94.1 // indirect
 	cloud.google.com/go/storage v1.16.1
 	github.com/VictoriaMetrics/fastcache v1.7.0
 
@@ -39,7 +38,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	golang.org/x/sys v0.0.0-20210915083310-ed5796bab164
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/api v0.56.0
+	google.golang.org/api v0.57.0
 	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )

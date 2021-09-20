@@ -1,5 +1,4 @@
 # cloud.google.com/go v0.94.1
-## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -274,7 +273,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/api v0.56.0
+# google.golang.org/api v0.57.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
