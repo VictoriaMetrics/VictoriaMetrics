@@ -64,13 +64,14 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
 export const formatDateForNativeInput = (date: Date): string => dayjs(date).format("YYYY-MM-DD[T]HH:mm:ss");
 
 export const getDurationFromPeriod = (p: TimePeriod): string => {
-  const dur = dayjs.duration(p.to.valueOf() - p.from.valueOf());
-  const ms = dur.asMilliseconds();
+  const ms = p.to.valueOf() - p.from.valueOf();
   const seconds = Math.floor((ms / 1000) % 60);
   const minutes = Math.floor((ms / 1000 / 60) % 60);
-  const hours = Math.floor((ms  / 1000 / 3600 ) % 24);
+  const hours = Math.floor((ms / 1000 / 3600 ) % 24);
   const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  const durs: UnitTypeShort[] = ["d", "h", "m", "s"];
+  const values = [days, hours, minutes, seconds].map((t, i) => t ? `${t}${durs[i]}` : "");
+  return values.filter(t => t).join(" ");
 };
 
 export const dateFromSeconds = (epochTimeInSeconds: number): Date =>
