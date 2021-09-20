@@ -3428,6 +3428,46 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantiles()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(histogram_quantiles("phi", 0.2, 0.3,
+			label_set(0, "foo", "bar", "le", "10")
+			or label_set(100, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		), "phi")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{22, 22, 22, 22, 22, 22},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.2"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{28, 28, 28, 28, 28, 28},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.3"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_share(normal-bucket-count)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_share(35,
@@ -4575,6 +4615,67 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`quantile_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `quantile_over_time(0.9, label_set(round(rand(0), 0.01), "__name__", "foo", "xx", "yy")[200s:5s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.89, 0.89, 0.95, 0.87, 0.92, 0.89},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foo")
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`quantiles_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(
+			quantiles_over_time("phi", 0.5, 0.9,
+				label_set(round(rand(0), 0.01), "__name__", "foo", "xx", "yy")[200s:5s]
+			),
+			"phi",
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.47, 0.57, 0.49, 0.54, 0.56, 0.53},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("foo")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.5"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.89, 0.89, 0.95, 0.87, 0.92, 0.89},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("foo")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.9"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]), "vmrange")`
@@ -5521,6 +5622,47 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`quantile(NaN)`, func(t *testing.T) {
 		t.Parallel()
 		q := `quantile(NaN, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`mad()`, func(t *testing.T) {
+		t.Parallel()
+		q := `mad(
+			alias(time(), "metric1"),
+			alias(time()*1.5, "metric2"),
+			label_set(time()*0.9, "baz", "sss"),
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`outliers_mad(1)`, func(t *testing.T) {
+		t.Parallel()
+		q := `outliers_mad(1, (
+			alias(time(), "metric1"),
+			alias(time()*1.5, "metric2"),
+			label_set(time()*0.9, "baz", "sss"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1500, 1800, 2100, 2400, 2700, 3000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("metric2")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`outliers_mad(5)`, func(t *testing.T) {
+		t.Parallel()
+		q := `outliers_mad(5, (
+			alias(time(), "metric1"),
+			alias(time()*1.5, "metric2"),
+			label_set(time()*0.9, "baz", "sss"),
+		))`
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
@@ -6939,6 +7081,7 @@ func TestExecError(t *testing.T) {
 	f(`timestamp()`)
 	f(`vector()`)
 	f(`histogram_quantile()`)
+	f(`histogram_quantiles()`)
 	f(`sum()`)
 	f(`count_values()`)
 	f(`quantile()`)
@@ -7000,6 +7143,9 @@ func TestExecError(t *testing.T) {
 	f(`hoeffding_bound_upper()`)
 	f(`hoeffding_bound_upper(1)`)
 	f(`hoeffding_bound_upper(0.99, foo, 1)`)
+	f(`mad()`)
+	f(`outliers_mad()`)
+	f(`outliers_mad(1)`)
 	f(`outliersk()`)
 	f(`outliersk(1)`)
 	f(`mode_over_time()`)

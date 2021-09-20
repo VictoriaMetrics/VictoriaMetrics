@@ -132,8 +132,8 @@ ROOT_IMAGE=scratch make package
 A minimal cluster must contain the following nodes:
 
 * a single `vmstorage` node with `-retentionPeriod` and `-storageDataPath` flags
-* a single `vminsert` node with `-storageNode=<vmstorage_host>:8400`
-* a single `vmselect` node with `-storageNode=<vmstorage_host>:8401`
+* a single `vminsert` node with `-storageNode=<vmstorage_host>`
+* a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
 It is recommended to run at least two nodes for each service
 for high availability purposes.
@@ -271,8 +271,8 @@ Cluster performance and capacity scales with adding new nodes.
 Steps to add `vmstorage` node:
 
 1. Start new `vmstorage` node with the same `-retentionPeriod` as existing nodes in the cluster.
-2. Gradually restart all the `vmselect` nodes with new `-storageNode` arg containing `<new_vmstorage_host>:8401`.
-3. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>:8400`.
+2. Gradually restart all the `vmselect` nodes with new `-storageNode` arg containing `<new_vmstorage_host>`.
+3. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>`.
 
 
 ## Updating / reconfiguring cluster nodes
@@ -283,6 +283,8 @@ with new configs.
 
 Cluster should remain in working state if at least a single node of each type remains available during
 the update process. See [cluster availability](#cluster-availability) section for details.
+
+See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
 
 
 ## Cluster availability
@@ -565,7 +567,7 @@ Below is the output for `/path/to/vminsert -help`:
   -sortLabels
     	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storageNode array
-    	Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400
+    	Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
     	Supports an array of values separated by comma or specified via multiple flags.
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
@@ -679,10 +681,10 @@ Below is the output for `/path/to/vmselect -help`:
   -search.treatDotsAsIsInRegexps
     	Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
-    	Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481
+    	Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
     	Supports an array of values separated by comma or specified via multiple flags.
   -storageNode array
-    	Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401
+    	Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
     	Supports an array of values separated by comma or specified via multiple flags.
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set

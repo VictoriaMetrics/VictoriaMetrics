@@ -98,7 +98,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("error during data fetching: %w", err)
+		return fmt.Errorf("error during sending data to remote client: %w", err)
 	}
 	if err := bw.Flush(); err != nil {
 		return err
@@ -175,7 +175,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	}
 	err = <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during exporting data to csv: %w", err)
+		return fmt.Errorf("error during sending the exported csv data to remote client: %w", err)
 	}
 	return nil
 }
@@ -244,10 +244,10 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		return err
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("error during sending native data to remote client: %w", err)
 	}
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("error during flushing native data to remote client: %w", err)
 	}
 	return nil
 }
@@ -414,7 +414,7 @@ func exportHandler(w http.ResponseWriter, matches []string, etf []storage.TagFil
 	}
 	err = <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during data fetching: %w", err)
+		return fmt.Errorf("error during sending the data to remote client: %w", err)
 	}
 	return nil
 }
@@ -538,7 +538,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	defer bufferedwriter.Put(bw)
 	WriteLabelValuesResponse(bw, labelValues)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("canot flush label values to remote client: %w", err)
 	}
 	return nil
 }
@@ -600,7 +600,7 @@ func labelValuesWithMatches(labelName string, matches []string, etf []storage.Ta
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("error when data fetching: %w", err)
+			return nil, fmt.Errorf("cannot fetch label values from storage: %w", err)
 		}
 	}
 	labelValues := make([]string, 0, len(m))
@@ -627,7 +627,7 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	defer bufferedwriter.Put(bw)
 	WriteLabelsCountResponse(bw, labelEntries)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot send labels count response to remote client: %w", err)
 	}
 	return nil
 }
@@ -695,7 +695,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	defer bufferedwriter.Put(bw)
 	WriteTSDBStatusResponse(bw, status)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot send tsdb status response to remote client: %w", err)
 	}
 	return nil
 }
@@ -789,7 +789,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	defer bufferedwriter.Put(bw)
 	WriteLabelsResponse(bw, labels)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
 	return nil
 }
@@ -838,7 +838,7 @@ func labelsWithMatches(matches []string, etf []storage.TagFilter, start, end int
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("error when data fetching: %w", err)
+			return nil, fmt.Errorf("cannot fetch labels from storage: %w", err)
 		}
 	}
 	labels := make([]string, 0, len(m))
@@ -865,7 +865,7 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	defer bufferedwriter.Put(bw)
 	WriteSeriesCountResponse(bw, n)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot send series count response to remote client: %w", err)
 	}
 	return nil
 }
@@ -957,11 +957,11 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	// WriteSeriesResponse must consume all the data from resultsCh.
 	WriteSeriesResponse(bw, resultsCh)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot flush series response to remote client: %w", err)
 	}
 	err = <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during data fetching: %w", err)
+		return fmt.Errorf("cannot send series response to remote client: %w", err)
 	}
 	return nil
 }
@@ -1075,7 +1075,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	defer bufferedwriter.Put(bw)
 	WriteQueryResponse(bw, result)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
 	return nil
 }
@@ -1168,7 +1168,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 	defer bufferedwriter.Put(bw)
 	WriteQueryRangeResponse(bw, result)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
 	return nil
 }
@@ -1348,7 +1348,7 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	defer bufferedwriter.Put(bw)
 	querystats.WriteJSONQueryStats(bw, topN, maxLifetime)
 	if err := bw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("cannot send query stats response to client: %w", err)
 	}
 	return nil
 }

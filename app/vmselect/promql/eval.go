@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -390,7 +391,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 	if nrf == nil {
 		return nil, nil
 	}
-	rollupArgIdx := getRollupArgIdx(fe.Name)
+	rollupArgIdx := getRollupArgIdx(fe)
 	if rollupArgIdx >= len(fe.Args) {
 		// Incorrect number of args for rollup func.
 		return nil, nil
@@ -430,7 +431,7 @@ func evalExprs(ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
 
 func evalRollupFuncArgs(ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, *metricsql.RollupExpr, error) {
 	var re *metricsql.RollupExpr
-	rollupArgIdx := getRollupArgIdx(fe.Name)
+	rollupArgIdx := getRollupArgIdx(fe)
 	if len(fe.Args) <= rollupArgIdx {
 		return nil, nil, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx+1, fe.Name, len(fe.Args), fe.AppendString(nil))
 	}
@@ -478,7 +479,8 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 	return &reNew
 }
 
-func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+func evalRollupFunc(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64
 	if re.Offset != nil {
@@ -491,7 +493,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 		// so cache hit rate should be quite good.
 		// See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/976
 	}
-	if name == "rollup_candlestick" {
+	if funcName == "rollup_candlestick" {
 		// Automatically apply `offset -step` to `rollup_candlestick` function
 		// in order to obtain expected OHLC results.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/309#issuecomment-582113462
@@ -504,12 +506,12 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 	var rvs []*timeseries
 	var err error
 	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
-		rvs, err = evalRollupFuncWithMetricExpr(ecNew, name, rf, expr, me, iafc, re.Window)
+		rvs, err = evalRollupFuncWithMetricExpr(ecNew, funcName, rf, expr, me, iafc, re.Window)
 	} else {
 		if iafc != nil {
-			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", name, re.AppendString(nil))
+			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", funcName, re.AppendString(nil))
 		}
-		rvs, err = evalRollupFuncWithSubquery(ecNew, name, rf, expr, re)
+		rvs, err = evalRollupFuncWithSubquery(ecNew, funcName, rf, expr, re)
 	}
 	if err != nil {
 		return nil, err
@@ -528,7 +530,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 	return rvs, nil
 }
 
-func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
+func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
 	step := re.Step.Duration(ec.Step)
 	if step == 0 {
@@ -550,25 +552,24 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr
 		return nil, err
 	}
 	if len(tssSQ) == 0 {
-		if name == "absent_over_time" {
+		if funcName == "absent_over_time" {
 			tss := evalNumber(ec, 1)
 			return tss, nil
 		}
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
-	preFunc, rcs, err := getRollupConfigs(name, rf, expr, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
 		return nil, err
 	}
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	var tssLock sync.Mutex
-	removeMetricGroup := !rollupFuncsKeepMetricGroup[name]
 	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64) ([]float64, []int64) {
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
 		preFunc(values, timestamps)
 		for _, rc := range rcs {
-			if tsm := newTimeseriesMap(name, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
+			if tsm := newTimeseriesMap(funcName, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
 				rc.DoTimeseriesMap(tsm, values, timestamps)
 				tssLock.Lock()
 				tss = tsm.AppendTimeseriesTo(tss)
@@ -576,7 +577,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr
 				continue
 			}
 			var ts timeseries
-			doRollupForTimeseries(rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps, removeMetricGroup)
+			doRollupForTimeseries(funcName, rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps)
 			tssLock.Lock()
 			tss = append(tss, &ts)
 			tssLock.Unlock()
@@ -642,7 +643,7 @@ var (
 	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
 )
 
-func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
+func evalRollupFuncWithMetricExpr(ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
@@ -665,7 +666,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	// Obtain rollup configs before fetching data from db,
 	// so type errors can be caught earlier.
 	sharedTimestamps := getTimestamps(start, ec.End, ec.Step)
-	preFunc, rcs, err := getRollupConfigs(name, rf, expr, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +690,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	if rssLen == 0 {
 		rss.Cancel()
 		var tss []*timeseries
-		if name == "absent_over_time" {
+		if funcName == "absent_over_time" {
 			tss = getAbsentTimeseries(ec, me)
 		}
 		// Add missing points until ec.End.
@@ -735,12 +736,11 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	defer rml.Put(uint64(rollupMemorySize))
 
 	// Evaluate rollup
-	removeMetricGroup := !rollupFuncsKeepMetricGroup[name]
 	var tss []*timeseries
 	if iafc != nil {
-		tss, err = evalRollupWithIncrementalAggregate(name, iafc, rss, rcs, preFunc, sharedTimestamps, removeMetricGroup)
+		tss, err = evalRollupWithIncrementalAggregate(funcName, iafc, rss, rcs, preFunc, sharedTimestamps)
 	} else {
-		tss, err = evalRollupNoIncrementalAggregate(name, rss, rcs, preFunc, sharedTimestamps, removeMetricGroup)
+		tss, err = evalRollupNoIncrementalAggregate(funcName, rss, rcs, preFunc, sharedTimestamps)
 	}
 	if err != nil {
 		return nil, err
@@ -762,15 +762,15 @@ func getRollupMemoryLimiter() *memoryLimiter {
 	return &rollupMemoryLimiter
 }
 
-func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
+func evalRollupWithIncrementalAggregate(funcName string, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		rs.Values, rs.Timestamps = dropStaleNaNs(name, rs.Values, rs.Timestamps)
+		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
 		defer putTimeseries(ts)
 		for _, rc := range rcs {
-			if tsm := newTimeseriesMap(name, sharedTimestamps, &rs.MetricName); tsm != nil {
+			if tsm := newTimeseriesMap(funcName, sharedTimestamps, &rs.MetricName); tsm != nil {
 				rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
 				for _, ts := range tsm.m {
 					iafc.updateTimeseries(ts, workerID)
@@ -778,7 +778,7 @@ func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncCo
 				continue
 			}
 			ts.Reset()
-			doRollupForTimeseries(rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps, removeMetricGroup)
+			doRollupForTimeseries(funcName, rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
 			iafc.updateTimeseries(ts, workerID)
 
 			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be re-used.
@@ -794,15 +794,15 @@ func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncCo
 	return tss, nil
 }
 
-func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
+func evalRollupNoIncrementalAggregate(funcName string, rss *netstorage.Results, rcs []*rollupConfig,
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		rs.Values, rs.Timestamps = dropStaleNaNs(name, rs.Values, rs.Timestamps)
+		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
-			if tsm := newTimeseriesMap(name, sharedTimestamps, &rs.MetricName); tsm != nil {
+			if tsm := newTimeseriesMap(funcName, sharedTimestamps, &rs.MetricName); tsm != nil {
 				rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
 				tssLock.Lock()
 				tss = tsm.AppendTimeseriesTo(tss)
@@ -810,7 +810,7 @@ func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs 
 				continue
 			}
 			var ts timeseries
-			doRollupForTimeseries(rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps, removeMetricGroup)
+			doRollupForTimeseries(funcName, rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
 			tssLock.Lock()
 			tss = append(tss, &ts)
 			tssLock.Unlock()
@@ -823,13 +823,13 @@ func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs 
 	return tss, nil
 }
 
-func doRollupForTimeseries(rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName, valuesSrc []float64, timestampsSrc []int64,
-	sharedTimestamps []int64, removeMetricGroup bool) {
+func doRollupForTimeseries(funcName string, rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName, valuesSrc []float64, timestampsSrc []int64,
+	sharedTimestamps []int64) {
 	tsDst.MetricName.CopyFrom(mnSrc)
 	if len(rc.TagValue) > 0 {
 		tsDst.MetricName.AddTag("rollup", rc.TagValue)
 	}
-	if removeMetricGroup {
+	if !rollupFuncsKeepMetricGroup[funcName] {
 		tsDst.MetricName.ResetMetricGroup()
 	}
 	tsDst.Values = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)
@@ -896,8 +896,8 @@ func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {
 	dst.IsNegative = src.IsNegative
 }
 
-func dropStaleNaNs(name string, values []float64, timestamps []int64) ([]float64, []int64) {
-	if *noStaleMarkers || name == "default_rollup" {
+func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]float64, []int64) {
+	if *noStaleMarkers || funcName == "default_rollup" {
 		// Do not drop Prometheus staleness marks (aka stale NaNs) for default_rollup() function,
 		// since it uses them for Prometheus-style staleness detection.
 		return values, timestamps

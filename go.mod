@@ -1,7 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
-	cloud.google.com/go v0.94.1 // indirect
 	cloud.google.com/go/storage v1.16.1
 	github.com/VictoriaMetrics/fastcache v1.7.0
 
@@ -9,9 +8,9 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.0
-	github.com/VictoriaMetrics/metricsql v0.21.0
+	github.com/VictoriaMetrics/metricsql v0.24.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/aws/aws-sdk-go v1.40.41
+	github.com/aws/aws-sdk-go v1.40.45
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
@@ -20,8 +19,9 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4
-	github.com/influxdata/influxdb v1.9.3
-	github.com/klauspost/compress v1.13.5
+	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
+	github.com/influxdata/influxdb v1.9.4
+	github.com/klauspost/compress v1.13.6
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/prometheus/common v0.30.0 // indirect
@@ -35,12 +35,12 @@ require (
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/net v0.0.0-20210908191846-a5e095526f91
+	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
-	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0
+	golang.org/x/sys v0.0.0-20210917161153-d61c044b1678
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/api v0.56.0
-	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af // indirect
+	google.golang.org/api v0.57.0
+	google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
 
