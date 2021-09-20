@@ -1481,6 +1481,7 @@ var awsPartition = partition{
 		"codecommit": service{
 
 			Endpoints: endpoints{
+				"af-south-1":     endpoint{},
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
@@ -4125,6 +4126,27 @@ var awsPartition = partition{
 				"us-west-2":      endpoint{},
 			},
 		},
+		"kafkaconnect": service{
+
+			Endpoints: endpoints{
+				"ap-northeast-1": endpoint{},
+				"ap-northeast-2": endpoint{},
+				"ap-south-1":     endpoint{},
+				"ap-southeast-1": endpoint{},
+				"ap-southeast-2": endpoint{},
+				"ca-central-1":   endpoint{},
+				"eu-central-1":   endpoint{},
+				"eu-north-1":     endpoint{},
+				"eu-west-1":      endpoint{},
+				"eu-west-2":      endpoint{},
+				"eu-west-3":      endpoint{},
+				"sa-east-1":      endpoint{},
+				"us-east-1":      endpoint{},
+				"us-east-2":      endpoint{},
+				"us-west-1":      endpoint{},
+				"us-west-2":      endpoint{},
+			},
+		},
 		"kinesis": service{
 
 			Endpoints: endpoints{
@@ -4252,6 +4274,7 @@ var awsPartition = partition{
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
+				"ap-northeast-3": endpoint{},
 				"ap-south-1":     endpoint{},
 				"ap-southeast-1": endpoint{},
 				"ap-southeast-2": endpoint{},
@@ -7451,9 +7474,33 @@ var awsPartition = partition{
 				"eu-west-1":      endpoint{},
 				"eu-west-2":      endpoint{},
 				"sa-east-1":      endpoint{},
-				"us-east-1":      endpoint{},
-				"us-east-2":      endpoint{},
-				"us-west-2":      endpoint{},
+				"transcribestreaming-fips-ca-central-1": endpoint{
+					Hostname: "transcribestreaming-fips.ca-central-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ca-central-1",
+					},
+				},
+				"transcribestreaming-fips-us-east-1": endpoint{
+					Hostname: "transcribestreaming-fips.us-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-east-1",
+					},
+				},
+				"transcribestreaming-fips-us-east-2": endpoint{
+					Hostname: "transcribestreaming-fips.us-east-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-east-2",
+					},
+				},
+				"transcribestreaming-fips-us-west-2": endpoint{
+					Hostname: "transcribestreaming-fips.us-west-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-2",
+					},
+				},
+				"us-east-1": endpoint{},
+				"us-east-2": endpoint{},
+				"us-west-2": endpoint{},
 			},
 		},
 		"transfer": service{
@@ -10160,6 +10207,17 @@ var awsusgovPartition = partition{
 				},
 				"us-gov-east-1": endpoint{},
 				"us-gov-west-1": endpoint{},
+			},
+		},
+		"oidc": service{
+
+			Endpoints: endpoints{
+				"us-gov-west-1": endpoint{
+					Hostname: "oidc.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+				},
 			},
 		},
 		"organizations": service{
