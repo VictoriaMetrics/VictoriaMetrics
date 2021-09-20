@@ -1,6 +1,7 @@
 import React, {FC, useMemo} from "react";
 import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
+import "../../../utils/chartjs-register-plugins";
 
 export interface GraphViewProps {
   data?: MetricResult[];

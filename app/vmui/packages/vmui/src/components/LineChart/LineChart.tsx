@@ -1,7 +1,6 @@
 import React, {FC, useMemo} from "react";
 import {Line} from "react-chartjs-2";
 import {Chart, ChartData, ChartOptions, ScatterDataPoint, TimeScale} from "chart.js";
-import zoomPlugin from "chartjs-plugin-zoom";
 import {getNameForMetric} from "../../utils/metric";
 import "chartjs-adapter-date-fns";
 import debounce from "lodash.debounce";
@@ -9,7 +8,6 @@ import {TimePeriod} from "../../types";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import {dateFromSeconds, getTimeperiodForDuration} from "../../utils/time";
 import {GraphViewProps} from "../Home/Views/GraphView";
-Chart.register(zoomPlugin);
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
