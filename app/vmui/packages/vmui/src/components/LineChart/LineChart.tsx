@@ -122,7 +122,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
 
   return <>
-    <Line data={series} options={options} />
+    <Line data={series} options={options} height={100} />
   </>;
 };
 
