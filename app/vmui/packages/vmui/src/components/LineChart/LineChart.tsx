@@ -9,12 +9,10 @@ import {TimePeriod} from "../../types";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import {dateFromSeconds, getTimeperiodForDuration} from "../../utils/time";
 import {GraphViewProps} from "../Home/Views/GraphView";
-import {useFetchQuery} from "../Home/Configurator/useFetchQuery";
 Chart.register(zoomPlugin);
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
-  const {isLoading} = useFetchQuery();
   const {time: {duration}} = useAppState();
   const dispatch = useAppDispatch();
 
@@ -42,7 +40,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         backgroundColor: color
       };
     })
-  }), [data, isLoading]);
+  }), [data]);
 
   const getRangeTimeScale = (chart: Chart) => {
     const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeScale") || {}) as TimeScale;
