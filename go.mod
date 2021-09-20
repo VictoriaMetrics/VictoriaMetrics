@@ -20,7 +20,7 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4
-	github.com/influxdata/influxdb v1.9.3
+	github.com/influxdata/influxdb v1.9.4
 	github.com/klauspost/compress v1.13.6
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
