@@ -160,12 +160,12 @@ type UploadInput struct {
 
 	// If x-amz-server-side-encryption is present and has the value of aws:kms,
 	// this header specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetrical customer managed customer master key
-	// (CMK) that was used for the object. If you specify x-amz-server-side-encryption:aws:kms,
-	// but do not providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3
-	// uses the Amazon Web Services managed CMK in Amazon Web Services to protect
-	// the data. If the KMS key does not exist in the same account issuing the command,
-	// you must use the full ARN and not just the ID.
+	// (Amazon Web Services KMS) symmetrical customer managed key that was used
+	// for the object. If you specify x-amz-server-side-encryption:aws:kms, but
+	// do not providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3 uses
+	// the Amazon Web Services managed key to protect the data. If the KMS key does
+	// not exist in the same account issuing the command, you must use the full
+	// ARN and not just the ID.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
