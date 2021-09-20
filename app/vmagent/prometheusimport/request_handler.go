@@ -1,6 +1,7 @@
 package prometheusimport
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
@@ -34,6 +35,15 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 			return insertRows(at, rows, extraLabels)
+		}, nil)
+	})
+}
+
+// InsertHandlerForReader processes metrics from given reader with optional gzip format
+func InsertHandlerForReader(r io.Reader, isGzipped bool) error {
+	return writeconcurrencylimiter.Do(func() error {
+		return parser.ParseStream(r, 0, isGzipped, func(rows []parser.Row) error {
+			return insertRows(nil, rows, nil)
 		}, nil)
 	})
 }

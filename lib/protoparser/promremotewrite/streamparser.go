@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -18,11 +17,11 @@ import (
 
 var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
 
-// ParseStream parses Prometheus remote_write message req and calls callback for the parsed timeseries.
+// ParseStream parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
 //
 // callback shouldn't hold tss after returning.
-func ParseStream(req *http.Request, callback func(tss []prompb.TimeSeries) error) error {
-	ctx := getPushCtx(req.Body)
+func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
+	ctx := getPushCtx(r)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
 		return err

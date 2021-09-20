@@ -45,6 +45,8 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
 	"any":            aggrFuncAny,
+	"mad":            newAggrFunc(aggrFuncMAD),
+	"outliers_mad":   aggrFuncOutliersMAD,
 	"outliersk":      aggrFuncOutliersK,
 	"mode":           newAggrFunc(aggrFuncMode),
 	"zscore":         aggrFuncZScore,
@@ -485,7 +487,6 @@ func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
 				ts.Values[i] = (v - avg) / stddev
 			}
 		}
-
 		// Remove MetricGroup from all the tss.
 		for _, ts := range tss {
 			ts.MetricName.ResetMetricGroup()
@@ -811,6 +812,52 @@ func medianValue(values []float64) float64 {
 	return value
 }
 
+func aggrFuncMAD(tss []*timeseries) []*timeseries {
+	// Calculate medians for each point across tss.
+	medians := getPerPointMedians(tss)
+	// Calculate MAD values multipled by tolerance for each point across tss.
+	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
+	mads := getPerPointMADs(tss, medians)
+	tss[0].Values = append(tss[0].Values[:0], mads...)
+	return tss[:1]
+}
+
+func aggrFuncOutliersMAD(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	tolerances, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		// Calculate medians for each point across tss.
+		medians := getPerPointMedians(tss)
+		// Calculate MAD values multipled by tolerance for each point across tss.
+		// See https://en.wikipedia.org/wiki/Median_absolute_deviation
+		mads := getPerPointMADs(tss, medians)
+		for n := range mads {
+			mads[n] *= tolerances[n]
+		}
+		// Leave only time series with at least a single peak above the MAD multiplied by tolerance.
+		tssDst := tss[:0]
+		for _, ts := range tss {
+			values := ts.Values
+			for n, v := range values {
+				ad := math.Abs(v - medians[n])
+				mad := mads[n]
+				if ad > mad {
+					tssDst = append(tssDst, ts)
+					break
+				}
+			}
+		}
+		return tssDst
+	}
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
 func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
 	args := afa.args
 	if err := expectTransformArgsNum(args, 2); err != nil {
@@ -822,20 +869,7 @@ func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
 	}
 	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		// Calculate medians for each point across tss.
-		medians := make([]float64, len(ks))
-		h := histogram.GetFast()
-		for n := range ks {
-			h.Reset()
-			for j := range tss {
-				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
-				}
-			}
-			medians[n] = h.Quantile(0.5)
-		}
-		histogram.PutFast(h)
-
+		medians := getPerPointMedians(tss)
 		// Return topK time series with the highest variance from median.
 		f := func(values []float64) float64 {
 			sum2 := float64(0)
@@ -848,6 +882,44 @@ func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
 		return getRangeTopKTimeseries(tss, &afa.ae.Modifier, ks, "", f, false)
 	}
 	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
+func getPerPointMedians(tss []*timeseries) []float64 {
+	if len(tss) == 0 {
+		logger.Panicf("BUG: expecting non-empty tss")
+	}
+	medians := make([]float64, len(tss[0].Values))
+	h := histogram.GetFast()
+	for n := range medians {
+		h.Reset()
+		for j := range tss {
+			v := tss[j].Values[n]
+			if !math.IsNaN(v) {
+				h.Update(v)
+			}
+		}
+		medians[n] = h.Quantile(0.5)
+	}
+	histogram.PutFast(h)
+	return medians
+}
+
+func getPerPointMADs(tss []*timeseries, medians []float64) []float64 {
+	mads := make([]float64, len(medians))
+	h := histogram.GetFast()
+	for n, median := range medians {
+		h.Reset()
+		for j := range tss {
+			v := tss[j].Values[n]
+			if !math.IsNaN(v) {
+				ad := math.Abs(v - median)
+				h.Update(ad)
+			}
+		}
+		mads[n] = h.Quantile(0.5)
+	}
+	histogram.PutFast(h)
+	return mads
 }
 
 func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -894,30 +966,46 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 		return nil, fmt.Errorf("cannot obtain dstLabel: %w", err)
 	}
 	phiArgs := args[1 : len(args)-1]
-	argOrig := args[len(args)-1]
-	var rvs []*timeseries
+	phis := make([]float64, len(phiArgs))
 	for i, phiArg := range phiArgs {
-		phis, err := getScalar(phiArg, i+1)
+		phisLocal, err := getScalar(phiArg, i+1)
 		if err != nil {
 			return nil, err
 		}
 		if len(phis) == 0 {
 			logger.Panicf("BUG: expecting at least a single sample")
 		}
-		phi := phis[0]
-		afe := newAggrQuantileFunc(phis)
-		arg := copyTimeseries(argOrig)
-		tss, err := aggrFuncExt(afe, arg, &afa.ae.Modifier, afa.ae.Limit, false)
-		if err != nil {
-			return nil, fmt.Errorf("cannot calculate quantile %g: %w", phi, err)
-		}
-		for _, ts := range tss {
-			ts.MetricName.RemoveTag(dstLabel)
-			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phi))
-		}
-		rvs = append(rvs, tss...)
+		phis[i] = phisLocal[0]
 	}
-	return rvs, nil
+	argOrig := args[len(args)-1]
+	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		tssDst := make([]*timeseries, len(phiArgs))
+		for j := range tssDst {
+			ts := &timeseries{}
+			ts.CopyFromShallowTimestamps(tss[0])
+			ts.MetricName.RemoveTag(dstLabel)
+			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phis[j]))
+			tssDst[j] = ts
+		}
+		h := histogram.GetFast()
+		defer histogram.PutFast(h)
+		var qs []float64
+		for n := range tss[0].Values {
+			h.Reset()
+			for j := range tss {
+				v := tss[j].Values[n]
+				if !math.IsNaN(v) {
+					h.Update(v)
+				}
+			}
+			qs = h.Quantiles(qs[:0], phis)
+			for j := range tssDst {
+				tssDst[j].Values[n] = qs[j]
+			}
+		}
+		return tssDst
+	}
+	return aggrFuncExt(afe, argOrig, &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
