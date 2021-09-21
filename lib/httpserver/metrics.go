@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var versionRe = regexp.MustCompile(`v\d+\.\d+\.\d+`)
+var versionRe = regexp.MustCompile(`v\d+\.\d+\.\d+(?:-enterprise)?(?:-cluster)?`)
 
 // WritePrometheusMetrics writes all the registered metrics to w in Prometheus exposition format.
 func WritePrometheusMetrics(w io.Writer) {

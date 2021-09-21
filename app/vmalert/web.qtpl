@@ -8,20 +8,11 @@
 ) %}
 
 
-{% code
-var navItems = []tpl.NavItem{
-    {Name: "vmalert", Url: "/"},
-    {Name: "Groups", Url: "/groups"},
-    {Name: "Alerts",  Url: "/alerts"},
-    {Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
-}
-%}
-
-{% func Welcome(pathList [][2]string) %}
+{% func Welcome() %}
     {%= tpl.Header("vmalert", navItems) %}
     <p>
         API:<br>
-        {% for _, p := range pathList  %}
+        {% for _, p := range apiLinks  %}
             {%code
                 p, doc := p[0], p[1]
             %}
