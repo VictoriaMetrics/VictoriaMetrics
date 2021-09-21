@@ -69,7 +69,7 @@ const HomeLayout: FC = () => {
               <CircularProgress/>
             </Box>
           </Fade>}
-          {<Box height={"100%"} p={3} bgcolor={"#fff"}>
+          {<Box height={"100%"} py={3} px={6} bgcolor={"#fff"}>
             {error &&
             <Alert color="error" style={{fontSize: "14px"}}>
               {error}
