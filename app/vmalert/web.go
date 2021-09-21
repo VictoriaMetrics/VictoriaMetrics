@@ -4,32 +4,56 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
+
+var (
+	once     = sync.Once{}
+	apiLinks [][2]string
+	navItems []tpl.NavItem
+)
+
+func initLinks() {
+	pathPrefix := httpserver.GetPathPrefix()
+	apiLinks = [][2]string{
+		{path.Join(pathPrefix, "api/v1/groups"), "list all loaded groups and rules"},
+		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
+		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "get alert status by ID"},
+		{path.Join(pathPrefix, "metrics"), "list of application metrics"},
+		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
+	}
+	navItems = []tpl.NavItem{
+		{Name: "vmalert", Url: path.Join(pathPrefix, "/")},
+		{Name: "Groups", Url: path.Join(pathPrefix, "groups")},
+		{Name: "Alerts", Url: path.Join(pathPrefix, "/alerts")},
+		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
+	}
+}
 
 type requestHandler struct {
 	m *manager
 }
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
+	once.Do(func() {
+		initLinks()
+	})
+
 	switch r.URL.Path {
 	case "/":
 		if r.Method != "GET" {
 			return false
 		}
-		WriteWelcome(w, [][2]string{
-			{"/api/v1/groups", "list all loaded groups and rules"},
-			{"/api/v1/alerts", "list all active alerts"},
-			{"/api/v1/groupID/alertID/status", "get alert status by ID"},
-			{"/metrics", "list of application metrics"},
-			{"/-/reload", "reload configuration"},
-		})
+		WriteWelcome(w)
 		return true
 	case "/alerts":
 		WriteListAlerts(w, rh.groupAlerts())
