@@ -259,17 +259,17 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
-	if strings.HasPrefix(p.Suffix, "graph") || strings.HasPrefix(p.Suffix, "prometheus/graph") {
+	if p.Suffix == "graph" || p.Suffix == "prometheus/graph" {
+		// Redirect to /graph/, otherwise vmui redirects to /vmui/, which can be inaccessible in user env.
+		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		_ = r.ParseForm()
+		newURL := "graph/?" + r.Form.Encode()
+		http.Redirect(w, r, newURL, http.StatusFound)
+		return true
+	}
+	if strings.HasPrefix(p.Suffix, "graph/") || strings.HasPrefix(p.Suffix, "prometheus/graph/") {
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
-		if p.Suffix == "graph" || p.Suffix == "prometheus/graph" {
-			// Redirect to /graph/, otherwise vmui redirects to /vmui/, which can be inaccessible in user env.
-			// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
-			// is hidden behind vmauth or similar proxy.
-			_ = r.ParseForm()
-			newURL := "graph/?" + r.Form.Encode()
-			http.Redirect(w, r, newURL, http.StatusFound)
-			return true
-		}
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		if strings.HasPrefix(p.Suffix, "prometheus/graph/") {
 			r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/graph/", "/vmui/", 1)
