@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -45,29 +46,51 @@ func (mlr *MultiLineRegex) UnmarshalYAML(f func(interface{}) error) error {
 	if err := f(&v); err != nil {
 		return err
 	}
-	var a []string
+	s, err := stringValue(v)
+	if err != nil {
+		return err
+	}
+	mlr.s = s
+	return nil
+}
+
+func stringValue(v interface{}) (string, error) {
+	if v == nil {
+		return "null", nil
+	}
 	switch x := v.(type) {
-	case string:
-		a = []string{x}
 	case []interface{}:
-		a = make([]string, len(x))
+		a := make([]string, len(x))
 		for i, xx := range x {
-			s, ok := xx.(string)
-			if !ok {
-				return fmt.Errorf("`regex` must contain array of strings; got %T", xx)
+			s, err := stringValue(xx)
+			if err != nil {
+				return "", err
 			}
 			a[i] = s
 		}
+		return strings.Join(a, "|"), nil
+	case string:
+		return x, nil
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64), nil
+	case int:
+		return strconv.Itoa(x), nil
+	case bool:
+		if x {
+			return "true", nil
+		}
+		return "false", nil
 	default:
-		return fmt.Errorf("unexpected type for `regex`: %T; want string or []string", v)
+		return "", fmt.Errorf("unexpected type for `regex`: %T; want string or []string", v)
 	}
-	mlr.s = strings.Join(a, "|")
-	return nil
 }
 
 // MarshalYAML marshals mlr to YAML.
 func (mlr *MultiLineRegex) MarshalYAML() (interface{}, error) {
 	a := strings.Split(mlr.s, "|")
+	if len(a) == 1 {
+		return a[0], nil
+	}
 	return a, nil
 }
 
