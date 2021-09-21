@@ -26,13 +26,25 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f(`
 - action: keep
   regex: foobar
-`, "- regex:\n  - foobar\n  action: keep\n")
+`, "- regex: foobar\n  action: keep\n")
 	f(`
 - regex:
   - 'fo.+'
   - '.*ba[r-z]a'
 `, "- regex:\n  - fo.+\n  - .*ba[r-z]a\n")
 	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
+	f(`- regex: True`, `- regex: "true"`+"\n")
+	f(`- regex: true`, `- regex: "true"`+"\n")
+	f(`- regex: 123`, `- regex: "123"`+"\n")
+	f(`- regex: 1.23`, `- regex: "1.23"`+"\n")
+	f(`- regex: [null]`, `- regex: "null"`+"\n")
+	f(`
+- regex:
+  - -1.23
+  - False
+  - null
+  - nan
+`, "- regex:\n  - \"-1.23\"\n  - \"false\"\n  - \"null\"\n  - nan\n")
 }
 
 func TestLoadRelabelConfigsSuccess(t *testing.T) {
