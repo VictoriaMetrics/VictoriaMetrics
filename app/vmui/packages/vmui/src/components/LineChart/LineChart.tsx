@@ -1,6 +1,6 @@
-import React, {FC, useMemo} from "react";
+import React, {FC, useEffect, useState} from "react";
 import {Line} from "react-chartjs-2";
-import {Chart, ChartData, ChartOptions, ScatterDataPoint, TimeSeriesScale} from "chart.js";
+import {Chart, ChartData, ChartOptions, ScatterDataPoint, TimeScale} from "chart.js";
 import {getNameForMetric} from "../../utils/metric";
 import "chartjs-adapter-date-fns";
 import debounce from "lodash.debounce";
@@ -11,8 +11,9 @@ import {GraphViewProps} from "../Home/Views/GraphView";
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
-  const {time: {duration}} = useAppState();
+  const {time: {duration, period}} = useAppState();
   const dispatch = useAppDispatch();
+  const [series, setSeries] = useState<ChartData<"line", (ScatterDataPoint)[]>>();
 
   const getColorByName = (str: string): string => {
     let hash = 0;
@@ -27,53 +28,54 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     return colour;
   };
 
-  const series: ChartData<"line", (ScatterDataPoint)[]> = useMemo(() => ({
-    datasets: data?.map(d => {
-      const label = getNameForMetric(d);
-      const color = getColorByName(label);
-      return {
-        label,
-        data: d.values.map(v => ({y: +v[1], x: v[0] * 1000})),
-        borderColor: color,
-        backgroundColor: color
-      };
-    })
-  }), [data]);
+  useEffect(() => {
+    setSeries({
+      datasets: data?.map(d => {
+        const label = getNameForMetric(d);
+        const color = getColorByName(label);
+        return {
+          label,
+          data: d.values.map(v => ({y: +v[1], x: v[0] * 1000})),
+          borderColor: color,
+          backgroundColor: color,
+        };
+      })
+    });
+  }, [data]);
 
   const getRangeTimeScale = (chart: Chart) => {
-    const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeSeriesScale") || {}) as TimeSeriesScale;
+    const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeScale") || {}) as TimeScale;
     return {min, max};
   };
 
   const onZoomComplete = ({chart}: {chart: Chart}) => {
     const {min, max} = getRangeTimeScale(chart);
     if (!min || !max || (max - min < 1000)) return;
-    const period: TimePeriod = {
-      from: new Date(min),
-      to: new Date(max)
-    };
-    dispatch({type: "SET_PERIOD", payload: period});
+    const dateRange: TimePeriod = {from: new Date(min), to: new Date(max)};
+    dispatch({type: "SET_PERIOD", payload: dateRange});
   };
 
   const onPanComplete = ({chart}: {chart: Chart}) => {
     const {min, max} = getRangeTimeScale(chart);
     if (!min || !max) return;
     const {start,  end} = getTimeperiodForDuration(duration, new Date(max));
-    const period: TimePeriod = {
-      from: dateFromSeconds(start),
-      to: dateFromSeconds(end)
-    };
-    dispatch({type: "SET_PERIOD", payload: period});
+    const dateRange: TimePeriod = {from: dateFromSeconds(start), to: dateFromSeconds(end)};
+    dispatch({type: "SET_PERIOD", payload: dateRange});
   };
 
   const options: ChartOptions = {
-    animation: false,
+    animation: {
+      duration: 0,
+      delay: 0,
+    },
+    animations: {type: false},
     parsing: false,
     normalized: true,
     scales: {
       x: {
-        type: "timeseries",
-        bounds: "ticks",
+        type: "time",
+        min: (period.start * 1000),
+        max: (period.end * 1000),
         time: {
           tooltipFormat: "yyyy-MM-dd HH:mm:ss.SSS",
           displayFormats: {millisecond: ":ss.SSS", second: "HH:mm:ss", minute: "HH:mm", hour: "HH:mm"}
@@ -104,9 +106,10 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         tension: 0,
         stepped: false,
         borderDash: [],
+        borderWidth: 1,
         capBezierPoints: false
       },
-      // point: {radius: 0}
+      point: {radius: 0}
     },
     plugins: {
       legend: {
@@ -118,21 +121,20 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         pan: {
           enabled: true,
           mode: "x",
-          onPanComplete:  debounce(onPanComplete, 500)
+          onPanComplete: debounce(onPanComplete, 750)
         },
         zoom: {
           pinch: {enabled: true},
           wheel: {enabled: true, speed: 0.05},
           mode: "x",
-          onZoomComplete: debounce(onZoomComplete, 500)
+          onZoomComplete: debounce(onZoomComplete, 250)
         }
       },
     }
   };
 
-
   return <>
-    <Line data={series} options={options} />
+    {series &&  <Line data={series} options={options}/>}
   </>;
 };
 

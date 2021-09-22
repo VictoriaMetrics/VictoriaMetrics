@@ -40,8 +40,10 @@ export const useFetchQuery = (): {
         return;
       }
       if (isValidHttpUrl(serverUrl)) {
+        const duration = (period.end - period.start)/2;
+        const doublePeriod = {...period, start: period.start - duration, end: period.end + duration};
         return displayType === "chart"
-          ? getQueryRangeUrl(serverUrl, query, period)
+          ? getQueryRangeUrl(serverUrl, query, doublePeriod)
           : getQueryUrl(serverUrl, query, period);
       } else {
         setError("Please provide a valid URL");
