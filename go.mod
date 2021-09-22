@@ -31,7 +31,7 @@ require (
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
-	github.com/valyala/gozstd v1.12.0
+	github.com/valyala/gozstd v1.13.0
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
 	go.uber.org/atomic v1.9.0 // indirect
