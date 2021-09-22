@@ -25,7 +25,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [Zerodha](#zerodha)
 * [zhihu](#zhihu)
 
-You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides).
+You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics).
 
 
 ## adidas
