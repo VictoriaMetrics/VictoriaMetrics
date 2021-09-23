@@ -9,6 +9,7 @@ sort: 15
 * FEATURE: vmagent: add `vm_promscrape_max_scrape_size_exceeded_errors_total` metric for counting of the failed scrapes due to the exceeded response size (the response size limit can be configured via `-promscrape.maxScrapeSize` command-line flag). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1639).
 
 * BUGFIX: vmalert: properly reload rule groups if only the `interval` config option is changed. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1641).
+* BUGFIX: properly handle `{__name__=~"prefix(suffix1|suffix2)",other_label="..."}` queries. They may return unexpected empty responses since v1.66.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1644).
 
 
 ## [v1.66.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.1)

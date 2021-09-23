@@ -30,6 +30,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 	var tfssCompiled []*TagFilters
 	// Search for filters on metric name, which will be used for creating composite filters.
 	var names [][]byte
+	namePrefix := ""
 	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 {
@@ -43,6 +44,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 				for _, orSuffix := range tf.orSuffixes {
 					names = append(names, []byte(orSuffix))
 				}
+				namePrefix = tf.regexpPrefix
 			}
 		} else if !tf.isNegative && !tf.isEmptyMatch {
 			hasPositiveFilter = true
@@ -54,7 +56,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 	}
 
 	// Create composite filters for the found names.
-	var compositeKey []byte
+	var compositeKey, nameWithPrefix []byte
 	for _, name := range names {
 		compositeFilters := 0
 		tfsNew := make([]tagFilter, 0, len(tfs.tfs))
@@ -95,7 +97,9 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 				continue
 			}
 			// Create composite filter on (name, tf)
-			compositeKey = marshalCompositeTagKey(compositeKey[:0], name, tf.key)
+			nameWithPrefix = append(nameWithPrefix[:0], namePrefix...)
+			nameWithPrefix = append(nameWithPrefix, name...)
+			compositeKey = marshalCompositeTagKey(compositeKey[:0], nameWithPrefix, tf.key)
 			var tfNew tagFilter
 			if err := tfNew.Init(tfs.commonPrefix, compositeKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
 				logger.Panicf("BUG: unexpected error when creating composite tag filter for name=%q and key=%q: %s", name, tf.key, err)
@@ -239,13 +243,18 @@ type tagFilter struct {
 	// matchCost is a cost for matching a filter against a single string.
 	matchCost uint64
 
+	// contains the prefix for regexp filter if isRegexp==true.
+	regexpPrefix string
+
 	// Prefix always contains {nsPrefixTagToMetricIDs, AccountID, ProjectID, key}.
 	// Additionally it contains:
 	//  - value if !isRegexp.
-	//  - non-regexp prefix if isRegexp.
+	//  - regexpPrefix if isRegexp.
 	prefix []byte
 
-	// or values obtained from regexp suffix if it equals to "foo|bar|..."
+	// `or` values obtained from regexp suffix if it equals to "foo|bar|..."
+	//
+	// the regexp prefix is stored in regexpPrefix.
 	//
 	// This array is also populated with matching Graphite metrics if key="__graphite__"
 	orSuffixes []string
@@ -350,6 +359,7 @@ func (tf *tagFilter) InitFromGraphiteQuery(commonPrefix, query []byte, paths []s
 	tf.value = append(tf.value[:0], query...)
 	tf.isNegative = isNegative
 	tf.isRegexp = true // this is needed for tagFilter.matchSuffix
+	tf.regexpPrefix = prefix
 	tf.prefix = append(tf.prefix[:0], commonPrefix...)
 	tf.prefix = marshalTagValue(tf.prefix, nil)
 	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, []byte(prefix))
@@ -395,6 +405,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.isRegexp = isRegexp
 	tf.matchCost = 0
 
+	tf.regexpPrefix = ""
 	tf.prefix = tf.prefix[:0]
 
 	tf.orSuffixes = tf.orSuffixes[:0]
@@ -412,6 +423,8 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		if len(expr) == 0 {
 			tf.value = append(tf.value[:0], prefix...)
 			tf.isRegexp = false
+		} else {
+			tf.regexpPrefix = string(prefix)
 		}
 	}
 	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, prefix)
