@@ -190,6 +190,9 @@ func (g *Group) updateWith(newGroup *Group) error {
 	for _, nr := range rulesRegistry {
 		newRules = append(newRules, nr)
 	}
+	// note that g.Interval is not updated here
+	// so the value can be compared later in
+	// group.Start function
 	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
 	g.ExtraFilterLabels = newGroup.ExtraFilterLabels
