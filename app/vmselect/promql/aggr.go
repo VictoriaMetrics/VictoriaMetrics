@@ -801,15 +801,43 @@ func avgValue(values []float64) float64 {
 }
 
 func medianValue(values []float64) float64 {
-	h := histogram.GetFast()
-	for _, v := range values {
-		if !math.IsNaN(v) {
-			h.Update(v)
-		}
+	return quantile(0.5, values)
+}
+
+func quantiles(phis []float64, values []float64) []float64 {
+	sort.Float64s(values)
+	res := make([]float64, len(phis))
+	for i, phi := range phis {
+		res[i] = quantileSorted(phi, values)
 	}
-	value := h.Quantile(0.5)
-	histogram.PutFast(h)
-	return value
+	return res
+}
+
+func quantile(phi float64, values []float64) float64 {
+	sort.Float64s(values)
+	return quantileSorted(phi, values)
+}
+
+// quantileSorted calculates the given quantile of a sorted list of values
+// The implementation mimics Prometheus implementation for compatibility's sake.
+func quantileSorted(phi float64, values []float64) float64 {
+	if len(values) == 0 || math.IsNaN(phi) {
+		return nan
+	}
+	if phi < 0 {
+		return math.Inf(-1)
+	}
+	if phi > 1 {
+		return math.Inf(+1)
+	}
+	n := float64(len(values))
+	rank := phi * (n - 1)
+
+	lowerIndex := math.Max(0, math.Floor(rank))
+	upperIndex := math.Min(n-1, lowerIndex+1)
+
+	weight := rank - math.Floor(rank)
+	return values[int(lowerIndex)]*(1-weight) + values[int(upperIndex)]*weight
 }
 
 func aggrFuncMAD(tss []*timeseries) []*timeseries {
@@ -987,18 +1015,17 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phis[j]))
 			tssDst[j] = ts
 		}
-		h := histogram.GetFast()
-		defer histogram.PutFast(h)
 		var qs []float64
 		for n := range tss[0].Values {
-			h.Reset()
+			var values []float64
 			for j := range tss {
 				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
+				if math.IsNaN(v) {
+					continue
 				}
+				values = append(values, v)
 			}
-			qs = h.Quantiles(qs[:0], phis)
+			qs = quantiles(phis, values)
 			for j := range tssDst {
 				tssDst[j].Values[n] = qs[j]
 			}
@@ -1034,18 +1061,17 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		dst := tss[0]
-		h := histogram.GetFast()
-		defer histogram.PutFast(h)
 		for n := range dst.Values {
-			h.Reset()
+			var values []float64
 			for j := range tss {
 				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
+				if math.IsNaN(v) {
+					continue
 				}
+				values = append(values, v)
 			}
 			phi := phis[n]
-			dst.Values[n] = h.Quantile(phi)
+			dst.Values[n] = quantile(phi, values)
 		}
 		tss[0] = dst
 		return tss[:1]

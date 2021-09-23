@@ -1066,12 +1066,7 @@ func newRollupQuantiles(args []interface{}) (rollupFunc, error) {
 			// Fast path - only a single value.
 			return values[0]
 		}
-		hf := histogram.GetFast()
-		for _, v := range values {
-			hf.Update(v)
-		}
-		qs := hf.Quantiles(nil, phis)
-		histogram.PutFast(hf)
+		qs := quantiles(phis, values)
 		idx := rfa.idx
 		tsm := rfa.tsm
 		for i, phiStr := range phiStrs {
@@ -1094,21 +1089,18 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 	rf := func(rfa *rollupFuncArg) float64 {
 		// There is no need in handling NaNs here, since they must be cleaned up
 		// before calling rollup funcs.
-		values := rfa.values
-		if len(values) == 0 {
+		originValues := rfa.values
+		if len(originValues) == 0 {
 			return rfa.prevValue
 		}
-		if len(values) == 1 {
+		if len(originValues) == 1 {
 			// Fast path - only a single value.
-			return values[0]
+			return originValues[0]
 		}
-		hf := histogram.GetFast()
-		for _, v := range values {
-			hf.Update(v)
-		}
+		var values []float64
+		values = append(values, originValues...)
 		phi := phis[rfa.idx]
-		qv := hf.Quantile(phi)
-		histogram.PutFast(hf)
+		qv := quantile(phi, values)
 		return qv
 	}
 	return rf, nil
