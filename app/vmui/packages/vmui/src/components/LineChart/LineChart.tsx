@@ -1,19 +1,20 @@
-import React, {FC, useEffect, useState} from "react";
+import React, {FC, useEffect, useRef, useState} from "react";
 import {Line} from "react-chartjs-2";
-import {Chart, ChartData, ChartOptions, ScatterDataPoint, TimeScale} from "chart.js";
+import {Chart, ChartData, ChartOptions, ScatterDataPoint} from "chart.js";
 import {getNameForMetric} from "../../utils/metric";
 import "chartjs-adapter-date-fns";
 import debounce from "lodash.debounce";
-import {TimePeriod} from "../../types";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import {dateFromSeconds, getTimeperiodForDuration} from "../../utils/time";
 import {GraphViewProps} from "../Home/Views/GraphView";
+import {limitsDurations} from "../../utils/time";
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
   const {time: {duration, period}} = useAppState();
   const dispatch = useAppDispatch();
   const [series, setSeries] = useState<ChartData<"line", (ScatterDataPoint)[]>>();
+  const refLine = useRef<Chart>(null);
 
   const getColorByName = (str: string): string => {
     let hash = 0;
@@ -41,39 +42,36 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         };
       })
     });
+    if (refLine.current) {
+      refLine.current.stop(); // make sure animations are not running
+      refLine.current.update("none");
+    }
   }, [data]);
 
-  const getRangeTimeScale = (chart: Chart) => {
-    const {min = 0, max = 0} = (chart.boxes.find(box => box.constructor.name === "TimeScale") || {}) as TimeScale;
-    return {min, max};
-  };
-
   const onZoomComplete = ({chart}: {chart: Chart}) => {
-    const {min, max} = getRangeTimeScale(chart);
-    if (!min || !max || (max - min < 1000)) return;
-    const dateRange: TimePeriod = {from: new Date(min), to: new Date(max)};
-    dispatch({type: "SET_PERIOD", payload: dateRange});
+    let {min, max} = chart.scales.x;
+    if (!min || !max) return;
+    const duration = max - min;
+    if (duration < limitsDurations.min) max = min + limitsDurations.min;
+    if (duration > limitsDurations.max) min = max - limitsDurations.max;
+    dispatch({type: "SET_PERIOD", payload: {from: new Date(min), to: new Date(max)}});
   };
 
   const onPanComplete = ({chart}: {chart: Chart}) => {
-    const {min, max} = getRangeTimeScale(chart);
+    const {min, max} = chart.scales.x;
     if (!min || !max) return;
     const {start,  end} = getTimeperiodForDuration(duration, new Date(max));
-    const dateRange: TimePeriod = {from: dateFromSeconds(start), to: dateFromSeconds(end)};
-    dispatch({type: "SET_PERIOD", payload: dateRange});
+    dispatch({type: "SET_PERIOD", payload: {from: dateFromSeconds(start), to: dateFromSeconds(end)}});
   };
 
   const options: ChartOptions = {
-    animation: {
-      duration: 0,
-      delay: 0,
-    },
-    animations: {type: false},
+    animation: {duration: 0},
     parsing: false,
     normalized: true,
     scales: {
       x: {
         type: "time",
+        position: "bottom",
         min: (period.start * 1000),
         max: (period.end * 1000),
         time: {
@@ -85,17 +83,19 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
           autoSkip: true,
           autoSkipPadding: 105,
           crossAlign: "center",
-          maxRotation: 1,
-          minRotation: 1,
+          maxRotation: 0,
+          minRotation: 0,
           sampleSize: 1,
           color: "#000",
           font: {size: 10}
         },
       },
       y: {
+        type: "linear",
+        position: "left",
         ticks: {
-          maxRotation: 1,
-          minRotation: 1,
+          maxRotation: 0,
+          minRotation: 0,
           color: "#000",
           font: {size: 10}
         }
@@ -109,7 +109,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         borderWidth: 1,
         capBezierPoints: false
       },
-      point: {radius: 0}
+      point: {radius: 0, hitRadius: 20}
     },
     plugins: {
       legend: {
@@ -134,7 +134,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   };
 
   return <>
-    {series &&  <Line data={series} options={options}/>}
+    {series && <Line data={series} options={options} ref={refLine}/>}
   </>;
 };
 
