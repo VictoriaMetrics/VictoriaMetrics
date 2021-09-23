@@ -479,8 +479,8 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 [Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
 3. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
-4. When importing into cluster version it is additionally required to specify the `--vm-account-id` flag.
-See more details for cluster version [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+4. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
+and specify `accountID` param.
 
 ## Tuning
 
