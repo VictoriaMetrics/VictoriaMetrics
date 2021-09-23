@@ -36,6 +36,7 @@ Case studies:
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
 * [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
+* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
 * [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
@@ -517,7 +518,7 @@ and it is easier to use when migrating from Graphite to VictoriaMetrics.
 
 [VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
-It supports `Storage-Step` http request header, which must be set to a step between data points stored in VictoriaMetrics when configuring Graphite datasource in Grafana.
+When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 

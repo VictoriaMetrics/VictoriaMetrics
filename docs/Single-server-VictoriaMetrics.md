@@ -40,6 +40,7 @@ Case studies:
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
 * [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
+* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
 * [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
