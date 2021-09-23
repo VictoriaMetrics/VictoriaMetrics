@@ -24,7 +24,7 @@ type Group struct {
 	Type        datasource.Type `yaml:"type,omitempty"`
 	File        string
 	Name        string             `yaml:"name"`
-	Interval    utils.PromDuration `yaml:"interval,omitempty"`
+	Interval    utils.PromDuration `yaml:"interval"`
 	Rules       []Rule             `yaml:"rules"`
 	Concurrency int                `yaml:"concurrency"`
 	// ExtraFilterLabels is a list label filters applied to every rule
