@@ -3,6 +3,7 @@ package promql
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -394,6 +395,11 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 			}
 			bb.B = marshalMetricTagsSorted(bb.B[:0], mn)
 			m[string(bb.B)] = append(m[string(bb.B)], ts)
+		}
+		for k := range m {
+			sort.Slice(m[k], func(i, j int) bool {
+				return m[k][i].MetricName.String() < m[k][j].MetricName.String()
+			})
 		}
 		storage.PutMetricName(mn)
 		bbPool.Put(bb)
