@@ -7294,7 +7294,6 @@ func TestExecError(t *testing.T) {
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
 	t.Helper()
 	if len(result) != len(resultExpected) {
-		fmt.Println(result)
 		t.Fatalf(`unexpected timeseries count; got %d; want %d`, len(result), len(resultExpected))
 	}
 	for i := range result {
