@@ -15,6 +15,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [COLOPL](#colopl)
 * [Dreamteam](#dreamteam)
 * [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
+* [Grammarly](#grammarly)
 * [Groove X](#groove-x)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
@@ -25,7 +26,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [Zerodha](#zerodha)
 * [zhihu](#zhihu)
 
-You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides).
+You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics).
 
 
 ## adidas
@@ -257,6 +258,42 @@ Numbers:
   - median: 1 millisecond
 - CPU usage: 0.1 CPU cores
 - RAM usage: 2.8 GB
+
+
+## Grammarly
+
+[Grammarly](https://www.grammarly.com/) provides digital writing assistant that helps 30 million people and 30 thousand teams write more clearly and effectively every day. In building a product that scales across multiple platforms and devices, Grammarly works to empower users whenever and wherever they communicate.
+
+> Maintenance and scaling for our previous on-premise monitoring system was hard and required a lot of effort from our side. The previous system was not optimized for storing frequently changing metrics (moderate [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) was a concern). The costs of the previous solution were not optimal.
+
+> We evaluated various cloud-based and on-premise monitoring solutions: Sumo Logic, DataDog, SignalFX, Amazon CloudWatch, Prometheus, M3DB, Thanos, Graphite, etc. PoC results were sufficient for us to move forward with VictoriaMetrics due to the following reasons:
+
+- High performance
+- Support for Graphite and OpenMetrics data ingestion types
+- Good documentation and easy bootstrap
+- Responsiveness of VictoriaMetrics support team during research and afterward
+
+> Switching from our previous on-premise monitoring system to VictoriaMetrics allowed reducing infrastructure costs by an order of magnitude while improving DevOps experience and developer experience.
+
+Numbers:
+
+- [Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics
+- Active time series: 35M
+- Ingestion rate: 950K new samples per second
+- Total number of datapoints: 44 trillions
+- Churn rate: 27M new time series per day
+- Data size on disk: 23 TB
+- Index size on disk: 700 GB
+- The average datapoint size on disk: 0.5 bytes
+- Query rate:
+  - `/api/v1/query_range`: 350 queries per second
+  - `/api/v1/query`: 24 queries per second
+- Query duration:
+  - 99th percentile: 500 milliseconds
+  - 90th percentile: 70 milliseconds
+  - median: 2 milliseconds
+- CPU usage: 12 CPU cores
+- RAM usage: 250 GB
 
 
 ## Groove X

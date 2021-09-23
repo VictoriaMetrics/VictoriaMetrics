@@ -1,5 +1,12 @@
 # Changes
 
+## [0.95.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.94.1...v0.95.0) (2021-09-21)
+
+### Bug Fixes
+
+* **internal/gapicgen:** add a temporary import ([#4756](https://www.github.com/googleapis/google-cloud-go/issues/4756)) ([4d9c046](https://www.github.com/googleapis/google-cloud-go/commit/4d9c046b66a2dc205e2c14b676995771301440da))
+* **compute/metadata:** remove heavy gax dependency ([#4784](https://www.github.com/googleapis/google-cloud-go/issues/4784)) ([ea00264](https://www.github.com/googleapis/google-cloud-go/commit/ea00264428137471805f2ec67f04f3a5a42928fa))
+
 ### [0.94.1](https://www.github.com/googleapis/google-cloud-go/compare/v0.94.0...v0.94.1) (2021-09-02)
 
 
