@@ -303,12 +303,18 @@ func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		if tssLeft == nil {
 			continue
 		}
-		// Add gaps to tssLeft if there are gaps at valuesRight.
-		valuesRight := tssRight[0].Values
+		// Add gaps to tssLeft if there are gaps at tssRight.
 		for _, tsLeft := range tssLeft {
 			valuesLeft := tsLeft.Values
-			for i, v := range valuesRight {
-				if math.IsNaN(v) {
+			for i := range valuesLeft {
+				hasValue := false
+				for _, tsRight := range tssRight {
+					if !math.IsNaN(tsRight.Values[i]) {
+						hasValue = true
+						break
+					}
+				}
+				if !hasValue {
 					valuesLeft[i] = nan
 				}
 			}
@@ -333,12 +339,18 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		}
 		// Fill gaps in tssLeft with values from tssRight as Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
-		valuesRight := tssRight[0].Values
 		for _, tsLeft := range tssLeft {
 			valuesLeft := tsLeft.Values
 			for i, v := range valuesLeft {
-				if math.IsNaN(v) {
-					valuesLeft[i] = valuesRight[i]
+				if !math.IsNaN(v) {
+					continue
+				}
+				for _, tsRight := range tssRight {
+					vRight := tsRight.Values[i]
+					if !math.IsNaN(vRight) {
+						valuesLeft[i] = vRight
+						break
+					}
 				}
 			}
 		}
@@ -355,13 +367,15 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssLeft...)
 			continue
 		}
-		// Add gaps to tssLeft if the are no gaps at valuesRight.
-		valuesRight := tssRight[0].Values
+		// Add gaps to tssLeft if the are no gaps at tssRight.
 		for _, tsLeft := range tssLeft {
 			valuesLeft := tsLeft.Values
-			for i, v := range valuesRight {
-				if !math.IsNaN(v) {
-					valuesLeft[i] = nan
+			for i := range valuesLeft {
+				for _, tsRight := range tssRight {
+					if !math.IsNaN(tsRight.Values[i]) {
+						valuesLeft[i] = nan
+						break
+					}
 				}
 			}
 		}
