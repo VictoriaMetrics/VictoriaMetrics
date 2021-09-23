@@ -1,4 +1,5 @@
-# cloud.google.com/go v0.94.1 => cloud.google.com/go v0.93.3
+# cloud.google.com/go v0.95.0
+## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -28,7 +29,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.45
+# github.com/aws/aws-sdk-go v1.40.47
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -93,7 +94,7 @@ github.com/cheggaaa/pb/v3/termutil
 # github.com/cpuguy83/go-md2man/v2 v2.0.1
 ## explicit
 github.com/cpuguy83/go-md2man/v2/md2man
-# github.com/fatih/color v1.12.0
+# github.com/fatih/color v1.13.0
 ## explicit
 github.com/fatih/color
 # github.com/go-kit/kit v0.11.0
@@ -147,10 +148,9 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/lithammer/go-jump-consistent-hash v1.0.2
 ## explicit
 github.com/lithammer/go-jump-consistent-hash
-# github.com/mattn/go-colorable v0.1.8
+# github.com/mattn/go-colorable v0.1.9
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.14
-## explicit
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.13
 ## explicit
@@ -266,7 +266,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210917161153-d61c044b1678
+# golang.org/x/sys v0.0.0-20210923061019-b8560ed6a9b7
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -307,8 +307,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4
-## explicit
+# google.golang.org/genproto v0.0.0-20210921142501-181ce0d877f6
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
@@ -412,3 +411,4 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit
 gopkg.in/yaml.v2
+# cloud.google.com/go v0.94.1 => cloud.google.com/go v0.93.3
