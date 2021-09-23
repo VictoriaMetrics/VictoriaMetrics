@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -6954,7 +6955,8 @@ func TestExecSuccess(t *testing.T) {
 				Value: []byte("10"),
 			},
 		}
-		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		// expected sorted output for strings 1, 10, 2, 3
+		resultExpected := []netstorage.Result{r1, r4, r2, r3}
 		f(q, resultExpected)
 	})
 	t.Run(`count_values without (baz)`, func(t *testing.T) {
@@ -7006,6 +7008,44 @@ func TestExecSuccess(t *testing.T) {
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`result sorting`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(1, "instance", "localhost:1001", "type", "free")
+			or label_set(1, "instance", "localhost:1001", "type", "buffers")
+			or label_set(1, "instance", "localhost:1000", "type", "buffers")
+			or label_set(1, "instance", "localhost:1000", "type", "free")
+`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		testAddLabels(t, &r1.MetricName,
+			"instance", "localhost:1000", "type", "buffers")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		testAddLabels(t, &r2.MetricName,
+			"instance", "localhost:1000", "type", "free")
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		testAddLabels(t, &r3.MetricName,
+			"instance", "localhost:1001", "type", "buffers")
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		testAddLabels(t, &r4.MetricName,
+			"instance", "localhost:1001", "type", "free")
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
 }
@@ -7283,5 +7323,18 @@ func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName, pos 
 			t.Fatalf(`unexpected tag value for key %q at #%d,%d; got %q; want %q; metricGot=%s, metricExpected=%s`,
 				tag.Key, pos, i, tag.Value, tagExpected.Value, mn.String(), mnExpected.String())
 		}
+	}
+}
+
+func testAddLabels(t *testing.T, mn *storage.MetricName, labels ...string) {
+	t.Helper()
+	if len(labels)%2 > 0 {
+		t.Fatalf("uneven number of labels passed: %v", labels)
+	}
+	for i := 0; i < len(labels); i += 2 {
+		mn.Tags = append(mn.Tags, storage.Tag{
+			Key:   []byte(labels[i]),
+			Value: []byte(labels[i+1]),
+		})
 	}
 }
