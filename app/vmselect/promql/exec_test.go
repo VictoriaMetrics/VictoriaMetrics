@@ -1,7 +1,6 @@
 package promql
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
