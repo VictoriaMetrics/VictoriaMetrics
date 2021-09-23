@@ -410,6 +410,44 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		},
 	})
 
+	// Multiple values regexp filter, which can be converted to non-regexp.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar|foo"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+	}, [][]TagFilter{
+		{
+			{
+				Key:        nil,
+				Value:      []byte("bar|foo"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+		},
+	})
+
+	// Multiple values regexp filter with common prefix, which can be converted to non-regexp.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("xxx(bar|foo)"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+	}, [][]TagFilter{
+		{
+			{
+				Key:        nil,
+				Value:      []byte("xxx(bar|foo)"),
+				IsNegative: false,
+				IsRegexp:   true,
+			},
+		},
+	})
+
 	// Multiple values regexp filter, which can be converted to non-regexp, with non-name filter.
 	f([]TagFilter{
 		{
@@ -436,6 +474,39 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			{
 				Key:        []byte("\xfe\x03foofoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+	})
+
+	// Multiple values regexp filter with common prefix, which can be converted to non-regexp, with non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("xxx(bar|foox)"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, [][]TagFilter{
+		{
+			{
+				Key:        []byte("\xfe\x06xxxbarfoo"),
+				Value:      []byte("abc"),
+				IsNegative: false,
+				IsRegexp:   false,
+			},
+		},
+		{
+			{
+				Key:        []byte("\xfe\x07xxxfooxfoo"),
 				Value:      []byte("abc"),
 				IsNegative: false,
 				IsRegexp:   false,

@@ -259,6 +259,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			return dst, fmt.Errorf("error when scraping %q with timeout %s: %w", c.scrapeURL, c.hc.ReadTimeout, err)
 		}
 		if err == fasthttp.ErrBodyTooLarge {
+			maxScrapeSizeExceeded.Inc()
 			return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
 				"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, maxScrapeSize.N)
 		}
@@ -296,11 +297,12 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 var gunzipBufPool bytesutil.ByteBufferPool
 
 var (
-	scrapesTimedout     = metrics.NewCounter(`vm_promscrape_scrapes_timed_out_total`)
-	scrapesOK           = metrics.NewCounter(`vm_promscrape_scrapes_total{status_code="200"}`)
-	scrapesGunzipped    = metrics.NewCounter(`vm_promscrape_scrapes_gunziped_total`)
-	scrapesGunzipFailed = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
-	scrapeRetries       = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
+	maxScrapeSizeExceeded = metrics.NewCounter(`vm_promscrape_max_scrape_size_exceeded_errors_total`)
+	scrapesTimedout       = metrics.NewCounter(`vm_promscrape_scrapes_timed_out_total`)
+	scrapesOK             = metrics.NewCounter(`vm_promscrape_scrapes_total{status_code="200"}`)
+	scrapesGunzipped      = metrics.NewCounter(`vm_promscrape_scrapes_gunziped_total`)
+	scrapesGunzipFailed   = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
+	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
@@ -341,6 +343,7 @@ func (sr *streamReader) Read(p []byte) (int, error) {
 	n, err := sr.r.Read(p)
 	sr.bytesRead += int64(n)
 	if err == nil && sr.bytesRead > sr.maxBodySize {
+		maxScrapeSizeExceeded.Inc()
 		err = fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
 			"either reduce the response size for the target or increase -promscrape.maxScrapeSize", sr.scrapeURL, sr.maxBodySize)
 	}

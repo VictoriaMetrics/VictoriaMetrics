@@ -436,7 +436,7 @@ rules:
 `)
 	})
 
-	t.Run("Ok, `for` must change cs", func(t *testing.T) {
+	t.Run("`for` change", func(t *testing.T) {
 		f(t, `
 name: TestGroup
 rules:
@@ -450,5 +450,34 @@ rules:
     expr: sum by(job) (up == 1)
 `)
 	})
-
+	t.Run("`interval` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+interval: 2s
+rules:
+  - alert: ExampleAlertWithFor
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+interval: 4s
+rules:
+  - alert: ExampleAlertWithFor
+    expr: sum by(job) (up == 1)
+`)
+	})
+	t.Run("`concurrency` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+concurrency: 2
+rules:
+  - alert: ExampleAlertWithFor
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+concurrency: 16
+rules:
+  - alert: ExampleAlertWithFor
+    expr: sum by(job) (up == 1)
+`)
+	})
 }
