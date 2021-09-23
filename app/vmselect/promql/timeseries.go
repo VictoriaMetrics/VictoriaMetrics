@@ -318,18 +318,6 @@ func marshalMetricTagsFast(dst []byte, tags []storage.Tag) []byte {
 	return dst
 }
 
-func metricNameToBytes(dst []byte, mn *storage.MetricName) []byte {
-	dst = marshalBytesFast(dst, mn.MetricGroup)
-	sortMetricTags(mn.Tags)
-	for i := range mn.Tags {
-		tag := &mn.Tags[i]
-		dst = append(dst, tag.Key...)
-		dst = append(dst, tag.Value...)
-		dst = append(dst, ","...)
-	}
-	return dst
-}
-
 func marshalMetricNameSorted(dst []byte, mn *storage.MetricName) []byte {
 	dst = marshalBytesFast(dst, mn.MetricGroup)
 	sortMetricTags(mn.Tags)
