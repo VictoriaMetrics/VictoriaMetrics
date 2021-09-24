@@ -109,7 +109,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         borderWidth: 1,
         capBezierPoints: false
       },
-      point: {radius: 0, hitRadius: 20}
+      point: {radius: 0, hitRadius: 10}
     },
     plugins: {
       legend: {
@@ -121,13 +121,13 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         pan: {
           enabled: true,
           mode: "x",
-          onPanComplete: debounce(onPanComplete, 750)
+          onPan: debounce(onPanComplete, 750)
         },
         zoom: {
           pinch: {enabled: true},
           wheel: {enabled: true, speed: 0.05},
           mode: "x",
-          onZoomComplete: debounce(onZoomComplete, 250)
+          onZoom: debounce(onZoomComplete, 250)
         }
       },
     }
