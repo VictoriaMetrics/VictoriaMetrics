@@ -1177,7 +1177,8 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	phi := phis[0]
 	rvs := args[1]
-	var values []float64
+	a := getFloat64s()
+	values := a.A[:0]
 	for _, ts := range rvs {
 		lastIdx := -1
 		originValues := ts.Values
@@ -1194,6 +1195,8 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 			originValues[lastIdx] = quantileSorted(phi, values)
 		}
 	}
+	a.A = values
+	putFloat64s(a)
 	setLastValues(rvs)
 	return rvs, nil
 }

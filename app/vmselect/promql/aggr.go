@@ -2,15 +2,15 @@ package promql
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/histogram"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -803,36 +803,25 @@ func medianValue(values []float64) float64 {
 	return quantile(0.5, values)
 }
 
-// quantiles calculates the given phis from originValues
-// without modifying originValues
-func quantiles(phis []float64, originValues []float64) []float64 {
-	a := float64sPool.Get().(*float64s)
+// quantiles calculates the given phis from originValues without modifying originValues, appends them to qs and returns the result.
+func quantiles(qs, phis []float64, originValues []float64) []float64 {
+	a := getFloat64s()
 	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
-	res := quantilesSorted(phis, a.A)
-	float64sPool.Put(a)
-	return res
+	qs = quantilesSorted(qs, phis, a.A)
+	putFloat64s(a)
+	return qs
 }
 
-func quantilesSorted(phis []float64, values []float64) []float64 {
-	res := make([]float64, len(phis))
-	for i, phi := range phis {
-		res[i] = quantileSorted(phi, values)
-	}
-	return res
-}
-
-// quantile calculates the given phi from originValues
-// without modifying originValues
+// quantile calculates the given phi from originValues without modifying originValues
 func quantile(phi float64, originValues []float64) float64 {
-	a := float64sPool.Get().(*float64s)
+	a := getFloat64s()
 	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
-	res := quantileSorted(phi, a.A)
-	float64sPool.Put(a)
-	return res
+	q := quantileSorted(phi, a.A)
+	putFloat64s(a)
+	return q
 }
 
-// prepareForQuantileFloat64 copies items from src
-// to dst but removes NaNs and sorts the dst
+// prepareForQuantileFloat64 copies items from src to dst but removes NaNs and sorts the dst
 func prepareForQuantileFloat64(dst, src []float64) []float64 {
 	for _, v := range src {
 		if math.IsNaN(v) {
@@ -844,7 +833,20 @@ func prepareForQuantileFloat64(dst, src []float64) []float64 {
 	return dst
 }
 
-// quantileSorted calculates the given quantile of a sorted list of values.
+// quantilesSorted calculates the given phis over a sorted list of values, appends them to qs and returns the result.
+//
+// It is expected that values won't contain NaN items.
+// The implementation mimics Prometheus implementation for compatibility's sake.
+func quantilesSorted(qs, phis []float64, values []float64) []float64 {
+	for _, phi := range phis {
+		q := quantileSorted(phi, values)
+		qs = append(qs, q)
+	}
+	return qs
+}
+
+// quantileSorted calculates the given quantile over a sorted list of values.
+//
 // It is expected that values won't contain NaN items.
 // The implementation mimics Prometheus implementation for compatibility's sake.
 func quantileSorted(phi float64, values []float64) float64 {
@@ -944,36 +946,40 @@ func getPerPointMedians(tss []*timeseries) []float64 {
 		logger.Panicf("BUG: expecting non-empty tss")
 	}
 	medians := make([]float64, len(tss[0].Values))
-	h := histogram.GetFast()
+	a := getFloat64s()
+	values := a.A
 	for n := range medians {
-		h.Reset()
+		values = values[:0]
 		for j := range tss {
 			v := tss[j].Values[n]
 			if !math.IsNaN(v) {
-				h.Update(v)
+				values = append(values, v)
 			}
 		}
-		medians[n] = h.Quantile(0.5)
+		medians[n] = quantile(0.5, values)
 	}
-	histogram.PutFast(h)
+	a.A = values
+	putFloat64s(a)
 	return medians
 }
 
 func getPerPointMADs(tss []*timeseries, medians []float64) []float64 {
 	mads := make([]float64, len(medians))
-	h := histogram.GetFast()
+	a := getFloat64s()
+	values := a.A
 	for n, median := range medians {
-		h.Reset()
+		values = values[:0]
 		for j := range tss {
 			v := tss[j].Values[n]
 			if !math.IsNaN(v) {
 				ad := math.Abs(v - median)
-				h.Update(ad)
+				values = append(values, ad)
 			}
 		}
-		mads[n] = h.Quantile(0.5)
+		mads[n] = quantile(0.5, values)
 	}
-	histogram.PutFast(h)
+	a.A = values
+	putFloat64s(a)
 	return mads
 }
 
@@ -1043,24 +1049,24 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 			tssDst[j] = ts
 		}
 
-		var qs []float64
-		values := float64sPool.Get().(*float64s)
+		b := getFloat64s()
+		qs := b.A
+		a := getFloat64s()
+		values := a.A
 		for n := range tss[0].Values {
-			values.A = values.A[:0]
+			values = values[:0]
 			for j := range tss {
-				v := tss[j].Values[n]
-				if math.IsNaN(v) {
-					continue
-				}
-				values.A = append(values.A, v)
+				values = append(values, tss[j].Values[n])
 			}
-			sort.Float64s(values.A)
-			qs = quantilesSorted(phis, values.A)
+			qs = quantiles(qs[:0], phis, values)
 			for j := range tssDst {
 				tssDst[j].Values[n] = qs[j]
 			}
 		}
-		float64sPool.Put(values)
+		a.A = values
+		putFloat64s(a)
+		b.A = qs
+		putFloat64s(b)
 		return tssDst
 	}
 	return aggrFuncExt(afe, argOrig, &afa.ae.Modifier, afa.ae.Limit, false)
@@ -1092,20 +1098,17 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		dst := tss[0]
-		var values []float64
+		a := getFloat64s()
+		values := a.A
 		for n := range dst.Values {
 			values = values[:0]
 			for j := range tss {
-				v := tss[j].Values[n]
-				if math.IsNaN(v) {
-					continue
-				}
-				values = append(values, v)
+				values = append(values, tss[j].Values[n])
 			}
-			phi := phis[n]
-			sort.Float64s(values)
-			dst.Values[n] = quantileSorted(phi, values)
+			dst.Values[n] = quantile(phis[n], values)
 		}
+		a.A = values
+		putFloat64s(a)
 		tss[0] = dst
 		return tss[:1]
 	}
