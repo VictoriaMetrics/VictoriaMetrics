@@ -274,9 +274,13 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `rollup_rate(series_selector[d])` calculates per-second change rates for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
 
+#### rollup_scrape_interval
+
+`rollup_scrape_interval(series_selector[d])` calculates the interval in seconds between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [scrape_interval](#scrape_interval).
+
 #### scrape_interval
 
-`scrape_interval(series_selector[d])` calculates the average interval in seconds between raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
+`scrape_interval(series_selector[d])` calculates the average interval in seconds between raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [rollup_scrape_interval](#rollup_scrape_interval).
 
 #### share_gt_over_time
 

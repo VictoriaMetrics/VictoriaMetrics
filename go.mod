@@ -9,7 +9,7 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.0
-	github.com/VictoriaMetrics/metricsql v0.24.0
+	github.com/VictoriaMetrics/metricsql v0.25.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/aws/aws-sdk-go v1.40.49
 	github.com/cespare/xxhash/v2 v2.1.2
@@ -31,7 +31,6 @@ require (
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.13.0
-	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.0.0-20210924151903-3ad01bbaa167
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
