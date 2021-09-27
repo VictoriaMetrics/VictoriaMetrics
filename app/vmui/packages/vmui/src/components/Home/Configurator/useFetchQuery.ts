@@ -11,7 +11,7 @@ export const useFetchQuery = (): {
   isLoading: boolean,
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
-  error?: string
+  error?: string,
 } => {
   const {query, displayType, serverUrl, time: {period}} = useAppState();
 
@@ -65,16 +65,21 @@ export const useFetchQuery = (): {
           headers.set("Authorization", bearerData?.token || "");
         }
         setIsLoading(true);
-        const response = await fetch(fetchUrl, {
-          headers
-        });
-        if (response.ok) {
-          saveToStorage("LAST_QUERY", query);
-          const resp = await response.json();
-          setError(undefined);
-          displayType === "chart" ? setGraphData(resp.data.result) : setLiveData(resp.data.result);
-        } else {
-          setError((await response.json())?.error);
+        try {
+          const response = await fetch(fetchUrl, {
+            headers
+          });
+          if (response.ok) {
+            saveToStorage("LAST_QUERY", query);
+            const resp = await response.json();
+            setError(undefined);
+            displayType === "chart" ? setGraphData(resp.data.result) : setLiveData(resp.data.result);
+          } else {
+            setError((await response.json())?.error);
+          }
+        }
+        catch (e) {
+          setError(e.message);
         }
         setIsLoading(false);
       }
