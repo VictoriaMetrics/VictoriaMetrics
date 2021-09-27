@@ -3,7 +3,7 @@ import {Box, Popover, TextField, Typography} from "@material-ui/core";
 import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import {TimeDurationPopover} from "./TimeDurationPopover";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
-import {dateFromSeconds, formatDateForNativeInput} from "../../../utils/time";
+import {checkDurationLimit, dateFromSeconds, formatDateForNativeInput} from "../../../utils/time";
 import {InlineBtn} from "../../common/InlineBtn";
 
 interface TimeSelectorProps {
@@ -33,7 +33,9 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
 
   useEffect(() => {
     if (!durationStringFocused) {
-      setDuration(durationString);
+      const value = checkDurationLimit(durationString);
+      setDurationString(value);
+      setDuration(value);
     }
   }, [durationString, durationStringFocused]);
 
