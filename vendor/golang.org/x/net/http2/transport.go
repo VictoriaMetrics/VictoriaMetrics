@@ -2371,6 +2371,9 @@ func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 		}
 		if refund > 0 {
 			cc.inflow.add(int32(refund))
+			if !didReset {
+				cs.inflow.add(int32(refund))
+			}
 		}
 		cc.mu.Unlock()
 
@@ -2378,7 +2381,6 @@ func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 			cc.wmu.Lock()
 			cc.fr.WriteWindowUpdate(0, uint32(refund))
 			if !didReset {
-				cs.inflow.add(int32(refund))
 				cc.fr.WriteWindowUpdate(cs.ID, uint32(refund))
 			}
 			cc.bw.Flush()
