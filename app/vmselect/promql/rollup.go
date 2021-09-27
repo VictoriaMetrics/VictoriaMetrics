@@ -45,44 +45,45 @@ var rollupFuncs = map[string]newRollupFunc{
 	"last_over_time":     newRollupFuncOneArg(rollupLast),
 
 	// Additional rollup funcs.
-	"default_rollup":        newRollupFuncOneArg(rollupDefault), // default rollup func
-	"range_over_time":       newRollupFuncOneArg(rollupRange),
-	"sum2_over_time":        newRollupFuncOneArg(rollupSum2),
-	"geomean_over_time":     newRollupFuncOneArg(rollupGeomean),
-	"first_over_time":       newRollupFuncOneArg(rollupFirst),
-	"distinct_over_time":    newRollupFuncOneArg(rollupDistinct),
-	"increases_over_time":   newRollupFuncOneArg(rollupIncreases),
-	"decreases_over_time":   newRollupFuncOneArg(rollupDecreases),
-	"increase_pure":         newRollupFuncOneArg(rollupIncreasePure), // + rollupFuncsRemoveCounterResets
-	"integrate":             newRollupFuncOneArg(rollupIntegrate),
-	"ideriv":                newRollupFuncOneArg(rollupIderiv),
-	"lifetime":              newRollupFuncOneArg(rollupLifetime),
-	"lag":                   newRollupFuncOneArg(rollupLag),
-	"scrape_interval":       newRollupFuncOneArg(rollupScrapeInterval),
-	"tmin_over_time":        newRollupFuncOneArg(rollupTmin),
-	"tmax_over_time":        newRollupFuncOneArg(rollupTmax),
-	"tfirst_over_time":      newRollupFuncOneArg(rollupTfirst),
-	"tlast_over_time":       newRollupFuncOneArg(rollupTlast),
-	"share_le_over_time":    newRollupShareLE,
-	"share_gt_over_time":    newRollupShareGT,
-	"count_le_over_time":    newRollupCountLE,
-	"count_gt_over_time":    newRollupCountGT,
-	"count_eq_over_time":    newRollupCountEQ,
-	"count_ne_over_time":    newRollupCountNE,
-	"histogram_over_time":   newRollupFuncOneArg(rollupHistogram),
-	"rollup":                newRollupFuncOneArg(rollupFake),
-	"rollup_rate":           newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_deriv":          newRollupFuncOneArg(rollupFake),
-	"rollup_delta":          newRollupFuncOneArg(rollupFake),
-	"rollup_increase":       newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_candlestick":    newRollupFuncOneArg(rollupFake),
-	"aggr_over_time":        newRollupFuncTwoArgs(rollupFake),
-	"hoeffding_bound_upper": newRollupHoeffdingBoundUpper,
-	"hoeffding_bound_lower": newRollupHoeffdingBoundLower,
-	"ascent_over_time":      newRollupFuncOneArg(rollupAscentOverTime),
-	"descent_over_time":     newRollupFuncOneArg(rollupDescentOverTime),
-	"zscore_over_time":      newRollupFuncOneArg(rollupZScoreOverTime),
-	"quantiles_over_time":   newRollupQuantiles,
+	"default_rollup":         newRollupFuncOneArg(rollupDefault), // default rollup func
+	"range_over_time":        newRollupFuncOneArg(rollupRange),
+	"sum2_over_time":         newRollupFuncOneArg(rollupSum2),
+	"geomean_over_time":      newRollupFuncOneArg(rollupGeomean),
+	"first_over_time":        newRollupFuncOneArg(rollupFirst),
+	"distinct_over_time":     newRollupFuncOneArg(rollupDistinct),
+	"increases_over_time":    newRollupFuncOneArg(rollupIncreases),
+	"decreases_over_time":    newRollupFuncOneArg(rollupDecreases),
+	"increase_pure":          newRollupFuncOneArg(rollupIncreasePure), // + rollupFuncsRemoveCounterResets
+	"integrate":              newRollupFuncOneArg(rollupIntegrate),
+	"ideriv":                 newRollupFuncOneArg(rollupIderiv),
+	"lifetime":               newRollupFuncOneArg(rollupLifetime),
+	"lag":                    newRollupFuncOneArg(rollupLag),
+	"scrape_interval":        newRollupFuncOneArg(rollupScrapeInterval),
+	"tmin_over_time":         newRollupFuncOneArg(rollupTmin),
+	"tmax_over_time":         newRollupFuncOneArg(rollupTmax),
+	"tfirst_over_time":       newRollupFuncOneArg(rollupTfirst),
+	"tlast_over_time":        newRollupFuncOneArg(rollupTlast),
+	"share_le_over_time":     newRollupShareLE,
+	"share_gt_over_time":     newRollupShareGT,
+	"count_le_over_time":     newRollupCountLE,
+	"count_gt_over_time":     newRollupCountGT,
+	"count_eq_over_time":     newRollupCountEQ,
+	"count_ne_over_time":     newRollupCountNE,
+	"histogram_over_time":    newRollupFuncOneArg(rollupHistogram),
+	"rollup":                 newRollupFuncOneArg(rollupFake),
+	"rollup_rate":            newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_deriv":           newRollupFuncOneArg(rollupFake),
+	"rollup_delta":           newRollupFuncOneArg(rollupFake),
+	"rollup_increase":        newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_candlestick":     newRollupFuncOneArg(rollupFake),
+	"rollup_scrape_interval": newRollupFuncOneArg(rollupFake),
+	"aggr_over_time":         newRollupFuncTwoArgs(rollupFake),
+	"hoeffding_bound_upper":  newRollupHoeffdingBoundUpper,
+	"hoeffding_bound_lower":  newRollupHoeffdingBoundLower,
+	"ascent_over_time":       newRollupFuncOneArg(rollupAscentOverTime),
+	"descent_over_time":      newRollupFuncOneArg(rollupDescentOverTime),
+	"zscore_over_time":       newRollupFuncOneArg(rollupZScoreOverTime),
+	"quantiles_over_time":    newRollupQuantiles,
 
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
@@ -319,6 +320,24 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 		rcs = append(rcs, newRollupConfig(rollupClose, "close"))
 		rcs = append(rcs, newRollupConfig(rollupLow, "low"))
 		rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
+	case "rollup_scrape_interval":
+		preFuncPrev := preFunc
+		preFunc = func(values []float64, timestamps []int64) {
+			preFuncPrev(values, timestamps)
+			// Calculate intervals in seconds between samples.
+			tsSecsPrev := nan
+			for i, ts := range timestamps {
+				tsSecs := float64(ts) / 1000
+				values[i] = tsSecs - tsSecsPrev
+				tsSecsPrev = tsSecs
+			}
+			if len(values) > 1 {
+				// Overwrite the first NaN interval with the second interval,
+				// So min, max and avg rollups could be calculated properly, since they don't expect to receive NaNs.
+				values[0] = values[1]
+			}
+		}
+		rcs = appendRollupConfigs(rcs)
 	case "aggr_over_time":
 		aggrFuncNames, err := getRollupAggrFuncNames(expr)
 		if err != nil {

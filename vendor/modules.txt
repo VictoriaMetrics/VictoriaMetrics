@@ -22,7 +22,7 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.18.0
 ## explicit
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.24.0
+# github.com/VictoriaMetrics/metricsql v0.25.0
 ## explicit
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
@@ -214,7 +214,6 @@ github.com/valyala/fasttemplate
 ## explicit
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.2.0
-## explicit
 github.com/valyala/histogram
 # github.com/valyala/quicktemplate v1.7.0
 ## explicit
