@@ -335,14 +335,14 @@ func TestRollupQuantileOverTime(t *testing.T) {
 		testRollupFunc(t, "quantile_over_time", args, &me, vExpected)
 	}
 
-	f(-123, 12)
-	f(-0.5, 12)
+	f(-123, math.Inf(-1))
+	f(-0.5, math.Inf(-1))
 	f(0, 12)
-	f(0.1, 21)
+	f(0.1, 22.1)
 	f(0.5, 34)
-	f(0.9, 99)
+	f(0.9, 94.50000000000001)
 	f(1, 123)
-	f(234, 123)
+	f(234, math.Inf(+1))
 }
 
 func TestRollupPredictLinear(t *testing.T) {
