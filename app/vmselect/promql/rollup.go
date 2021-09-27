@@ -1066,12 +1066,7 @@ func newRollupQuantiles(args []interface{}) (rollupFunc, error) {
 			// Fast path - only a single value.
 			return values[0]
 		}
-		hf := histogram.GetFast()
-		for _, v := range values {
-			hf.Update(v)
-		}
-		qs := hf.Quantiles(nil, phis)
-		histogram.PutFast(hf)
+		qs := quantiles(phis, values)
 		idx := rfa.idx
 		tsm := rfa.tsm
 		for i, phiStr := range phiStrs {
@@ -1102,13 +1097,8 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 			// Fast path - only a single value.
 			return values[0]
 		}
-		hf := histogram.GetFast()
-		for _, v := range values {
-			hf.Update(v)
-		}
 		phi := phis[rfa.idx]
-		qv := hf.Quantile(phi)
-		histogram.PutFast(hf)
+		qv := quantile(phi, values)
 		return qv
 	}
 	return rf, nil

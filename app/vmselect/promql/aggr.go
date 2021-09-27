@@ -2,16 +2,15 @@ package promql
 
 import (
 	"fmt"
-	"math"
-	"sort"
-	"strconv"
-	"strings"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/valyala/histogram"
+	"math"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -801,15 +800,71 @@ func avgValue(values []float64) float64 {
 }
 
 func medianValue(values []float64) float64 {
-	h := histogram.GetFast()
-	for _, v := range values {
-		if !math.IsNaN(v) {
-			h.Update(v)
-		}
+	return quantile(0.5, values)
+}
+
+// quantiles calculates the given phis from originValues
+// without modifying originValues
+func quantiles(phis []float64, originValues []float64) []float64 {
+	a := float64sPool.Get().(*float64s)
+	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
+	res := quantilesSorted(phis, a.A)
+	float64sPool.Put(a)
+	return res
+}
+
+func quantilesSorted(phis []float64, values []float64) []float64 {
+	res := make([]float64, len(phis))
+	for i, phi := range phis {
+		res[i] = quantileSorted(phi, values)
 	}
-	value := h.Quantile(0.5)
-	histogram.PutFast(h)
-	return value
+	return res
+}
+
+// quantile calculates the given phi from originValues
+// without modifying originValues
+func quantile(phi float64, originValues []float64) float64 {
+	a := float64sPool.Get().(*float64s)
+	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
+	res := quantileSorted(phi, a.A)
+	float64sPool.Put(a)
+	return res
+}
+
+// prepareForQuantileFloat64 copies items from src
+// to dst but removes NaNs and sorts the dst
+func prepareForQuantileFloat64(dst, src []float64) []float64 {
+	for _, v := range src {
+		if math.IsNaN(v) {
+			continue
+		}
+		dst = append(dst, v)
+	}
+	sort.Float64s(dst)
+	return dst
+}
+
+// quantileSorted calculates the given quantile of a sorted list of values.
+// It is expected that values won't contain NaN items.
+// The implementation mimics Prometheus implementation for compatibility's sake.
+func quantileSorted(phi float64, values []float64) float64 {
+	if len(values) == 0 || math.IsNaN(phi) {
+		return nan
+	}
+	if phi < 0 {
+		return math.Inf(-1)
+	}
+	if phi > 1 {
+		return math.Inf(+1)
+	}
+	n := float64(len(values))
+	rank := phi * (n - 1)
+
+	lowerIndex := math.Max(0, math.Floor(rank))
+	upperIndex := math.Min(n-1, lowerIndex+1)
+
+	weight := rank - math.Floor(rank)
+	return values[int(lowerIndex)]*(1-weight) + values[int(upperIndex)]*weight
 }
 
 func aggrFuncMAD(tss []*timeseries) []*timeseries {
@@ -987,22 +1042,25 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phis[j]))
 			tssDst[j] = ts
 		}
-		h := histogram.GetFast()
-		defer histogram.PutFast(h)
+
 		var qs []float64
+		values := float64sPool.Get().(*float64s)
 		for n := range tss[0].Values {
-			h.Reset()
+			values.A = values.A[:0]
 			for j := range tss {
 				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
+				if math.IsNaN(v) {
+					continue
 				}
+				values.A = append(values.A, v)
 			}
-			qs = h.Quantiles(qs[:0], phis)
+			sort.Float64s(values.A)
+			qs = quantilesSorted(phis, values.A)
 			for j := range tssDst {
 				tssDst[j].Values[n] = qs[j]
 			}
 		}
+		float64sPool.Put(values)
 		return tssDst
 	}
 	return aggrFuncExt(afe, argOrig, &afa.ae.Modifier, afa.ae.Limit, false)
@@ -1034,18 +1092,19 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		dst := tss[0]
-		h := histogram.GetFast()
-		defer histogram.PutFast(h)
+		var values []float64
 		for n := range dst.Values {
-			h.Reset()
+			values = values[:0]
 			for j := range tss {
 				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
+				if math.IsNaN(v) {
+					continue
 				}
+				values = append(values, v)
 			}
 			phi := phis[n]
-			dst.Values[n] = h.Quantile(phi)
+			sort.Float64s(values)
+			dst.Values[n] = quantileSorted(phi, values)
 		}
 		tss[0] = dst
 		return tss[:1]
