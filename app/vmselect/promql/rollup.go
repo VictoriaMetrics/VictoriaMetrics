@@ -1089,16 +1089,14 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 	rf := func(rfa *rollupFuncArg) float64 {
 		// There is no need in handling NaNs here, since they must be cleaned up
 		// before calling rollup funcs.
-		originValues := rfa.values
-		if len(originValues) == 0 {
+		values := rfa.values
+		if len(values) == 0 {
 			return rfa.prevValue
 		}
-		if len(originValues) == 1 {
+		if len(values) == 1 {
 			// Fast path - only a single value.
-			return originValues[0]
+			return values[0]
 		}
-		var values []float64
-		values = append(values, originValues...)
 		phi := phis[rfa.idx]
 		qv := quantile(phi, values)
 		return qv

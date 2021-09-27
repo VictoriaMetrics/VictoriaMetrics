@@ -1177,10 +1177,11 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	phi := phis[0]
 	rvs := args[1]
+	var values []float64
 	for _, ts := range rvs {
 		lastIdx := -1
 		originValues := ts.Values
-		var values []float64
+		values = values[:0]
 		for i, v := range originValues {
 			if math.IsNaN(v) {
 				continue
@@ -1189,7 +1190,8 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 			lastIdx = i
 		}
 		if lastIdx >= 0 {
-			originValues[lastIdx] = quantile(phi, values)
+			sort.Float64s(values)
+			originValues[lastIdx] = quantileSorted(phi, values)
 		}
 	}
 	setLastValues(rvs)

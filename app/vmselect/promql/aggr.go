@@ -2,16 +2,15 @@ package promql
 
 import (
 	"fmt"
-	"math"
-	"sort"
-	"strconv"
-	"strings"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/valyala/histogram"
+	"math"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -804,8 +803,17 @@ func medianValue(values []float64) float64 {
 	return quantile(0.5, values)
 }
 
-func quantiles(phis []float64, values []float64) []float64 {
-	sort.Float64s(values)
+// quantiles calculates the given phis from originValues
+// without modifying originValues
+func quantiles(phis []float64, originValues []float64) []float64 {
+	a := float64sPool.Get().(*float64s)
+	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
+	res := quantilesSorted(phis, a.A)
+	float64sPool.Put(a)
+	return res
+}
+
+func quantilesSorted(phis []float64, values []float64) []float64 {
 	res := make([]float64, len(phis))
 	for i, phi := range phis {
 		res[i] = quantileSorted(phi, values)
@@ -813,12 +821,31 @@ func quantiles(phis []float64, values []float64) []float64 {
 	return res
 }
 
-func quantile(phi float64, values []float64) float64 {
-	sort.Float64s(values)
-	return quantileSorted(phi, values)
+// quantile calculates the given phi from originValues
+// without modifying originValues
+func quantile(phi float64, originValues []float64) float64 {
+	a := float64sPool.Get().(*float64s)
+	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
+	res := quantileSorted(phi, a.A)
+	float64sPool.Put(a)
+	return res
 }
 
-// quantileSorted calculates the given quantile of a sorted list of values
+// prepareForQuantileFloat64 copies items from src
+// to dst but removes NaNs and sorts the dst
+func prepareForQuantileFloat64(dst, src []float64) []float64 {
+	for _, v := range src {
+		if math.IsNaN(v) {
+			continue
+		}
+		dst = append(dst, v)
+	}
+	sort.Float64s(dst)
+	return dst
+}
+
+// quantileSorted calculates the given quantile of a sorted list of values.
+// It is expected that values won't contain NaN items.
 // The implementation mimics Prometheus implementation for compatibility's sake.
 func quantileSorted(phi float64, values []float64) float64 {
 	if len(values) == 0 || math.IsNaN(phi) {
@@ -1015,21 +1042,25 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phis[j]))
 			tssDst[j] = ts
 		}
+
 		var qs []float64
+		values := float64sPool.Get().(*float64s)
 		for n := range tss[0].Values {
-			var values []float64
+			values.A = values.A[:0]
 			for j := range tss {
 				v := tss[j].Values[n]
 				if math.IsNaN(v) {
 					continue
 				}
-				values = append(values, v)
+				values.A = append(values.A, v)
 			}
-			qs = quantiles(phis, values)
+			sort.Float64s(values.A)
+			qs = quantilesSorted(phis, values.A)
 			for j := range tssDst {
 				tssDst[j].Values[n] = qs[j]
 			}
 		}
+		float64sPool.Put(values)
 		return tssDst
 	}
 	return aggrFuncExt(afe, argOrig, &afa.ae.Modifier, afa.ae.Limit, false)
@@ -1061,8 +1092,9 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		dst := tss[0]
+		var values []float64
 		for n := range dst.Values {
-			var values []float64
+			values = values[:0]
 			for j := range tss {
 				v := tss[j].Values[n]
 				if math.IsNaN(v) {
@@ -1071,7 +1103,8 @@ func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metri
 				values = append(values, v)
 			}
 			phi := phis[n]
-			dst.Values[n] = quantile(phi, values)
+			sort.Float64s(values)
+			dst.Values[n] = quantileSorted(phi, values)
 		}
 		tss[0] = dst
 		return tss[:1]
