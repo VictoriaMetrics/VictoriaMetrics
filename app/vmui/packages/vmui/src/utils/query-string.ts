@@ -53,9 +53,9 @@ export const setQueryStringValue = (newValue: Record<string, unknown>): void => 
 
 export const getQueryStringValue = (
   key: string,
-  defaultValue?: any,
+  defaultValue?: unknown,
   queryString = window.location.search
-) => {
+): unknown => {
   const values = qs.parse(queryString, { ignoreQueryPrefix: true });
   return get(values, key, defaultValue || "");
 };

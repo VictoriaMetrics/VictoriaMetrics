@@ -5,7 +5,10 @@ import duration from "dayjs/plugin/duration";
 
 dayjs.extend(duration);
 
-const MAX_ITEMS_PER_CHART = window.screen.availWidth / 2;
+const MAX_ITEMS_PER_CHART = window.screen.availWidth / 7.68;
+
+export const limitsDurations = {min: 1000, max: 1.578e+11}; // min: 1 seconds, max: 5 years
+
 
 export const supportedDurations = [
   {long: "days", short: "d", possible: "day"},
@@ -63,14 +66,34 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
 
 export const formatDateForNativeInput = (date: Date): string => dayjs(date).format("YYYY-MM-DD[T]HH:mm:ss");
 
-export const getDurationFromPeriod = (p: TimePeriod): string => {
-  const dur = dayjs.duration(p.to.valueOf() - p.from.valueOf());
+const getDurationFromMilliseconds = (ms: number): string => {
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / 1000 / 60) % 60);
+  const hours = Math.floor((ms / 1000 / 3600 ) % 24);
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
   const durs: UnitTypeShort[] = ["d", "h", "m", "s"];
-  return durs
-    .map(d => ({val: dur.get(d), str: d}))
-    .filter(obj => obj.val !== 0)
-    .map(obj => `${obj.val}${obj.str}`)
-    .join(" ");
+  const values = [days, hours, minutes, seconds].map((t, i) => t ? `${t}${durs[i]}` : "");
+  return values.filter(t => t).join(" ");
+};
+
+export const getDurationFromPeriod = (p: TimePeriod): string => {
+  const ms = p.to.valueOf() - p.from.valueOf();
+  return getDurationFromMilliseconds(ms);
+};
+
+export const checkDurationLimit = (dur: string): string => {
+  const durItems = dur.trim().split(" ");
+
+  const durObject = durItems.reduce((prev, curr) => {
+    const dur = isSupportedDuration(curr);
+    return dur ? {...prev, ...dur} : {...prev};
+  }, {});
+
+  const delta = dayjs.duration(durObject).asMilliseconds();
+
+  if (delta < limitsDurations.min) return getDurationFromMilliseconds(limitsDurations.min);
+  if (delta > limitsDurations.max) return getDurationFromMilliseconds(limitsDurations.max);
+  return dur;
 };
 
 export const dateFromSeconds = (epochTimeInSeconds: number): Date =>
