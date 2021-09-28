@@ -14,6 +14,7 @@ sort: 15
 
 * BUGFIX: align behavior of the queries `a or on (labels) b`, `a and on (labels) b` and `a unless on (labels) b` where `b` has multiple time series with the given `labels` to Prometheus behavior. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1643).
 * BUGFIX: vmagent: fix `openstack_sd_config` service discovery when both `domain_name` and `project_id` config options are set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1655).
+* BUGFIX: return proper values (zeroes) from [stddev_over_time](https://docs.victoriametrics.com/MetricsQL.html#stddev_over_time) and [stdvar_over_time](https://docs.victoriametrics.com/MetricsQL.html#stdvar_over_time) functions when the lookbehind window in square brackets contains only a single sample. Previously the sample value was incorrectly returned in this case.
 
 
 ## [v1.66.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.2)
