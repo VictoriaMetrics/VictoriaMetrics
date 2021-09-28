@@ -1373,7 +1373,7 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 	}
 	if len(values) == 1 {
 		// Fast path.
-		return values[0]
+		return 0
 	}
 	var avg float64
 	var count float64
