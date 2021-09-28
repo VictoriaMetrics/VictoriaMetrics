@@ -174,6 +174,8 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"zscore_over_time":    true,
 	"first_over_time":     true,
 	"last_over_time":      true,
+	"min_over_time":       true,
+	"max_over_time":       true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
