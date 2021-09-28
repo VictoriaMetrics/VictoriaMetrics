@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"path"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -191,7 +190,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if at != nil {
 			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
-			remoteWriteURL.Path = path.Join(remoteWriteURL.Path, fmt.Sprintf("/insert/%d:%d/prometheus/api/v1/write", at.AccountID, at.ProjectID))
+			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
 		}
 		if *showRemoteWriteURL {
