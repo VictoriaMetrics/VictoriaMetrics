@@ -174,6 +174,8 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"zscore_over_time":    true,
 	"first_over_time":     true,
 	"last_over_time":      true,
+	"min_over_time":       true,
+	"max_over_time":       true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -1112,13 +1114,6 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		// There is no need in handling NaNs here, since they must be cleaned up
 		// before calling rollup funcs.
 		values := rfa.values
-		if len(values) == 0 {
-			return rfa.prevValue
-		}
-		if len(values) == 1 {
-			// Fast path - only a single value.
-			return values[0]
-		}
 		phi := phis[rfa.idx]
 		qv := quantile(phi, values)
 		return qv
@@ -1359,10 +1354,7 @@ func rollupCount(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	return float64(len(values))
 }
@@ -1379,14 +1371,11 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	if len(values) == 1 {
 		// Fast path.
-		return values[0]
+		return 0
 	}
 	var avg float64
 	var count float64

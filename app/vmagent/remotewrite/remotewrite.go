@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -181,17 +182,21 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		maxInmemoryBlocks = 2
 	}
 	rwctxs := make([]*remoteWriteCtx, len(urls))
-	for i, remoteWriteURL := range urls {
+	for i, remoteWriteURLRaw := range urls {
+		remoteWriteURL, err := url.Parse(remoteWriteURLRaw)
+		if err != nil {
+			logger.Fatalf("invalid -remoteWrite.url=%q: %s", remoteWriteURL, err)
+		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if at != nil {
 			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
-			remoteWriteURL = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL, at.AccountID, at.ProjectID)
+			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
 		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
-		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxs[i] = newRemoteWriteCtx(i, at, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 	}
 	return rwctxs
 }
@@ -403,17 +408,29 @@ type remoteWriteCtx struct {
 	relabelMetricsDropped *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
-	h := xxhash.Sum64([]byte(remoteWriteURL))
-	path := fmt.Sprintf("%s/persistent-queue/%d_%016X", *tmpDataPath, argIdx+1, h)
-	fq := persistentqueue.MustOpenFastQueue(path, sanitizedURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, path, sanitizedURL), func() float64 {
+func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
+	// strip query params, otherwise changing params resets pq
+	pqURL := *remoteWriteURL
+	pqURL.RawQuery = ""
+	pqURL.Fragment = ""
+	h := xxhash.Sum64([]byte(pqURL.String()))
+	queuePath := fmt.Sprintf("%s/persistent-queue/%d_%016X", *tmpDataPath, argIdx+1, h)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, path, sanitizedURL), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
-	c := newClient(argIdx, remoteWriteURL, sanitizedURL, fq, *queues)
+	var c *client
+	switch remoteWriteURL.Scheme {
+	case "http", "https":
+		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
+	default:
+		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
+	}
+	c.init(argIdx, *queues, sanitizedURL)
+
 	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
 	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
 	pssLen := *queues
@@ -432,7 +449,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int,
 		c:   c,
 		pss: pss,
 
-		relabelMetricsDropped: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, path, sanitizedURL)),
+		relabelMetricsDropped: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 	}
 }
 
