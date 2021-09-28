@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/native"
@@ -224,6 +225,36 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
+	case "/datadog/api/v1/series":
+		datadogWriteRequests.Inc()
+		if err := datadog.InsertHandlerForHTTP(nil, r); err != nil {
+			datadogWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "/datadog/api/v1/validate":
+		datadogValidateRequests.Inc()
+		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, `{"valid":true}`)
+		return true
+	case "/datadog/api/v1/check_run":
+		datadogCheckRunRequests.Inc()
+		// See https://docs.datadoghq.com/api/latest/service-checks/#submit-a-service-check
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "/datadog/intake/":
+		datadogIntakeRequests.Inc()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, `{}`)
+		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
@@ -330,6 +361,35 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
+	case "datadog/api/v1/series":
+		datadogWriteRequests.Inc()
+		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
+			datadogWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "datadog/api/v1/validate":
+		datadogValidateRequests.Inc()
+		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, `{"valid":true}`)
+		return true
+	case "datadog/api/v1/check_run":
+		datadogCheckRunRequests.Inc()
+		// See https://docs.datadoghq.com/api/latest/service-checks/#submit-a-service-check
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "datadog/intake/":
+		datadogIntakeRequests.Inc()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, `{}`)
+		return true
 	default:
 		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
 		return true
@@ -352,10 +412,17 @@ var (
 	nativeimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 	nativeimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 
-	influxWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/write", protocol="influx"}`)
-	influxWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/write", protocol="influx"}`)
+	influxWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/write", protocol="influx"}`)
+	influxWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/influx/write", protocol="influx"}`)
 
-	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query", protocol="influx"}`)
+	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/query", protocol="influx"}`)
+
+	datadogWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/series", protocol="datadog"}`)
+	datadogWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v1/series", protocol="datadog"}`)
+
+	datadogValidateRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/validate", protocol="datadog"}`)
+	datadogCheckRunRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/check_run", protocol="datadog"}`)
+	datadogIntakeRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/intake/", protocol="datadog"}`)
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
