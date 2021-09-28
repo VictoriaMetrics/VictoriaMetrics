@@ -186,7 +186,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	for i, remoteWriteURLRaw := range urls {
 		remoteWriteURL, err := url.Parse(remoteWriteURLRaw)
 		if err != nil {
-			logger.Fatalf("invalid remoteWriteURL: %q, err: %s", remoteWriteURL, err)
+			logger.Fatalf("invalid -remoteWrite.url=%q: %s", remoteWriteURL, err)
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if at != nil {
