@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
@@ -238,6 +239,36 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
+	case "datadog/api/v1/series":
+		datadogWriteRequests.Inc()
+		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
+			datadogWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "datadog/api/v1/validate":
+		datadogValidateRequests.Inc()
+		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, `{"valid":true}`)
+		return true
+	case "datadog/api/v1/check_run":
+		datadogCheckRunRequests.Inc()
+		// See https://docs.datadoghq.com/api/latest/service-checks/#submit-a-service-check
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "datadog/intake/":
+		datadogIntakeRequests.Inc()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		fmt.Fprintf(w, `{}`)
+		return true
 	default:
 		// This is not our link
 		return false
@@ -262,10 +293,17 @@ var (
 	nativeimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/prometheus/api/v1/import/native", protocol="nativeimport"}`)
 	nativeimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/prometheus/api/v1/import/native", protocol="nativeimport"}`)
 
-	influxWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/", protocol="influx"}`)
-	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/influx/", protocol="influx"}`)
+	influxWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/write", protocol="influx"}`)
+	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/influx/write", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/query", protocol="influx"}`)
+
+	datadogWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
+	datadogWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
+
+	datadogValidateRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/validate", protocol="datadog"}`)
+	datadogCheckRunRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/check_run", protocol="datadog"}`)
+	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/intake/", protocol="datadog"}`)
 
 	_ = metrics.NewGauge(`vm_metrics_with_dropped_labels_total`, func() float64 {
 		return float64(atomic.LoadUint64(&storage.MetricsWithDroppedLabels))
