@@ -1112,13 +1112,6 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		// There is no need in handling NaNs here, since they must be cleaned up
 		// before calling rollup funcs.
 		values := rfa.values
-		if len(values) == 0 {
-			return rfa.prevValue
-		}
-		if len(values) == 1 {
-			// Fast path - only a single value.
-			return values[0]
-		}
 		phi := phis[rfa.idx]
 		qv := quantile(phi, values)
 		return qv
