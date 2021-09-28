@@ -1352,10 +1352,7 @@ func rollupCount(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	return float64(len(values))
 }
@@ -1372,10 +1369,7 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	if len(values) == 1 {
 		// Fast path.
