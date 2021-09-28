@@ -525,6 +525,78 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
     regex: true
   ```
 
+## Kafka integration
+
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics from Kafka. See [these docs](#reading-metrics-from-kafka).
+
+The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page in `vmutils-*-enteprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+
+### Reading metrics from Kafka
+
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
+
+* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
+* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
+* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
+* `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+
+Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
+
+`vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
+
+The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
+
+```bash
+./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
+       -kafka.consumer.broker=localhost:9092 \
+       -kafka.consumer.topic.format=influx \
+       -kafka.consumer.topic=metrics-by-telegraf \
+       -kafka.consumer.topic.groupID=some-id
+```
+
+It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `metrics-by-telegraf` topic with the following config:
+
+```yaml
+[[inputs.prometheus]]
+  ## An array of urls to scrape metrics from.
+  urls = ["http://localhost:8428/metrics"]
+
+  [[outputs.kafka]]
+  brokers = ["localhost:9092"]
+  topic = "influx"
+  data_format = "influx"
+```
+
+
+### Command-line flags for Kafka consumer
+
+These command-line flags are available only in [enterprise](https://victoriametrics.com/enterprise.html) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+```
+  -kafka.consumer.broker array
+        List of brokers to connect, e.g. -kafka.consumer.broker=host-1:9092 -kafka.ingest.broker=host-2:9092
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic array
+        Kafka topic names for data consumption.
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.defaultFormat string
+        Expected data format in the topic if -kafka.consumer.topic.format is skipped. (default "promremotewrite")
+  -kafka.consumer.topic.format array
+        data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.groupID array
+        Defines group.id for topic
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.isGzipped array
+        Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.
+        Supports array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.options array
+        Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md.
+        Supports an array of values separated by comma or specified via multiple flags.
+```
+
 
 ## How to build from sources
 
