@@ -37,7 +37,7 @@ func TestAreIdenticalSeriesFast(t *testing.T) {
 	f(" ", " a 1", false)  // different number of metrics
 	f("a 1", "", false)    // different number of metrics
 	f(" a 1", " ", false)  // different number of metrics
-	f("foo", "foo", false) // missing value
+	f("foo", "foo", true) // consider series identical if they miss value
 	f("foo 1", "foo 1", true)
 	f("foo 1", "foo 2", true)
 	f("foo 1 ", "foo 2 ", true)
@@ -85,6 +85,25 @@ func TestAreIdenticalSeriesFast(t *testing.T) {
 	f("foo{bar=\"b az\"} +Inf 5", "foo{bar=\"b az\"} NaN 7.43", true)
 	f("foo{bar=\"b az\"} +Inf 5", "foo{bar=\"b az\"} nan 7.43", true)
 	f("foo{bar=\"b az\"} +Inf 5", "foo{bar=\"b az\"} nansf 7.43", false) // invalid value
+
+	// False positive - whitespace after the numeric char in the label.
+	f(`foo{bar=" 12.3 "} 1`, `foo{bar=" 13 "} 23`, true)
+	f(`foo{bar=" 12.3 "} 1 3443`, `foo{bar=" 13 "} 23 4345`, true)
+	f(`foo{bar=" 12.3 "} 1 3443 # {} 34`, `foo{bar=" 13 "} 23 4345 # {foo=" bar "} 34`, true)
+
+	// Metrics and labels with '#' chars
+	f(`foo{bar="#1"} 1`, `foo{bar="#1"} 1`, true)
+	f(`foo{bar="a#1"} 1`, `foo{bar="b#1"} 1.4`, false)
+	f(`foo{bar=" #1"} 1`, `foo{bar=" #1"} 3`, true)
+	f(`foo{bar=" #1 "} 1`, `foo{bar=" #1 "} -2.34 343.34 # {foo="#bar"} `, true)
+	f(`foo{bar=" #1"} 1`, `foo{bar="#1"} 1`, false)
+	f(`foo{b#ar=" #1"} 1`, `foo{b#ar=" #1"} 1.23`, true)
+	f(`foo{z#ar=" #1"} 1`, `foo{b#ar=" #1"} 1.23`, false)
+	f(`fo#o{b#ar="#1"} 1`, `fo#o{b#ar="#1"} 1.23`, true)
+	f(`fo#o{b#ar="#1"} 1`, `fa#o{b#ar="#1"} 1.23`, false)
+
+	// False positive - the value after '#' char can be arbitrary
+	f(`fo#o{b#ar="#1"} 1`, `fo#osdf 1.23`, true)
 }
 
 func TestPrevBackslashesCount(t *testing.T) {
@@ -266,6 +285,44 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 		Rows: []Row{{
 			Metric: "cassandra_token_ownership_ratio",
 			Value:  78.9,
+		}},
+	})
+
+	// `#` char in label value
+	f(`foo{bar="#1 az"} 24`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "#1 az",
+			}},
+			Value: 24,
+		}},
+	})
+
+	// `#` char in label name and label value
+	f(`foo{bar#2="#1 az"} 24 456`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar#2",
+				Value: "#1 az",
+			}},
+			Value:     24,
+			Timestamp: 456000,
+		}},
+	})
+
+	// `#` char in metric name, label name and label value
+	f(`foo#qw{bar#2="#1 az"} 24 456 # foobar {baz="x"}`, &Rows{
+		Rows: []Row{{
+			Metric: "foo#qw",
+			Tags: []Tag{{
+				Key:   "bar#2",
+				Value: "#1 az",
+			}},
+			Value:     24,
+			Timestamp: 456000,
 		}},
 	})
 
