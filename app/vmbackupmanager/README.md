@@ -76,7 +76,7 @@ Backup manager launched with the following configuration:
 ```console
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
-./vmbackupmanager -dst=gcs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula 
+./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula 
 ```
 
 Expected logs in vmbackupmanager:
@@ -125,7 +125,7 @@ We enable backup retention policy for backup manager by using following configur
 ```console
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
-./vmbackupmanager -dst=gcs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create
+./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create
 -keepLastDaily=3 -eula
 ```
 
