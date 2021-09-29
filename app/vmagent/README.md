@@ -555,14 +555,10 @@ The following command starts `vmagent`, which reads metrics in InfluxDB line pro
 It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `metrics-by-telegraf` topic with the following config:
 
 ```yaml
-[[inputs.prometheus]]
-  ## An array of urls to scrape metrics from.
-  urls = ["http://localhost:8428/metrics"]
-
-  [[outputs.kafka]]
-  brokers = ["localhost:9092"]
-  topic = "influx"
-  data_format = "influx"
+[[outputs.kafka]]
+brokers = ["localhost:9092"]
+topic = "influx"
+data_format = "influx"
 ```
 
 
