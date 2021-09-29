@@ -8,7 +8,7 @@ sort: 6
 
 Supported storage systems for backups:
 
-* [GCS](https://cloud.google.com/storage/). Example: `gcs://<bucket>/<path/to/backup>`
+* [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/docs/mimic/radosgw/s3/) or [Swift](https://www.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`
@@ -34,7 +34,7 @@ creation of hourly, daily, weekly and monthly backups.
 Regular backup can be performed with the following command:
 
 ```
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gcs://<bucket>/<path/to/new/backup>
+vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
@@ -50,7 +50,7 @@ If the destination GCS bucket already contains the previous backup at `-origin` 
 with the following command:
 
 ```
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gcs://<bucket>/<path/to/new/backup> -origin=gcs://<bucket>/<path/to/existing/backup>
+vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
@@ -62,7 +62,7 @@ Incremental backups performed if `-dst` points to an already existing backup. In
 It saves time and network bandwidth costs when working with big backups:
 
 ```
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gcs://<bucket>/<path/to/existing/backup>
+vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/existing/backup>
 ```
 
 
@@ -73,16 +73,16 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 * Run the following command every hour:
 
 ```
-vmbackup -snapshotName=<latest-snapshot> -dst=gcs://<bucket>/latest
+vmbackup -snapshotName=<latest-snapshot> -dst=gs://<bucket>/latest
 ```
 
 Where `<latest-snapshot>` is the latest [snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
-The command will upload only changed data to `gcs://<bucket>/latest`.
+The command will upload only changed data to `gs://<bucket>/latest`.
 
 * Run the following command once a day:
 
 ```
-vmbackup -snapshotName=<daily-snapshot> -dst=gcs://<bucket>/<YYYYMMDD> -origin=gcs://<bucket>/latest
+vmbackup -snapshotName=<daily-snapshot> -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
@@ -187,7 +187,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -customS3Endpoint string
     	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -dst string
-    	Where to put the backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+    	Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
     	-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
