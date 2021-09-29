@@ -33,10 +33,10 @@ func TestAreIdenticalSeriesFast(t *testing.T) {
 		}
 	}
 	f("", "", true)
-	f("", "a 1", false)    // different number of metrics
-	f(" ", " a 1", false)  // different number of metrics
-	f("a 1", "", false)    // different number of metrics
-	f(" a 1", " ", false)  // different number of metrics
+	f("", "a 1", false)   // different number of metrics
+	f(" ", " a 1", false) // different number of metrics
+	f("a 1", "", false)   // different number of metrics
+	f(" a 1", " ", false) // different number of metrics
 	f("foo", "foo", true) // consider series identical if they miss value
 	f("foo 1", "foo 1", true)
 	f("foo 1", "foo 2", true)

@@ -483,7 +483,7 @@ func AreIdenticalSeriesFast(s1, s2 string) bool {
 		if n < 0 {
 			// Invalid Prometheus line - it must contain at least a single space between metric name and value
 			// Compare it in full with x2.
-			n = len(x1)-1
+			n = len(x1) - 1
 		}
 		n++
 		if n > len(x2) || x1[:n] != x2[:n] {
