@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.95.0
+# cloud.google.com/go v0.97.0
 ## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
@@ -7,7 +7,7 @@ cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
-# cloud.google.com/go/storage v1.16.1
+# cloud.google.com/go/storage v1.17.0
 ## explicit
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal/apiv2
@@ -29,7 +29,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.49
+# github.com/aws/aws-sdk-go v1.40.52
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -124,7 +124,6 @@ github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/googleapis/gax-go/v2 v2.1.1
-## explicit
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -149,7 +148,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/lithammer/go-jump-consistent-hash v1.0.2
 ## explicit
 github.com/lithammer/go-jump-consistent-hash
-# github.com/mattn/go-colorable v0.1.10
+# github.com/mattn/go-colorable v0.1.11
 ## explicit
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.14
@@ -168,7 +167,7 @@ github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.31.0
+# github.com/prometheus/common v0.31.1
 ## explicit
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
@@ -241,7 +240,7 @@ go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 go.uber.org/atomic
-# golang.org/x/net v0.0.0-20210924151903-3ad01bbaa167
+# golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -265,7 +264,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6
+# golang.org/x/sys v0.0.0-20210930141918-969570ce7c6c
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -275,7 +274,10 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/api v0.57.0
+# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+golang.org/x/xerrors
+golang.org/x/xerrors/internal
+# google.golang.org/api v0.58.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -305,7 +307,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210927142257-433400c27d05
+# google.golang.org/genproto v0.0.0-20210930144712-2e2e1008e8a3
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
