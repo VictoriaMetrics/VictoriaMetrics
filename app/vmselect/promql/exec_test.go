@@ -5299,9 +5299,39 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
+	t.Run(`topk_last(1)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(topk_last(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6.666666666666667, 8, 9.333333333333334, 10.666666666666666, 12, 13.333333333333334},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("baz"),
+			Value: []byte("sss"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 	t.Run(`bottomk_median(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(bottomk_median(1, label_set(10, "foo", "bar") or label_set(time()/15, "baz", "sss")))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`bottomk_last(1)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(bottomk_last(1, label_set(10, "foo", "bar") or label_set(time()/15, "baz", "sss")))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},
@@ -7191,12 +7221,14 @@ func TestExecError(t *testing.T) {
 	f(`topk_max()`)
 	f(`topk_avg()`)
 	f(`topk_median()`)
+	f(`topk_last()`)
 	f(`limitk()`)
 	f(`bottomk()`)
 	f(`bottomk_min()`)
 	f(`bottomk_max()`)
 	f(`bottomk_avg()`)
 	f(`bottomk_median()`)
+	f(`bottomk_last()`)
 	f(`time(123)`)
 	f(`start(1)`)
 	f(`end(1)`)
