@@ -133,11 +133,9 @@ func (a *ACLHandle) bucketDefaultList(ctx context.Context) ([]ACLRule, error) {
 }
 
 func (a *ACLHandle) bucketDefaultDelete(ctx context.Context, entity ACLEntity) error {
-	return runWithRetry(ctx, func() error {
-		req := a.c.raw.DefaultObjectAccessControls.Delete(a.bucket, string(entity))
-		a.configureCall(ctx, req)
-		return req.Do()
-	})
+	req := a.c.raw.DefaultObjectAccessControls.Delete(a.bucket, string(entity))
+	a.configureCall(ctx, req)
+	return req.Do()
 }
 
 func (a *ACLHandle) bucketList(ctx context.Context) ([]ACLRule, error) {
@@ -161,24 +159,16 @@ func (a *ACLHandle) bucketSet(ctx context.Context, entity ACLEntity, role ACLRol
 		Entity: string(entity),
 		Role:   string(role),
 	}
-	err := runWithRetry(ctx, func() error {
-		req := a.c.raw.BucketAccessControls.Update(a.bucket, string(entity), acl)
-		a.configureCall(ctx, req)
-		_, err := req.Do()
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	req := a.c.raw.BucketAccessControls.Update(a.bucket, string(entity), acl)
+	a.configureCall(ctx, req)
+	_, err := req.Do()
+	return err
 }
 
 func (a *ACLHandle) bucketDelete(ctx context.Context, entity ACLEntity) error {
-	return runWithRetry(ctx, func() error {
-		req := a.c.raw.BucketAccessControls.Delete(a.bucket, string(entity))
-		a.configureCall(ctx, req)
-		return req.Do()
-	})
+	req := a.c.raw.BucketAccessControls.Delete(a.bucket, string(entity))
+	a.configureCall(ctx, req)
+	return req.Do()
 }
 
 func (a *ACLHandle) objectList(ctx context.Context) ([]ACLRule, error) {
@@ -214,18 +204,14 @@ func (a *ACLHandle) objectSet(ctx context.Context, entity ACLEntity, role ACLRol
 		req = a.c.raw.ObjectAccessControls.Update(a.bucket, a.object, string(entity), acl)
 	}
 	a.configureCall(ctx, req)
-	return runWithRetry(ctx, func() error {
-		_, err := req.Do()
-		return err
-	})
+	_, err := req.Do()
+	return err
 }
 
 func (a *ACLHandle) objectDelete(ctx context.Context, entity ACLEntity) error {
-	return runWithRetry(ctx, func() error {
-		req := a.c.raw.ObjectAccessControls.Delete(a.bucket, a.object, string(entity))
-		a.configureCall(ctx, req)
-		return req.Do()
-	})
+	req := a.c.raw.ObjectAccessControls.Delete(a.bucket, a.object, string(entity))
+	a.configureCall(ctx, req)
+	return req.Do()
 }
 
 func (a *ACLHandle) configureCall(ctx context.Context, call interface{ Header() http.Header }) {

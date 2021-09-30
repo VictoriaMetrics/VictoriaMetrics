@@ -337,6 +337,10 @@ type BucketAttrs struct {
 	// Typical values are "multi-region", "region" and "dual-region".
 	// This field is read-only.
 	LocationType string
+
+	// The project number of the project the bucket belongs to.
+	// This field is read-only.
+	ProjectNumber uint64
 }
 
 // BucketPolicyOnly is an alias for UniformBucketLevelAccess.
@@ -597,6 +601,7 @@ func newBucket(b *raw.Bucket) (*BucketAttrs, error) {
 		PublicAccessPrevention:   toPublicAccessPrevention(b.IamConfiguration),
 		Etag:                     b.Etag,
 		LocationType:             b.LocationType,
+		ProjectNumber:            b.ProjectNumber,
 	}, nil
 }
 

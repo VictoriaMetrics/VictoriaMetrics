@@ -267,6 +267,7 @@ type ClientConn struct {
 	goAway          *GoAwayFrame             // if non-nil, the GoAwayFrame we received
 	goAwayDebug     string                   // goAway frame's debug data, retained as a string
 	streams         map[uint32]*clientStream // client-initiated
+	streamsReserved int                      // incr by ReserveNewRequest; decr on RoundTrip
 	nextStreamID    uint32
 	pendingRequests int                       // requests blocked and waiting to be sent because len(streams) == maxConcurrentStreams
 	pings           map[[8]byte]chan struct{} // in flight ping data to notification channel
@@ -698,6 +699,9 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	cc.bw = bufio.NewWriter(stickyErrWriter{c, &cc.werr})
 	cc.br = bufio.NewReader(c)
 	cc.fr = NewFramer(cc.bw, cc.br)
+	if t.CountError != nil {
+		cc.fr.countError = t.CountError
+	}
 	cc.fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
 	cc.fr.MaxHeaderListSize = t.maxHeaderListSize()
 
@@ -784,10 +788,26 @@ func (cc *ClientConn) setGoAway(f *GoAwayFrame) {
 
 // CanTakeNewRequest reports whether the connection can take a new request,
 // meaning it has not been closed or received or sent a GOAWAY.
+//
+// If the caller is going to immediately make a new request on this
+// connection, use ReserveNewRequest instead.
 func (cc *ClientConn) CanTakeNewRequest() bool {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	return cc.canTakeNewRequestLocked()
+}
+
+// ReserveNewRequest is like CanTakeNewRequest but also reserves a
+// concurrent stream in cc. The reservation is decremented on the
+// next call to RoundTrip.
+func (cc *ClientConn) ReserveNewRequest() bool {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if st := cc.idleStateLocked(); !st.canTakeNewRequest {
+		return false
+	}
+	cc.streamsReserved++
+	return true
 }
 
 // clientConnIdleState describes the suitability of a client
@@ -815,7 +835,7 @@ func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) {
 		// writing it.
 		maxConcurrentOkay = true
 	} else {
-		maxConcurrentOkay = int64(len(cc.streams)+1) <= int64(cc.maxConcurrentStreams)
+		maxConcurrentOkay = int64(len(cc.streams)+cc.streamsReserved+1) <= int64(cc.maxConcurrentStreams)
 	}
 
 	st.canTakeNewRequest = cc.goAway == nil && !cc.closed && !cc.closing && maxConcurrentOkay &&
@@ -866,6 +886,12 @@ func (cc *ClientConn) closeIfIdle() {
 		cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, nextID-2)
 	}
 	cc.tconn.Close()
+}
+
+func (cc *ClientConn) isDoNotReuseAndIdle() bool {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return cc.doNotReuse && len(cc.streams) == 0
 }
 
 var shutdownEnterWaitStateHook = func() {}
@@ -1032,6 +1058,18 @@ func actualContentLength(req *http.Request) int64 {
 	return -1
 }
 
+func (cc *ClientConn) decrStreamReservations() {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.decrStreamReservationsLocked()
+}
+
+func (cc *ClientConn) decrStreamReservationsLocked() {
+	if cc.streamsReserved > 0 {
+		cc.streamsReserved--
+	}
+}
+
 func (cc *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, _, err := cc.roundTrip(req)
 	return resp, err
@@ -1040,6 +1078,7 @@ func (cc *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
 func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAfterReqBodyWrite bool, err error) {
 	ctx := req.Context()
 	if err := checkConnHeaders(req); err != nil {
+		cc.decrStreamReservations()
 		return nil, false, err
 	}
 	if cc.idleTimer != nil {
@@ -1048,6 +1087,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 
 	trailers, err := commaSeparatedTrailers(req)
 	if err != nil {
+		cc.decrStreamReservations()
 		return nil, false, err
 	}
 	hasTrailers := trailers != ""
@@ -1061,8 +1101,10 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 	select {
 	case cc.reqHeaderMu <- struct{}{}:
 	case <-req.Cancel:
+		cc.decrStreamReservations()
 		return nil, false, errRequestCanceled
 	case <-ctx.Done():
+		cc.decrStreamReservations()
 		return nil, false, ctx.Err()
 	}
 	reqHeaderMuNeedsUnlock := true
@@ -1073,6 +1115,11 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 	}()
 
 	cc.mu.Lock()
+	cc.decrStreamReservationsLocked()
+	if req.URL == nil {
+		cc.mu.Unlock()
+		return nil, false, errNilRequestURL
+	}
 	if err := cc.awaitOpenSlotForRequest(req); err != nil {
 		cc.mu.Unlock()
 		return nil, false, err
@@ -1525,9 +1572,14 @@ func (cs *clientStream) awaitFlowControl(maxBytes int) (taken int32, err error) 
 	}
 }
 
+var errNilRequestURL = errors.New("http2: Request.URI is nil")
+
 // requires cc.wmu be held.
 func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
 	cc.hbuf.Reset()
+	if req.URL == nil {
+		return nil, errNilRequestURL
+	}
 
 	host := req.Host
 	if host == "" {
@@ -2304,6 +2356,9 @@ func (b transportResponseBody) Close() error {
 func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 	cc := rl.cc
 	cs := cc.streamByID(f.StreamID, f.StreamEnded())
+	if f.StreamEnded() && cc.isDoNotReuseAndIdle() {
+		rl.closeWhenIdle = true
+	}
 	data := f.Data()
 	if cs == nil {
 		cc.mu.Lock()
@@ -2554,10 +2609,14 @@ func (rl *clientConnReadLoop) processWindowUpdate(f *WindowUpdateFrame) error {
 }
 
 func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error {
-	cs := rl.cc.streamByID(f.StreamID, true)
+	cc := rl.cc
+	cs := cc.streamByID(f.StreamID, true)
 	if cs == nil {
-		// TODO: return error if server tries to RST_STEAM an idle stream
+		// TODO: return error if server tries to RST_STREAM an idle stream
 		return nil
+	}
+	if cc.isDoNotReuseAndIdle() {
+		rl.closeWhenIdle = true
 	}
 	select {
 	case <-cs.peerReset:
@@ -2570,6 +2629,7 @@ func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error {
 		if f.ErrCode == ErrCodeProtocol {
 			rl.cc.SetDoNotReuse()
 			serr.Cause = errFromPeer
+			rl.closeWhenIdle = true
 		}
 		if fn := cs.cc.t.CountError; fn != nil {
 			fn("recv_rststream_" + f.ErrCode.stringToken())

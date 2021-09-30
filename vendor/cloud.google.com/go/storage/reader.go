@@ -475,6 +475,7 @@ func (o *ObjectHandle) newRangeReaderWithGRPC(ctx context.Context, offset, lengt
 		}
 		req.ReadOffset = start
 
+		// TODO: refactor this to use applyCondsProto.
 		setRequestConditions(req, o.conds)
 
 		var stream storagepb.Storage_ReadObjectClient

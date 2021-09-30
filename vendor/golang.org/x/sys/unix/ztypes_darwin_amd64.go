@@ -639,3 +639,39 @@ type Ucred struct {
 	Ngroups int16
 	Groups  [16]uint32
 }
+
+type SysvIpcPerm struct {
+	Uid  uint32
+	Gid  uint32
+	Cuid uint32
+	Cgid uint32
+	Mode uint16
+	_    uint16
+	_    int32
+}
+type SysvShmDesc struct {
+	Perm   SysvIpcPerm
+	Segsz  uint64
+	Lpid   int32
+	Cpid   int32
+	Nattch uint16
+	_      [34]byte
+}
+
+const (
+	IPC_CREAT   = 0x200
+	IPC_EXCL    = 0x400
+	IPC_NOWAIT  = 0x800
+	IPC_PRIVATE = 0x0
+)
+
+const (
+	IPC_RMID = 0x0
+	IPC_SET  = 0x1
+	IPC_STAT = 0x2
+)
+
+const (
+	SHM_RDONLY = 0x1000
+	SHM_RND    = 0x2000
+)
