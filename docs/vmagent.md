@@ -21,8 +21,9 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 
 ## Features
 
-* Can be used as a drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
-  See [Quick Start](#quick-start) for details.
+* Can be used as a drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter). See [Quick Start](#quick-start) for details.
+* Can read data from Kafka. See [these docs](#reading-metrics-from-kafka).
+* Can write data to Kafka. See [these docs](#writing-metrics-to-kafka).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Accepts data via all ingestion protocols supported by VictoriaMetrics:
   * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent).
@@ -527,7 +528,10 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 ## Kafka integration
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics from Kafka. See [these docs](#reading-metrics-from-kafka).
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
+
+* [Reading metrics from Kafka](#reading-metrics-from-kafka)
+* [Writing metrics to Kafka](#writing-metrics-to-kafka)
 
 The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page in `vmutils-*-enteprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
@@ -536,7 +540,7 @@ The enterprise version of vmagent is available for evaluation at [releases](http
 
 [Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
 
-* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
 * `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
 * `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
@@ -566,7 +570,7 @@ data_format = "influx"
 ```
 
 
-### Command-line flags for Kafka consumer
+#### Command-line flags for Kafka consumer
 
 These command-line flags are available only in [enterprise](https://victoriametrics.com/enterprise.html) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
@@ -591,6 +595,29 @@ These command-line flags are available only in [enterprise](https://victoriametr
   -kafka.consumer.topic.options array
         Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md.
         Supports an array of values separated by comma or specified via multiple flags.
+```
+
+### Writing metrics to Kafka
+
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
+
+Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id` sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+
+
+#### Kafka broker authorization and authentication
+
+Two types of auth are supported:
+
+* sasl with username and password:
+
+```bash
+./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
+```
+
+* tls certificates:
+
+```bash
+./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
 
