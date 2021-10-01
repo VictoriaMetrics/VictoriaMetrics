@@ -116,7 +116,7 @@ The expected output:
 vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
-* By applying this CRD we install [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
+By applying this CRD we install [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) of your k8s cluster wit following params:
 * `retentionPeriod: "4"` defines [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 4 month.
 * `replicationFactor: 2` replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
