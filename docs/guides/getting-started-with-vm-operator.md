@@ -182,7 +182,7 @@ Copy `vminsert-example-vmcluster-persistent` service name and add it to `remoteW
 Here is a full configuration example that we need to apply:
 
 `remoteWrite.url` for VMAgent consists of the following parts:
-> service_name + VMCLuster_namespace + svc + kubernetes_cluster_domain that in our case will look as vminsert-example-vmcluster-persistent.default.svc.cluster.local
+"service_name.VMCluster_namespace.svc.kubernetes_cluster_domain" which in our case will look as "vminsert-example-vmcluster-persistent.default.svc.cluster.local"
 
 <div class="with-copy" markdown="1">
 
