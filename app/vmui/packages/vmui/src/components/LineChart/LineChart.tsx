@@ -1,20 +1,21 @@
-import React, {FC, useEffect, useRef, useState} from "react";
-import {Line} from "react-chartjs-2";
-import {Chart, ChartData, ChartOptions, ScatterDataPoint} from "chart.js";
+import React, {FC, useEffect, useMemo, useRef, useState} from "react";
 import {getNameForMetric} from "../../utils/metric";
 import "chartjs-adapter-date-fns";
-import debounce from "lodash.debounce";
-import {useAppDispatch, useAppState} from "../../state/common/StateContext";
-import {dateFromSeconds, getTimeperiodForDuration} from "../../utils/time";
+import {useAppState} from "../../state/common/StateContext";
 import {GraphViewProps} from "../Home/Views/GraphView";
-import {limitsDurations} from "../../utils/time";
+import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries} from "uplot";
+import UplotReact from "uplot-react";
+import "uplot/dist/uPlot.min.css";
+import numeral from "numeral";
+import "./legend.css";
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
-  const {time: {duration, period}} = useAppState();
-  const dispatch = useAppDispatch();
-  const [series, setSeries] = useState<ChartData<"line", (ScatterDataPoint)[]>>();
-  const refLine = useRef<Chart>(null);
+  const {time: {period}} = useAppState();
+  const [dataChart, setDataChart] = useState<uPlotData>();
+  const [series, setSeries] = useState<uPlotSeries[]>([]);
+  const [scale, setScale] = useState({min: period.start, max: period.end});
+  const refContainer = useRef<HTMLDivElement>(null);
 
   const getColorByName = (str: string): string => {
     let hash = 0;
@@ -29,113 +30,83 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     return colour;
   };
 
-  useEffect(() => {
-    setSeries({
-      datasets: data?.map(d => {
-        const label = getNameForMetric(d);
-        const color = getColorByName(label);
-        return {
-          label,
-          data: d.values.map(v => ({y: +v[1], x: v[0] * 1000})),
-          borderColor: color,
-          backgroundColor: color,
-        };
-      })
-    });
-    if (refLine.current) {
-      refLine.current.stop(); // make sure animations are not running
-      refLine.current.update("none");
+  const times = useMemo(() => {
+    const allTimes = data.map(d => d.values.map(v => v[0])).flat().filter(t => t >= scale.min && t <= scale.max);
+    const start = Math.min(...allTimes);
+    const end = Math.max(...allTimes);
+    const output = [];
+    for (let i = start; i < end; i += period.step || 1) {
+      output.push(i);
     }
+    return output;
   }, [data]);
 
-  const onZoomComplete = ({chart}: {chart: Chart}) => {
-    let {min, max} = chart.scales.x;
-    if (!min || !max) return;
-    const duration = max - min;
-    if (duration < limitsDurations.min) max = min + limitsDurations.min;
-    if (duration > limitsDurations.max) min = max - limitsDurations.max;
-    dispatch({type: "SET_PERIOD", payload: {from: new Date(min), to: new Date(max)}});
-  };
+  useEffect(() => {
+    const values = data.map(d => times.map(t => {
+      const v = d.values.find(v => v[0] === t);
+      return v ? +v[1] : null;
+    }));
+    const seriesValues = data.map(d => ({
+      label: getNameForMetric(d),
+      width: 1,
+      font: "11px Arial",
+      stroke: getColorByName(getNameForMetric(d))}));
+    setSeries([{}, ...seriesValues]);
+    setDataChart([times, ...values]);
+  }, [data]);
 
-  const onPanComplete = ({chart}: {chart: Chart}) => {
-    const {min, max} = chart.scales.x;
-    if (!min || !max) return;
-    const {start,  end} = getTimeperiodForDuration(duration, new Date(max));
-    dispatch({type: "SET_PERIOD", payload: {from: dateFromSeconds(start), to: dateFromSeconds(end)}});
-  };
+  const wheelZoomPlugin = () => {
+    const factor = 0.75;
 
-  const options: ChartOptions = {
-    animation: {duration: 0},
-    parsing: false,
-    normalized: true,
-    scales: {
-      x: {
-        type: "time",
-        position: "bottom",
-        min: (period.start * 1000),
-        max: (period.end * 1000),
-        time: {
-          tooltipFormat: "yyyy-MM-dd HH:mm:ss.SSS",
-          displayFormats: {millisecond: ":ss.SSS", second: "HH:mm:ss", minute: "HH:mm", hour: "HH:mm"}
-        },
-        ticks: {
-          source: "auto",
-          autoSkip: true,
-          autoSkipPadding: 105,
-          crossAlign: "center",
-          maxRotation: 0,
-          minRotation: 0,
-          sampleSize: 1,
-          color: "#000",
-          font: {size: 10}
-        },
-      },
-      y: {
-        type: "linear",
-        position: "left",
-        ticks: {
-          maxRotation: 0,
-          minRotation: 0,
-          color: "#000",
-          font: {size: 10}
+    return {
+      hooks: {
+        ready: (u: uPlot) => {
+          const over = u.over;
+          const rect = over.getBoundingClientRect();
+
+          // wheel scroll zoom
+          over.addEventListener("wheel", e => {
+            e.preventDefault();
+            const {left = 0} = u.cursor;
+            const leftPct = left/rect.width;
+            const xVal = u.posToVal(left, "x");
+            const oxRange = (u.scales.x.max || 0) - (u.scales.x.min || 0);
+            const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
+            const min = xVal - leftPct * nxRange;
+            const max = min + nxRange;
+            // dispatch({type: "SET_PERIOD", payload: {from: new Date(min * 1000), to: new Date(max * 1000)}});
+            // setScale({min, max});
+            u.batch(() => {
+              u.setScale("x", {min, max});
+            });
+          });
         }
       }
-    },
-    elements: {
-      line: {
-        tension: 0,
-        stepped: false,
-        borderDash: [],
-        borderWidth: 1,
-        capBezierPoints: false
-      },
-      point: {radius: 0, hitRadius: 10}
-    },
-    plugins: {
-      legend: {
-        position: "bottom",
-        align: "start",
-        labels: {padding: 20, color: "#000"}
-      },
-      zoom: {
-        pan: {
-          enabled: true,
-          mode: "x",
-          onPan: debounce(onPanComplete, 750)
-        },
-        zoom: {
-          pinch: {enabled: true},
-          wheel: {enabled: true, speed: 0.05},
-          mode: "x",
-          onZoom: debounce(onZoomComplete, 250)
-        }
-      },
-    }
+    };
   };
 
-  return <>
-    {series && <Line data={series} options={options} ref={refLine}/>}
-  </>;
+  const options: uPlotOptions = {
+    width: refContainer.current ? refContainer.current.offsetWidth : 400,
+    height: 500,
+    series: series,
+    plugins: [wheelZoomPlugin()],
+    cursor: { drag: { x: false, y: false }},
+    axes: [
+      { space: 80},
+      {
+        show: true,
+        font: "10px Arial",
+        values: (self, ticks) => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n)
+      }
+    ],
+  };
+
+  return <div ref={refContainer}>
+    {dataChart && <UplotReact
+      options={options}
+      data={dataChart}
+    />}
+  </div>;
 };
 
 export default LineChart;

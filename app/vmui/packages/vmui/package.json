@@ -18,6 +18,7 @@
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.get": "^4.4.6",
     "@types/node": "^12.19.4",
+    "@types/numeral": "^2.0.2",
     "@types/qs": "^6.9.6",
     "@types/react": "^16.9.56",
     "@types/react-dom": "^16.9.9",
@@ -30,6 +31,7 @@
     "dayjs": "^1.10.4",
     "lodash.debounce": "^4.0.8",
     "lodash.get": "^4.4.2",
+    "numeral": "^2.0.6",
     "qs": "^6.5.2",
     "react": "^17.0.1",
     "react-chartjs-2": "^3.0.5",
@@ -37,12 +39,14 @@
     "react-measure": "^2.5.2",
     "react-scripts": "4.0.0",
     "typescript": "~4.0.5",
+    "uplot": "^1.6.16",
+    "uplot-react": "^1.1.1",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "GENERATE_SOURCEMAP=false react-scripts build",
-    "test": "react-scripts test",
+    "start": "react-app-rewired start",
+    "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
+    "test": "react-app-rewired test",
     "eject": "react-scripts eject",
     "lint": "eslint src --ext tsx,ts",
     "lint:fix": "eslint src --ext tsx,ts --fix"
@@ -66,9 +70,12 @@
     ]
   },
   "devDependencies": {
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.14.5",
     "@typescript-eslint/eslint-plugin": "^4.14.2",
     "@typescript-eslint/parser": "^4.14.2",
+    "customize-cra": "^1.0.0",
     "eslint": "^7.14.0",
-    "eslint-plugin-react": "^7.22.0"
+    "eslint-plugin-react": "^7.22.0",
+    "react-app-rewired": "^2.1.8"
   }
 }
