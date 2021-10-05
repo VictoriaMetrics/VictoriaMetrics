@@ -550,11 +550,13 @@ Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graph
 
 `vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 
+`vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag. Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`. For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
+
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
 ```bash
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
-       -kafka.consumer.broker=localhost:9092 \
+       -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
        -kafka.consumer.topic=metrics-by-telegraf \
        -kafka.consumer.topic.groupID=some-id
@@ -575,11 +577,17 @@ data_format = "influx"
 These command-line flags are available only in [enterprise](https://victoriametrics.com/enterprise.html) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
 ```
-  -kafka.consumer.broker array
-        List of brokers to connect, e.g. -kafka.consumer.broker=host-1:9092 -kafka.ingest.broker=host-2:9092
-        Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic array
         Kafka topic names for data consumption.
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.basicAuth.password array
+        Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.basicAuth.username array
+        Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.brokers array
+        List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092
         Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.defaultFormat string
         Expected data format in the topic if -kafka.consumer.topic.format is skipped. (default "promremotewrite")
