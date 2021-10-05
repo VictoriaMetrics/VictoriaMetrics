@@ -29,7 +29,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.40.52
+# github.com/aws/aws-sdk-go v1.40.55
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -237,7 +237,7 @@ go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 go.uber.org/atomic
-# golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6
+# golang.org/x/net v0.0.0-20211005001312-d4b1ae081e3b
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -261,7 +261,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210930141918-969570ce7c6c
+# golang.org/x/sys v0.0.0-20211004093028-2c5d950f24ef
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -304,7 +304,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210929214142-896c89f843d2
+# google.golang.org/genproto v0.0.0-20211001223012-bfb93cce50d9
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
