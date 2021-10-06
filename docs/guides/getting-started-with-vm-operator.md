@@ -4,7 +4,7 @@
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.
 * The setup of a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
-* How to add CRD for a[VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator). 
+* How to add CRD for a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator). 
 * How to visualize stored data 
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com)
 
@@ -160,29 +160,25 @@ NAME                           INSERT COUNT   STORAGE COUNT   SELECT COUNT   AGE
 example-vmcluster-persistent   2              2               2              5m53s   operational
 ```
 
-VictoriaMetrics Single Node has the functionality to parse data from different exporter but for the VictoriaMetrics Cluster this functionality has been implemented in the [VMAgent](https://docs.victoriametrics.com/vmagent.html). Also VMAgent has more flexibility such as the ability to push metrics instead of pulling them and need endpoint to write metrics to the [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) and this endpoint is `vminsert`. For Kubernetes we used a Kubernetes service as endpoint to accept metrics.
-To see k8s services, please run the following command:
+Internet traffic goes through the Kubernetes Load balancer which use the set of Pods targeted by a [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/). The service from VictoriaMetrics Cluster which accepts the ingested data named `vminsert` and in Kubernetes it is a `vminsert ` service. So we need to use it for remote_write url.
+
+To get the name of `vminsert` services, please run the following command:
 
 <div class="with-copy" markdown="1" id="services">
 
 ```bash
-kubectl get svc
+kubectl get svc | grep vminsert
 ```
 </div>
 
 The expected output:
 
 ```bash
-NAME                                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
-kubernetes                               ClusterIP   10.96.0.1       <none>        443/TCP                      30d
 vminsert-example-vmcluster-persistent    ClusterIP   10.107.47.136   <none>        8480/TCP                     5m58s
-vmoperator-victoria-metrics-operator     ClusterIP   10.99.57.242    <none>        8080/TCP,443/TCP             7m59s
-vmselect-example-vmcluster-persistent    ClusterIP   None            <none>        8481/TCP                     6m4s
-vmstorage-example-vmcluster-persistent   ClusterIP   None            <none>        8482/TCP,8400/TCP,8401/TCP   6m6s
 ```
 
 To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [VMAgent](https://docs.victoriametrics.com/vmagent.html) with some additional configurations.
-Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field https://docs.victoriametrics.com/getting-started-with-vm-operator.html#example-cluster-config) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent). 
+Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field [https://docs.victoriametrics.com/getting-started-with-vm-operator.html#example-cluster-config](https://docs.victoriametrics.com/getting-started-with-vm-operator.html#example-cluster-config)) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent). 
 Here is an example of the full configuration that we need to apply:
 
 <div class="with-copy" markdown="1">
