@@ -347,6 +347,6 @@ The expected output is:
 
 ## 6. Summary
 
-* We set up Kubernetes Operator for VictoriaMetrics.
+* We set up Kubernetes Operator for VictoriaMetrics with using CRD.
 * We collected metrics from all running services and stored them in the VictoriaMetrics database.
 * We configured `dedup.minScrapeInterval` and `replicationFactor` for the VictoriaMetrics cluster for high availability purposes.
