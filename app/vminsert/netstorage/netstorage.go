@@ -36,7 +36,7 @@ var (
 var errorStorageOutOfSpace = errors.New("storage node doesn't have enough disk capacity")
 
 func (sn *storageNode) isNotReady() bool {
-	return atomic.LoadUint32(&sn.broken) != 0 && atomic.LoadUint32(&sn.isFull) != 0
+	return atomic.LoadUint32(&sn.broken) != 0 || atomic.LoadUint32(&sn.isFull) != 0
 }
 
 // push pushes buf to sn internal bufs.
@@ -568,6 +568,27 @@ func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 }
 
 func (sn *storageNode) startStorageSizeCheck(stop <-chan struct{}) {
+	f := func() {
+		// fast path
+		if atomic.LoadUint32(&sn.isFull) == 0 {
+			return
+		}
+		sn.bcLock.Lock()
+		defer sn.bcLock.Unlock()
+		if sn.bc == nil {
+			return
+		}
+		// send nil buff to check ack response from storage
+		err := sendToConn(sn.bc, nil)
+		if err == nil {
+			atomic.StoreUint32(&sn.isFull, 0)
+			return
+		}
+		if !errors.Is(err, errorStorageOutOfSpace) {
+			logger.Warnf("cannot check disk space status for -storageNode=%q: %s", sn.dialer.Addr(), err)
+		}
+	}
+	f()
 	storageNodesWG.Add(1)
 	go func() {
 		t := time.NewTicker(time.Second * 30)
@@ -578,25 +599,7 @@ func (sn *storageNode) startStorageSizeCheck(stop <-chan struct{}) {
 			case <-stop:
 				return
 			case <-t.C:
-				// fast path
-				if atomic.LoadUint32(&sn.isFull) == 0 {
-					continue
-				}
-				sn.bcLock.Lock()
-				if sn.bc == nil {
-					sn.bcLock.Unlock()
-					continue
-				}
-				sn.bcLock.Unlock()
-				// send nil buff to check ack response from storage
-				err := sendToConn(sn.bc, nil)
-				if err == nil {
-					atomic.StoreUint32(&sn.isFull, 0)
-					continue
-				}
-				if !errors.Is(err, errorStorageOutOfSpace) {
-					logger.Warnf("cannot check disk space status for -storageNode=%q: %s", sn.dialer.Addr(), err)
-				}
+				f()
 			}
 		}
 	}()

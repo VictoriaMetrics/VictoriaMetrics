@@ -575,6 +575,23 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	s.tb.UpdateMetrics(&m.TableMetrics)
 }
 
+var (
+	isStorageLimitReached      uint32
+	storageFreeSpaceLimitBytes uint64
+)
+
+// SetFreeDiskSpaceLimit sets the minimum free disk space size of current storage path
+//
+// The function must be called before opening or creating any storage.
+func SetFreeDiskSpaceLimit(bytes int) {
+	storageFreeSpaceLimitBytes = uint64(bytes)
+}
+
+// IsSpaceLimitReached returns information is storageDataPath space limit is reached
+func IsSpaceLimitReached() bool {
+	return atomic.LoadUint32(&isStorageLimitReached) == 1
+}
+
 func (s *Storage) startFreeSpaceWatcher() {
 	f := func() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
@@ -604,23 +621,6 @@ func (s *Storage) startFreeSpaceWatcher() {
 			}
 		}
 	}()
-}
-
-var (
-	isStorageLimitReached      uint32
-	storageFreeSpaceLimitBytes uint64
-)
-
-// SetFreeDiskSpaceLimit sets the minimum free disk space size of current storage path
-//
-// The function must be called before opening or creating any storage.
-func SetFreeDiskSpaceLimit(bytes int) {
-	storageFreeSpaceLimitBytes = uint64(bytes)
-}
-
-// IsSpaceLimitReached returns information is storageDataPath space limit is reached
-func IsSpaceLimitReached() bool {
-	return atomic.LoadUint32(&isStorageLimitReached) == 1
 }
 
 func (s *Storage) startRetentionWatcher() {
