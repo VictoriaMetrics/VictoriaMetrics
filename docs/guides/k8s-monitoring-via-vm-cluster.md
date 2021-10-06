@@ -415,7 +415,7 @@ config:
 ```
 
 * By adding `remoteWriteUrls: - http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/` we configuring [vmagent](https://docs.victoriametrics.com/vmagent.html) to write scraped metrics into the `vmselect service`.
-* The second part of this yaml file is needed to add the `metric_ralabel_configs` section that helps us to show Kubernetes metrics on the Grafana dashboard.
+* The second part of this yaml file is needed to add the `metric_relabel_configs` section that helps us to show Kubernetes metrics on the Grafana dashboard.
 
 
 Verify that `vmagent`'s pod is up and running by executing the following command:
