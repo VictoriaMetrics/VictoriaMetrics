@@ -75,36 +75,11 @@ metadata:
   name: example-vmcluster-persistent
 spec:
   # Add fields here
-  retentionPeriod: "4"
-  replicationFactor: 2
-  dedup.minScrapeInterval: 1ms
+  retentionPeriod: "12"
   vmstorage:
     replicaCount: 2
-    storageDataPath: "/vm-data"
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: standard
-          resources:
-            requests:
-              storage: 10Gi
-    resources:
-      limits:
-        cpu: "0.5"
-        memory: 500Mi
   vmselect:
     replicaCount: 2
-    cacheMountPath: "/select-cache"
-    storage:
-      volumeClaimTemplate:
-        spec:
-          resources:
-            requests:
-              storage: 2Gi
-    resources:
-      limits:
-        cpu: "0.3"
-        memory: "300Mi"
   vminsert:
     replicaCount: 2
 EOF
@@ -118,7 +93,7 @@ vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
 * By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
-* `retentionPeriod: "4"` defines the [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 4 months.
+* `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 12 months.
 * `replicationFactor: 2` refers to the replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
 * `dedup.minScrapeInterval: 1ms` would de-duplicate data points on the same time series if they fall within the same discrete 1ms bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept. See [Deduplication](https://docs.victoriametrics.com/#deduplication) .
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
@@ -160,7 +135,7 @@ NAME                           INSERT COUNT   STORAGE COUNT   SELECT COUNT   AGE
 example-vmcluster-persistent   2              2               2              5m53s   operational
 ```
 
-Internet traffic goes through the Kubernetes Load balancer which use the set of Pods targeted by a [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/). The service from VictoriaMetrics Cluster which accepts the ingested data named `vminsert` and in Kubernetes it is a `vminsert ` service. So we need to use it for remote_write url.
+Internet traffic goes through the Kubernetes Load balancer which use the set of Pods targeted by a [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/). The service in [VictoriaMetrics Cluster architecture](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview) which accepts the ingested data named `vminsert` and in Kubernetes it is a `vminsert ` service. So we need to use it for remote_write url.
 
 To get the name of `vminsert` services, please run the following command:
 
