@@ -71,6 +71,20 @@ func readBlock(dst []byte, bc *handshake.BufferedConn) ([]byte, error) {
 		}
 		return dst, err
 	}
+
+	if storage.IsSpaceLimitReached() {
+		// send disk is full ack to vminsert node
+		sizeBuf.B[0] = 2
+		if _, err := bc.Write(sizeBuf.B[:1]); err != nil {
+			writeErrors.Inc()
+			return dst, fmt.Errorf("cannot send storage full `ack` to vminsert: %w", err)
+		}
+		if err := bc.Flush(); err != nil {
+			writeErrors.Inc()
+			return dst, fmt.Errorf("cannot flush storage full `ack` to vminsert: %w", err)
+		}
+		return dst, nil
+	}
 	packetSize := encoding.UnmarshalUint64(sizeBuf.B)
 	if packetSize > consts.MaxInsertPacketSize {
 		parseErrors.Inc()

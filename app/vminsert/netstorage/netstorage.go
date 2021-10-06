@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -32,8 +33,10 @@ var (
 	disableRerouting = flag.Bool(`disableRerouting`, true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate")
 )
 
-func (sn *storageNode) isBroken() bool {
-	return atomic.LoadUint32(&sn.broken) != 0
+var errorStorageOutOfSpace = errors.New("storage node doesn't have enough disk capacity")
+
+func (sn *storageNode) isNotReady() bool {
+	return atomic.LoadUint32(&sn.broken) != 0 && atomic.LoadUint32(&sn.isFull) != 0
 }
 
 // push pushes buf to sn internal bufs.
@@ -60,7 +63,7 @@ again:
 		return fmt.Errorf("cannot send %d rows because of graceful shutdown", rows)
 	default:
 	}
-	if sn.isBroken() {
+	if sn.isNotReady() {
 		if len(storageNodes) == 1 {
 			// There are no other storage nodes to re-route to. So wait until the current node becomes healthy.
 			sn.brCond.Wait()
@@ -110,6 +113,7 @@ func (sn *storageNode) run(stopCh <-chan struct{}, snIdx int) {
 		replicas = len(storageNodes)
 	}
 
+	sn.startStorageSizeCheck(stopCh)
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 	var br bufRows
@@ -234,7 +238,7 @@ func (sn *storageNode) checkHealth() {
 }
 
 func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
-	if sn.isBroken() {
+	if sn.isNotReady() {
 		return false
 	}
 	sn.bcLock.Lock()
@@ -254,6 +258,11 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		// Successfully sent buf to bc.
 		sn.rowsSent.Add(br.rows)
 		return true
+	}
+	if errors.Is(err, errorStorageOutOfSpace) {
+		atomic.StoreUint32(&sn.isFull, 1)
+		sn.brCond.Broadcast()
+		return false
 	}
 	// Couldn't flush buf to sn. Mark sn as broken.
 	logger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
@@ -307,6 +316,14 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	if _, err := io.ReadFull(bc, sizeBuf.B[:1]); err != nil {
 		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
 	}
+	ackResp := sizeBuf.B[0]
+	switch ackResp {
+	case 1:
+	case 2:
+		return errorStorageOutOfSpace
+	default:
+		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
+	}
 	if sizeBuf.B[0] != 1 {
 		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want %d", sizeBuf.B[0], 1)
 	}
@@ -342,6 +359,10 @@ type storageNode struct {
 	// broken is set to non-zero if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
 	broken uint32
+
+	// isFull is set to non-zero if the given vmstorage nodes reaches out of disk limit
+	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
+	isFull uint32
 
 	// brLock protects br.
 	brLock sync.Mutex
@@ -443,10 +464,14 @@ func InitStorageNodes(addrs []string) {
 			return float64(n)
 		})
 		_ = metrics.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
-			if sn.isBroken() {
+			if atomic.LoadUint32(&sn.broken) != 0 {
 				return 0
 			}
 			return 1
+		})
+		_ = metrics.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_out_of_disk{name="vminsert", addr=%q}`, addr), func() float64 {
+
+			return float64(atomic.LoadUint32(&sn.isFull))
 		})
 		storageNodes = append(storageNodes, sn)
 	}
@@ -542,6 +567,41 @@ func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 	return true
 }
 
+func (sn *storageNode) startStorageSizeCheck(stop <-chan struct{}) {
+	storageNodesWG.Add(1)
+	go func() {
+		t := time.NewTicker(time.Second * 30)
+		defer t.Stop()
+		storageNodesWG.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-t.C:
+				// fast path
+				if atomic.LoadUint32(&sn.isFull) == 0 {
+					continue
+				}
+				sn.bcLock.Lock()
+				if sn.bc == nil {
+					sn.bcLock.Unlock()
+					continue
+				}
+				sn.bcLock.Unlock()
+				// send nil buff to check ack response from storage
+				err := sendToConn(sn.bc, nil)
+				if err == nil {
+					atomic.StoreUint32(&sn.isFull, 0)
+					continue
+				}
+				if !errors.Is(err, errorStorageOutOfSpace) {
+					logger.Warnf("cannot check disk space status for -storageNode=%q: %s", sn.dialer.Addr(), err)
+				}
+			}
+		}
+	}()
+}
+
 func getStorageNodesMapForRerouting(snExclude *storageNode, mayUseSNExclude bool) []*storageNode {
 	sns := getStorageNodesForRerouting(snExclude, true)
 	if len(sns) == len(storageNodes) {
@@ -570,7 +630,7 @@ func getStorageNodesForRerouting(snExclude *storageNode, skipRecentlyReroutedNod
 	sns := make([]*storageNode, 0, len(storageNodes))
 	currentTime := fasttime.UnixTimestamp()
 	for i, sn := range storageNodes {
-		if sn == snExclude || sn.isBroken() {
+		if sn == snExclude || sn.isNotReady() {
 			// Skip snExclude and broken storage nodes.
 			continue
 		}
