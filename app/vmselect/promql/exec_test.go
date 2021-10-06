@@ -6239,39 +6239,6 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`deriv(1)`, func(t *testing.T) {
-		t.Parallel()
-		q := `deriv(1)`
-		r := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{0, 0, 0, 0, 0, 0},
-			Timestamps: timestampsExpected,
-		}
-		resultExpected := []netstorage.Result{r}
-		f(q, resultExpected)
-	})
-	t.Run(`deriv(time())`, func(t *testing.T) {
-		t.Parallel()
-		q := `deriv(2*time())`
-		r := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{2, 2, 2, 2, 2, 2},
-			Timestamps: timestampsExpected,
-		}
-		resultExpected := []netstorage.Result{r}
-		f(q, resultExpected)
-	})
-	t.Run(`deriv(-time())`, func(t *testing.T) {
-		t.Parallel()
-		q := `deriv(-time())`
-		r := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{-1, -1, -1, -1, -1, -1},
-			Timestamps: timestampsExpected,
-		}
-		resultExpected := []netstorage.Result{r}
-		f(q, resultExpected)
-	})
 	t.Run(`delta(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `delta(time())`
