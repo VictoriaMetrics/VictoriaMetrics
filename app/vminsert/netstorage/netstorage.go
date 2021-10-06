@@ -316,6 +316,11 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	if _, err := io.ReadFull(bc, sizeBuf.B[:1]); err != nil {
 		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
 	}
+
+	// vmstorage returns ack status response
+	// 1 - response ok, data written to storage
+	// 2 - storage storageDataPath reached free disk space limit
+	// according to -storage.minFreeDiskSpaceSize flag
 	ackResp := sizeBuf.B[0]
 	switch ackResp {
 	case 1:
@@ -324,9 +329,7 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	default:
 		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
 	}
-	if sizeBuf.B[0] != 1 {
-		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want %d", sizeBuf.B[0], 1)
-	}
+
 	return nil
 }
 
@@ -588,7 +591,6 @@ func (sn *storageNode) startStorageSizeCheck(stop <-chan struct{}) {
 			logger.Warnf("cannot check disk space status for -storageNode=%q: %s", sn.dialer.Addr(), err)
 		}
 	}
-	f()
 	storageNodesWG.Add(1)
 	go func() {
 		t := time.NewTicker(time.Second * 30)

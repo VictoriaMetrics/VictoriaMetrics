@@ -273,12 +273,12 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(fs.MustGetFreeSpace(*storageDataPath))
 	})
 
-	metrics.NewGauge(fmt.Sprintf(`vm_free_is_disk_space_limit_bytes{path=%q}`, *storageDataPath), func() float64 {
+	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *storageDataPath), func() float64 {
 		return float64(minFreeDiskSpaceSizeBytes.N)
 	})
 
-	metrics.NewGauge(fmt.Sprintf(`vm_free_is_disk_space_limit_reached{path=%q}`, *storageDataPath), func() float64 {
-		if storage.IsSpaceLimitReached() {
+	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_limit_reached{path=%q}`, *storageDataPath), func() float64 {
+		if strg.IsFreeDiskSpaceLimitReached() {
 			return 1
 		}
 		return 0

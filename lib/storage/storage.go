@@ -57,6 +57,8 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped uint64
 	dailySeriesLimitRowsDropped  uint64
 
+	isFreeDiskSpaceLimitReached uint32
+
 	path           string
 	cachePath      string
 	retentionMsecs int64
@@ -269,7 +271,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-	s.startFreeSpaceWatcher()
+	s.startFreeDiskSpaceWatcher()
 
 	return s, nil
 }
@@ -576,7 +578,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 }
 
 var (
-	isStorageLimitReached      uint32
 	storageFreeSpaceLimitBytes uint64
 )
 
@@ -587,20 +588,20 @@ func SetFreeDiskSpaceLimit(bytes int) {
 	storageFreeSpaceLimitBytes = uint64(bytes)
 }
 
-// IsSpaceLimitReached returns information is storageDataPath space limit is reached
-func IsSpaceLimitReached() bool {
-	return atomic.LoadUint32(&isStorageLimitReached) == 1
+// IsFreeDiskSpaceLimitReached returns information is storageDataPath space limit is reached
+func (s *Storage) IsFreeDiskSpaceLimitReached() bool {
+	return atomic.LoadUint32(&s.isFreeDiskSpaceLimitReached) == 1
 }
 
-func (s *Storage) startFreeSpaceWatcher() {
+func (s *Storage) startFreeDiskSpaceWatcher() {
 	f := func() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		// not enough free space
 		if freeSpaceBytes < storageFreeSpaceLimitBytes {
-			atomic.StoreUint32(&isStorageLimitReached, 1)
+			atomic.StoreUint32(&s.isFreeDiskSpaceLimitReached, 1)
 			return
 		}
-		atomic.StoreUint32(&isStorageLimitReached, 0)
+		atomic.StoreUint32(&s.isFreeDiskSpaceLimitReached, 0)
 	}
 	f()
 	s.freeSpaceWatcherWG.Add(1)
