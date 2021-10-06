@@ -185,9 +185,6 @@ To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to
 Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field https://docs.victoriametrics.com/getting-started-with-vm-operator.html#example-cluster-config) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent). 
 Here is an example of the full configuration that we need to apply:
 
-`remoteWrite.url` for VMAgent consists of the following parts:
-> service_name + VMCLuster_namespace + svc + kubernetes_cluster_domain that in our case will look like vminsert-example-vmcluster-persistent.default.svc.cluster.local
-
 <div class="with-copy" markdown="1">
 
 ```bash
@@ -217,6 +214,9 @@ The expected output:
 ```bash
 vmagent.operator.victoriametrics.com/example-vmagent created
 ```
+
+>`remoteWrite.url` for VMAgent consists of the following parts:
+> service_name + VMCLuster_namespace + svc + kubernetes_cluster_domain that in our case will look like vminsert-example-vmcluster-persistent.default.svc.cluster.local
 
 Verify that `VMAgent` is up and running by executing the following command:
 
