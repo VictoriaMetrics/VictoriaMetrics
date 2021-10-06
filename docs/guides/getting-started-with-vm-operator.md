@@ -4,21 +4,21 @@
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.
 * The setup of a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
-* How to add CRD for [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator). 
+* How to add CRD for a[VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator). 
 * How to visualize stored data 
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com)
 
 **Preconditions**
 
-* [Kubernetes cluster 1.20.9-gke.1001](https://cloud.google.com/kubernetes-engine). We use GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/).
+* [Kubernetes cluster 1.20.9-gke.1001](https://cloud.google.com/kubernetes-engine). We use a GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/).
 * [Helm 3](https://helm.sh/docs/intro/install).
 * [kubectl 1.21+](https://kubernetes.io/docs/tasks/tools/install-kubectl).
 
 ## 1. VictoriaMetrics Helm repository
 
-See how to work with [VictoriaMetrics Helm repository in previous guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository). 
+See how to work with a [VictoriaMetrics Helm repository in previous guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository). 
 
-## 2. Install VictoriaMetrics Operator from the Helm chart
+## 2. Install the VM Operator from the Helm chart
 
 <div class="with-copy" markdown="1">
 
@@ -45,7 +45,7 @@ Get more information on https://github.com/VictoriaMetrics/helm-charts/tree/mast
 See "Getting started guide for VM Operator" on https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html.
 ```
 
-Run the following command to check that VictoriaMetrics Operator is up and running:
+Run the following command to check that VM Operator is up and running:
 
 <div class="with-copy" markdown="1">
 
@@ -62,9 +62,10 @@ vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0     
 
 ## 3. Install VictoriaMetrics Cluster
 
+> For this example we will use default value for `name: example-vmcluster-persistent`. Change it value up to your needs.
 Run the following command to install [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator):
 
-<div class="with-copy" markdown="1">
+<div class="with-copy" markdown="1" id="example-cluster-config">
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -76,6 +77,7 @@ spec:
   # Add fields here
   retentionPeriod: "4"
   replicationFactor: 2
+  dedup.minScrapeInterval: 1ms
   vmstorage:
     replicaCount: 2
     storageDataPath: "/vm-data"
@@ -109,23 +111,23 @@ EOF
 ```
 </div>
 
-
 The expected output:
 
 ```bash
 vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
-* By applying this CRD we install [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
-* `retentionPeriod: "4"` defines [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 4 month.
-* `replicationFactor: 2` replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
+* By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
+* `retentionPeriod: "4"` defines the [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 4 months.
+* `replicationFactor: 2` refers to the replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
+* `dedup.minScrapeInterval: 1ms` would de-duplicate data points on the same time series if they fall within the same discrete 1ms bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept. See [Deduplication](https://docs.victoriametrics.com/#deduplication) .
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
 * `storageDataPath: "/vm-data"` will create volume for `vmstorage` at `/vm-data` folder.
-* `resources: ` configures resources for pod. See [k8s resource configuration docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to get more infomation.
+* `resources: ` configures resources for pod. See [k8s resource configuration docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to get more information.
 
 
-Note, that it may take some time for pods to start. To check that pods are started run the following command:
-<div class="with-copy" markdown="1" id="services">
+Please note that it may take some time for the pods to start. To check that the pods are started, run the following command:
+<div class="with-copy" markdown="1" id="example-cluster-config">
 
 ```bash
 kubectl get pods | grep vmcluster
@@ -144,7 +146,7 @@ vmstorage-example-vmcluster-persistent-0                 1/1     Running   0    
 vmstorage-example-vmcluster-persistent-1                 1/1     Running   0          5m25s
 ```
 
-There is an extra command to get information about cluster state:
+There is an extra command to get information about the cluster state:
 <div class="with-copy" markdown="1" id="services">
 
 ```bash
@@ -158,7 +160,8 @@ NAME                           INSERT COUNT   STORAGE COUNT   SELECT COUNT   AGE
 example-vmcluster-persistent   2              2               2              5m53s   operational
 ```
 
-To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [vmagent](https://docs.victoriametrics.com/vmagent.html) with some additional configurations. To do so, please run the following command:
+VictoriaMetrics Single Node has the functionality to parse data from different exporter but for the VictoriaMetrics Cluster this functionality has been implemented in the [VMAgent](https://docs.victoriametrics.com/vmagent.html). Also VMAgent has more flexibility such as the ability to push metrics instead of pulling them and need endpoint to write metrics to the [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) and this endpoint is `vminsert`. For Kubernetes we used a Kubernetes service as endpoint to accept metrics.
+To see k8s services, please run the following command:
 
 <div class="with-copy" markdown="1" id="services">
 
@@ -178,11 +181,12 @@ vmselect-example-vmcluster-persistent    ClusterIP   None            <none>     
 vmstorage-example-vmcluster-persistent   ClusterIP   None            <none>        8482/TCP,8400/TCP,8401/TCP   6m6s
 ```
 
-Copy `vminsert-example-vmcluster-persistent` service name and add it to `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent). 
-Here is a full configuration example that we need to apply:
+To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [VMAgent](https://docs.victoriametrics.com/vmagent.html) with some additional configurations.
+Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field https://docs.victoriametrics.com/getting-started-with-vm-operator.html#example-cluster-config) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent). 
+Here is an example of the full configuration that we need to apply:
 
 `remoteWrite.url` for VMAgent consists of the following parts:
-> service_name + VMCLuster_namespace + svc + kubernetes_cluster_domain that in our case will look as vminsert-example-vmcluster-persistent.default.svc.cluster.local
+> service_name + VMCLuster_namespace + svc + kubernetes_cluster_domain that in our case will look like vminsert-example-vmcluster-persistent.default.svc.cluster.local
 
 <div class="with-copy" markdown="1">
 
@@ -214,7 +218,7 @@ The expected output:
 vmagent.operator.victoriametrics.com/example-vmagent created
 ```
 
-Verify that the `VMAgent` is up and running by executing the following command:
+Verify that `VMAgent` is up and running by executing the following command:
 
 <div class="with-copy" markdown="1">
 
@@ -229,7 +233,9 @@ The expected output is:
 vmagent-example-vmagent-7996844b5f-b5rzs                 2/2     Running   0          9s
 ```
 
-Run the following command to make `VMAgent`'s port accessable from the local machine:
+> There are two containers for VMagent: the first one is a VMagent and the second one is a sidecard with a secret. VMagent use a secret with configuration wich is mounted to the special sidecar. It observes the changes with configuration and send a signal to reload configuration for the VMagent.
+
+Run the following command to make `VMAgent`'s port accessible from the local machine:
 
 <div class="with-copy" markdown="1">
 
@@ -246,18 +252,20 @@ Forwarding from 127.0.0.1:8429 -> 8429
 Forwarding from [::1]:8429 -> 8429
 ```
 
-To check that `VMAgent` collects metrics from k8s cluster open in browser [http://127.0.0.1:8429/targets](http://127.0.0.1:8429/targets) .
+To check that `VMAgent` collects metrics from the k8s cluster open in the browser [http://127.0.0.1:8429/targets](http://127.0.0.1:8429/targets) .
 You will see something like this:
 
 <p align="center">
   <img src="guide-vmcluster-k8s-via-vm-operator.png" width="800" alt="">
 </p>
 
-## 4. Verifing VictoriaMetrics cluster
+`VMAgent` connects to [kubernetes service discovery](https://kubernetes.io/docs/concepts/services-networking/service/) and gets targets which needs to be scraped. This service discovery is controlled by [VictoriaMetrics Operator](https://github.com/VictoriaMetrics/operator)
 
-See [how to install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm) but with one addition - we should get the name of `vmselect` service from freshly installed VictoriaMetrics Cluster because it will be different.
+## 4. Verifying VictoriaMetrics cluster
 
-To get those service name please run the following command:
+See [how to install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm) but with one addition - we should get the name of `vmselect` service from the freshly installed VictoriaMetrics Cluster because it will now be different.
+
+To get the new service name, please run the following command:
 
 <div class="with-copy" markdown="1" id="services">
 
@@ -325,7 +333,7 @@ EOF
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and `password` that you previously got from kubectl. 
+To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl. 
 
 <p align="center">
   <img src="guide-vmcluster-k8s-via-vm-operator-grafana1.png" width="800" alt="grafana dashboards">
@@ -337,10 +345,8 @@ The expected output is:
   <img src="guide-vmcluster-k8s-via-vm-operator-grafana2.png" width="800" alt="grafana dashboards">
 </p>
 
-## 6. Final thoughts
+## 6. Summary
 
 * We set up Kubernetes Operator for VictoriaMetrics.
-* We collected metrics from running services and stored them in the VictoriaMetrics database.
-* We configured `dedup.minScrapeInterval` and `replicationFactor: 2` for VictoriaMetrics cluster for high availability purposes.
-* We tested and made sure that metrics are available even if one of `vmstorages` nodes was turned off.
-Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository) section in previous guides. 
+* We collected metrics from all running services and stored them in the VictoriaMetrics database.
+* We configured `dedup.minScrapeInterval` and `replicationFactor` for the VictoriaMetrics cluster for high availability purposes.
