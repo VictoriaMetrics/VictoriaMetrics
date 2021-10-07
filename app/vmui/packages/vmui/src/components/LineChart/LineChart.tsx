@@ -32,7 +32,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   };
 
   const times = useMemo(() => {
-    const allTimes = data.map(d => d.values.map(v => v[0])).flat(); //.filter(t => t >= scale.min && t <= scale.max);
+    const allTimes = data.map(d => d.values.map(v => v[0])).flat();
     const start = Math.min(...allTimes);
     const end = Math.max(...allTimes);
     const output = [];
