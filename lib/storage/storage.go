@@ -57,7 +57,7 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped uint64
 	dailySeriesLimitRowsDropped  uint64
 
-	isFreeDiskSpaceLimitReached uint32
+	isReadOnly uint32
 
 	path           string
 	cachePath      string
@@ -588,9 +588,9 @@ func SetFreeDiskSpaceLimit(bytes int) {
 	storageFreeSpaceLimitBytes = uint64(bytes)
 }
 
-// IsFreeDiskSpaceLimitReached returns information is storageDataPath space limit is reached
-func (s *Storage) IsFreeDiskSpaceLimitReached() bool {
-	return atomic.LoadUint32(&s.isFreeDiskSpaceLimitReached) == 1
+// IsReadOnly returns information is storage in read only mode
+func (s *Storage) IsReadOnly() bool {
+	return atomic.LoadUint32(&s.isReadOnly) == 1
 }
 
 func (s *Storage) startFreeDiskSpaceWatcher() {
@@ -598,10 +598,10 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		// not enough free space
 		if freeSpaceBytes < storageFreeSpaceLimitBytes {
-			atomic.StoreUint32(&s.isFreeDiskSpaceLimitReached, 1)
+			atomic.StoreUint32(&s.isReadOnly, 1)
 			return
 		}
-		atomic.StoreUint32(&s.isFreeDiskSpaceLimitReached, 0)
+		atomic.StoreUint32(&s.isReadOnly, 0)
 	}
 	f()
 	s.freeSpaceWatcherWG.Add(1)

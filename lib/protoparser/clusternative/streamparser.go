@@ -17,13 +17,13 @@ import (
 )
 
 // ParseStream parses data sent from vminsert to bc and calls callback for parsed rows.
-// Optional function IsFreeDiskSpaceLimitReached must return is storage limit reached
-// If true, out of disk ack will be reported back to the bc.
+// Optional function isReadOnly must return storage writable status
+// If it's read only, this status will be propagated to vminsert.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
 // callback shouldn't hold block after returning.
-func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, IsFreeDiskSpaceLimitReached func() bool) error {
+func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
 	var wg sync.WaitGroup
 	var (
 		callbackErrLock sync.Mutex
@@ -46,7 +46,7 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 		}
 		uw.wg = &wg
 		var err error
-		uw.reqBuf, err = readBlock(uw.reqBuf[:0], bc, IsFreeDiskSpaceLimitReached)
+		uw.reqBuf, err = readBlock(uw.reqBuf[:0], bc, isReadOnly)
 		if err != nil {
 			wg.Wait()
 			if err == io.EOF {
@@ -62,7 +62,7 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 }
 
 // readBlock reads the next data block from vminsert-initiated bc, appends it to dst and returns the result.
-func readBlock(dst []byte, bc *handshake.BufferedConn, IsFreeDiskSpaceLimitReached func() bool) ([]byte, error) {
+func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) ([]byte, error) {
 	sizeBuf := sizeBufPool.Get()
 	defer sizeBufPool.Put(sizeBuf)
 	sizeBuf.B = bytesutil.Resize(sizeBuf.B, 8)
@@ -74,8 +74,8 @@ func readBlock(dst []byte, bc *handshake.BufferedConn, IsFreeDiskSpaceLimitReach
 		return dst, err
 	}
 
-	if IsFreeDiskSpaceLimitReached != nil && IsFreeDiskSpaceLimitReached() {
-		// send `disk is full` ack to vminsert node
+	if isReadOnly != nil && isReadOnly() {
+		// send `read only` ack to vminsert node
 		sizeBuf.B[0] = 2
 		if _, err := bc.Write(sizeBuf.B[:1]); err != nil {
 			writeErrors.Inc()
