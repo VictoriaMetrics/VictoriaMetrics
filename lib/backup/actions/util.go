@@ -182,7 +182,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 	}
 	n := strings.Index(path, "://")
 	if n < 0 {
-		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gcs://`, `s3://`, `fs://`", path)
+		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `fs://`", path)
 	}
 	scheme := path[:n]
 	dir := path[n+len("://"):]
@@ -195,7 +195,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			Dir: dir,
 		}
 		return fs, nil
-	case "gcs":
+	case "gcs", "gs":
 		n := strings.Index(dir, "/")
 		if n < 0 {
 			return nil, fmt.Errorf("missing directory on the gcs bucket %q", dir)

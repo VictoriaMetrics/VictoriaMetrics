@@ -39,10 +39,12 @@ var aggrFuncs = map[string]aggrFunc{
 	"topk_max":       newAggrFuncRangeTopK(maxValue, false),
 	"topk_avg":       newAggrFuncRangeTopK(avgValue, false),
 	"topk_median":    newAggrFuncRangeTopK(medianValue, false),
+	"topk_last":      newAggrFuncRangeTopK(lastValue, false),
 	"bottomk_min":    newAggrFuncRangeTopK(minValue, true),
 	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
+	"bottomk_last":   newAggrFuncRangeTopK(lastValue, true),
 	"any":            aggrFuncAny,
 	"mad":            newAggrFunc(aggrFuncMAD),
 	"outliers_mad":   aggrFuncOutliersMAD,
@@ -801,6 +803,14 @@ func avgValue(values []float64) float64 {
 
 func medianValue(values []float64) float64 {
 	return quantile(0.5, values)
+}
+
+func lastValue(values []float64) float64 {
+	values = skipTrailingNaNs(values)
+	if len(values) == 0 {
+		return nan
+	}
+	return values[len(values)-1]
 }
 
 // quantiles calculates the given phis from originValues without modifying originValues, appends them to qs and returns the result.

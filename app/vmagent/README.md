@@ -17,10 +17,12 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 
 ## Features
 
-* Can be used as a drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
-  See [Quick Start](#quick-start) for details.
+* Can be used as a drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter). See [Quick Start](#quick-start) for details.
+* Can read data from Kafka. See [these docs](#reading-metrics-from-kafka).
+* Can write data to Kafka. See [these docs](#writing-metrics-to-kafka).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Accepts data via all ingestion protocols supported by VictoriaMetrics:
+  * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent).
   * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
   * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
   * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
@@ -519,6 +521,108 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
     source_labels: [__meta_kubernetes_pod_container_init]
     regex: true
   ```
+
+## Kafka integration
+
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
+
+* [Reading metrics from Kafka](#reading-metrics-from-kafka)
+* [Writing metrics to Kafka](#writing-metrics-to-kafka)
+
+The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page in `vmutils-*-enteprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+
+### Reading metrics from Kafka
+
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
+
+* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
+* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
+* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
+* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
+* `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+
+Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
+
+`vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
+
+`vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag. Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`. For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
+
+The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
+
+```bash
+./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
+       -kafka.consumer.topic.brokers=localhost:9092 \
+       -kafka.consumer.topic.format=influx \
+       -kafka.consumer.topic=metrics-by-telegraf \
+       -kafka.consumer.topic.groupID=some-id
+```
+
+It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `metrics-by-telegraf` topic with the following config:
+
+```yaml
+[[outputs.kafka]]
+brokers = ["localhost:9092"]
+topic = "influx"
+data_format = "influx"
+```
+
+
+#### Command-line flags for Kafka consumer
+
+These command-line flags are available only in [enterprise](https://victoriametrics.com/enterprise.html) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+```
+  -kafka.consumer.topic array
+        Kafka topic names for data consumption.
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.basicAuth.password array
+        Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.basicAuth.username array
+        Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.brokers array
+        List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.defaultFormat string
+        Expected data format in the topic if -kafka.consumer.topic.format is skipped. (default "promremotewrite")
+  -kafka.consumer.topic.format array
+        data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.groupID array
+        Defines group.id for topic
+        Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.isGzipped array
+        Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.
+        Supports array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.options array
+        Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md.
+        Supports an array of values separated by comma or specified via multiple flags.
+```
+
+### Writing metrics to Kafka
+
+[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
+
+Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id` sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+
+
+#### Kafka broker authorization and authentication
+
+Two types of auth are supported:
+
+* sasl with username and password:
+
+```bash
+./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
+```
+
+* tls certificates:
+
+```bash
+./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
+```
 
 
 ## How to build from sources

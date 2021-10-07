@@ -269,6 +269,52 @@ VictoriaMetrics also supports [importing data in Prometheus exposition format](#
 See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be used as drop-in replacement for Prometheus.
 
 
+## How to send data from DataDog agent
+
+VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD]() via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v1/series` path.
+
+Run DataDog agent with `DD_DD_URL=http://victoriametrics-host:8428/datadog` environment variable in order to write data to VictoriaMetrics at `victoriametrics-host` host. Another option is to set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
+
+Example on how to send data to VictoriaMetrics via DataDog "submit metrics" API from command line:
+
+```bash
+echo '
+{
+  "series": [
+    {
+      "host": "test.example.com",
+      "interval": 20,
+      "metric": "system.load.1",
+      "points": [[
+        0,
+        0.5
+      ]],
+      "tags": [
+        "environment:test"
+      ],
+      "type": "rate"
+    }
+  ]
+}
+' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series
+```
+
+The imported data can be read via [export API](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
+
+```bash
+curl http://localhost:8428/api/v1/export -d 'match[]=system.load.1'
+```
+
+This command should return the following output if everything is OK:
+
+```
+{"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
+```
+
+Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
+For example, `/datadog/api/v1/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
+
+
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
 Use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
@@ -794,6 +840,7 @@ The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv
 Time series data can be imported via any supported ingestion protocol:
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](#prometheus-setup) for details.
+* DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
@@ -1654,7 +1701,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
   -promscrape.noStaleMarkers
-    	Whether to disable seding Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+    	Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.openstackSDCheckInterval duration
     	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
   -promscrape.seriesLimitPerTarget int

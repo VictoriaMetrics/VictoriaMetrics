@@ -145,35 +145,26 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"rate_over_sum":       rollupRateOverSum,
 }
 
-var rollupFuncsCannotAdjustWindow = map[string]bool{
-	"changes":             true,
-	"delta":               true,
-	"holt_winters":        true,
-	"idelta":              true,
-	"increase":            true,
-	"predict_linear":      true,
-	"resets":              true,
-	"avg_over_time":       true,
-	"sum_over_time":       true,
-	"count_over_time":     true,
-	"quantile_over_time":  true,
-	"quantiles_over_time": true,
-	"stddev_over_time":    true,
-	"stdvar_over_time":    true,
-	"absent_over_time":    true,
-	"present_over_time":   true,
-	"sum2_over_time":      true,
-	"geomean_over_time":   true,
-	"distinct_over_time":  true,
-	"increases_over_time": true,
-	"decreases_over_time": true,
-	"increase_pure":       true,
-	"integrate":           true,
-	"ascent_over_time":    true,
-	"descent_over_time":   true,
-	"zscore_over_time":    true,
-	"first_over_time":     true,
-	"last_over_time":      true,
+// VictoriaMetrics can increase lookbehind window in square brackets for these functions
+// if the given window doesn't contain enough samples for calculations.
+//
+// This is needed in order to return the expected non-empty graphs when zooming in the graph in Grafana,
+// which is built with `func_name(metric[$__interval])` query.
+var rollupFuncsCanAdjustWindow = map[string]bool{
+	"default_rollup":         true,
+	"deriv":                  true,
+	"deriv_fast":             true,
+	"ideriv":                 true,
+	"irate":                  true,
+	"rate":                   true,
+	"rate_over_sum":          true,
+	"rollup":                 true,
+	"rollup_candlestick":     true,
+	"rollup_deriv":           true,
+	"rollup_rate":            true,
+	"rollup_scrape_interval": true,
+	"scrape_interval":        true,
+	"timestamp":              true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -285,7 +276,7 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 			End:             end,
 			Step:            step,
 			Window:          window,
-			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
+			MayAdjustWindow: rollupFuncsCanAdjustWindow[name],
 			LookbackDelta:   lookbackDelta,
 			Timestamps:      sharedTimestamps,
 			isDefaultRollup: name == "default_rollup",
@@ -862,37 +853,29 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if len(values) == 0 {
-		return rfa.prevValue, 0
+	n := float64(len(values))
+	if n == 0 {
+		return nan, nan
+	}
+	if n == 1 {
+		return values[0], 0
 	}
 
 	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Numerical_example
-	tFirst := rfa.prevTimestamp
-	vSum := rfa.prevValue
+	interceptTime := rfa.currTimestamp
+	vSum := float64(0)
 	tSum := float64(0)
 	tvSum := float64(0)
 	ttSum := float64(0)
-	n := 1.0
-	if math.IsNaN(rfa.prevValue) {
-		tFirst = timestamps[0]
-		vSum = 0
-		n = 0
-	}
 	for i, v := range values {
-		dt := float64(timestamps[i]-tFirst) / 1e3
+		dt := float64(timestamps[i]-interceptTime) / 1e3
 		vSum += v
 		tSum += dt
 		tvSum += dt * v
 		ttSum += dt * dt
 	}
-	n += float64(len(values))
-	if n == 1 {
-		return vSum, 0
-	}
-	k := (n*tvSum - tSum*vSum) / (n*ttSum - tSum*tSum)
-	v := (vSum - k*tSum) / n
-	// Adjust v to the last timestamp on the given time range.
-	v += k * (float64(timestamps[len(timestamps)-1]-tFirst) / 1e3)
+	k := (tvSum - tSum*vSum/n) / (ttSum - tSum*tSum/n)
+	v := vSum/n - k*tSum/n
 	return v, k
 }
 
@@ -1112,13 +1095,6 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		// There is no need in handling NaNs here, since they must be cleaned up
 		// before calling rollup funcs.
 		values := rfa.values
-		if len(values) == 0 {
-			return rfa.prevValue
-		}
-		if len(values) == 1 {
-			// Fast path - only a single value.
-			return values[0]
-		}
 		phi := phis[rfa.idx]
 		qv := quantile(phi, values)
 		return qv
@@ -1359,10 +1335,7 @@ func rollupCount(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	return float64(len(values))
 }
@@ -1379,14 +1352,11 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	if len(values) == 1 {
 		// Fast path.
-		return values[0]
+		return 0
 	}
 	var avg float64
 	var count float64

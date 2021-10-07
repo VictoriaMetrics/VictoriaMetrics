@@ -37,10 +37,10 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 }
 
 // InsertHandlerForReader processes metrics from given reader
-func InsertHandlerForReader(r io.Reader) error {
+func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(r, func(tss []prompb.TimeSeries) error {
-			return insertRows(nil, tss, nil)
+			return insertRows(at, tss, nil)
 		})
 	})
 }

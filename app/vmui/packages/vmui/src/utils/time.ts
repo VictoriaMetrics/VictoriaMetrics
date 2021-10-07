@@ -2,13 +2,16 @@ import {TimeParams, TimePeriod} from "../types";
 
 import dayjs, {UnitTypeShort} from "dayjs";
 import duration from "dayjs/plugin/duration";
+import utc from "dayjs/plugin/utc";
 
 dayjs.extend(duration);
+dayjs.extend(utc);
 
 const MAX_ITEMS_PER_CHART = window.screen.availWidth / 2;
 
 export const limitsDurations = {min: 1000, max: 1.578e+11}; // min: 1 seconds, max: 5 years
 
+export const dateIsoFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
 export const supportedDurations = [
   {long: "days", short: "d", possible: "day"},
@@ -60,11 +63,15 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
     start: n - delta,
     end: n,
     step: step,
-    date: formatDateForNativeInput((date || new Date()))
+    date: formatDateToUTC(date || new Date())
   };
 };
 
-export const formatDateForNativeInput = (date: Date): string => dayjs(date).format("YYYY-MM-DD[T]HH:mm:ss");
+export const formatDateToLocal = (date: Date): string => dayjs(date).utcOffset(0, true).local().format(dateIsoFormat);
+export const formatDateToUTC = (date: Date): string => dayjs(date).utc().format(dateIsoFormat);
+export const formatDateForNativeInput = (date: Date): string => dayjs(date).format(dateIsoFormat);
+
+export const getDateNowUTC = (): Date => new Date(dayjs().utc().format(dateIsoFormat));
 
 const getDurationFromMilliseconds = (ms: number): string => {
   const milliseconds = Math.floor(ms  % 1000);

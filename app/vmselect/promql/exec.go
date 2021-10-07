@@ -81,8 +81,8 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 	case *metricsql.AggrFuncExpr:
 		switch strings.ToLower(v.Name) {
 		case "topk", "bottomk", "outliersk",
-			"topk_max", "topk_min", "topk_avg", "topk_median",
-			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median":
+			"topk_max", "topk_min", "topk_avg", "topk_median", "topk_last",
+			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median", "bottomk_last":
 			return false
 		}
 	}
