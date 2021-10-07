@@ -151,6 +151,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"holt_winters":        true,
 	"idelta":              true,
 	"increase":            true,
+	"deriv":               true,
 	"predict_linear":      true,
 	"resets":              true,
 	"avg_over_time":       true,
@@ -864,37 +865,26 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if len(values) == 0 {
-		return rfa.prevValue, 0
+	if len(values) < 2 {
+		return nan, nan
 	}
 
 	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Numerical_example
-	tFirst := rfa.prevTimestamp
-	vSum := rfa.prevValue
+	interceptTime := rfa.currTimestamp
+	vSum := float64(0)
 	tSum := float64(0)
 	tvSum := float64(0)
 	ttSum := float64(0)
-	n := 1.0
-	if math.IsNaN(rfa.prevValue) {
-		tFirst = timestamps[0]
-		vSum = 0
-		n = 0
-	}
 	for i, v := range values {
-		dt := float64(timestamps[i]-tFirst) / 1e3
+		dt := float64(timestamps[i]-interceptTime) / 1e3
 		vSum += v
 		tSum += dt
 		tvSum += dt * v
 		ttSum += dt * dt
 	}
-	n += float64(len(values))
-	if n == 1 {
-		return vSum, 0
-	}
-	k := (n*tvSum - tSum*vSum) / (n*ttSum - tSum*tSum)
-	v := (vSum - k*tSum) / n
-	// Adjust v to the last timestamp on the given time range.
-	v += k * (float64(timestamps[len(timestamps)-1]-tFirst) / 1e3)
+	n := float64(len(values))
+	k := (tvSum - tSum*vSum/n) / (ttSum - tSum*tSum/n)
+	v := vSum/n - k*tSum/n
 	return v, k
 }
 

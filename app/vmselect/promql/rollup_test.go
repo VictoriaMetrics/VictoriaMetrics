@@ -357,10 +357,32 @@ func TestRollupPredictLinear(t *testing.T) {
 		testRollupFunc(t, "predict_linear", args, &me, vExpected)
 	}
 
-	f(0e-3, 30.382432471845043)
-	f(50e-3, 17.03950235614201)
-	f(100e-3, 3.696572240438975)
-	f(200e-3, -22.989287990967092)
+	f(0e-3, 65.07405077267295)
+	f(50e-3, 51.7311206569699)
+	f(100e-3, 38.38819054126685)
+	f(200e-3, 11.702330309860756)
+}
+
+func TestLinearRegression(t *testing.T) {
+	f := func(values []float64, timestamps []int64, expV, expK float64) {
+		t.Helper()
+		rfa := &rollupFuncArg{
+			values:        values,
+			timestamps:    timestamps,
+			currTimestamp: timestamps[0] + 100,
+		}
+		v, k := linearRegression(rfa)
+		if err := compareValues([]float64{v}, []float64{expV}); err != nil {
+			t.Fatalf("unexpected v err: %s", err)
+		}
+		if err := compareValues([]float64{k}, []float64{expK}); err != nil {
+			t.Fatalf("unexpected k err: %s", err)
+		}
+	}
+
+	f([]float64{1}, []int64{1}, math.NaN(), math.NaN())
+	f([]float64{1, 2}, []int64{100, 300}, 1.5, 5)
+	f([]float64{2, 4, 6, 8, 10}, []int64{100, 200, 300, 400, 500}, 4, 20)
 }
 
 func TestRollupHoltWinters(t *testing.T) {
@@ -448,7 +470,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("default_rollup", 34)
 	f("changes", 11)
 	f("delta", 34)
-	f("deriv", -266.85860231406065)
+	f("deriv", -266.85860231406093)
 	f("deriv_fast", -712)
 	f("idelta", 0)
 	f("increase", 398)
@@ -957,7 +979,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{0, -2879.310344827587, 558.0608793686595, 422.84569138276544, 0}
+		valuesExpected := []float64{nan, -2879.310344827588, 127.87627310448904, -496.5831435079728, nan}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
