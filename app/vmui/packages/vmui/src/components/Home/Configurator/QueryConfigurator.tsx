@@ -20,8 +20,6 @@ import SecurityIcon from "@material-ui/icons/Security";
 import {AuthDialog} from "./AuthDialog";
 import PlayCircleOutlineIcon from "@material-ui/icons/PlayCircleOutline";
 import Portal from "@material-ui/core/Portal";
-import Popover from "@material-ui/core/Popover";
-import SettingsIcon from "@material-ui/icons/Settings";
 import {saveToStorage} from "../../../utils/storage";
 
 const QueryConfigurator: FC = () => {
@@ -29,16 +27,18 @@ const QueryConfigurator: FC = () => {
   const {serverUrl, query, time: {duration}} = useAppState();
   const dispatch = useAppDispatch();
 
-  const {queryControls: {autocomplete}} = useAppState();
+  const {queryControls: {autocomplete, nocache}} = useAppState();
   const onChangeAutocomplete = () => {
     dispatch({type: "TOGGLE_AUTOCOMPLETE"});
     saveToStorage("AUTOCOMPLETE", !autocomplete);
   };
+  const onChangeCache = () => {
+    dispatch({type: "NO_CACHE"});
+    saveToStorage("NO_CACHE", !nocache);
+  };
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const refSettings = useRef<SVGGElement | any>(null);
 
   const queryContainer = useRef<HTMLDivElement>(null);
 
@@ -71,8 +71,8 @@ const QueryConfigurator: FC = () => {
         <AccordionDetails>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
-              <Box>
-                <Box py={2} display="flex" alignItems="center">
+              <Box display="grid" gridGap={16}>
+                <Box display="flex" alignItems="center">
                   <TextField variant="outlined" fullWidth label="Server URL" value={serverUrl}
                     inputProps={{
                       style: {fontFamily: "Monospace"}
@@ -93,28 +93,9 @@ const QueryConfigurator: FC = () => {
                     </Tooltip>
                   </Box>
                 </Box>
-                <Box py={2} display="flex">
-                  <Box flexGrow={1} mr={2}>
-                    {/* for portal QueryEditor */}
-                    <div ref={queryContainer} />
-                  </Box>
-                  <div>
-                    <Tooltip title="Query Editor Settings">
-                      <IconButton onClick={() => setPopoverOpen(!popoverOpen)}>
-                        <SettingsIcon ref={refSettings}/>
-                      </IconButton>
-                    </Tooltip>
-                    <Popover open={popoverOpen} transformOrigin={{vertical: -20, horizontal: "left"}}
-                      onClose={() => setPopoverOpen(false)}
-                      anchorEl={refSettings.current}>
-                      <Box p={2}>
-                        {<FormControlLabel
-                          control={<Switch size="small" checked={autocomplete} onChange={onChangeAutocomplete}/>}
-                          label="Autocomplete"
-                        />}
-                      </Box>
-                    </Popover>
-                  </div>
+                <Box flexGrow={1} >
+                  {/* for portal QueryEditor */}
+                  <div ref={queryContainer} />
                 </Box>
               </Box>
             </Grid>
@@ -124,10 +105,25 @@ const QueryConfigurator: FC = () => {
                 borderColor: "#b9b9b9",
                 borderStyle: "solid",
                 borderWidth: "1px",
-                height: "calc(100% - 18px)",
-                marginTop: "16px"
+                height: "100%",
               }}>
                 <TimeSelector setDuration={onSetDuration} duration={duration}/>
+              </Box>
+            </Grid>
+            <Grid item xs={12}>
+              <Box px={1} display="flex" alignItems="center">
+                <Box>
+                  <FormControlLabel
+                    control={<Switch size="small" checked={autocomplete} onChange={onChangeAutocomplete}/>}
+                    label="Enable autocomplete"
+                  />
+                </Box>
+                <Box ml={2}>
+                  <FormControlLabel
+                    control={<Switch size="small" checked={!nocache} onChange={onChangeCache}/>}
+                    label="Enable cache"
+                  />
+                </Box>
               </Box>
             </Grid>
           </Grid>

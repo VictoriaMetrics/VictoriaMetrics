@@ -13,7 +13,7 @@ export const useFetchQuery = (): {
   liveData?: InstantMetricResult[],
   error?: string,
 } => {
-  const {query, displayType, serverUrl, time: {period}} = useAppState();
+  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
 
   const {basicData, bearerData, authMethod} = useAuthState();
 
@@ -43,7 +43,7 @@ export const useFetchQuery = (): {
         const duration = (period.end - period.start)/2;
         const doublePeriod = {...period, start: period.start - duration, end: period.end + duration};
         return displayType === "chart"
-          ? getQueryRangeUrl(serverUrl, query, doublePeriod)
+          ? getQueryRangeUrl(serverUrl, query, doublePeriod, nocache)
           : getQueryUrl(serverUrl, query, period);
       } else {
         setError("Please provide a valid URL");

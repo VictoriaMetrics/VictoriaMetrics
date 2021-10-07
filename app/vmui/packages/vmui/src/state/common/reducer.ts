@@ -1,12 +1,6 @@
 import {DisplayType} from "../../components/Home/Configurator/DisplayTypeSwitch";
 import {TimeParams, TimePeriod} from "../../types";
-import {
-  dateFromSeconds,
-  formatDateToLocal,
-  getDateNowUTC,
-  getDurationFromPeriod,
-  getTimeperiodForDuration
-} from "../../utils/time";
+import {dateFromSeconds, formatDateToLocal, getDateNowUTC, getDurationFromPeriod, getTimeperiodForDuration} from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
 import {getDefaultServer} from "../../utils/default-server-url";
 import {getQueryStringValue} from "../../utils/query-string";
@@ -23,7 +17,8 @@ export interface AppState {
   time: TimeState;
   queryControls: {
     autoRefresh: boolean;
-    autocomplete: boolean
+    autocomplete: boolean,
+    nocache: boolean
   }
 }
 
@@ -38,6 +33,7 @@ export type Action =
     | { type: "RUN_QUERY_TO_NOW"}
     | { type: "TOGGLE_AUTOREFRESH"}
     | { type: "TOGGLE_AUTOCOMPLETE"}
+    | { type: "NO_CACHE"}
 
 const duration = getQueryStringValue("g0.range_input", "1h") as string;
 const endInput = formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date);
@@ -52,7 +48,8 @@ export const initialState: AppState = {
   },
   queryControls: {
     autoRefresh: false,
-    autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false
+    autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
+    nocache: getFromStorage("NO_CACHE") as boolean || true,
   }
 };
 
@@ -119,6 +116,14 @@ export function reducer(state: AppState, action: Action): AppState {
         queryControls: {
           ...state.queryControls,
           autocomplete: !state.queryControls.autocomplete
+        }
+      };
+    case "NO_CACHE":
+      return {
+        ...state,
+        queryControls: {
+          ...state.queryControls,
+          nocache: !state.queryControls.nocache
         }
       };
     case "RUN_QUERY":
