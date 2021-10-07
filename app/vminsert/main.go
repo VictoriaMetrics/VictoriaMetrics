@@ -79,7 +79,14 @@ func main() {
 	if len(*storageNodes) == 0 {
 		logger.Fatalf("missing -storageNode arg")
 	}
-	netstorage.InitStorageNodes(*storageNodes)
+	hashSeed := byte(0)
+	if *clusternativeListenAddr != "" {
+		// Use different hash seed for the second level of vminsert nodes in multi-level cluster setup.
+		// This should fix uneven distribution of time series among storage nodes.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1672
+		hashSeed = 42
+	}
+	netstorage.InitStorageNodes(*storageNodes, hashSeed)
 	logger.Infof("successfully initialized netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	relabel.Init()

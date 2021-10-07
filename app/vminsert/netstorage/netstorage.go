@@ -400,11 +400,17 @@ var storageNodesWG sync.WaitGroup
 
 var storageNodesStopCh = make(chan struct{})
 
+// hashSeed is a seed for distributing time series amont storage nodes.
+var hashSeed byte
+
 // InitStorageNodes initializes vmstorage nodes' connections to the given addrs.
-func InitStorageNodes(addrs []string) {
+//
+// eed is used for changing the distribution of input time series among addrs.
+func InitStorageNodes(addrs []string, seed byte) {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
+	hashSeed = seed
 
 	// Sort addrs in order to guarantee identical series->vmstorage mapping across all the vminsert nodes.
 	addrsCopy := append([]string{}, addrs...)

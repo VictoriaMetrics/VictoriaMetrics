@@ -162,6 +162,9 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	}
 
 	buf := ctx.labelsBuf[:0]
+	if hashSeed != 0 {
+		buf = append(buf, hashSeed)
+	}
 	buf = encoding.MarshalUint32(buf, at.AccountID)
 	buf = encoding.MarshalUint32(buf, at.ProjectID)
 	for i := range labels {
