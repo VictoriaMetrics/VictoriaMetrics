@@ -5,7 +5,7 @@ import duration from "dayjs/plugin/duration";
 
 dayjs.extend(duration);
 
-const MAX_ITEMS_PER_CHART = window.screen.availWidth / 7.68;
+const MAX_ITEMS_PER_CHART = window.screen.availWidth / 2;
 
 export const limitsDurations = {min: 1000, max: 1.578e+11}; // min: 1 seconds, max: 5 years
 
@@ -67,12 +67,13 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
 export const formatDateForNativeInput = (date: Date): string => dayjs(date).format("YYYY-MM-DD[T]HH:mm:ss");
 
 const getDurationFromMilliseconds = (ms: number): string => {
+  const milliseconds = Math.floor(ms  % 1000);
   const seconds = Math.floor((ms / 1000) % 60);
   const minutes = Math.floor((ms / 1000 / 60) % 60);
   const hours = Math.floor((ms / 1000 / 3600 ) % 24);
   const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-  const durs: UnitTypeShort[] = ["d", "h", "m", "s"];
-  const values = [days, hours, minutes, seconds].map((t, i) => t ? `${t}${durs[i]}` : "");
+  const durs: UnitTypeShort[] = ["d", "h", "m", "s", "ms"];
+  const values = [days, hours, minutes, seconds, milliseconds].map((t, i) => t ? `${t}${durs[i]}` : "");
   return values.filter(t => t).join(" ");
 };
 

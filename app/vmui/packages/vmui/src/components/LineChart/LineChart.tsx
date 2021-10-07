@@ -88,7 +88,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
     // wheel scroll zoom
     u.over.addEventListener("wheel", e => {
-      if (!e.ctrlKey) return;
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const {width} = u.over.getBoundingClientRect();
       const {left = width/2} = u.cursor;
@@ -108,9 +108,9 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   useEffect(() => {setScale({min: period.start, max: period.end});}, [period]);
 
   useEffect(() => {
-    // TODO add check zoom in
-    const duration = (period.end - period.start)/2;
-    if (scale.max > period.end + duration || scale.min < period.start - duration) {
+    const duration = (period.end - period.start)/3;
+    const factor = duration / (scale.max - scale.min);
+    if (scale.max > period.end + duration || scale.min < period.start - duration || factor >= 0.7) {
       dispatch({type: "SET_PERIOD", payload: {from: new Date(scale.min * 1000), to: new Date(scale.max * 1000)}});
     }
   }, [scale]);
