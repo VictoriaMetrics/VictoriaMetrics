@@ -145,37 +145,26 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"rate_over_sum":       rollupRateOverSum,
 }
 
-var rollupFuncsCannotAdjustWindow = map[string]bool{
-	"changes":             true,
-	"delta":               true,
-	"holt_winters":        true,
-	"idelta":              true,
-	"increase":            true,
-	"predict_linear":      true,
-	"resets":              true,
-	"avg_over_time":       true,
-	"sum_over_time":       true,
-	"count_over_time":     true,
-	"quantile_over_time":  true,
-	"quantiles_over_time": true,
-	"stddev_over_time":    true,
-	"stdvar_over_time":    true,
-	"absent_over_time":    true,
-	"present_over_time":   true,
-	"sum2_over_time":      true,
-	"geomean_over_time":   true,
-	"distinct_over_time":  true,
-	"increases_over_time": true,
-	"decreases_over_time": true,
-	"increase_pure":       true,
-	"integrate":           true,
-	"ascent_over_time":    true,
-	"descent_over_time":   true,
-	"zscore_over_time":    true,
-	"first_over_time":     true,
-	"last_over_time":      true,
-	"min_over_time":       true,
-	"max_over_time":       true,
+// VictoriaMetrics can increase lookbehind window in square brackets for these functions
+// if the given window doesn't contain enough samples for calculations.
+//
+// This is needed in order to return the expected non-empty graphs when zooming in the graph in Grafana,
+// which is built with `func_name(metric[$__interval])` query.
+var rollupFuncsCanAdjustWindow = map[string]bool{
+	"default_rollup":         true,
+	"deriv":                  true,
+	"deriv_fast":             true,
+	"ideriv":                 true,
+	"irate":                  true,
+	"rate":                   true,
+	"rate_over_sum":          true,
+	"rollup":                 true,
+	"rollup_candlestick":     true,
+	"rollup_deriv":           true,
+	"rollup_rate":            true,
+	"rollup_scrape_interval": true,
+	"scrape_interval":        true,
+	"timestamp":              true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -287,7 +276,7 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 			End:             end,
 			Step:            step,
 			Window:          window,
-			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
+			MayAdjustWindow: rollupFuncsCanAdjustWindow[name],
 			LookbackDelta:   lookbackDelta,
 			Timestamps:      sharedTimestamps,
 			isDefaultRollup: name == "default_rollup",
