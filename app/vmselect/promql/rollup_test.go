@@ -979,7 +979,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, -2879.310344827588, 127.87627310448904, -496.5831435079728, nan}
+		valuesExpected := []float64{nan, -2879.310344827588, 127.87627310448904, -496.5831435079728, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})

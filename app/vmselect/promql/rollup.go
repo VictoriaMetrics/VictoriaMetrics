@@ -151,7 +151,6 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"holt_winters":        true,
 	"idelta":              true,
 	"increase":            true,
-	"deriv":               true,
 	"predict_linear":      true,
 	"resets":              true,
 	"avg_over_time":       true,
@@ -865,8 +864,12 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if len(values) < 2 {
+	n := float64(len(values))
+	if n == 0 {
 		return nan, nan
+	}
+	if n == 1 {
+		return values[0], 0
 	}
 
 	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Numerical_example
@@ -882,7 +885,6 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 		tvSum += dt * v
 		ttSum += dt * dt
 	}
-	n := float64(len(values))
 	k := (tvSum - tSum*vSum/n) / (ttSum - tSum*tSum/n)
 	v := vSum/n - k*tSum/n
 	return v, k
