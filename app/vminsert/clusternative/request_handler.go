@@ -30,7 +30,7 @@ func InsertHandler(c net.Conn) error {
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(bc, func(rows []storage.MetricRow) error {
 			return insertRows(rows)
-		})
+		}, nil)
 	})
 }
 

@@ -261,7 +261,7 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 	return clusternative.ParseStream(bc, func(rows []storage.MetricRow) error {
 		vminsertMetricsRead.Add(len(rows))
 		return s.storage.AddRows(rows, uint8(*precisionBits))
-	})
+	}, s.storage.IsReadOnly)
 }
 
 var vminsertMetricsRead = metrics.NewCounter("vm_vminsert_metrics_read_total")
