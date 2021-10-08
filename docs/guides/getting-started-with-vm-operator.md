@@ -94,12 +94,7 @@ vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 
 * By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
 * `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 12 months.
-* `replicationFactor: 2` refers to the replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
-* `dedup.minScrapeInterval: 1ms` would de-duplicate data points on the same time series if they fall within the same discrete 1ms bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept. See [Deduplication](https://docs.victoriametrics.com/#deduplication) .
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
-* `storageDataPath: "/vm-data"` will create volume for `vmstorage` at `/vm-data` folder.
-* `resources: ` configures resources for pod. See [k8s resource configuration docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to get more information.
-
 
 Please note that it may take some time for the pods to start. To check that the pods are started, run the following command:
 <div class="with-copy" markdown="1" id="example-cluster-config">
