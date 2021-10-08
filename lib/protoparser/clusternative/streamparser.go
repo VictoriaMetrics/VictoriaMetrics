@@ -109,8 +109,8 @@ func sendAck(bc *handshake.BufferedConn, status byte) error {
 	}
 	b := auxBufPool.Get()
 	defer auxBufPool.Put(b)
-	b.B[0] = status
-	if _, err := bc.Write(b.B[:1]); err != nil {
+	b.B = append(b.B[:0], status)
+	if _, err := bc.Write(b.B); err != nil {
 		return err
 	}
 	if err := bc.Flush(); err != nil {
