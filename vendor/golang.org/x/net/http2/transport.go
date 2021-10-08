@@ -759,6 +759,61 @@ func (cc *ClientConn) ReserveNewRequest() bool {
 	return true
 }
 
+// ClientConnState describes the state of a ClientConn.
+type ClientConnState struct {
+	// Closed is whether the connection is closed.
+	Closed bool
+
+	// Closing is whether the connection is in the process of
+	// closing. It may be closing due to shutdown, being a
+	// single-use connection, being marked as DoNotReuse, or
+	// having received a GOAWAY frame.
+	Closing bool
+
+	// StreamsActive is how many streams are active.
+	StreamsActive int
+
+	// StreamsReserved is how many streams have been reserved via
+	// ClientConn.ReserveNewRequest.
+	StreamsReserved int
+
+	// StreamsPending is how many requests have been sent in excess
+	// of the peer's advertised MaxConcurrentStreams setting and
+	// are waiting for other streams to complete.
+	StreamsPending int
+
+	// MaxConcurrentStreams is how many concurrent streams the
+	// peer advertised as acceptable. Zero means no SETTINGS
+	// frame has been received yet.
+	MaxConcurrentStreams uint32
+
+	// LastIdle, if non-zero, is when the connection last
+	// transitioned to idle state.
+	LastIdle time.Time
+}
+
+// State returns a snapshot of cc's state.
+func (cc *ClientConn) State() ClientConnState {
+	cc.wmu.Lock()
+	maxConcurrent := cc.maxConcurrentStreams
+	if !cc.seenSettings {
+		maxConcurrent = 0
+	}
+	cc.wmu.Unlock()
+
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return ClientConnState{
+		Closed:               cc.closed,
+		Closing:              cc.closing || cc.singleUse || cc.doNotReuse || cc.goAway != nil,
+		StreamsActive:        len(cc.streams),
+		StreamsReserved:      cc.streamsReserved,
+		StreamsPending:       cc.pendingRequests,
+		LastIdle:             cc.lastIdle,
+		MaxConcurrentStreams: maxConcurrent,
+	}
+}
+
 // clientConnIdleState describes the suitability of a client
 // connection to initiate a new RoundTrip request.
 type clientConnIdleState struct {
@@ -2637,19 +2692,24 @@ func (cc *ClientConn) Ping(ctx context.Context) error {
 		}
 		cc.mu.Unlock()
 	}
-	cc.wmu.Lock()
-	if err := cc.fr.WritePing(false, p); err != nil {
-		cc.wmu.Unlock()
-		return err
-	}
-	if err := cc.bw.Flush(); err != nil {
-		cc.wmu.Unlock()
-		return err
-	}
-	cc.wmu.Unlock()
+	errc := make(chan error, 1)
+	go func() {
+		cc.wmu.Lock()
+		defer cc.wmu.Unlock()
+		if err := cc.fr.WritePing(false, p); err != nil {
+			errc <- err
+			return
+		}
+		if err := cc.bw.Flush(); err != nil {
+			errc <- err
+			return
+		}
+	}()
 	select {
 	case <-c:
 		return nil
+	case err := <-errc:
+		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-cc.readerDone:
