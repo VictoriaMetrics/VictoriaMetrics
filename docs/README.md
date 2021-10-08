@@ -525,7 +525,7 @@ By default, VictoriaMetrics returns time series for the last 5 minutes from `/ap
 
 Additionally VictoriaMetrics provides the following handlers:
 
-* `/vmui` - Basic Web UI
+* `/vmui` - Basic Web UI. See [these docs](#vmui).
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
   * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
@@ -594,6 +594,15 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 * [/tags/autoComplete/tags](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
 * [/tags/autoComplete/values](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
 * [/tags/delSeries](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb)
+
+
+## vmui
+
+VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
+The UI allows exploring query results via graphs and tables. Graphs support scrolling and zooming:
+
+* Drag the graph to the left / right in order to move the displayed time range into the past / future.
+* Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
 
 
 ## How to build from sources
