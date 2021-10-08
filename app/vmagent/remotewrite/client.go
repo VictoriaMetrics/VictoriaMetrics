@@ -67,7 +67,8 @@ type client struct {
 	fq             *persistentqueue.FastQueue
 	hc             *http.Client
 
-	authCfg *promauth.Config
+	sendBlock func(block []byte) bool
+	authCfg   *promauth.Config
 
 	rl rateLimiter
 
@@ -84,7 +85,7 @@ type client struct {
 	stopCh chan struct{}
 }
 
-func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
+func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize auth config: %s", err)
@@ -121,6 +122,11 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		},
 		stopCh: make(chan struct{}),
 	}
+	c.sendBlock = c.sendBlockHTTP
+	return c
+}
+
+func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	if bytesPerSec := rateLimit.GetOptionalArgOrDefault(argIdx, 0); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
 		c.rl.perSecondLimit = int64(bytesPerSec)
@@ -143,7 +149,6 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		}()
 	}
 	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
-	return c
 }
 
 func (c *client) MustStop() {
@@ -237,9 +242,9 @@ func (c *client) runWorker() {
 	}
 }
 
-// sendBlock returns false only if c.stopCh is closed.
+// sendBlockHTTP returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
-func (c *client) sendBlock(block []byte) bool {
+func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.register(len(block), c.stopCh)
 	retryDuration := time.Second
 	retriesCount := 0

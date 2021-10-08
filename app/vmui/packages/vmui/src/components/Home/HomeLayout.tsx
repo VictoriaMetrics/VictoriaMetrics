@@ -50,32 +50,32 @@ const HomeLayout: FC = () => {
           <UrlCopy url={fetchUrl}/>
         </Toolbar>
       </AppBar>
-      <Box display="flex" flexDirection="column" style={{minHeight: "calc(100vh - 64px)"}}>
-        <Box m={2}>
+      <Box p={2} display="grid" gridTemplateRows="auto 1fr" gridGap={"20px"} style={{minHeight: "calc(100vh - 64px)"}}>
+        <Box>
           <QueryConfigurator/>
         </Box>
-        <Box flexShrink={1}>
+        <Box height={"100%"}>
           {isLoading && <Fade in={isLoading} style={{
             transitionDelay: isLoading ? "300ms" : "0ms",
           }}>
-            <Box alignItems="center" flexDirection="column" display="flex"
+            <Box alignItems="center" justifyContent="center" flexDirection="column" display="flex"
               style={{
                 width: "100%",
-                maxWidth: "calc(100vh - 32px)",
+                maxWidth: "calc(100vw - 32px)",
                 position: "absolute",
-                height: "150px",
+                height: "50%",
                 background: "linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,.7), rgba(255,255,255,0))"
-              }} m={2}>
+              }}>
               <CircularProgress/>
             </Box>
           </Fade>}
-          {<Box p={2}>
+          {<Box height={"100%"} p={3} bgcolor={"#fff"}>
             {error &&
-            <Alert color="error" style={{fontSize: "14px"}}>
+            <Alert color="error" severity="error" style={{fontSize: "14px"}}>
               {error}
             </Alert>}
             {graphData && period && (displayType === "chart") &&
-              <GraphView data={graphData} timePresets={period}></GraphView>}
+              <GraphView data={graphData}/>}
             {liveData && (displayType === "code") && <JsonView data={liveData}/>}
             {liveData && (displayType === "table") && <TableView data={liveData}/>}
           </Box>}

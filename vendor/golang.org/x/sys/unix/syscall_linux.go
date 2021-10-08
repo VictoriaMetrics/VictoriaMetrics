@@ -145,6 +145,15 @@ func Ppoll(fds []PollFd, timeout *Timespec, sigmask *Sigset_t) (n int, err error
 	return ppoll(&fds[0], len(fds), timeout, sigmask)
 }
 
+func Poll(fds []PollFd, timeout int) (n int, err error) {
+	var ts *Timespec
+	if timeout >= 0 {
+		ts = new(Timespec)
+		*ts = NsecToTimespec(int64(timeout) * 1e6)
+	}
+	return Ppoll(fds, ts, nil)
+}
+
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
 
 func Readlink(path string, buf []byte) (n int, err error) {
@@ -2310,6 +2319,11 @@ type RemoteIovec struct {
 //sys	PidfdOpen(pid int, flags int) (fd int, err error) = SYS_PIDFD_OPEN
 //sys	PidfdGetfd(pidfd int, targetfd int, flags int) (fd int, err error) = SYS_PIDFD_GETFD
 
+//sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+//sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
+//sys	shmdt(addr uintptr) (err error)
+//sys	shmget(key int, size int, flag int) (id int, err error)
+
 /*
  * Unimplemented
  */
@@ -2391,10 +2405,6 @@ type RemoteIovec struct {
 // SetRobustList
 // SetThreadArea
 // SetTidAddress
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
 // Sigaltstack
 // Swapoff
 // Swapon

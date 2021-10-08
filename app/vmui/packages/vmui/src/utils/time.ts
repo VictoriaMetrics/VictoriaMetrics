@@ -2,10 +2,16 @@ import {TimeParams, TimePeriod} from "../types";
 
 import dayjs, {UnitTypeShort} from "dayjs";
 import duration from "dayjs/plugin/duration";
+import utc from "dayjs/plugin/utc";
 
 dayjs.extend(duration);
+dayjs.extend(utc);
 
 const MAX_ITEMS_PER_CHART = window.screen.availWidth / 2;
+
+export const limitsDurations = {min: 1000, max: 1.578e+11}; // min: 1 seconds, max: 5 years
+
+export const dateIsoFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
 export const supportedDurations = [
   {long: "days", short: "d", possible: "day"},
@@ -57,20 +63,45 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
     start: n - delta,
     end: n,
     step: step,
-    date: formatDateForNativeInput((date || new Date()))
+    date: formatDateToUTC(date || new Date())
   };
 };
 
-export const formatDateForNativeInput = (date: Date): string => dayjs(date).format("YYYY-MM-DD[T]HH:mm:ss");
+export const formatDateToLocal = (date: Date): string => dayjs(date).utcOffset(0, true).local().format(dateIsoFormat);
+export const formatDateToUTC = (date: Date): string => dayjs(date).utc().format(dateIsoFormat);
+export const formatDateForNativeInput = (date: Date): string => dayjs(date).format(dateIsoFormat);
+
+export const getDateNowUTC = (): Date => new Date(dayjs().utc().format(dateIsoFormat));
+
+const getDurationFromMilliseconds = (ms: number): string => {
+  const milliseconds = Math.floor(ms  % 1000);
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / 1000 / 60) % 60);
+  const hours = Math.floor((ms / 1000 / 3600 ) % 24);
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  const durs: UnitTypeShort[] = ["d", "h", "m", "s", "ms"];
+  const values = [days, hours, minutes, seconds, milliseconds].map((t, i) => t ? `${t}${durs[i]}` : "");
+  return values.filter(t => t).join(" ");
+};
 
 export const getDurationFromPeriod = (p: TimePeriod): string => {
-  const dur = dayjs.duration(p.to.valueOf() - p.from.valueOf());
-  const durs: UnitTypeShort[] = ["d", "h", "m", "s"];
-  return durs
-    .map(d => ({val: dur.get(d), str: d}))
-    .filter(obj => obj.val !== 0)
-    .map(obj => `${obj.val}${obj.str}`)
-    .join(" ");
+  const ms = p.to.valueOf() - p.from.valueOf();
+  return getDurationFromMilliseconds(ms);
+};
+
+export const checkDurationLimit = (dur: string): string => {
+  const durItems = dur.trim().split(" ");
+
+  const durObject = durItems.reduce((prev, curr) => {
+    const dur = isSupportedDuration(curr);
+    return dur ? {...prev, ...dur} : {...prev};
+  }, {});
+
+  const delta = dayjs.duration(durObject).asMilliseconds();
+
+  if (delta < limitsDurations.min) return getDurationFromMilliseconds(limitsDurations.min);
+  if (delta > limitsDurations.max) return getDurationFromMilliseconds(limitsDurations.max);
+  return dur;
 };
 
 export const dateFromSeconds = (epochTimeInSeconds: number): Date =>

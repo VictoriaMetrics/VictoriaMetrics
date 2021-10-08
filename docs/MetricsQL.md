@@ -274,9 +274,13 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `rollup_rate(series_selector[d])` calculates per-second change rates for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
 
+#### rollup_scrape_interval
+
+`rollup_scrape_interval(series_selector[d])` calculates the interval in seconds between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [scrape_interval](#scrape_interval).
+
 #### scrape_interval
 
-`scrape_interval(series_selector[d])` calculates the average interval in seconds between raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
+`scrape_interval(series_selector[d])` calculates the average interval in seconds between raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [rollup_scrape_interval](#rollup_scrape_interval).
 
 #### share_gt_over_time
 
@@ -714,19 +718,23 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### bottomk_avg
 
-`bottomk_avg(k, q, "other_label=other_value")` returns up to `k` time series with the smallest averages. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_avg(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest averages plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_avg](#topk_avg).
+`bottomk_avg(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the smallest averages. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_avg(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest averages plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_avg](#topk_avg).
+
+#### bottomk_last
+
+`bottomk_last(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the smallest last values. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest maximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_last](#topk_last).
 
 #### bottomk_max
 
-`bottomk_max(k, q, "other_label=other_value")` returns up to `k` time series with the smallest maximums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest maximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_max](#topk_max).
+`bottomk_max(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the smallest maximums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest maximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_max](#topk_max).
 
 #### bottomk_median
 
-`bottomk_median(k, q, "other_label=other_value")` returns up to `k` time series with the smallest medians. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_median(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest medians plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_median](#topk_median).
+`bottomk_median(k, q, "other_label=other_value")` returns up to `k` time series from `q with the smallest medians. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_median(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest medians plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_median](#topk_median).
 
 #### bottomk_min
 
-`bottomk_min(k, q, "other_label=other_value")` returns up to `k` time series with the smallest minimums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_min(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest minimums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_min](#topk_min).
+`bottomk_min(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the smallest minimums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `bottomk_min(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the smallest minimums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [topk_min](#topk_min).
 
 #### count
 
@@ -814,19 +822,23 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### topk_avg
 
-`topk_avg(k, q, "other_label=other_value")` returns up to `k` time series with the biggest averages. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_avg(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest averages plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_avg](#bottomk_avg).
+`topk_avg(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest averages. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_avg(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest averages plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_avg](#bottomk_avg).
+
+#### topk_last
+
+`topk_last(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest last values. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest amaximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_last](#bottomk_last).
 
 #### topk_max
 
-`topk_max(k, q, "other_label=other_value")` returns up to `k` time series with the biggest maximums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest amaximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_max](#bottomk_max).
+`topk_max(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest maximums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest amaximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_max](#bottomk_max).
 
 #### topk_median
 
-`topk_median(k, q, "other_label=other_value")` returns up to `k` time series with the biggest medians. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_median(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest medians plus a time series with `{job="other"}` label with the sum of the remaining series if any.  See also [bottomk_median](#bottomk_median).
+`topk_median(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest medians. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_median(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest medians plus a time series with `{job="other"}` label with the sum of the remaining series if any.  See also [bottomk_median](#bottomk_median).
 
 #### topk_min
 
-`topk_min(k, q, "other_label=other_value")` returns up to `k` time series with the biggest minimums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_min(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest minimums plus a time series with `{job="other"}` label with the sum of the remaining series if any.  See also [bottomk_min](#bottomk_min).
+`topk_min(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest minimums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_min(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest minimums plus a time series with `{job="other"}` label with the sum of the remaining series if any.  See also [bottomk_min](#bottomk_min).
 
 #### zscore
 

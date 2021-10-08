@@ -1163,7 +1163,7 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 
 func mergeLabels(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) []prompbmarshal.Label {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string, 4+len(swc.externalLabels)+len(swc.params)+len(extraLabels)+len(metaLabels))
+	m := make(map[string]string, 6+len(swc.externalLabels)+len(swc.params)+len(extraLabels)+len(metaLabels))
 	for k, v := range swc.externalLabels {
 		m[k] = v
 	}

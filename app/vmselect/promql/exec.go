@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -80,8 +81,8 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 	case *metricsql.AggrFuncExpr:
 		switch strings.ToLower(v.Name) {
 		case "topk", "bottomk", "outliersk",
-			"topk_max", "topk_min", "topk_avg", "topk_median",
-			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median":
+			"topk_max", "topk_min", "topk_avg", "topk_median", "topk_last",
+			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median", "bottomk_last":
 			return false
 		}
 	}
@@ -101,7 +102,6 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 		m[string(bb.B)] = struct{}{}
 
 		rs := &result[i]
-		rs.MetricNameMarshaled = append(rs.MetricNameMarshaled[:0], bb.B...)
 		rs.MetricName.CopyFrom(&ts.MetricName)
 		rs.Values = append(rs.Values[:0], ts.Values...)
 		rs.Timestamps = append(rs.Timestamps[:0], ts.Timestamps...)
@@ -110,11 +110,37 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 
 	if maySort {
 		sort.Slice(result, func(i, j int) bool {
-			return string(result[i].MetricNameMarshaled) < string(result[j].MetricNameMarshaled)
+			return metricNameLess(&result[i].MetricName, &result[j].MetricName)
 		})
 	}
 
 	return result, nil
+}
+
+func metricNameLess(a, b *storage.MetricName) bool {
+	if string(a.MetricGroup) != string(b.MetricGroup) {
+		return string(a.MetricGroup) < string(b.MetricGroup)
+	}
+	// Metric names for a and b match. Compare tags.
+	// Tags must be already sorted by the caller, so just compare them.
+	ats := a.Tags
+	bts := b.Tags
+	for i := range ats {
+		if i >= len(bts) {
+			// a contains more tags than b and all the previous tags were identical,
+			// so a is considered bigger than b.
+			return false
+		}
+		at := &ats[i]
+		bt := &bts[i]
+		if string(at.Key) != string(bt.Key) {
+			return string(at.Key) < string(bt.Key)
+		}
+		if string(at.Value) != string(bt.Value) {
+			return string(at.Value) < string(bt.Value)
+		}
+	}
+	return len(ats) < len(bts)
 }
 
 func removeNaNs(tss []*timeseries) []*timeseries {

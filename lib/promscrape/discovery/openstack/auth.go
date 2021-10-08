@@ -232,10 +232,7 @@ func buildScope(sdc *SDConfig) (map[string]interface{}, error) {
 		// ProjectName provided: either DomainID or DomainName must also be supplied.
 		// ProjectID may not be supplied.
 		if len(sdc.DomainID) == 0 && len(sdc.DomainName) == 0 {
-			return nil, fmt.Errorf("both domain_id and domain_name present")
-		}
-		if len(sdc.ProjectID) > 0 {
-			return nil, fmt.Errorf("both domain_id and domain_name present")
+			return nil, fmt.Errorf("domain_id or domain_name must present")
 		}
 		if len(sdc.DomainID) > 0 {
 			return map[string]interface{}{
@@ -254,13 +251,6 @@ func buildScope(sdc *SDConfig) (map[string]interface{}, error) {
 			}, nil
 		}
 	} else if len(sdc.ProjectID) > 0 {
-		// ProjectID provided. ProjectName, DomainID, and DomainName may not be provided.
-		if len(sdc.DomainID) > 0 {
-			return nil, fmt.Errorf("both project_id and domain_id present")
-		}
-		if len(sdc.DomainName) > 0 {
-			return nil, fmt.Errorf("both project_id and domain_name present")
-		}
 		return map[string]interface{}{
 			"project": map[string]interface{}{
 				"id": &sdc.ProjectID,

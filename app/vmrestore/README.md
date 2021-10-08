@@ -12,7 +12,7 @@ when restarting `vmrestore` with the same args.
 VictoriaMetrics must be stopped during the restore process.
 
 ```
-vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore>
+vmrestore -src=gs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore>
 
 ```
 
@@ -116,7 +116,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -skipBackupCompleteCheck
     	Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
-    	Source path with backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+    	Source path with backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -storageDataPath string
     	Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
   -version

@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/histogram"
 )
 
 var transformFuncsKeepMetricGroup = map[string]bool{
@@ -1178,23 +1177,26 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	phi := phis[0]
 	rvs := args[1]
-	hf := histogram.GetFast()
+	a := getFloat64s()
+	values := a.A[:0]
 	for _, ts := range rvs {
-		hf.Reset()
 		lastIdx := -1
-		values := ts.Values
-		for i, v := range values {
+		originValues := ts.Values
+		values = values[:0]
+		for i, v := range originValues {
 			if math.IsNaN(v) {
 				continue
 			}
-			hf.Update(v)
+			values = append(values, v)
 			lastIdx = i
 		}
 		if lastIdx >= 0 {
-			values[lastIdx] = hf.Quantile(phi)
+			sort.Float64s(values)
+			originValues[lastIdx] = quantileSorted(phi, values)
 		}
 	}
-	histogram.PutFast(hf)
+	a.A = values
+	putFloat64s(a)
 	setLastValues(rvs)
 	return rvs, nil
 }

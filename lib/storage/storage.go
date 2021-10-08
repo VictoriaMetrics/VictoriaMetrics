@@ -57,6 +57,8 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped uint64
 	dailySeriesLimitRowsDropped  uint64
 
+	isReadOnly uint32
+
 	path           string
 	cachePath      string
 	retentionMsecs int64
@@ -118,6 +120,7 @@ type Storage struct {
 	currHourMetricIDsUpdaterWG sync.WaitGroup
 	nextDayMetricIDsUpdaterWG  sync.WaitGroup
 	retentionWatcherWG         sync.WaitGroup
+	freeDiskSpaceWatcherWG     sync.WaitGroup
 
 	// The snapshotLock prevents from concurrent creation of snapshots,
 	// since this may result in snapshots without recently added data,
@@ -258,6 +261,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
+	s.startFreeDiskSpaceWatcher()
 
 	return s, nil
 }
@@ -558,6 +562,47 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	s.tb.UpdateMetrics(&m.TableMetrics)
 }
 
+// SetFreeDiskSpaceLimit sets the minimum free disk space size of current storage path
+//
+// The function must be called before opening or creating any storage.
+func SetFreeDiskSpaceLimit(bytes int) {
+	freeDiskSpaceLimitBytes = uint64(bytes)
+}
+
+var freeDiskSpaceLimitBytes uint64
+
+// IsReadOnly returns information is storage in read only mode
+func (s *Storage) IsReadOnly() bool {
+	return atomic.LoadUint32(&s.isReadOnly) == 1
+}
+
+func (s *Storage) startFreeDiskSpaceWatcher() {
+	f := func() {
+		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
+		if freeSpaceBytes < freeDiskSpaceLimitBytes {
+			// Switch the storage to readonly mode if there is no enough free space left at s.path
+			atomic.StoreUint32(&s.isReadOnly, 1)
+			return
+		}
+		atomic.StoreUint32(&s.isReadOnly, 0)
+	}
+	f()
+	s.freeDiskSpaceWatcherWG.Add(1)
+	go func() {
+		defer s.freeDiskSpaceWatcherWG.Done()
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-s.stop:
+				return
+			case <-ticker.C:
+				f()
+			}
+		}
+	}()
+}
+
 func (s *Storage) startRetentionWatcher() {
 	s.retentionWatcherWG.Add(1)
 	go func() {
@@ -672,6 +717,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 func (s *Storage) MustClose() {
 	close(s.stop)
 
+	s.freeDiskSpaceWatcherWG.Wait()
 	s.retentionWatcherWG.Wait()
 	s.currHourMetricIDsUpdaterWG.Wait()
 	s.nextDayMetricIDsUpdaterWG.Wait()

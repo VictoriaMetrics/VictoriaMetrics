@@ -1,6 +1,12 @@
 import {DisplayType} from "../../components/Home/Configurator/DisplayTypeSwitch";
 import {TimeParams, TimePeriod} from "../../types";
-import {dateFromSeconds, getDurationFromPeriod, getTimeperiodForDuration} from "../../utils/time";
+import {
+  dateFromSeconds,
+  formatDateToLocal,
+  getDateNowUTC,
+  getDurationFromPeriod,
+  getTimeperiodForDuration
+} from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
 import {getDefaultServer} from "../../utils/default-server-url";
 import {getQueryStringValue} from "../../utils/query-string";
@@ -33,16 +39,16 @@ export type Action =
     | { type: "TOGGLE_AUTOREFRESH"}
     | { type: "TOGGLE_AUTOCOMPLETE"}
 
-const duration = getQueryStringValue("g0.range_input", "1h");
-const endInput = getQueryStringValue("g0.end_input", undefined);
+const duration = getQueryStringValue("g0.range_input", "1h") as string;
+const endInput = formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date);
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
   displayType: "chart",
-  query: getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n"), // demo_memory_usage_bytes
+  query: getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n") as string, // demo_memory_usage_bytes
   time: {
     duration,
-    period: getTimeperiodForDuration(duration, endInput && new Date(endInput))
+    period: getTimeperiodForDuration(duration, new Date(endInput))
   },
   queryControls: {
     autoRefresh: false,

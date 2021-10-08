@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/histogram"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -40,10 +39,12 @@ var aggrFuncs = map[string]aggrFunc{
 	"topk_max":       newAggrFuncRangeTopK(maxValue, false),
 	"topk_avg":       newAggrFuncRangeTopK(avgValue, false),
 	"topk_median":    newAggrFuncRangeTopK(medianValue, false),
+	"topk_last":      newAggrFuncRangeTopK(lastValue, false),
 	"bottomk_min":    newAggrFuncRangeTopK(minValue, true),
 	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
+	"bottomk_last":   newAggrFuncRangeTopK(lastValue, true),
 	"any":            aggrFuncAny,
 	"mad":            newAggrFunc(aggrFuncMAD),
 	"outliers_mad":   aggrFuncOutliersMAD,
@@ -801,15 +802,81 @@ func avgValue(values []float64) float64 {
 }
 
 func medianValue(values []float64) float64 {
-	h := histogram.GetFast()
-	for _, v := range values {
-		if !math.IsNaN(v) {
-			h.Update(v)
-		}
+	return quantile(0.5, values)
+}
+
+func lastValue(values []float64) float64 {
+	values = skipTrailingNaNs(values)
+	if len(values) == 0 {
+		return nan
 	}
-	value := h.Quantile(0.5)
-	histogram.PutFast(h)
-	return value
+	return values[len(values)-1]
+}
+
+// quantiles calculates the given phis from originValues without modifying originValues, appends them to qs and returns the result.
+func quantiles(qs, phis []float64, originValues []float64) []float64 {
+	a := getFloat64s()
+	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
+	qs = quantilesSorted(qs, phis, a.A)
+	putFloat64s(a)
+	return qs
+}
+
+// quantile calculates the given phi from originValues without modifying originValues
+func quantile(phi float64, originValues []float64) float64 {
+	a := getFloat64s()
+	a.A = prepareForQuantileFloat64(a.A[:0], originValues)
+	q := quantileSorted(phi, a.A)
+	putFloat64s(a)
+	return q
+}
+
+// prepareForQuantileFloat64 copies items from src to dst but removes NaNs and sorts the dst
+func prepareForQuantileFloat64(dst, src []float64) []float64 {
+	for _, v := range src {
+		if math.IsNaN(v) {
+			continue
+		}
+		dst = append(dst, v)
+	}
+	sort.Float64s(dst)
+	return dst
+}
+
+// quantilesSorted calculates the given phis over a sorted list of values, appends them to qs and returns the result.
+//
+// It is expected that values won't contain NaN items.
+// The implementation mimics Prometheus implementation for compatibility's sake.
+func quantilesSorted(qs, phis []float64, values []float64) []float64 {
+	for _, phi := range phis {
+		q := quantileSorted(phi, values)
+		qs = append(qs, q)
+	}
+	return qs
+}
+
+// quantileSorted calculates the given quantile over a sorted list of values.
+//
+// It is expected that values won't contain NaN items.
+// The implementation mimics Prometheus implementation for compatibility's sake.
+func quantileSorted(phi float64, values []float64) float64 {
+	if len(values) == 0 || math.IsNaN(phi) {
+		return nan
+	}
+	if phi < 0 {
+		return math.Inf(-1)
+	}
+	if phi > 1 {
+		return math.Inf(+1)
+	}
+	n := float64(len(values))
+	rank := phi * (n - 1)
+
+	lowerIndex := math.Max(0, math.Floor(rank))
+	upperIndex := math.Min(n-1, lowerIndex+1)
+
+	weight := rank - math.Floor(rank)
+	return values[int(lowerIndex)]*(1-weight) + values[int(upperIndex)]*weight
 }
 
 func aggrFuncMAD(tss []*timeseries) []*timeseries {
@@ -889,36 +956,40 @@ func getPerPointMedians(tss []*timeseries) []float64 {
 		logger.Panicf("BUG: expecting non-empty tss")
 	}
 	medians := make([]float64, len(tss[0].Values))
-	h := histogram.GetFast()
+	a := getFloat64s()
+	values := a.A
 	for n := range medians {
-		h.Reset()
+		values = values[:0]
 		for j := range tss {
 			v := tss[j].Values[n]
 			if !math.IsNaN(v) {
-				h.Update(v)
+				values = append(values, v)
 			}
 		}
-		medians[n] = h.Quantile(0.5)
+		medians[n] = quantile(0.5, values)
 	}
-	histogram.PutFast(h)
+	a.A = values
+	putFloat64s(a)
 	return medians
 }
 
 func getPerPointMADs(tss []*timeseries, medians []float64) []float64 {
 	mads := make([]float64, len(medians))
-	h := histogram.GetFast()
+	a := getFloat64s()
+	values := a.A
 	for n, median := range medians {
-		h.Reset()
+		values = values[:0]
 		for j := range tss {
 			v := tss[j].Values[n]
 			if !math.IsNaN(v) {
 				ad := math.Abs(v - median)
-				h.Update(ad)
+				values = append(values, ad)
 			}
 		}
-		mads[n] = h.Quantile(0.5)
+		mads[n] = quantile(0.5, values)
 	}
-	histogram.PutFast(h)
+	a.A = values
+	putFloat64s(a)
 	return mads
 }
 
@@ -987,22 +1058,25 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 			ts.MetricName.AddTag(dstLabel, fmt.Sprintf("%g", phis[j]))
 			tssDst[j] = ts
 		}
-		h := histogram.GetFast()
-		defer histogram.PutFast(h)
-		var qs []float64
+
+		b := getFloat64s()
+		qs := b.A
+		a := getFloat64s()
+		values := a.A
 		for n := range tss[0].Values {
-			h.Reset()
+			values = values[:0]
 			for j := range tss {
-				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
-				}
+				values = append(values, tss[j].Values[n])
 			}
-			qs = h.Quantiles(qs[:0], phis)
+			qs = quantiles(qs[:0], phis, values)
 			for j := range tssDst {
 				tssDst[j].Values[n] = qs[j]
 			}
 		}
+		a.A = values
+		putFloat64s(a)
+		b.A = qs
+		putFloat64s(b)
 		return tssDst
 	}
 	return aggrFuncExt(afe, argOrig, &afa.ae.Modifier, afa.ae.Limit, false)
@@ -1034,19 +1108,17 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		dst := tss[0]
-		h := histogram.GetFast()
-		defer histogram.PutFast(h)
+		a := getFloat64s()
+		values := a.A
 		for n := range dst.Values {
-			h.Reset()
+			values = values[:0]
 			for j := range tss {
-				v := tss[j].Values[n]
-				if !math.IsNaN(v) {
-					h.Update(v)
-				}
+				values = append(values, tss[j].Values[n])
 			}
-			phi := phis[n]
-			dst.Values[n] = h.Quantile(phi)
+			dst.Values[n] = quantile(phis[n], values)
 		}
+		a.A = values
+		putFloat64s(a)
 		tss[0] = dst
 		return tss[:1]
 	}
