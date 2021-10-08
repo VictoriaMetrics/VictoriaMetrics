@@ -47,8 +47,7 @@ var (
 	maxDailySeries = flag.Int("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
 
-	minFreeDiskSpaceSizeBytes = flagutil.NewBytes("storage.minFreeDiskSpaceSize", 0, "Defines minimum free disk space size for storageDataPath. "+
-		"If limit is reached, storage becomes read-only and tells vminsert to reroute data for other storage nodes.")
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 )
 
 func main() {
@@ -64,7 +63,7 @@ func main() {
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
-	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceSizeBytes.N)
+	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
@@ -274,10 +273,9 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 
 	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *storageDataPath), func() float64 {
-		return float64(minFreeDiskSpaceSizeBytes.N)
+		return float64(minFreeDiskSpaceBytes.N)
 	})
-
-	metrics.NewGauge(`vm_storage_read_only`, func() float64 {
+	metrics.NewGauge(fmt.Sprintf(`vm_storage_is_read_only{path=%q}`, *storageDataPath), func() float64 {
 		if strg.IsReadOnly() {
 			return 1
 		}

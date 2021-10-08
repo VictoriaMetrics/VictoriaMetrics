@@ -33,7 +33,7 @@ var (
 	disableRerouting = flag.Bool(`disableRerouting`, true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate")
 )
 
-var errorStorageReadOnly = errors.New("storage node is read only")
+var errStorageReadOnly = errors.New("storage node is read only")
 
 func (sn *storageNode) isNotReady() bool {
 	return atomic.LoadUint32(&sn.broken) != 0 || atomic.LoadUint32(&sn.isReadOnly) != 0
@@ -113,7 +113,13 @@ func (sn *storageNode) run(stopCh <-chan struct{}, snIdx int) {
 		replicas = len(storageNodes)
 	}
 
-	sn.startStorageReadOnlyCheck(stopCh)
+	sn.readOnlyCheckerWG.Add(1)
+	go func() {
+		defer sn.readOnlyCheckerWG.Done()
+		sn.readOnlyChecker(stopCh)
+	}()
+	defer sn.readOnlyCheckerWG.Wait()
+
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 	var br bufRows
@@ -259,9 +265,12 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		sn.rowsSent.Add(br.rows)
 		return true
 	}
-	if errors.Is(err, errorStorageReadOnly) {
+	if errors.Is(err, errStorageReadOnly) {
+		// The vmstorage is transitioned to readonly mode.
 		atomic.StoreUint32(&sn.isReadOnly, 1)
 		sn.brCond.Broadcast()
+		// Signal the caller that the data wasn't accepted by the vmstorage,
+		// so it will be re-routed to the remaining vmstorage nodes.
 		return false
 	}
 	// Couldn't flush buf to sn. Mark sn as broken.
@@ -317,14 +326,13 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
 	}
 
-	// vmstorage returns ack status response
-	// 1 - response ok, data written to storage
-	// 2 - storage is read only
 	ackResp := sizeBuf.B[0]
 	switch ackResp {
 	case 1:
+		// ok response, data successfully accepted by vmstorage
 	case 2:
-		return errorStorageReadOnly
+		// vmstorage is in readonly mode
+		return errStorageReadOnly
 	default:
 		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
 	}
@@ -378,6 +386,9 @@ type storageNode struct {
 
 	// bcLock protects bc.
 	bcLock sync.Mutex
+
+	// waitGroup for readOnlyChecker
+	readOnlyCheckerWG sync.WaitGroup
 
 	// bc is a single connection to vmstorage for data transfer.
 	// It must be accessed under bcLock.
@@ -478,7 +489,6 @@ func InitStorageNodes(addrs []string, seed byte) {
 			return 1
 		})
 		_ = metrics.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_read_only{name="vminsert", addr=%q}`, addr), func() float64 {
-
 			return float64(atomic.LoadUint32(&sn.isReadOnly))
 		})
 		storageNodes = append(storageNodes, sn)
@@ -575,41 +585,40 @@ func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 	return true
 }
 
-func (sn *storageNode) startStorageReadOnlyCheck(stop <-chan struct{}) {
-	f := func() {
-		// fast path
-		if atomic.LoadUint32(&sn.isReadOnly) == 0 {
+func (sn *storageNode) readOnlyChecker(stop <-chan struct{}) {
+	ticker := time.NewTicker(time.Second * 30)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
 			return
-		}
-		sn.bcLock.Lock()
-		defer sn.bcLock.Unlock()
-		if sn.bc == nil {
-			return
-		}
-		// send nil buff to check ack response from storage
-		err := sendToConn(sn.bc, nil)
-		if err == nil {
-			atomic.StoreUint32(&sn.isReadOnly, 0)
-			return
-		}
-		if !errors.Is(err, errorStorageReadOnly) {
-			logger.Warnf("cannot check storage readd only status for -storageNode=%q: %s", sn.dialer.Addr(), err)
+		case <-ticker.C:
+			sn.checkReadOnlyMode()
 		}
 	}
-	storageNodesWG.Add(1)
-	go func() {
-		t := time.NewTicker(time.Second * 30)
-		defer t.Stop()
-		storageNodesWG.Done()
-		for {
-			select {
-			case <-stop:
-				return
-			case <-t.C:
-				f()
-			}
-		}
-	}()
+}
+
+func (sn *storageNode) checkReadOnlyMode() {
+	if atomic.LoadUint32(&sn.isReadOnly) == 0 {
+		// fast path - the sn isn't in readonly mode
+		return
+	}
+	// Check whether the storage remains in readonly mode
+	sn.bcLock.Lock()
+	defer sn.bcLock.Unlock()
+	if sn.bc == nil {
+		return
+	}
+	// send nil buff to check ack response from storage
+	err := sendToConn(sn.bc, nil)
+	if err == nil {
+		// The storage switched from readonly to non-readonly mode
+		atomic.StoreUint32(&sn.isReadOnly, 0)
+		return
+	}
+	if !errors.Is(err, errStorageReadOnly) {
+		logger.Errorf("cannot check storage readonly mode for -storageNode=%q: %s", sn.dialer.Addr(), err)
+	}
 }
 
 func getStorageNodesMapForRerouting(snExclude *storageNode, mayUseSNExclude bool) []*storageNode {

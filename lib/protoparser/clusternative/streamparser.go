@@ -17,8 +17,8 @@ import (
 )
 
 // ParseStream parses data sent from vminsert to bc and calls callback for parsed rows.
-// Optional function isReadOnly must return storage writable status
-// If it's read only, this status will be propagated to vminsert.
+// Optional function isReadOnly must return true if the storage cannot accept new data.
+// In thic case the data read from bc isn't accepted and the readonly status is sent back bc.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
@@ -63,8 +63,8 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 
 // readBlock reads the next data block from vminsert-initiated bc, appends it to dst and returns the result.
 func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) ([]byte, error) {
-	sizeBuf := sizeBufPool.Get()
-	defer sizeBufPool.Put(sizeBuf)
+	sizeBuf := auxBufPool.Get()
+	defer auxBufPool.Put(sizeBuf)
 	sizeBuf.B = bytesutil.Resize(sizeBuf.B, 8)
 	if _, err := io.ReadFull(bc, sizeBuf.B); err != nil {
 		if err != io.EOF {
@@ -72,20 +72,6 @@ func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) (
 			err = fmt.Errorf("cannot read packet size: %w", err)
 		}
 		return dst, err
-	}
-
-	if isReadOnly != nil && isReadOnly() {
-		// send `read only` ack to vminsert node
-		sizeBuf.B[0] = 2
-		if _, err := bc.Write(sizeBuf.B[:1]); err != nil {
-			writeErrors.Inc()
-			return dst, fmt.Errorf("cannot send storage full `ack` to vminsert: %w", err)
-		}
-		if err := bc.Flush(); err != nil {
-			writeErrors.Inc()
-			return dst, fmt.Errorf("cannot flush storage full `ack` to vminsert: %w", err)
-		}
-		return dst, nil
 	}
 	packetSize := encoding.UnmarshalUint64(sizeBuf.B)
 	if packetSize > consts.MaxInsertPacketSize {
@@ -98,25 +84,42 @@ func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) (
 		readErrors.Inc()
 		return dst, fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
 	}
-	// Send `ack` to vminsert that the packet has been received.
-	deadline := time.Now().Add(5 * time.Second)
-	if err := bc.SetWriteDeadline(deadline); err != nil {
-		writeErrors.Inc()
-		return dst, fmt.Errorf("cannot set write deadline for sending `ack` to vminsert: %w", err)
+	if isReadOnly != nil && isReadOnly() {
+		// The vmstorage is in readonly mode, so drop the read block of data
+		// and send `read only` status to vminsert.
+		dst = dst[:dstLen]
+		if err := sendAck(bc, 2); err != nil {
+			writeErrors.Inc()
+			return dst, fmt.Errorf("cannot send readonly status to vminsert: %w", err)
+		}
+		return dst, nil
 	}
-	sizeBuf.B[0] = 1
-	if _, err := bc.Write(sizeBuf.B[:1]); err != nil {
+	// Send `ack` to vminsert that the packet has been received.
+	if err := sendAck(bc, 1); err != nil {
 		writeErrors.Inc()
 		return dst, fmt.Errorf("cannot send `ack` to vminsert: %w", err)
-	}
-	if err := bc.Flush(); err != nil {
-		writeErrors.Inc()
-		return dst, fmt.Errorf("cannot flush `ack` to vminsert: %w", err)
 	}
 	return dst, nil
 }
 
-var sizeBufPool bytesutil.ByteBufferPool
+func sendAck(bc *handshake.BufferedConn, status byte) error {
+	deadline := time.Now().Add(5 * time.Second)
+	if err := bc.SetWriteDeadline(deadline); err != nil {
+		return fmt.Errorf("cannot set write deadline: %w", err)
+	}
+	b := auxBufPool.Get()
+	defer auxBufPool.Put(b)
+	b.B[0] = status
+	if _, err := bc.Write(b.B[:1]); err != nil {
+		return err
+	}
+	if err := bc.Flush(); err != nil {
+		return err
+	}
+	return nil
+}
+
+var auxBufPool bytesutil.ByteBufferPool
 
 var (
 	readErrors  = metrics.NewCounter(`vm_protoparser_read_errors_total{type="clusternative"}`)
