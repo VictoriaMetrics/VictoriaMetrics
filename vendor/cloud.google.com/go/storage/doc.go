@@ -247,9 +247,10 @@ as the documentation of GenerateSignedPostPolicyV4.
 Errors
 
 Errors returned by this client are often of the type [`googleapi.Error`](https://godoc.org/google.golang.org/api/googleapi#Error).
-These errors can be introspected for more information by type asserting to the richer `googleapi.Error` type. For example:
+These errors can be introspected for more information by using `errors.As` with the richer `googleapi.Error` type. For example:
 
-	if e, ok := err.(*googleapi.Error); ok {
+	var e *googleapi.Error
+	if ok := errors.As(err, &e); ok {
 		  if e.Code == 409 { ... }
 	}
 */
