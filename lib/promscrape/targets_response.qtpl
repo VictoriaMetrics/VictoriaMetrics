@@ -116,9 +116,12 @@ job={%q= jobName %} (0/0 up)
 {% endfunc %}
 
 {% func formatLabel(labels []prompbmarshal.Label) %}
-{% for _, label := range labels %}
-    {%s label.Name %}={%q label.Value %} {% space %}
-{% endfor %}
+{
+  {% for i, label := range labels %}
+      {%s label.Name %}={%q label.Value %}
+      {% if i+1 < len(labels) %},{% endif %}
+  {% endfor %}
+}
 {% endfunc %}
 
 {% endstripspace %}
