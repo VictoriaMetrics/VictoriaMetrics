@@ -19,6 +19,9 @@ var binaryOpFuncs = map[string]binaryOpFunc{
 	"%": newBinaryOpArithFunc(binaryop.Mod),
 	"^": newBinaryOpArithFunc(binaryop.Pow),
 
+	// See https://github.com/prometheus/prometheus/pull/9248
+	"atan2": newBinaryOpArithFunc(binaryop.Atan2),
+
 	// cmp ops
 	"==": newBinaryOpCmpFunc(binaryop.Eq),
 	"!=": newBinaryOpCmpFunc(binaryop.Neq),

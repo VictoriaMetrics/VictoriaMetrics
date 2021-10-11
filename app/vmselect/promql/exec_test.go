@@ -1072,6 +1072,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("atan2()", func(t *testing.T) {
+		t.Parallel()
+		q := `time() atan2 time()/10`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.07853981633974483, 0.07853981633974483, 0.07853981633974483, 0.07853981633974483, 0.07853981633974483, 0.07853981633974483},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("atan()", func(t *testing.T) {
 		t.Parallel()
 		q := `atan((2000-time())/1000)`
