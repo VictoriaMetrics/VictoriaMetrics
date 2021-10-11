@@ -762,7 +762,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### limitk
 
-`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series can change with each call.
+`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls.
 
 #### mad
 

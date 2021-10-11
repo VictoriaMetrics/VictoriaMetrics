@@ -57,8 +57,6 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped uint64
 	dailySeriesLimitRowsDropped  uint64
 
-	isReadOnly uint32
-
 	path           string
 	cachePath      string
 	retentionMsecs int64
@@ -137,6 +135,8 @@ type Storage struct {
 	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
+
+	isReadOnly uint32
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.

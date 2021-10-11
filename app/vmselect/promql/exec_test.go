@@ -4993,7 +4993,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`limitk(1)`, func(t *testing.T) {
 		t.Parallel()
-		q := `limitk(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
+		q := `limitk(1, label_set(10, "foo", "bar") or label_set(time()/150, "xbaz", "sss"))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},
