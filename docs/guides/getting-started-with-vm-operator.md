@@ -63,6 +63,7 @@ vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0     
 ## 3. Install VictoriaMetrics Cluster
 
 > For this example we will use default value for `name: example-vmcluster-persistent`. Change it value up to your needs.
+
 Run the following command to install [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator):
 
 <div class="with-copy" markdown="1" id="example-cluster-config">
@@ -92,7 +93,7 @@ The expected output:
 vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
-* By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
+* By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) of your k8s cluster with following params:
 * `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 12 months.
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
 
@@ -109,7 +110,6 @@ The expected output:
 NAME                                                     READY   STATUS    RESTARTS   AGE
 vminsert-example-vmcluster-persistent-845849cb84-9vb6f   1/1     Running   0          5m15s
 vminsert-example-vmcluster-persistent-845849cb84-r7mmk   1/1     Running   0          5m15s
-vmoperator-victoria-metrics-operator-67cff44cd6-s47n6    1/1     Running   0          7m16s
 vmselect-example-vmcluster-persistent-0                  1/1     Running   0          5m21s
 vmselect-example-vmcluster-persistent-1                  1/1     Running   0          5m21s
 vmstorage-example-vmcluster-persistent-0                 1/1     Running   0          5m25s
@@ -182,7 +182,7 @@ vmagent.operator.victoriametrics.com/example-vmagent created
 ```
 
 >`remoteWrite.url` for VMAgent consists of the following parts:
-> service_name + VMCLuster_namespace + svc + kubernetes_cluster_domain that in our case will look like vminsert-example-vmcluster-persistent.default.svc.cluster.local
+> "service_name.VMCluster_namespace.svc.kubernetes_cluster_domain" that in our case will look like vminsert-example-vmcluster-persistent.default.svc.cluster.local
 
 Verify that `VMAgent` is up and running by executing the following command:
 
@@ -315,4 +315,3 @@ The expected output is:
 
 * We set up Kubernetes Operator for VictoriaMetrics with using CRD.
 * We collected metrics from all running services and stored them in the VictoriaMetrics database.
-* We configured `dedup.minScrapeInterval` and `replicationFactor` for the VictoriaMetrics cluster for high availability purposes.
