@@ -80,7 +80,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Speeding up backups for big time series databases](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
 * [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 * [Why irate from Prometheus doesn't capture spikes](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832)
-* [PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
+* [VictoriaMetrics: PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
 
 
 ### Tutorials, guides and how-to articles
