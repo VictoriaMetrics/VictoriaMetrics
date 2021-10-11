@@ -615,7 +615,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### union
 
-`union(q1, ..., qN)` returns a union of time series returned from `q1`, ..., `qN`. The `union` function name can be skipped - the following queries are quivalent: `union(q1, q2)` and `(q1, q2)`.
+`union(q1, ..., qN)` returns a union of time series returned from `q1`, ..., `qN`. The `union` function name can be skipped - the following queries are quivalent: `union(q1, q2)` and `(q1, q2)`. It is expected that each `q*` query returns time series with unique sets of labels. Otherwise only the first time series out of series with identical set of labels is returned. Use [alias](#alias) and [label_set](#label_set) functions for giving unique labelsets per each `q*` query:
 
 #### vector
 
