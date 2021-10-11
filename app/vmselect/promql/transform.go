@@ -43,13 +43,22 @@ var transformFuncs = map[string]transformFunc{
 	// See funcs accepting instant-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
 	"abs":                newTransformFuncOneArg(transformAbs),
 	"absent":             transformAbsent,
+	"acos":               newTransformFuncOneArg(transformAcos),
+	"acosh":              newTransformFuncOneArg(transformAcosh),
+	"asin":               newTransformFuncOneArg(transformAsin),
+	"asinh":              newTransformFuncOneArg(transformAsinh),
+	"atan":               newTransformFuncOneArg(transformAtan),
+	"atanh":              newTransformFuncOneArg(transformAtanh),
 	"ceil":               newTransformFuncOneArg(transformCeil),
 	"clamp":              transformClamp,
 	"clamp_max":          transformClampMax,
 	"clamp_min":          transformClampMin,
+	"cos":                newTransformFuncOneArg(transformCos),
+	"cosh":               newTransformFuncOneArg(transformCosh),
 	"day_of_month":       newTransformFuncDateTime(transformDayOfMonth),
 	"day_of_week":        newTransformFuncDateTime(transformDayOfWeek),
 	"days_in_month":      newTransformFuncDateTime(transformDaysInMonth),
+	"deg":                newTransformFuncOneArg(transformDeg),
 	"exp":                newTransformFuncOneArg(transformExp),
 	"floor":              newTransformFuncOneArg(transformFloor),
 	"histogram_quantile": transformHistogramQuantile,
@@ -61,12 +70,18 @@ var transformFuncs = map[string]transformFunc{
 	"log10":              newTransformFuncOneArg(transformLog10),
 	"minute":             newTransformFuncDateTime(transformMinute),
 	"month":              newTransformFuncDateTime(transformMonth),
+	"pi":                 transformPi,
+	"rad":                newTransformFuncOneArg(transformRad),
 	"round":              transformRound,
-	"sgn":                transformSign,
 	"scalar":             transformScalar,
+	"sgn":                transformSgn,
+	"sin":                newTransformFuncOneArg(transformSin),
+	"sinh":               newTransformFuncOneArg(transformSinh),
 	"sort":               newTransformFuncSort(false),
 	"sort_desc":          newTransformFuncSort(true),
 	"sqrt":               newTransformFuncOneArg(transformSqrt),
+	"tan":                newTransformFuncOneArg(transformTan),
+	"tanh":               newTransformFuncOneArg(transformTanh),
 	"time":               transformTime,
 	// "timestamp" has been moved to rollup funcs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415
 	"vector": transformVector,
@@ -109,11 +124,6 @@ var transformFuncs = map[string]transformFunc{
 	"rand":                newTransformRand(newRandFloat64),
 	"rand_normal":         newTransformRand(newRandNormFloat64),
 	"rand_exponential":    newTransformRand(newRandExpFloat64),
-	"pi":                  transformPi,
-	"sin":                 newTransformFuncOneArg(transformSin),
-	"cos":                 newTransformFuncOneArg(transformCos),
-	"asin":                newTransformFuncOneArg(transformAsin),
-	"acos":                newTransformFuncOneArg(transformAcos),
 	"prometheus_buckets":  transformPrometheusBuckets,
 	"buckets_limit":       transformBucketsLimit,
 	"histogram_share":     transformHistogramShare,
@@ -1777,7 +1787,7 @@ func transformRound(tfa *transformFuncArg) ([]*timeseries, error) {
 	return doTransformValues(args[0], tf, tfa.fe)
 }
 
-func transformSign(tfa *transformFuncArg) ([]*timeseries, error) {
+func transformSgn(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 1); err != nil {
 		return nil, err
@@ -1898,16 +1908,56 @@ func transformSin(v float64) float64 {
 	return math.Sin(v)
 }
 
+func transformSinh(v float64) float64 {
+	return math.Sinh(v)
+}
+
 func transformCos(v float64) float64 {
 	return math.Cos(v)
+}
+
+func transformCosh(v float64) float64 {
+	return math.Cosh(v)
+}
+
+func transformTan(v float64) float64 {
+	return math.Tan(v)
+}
+
+func transformTanh(v float64) float64 {
+	return math.Tanh(v)
 }
 
 func transformAsin(v float64) float64 {
 	return math.Asin(v)
 }
 
+func transformAsinh(v float64) float64 {
+	return math.Asinh(v)
+}
+
+func transformAtan(v float64) float64 {
+	return math.Atan(v)
+}
+
+func transformAtanh(v float64) float64 {
+	return math.Atanh(v)
+}
+
 func transformAcos(v float64) float64 {
 	return math.Acos(v)
+}
+
+func transformAcosh(v float64) float64 {
+	return math.Acosh(v)
+}
+
+func transformDeg(v float64) float64 {
+	return v * 180 / math.Pi
+}
+
+func transformRad(v float64) float64 {
+	return v * math.Pi / 180
 }
 
 func newTransformRand(newRandFunc func(r *rand.Rand) func() float64) transformFunc {
