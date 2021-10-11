@@ -1039,12 +1039,56 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("sinh()", func(t *testing.T) {
+		t.Parallel()
+		q := `sinh(pi()*(2000-time())/1000)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{11.548739357257748, 6.132140673514712, 3.217113080357038, 1.6144880404748523, 0.6704839982471175, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("asin()", func(t *testing.T) {
 		t.Parallel()
 		q := `asin((2000-time())/1000)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1.5707963267948966, 0.9272952180016123, 0.6435011087932843, 0.41151684606748806, 0.20135792079033082, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("asinh(sinh)", func(t *testing.T) {
+		t.Parallel()
+		q := `asinh(sinh((2000-time())/1000))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 0.8000000000000002, 0.6, 0.4000000000000001, 0.2, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("atan()", func(t *testing.T) {
+		t.Parallel()
+		q := `atan((2000-time())/1000)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.7853981633974483, 0.6747409422235526, 0.5404195002705842, 0.3805063771123649, 0.19739555984988078, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("atanh(tanh)", func(t *testing.T) {
+		t.Parallel()
+		q := `atanh(tanh((2000-time())/1000))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 0.8000000000000002, 0.6, 0.4000000000000001, 0.2, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -1067,6 +1111,28 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0.6435011087932843, 0.9272952180016123, 1.1592794807274085, 1.3694384060045657, 1.5707963267948966},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("acosh(cosh)", func(t *testing.T) {
+		t.Parallel()
+		q := `acosh(cosh((2000-time())/1000))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 0.8000000000000002, 0.5999999999999999, 0.40000000000000036, 0.20000000000000023, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("rad(deg)", func(t *testing.T) {
+		t.Parallel()
+		q := `rad(deg(time()/500))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2.3999999999999995, 2.8, 3.2, 3.6, 4},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7241,9 +7307,13 @@ func TestExecError(t *testing.T) {
 	f(`smooth_exponential(1)`)
 	f(`remove_resets()`)
 	f(`sin()`)
+	f(`sinh()`)
 	f(`cos()`)
+	f(`cosh()`)
 	f(`asin()`)
+	f(`asinh()`)
 	f(`acos()`)
+	f(`acosh()`)
 	f(`rand(123, 456)`)
 	f(`rand_normal(123, 456)`)
 	f(`rand_exponential(122, 456)`)

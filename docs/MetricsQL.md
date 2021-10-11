@@ -351,11 +351,27 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### acos
 
-`acos(q)` returns `arccos(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [asin](#asin) and [cos](#cos).
+`acos(q)` returns [inverse cosine](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [asin](#asin) and [cos](#cos).
+
+#### acosh
+
+`acosh(q)` returns [inverse hyperbolic cosine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_cosine) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [sinh](#cosh).
 
 #### asin
 
-`asin(q)` returns `arcsin(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [acos](#acos) and [sin](#sin).
+`asin(q)` returns [inverse sine](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [acos](#acos) and [sin](#sin).
+
+#### asinh
+
+`asinh(q)` returns [inverse hyperbolic sine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_sine) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [sinh](#sinh).
+
+#### atan
+
+`atan(q)` returns [inverse tangent](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [tan](#tan).
+
+#### atanh
+
+`atanh(q)` returns [inverse hyperbolic tangent](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_tangent) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [tanh](#tanh).
 
 #### bitmap_and
 
@@ -391,7 +407,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### cos
 
-`cos(q)` returns `cos(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [sin](#sin).
+`cos(q)` returns `cos(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [sin](#sin).
+
+#### cosh
+
+`cosh(q)` returns [hyperbolic cosine](https://en.wikipedia.org/wiki/Hyperbolic_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. This function is supported by PromQL. See also [acosh](#acosh).
 
 #### day_of_month
 
@@ -404,6 +424,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 #### days_in_month
 
 `days_in_month(q)` returns the number of days in the month identified by every point of every time series returned by `q`. It is expected that `q` returns unix timestamps. The returned values are in the range `[28...31]`. Metric names are stripped from the resulting series. This function is supported by PromQL.
+
+#### deg
+
+`deg(q)` converts [Radians to degrees](https://en.wikipedia.org/wiki/Radian#Conversions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [rad](#rad).
 
 #### end
 
@@ -479,7 +503,12 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### pi
 
-`pi()` returns [Pi number](https://en.wikipedia.org/wiki/Pi).
+`pi()` returns [Pi number](https://en.wikipedia.org/wiki/Pi). This function is supported by PromQL.
+
+#### rad
+
+`rad(q)` converts [degrees to Radians](https://en.wikipedia.org/wiki/Radian#Conversions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [deg](#deg).
+
 
 #### prometheus_buckets
 
@@ -567,7 +596,19 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### sin
 
-`sin(q)` returns `sin(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [cos](#cos).
+`sin(q)` returns `sin(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [cos](#cos).
+
+#### sinh
+
+`sinh(q)` returns [hyperbolic sine](https://en.wikipedia.org/wiki/Hyperbolic_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [cosh](#cosh).
+
+#### tan
+
+`tan(q)` returns `tan(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [atan](#atan).
+
+#### tanh
+
+`tanh(q)` returns [hyperbolic tangent](https://en.wikipedia.org/wiki/Hyperbolic_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [atanh](#atanh).
 
 #### smooth_exponential
 
