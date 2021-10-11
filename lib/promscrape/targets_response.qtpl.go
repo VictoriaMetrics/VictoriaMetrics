@@ -359,43 +359,51 @@ func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, redirectP
 
 //line lib/promscrape/targets_response.qtpl:118
 func streamformatLabel(qw422016 *qt422016.Writer, labels []prompbmarshal.Label) {
-//line lib/promscrape/targets_response.qtpl:119
-	for _, label := range labels {
+//line lib/promscrape/targets_response.qtpl:118
+	qw422016.N().S(`{`)
 //line lib/promscrape/targets_response.qtpl:120
-		qw422016.E().S(label.Name)
-//line lib/promscrape/targets_response.qtpl:120
-		qw422016.N().S(`=`)
-//line lib/promscrape/targets_response.qtpl:120
-		qw422016.E().Q(label.Value)
-//line lib/promscrape/targets_response.qtpl:120
-		qw422016.N().S(` `)
+	for i, label := range labels {
 //line lib/promscrape/targets_response.qtpl:121
+		qw422016.E().S(label.Name)
+//line lib/promscrape/targets_response.qtpl:121
+		qw422016.N().S(`=`)
+//line lib/promscrape/targets_response.qtpl:121
+		qw422016.E().Q(label.Value)
+//line lib/promscrape/targets_response.qtpl:122
+		if i+1 < len(labels) {
+//line lib/promscrape/targets_response.qtpl:122
+			qw422016.N().S(`,`)
+//line lib/promscrape/targets_response.qtpl:122
+		}
+//line lib/promscrape/targets_response.qtpl:123
 	}
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:123
+	qw422016.N().S(`}`)
+//line lib/promscrape/targets_response.qtpl:125
 }
 
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 func writeformatLabel(qq422016 qtio422016.Writer, labels []prompbmarshal.Label) {
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	streamformatLabel(qw422016, labels)
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 }
 
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 func formatLabel(labels []prompbmarshal.Label) string {
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	writeformatLabel(qb422016, labels)
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	qs422016 := string(qb422016.B)
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 	return qs422016
-//line lib/promscrape/targets_response.qtpl:122
+//line lib/promscrape/targets_response.qtpl:125
 }
