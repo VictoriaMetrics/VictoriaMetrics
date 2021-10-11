@@ -36,7 +36,7 @@ func runWithRetry(ctx context.Context, call func() error) error {
 			return true, nil
 		}
 		if shouldRetry(err) {
-			return false, nil
+			return false, err
 		}
 		return true, err
 	})
