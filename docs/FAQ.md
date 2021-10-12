@@ -273,10 +273,12 @@ If old time series are constantly substituted by new time series at a high rate,
 * Increased size of inverted index, which is stored at `<-storageDataPath>/indexdb`, since the inverted index contains entries for every label of every time series with at least a single ingested sample
 * Slow down of queries over multiple days.
 
+The solution against high churn rate is to identify and eliminate labels with frequently changed values. The [/api/v1/status/tsdb](https://docs.victoriametrics.com/#tsdb-stats) page can help determining these labels.
+
 
 ## What is high cardinality?
 
-High cardinality usually means high number of [active time series](#what-is-active-time-series). High cardinality may lead to high memory usage and/or to high percentage of [slow inserts](#what-is-slow-insert). The source of high cardinality is usually a label with big number of unique values, which presents in big share of the ingested time series. The solution is to identify and remove the source of high cardinality with the help of `/api/v1/status/tsdb` page - see [these docs](https://docs.victoriametrics.com/#tsdb-stats).
+High cardinality usually means high number of [active time series](#what-is-active-time-series). High cardinality may lead to high memory usage and/or to high percentage of [slow inserts](#what-is-slow-insert). The source of high cardinality is usually a label with big number of unique values, which presents in big share of the ingested time series. The solution is to identify and remove the source of high cardinality with the help of [/api/v1/status/tsdb](https://docs.victoriametrics.com/#tsdb-stats).
 
 
 ## What is slow insert?
