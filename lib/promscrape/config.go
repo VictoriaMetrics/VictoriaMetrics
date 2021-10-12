@@ -926,11 +926,14 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func appendScrapeWorkKey(dst []byte, target string, extraLabels, metaLabels map[string]string) []byte {
-	dst = append(dst, target...)
-	dst = append(dst, ',')
-	dst = appendSortedKeyValuePairs(dst, extraLabels)
-	dst = appendSortedKeyValuePairs(dst, metaLabels)
+func appendScrapeWorkKey(dst []byte, labels []prompbmarshal.Label) []byte {
+	for _, label := range labels {
+		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
+		dst = append(dst, label.Name...)
+		dst = append(dst, '=')
+		dst = append(dst, label.Value...)
+		dst = append(dst, ',')
+	}
 	return dst
 }
 
@@ -955,37 +958,9 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 	return true
 }
 
-func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
-		dst = append(dst, k...)
-		dst = append(dst, '=')
-		dst = append(dst, m[k]...)
-		dst = append(dst, ',')
-	}
-	dst = append(dst, '\n')
-	return dst
-}
-
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
-	if *clusterMembersCount > 1 {
-		bb := scrapeWorkKeyBufPool.Get()
-		bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
-		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
-		scrapeWorkKeyBufPool.Put(bb)
-		if needSkip {
-			return nil, nil
-		}
-	}
-
 	labels := mergeLabels(swc, target, extraLabels, metaLabels)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
@@ -1001,6 +976,19 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
 	labels = append([]prompbmarshal.Label{}, labels...)
 
+	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
+	// Perform the verification on labels after the relabeling in order to guarantee that targets with the same set of labels
+	// go to the same vmagent shard.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1687#issuecomment-940629495
+	if *clusterMembersCount > 1 {
+		bb := scrapeWorkKeyBufPool.Get()
+		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
+		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
+		scrapeWorkKeyBufPool.Put(bb)
+		if needSkip {
+			return nil, nil
+		}
+	}
 	if len(labels) == 0 {
 		// Drop target without labels.
 		droppedTargetsMap.Register(originalLabels)
