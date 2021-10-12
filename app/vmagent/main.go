@@ -159,6 +159,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.WriteAPIHelp(w, [][2]string{
 			{"/targets", "discovered targets list"},
 			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
+			{"/config", "-promscrape.config contents"},
 			{"/metrics", "available service metrics"},
 			{"/-/reload", "reload configuration"},
 		})
@@ -258,6 +259,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
+		return true
+	case "/config":
+		promscrapeConfigRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		promscrape.WriteConfigData(w)
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
@@ -426,6 +432,8 @@ var (
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )

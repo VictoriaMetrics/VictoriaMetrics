@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,7 +71,21 @@ var (
 	// PendingScrapeConfigs - zero value means, that
 	// all scrapeConfigs are inited and ready for work.
 	PendingScrapeConfigs int32
+
+	// configData contains -promscrape.config data
+	configData atomic.Value
 )
+
+// WriteConfigData writes -promscrape.config contents to w
+func WriteConfigData(w io.Writer) {
+	v := configData.Load()
+	if v == nil {
+		// Nothing to write to w
+		return
+	}
+	b := v.(*[]byte)
+	w.Write(*b)
+}
 
 func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
 	if configFile == "" {
@@ -89,6 +104,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
 	data := cfg.marshal()
+	configData.Store(&data)
 	cfg.mustStart()
 
 	scs := newScrapeConfigs(pushData)
@@ -132,6 +148,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			cfgNew.mustStart()
 			cfg = cfgNew
 			data = dataNew
+			configData.Store(&data)
 		case <-tickerCh:
 			cfgNew, err := loadConfig(configFile)
 			if err != nil {
@@ -147,6 +164,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			cfgNew.mustStart()
 			cfg = cfgNew
 			data = dataNew
+			configData.Store(&data)
 		case <-globalStopCh:
 			cfg.mustStop()
 			logger.Infof("stopping Prometheus scrapers")
