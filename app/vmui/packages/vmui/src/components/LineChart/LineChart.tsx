@@ -8,6 +8,8 @@ import UplotReact from "uplot-react";
 import "uplot/dist/uPlot.min.css";
 import numeral from "numeral";
 import "./legend.css";
+import {getColorFromString} from "../../utils/color";
+import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
@@ -18,17 +20,12 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   const [scale, setScale] = useState({min: period.start, max: period.end});
   const refContainer = useRef<HTMLDivElement>(null);
 
-  const getColorByName = (str: string): string => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const {yaxis} = useGraphState();
+  const graphDispatch = useGraphDispatch();
+  const setStateLimits = (range: [number, number]) => {
+    if (!yaxis.limits.enable || (yaxis.limits.range.every(item => !item))) {
+      graphDispatch({type: "SET_YAXIS_LIMITS", payload: range});
     }
-    let colour = "#";
-    for (let i = 0; i < 3; i++) {
-      const value = (hash >> (i * 8)) & 0xFF;
-      colour += ("00" + value.toString(16)).substr(-2);
-    }
-    return colour;
   };
 
   const times = useMemo(() => {
@@ -47,11 +44,13 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
       const v = d.values.find(v => v[0] === t);
       return v ? +v[1] : null;
     }));
+    const flattenValues: number[] = values.flat().filter((item): item is number => item !== null);
+    setStateLimits([Math.min(...flattenValues), Math.max(...flattenValues)]);
     const seriesValues = data.map(d => ({
       label: getNameForMetric(d),
       width: 1,
       font: "11px Arial",
-      stroke: getColorByName(getNameForMetric(d))}));
+      stroke: getColorFromString(getNameForMetric(d))}));
     setSeries([{}, ...seriesValues]);
     setDataChart([times, ...values]);
   }, [data]);
@@ -133,14 +132,14 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         values: (self, ticks) => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n)
       }
     ],
-    scales: {x: {range: () => [scale.min, scale.max]}}
+    scales: {
+      x: {range: () => [scale.min, scale.max]},
+      y: {range: (self, min, max) => yaxis.limits.enable ? yaxis.limits.range : [min, max]}
+    }
   };
 
   return <div ref={refContainer}>
-    {dataChart && <UplotReact
-      options={options}
-      data={dataChart}
-    />}
+    {dataChart && <UplotReact options={options} data={dataChart}/>}
   </div>;
 };
 

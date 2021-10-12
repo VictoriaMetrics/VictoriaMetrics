@@ -3,7 +3,7 @@ export type StorageKeys = "LAST_QUERY"
     | "BEARER_AUTH_DATA"
     | "AUTH_TYPE"
     | "AUTOCOMPLETE"
-    | "NO_CACHE";
+    | "NO_CACHE"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
