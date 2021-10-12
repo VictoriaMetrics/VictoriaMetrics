@@ -19,6 +19,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [scale, setScale] = useState({min: period.start, max: period.end});
   const refContainer = useRef<HTMLDivElement>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   const {yaxis} = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -61,6 +62,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     // wheel drag pan
     u.over.addEventListener("mousedown", e => {
       if (e.button !== 0) return;
+      setIsPanning(true);
       e.preventDefault();
       const left0 = e.clientX;
       const scXMin0 = u.scales.x.min || 1;
@@ -77,6 +79,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
       };
 
       const onup = () => {
+        setIsPanning(false);
         document.removeEventListener("mousemove", onmove);
         document.removeEventListener("mouseup", onup);
       };
@@ -138,7 +141,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     }
   };
 
-  return <div ref={refContainer}>
+  return <div ref={refContainer} style={{pointerEvents: isPanning ? "none" : "auto"}}>
     {dataChart && <UplotReact options={options} data={dataChart}/>}
   </div>;
 };
