@@ -603,7 +603,7 @@ func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.HTTPSDConfigs {
 			sdc := &sc.HTTPSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "http_sd_config")
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "http_sd_configs")
 			if ok {
 				ok = okLocal
 			}
