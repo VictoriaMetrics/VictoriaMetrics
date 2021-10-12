@@ -58,8 +58,8 @@ var (
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
 	Global            GlobalConfig   `yaml:"global,omitempty"`
-	ScrapeConfigs     []ScrapeConfig `yaml:"scrape_configs"`
-	ScrapeConfigFiles []string       `yaml:"scrape_config_files"`
+	ScrapeConfigs     []ScrapeConfig `yaml:"scrape_configs,omitempty"`
+	ScrapeConfigFiles []string       `yaml:"scrape_config_files,omitempty"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
@@ -121,7 +121,7 @@ type ScrapeConfig struct {
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
-	FollowRedirects      *bool                       `yaml:"follow_redirects"` // omitempty isn't set, since the default value for this flag is true.
+	FollowRedirects      *bool                       `yaml:"follow_redirects,omitempty"`
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
