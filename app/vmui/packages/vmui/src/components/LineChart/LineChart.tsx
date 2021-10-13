@@ -20,6 +20,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   const [scale, setScale] = useState({min: period.start, max: period.end});
   const refContainer = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [zoomPos, setZoomPos] = useState(0);
 
   const {yaxis} = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -49,7 +50,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     setStateLimits([Math.min(...flattenValues), Math.max(...flattenValues)]);
     const seriesValues = data.map(d => ({
       label: getNameForMetric(d),
-      width: 1,
+      width: 1.7,
       font: "11px Arial",
       stroke: getColorFromString(getNameForMetric(d))}));
     setSeries([{}, ...seriesValues]);
@@ -65,15 +66,12 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
       setIsPanning(true);
       e.preventDefault();
       const left0 = e.clientX;
-      const scXMin0 = u.scales.x.min || 1;
-      const scXMax0 = u.scales.x.max || 1;
-      const xUnitsPerPx = u.posToVal(1, "x") - u.posToVal(0, "x");
 
       const onmove = (e: MouseEvent) => {
         e.preventDefault();
-        const dx = xUnitsPerPx * (e.clientX - left0);
-        const min = scXMin0 - dx;
-        const max = scXMax0 - dx;
+        const dx = (u.posToVal(1, "x") - u.posToVal(0, "x")) * (e.clientX - left0);
+        const min = (u.scales.x.min || 1) - dx;
+        const max = (u.scales.x.max || 1) - dx;
         u.setScale("x", {min, max});
         setScale({min, max});
       };
@@ -93,12 +91,11 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const {width} = u.over.getBoundingClientRect();
-      const {left = width/2} = u.cursor;
-      const leftPct = left/width;
-      const xVal = u.posToVal(left, "x");
+      if (u.cursor.left && u.cursor.left > 0) setZoomPos(u.cursor.left);
+      const xVal = u.posToVal(zoomPos, "x");
       const oxRange = (u.scales.x.max || 0) - (u.scales.x.min || 0);
       const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
-      const min = xVal - leftPct * nxRange;
+      const min = xVal - (zoomPos/width) * nxRange;
       const max = min + nxRange;
       u.batch(() => {
         u.setScale("x", {min, max});
