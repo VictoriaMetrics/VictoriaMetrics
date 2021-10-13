@@ -53,7 +53,7 @@ job={%q= jobName %} (0/0 up)
         Unhealthy
     </button>
   </div>
-  {% for _, js := range jts %}
+  {% for i, js := range jts %}
     {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
     <div>
       <h4>
@@ -72,13 +72,18 @@ job={%q= jobName %} (0/0 up)
           </tr>
         </thead>
         <tbody>
-          {% for _, ts := range js.targetsStatus %}
+          {% for j, ts := range js.targetsStatus %}
             {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
             <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert"{% endif %}>
               <td><a href="{%s ts.endpoint %}">{%s ts.endpoint %}</a><br></td>
               <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
-              <td title="Original labels: {%= formatLabel(ts.originalLabels) %}">
+              <td>
+                <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('original_labels_{%d i %}_{%d j %}').style.display='block'">show original labels</button>{% space %}
                 {%= formatLabel(ts.labels) %}
+                <div style="display:none" id="original_labels_{%d i %}_{%d j %}">
+                  <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('original_labels_{%d i %}_{%d j %}').style.display='none'">hide original labels</button>{% space %}
+                  {%= formatLabel(ts.originalLabels) %}
+                </div>
               </td>
               <td>{%f.3 ts.lastScrapeTime.Seconds() %}s ago</td>
               <td>{%f.3 ts.scrapeDuration.Seconds() %}s</td>
@@ -119,7 +124,7 @@ job={%q= jobName %} (0/0 up)
 {
   {% for i, label := range labels %}
       {%s label.Name %}={%q label.Value %}
-      {% if i+1 < len(labels) %},{% endif %}
+      {% if i+1 < len(labels) %},{% space %}{% endif %}
   {% endfor %}
 }
 {% endfunc %}
