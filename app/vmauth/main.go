@@ -130,6 +130,9 @@ var reverseProxy = &httputil.ReverseProxy{
 		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
 		tr.ForceAttemptHTTP2 = false
 		tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
+		if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
+			tr.MaxIdleConns = tr.MaxIdleConnsPerHost
+		}
 		return tr
 	}(),
 	FlushInterval: time.Second,
