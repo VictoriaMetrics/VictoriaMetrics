@@ -155,7 +155,9 @@
                         sort.Strings(labelKeys)
                     %}
                     <br>
-                    <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})<br>
+                    <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
+                     | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
+                    <br>
                     <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
                     <table class="table table-striped table-hover table-sm">
                         <thead>
@@ -268,6 +270,16 @@
         </div>
         <div class="col">
            <a target="_blank" href="/groups#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
+        </div>
+      </div>
+    </div>
+     <div class="container border-bottom p-2">
+      <div class="row">
+        <div class="col-2">
+          Source link
+        </div>
+        <div class="col">
+           <a target="_blank" href="{%s alert.SourceLink %}">Link</a>
         </div>
       </div>
     </div>

@@ -415,7 +415,7 @@ func (ar *AlertingRule) AlertsAPI() []*APIAlert {
 }
 
 func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
-	return &APIAlert{
+	aa := &APIAlert{
 		// encode as strings to avoid rounding
 		ID:      fmt.Sprintf("%d", a.ID),
 		GroupID: fmt.Sprintf("%d", a.GroupID),
@@ -429,6 +429,10 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 		ActiveAt:    a.Start,
 		Value:       strconv.FormatFloat(a.Value, 'f', -1, 32),
 	}
+	if alertURLGeneratorFn != nil {
+		aa.SourceLink = alertURLGeneratorFn(a)
+	}
+	return aa
 }
 
 const (
