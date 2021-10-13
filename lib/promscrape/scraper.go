@@ -84,7 +84,7 @@ func WriteConfigData(w io.Writer) {
 		return
 	}
 	b := v.(*[]byte)
-	w.Write(*b)
+	_, _ = w.Write(*b)
 }
 
 func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
