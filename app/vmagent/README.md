@@ -329,7 +329,7 @@ scrape_configs:
     'match[]': ['{__name__!=""}']
 ```
 
-Note that `sample_limit` option doesn't prevent from data push to remote storage if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed.
+Note that `sample_limit` and `series_limit` options cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
 
 
 ## Scraping big number of targets
