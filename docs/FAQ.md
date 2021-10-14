@@ -288,7 +288,7 @@ VictoriaMetrics maintains in-memory cache for mapping of [active time series](#w
 
 ## Why MetricsQL isn't 100% compatible with PromQL?
 
-MetricsQL provides better user experience than PromQL. It fixes a few annoying issues in PromQL, so it cannot be 100% compatible. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
+[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) provides better user experience than PromQL. It fixes a few annoying issues in PromQL. This prevents MetricsQL to be 100% compatible with PromQL. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
 
 ## How to migrate data from Prometheus to VictoriaMetrics?
