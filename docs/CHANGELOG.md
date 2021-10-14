@@ -14,7 +14,8 @@ sort: 15
 * FEATURE: add trigonometric functions, which are going to be added in [Prometheus 2.31](https://github.com/prometheus/prometheus/pull/9239): [acosh](https://docs.victoriametrics.com/MetricsQL.html#acosh), [asinh](https://docs.victoriametrics.com/MetricsQL.html#asinh), [atan](https://docs.victoriametrics.com/MetricsQL.html#atan), [atanh](https://docs.victoriametrics.com/MetricsQL.html#atanh), [cosh](https://docs.victoriametrics.com/MetricsQL.html#cosh), [deg](https://docs.victoriametrics.com/MetricsQL.html#deg), [rad](https://docs.victoriametrics.com/MetricsQL.html#rad), [sinh](https://docs.victoriametrics.com/MetricsQL.html#sinh), [tan](https://docs.victoriametrics.com/MetricsQL.html#tan), [tanh](https://docs.victoriametrics.com/MetricsQL.html#tanh). Also add `atan2` binary operator. See [this pull request](https://github.com/prometheus/prometheus/pull/9248).
 * FEATURE: consistently return the same set of time series from [limitk](https://docs.victoriametrics.com/MetricsQL.html#limitk) function. This improves the usability of periodically refreshed graphs.
 
-* BUGFIX: vmstorage: fix `unaligned 64-bit atomic operation` panic on 32-bit architectures (arm and 386). The panic has been introduced in v1.67.0
+* BUGFIX: vmstorage: fix `unaligned 64-bit atomic operation` panic on 32-bit architectures (arm and 386). The panic has been introduced in v1.67.0.
+* BUGFIX: vmalert, vmauth: prevent from frequent closing of TCP connections established to backends under high load. This should reduce the number of TCP sockets in `TIME_WAIT` state at `vmalert` and `vmauth` under high load. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1704).
 
 
 ## [v1.67.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.67.0)
