@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -28,8 +29,9 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
-	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
-	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -113,6 +115,11 @@ type ScrapeWork struct {
 
 	// The original 'job_name'
 	jobNameOriginal string
+}
+
+func (sw *ScrapeWork) canUseStreamParse() bool {
+	// Stream parsing mode cannot be used if SampleLimit or SeriesLimit is set.
+	return sw.SampleLimit <= 0 && sw.SeriesLimit <= 0
 }
 
 // key returns unique identifier for the given sw.
@@ -291,9 +298,9 @@ var (
 )
 
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
-	if *streamParse || sw.Config.StreamParse {
+	if (sw.Config.canUseStreamParse() && sw.prevBodyLen >= minResponseSizeForStreamParse.N) || *streamParse || sw.Config.StreamParse {
 		// Read data from scrape targets in streaming manner.
-		// This case is optimized for targets exposing millions and more of metrics per target.
+		// This case is optimized for targets exposing more than ten thousand of metrics per target.
 		return sw.scrapeStream(scrapeTimestamp, realTimestamp)
 	}
 
@@ -355,15 +362,23 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
-	wc.reset()
-	writeRequestCtxPool.Put(wc)
-	// body must be released only after wc is released, since wc refers to body.
 	sw.prevBodyLen = len(body.B)
+	wc.reset()
+	if len(body.B) < minResponseSizeForStreamParse.N {
+		// Return wc to the pool if the parsed response size was smaller than -promscrape.minResponseSizeForStreamParse
+		// This should reduce memory usage when scraping targets with big responses.
+		writeRequestCtxPool.Put(wc)
+	}
+	// body must be released only after wc is released, since wc refers to body.
 	if !areIdenticalSeries {
 		sw.sendStaleSeries(bodyString, scrapeTimestamp, false)
 	}
-	sw.lastScrape = append(sw.lastScrape[:0], bodyString...)
-	leveledbytebufferpool.Put(body)
+	if len(body.B) < minResponseSizeForStreamParse.N {
+		// Save body to sw.lastScrape and return it to the pool only if its size is smaller than -promscrape.minResponseSizeForStreamParse
+		// This should reduce memory usage when scraping targets which return big responses.
+		sw.lastScrape = append(sw.lastScrape[:0], bodyString...)
+		leveledbytebufferpool.Put(body)
+	}
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
 }
@@ -432,6 +447,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
+	sw.prevBodyLen = int(responseSize)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)

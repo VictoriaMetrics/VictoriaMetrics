@@ -1540,6 +1540,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum number of CPU cores to use for big merges. Default value is used if set to 0
   -csvTrimTimestamp duration
     	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -datadog.maxInsertRequestSize size
+    	The maximum size in bytes of a single DataDog POST request to /api/v1/series
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -dedup.minScrapeInterval duration
     	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -deleteAuthKey string
@@ -1705,6 +1708,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.minResponseSizeForStreamParse size
+    	The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 1000000)
   -promscrape.noStaleMarkers
     	Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
   -promscrape.openstackSDCheckInterval duration
@@ -1718,7 +1724,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.suppressScrapeErrors
     	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
   -relabelConfig string
-    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details
+    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
     	Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -retentionPeriod value
@@ -1795,6 +1801,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
     	The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries
+  -storage.minFreeDiskSpaceBytes size
+    	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 10000000)
   -storageDataPath string
     	Path to storage data (default "victoria-metrics-data")
   -tls
