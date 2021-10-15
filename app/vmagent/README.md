@@ -302,7 +302,7 @@ You can read more about relabeling in the following articles:
 * If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
 * Stale markers are sent for all the scraped metrics on graceful shutdown of `vmagent`.
 
-Prometheus staleness markers aren't sent to `-remoteWrite.url` in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
+Prometheus staleness markers aren't sent to `-remoteWrite.url` if `-promscrape.noStaleMarkers` command-line flag is set.
 
 
 ## Stream parsing mode
