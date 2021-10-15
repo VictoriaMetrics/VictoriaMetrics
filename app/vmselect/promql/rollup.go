@@ -1384,7 +1384,7 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 		prevValue = 0
 	}
 	if len(values) == 0 {
-		// Assume the counter didsn't change since prevValue.
+		// Assume the counter didn't change since prevValue.
 		return 0
 	}
 	return values[len(values)-1] - prevValue
