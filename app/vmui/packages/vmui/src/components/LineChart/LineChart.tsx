@@ -1,6 +1,4 @@
 import React, {FC, useEffect, useMemo, useRef, useState} from "react";
-import {getNameForMetric} from "../../utils/metric";
-import "chartjs-adapter-date-fns";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import {GraphViewProps} from "../Home/Views/GraphView";
 import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries} from "uplot";
@@ -8,19 +6,20 @@ import UplotReact from "uplot-react";
 import "uplot/dist/uPlot.min.css";
 import numeral from "numeral";
 import "./legend.css";
-import {getColorFromString} from "../../utils/color";
+import "./tooltip.css";
 import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
+import {getDataChart, getLimitsTimes, getLimitsYaxis, getSeries, setTooltip} from "../../utils/uPlot";
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
 
   const dispatch = useAppDispatch();
   const {time: {period}} = useAppState();
-  const [dataChart, setDataChart] = useState<uPlotData>();
-  const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [scale, setScale] = useState({min: period.start, max: period.end});
   const refContainer = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [zoomPos, setZoomPos] = useState(0);
+  const tooltipIdx = {seriesIdx: 1, dataIdx: 0};
+  const tooltipOffset = {left: 0, top: 0};
 
   const {yaxis} = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -31,34 +30,24 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   };
 
   const times = useMemo(() => {
-    const allTimes = data.map(d => d.values.map(v => v[0])).flat();
-    const start = Math.min(...allTimes);
-    const end = Math.max(...allTimes);
+    const [start, end] = getLimitsTimes(data);
     const output = [];
-    for (let i = start; i < end; i += period.step || 1) {
-      output.push(i);
-    }
+    for (let i = start; i < end; i += period.step || 1) { output.push(i); }
     return output;
   }, [data]);
 
-  useEffect(() => {
-    const values = data.map(d => times.map(t => {
-      const v = d.values.find(v => v[0] === t);
-      return v ? +v[1] : null;
-    }));
-    const flattenValues: number[] = values.flat().filter((item): item is number => item !== null);
-    setStateLimits([Math.min(...flattenValues), Math.max(...flattenValues)]);
-    const seriesValues = data.map(d => ({
-      label: getNameForMetric(d),
-      width: 1.7,
-      font: "11px Arial",
-      stroke: getColorFromString(getNameForMetric(d))}));
-    setSeries([{}, ...seriesValues]);
-    setDataChart([times, ...values]);
-  }, [data]);
+  const series = useMemo((): uPlotSeries[] => getSeries(data), [data]);
+
+  const dataChart = useMemo((): uPlotData => getDataChart(data, times), [data]);
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "u-tooltip";
 
   const onReadyChart = (u: uPlot) => {
     const factor = 0.85;
+    tooltipOffset.left = parseFloat(u.over.style.left);
+    tooltipOffset.top = parseFloat(u.over.style.top);
+    u.root.querySelector(".u-wrap")?.appendChild(tooltip);
 
     // wheel drag pan
     u.over.addEventListener("mousedown", e => {
@@ -104,7 +93,25 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     });
   };
 
-  useEffect(() => {setScale({min: period.start, max: period.end});}, [period]);
+  const setCursor = (u: uPlot) => {
+    if (tooltipIdx.dataIdx === u.cursor.idx) return;
+    tooltipIdx.dataIdx = u.cursor.idx || 0;
+    if (tooltipIdx.seriesIdx && tooltipIdx.dataIdx) {
+      setTooltip({u, tooltipIdx, data, series, tooltip, tooltipOffset});
+    }
+  };
+
+  const seriesFocus = (u: uPlot, sidx: (number | null)) => {
+    if (tooltipIdx.seriesIdx === sidx) return;
+    tooltipIdx.seriesIdx = sidx || 0;
+    sidx && tooltipIdx.dataIdx
+      ? setTooltip({u, tooltipIdx, data, series, tooltip, tooltipOffset})
+      : tooltip.style.display = "none";
+  };
+
+  useEffect(() => { setStateLimits(getLimitsYaxis(data)); }, [data]);
+
+  useEffect(() => { setScale({min: period.start, max: period.end}); }, [period]);
 
   useEffect(() => {
     const duration = (period.end - period.start)/3;
@@ -118,12 +125,8 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     width: refContainer.current ? refContainer.current.offsetWidth : 400,
     height: 500,
     series: series,
-    plugins: [{
-      hooks: {
-        ready: onReadyChart
-      }
-    }],
-    cursor: {drag: {x: false, y: false}},
+    plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
+    cursor: {drag: {x: false, y: false}, focus: {prox: 30}},
     axes: [
       {space: 80},
       {
