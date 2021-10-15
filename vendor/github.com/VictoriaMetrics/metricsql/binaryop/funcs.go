@@ -79,6 +79,11 @@ func Pow(left, right float64) float64 {
 	return math.Pow(left, right)
 }
 
+// Atan2 returns atan2(left, right)
+func Atan2(left, right float64) float64 {
+	return math.Atan2(left, right)
+}
+
 // Default returns left or right if left is NaN.
 func Default(left, right float64) float64 {
 	if math.IsNaN(left) {

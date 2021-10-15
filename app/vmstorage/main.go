@@ -1,6 +1,7 @@
 package vmstorage
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -45,6 +46,8 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries")
 	maxDailySeries = flag.Int("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
+
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -81,6 +84,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
+	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
@@ -118,12 +122,17 @@ var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
 
 // AddRows adds mrs to the storage.
 func AddRows(mrs []storage.MetricRow) error {
+	if Storage.IsReadOnly() {
+		return errReadOnly
+	}
 	resetResponseCacheIfNeeded(mrs)
 	WG.Add(1)
 	err := Storage.AddRows(mrs, uint8(*precisionBits))
 	WG.Done()
 	return err
 }
+
+var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
 func RegisterMetricNames(mrs []storage.MetricRow) error {
@@ -387,6 +396,15 @@ func registerStorageMetrics() {
 
 	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), func() float64 {
 		return float64(fs.MustGetFreeSpace(*DataPath))
+	})
+	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *DataPath), func() float64 {
+		return float64(minFreeDiskSpaceBytes.N)
+	})
+	metrics.NewGauge(fmt.Sprintf(`vm_storage_is_read_only{path=%q}`, *DataPath), func() float64 {
+		if Storage.IsReadOnly() {
+			return 1
+		}
+		return 0
 	})
 
 	metrics.NewGauge(`vm_active_merges{type="storage/big"}`, func() float64 {

@@ -30,7 +30,6 @@ import (
 	"cloud.google.com/go/internal/trace"
 	"google.golang.org/api/googleapi"
 	storagepb "google.golang.org/genproto/googleapis/storage/v2"
-	"google.golang.org/protobuf/proto"
 )
 
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
@@ -475,8 +474,10 @@ func (o *ObjectHandle) newRangeReaderWithGRPC(ctx context.Context, offset, lengt
 		}
 		req.ReadOffset = start
 
-		// TODO: refactor this to use applyCondsProto.
-		setRequestConditions(req, o.conds)
+		if err := applyCondsProto("reopenWithGRPC", o.gen, o.conds, req); err != nil {
+			cancel()
+			return nil, nil, err
+		}
 
 		var stream storagepb.Storage_ReadObjectClient
 		var msg *storagepb.ReadObjectResponse
@@ -632,10 +633,7 @@ func (r *Reader) readWithGRPC(p []byte) (int, error) {
 	if leftover > 0 {
 		// Wasn't able to copy all of the data in the message, store for
 		// future Read calls.
-		// TODO: Instead of acquiring a new block of memory, should we reuse
-		// the existing leftovers slice, expanding it if necessary?
-		r.leftovers = make([]byte, leftover)
-		copy(r.leftovers, content[n:])
+		r.leftovers = content[n:]
 	}
 	r.seen += int64(n)
 
@@ -682,29 +680,6 @@ func (r *Reader) reopenStream(seen int64) (*storagepb.ReadObjectResponse, error)
 	r.stream = res.stream
 	r.cancelStream = cancel
 	return res.response, nil
-}
-
-// setRequestConditions is used to apply the given Conditions to a gRPC request
-// message.
-//
-// This is an experimental API and not intended for public use.
-func setRequestConditions(req *storagepb.ReadObjectRequest, conds *Conditions) {
-	if conds == nil {
-		return
-	}
-	if conds.MetagenerationMatch != 0 {
-		req.IfMetagenerationMatch = proto.Int64(conds.MetagenerationMatch)
-	} else if conds.MetagenerationNotMatch != 0 {
-		req.IfMetagenerationNotMatch = proto.Int64(conds.MetagenerationNotMatch)
-	}
-	switch {
-	case conds.GenerationNotMatch != 0:
-		req.IfGenerationNotMatch = proto.Int64(conds.GenerationNotMatch)
-	case conds.GenerationMatch != 0:
-		req.IfGenerationMatch = proto.Int64(conds.GenerationMatch)
-	case conds.DoesNotExist:
-		req.IfGenerationMatch = proto.Int64(0)
-	}
 }
 
 // Size returns the size of the object in bytes.

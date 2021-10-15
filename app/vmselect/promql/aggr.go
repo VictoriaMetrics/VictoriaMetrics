@@ -1010,6 +1010,11 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 	}
 	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		// Sort series by metricName in order to get consistent set of output series
+		// across multiple calls to limitk() function.
+		sort.Slice(tss, func(i, j int) bool {
+			return metricNameLess(&tss[i].MetricName, &tss[j].MetricName)
+		})
 		if len(tss) > maxK {
 			tss = tss[:maxK]
 		}

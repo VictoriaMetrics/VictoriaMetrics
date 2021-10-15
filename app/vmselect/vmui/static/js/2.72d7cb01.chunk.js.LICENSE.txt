@@ -5,13 +5,6 @@ object-assign
 */
 
 /*!
- * Chart.js v3.5.1
- * https://www.chartjs.org
- * (c) 2021 Chart.js Contributors
- * Released under the MIT License
- */
-
-/*!
  * chartjs-adapter-date-fns v2.0.0
  * https://www.chartjs.org
  * (c) 2021 chartjs-adapter-date-fns Contributors
@@ -33,11 +26,47 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
 
+/*! @preserve
+ * numeral.js
+ * version : 2.0.6
+ * author : Adam Draper
+ * license : MIT
+ * http://adamwdraper.github.com/Numeral-js/
+ */
+
 /*! Hammer.JS - v2.0.7 - 2016-04-22
  * http://hammerjs.github.io/
  *
  * Copyright (c) 2016 Jorik Tangelder;
  * Licensed under the MIT license */
+
+/*! exports provided: default */
+
+/*! exports provided: optionsUpdateState, dataMatch */
+
+/*! no static exports found */
+
+/*! react */
+
+/*! uplot */
+
+/*! uplot-wrappers-common */
+
+/*!*************************!*\
+        !*** ./common/index.ts ***!
+        \*************************/
+
+/*!*******************************!*\
+        !*** ./react/uplot-react.tsx ***!
+        \*******************************/
+
+/*!**************************************************************************************!*\
+        !*** external {"amd":"react","commonjs":"react","commonjs2":"react","root":"React"} ***!
+        \**************************************************************************************/
+
+/*!**************************************************************************************!*\
+        !*** external {"amd":"uplot","commonjs":"uplot","commonjs2":"uplot","root":"uPlot"} ***!
+        \**************************************************************************************/
 
 /**
  * A better abstraction over CSS.

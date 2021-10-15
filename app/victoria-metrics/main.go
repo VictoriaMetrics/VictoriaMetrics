@@ -93,6 +93,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"/vmui", "Web UI"},
 			{"/targets", "discovered targets list"},
 			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
+			{"/config", "-promscrape.config contents"},
 			{"/metrics", "available service metrics"},
 			{"/api/v1/status/tsdb", "tsdb status page"},
 			{"/api/v1/status/top_queries", "top queries"},

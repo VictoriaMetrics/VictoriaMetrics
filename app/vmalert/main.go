@@ -59,6 +59,8 @@ eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The `-rule` flag must be specified.")
 )
 
+var alertURLGeneratorFn notifier.AlertURLGenerator
+
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -79,14 +81,21 @@ func main() {
 		}
 		return
 	}
+
+	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
+	if err != nil {
+		logger.Fatalf("failed to init `external.url`: %s", err)
+	}
+	notifier.InitTemplateFunc(eu)
+	alertURLGeneratorFn, err = getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
+	if err != nil {
+		logger.Fatalf("failed to init `external.alert.source`: %s", err)
+	}
+
 	if *replayFrom != "" || *replayTo != "" {
 		rw, err := remotewrite.Init(context.Background())
 		if err != nil {
 			logger.Fatalf("failed to init remoteWrite: %s", err)
-		}
-		eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
-		if err != nil {
-			logger.Fatalf("failed to init `external.url`: %s", err)
 		}
 		notifier.InitTemplateFunc(eu)
 		groupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
@@ -148,20 +157,10 @@ func newManager(ctx context.Context) (*manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
-	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
-	if err != nil {
-		return nil, fmt.Errorf("failed to init `external.url`: %w", err)
-	}
-	notifier.InitTemplateFunc(eu)
-	aug, err := getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init `external.alert.source`: %w", err)
-	}
-	nts, err := notifier.Init(aug)
+	nts, err := notifier.Init(alertURLGeneratorFn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
-
 	manager := &manager{
 		groups:         make(map[uint64]*Group),
 		querierBuilder: q,

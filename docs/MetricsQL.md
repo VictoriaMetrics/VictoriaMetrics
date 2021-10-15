@@ -6,6 +6,8 @@ sort: 13
 
 [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) implements MetricsQL - query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 MetricsQL is backwards-compatible with PromQL, so Grafana dashboards backed by Prometheus datasource should work the same after switching from Prometheus to VictoriaMetrics.
+However, there are some [intentional differences](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) between these two languages.
+
 [Standalone MetricsQL package](https://godoc.org/github.com/VictoriaMetrics/metricsql) can be used for parsing MetricsQL in external apps.
 
 If you are unfamiliar with PromQL, then it is suggested reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
@@ -17,6 +19,8 @@ The following functionality is implemented differently in MetricsQL compared to 
 * MetricsQL treats `scalar` type the same as `instant vector` without labels, since subtle differences between these types usually confuse users. See [the corresponding Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) for details.
 * MetricsQL removes all the `NaN` values from the output, so some queries like `(-1)^0.5` return empty results in VictoriaMetrics, while returning a series of `NaN` values in Prometheus. Note that Grafana doesn't draw any lines or dots for `NaN` values, so the end result looks the same for both VictoriaMetrics and Prometheus.
 * MetricsQL keeps metric names after applying functions, which don't change the meaining of the original time series. For example, [min_over_time(foo)](#min_over_time) or [round(foo)](#round) leaves `foo` metric name in the result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674) for details.
+
+Read more about the diffferences between PromQL and MetricsQL in [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e).
 
 Other PromQL functionality should work the same in MetricsQL. [File an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you notice discrepancies between PromQL and MetricsQL results other than mentioned above.
 
@@ -349,11 +353,27 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### acos
 
-`acos(q)` returns `arccos(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [asin](#asin) and [cos](#cos).
+`acos(q)` returns [inverse cosine](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [asin](#asin) and [cos](#cos).
+
+#### acosh
+
+`acosh(q)` returns [inverse hyperbolic cosine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_cosine) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [sinh](#cosh).
 
 #### asin
 
-`asin(q)` returns `arcsin(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [acos](#acos) and [sin](#sin).
+`asin(q)` returns [inverse sine](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [acos](#acos) and [sin](#sin).
+
+#### asinh
+
+`asinh(q)` returns [inverse hyperbolic sine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_sine) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [sinh](#sinh).
+
+#### atan
+
+`atan(q)` returns [inverse tangent](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [tan](#tan).
+
+#### atanh
+
+`atanh(q)` returns [inverse hyperbolic tangent](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_tangent) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [tanh](#tanh).
 
 #### bitmap_and
 
@@ -389,7 +409,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### cos
 
-`cos(q)` returns `cos(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [sin](#sin).
+`cos(q)` returns `cos(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [sin](#sin).
+
+#### cosh
+
+`cosh(q)` returns [hyperbolic cosine](https://en.wikipedia.org/wiki/Hyperbolic_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. This function is supported by PromQL. See also [acosh](#acosh).
 
 #### day_of_month
 
@@ -402,6 +426,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 #### days_in_month
 
 `days_in_month(q)` returns the number of days in the month identified by every point of every time series returned by `q`. It is expected that `q` returns unix timestamps. The returned values are in the range `[28...31]`. Metric names are stripped from the resulting series. This function is supported by PromQL.
+
+#### deg
+
+`deg(q)` converts [Radians to degrees](https://en.wikipedia.org/wiki/Radian#Conversions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [rad](#rad).
 
 #### end
 
@@ -477,7 +505,12 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### pi
 
-`pi()` returns [Pi number](https://en.wikipedia.org/wiki/Pi).
+`pi()` returns [Pi number](https://en.wikipedia.org/wiki/Pi). This function is supported by PromQL.
+
+#### rad
+
+`rad(q)` converts [degrees to Radians](https://en.wikipedia.org/wiki/Radian#Conversions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [deg](#deg).
+
 
 #### prometheus_buckets
 
@@ -565,7 +598,19 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### sin
 
-`sin(q)` returns `sin(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. See also [cos](#cos).
+`sin(q)` returns `sin(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [cos](#cos).
+
+#### sinh
+
+`sinh(q)` returns [hyperbolic sine](https://en.wikipedia.org/wiki/Hyperbolic_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [cosh](#cosh).
+
+#### tan
+
+`tan(q)` returns `tan(v)` for every `v` point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [atan](#atan).
+
+#### tanh
+
+`tanh(q)` returns [hyperbolic tangent](https://en.wikipedia.org/wiki/Hyperbolic_functions) for every point of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by MetricsQL. See also [atanh](#atanh).
 
 #### smooth_exponential
 
@@ -613,7 +658,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### union
 
-`union(q1, ..., qN)` returns a union of time series returned from `q1`, ..., `qN`. The `union` function name can be skipped - the following queries are quivalent: `union(q1, q2)` and `(q1, q2)`.
+`union(q1, ..., qN)` returns a union of time series returned from `q1`, ..., `qN`. The `union` function name can be skipped - the following queries are quivalent: `union(q1, q2)` and `(q1, q2)`. It is expected that each `q*` query returns time series with unique sets of labels. Otherwise only the first time series out of series with identical set of labels is returned. Use [alias](#alias) and [label_set](#label_set) functions for giving unique labelsets per each `q*` query:
 
 #### vector
 
@@ -762,7 +807,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### limitk
 
-`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series can change with each call.
+`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls.
 
 #### mad
 

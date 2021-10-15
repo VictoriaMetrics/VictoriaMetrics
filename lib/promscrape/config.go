@@ -58,8 +58,8 @@ var (
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
 	Global            GlobalConfig   `yaml:"global,omitempty"`
-	ScrapeConfigs     []ScrapeConfig `yaml:"scrape_configs"`
-	ScrapeConfigFiles []string       `yaml:"scrape_config_files"`
+	ScrapeConfigs     []ScrapeConfig `yaml:"scrape_configs,omitempty"`
+	ScrapeConfigFiles []string       `yaml:"scrape_config_files,omitempty"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
@@ -121,7 +121,7 @@ type ScrapeConfig struct {
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
-	FollowRedirects      *bool                       `yaml:"follow_redirects"` // omitempty isn't set, since the default value for this flag is true.
+	FollowRedirects      *bool                       `yaml:"follow_redirects,omitempty"`
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
@@ -753,6 +753,12 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
+	if (*streamParse || sc.StreamParse) && sc.SampleLimit > 0 {
+		return nil, fmt.Errorf("cannot use stream parsing mode when `sample_limit` is set for `job_name` %q", jobName)
+	}
+	if (*streamParse || sc.StreamParse) && sc.SeriesLimit > 0 {
+		return nil, fmt.Errorf("cannot use stream parsing mode when `series_limit` is set for `job_name` %q", jobName)
+	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeTimeout:        scrapeTimeout,
@@ -926,11 +932,14 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func appendScrapeWorkKey(dst []byte, target string, extraLabels, metaLabels map[string]string) []byte {
-	dst = append(dst, target...)
-	dst = append(dst, ',')
-	dst = appendSortedKeyValuePairs(dst, extraLabels)
-	dst = appendSortedKeyValuePairs(dst, metaLabels)
+func appendScrapeWorkKey(dst []byte, labels []prompbmarshal.Label) []byte {
+	for _, label := range labels {
+		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
+		dst = append(dst, label.Name...)
+		dst = append(dst, '=')
+		dst = append(dst, label.Value...)
+		dst = append(dst, ',')
+	}
 	return dst
 }
 
@@ -955,37 +964,9 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 	return true
 }
 
-func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
-		dst = append(dst, k...)
-		dst = append(dst, '=')
-		dst = append(dst, m[k]...)
-		dst = append(dst, ',')
-	}
-	dst = append(dst, '\n')
-	return dst
-}
-
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
-	if *clusterMembersCount > 1 {
-		bb := scrapeWorkKeyBufPool.Get()
-		bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
-		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
-		scrapeWorkKeyBufPool.Put(bb)
-		if needSkip {
-			return nil, nil
-		}
-	}
-
 	labels := mergeLabels(swc, target, extraLabels, metaLabels)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
@@ -1001,6 +982,19 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
 	labels = append([]prompbmarshal.Label{}, labels...)
 
+	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
+	// Perform the verification on labels after the relabeling in order to guarantee that targets with the same set of labels
+	// go to the same vmagent shard.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1687#issuecomment-940629495
+	if *clusterMembersCount > 1 {
+		bb := scrapeWorkKeyBufPool.Get()
+		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
+		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
+		scrapeWorkKeyBufPool.Put(bb)
+		if needSkip {
+			return nil, nil
+		}
+	}
 	if len(labels) == 0 {
 		// Drop target without labels.
 		droppedTargetsMap.Register(originalLabels)

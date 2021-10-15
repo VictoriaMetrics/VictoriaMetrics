@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -28,8 +30,9 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
-	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
-	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -113,6 +116,12 @@ type ScrapeWork struct {
 
 	// The original 'job_name'
 	jobNameOriginal string
+}
+
+func (sw *ScrapeWork) canSwitchToStreamParseMode() bool {
+	// Deny switching to stream parse mode if `sample_limit` or `series_limit` options are set,
+	// since these limits cannot be applied in stream parsing mode.
+	return sw.SampleLimit <= 0 && sw.SeriesLimit <= 0
 }
 
 // key returns unique identifier for the given sw.
@@ -290,10 +299,17 @@ var (
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
 )
 
+func (sw *scrapeWork) mustSwitchToStreamParseMode(responseSize int) bool {
+	if minResponseSizeForStreamParse.N <= 0 {
+		return false
+	}
+	return sw.Config.canSwitchToStreamParseMode() && responseSize >= minResponseSizeForStreamParse.N
+}
+
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
-	if *streamParse || sw.Config.StreamParse {
+	if sw.mustSwitchToStreamParseMode(sw.prevBodyLen) || *streamParse || sw.Config.StreamParse {
 		// Read data from scrape targets in streaming manner.
-		// This case is optimized for targets exposing millions and more of metrics per target.
+		// This case is optimized for targets exposing more than ten thousand of metrics per target.
 		return sw.scrapeStream(scrapeTimestamp, realTimestamp)
 	}
 
@@ -355,15 +371,24 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
-	wc.reset()
-	writeRequestCtxPool.Put(wc)
-	// body must be released only after wc is released, since wc refers to body.
 	sw.prevBodyLen = len(body.B)
+	wc.reset()
+	canReturnToPool := !sw.mustSwitchToStreamParseMode(len(body.B))
+	if canReturnToPool {
+		// Return wc to the pool if the parsed response size was smaller than -promscrape.minResponseSizeForStreamParse
+		// This should reduce memory usage when scraping targets with big responses.
+		writeRequestCtxPool.Put(wc)
+	}
+	// body must be released only after wc is released, since wc refers to body.
 	if !areIdenticalSeries {
 		sw.sendStaleSeries(bodyString, scrapeTimestamp, false)
+		sw.lastScrape = append(sw.lastScrape[:0], bodyString...)
 	}
-	sw.lastScrape = append(sw.lastScrape[:0], bodyString...)
-	leveledbytebufferpool.Put(body)
+	if canReturnToPool {
+		// Return wc to the pool only if its size is smaller than -promscrape.minResponseSizeForStreamParse
+		// This should reduce memory usage when scraping targets which return big responses.
+		leveledbytebufferpool.Put(body)
+	}
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
 }
@@ -374,18 +399,33 @@ func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
 	pushDataDuration.UpdateDuration(startTime)
 }
 
+type streamBodyReader struct {
+	sr   *streamReader
+	body []byte
+}
+
+func (sbr *streamBodyReader) Read(b []byte) (int, error) {
+	n, err := sbr.sr.Read(b)
+	sbr.body = append(sbr.body, b[:n]...)
+	return n, err
+}
+
 func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesScraped := 0
 	samplesPostRelabeling := 0
-	responseSize := int64(0)
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+	// Do not pool sbr in order to reduce memory usage when scraping big responses.
+	sbr := &streamBodyReader{
+		body: make([]byte, 0, len(sw.lastScrape)),
+	}
 
 	sr, err := sw.GetStreamReader()
 	if err != nil {
 		err = fmt.Errorf("cannot read data: %s", err)
 	} else {
 		var mu sync.Mutex
-		err = parser.ParseStream(sr, scrapeTimestamp, false, func(rows []parser.Row) error {
+		sbr.sr = sr
+		err = parser.ParseStream(sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 			mu.Lock()
 			defer mu.Unlock()
 			samplesScraped += len(rows)
@@ -406,15 +446,17 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 			wc.resetNoRows()
 			return nil
 		}, sw.logError)
-		responseSize = sr.bytesRead
 		sr.MustClose()
 	}
+	bodyString := bytesutil.ToUnsafeString(sbr.body)
+	lastScrape := bytesutil.ToUnsafeString(sw.lastScrape)
+	areIdenticalSeries := parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 
 	scrapedSamples.Update(float64(samplesScraped))
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
-	scrapeResponseSize.Update(float64(responseSize))
+	scrapeResponseSize.Update(float64(len(bodyString)))
 	up := 1
 	if err != nil {
 		if samplesScraped == 0 {
@@ -422,18 +464,29 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		}
 		scrapesFailed.Inc()
 	}
+	seriesAdded := 0
+	if !areIdenticalSeries {
+		// The returned value for seriesAdded may be bigger than the real number of added series
+		// if some series were removed during relabeling.
+		// This is a trade-off between performance and accuracy.
+		seriesAdded = sw.getSeriesAdded(bodyString)
+	}
 	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
-	// scrape_series_added isn't calculated in streaming mode,
-	// since it may need unlimited amounts of memory when scraping targets with millions of exposed metrics.
-	sw.addAutoTimeseries(wc, "scrape_series_added", 0, scrapeTimestamp)
+	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
+	sw.prevBodyLen = len(bodyString)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
+	if !areIdenticalSeries {
+		sw.sendStaleSeries(bodyString, scrapeTimestamp, false)
+		sw.lastScrape = append(sw.lastScrape[:0], bodyString...)
+	}
+	runtime.KeepAlive(sbr) // this is needed in order to prevent from GC'ing data pointed by bodyString
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.

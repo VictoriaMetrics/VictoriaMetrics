@@ -183,6 +183,10 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
 
+## Readonly mode
+
+`vmstorage` nodes automatically switch to readonly mode when the directory pointed by `-storageDataPath` contains less than `-storage.minFreeDiskSpaceBytes` of free space. `vminsert` nodes stop sending data to such nodes and start re-routing the data to the remaining `vmstorage` nodes.
+
 
 
 ## URL format
@@ -781,6 +785,9 @@ Below is the output for `/path/to/vmstorage -help`:
     	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
     	The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries
+  -storage.minFreeDiskSpaceBytes size
+    	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 10000000)
   -storageDataPath string
     	Path to storage data (default "vmstorage-data")
   -tls
