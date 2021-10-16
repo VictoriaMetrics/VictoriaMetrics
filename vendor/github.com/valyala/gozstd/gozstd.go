@@ -123,7 +123,6 @@ func compress(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressi
 			// All OK.
 			return dst[:dstLen+compressedSize]
 		}
-
 		if C.ZSTD_getErrorCode(result) != C.ZSTD_error_dstSize_tooSmall {
 			// Unexpected error.
 			panic(fmt.Errorf("BUG: unexpected error during compression with cd=%p: %s", cd, errStr(result)))
@@ -139,7 +138,12 @@ func compress(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressi
 
 	result := compressInternal(cctx, cctxDict, dst[dstLen:dstLen+compressBound], src, cd, compressionLevel, true)
 	compressedSize := int(result)
-	return dst[:dstLen+compressedSize]
+	dst = dst[:dstLen+compressedSize]
+	if cap(dst)-len(dst) > 4096 {
+		// Re-allocate dst in order to remove superflouos capacity and reduce memory usage.
+		dst = append([]byte{}, dst...)
+	}
+	return dst
 }
 
 func compressInternal(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressionLevel int, mustSucceed bool) C.size_t {
@@ -234,7 +238,7 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	}
 
 	dstLen := len(dst)
-	if cap(dst)-dstLen >= len(src) {
+	if cap(dst) > dstLen {
 		// Fast path - try decompressing without dst resize.
 		result := decompressInternal(dctx, dctxDict, dst[dstLen:cap(dst)], src, dd)
 		decompressedSize := int(result)
@@ -270,8 +274,12 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	result := decompressInternal(dctx, dctxDict, dst[dstLen:dstLen+decompressBound], src, dd)
 	decompressedSize := int(result)
 	if decompressedSize >= 0 {
-		// All OK.
-		return dst[:dstLen+decompressedSize], nil
+		dst = dst[:dstLen+decompressedSize]
+		if cap(dst)-len(dst) > 4096 {
+			// Re-allocate dst in order to remove superflouos capacity and reduce memory usage.
+			dst = append([]byte{}, dst...)
+		}
+		return dst, nil
 	}
 
 	// Error during decompression.
