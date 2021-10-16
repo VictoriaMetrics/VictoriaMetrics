@@ -49,6 +49,7 @@ Case studies:
 * [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
 * [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
+* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
 * [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
 * [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
