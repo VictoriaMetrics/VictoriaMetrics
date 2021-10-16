@@ -199,6 +199,9 @@ type scrapeWork struct {
 	// Optional limiter on the number of unique series per scrape target.
 	seriesLimiter *bloomfilter.Limiter
 
+	// Optional counter on the number of dropped samples if the limit on the number of unique series is set.
+	seriesLimiterRowsDroppedTotal *metrics.Counter
+
 	// prevBodyLen contains the previous response body length for the given scrape work.
 	// It is used as a hint in order to reduce memory usage for body buffers.
 	prevBodyLen int
@@ -302,6 +305,13 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 			t := time.Now().UnixNano() / 1e6
 			sw.sendStaleSeries("", t, true)
 			if sw.seriesLimiter != nil {
+				job := sw.Config.Job()
+				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+					sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
+				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_max_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+					sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
+				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_current_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+					sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
 				sw.seriesLimiter.MustStop()
 			}
 			return
@@ -615,22 +625,31 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) bool {
 		seriesLimit = sw.Config.SeriesLimit
 	}
 	if sw.seriesLimiter == nil && seriesLimit > 0 {
+		job := sw.Config.Job()
 		sw.seriesLimiter = bloomfilter.NewLimiter(seriesLimit, 24*time.Hour)
+		sw.seriesLimiterRowsDroppedTotal = metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+			sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`promscrape_series_limit_max_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+			sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL), func() float64 {
+			return float64(sw.seriesLimiter.MaxItems())
+		})
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`promscrape_series_limit_current_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
+			sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL), func() float64 {
+			return float64(sw.seriesLimiter.CurrentItems())
+		})
 	}
 	hsl := sw.seriesLimiter
 	if hsl == nil {
 		return false
 	}
 	dstSeries := wc.writeRequest.Timeseries[:0]
-	job := sw.Config.Job()
 	limitExceeded := false
 	for _, ts := range wc.writeRequest.Timeseries {
 		h := sw.getLabelsHash(ts.Labels)
 		if !hsl.Add(h) {
 			// The limit on the number of hourly unique series per scrape target has been exceeded.
 			// Drop the metric.
-			metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-				sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL)).Inc()
+			sw.seriesLimiterRowsDroppedTotal.Inc()
 			limitExceeded = true
 			continue
 		}
