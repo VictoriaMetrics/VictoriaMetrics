@@ -106,37 +106,35 @@ func newClient(sw *ScrapeWork) *client {
 		MaxIdempotentRequestAttempts: 1,
 	}
 	var sc *http.Client
-	if *streamParse || sw.StreamParse {
-		var proxyURLFunc func(*http.Request) (*url.URL, error)
-		if proxyURL := sw.ProxyURL.URL(); proxyURL != nil {
-			proxyURLFunc = http.ProxyURL(proxyURL)
-		}
-		sc = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig:     tlsCfg,
-				Proxy:               proxyURLFunc,
-				TLSHandshakeTimeout: 10 * time.Second,
-				IdleConnTimeout:     2 * sw.ScrapeInterval,
-				DisableCompression:  *disableCompression || sw.DisableCompression,
-				DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
-				DialContext:         statStdDial,
-				MaxIdleConnsPerHost: 100,
+	var proxyURLFunc func(*http.Request) (*url.URL, error)
+	if proxyURL := sw.ProxyURL.URL(); proxyURL != nil {
+		proxyURLFunc = http.ProxyURL(proxyURL)
+	}
+	sc = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig:     tlsCfg,
+			Proxy:               proxyURLFunc,
+			TLSHandshakeTimeout: 10 * time.Second,
+			IdleConnTimeout:     2 * sw.ScrapeInterval,
+			DisableCompression:  *disableCompression || sw.DisableCompression,
+			DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
+			DialContext:         statStdDial,
+			MaxIdleConnsPerHost: 100,
 
-				// Set timeout for receiving the first response byte,
-				// since the duration for reading the full response can be much bigger because of stream parsing.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
-				ResponseHeaderTimeout: sw.ScrapeTimeout,
-			},
-
-			// Set 30x bigger timeout than the sw.ScrapeTimeout, since the duration for reading the full response
-			// can be much bigger because of stream parsing.
+			// Set timeout for receiving the first response byte,
+			// since the duration for reading the full response can be much bigger because of stream parsing.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
-			Timeout: 30 * sw.ScrapeTimeout,
-		}
-		if sw.DenyRedirects {
-			sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			}
+			ResponseHeaderTimeout: sw.ScrapeTimeout,
+		},
+
+		// Set 30x bigger timeout than the sw.ScrapeTimeout, since the duration for reading the full response
+		// can be much bigger because of stream parsing.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
+		Timeout: 30 * sw.ScrapeTimeout,
+	}
+	if sw.DenyRedirects {
+		sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
 		}
 	}
 	return &client{
