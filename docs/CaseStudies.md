@@ -24,6 +24,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [Percona](#percona)
 * [Razorpay](#razorpay)
 * [Sensedia](#sensedia)
+* [Smarkets](#smarkets)
 * [Synthesio](#synthesio)
 * [Wedos.com](#wedoscom)
 * [Wix.com](#wixcom)
@@ -439,6 +440,22 @@ Numbers:
 - Index size on disk: 30 GB
 - Churn rate: 3 million of new time series per day
 - Query response time (99th percentile): 500ms
+
+
+## Smarkets
+
+[Smarkets](https://smarkets.com/) simplifies peer-to-peer trading on sporting and political events.
+
+> We always wanted our developers to have out-of-the-box monitoring available for any application or service. Before we adopted Kubernetes this was achieved either with Prometheus metrics, or with statsd being sent over to the underlying host and then converted into Prometheus metrics. As we expanded our Kubernetes adoption and started to split clusters, we also wanted developers to be able to expose metrics directly to Prometheus by annotating services. Those metrics were then only available inside the cluster so they couldn’t be scraped globally.
+
+> We considered three different solutions to improve our architecture:
+> * Prometheus + Cortex
+> * Prometheus + Thanos Receive
+> * Prometheus + Victoria Metrics
+
+> We selected Victoria Metrics. Our new architecture has been very stable since it was put into production. With the previous setup we would have had two or three cardinality explosions in a two-week period, with this new one we have none.
+
+See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3).
 
 
 ## Synthesio
