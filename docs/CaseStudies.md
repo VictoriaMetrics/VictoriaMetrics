@@ -15,6 +15,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [CERN](#cern)
 * [COLOPL](#colopl)
 * [Dreamteam](#dreamteam)
+* [Fly.io](#flyio)
 * [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
 * [Grammarly](#grammarly)
 * [Groove X](#groove-x)
@@ -245,6 +246,19 @@ Numbers:
 VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
 as the load balancer for reads.
+
+## Fly.io
+
+[Fly.io](https://fly.io/about/) is a platform for running full stack apps and databases close to your users.
+
+> Victoria Metrics (“Vicky”), in a clustered configuration, is our metrics database. We run a cluster of fairly big Vicky hosts.
+
+> Like everyone else, we started with a simple Prometheus server. That worked until it didn’t. We spent some time scaling it with Thanos, and Thanos was a lot, as far as ops hassle goes. We’d dabbled with Vicky just as a long-term storage engine for vanilla Prometheus, with promxy set up to deduplicate metrics.
+
+> Vicky grew into a more ambitious offering, and added its own Prometheus scraper; we adopted it and scaled it as far as we reasonably could in a single-node configuration. Scaling requirements ultimately pushed us into a clustered deployment; we run an HA cluster (fronted by haproxy). Current Vicky has a really straightforward multi-tenant API — it’s easy to namespace metrics for customers — and it chugs along for us without too much minding.
+
+See [the full post](https://fly.io/blog/measuring-fly/).
+
 
 ## German Research Center for Artificial Intelligence
 
