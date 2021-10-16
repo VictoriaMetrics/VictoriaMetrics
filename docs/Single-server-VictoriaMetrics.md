@@ -40,6 +40,7 @@ Case studies:
 * [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
 * [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
 * [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
 * [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
