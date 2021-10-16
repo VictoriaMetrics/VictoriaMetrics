@@ -21,6 +21,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
 * [Percona](#percona)
+* [Razorpay](#razorpay)
 * [Sensedia](#sensedia)
 * [Synthesio](#synthesio)
 * [Wedos.com](#wedoscom)
@@ -372,9 +373,33 @@ Numbers with current, limited roll out:
 - Data size on disk: 800 GiB
 - Retention period: 3 years
 
+
 ## Percona
 
-[Percona](https://www.percona.com/) is a leader in providing best-of-breed enterprise-class support, consulting, managed services, training and software for MySQL®, MariaDB®, MongoDB®, PostgreSQL® and other open source databases in on-premises and cloud environments. Percona switched from Prometheus to VictoriaMetrics in the [Percona Monitoring and Management](https://www.percona.com/software/database-tools/percona-monitoring-and-management) product. This allowed [reducing resource usage](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/) and [getting rid of complex firewall setup](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/), while [improving user experience](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
+[Percona](https://www.percona.com/) is a leader in providing best-of-breed enterprise-class support, consulting, managed services, training and software for MySQL®, MariaDB®, MongoDB®, PostgreSQL® and other open source databases in on-premises and cloud environments.
+
+Percona migrated from Prometheus to VictoriaMetrics in the [Percona Monitoring and Management](https://www.percona.com/software/database-tools/percona-monitoring-and-management) product. This allowed [reducing resource usage](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/) and [getting rid of complex firewall setup](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/), while [improving user experience](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
+
+
+## Razorpay
+
+[Razorpay](https://razorpay.com/) aims to revolutionize money management for online businesses by providing clean, developer-friendly APIs and hassle-free integration.
+
+> As a fintech organization, we move billions of dollars every month. Our customers and merchants have entrusted us with a paramount responsibility. To handle our ever-growing business, building a robust observability stack is not just “nice to have”, but absolutely essential. And all of this starts with better monitoring and metrics.
+
+> We executed a variety of POCs on various solutions and finally arrived at the following technologies: M3DB, Thanos, Cortex and VictoriaMetrics. The clear winner was VictoriaMetrics.
+
+> The following are some of the basic observations we derived from Victoria Metrics:
+> * Simple components, each horizontally scalable.
+> * Clear separation between writes and reads.
+> * Runs from default configurations, with no extra frills.
+> * Default retention starts with 1 month
+> * Storage, ingestion, and reads can be easily scaled.
+> * High Compression store ~ 70% more compression.
+> * Currently running in production with commodity hardware with a good mix of spot instances.
+> * Successfully ran some of the worst Grafana dashboards/queries that have historically failed to run.
+
+See [the full article](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2).
 
 
 ## Sensedia
