@@ -19,6 +19,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [Groove X](#groove-x)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+* [Percona](#percona)
 * [Sensedia](#sensedia)
 * [Synthesio](#synthesio)
 * [Wedos.com](#wedoscom)
@@ -350,6 +351,10 @@ Numbers with current, limited roll out:
 - Total number of datapoints: 850 billions
 - Data size on disk: 800 GiB
 - Retention period: 3 years
+
+## Percona
+
+[Percona](https://www.percona.com/) is a leader in providing best-of-breed enterprise-class support, consulting, managed services, training and software for MySQL®, MariaDB®, MongoDB®, PostgreSQL® and other open source databases in on-premises and cloud environments. Percona switched from Prometheus to VictoriaMetrics in the [Percona Monitoring and Management](https://www.percona.com/software/database-tools/percona-monitoring-and-management) product. This allowed [reducing resource usage](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/) and [getting rid of complex firewall setup](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/), while [improving user experience](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
 
 
 ## Sensedia
