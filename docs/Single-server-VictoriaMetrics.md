@@ -44,6 +44,7 @@ Case studies:
 * [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
 * [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
