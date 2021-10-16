@@ -28,6 +28,7 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 
 Case studies:
 
+* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
 * [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
 * [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
 * [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
