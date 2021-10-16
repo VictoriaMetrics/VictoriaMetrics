@@ -128,9 +128,10 @@ scrape_configs:
 	sws := cfg.getStaticScrapeWork()
 	resetNonEssentialFields(sws)
 	swsExpected := []*ScrapeWork{{
-		ScrapeURL:      "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
-		ScrapeInterval: defaultScrapeInterval,
-		ScrapeTimeout:  defaultScrapeTimeout,
+		ScrapeURL:       "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
+		ScrapeInterval:  defaultScrapeInterval,
+		ScrapeTimeout:   defaultScrapeTimeout,
+		HonorTimestamps: true,
 		Labels: []prompbmarshal.Label{
 			{
 				Name:  "__address__",
@@ -574,8 +575,7 @@ scrape_configs:
 			ScrapeURL:       "http://host1:80/abc/de",
 			ScrapeInterval:  defaultScrapeInterval,
 			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorLabels:     false,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -622,8 +622,7 @@ scrape_configs:
 			ScrapeURL:       "http://host2:80/abc/de",
 			ScrapeInterval:  defaultScrapeInterval,
 			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorLabels:     false,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -670,8 +669,7 @@ scrape_configs:
 			ScrapeURL:       "http://localhost:9090/abc/de",
 			ScrapeInterval:  defaultScrapeInterval,
 			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorLabels:     false,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -740,8 +738,7 @@ scrape_configs:
 			ScrapeURL:       "http://foo.bar:1234/metrics",
 			ScrapeInterval:  defaultScrapeInterval,
 			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorLabels:     false,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -791,8 +788,7 @@ scrape_configs:
 			ScrapeURL:       "http://foo.bar:1234/metrics",
 			ScrapeInterval:  defaultScrapeInterval,
 			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorLabels:     false,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -847,7 +843,7 @@ scrape_configs:
   metrics_path: /foo/bar
   scheme: https
   honor_labels: true
-  honor_timestamps: true
+  honor_timestamps: false
   follow_redirects: false
   params:
     p: ["x&y", "="]
@@ -873,7 +869,7 @@ scrape_configs:
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			HonorLabels:     true,
-			HonorTimestamps: true,
+			HonorTimestamps: false,
 			DenyRedirects:   true,
 			Labels: []prompbmarshal.Label{
 				{
@@ -923,7 +919,7 @@ scrape_configs:
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			HonorLabels:     true,
-			HonorTimestamps: true,
+			HonorTimestamps: false,
 			DenyRedirects:   true,
 			Labels: []prompbmarshal.Label{
 				{
@@ -969,9 +965,10 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://1.2.3.4:80/metrics",
-			ScrapeInterval: 8 * time.Second,
-			ScrapeTimeout:  8 * time.Second,
+			ScrapeURL:       "http://1.2.3.4:80/metrics",
+			ScrapeInterval:  8 * time.Second,
+			ScrapeTimeout:   8 * time.Second,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1010,9 +1007,10 @@ scrape_configs:
 			jobNameOriginal: "qwer",
 		},
 		{
-			ScrapeURL:      "http://foobar:80/metrics",
-			ScrapeInterval: 8 * time.Second,
-			ScrapeTimeout:  8 * time.Second,
+			ScrapeURL:       "http://foobar:80/metrics",
+			ScrapeInterval:  8 * time.Second,
+			ScrapeTimeout:   8 * time.Second,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1085,9 +1083,10 @@ scrape_configs:
   - targets: ["foo.bar:1234", "drop-this-target"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics?x=keep_me",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://foo.bar:1234/metrics?x=keep_me",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1164,9 +1163,10 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "mailto://foo.bar:1234/abc.de?a=b",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "mailto://foo.bar:1234/abc.de?a=b",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1228,9 +1228,10 @@ scrape_configs:
   - targets: ["foo.bar:1234", "xyz"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1261,9 +1262,10 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1310,9 +1312,10 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1355,9 +1358,10 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1414,9 +1418,10 @@ scrape_configs:
       job: yyy
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://pp:80/metrics?a=c&a=xy",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://pp:80/metrics?a=c&a=xy",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1491,9 +1496,10 @@ scrape_configs:
         replacement: true
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -1562,9 +1568,10 @@ scrape_configs:
     target_label: __metrics_path__
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metricspath",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
+			ScrapeURL:       "http://foo.bar:1234/metricspath",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
