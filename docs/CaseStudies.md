@@ -7,6 +7,7 @@ sort: 11
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
+* [AbiosGaming](#aboisgaming)
 * [adidas](#adidas)
 * [Adsterra](#adsterra)
 * [ARNES](#arnes)
@@ -28,6 +29,25 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [zhihu](#zhihu)
 
 You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics).
+
+
+## AbiosGaming
+
+[AbiosGaming](https://abiosgaming.com/) provides industry leading esports data and technology across the globe.
+
+> At Abios, we are running Grafana and Prometheus for our operational insights. We are collecting all sorts of operational metrics such as request latency, active WebSocket connections, and cache statistics to determine if things are working as we expect them to.
+
+> Prometheus explicitly recommends their users not to use high cardinality labels for their time-series data, which is exactly what we want to do. Prometheus is thus a poor solution to keep using. However, since we were already using Prometheus, we needed an alternative solution to be fully compatible with the Prometheus query language.
+
+> The options we decided to try were TimescaleDB together with Promscale to act as a remote write intermediary and VictoriaMetrics. In both cases we still used Prometheus Operator to launch Prometheus instances to scrape metrics and send them to the respective storage layers.
+
+> The biggest difference for our day-to-day operation is perhaps that VictoriaMetrics does not have a Write-Ahead log. The WAL has caused us trouble when Prometheus has experienced issues and starts to run out of RAM when replaying the WAL, thus entering a crash-loop.
+
+> All in all, we are quite impressed with VictoriaMetrics. Not only is the core time-series database well designed, easy to deploy and operate, and performant but the entire ecosystem around it seems to have been given an equal amount of love. There are utilities for things such as taking snapshots (backups) and storing to S3 (and reloading from S3), a Kubernetes Operator, and authentication proxies. It also provides a cluster deployment option if we were to scale up to those numbers.
+
+> From a usability point of view, VictoriaMetrics is the clear winner. Neither Prometheus nor TimescaleDB managed to do any kind of aggregations on our high cardinality metrics, whereas VictoriaMetrics does.
+
+See [the full article](https://abiosgaming.com/press/high-cardinality-aggregations/).
 
 
 ## adidas
