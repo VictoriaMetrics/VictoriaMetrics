@@ -513,7 +513,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.tlsServerName string
     	Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
   -remoteRead.url vmalert
-    	Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
+    	Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend
   -remoteWrite.basicAuth.password string
     	Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.passwordFile string

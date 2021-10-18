@@ -26,7 +26,7 @@ var (
 		"By default system CA is used")
 	tlsServerName = flag.String("remoteRead.tlsServerName", "", "Optional TLS server name to use for connections to -remoteRead.url. "+
 		"By default the server name from -remoteRead.url is used")
-	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1' path to the configured -remoteRead.url.")
+	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path to the configured -remoteRead.url.")
 )
 
 // Init creates a Querier from provided flag values.
