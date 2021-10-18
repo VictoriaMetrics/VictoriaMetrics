@@ -49,7 +49,7 @@ export const initialState: AppState = {
   queryControls: {
     autoRefresh: false,
     autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
-    nocache: getFromStorage("NO_CACHE") as boolean || true,
+    nocache: getFromStorage("NO_CACHE") as boolean || false,
   }
 };
 
