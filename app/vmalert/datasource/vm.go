@@ -132,12 +132,12 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("error getting response from %s: %w", req.URL, err)
+		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
+		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL.Redacted(), body)
 	}
 	return resp, nil
 }
