@@ -3,6 +3,7 @@ import {SnackbarProvider} from "./contexts/Snackbar";
 import HomeLayout from "./components/Home/HomeLayout";
 import {StateProvider} from "./state/common/StateContext";
 import {AuthStateProvider} from "./state/auth/AuthStateContext";
+import {GraphStateProvider} from "./state/graph/GraphStateContext";
 import {createMuiTheme, MuiThemeProvider} from "@material-ui/core";
 
 import CssBaseline from "@material-ui/core/CssBaseline";
@@ -26,9 +27,11 @@ const App: FC = () => {
         <MuiThemeProvider theme={THEME}>  {/* Material UI theme customization */}
           <StateProvider> {/* Serialized into query string, common app settings */}
             <AuthStateProvider> {/* Auth related info - optionally persisted to Local Storage */}
-              <SnackbarProvider> {/* Display various snackbars */}
-                <HomeLayout/>
-              </SnackbarProvider>
+              <GraphStateProvider> {/* Graph settings */}
+                <SnackbarProvider> {/* Display various snackbars */}
+                  <HomeLayout/>
+                </SnackbarProvider>
+              </GraphStateProvider>
             </AuthStateProvider>
           </StateProvider>
         </MuiThemeProvider>

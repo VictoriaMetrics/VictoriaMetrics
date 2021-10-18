@@ -39,7 +39,7 @@ const HomeLayout: FC = () => {
             top: "40px",
             opacity: ".4"
           }}>
-            <Link color="inherit" href="https://github.com/VictoriaMetrics/vmui/issues/new" target="_blank">
+            <Link color="inherit" href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new" target="_blank">
               Create an issue
             </Link>
           </div>
