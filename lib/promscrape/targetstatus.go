@@ -295,7 +295,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
-		job := st.sw.Job()
+		job := st.sw.jobNameOriginal
 		byJob[job] = append(byJob[job], *st)
 	}
 	jobNames := append([]string{}, tsm.jobNames...)
