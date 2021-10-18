@@ -7,6 +7,7 @@ sort: 11
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
+* [AbiosGaming](#aboisgaming)
 * [adidas](#adidas)
 * [Adsterra](#adsterra)
 * [ARNES](#arnes)
@@ -14,12 +15,16 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [CERN](#cern)
 * [COLOPL](#colopl)
 * [Dreamteam](#dreamteam)
+* [Fly.io](#flyio)
 * [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
 * [Grammarly](#grammarly)
 * [Groove X](#groove-x)
 * [Idealo.de](#idealode)
 * [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+* [Percona](#percona)
+* [Razorpay](#razorpay)
 * [Sensedia](#sensedia)
+* [Smarkets](#smarkets)
 * [Synthesio](#synthesio)
 * [Wedos.com](#wedoscom)
 * [Wix.com](#wixcom)
@@ -27,6 +32,25 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 * [zhihu](#zhihu)
 
 You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics).
+
+
+## AbiosGaming
+
+[AbiosGaming](https://abiosgaming.com/) provides industry leading esports data and technology across the globe.
+
+> At Abios, we are running Grafana and Prometheus for our operational insights. We are collecting all sorts of operational metrics such as request latency, active WebSocket connections, and cache statistics to determine if things are working as we expect them to.
+
+> Prometheus explicitly recommends their users not to use high cardinality labels for their time-series data, which is exactly what we want to do. Prometheus is thus a poor solution to keep using. However, since we were already using Prometheus, we needed an alternative solution to be fully compatible with the Prometheus query language.
+
+> The options we decided to try were TimescaleDB together with Promscale to act as a remote write intermediary and VictoriaMetrics. In both cases we still used Prometheus Operator to launch Prometheus instances to scrape metrics and send them to the respective storage layers.
+
+> The biggest difference for our day-to-day operation is perhaps that VictoriaMetrics does not have a Write-Ahead log. The WAL has caused us trouble when Prometheus has experienced issues and starts to run out of RAM when replaying the WAL, thus entering a crash-loop.
+
+> All in all, we are quite impressed with VictoriaMetrics. Not only is the core time-series database well designed, easy to deploy and operate, and performant but the entire ecosystem around it seems to have been given an equal amount of love. There are utilities for things such as taking snapshots (backups) and storing to S3 (and reloading from S3), a Kubernetes Operator, and authentication proxies. It also provides a cluster deployment option if we were to scale up to those numbers.
+
+> From a usability point of view, VictoriaMetrics is the clear winner. Neither Prometheus nor TimescaleDB managed to do any kind of aggregations on our high cardinality metrics, whereas VictoriaMetrics does.
+
+See [the full article](https://abiosgaming.com/press/high-cardinality-aggregations/).
 
 
 ## adidas
@@ -224,6 +248,19 @@ VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mod
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
 as the load balancer for reads.
 
+## Fly.io
+
+[Fly.io](https://fly.io/about/) is a platform for running full stack apps and databases close to your users.
+
+> Victoria Metrics (“Vicky”), in a clustered configuration, is our metrics database. We run a cluster of fairly big Vicky hosts.
+
+> Like everyone else, we started with a simple Prometheus server. That worked until it didn’t. We spent some time scaling it with Thanos, and Thanos was a lot, as far as ops hassle goes. We’d dabbled with Vicky just as a long-term storage engine for vanilla Prometheus, with promxy set up to deduplicate metrics.
+
+> Vicky grew into a more ambitious offering, and added its own Prometheus scraper; we adopted it and scaled it as far as we reasonably could in a single-node configuration. Scaling requirements ultimately pushed us into a clustered deployment; we run an HA cluster (fronted by haproxy). Current Vicky has a really straightforward multi-tenant API — it’s easy to namespace metrics for customers — and it chugs along for us without too much minding.
+
+See [the full post](https://fly.io/blog/measuring-fly/).
+
+
 ## German Research Center for Artificial Intelligence
 
 [German Research Center for Artificial Intelligence](https://en.wikipedia.org/wiki/German_Research_Centre_for_Artificial_Intelligence) (DFKI) is one of the world's largest nonprofit contract research institutes for software technology based on artificial intelligence (AI) methods. DFKI was founded in 1988, and has facilities in the German cities of Kaiserslautern, Saarbrücken, Bremen and Berlin.
@@ -352,6 +389,34 @@ Numbers with current, limited roll out:
 - Retention period: 3 years
 
 
+## Percona
+
+[Percona](https://www.percona.com/) is a leader in providing best-of-breed enterprise-class support, consulting, managed services, training and software for MySQL®, MariaDB®, MongoDB®, PostgreSQL® and other open source databases in on-premises and cloud environments.
+
+Percona migrated from Prometheus to VictoriaMetrics in the [Percona Monitoring and Management](https://www.percona.com/software/database-tools/percona-monitoring-and-management) product. This allowed [reducing resource usage](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/) and [getting rid of complex firewall setup](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/), while [improving user experience](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
+
+
+## Razorpay
+
+[Razorpay](https://razorpay.com/) aims to revolutionize money management for online businesses by providing clean, developer-friendly APIs and hassle-free integration.
+
+> As a fintech organization, we move billions of dollars every month. Our customers and merchants have entrusted us with a paramount responsibility. To handle our ever-growing business, building a robust observability stack is not just “nice to have”, but absolutely essential. And all of this starts with better monitoring and metrics.
+
+> We executed a variety of POCs on various solutions and finally arrived at the following technologies: M3DB, Thanos, Cortex and VictoriaMetrics. The clear winner was VictoriaMetrics.
+
+> The following are some of the basic observations we derived from Victoria Metrics:
+> * Simple components, each horizontally scalable.
+> * Clear separation between writes and reads.
+> * Runs from default configurations, with no extra frills.
+> * Default retention starts with 1 month
+> * Storage, ingestion, and reads can be easily scaled.
+> * High Compression store ~ 70% more compression.
+> * Currently running in production with commodity hardware with a good mix of spot instances.
+> * Successfully ran some of the worst Grafana dashboards/queries that have historically failed to run.
+
+See [the full article](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2).
+
+
 ## Sensedia
 
 [Sensedia](https://www.sensedia.com) is a leading integration solutions provider with more than 120 enterprise clients across a range of sectors. Its world-class portfolio includes: an API Management Platform, Adaptive Governance, Events Hub, Service Mesh, Cloud Connectors and Strategic Professional Services' teams.
@@ -375,6 +440,22 @@ Numbers:
 - Index size on disk: 30 GB
 - Churn rate: 3 million of new time series per day
 - Query response time (99th percentile): 500ms
+
+
+## Smarkets
+
+[Smarkets](https://smarkets.com/) simplifies peer-to-peer trading on sporting and political events.
+
+> We always wanted our developers to have out-of-the-box monitoring available for any application or service. Before we adopted Kubernetes this was achieved either with Prometheus metrics, or with statsd being sent over to the underlying host and then converted into Prometheus metrics. As we expanded our Kubernetes adoption and started to split clusters, we also wanted developers to be able to expose metrics directly to Prometheus by annotating services. Those metrics were then only available inside the cluster so they couldn’t be scraped globally.
+
+> We considered three different solutions to improve our architecture:
+> * Prometheus + Cortex
+> * Prometheus + Thanos Receive
+> * Prometheus + Victoria Metrics
+
+> We selected Victoria Metrics. Our new architecture has been very stable since it was put into production. With the previous setup we would have had two or three cardinality explosions in a two-week period, with this new one we have none.
+
+See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3).
 
 
 ## Synthesio

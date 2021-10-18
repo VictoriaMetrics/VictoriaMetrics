@@ -246,13 +246,13 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
-			req.URL, err, len(data), r.Size())
+			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
-			resp.StatusCode, req.URL, body)
+			resp.StatusCode, req.URL.Redacted(), body)
 	}
 	return nil
 }

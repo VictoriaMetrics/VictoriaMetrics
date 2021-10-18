@@ -120,7 +120,7 @@ type ScrapeConfig struct {
 	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout,omitempty"`
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
-	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
+	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
 	FollowRedirects      *bool                       `yaml:"follow_redirects,omitempty"`
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
@@ -720,7 +720,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeTimeout = scrapeInterval
 	}
 	honorLabels := sc.HonorLabels
-	honorTimestamps := sc.HonorTimestamps
+	honorTimestamps := true
+	if sc.HonorTimestamps != nil {
+		honorTimestamps = *sc.HonorTimestamps
+	}
 	denyRedirects := false
 	if sc.FollowRedirects != nil {
 		denyRedirects = !*sc.FollowRedirects

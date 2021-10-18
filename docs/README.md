@@ -28,6 +28,7 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 
 Case studies:
 
+* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
 * [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
 * [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
 * [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
@@ -35,12 +36,16 @@ Case studies:
 * [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
 * [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
 * [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
 * [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
+* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
+* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
 * [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
 * [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)

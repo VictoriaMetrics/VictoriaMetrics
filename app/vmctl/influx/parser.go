@@ -58,6 +58,12 @@ func toFloat64(v interface{}) (float64, error) {
 		return float64(i), nil
 	case string:
 		return strconv.ParseFloat(i, 64)
+	case bool:
+		if i {
+			return 1, nil
+		} else {
+			return 0, nil
+		}
 	default:
 		return 0, fmt.Errorf("unexpected value type %v", i)
 	}
