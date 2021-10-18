@@ -1,7 +1,7 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
-	cloud.google.com/go/storage v1.18.0
+	cloud.google.com/go/storage v1.18.1
 	github.com/VictoriaMetrics/fastcache v1.7.0
 
 	// Do not use the original github.com/valyala/fasthttp because of issues
