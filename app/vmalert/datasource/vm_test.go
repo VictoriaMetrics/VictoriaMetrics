@@ -83,7 +83,7 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client(), false)
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
@@ -193,7 +193,7 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client(), false)
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
@@ -253,6 +253,17 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
+			"prometheus path with disablePathAppend",
+			false,
+			&VMStorage{
+				dataSourceType:    NewPrometheusType(),
+				disablePathAppend: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, "", r.URL.Path)
+			},
+		},
+		{
 			"prometheus prefix",
 			false,
 			&VMStorage{
@@ -261,6 +272,18 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				checkEqualString(t, prometheusPrefix+prometheusInstantPath, r.URL.Path)
+			},
+		},
+		{
+			"prometheus prefix with disablePathAppend",
+			false,
+			&VMStorage{
+				dataSourceType:    NewPrometheusType(),
+				appendTypePrefix:  true,
+				disablePathAppend: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, prometheusPrefix, r.URL.Path)
 			},
 		},
 		{
@@ -274,6 +297,17 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
+			"prometheus range path with disablePathAppend",
+			true,
+			&VMStorage{
+				dataSourceType:    NewPrometheusType(),
+				disablePathAppend: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, "", r.URL.Path)
+			},
+		},
+		{
 			"prometheus range prefix",
 			true,
 			&VMStorage{
@@ -282,6 +316,18 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				checkEqualString(t, prometheusPrefix+prometheusRangePath, r.URL.Path)
+			},
+		},
+		{
+			"prometheus range prefix with disablePathAppend",
+			true,
+			&VMStorage{
+				dataSourceType:    NewPrometheusType(),
+				appendTypePrefix:  true,
+				disablePathAppend: true,
+			},
+			func(t *testing.T, r *http.Request) {
+				checkEqualString(t, prometheusPrefix, r.URL.Path)
 			},
 		},
 		{

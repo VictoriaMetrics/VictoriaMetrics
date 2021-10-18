@@ -355,12 +355,12 @@ See full description for these flags in `./vmalert --help`.
 
 ## Monitoring
 
-`vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page. 
-We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported 
+`vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
+We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
 metrics may be analyzed later.
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
-If you have suggestions for improvements or have found a bug - please open an issue on github or add 
+If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
 
@@ -500,6 +500,8 @@ The shortlist of configuration flags is the following:
     	Optional bearer auth token to use for -remoteRead.url.
   -remoteRead.bearerTokenFile string
     	Optional path to bearer token file to use for -remoteRead.url.
+  -remoteRead.disablePathAppend
+    	Whether to disable automatic appending of '/api/v1/query' path to the configured -remoteRead.url.
   -remoteRead.ignoreRestoreErrors
     	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration

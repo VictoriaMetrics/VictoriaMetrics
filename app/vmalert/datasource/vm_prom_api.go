@@ -118,7 +118,9 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 	if s.appendTypePrefix {
 		r.URL.Path += prometheusPrefix
 	}
-	r.URL.Path += prometheusInstantPath
+	if !s.disablePathAppend {
+		r.URL.Path += prometheusInstantPath
+	}
 	q := r.URL.Query()
 	if s.lookBack > 0 {
 		timestamp = timestamp.Add(-s.lookBack)
@@ -136,7 +138,9 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 	if s.appendTypePrefix {
 		r.URL.Path += prometheusPrefix
 	}
-	r.URL.Path += prometheusRangePath
+	if !s.disablePathAppend {
+		r.URL.Path += prometheusRangePath
+	}
 	q := r.URL.Query()
 	q.Add("start", fmt.Sprintf("%d", start.Unix()))
 	q.Add("end", fmt.Sprintf("%d", end.Unix()))
