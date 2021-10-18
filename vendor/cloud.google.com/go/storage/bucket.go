@@ -239,6 +239,9 @@ func (b *BucketHandle) newPatchCall(uattrs *BucketAttrsToUpdate) (*raw.BucketsPa
 // This method only requires the Method and Expires fields in the specified
 // SignedURLOptions opts to be non-nil. If not provided, it attempts to fill the
 // GoogleAccessID and PrivateKey from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+// If you are authenticating with a custom HTTP client, Service Account based
+// auto-detection will be hindered.
+//
 // If no private key is found, it attempts to use the GoogleAccessID to sign the URL.
 // This requires the IAM Service Account Credentials API to be enabled
 // (https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview)
@@ -260,7 +263,7 @@ func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string,
 		newopts.GoogleAccessID = id
 	}
 	if newopts.SignBytes == nil && len(newopts.PrivateKey) == 0 {
-		if len(b.c.creds.JSON) > 0 {
+		if b.c.creds != nil && len(b.c.creds.JSON) > 0 {
 			var sa struct {
 				PrivateKey string `json:"private_key"`
 			}
@@ -285,7 +288,7 @@ func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string,
 func (b *BucketHandle) detectDefaultGoogleAccessID() (string, error) {
 	returnErr := errors.New("no credentials found on client and not on GCE (Google Compute Engine)")
 
-	if len(b.c.creds.JSON) > 0 {
+	if b.c.creds != nil && len(b.c.creds.JSON) > 0 {
 		var sa struct {
 			ClientEmail string `json:"client_email"`
 		}

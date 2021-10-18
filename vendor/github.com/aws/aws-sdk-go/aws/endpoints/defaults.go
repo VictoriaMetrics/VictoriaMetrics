@@ -55,6 +55,7 @@ const (
 // AWS ISO (US) partition's regions.
 const (
 	UsIsoEast1RegionID = "us-iso-east-1" // US ISO East.
+	UsIsoWest1RegionID = "us-iso-west-1" // US ISO WEST.
 )
 
 // AWS ISOB (US) partition's regions.
@@ -10380,6 +10381,12 @@ var awsusgovPartition = partition{
 				"us-gov-west-1": endpoint{},
 			},
 		},
+		"kendra": service{
+
+			Endpoints: endpoints{
+				"us-gov-west-1": endpoint{},
+			},
+		},
 		"kinesis": service{
 
 			Endpoints: endpoints{
@@ -11401,6 +11408,9 @@ var awsisoPartition = partition{
 		"us-iso-east-1": region{
 			Description: "US ISO East",
 		},
+		"us-iso-west-1": region{
+			Description: "US ISO WEST",
+		},
 	},
 	Services: services{
 		"api.ecr": service{
@@ -11410,6 +11420,12 @@ var awsisoPartition = partition{
 					Hostname: "api.ecr.us-iso-east-1.c2s.ic.gov",
 					CredentialScope: credentialScope{
 						Region: "us-iso-east-1",
+					},
+				},
+				"us-iso-west-1": endpoint{
+					Hostname: "api.ecr.us-iso-west-1.c2s.ic.gov",
+					CredentialScope: credentialScope{
+						Region: "us-iso-west-1",
 					},
 				},
 			},
@@ -11432,6 +11448,7 @@ var awsisoPartition = partition{
 			},
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"autoscaling": service{
@@ -11440,24 +11457,28 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"http", "https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"cloudformation": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"cloudtrail": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"codedeploy": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"comprehend": service{
@@ -11472,6 +11493,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"datapipeline": service{
@@ -11484,6 +11506,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"dms": service{
@@ -11510,24 +11533,28 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"http", "https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"ec2": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"ecs": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"elasticache": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"elasticfilesystem": service{
@@ -11548,6 +11575,7 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"http", "https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"elasticmapreduce": service{
@@ -11556,6 +11584,7 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"es": service{
@@ -11568,6 +11597,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"firehose": service{
@@ -11582,6 +11612,7 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"http", "https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"health": service{
@@ -11607,6 +11638,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"kms": service{
@@ -11619,12 +11651,14 @@ var awsisoPartition = partition{
 					},
 				},
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"lambda": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"license-manager": service{
@@ -11637,6 +11671,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"medialive": service{
@@ -11655,6 +11690,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"outposts": service{
@@ -11673,12 +11709,14 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"redshift": service{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"route53": service{
@@ -11735,6 +11773,7 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"http", "https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"sqs": service{
@@ -11743,6 +11782,7 @@ var awsisoPartition = partition{
 				"us-iso-east-1": endpoint{
 					Protocols: []string{"http", "https"},
 				},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"ssm": service{
@@ -11755,6 +11795,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"streams.dynamodb": service{
@@ -11774,6 +11815,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"support": service{
@@ -11792,6 +11834,7 @@ var awsisoPartition = partition{
 
 			Endpoints: endpoints{
 				"us-iso-east-1": endpoint{},
+				"us-iso-west-1": endpoint{},
 			},
 		},
 		"transcribe": service{
