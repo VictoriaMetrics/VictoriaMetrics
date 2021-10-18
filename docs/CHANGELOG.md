@@ -21,6 +21,7 @@ sort: 15
 * BUGFIX: vmstorage: fix `unaligned 64-bit atomic operation` panic on 32-bit architectures (arm and 386). The panic has been introduced in v1.67.0.
 * BUGFIX: vmalert, vmauth: prevent from frequent closing of TCP connections established to backends under high load. This should reduce the number of TCP sockets in `TIME_WAIT` state at `vmalert` and `vmauth` under high load. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1704).
 * BUGFIX: vmagent: set `honor_timestamps: true` by default in [scrape configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) if this options isn't set explicitly. This aligns the behaviour with Prometheus.
+* BUGFIX: vmctl: fix importing boolean fields from InfluxDB line protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1709).
 
 
 ## [v1.67.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.67.0)
