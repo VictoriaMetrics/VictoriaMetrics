@@ -32,9 +32,9 @@ func initLinks() {
 		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: path.Join(pathPrefix, "/")},
+		{Name: "vmalert", Url: pathPrefix},
 		{Name: "Groups", Url: path.Join(pathPrefix, "groups")},
-		{Name: "Alerts", Url: path.Join(pathPrefix, "/alerts")},
+		{Name: "Alerts", Url: path.Join(pathPrefix, "alerts")},
 		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
 	}
 }
