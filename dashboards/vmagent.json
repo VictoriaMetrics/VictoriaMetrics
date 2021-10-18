@@ -5,7 +5,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.1.2"
+      "version": "8.2.0"
     },
     {
       "type": "panel",
@@ -59,10 +59,11 @@
   },
   "description": "Overview for VictoriaMetrics vmagent v1.64.0 or higher",
   "editable": true,
+  "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1630485687361,
+  "iteration": 1634561115384,
   "links": [
     {
       "icon": "doc",
@@ -90,6 +91,7 @@
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
   ],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -145,7 +147,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"up\"})",
@@ -209,7 +211,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"down\"})",
@@ -276,7 +278,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "targets": [
         {
           "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
@@ -335,7 +337,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "targets": [
         {
           "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
@@ -485,7 +487,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -588,7 +590,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -701,7 +703,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -801,7 +803,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -917,7 +919,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1024,7 +1026,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1130,7 +1132,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1260,7 +1262,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1367,7 +1369,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1468,7 +1470,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.1.2",
+      "pluginVersion": "8.2.0",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -2602,7 +2604,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2625,7 +2627,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.2.0",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2703,7 +2705,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2726,7 +2728,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.2.0",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2803,7 +2805,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 61,
@@ -2826,7 +2828,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.2.0",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2903,7 +2905,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 65,
@@ -2926,7 +2928,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.2.0",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3003,7 +3005,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 67
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -3069,7 +3071,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 67
           },
           "hiddenSeries": false,
           "id": 84,
@@ -3092,7 +3094,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.2.0",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3181,7 +3183,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 75
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -3247,7 +3249,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 75
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -3292,6 +3294,228 @@
           "yBucketBound": "auto",
           "yBucketNumber": null,
           "yBucketSize": null
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Shows the current limit usage of unique series over an hourly period. Vmagent will start to drop series once the limit is reached.\n\nPlease note, panel will be blank if `remoteWrite.maxHourlySeries` is not set.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 83
+          },
+          "hiddenSeries": false,
+          "id": 88,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.2.0",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "(vmagent_hourly_series_limit_current_series{job=~\"$job\", instance=~\"$instance\"} / vmagent_hourly_series_limit_max_series{job=~\"$job\", instance=~\"$instance\"}) * 100",
+              "interval": "",
+              "legendFormat": "current limit usage",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "vmagent_daily_series_limit_max_series{job=~\"$job\", instance=~\"$instance\"}",
+              "hide": true,
+              "interval": "",
+              "legendFormat": "limit",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [
+            {
+              "$$hashKey": "object:234",
+              "colorMode": "critical",
+              "fill": true,
+              "line": true,
+              "op": "gt",
+              "value": 90,
+              "yaxis": "left"
+            }
+          ],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Hourly series limit",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:216",
+              "format": "percent",
+              "label": null,
+              "logBase": 1,
+              "max": "100",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:217",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Shows the current limit usage of unique series over a daily period. Vmagent will start to drop series once the limit is reached.\n\nPlease note, panel will be blank if `remoteWrite.maxDailySeries` is not set.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 83
+          },
+          "hiddenSeries": false,
+          "id": 90,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.2.0",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "(vmagent_daily_series_limit_current_series{job=~\"$job\", instance=~\"$instance\"} / vmagent_daily_series_limit_max_series{job=~\"$job\", instance=~\"$instance\"}) * 100",
+              "interval": "",
+              "legendFormat": "current limit usage",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "vmagent_daily_series_limit_max_series{job=~\"$job\", instance=~\"$instance\"}",
+              "hide": true,
+              "interval": "",
+              "legendFormat": "limit",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [
+            {
+              "$$hashKey": "object:234",
+              "colorMode": "critical",
+              "fill": true,
+              "line": true,
+              "op": "gt",
+              "value": 90,
+              "yaxis": "left"
+            }
+          ],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Daily series limit",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:216",
+              "format": "percent",
+              "label": null,
+              "logBase": 1,
+              "max": "100",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:217",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
         }
       ],
       "title": "Remote write",
@@ -4073,7 +4297,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 30,
+  "schemaVersion": 31,
   "style": "dark",
   "tags": [
     "vmagent",
@@ -4199,5 +4423,5 @@
   "timezone": "",
   "title": "vmagent",
   "uid": "G7Z9GzMGz",
-  "version": 1
+  "version": 3
 }
