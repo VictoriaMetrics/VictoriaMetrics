@@ -123,6 +123,9 @@ func (g *Group) newRule(qb datasource.QuerierBuilder, rule config.Rule) Rule {
 // ID return unique group ID that consists of
 // rules file and group name
 func (g *Group) ID() uint64 {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
 	hash := fnv.New64a()
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
