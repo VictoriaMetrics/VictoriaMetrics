@@ -268,9 +268,9 @@ groups:
         annotations:
           dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=88&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} reached 90% of the limit"
-          description: "Max series limit set via -remoteWrite.maxHourlySeries flag is close to reaching the max value 
-            then samples for new time series will be dropped instead of sending them to remote storage systems."
-          
+          description: "Max series limit set via -remoteWrite.maxHourlySeries flag is close to reaching the max value. 
+            Then samples for new time series will be dropped instead of sending them to remote storage systems."
+
       - alert: SeriesLimitDayReached
         expr: (vmagent_daily_series_limit_current_series / vmagent_daily_series_limit_max_series) > 0.9
         labels:
@@ -278,5 +278,5 @@ groups:
         annotations:
           dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=90&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} reached 90% of the limit"
-          description: "Max series limit set via -remoteWrite.maxDailySeries flag is close to reaching the max value 
-            then samples for new time series will be dropped instead of sending them to remote storage systems."
+          description: "Max series limit set via -remoteWrite.maxDailySeries flag is close to reaching the max value. 
+            Then samples for new time series will be dropped instead of sending them to remote storage systems."
