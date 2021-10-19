@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -270,6 +271,10 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
+		return
+	case "/flags":
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		flagutil.WriteFlags(w)
 		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
