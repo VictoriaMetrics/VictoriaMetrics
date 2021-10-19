@@ -127,11 +127,16 @@ func main() {
 		logger.Fatalf("cannot parse configuration file: %s", err)
 	}
 
+	// Register SIGHUP handler for config re-read just before manager.start call.
+	// This guarantees that the config will be re-read if the signal arrives during manager.start call.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+	sighupCh := procutil.NewSighupChan()
+
 	if err := manager.start(ctx, groupsCfg); err != nil {
 		logger.Fatalf("failed to start: %s", err)
 	}
 
-	go configReload(ctx, manager, groupsCfg)
+	go configReload(ctx, manager, groupsCfg, sighupCh)
 
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(*httpListenAddr, rh.handler)
@@ -245,12 +250,7 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 	flagutil.Usage(s)
 }
 
-func configReload(ctx context.Context, m *manager, groupsCfg []config.Group) {
-	// Register SIGHUP handler for config re-read just before manager.start call.
-	// This guarantees that the config will be re-read if the signal arrives during manager.start call.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
-	sighupCh := procutil.NewSighupChan()
-
+func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
 	if *rulesCheckInterval > 0 {
 		ticker := time.NewTicker(*rulesCheckInterval)
