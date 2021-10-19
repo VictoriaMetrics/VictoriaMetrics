@@ -33,6 +33,16 @@ func JoinHostPort(host string, port int) string {
 // SortedLabels represents sorted labels.
 type SortedLabels []prompbmarshal.Label
 
+// GetByName returns the label with the given name from sls.
+func (sls *SortedLabels) GetByName(name string) string {
+	for _, lb := range *sls {
+		if lb.Name == name {
+			return lb.Value
+		}
+	}
+	return ""
+}
+
 // UnmarshalJSON unmarshals JSON from data.
 func (sls *SortedLabels) UnmarshalJSON(data []byte) error {
 	var m map[string]string
