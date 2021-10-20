@@ -67,7 +67,7 @@ services:
       - "vmstorage1"
     command:
       - '--storageNode=vmstorage:8400'
-      - '--storageNode=vmstorage1:8500'
+      - '--storageNode=vmstorage1:8400'
     ports:
       - 8480
     restart: always
@@ -80,7 +80,7 @@ services:
       - "vmstorage1"
     command:
       - '--storageNode=vmstorage:8401'
-      - '--storageNode=vmstorage1:8501'
+      - '--storageNode=vmstorage1:8401'
     ports:
       - 8481:8481
     restart: always
