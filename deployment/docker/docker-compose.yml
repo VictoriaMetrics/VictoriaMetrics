@@ -30,57 +30,58 @@ services:
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
 
-  vmstorage:
-    container_name: vmstorage
+    
+  vmstorage-1:
+    container_name: vmstorage-1
     image: victoriametrics/vmstorage
     ports:
       - 8482
       - 8400
       - 8401
     volumes:
-      - strgdata:/storage
+      - strgdata:/storage-1
     command:
-      - '--storageDataPath=/storage'
+      - '--storageDataPath=/storage-1'
     restart: always
-
-  vmstorage1:
-    container_name: vmstorage1
+    
+  vmstorage-2:
+    container_name: vmstorage-2
     image: victoriametrics/vmstorage
     ports:
       - 8482
       - 8400
       - 8401
     volumes:
-      - strgdata:/storage1
+      - strgdata:/storage-2
     command:
       - '--httpListenAddr=:8482'
       - '--vminsertAddr=:8400'
       - '--vmselectAddr=:8401'
-      - '--storageDataPath=strgdata:/storage1'
+      - '--storageDataPath=strgdata:/storage-2'
     restart: always
-
+    
   vminsert:
     container_name: vminsert
     image: victoriametrics/vminsert
     depends_on:
-      - "vmstorage"
-      - "vmstorage1"
+      - "vmstorage-1"
+      - "vmstorage-2"
     command:
-      - '--storageNode=vmstorage:8400'
-      - '--storageNode=vmstorage1:8400'
+      - '--storageNode=vmstorage-1:8400'
+      - '--storageNode=vmstorage-2:8400'
     ports:
       - 8480
     restart: always
-
+    
   vmselect:
     container_name: vmselect
     image: victoriametrics/vmselect
     depends_on:
-      - "vmstorage"
-      - "vmstorage1"
+      - "vmstorage-1"
+      - "vmstorage-2"
     command:
-      - '--storageNode=vmstorage:8401'
-      - '--storageNode=vmstorage1:8401'
+      - '--storageNode=vmstorage-1:8401'
+      - '--storageNode=vmstorage-2:8401'
     ports:
       - 8481:8481
     restart: always
