@@ -34,9 +34,9 @@ services:
     container_name: vmstorage
     image: victoriametrics/vmstorage
     ports:
-      - 8482
-      - 8400
-      - 8401
+      - 8482:8482
+      - 8400:8400
+      - 8401:8401
     volumes:
       - strgdata:/storage
     command:
@@ -47,9 +47,9 @@ services:
     container_name: vmstorage1
     image: victoriametrics/vmstorage
     ports:
-      - 8582
-      - 8500
-      - 8501
+      - 8582:8582
+      - 8500:8500
+      - 8501:8501
     volumes:
       - strgdata:/storage1
     command:
