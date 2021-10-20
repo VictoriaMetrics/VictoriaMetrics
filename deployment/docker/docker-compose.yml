@@ -54,9 +54,6 @@ services:
     volumes:
       - strgdata:/storage-2
     command:
-      - '--httpListenAddr=:8482'
-      - '--vminsertAddr=:8400'
-      - '--vmselectAddr=:8401'
       - '--storageDataPath=strgdata:/storage-2'
     restart: always
     
