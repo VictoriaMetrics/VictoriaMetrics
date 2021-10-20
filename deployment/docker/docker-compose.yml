@@ -43,13 +43,31 @@ services:
       - '--storageDataPath=/storage'
     restart: always
 
+  vmstorage1:
+    container_name: vmstorage1
+    image: victoriametrics/vmstorage
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    volumes:
+      - strgdata:/storage1
+    command:
+      - '--httpListenAddr=:8582'
+      - '--vminsertAddr=:8500'
+      - '--vmselectAddr=:8501'
+      - '--storageDataPath=strgdata:/storage1'
+    restart: always
+
   vminsert:
     container_name: vminsert
     image: victoriametrics/vminsert
     depends_on:
       - "vmstorage"
+      - "vmstorage1"
     command:
       - '--storageNode=vmstorage:8400'
+      - '--storageNode=vmstorage1:8500'
     ports:
       - 8480
     restart: always
@@ -59,8 +77,10 @@ services:
     image: victoriametrics/vmselect
     depends_on:
       - "vmstorage"
+      - "vmstorage1"
     command:
       - '--storageNode=vmstorage:8401'
+      - '--storageNode=vmstorage1:8501'
     ports:
       - 8481:8481
     restart: always
