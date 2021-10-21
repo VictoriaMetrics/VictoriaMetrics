@@ -46,12 +46,13 @@ export type Action =
 
 const duration = getQueryStringValue("g0.range_input", "1h") as string;
 const endInput = formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date);
+const query = getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n") as string;
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
   displayType: "chart",
-  query: getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n") as string, // demo_memory_usage_bytes
-  queryHistory: { index: 0, values: [] },
+  query: query, // demo_memory_usage_bytes
+  queryHistory: { index: 0, values: [query] },
   time: {
     duration,
     period: getTimeperiodForDuration(duration, new Date(endInput))
