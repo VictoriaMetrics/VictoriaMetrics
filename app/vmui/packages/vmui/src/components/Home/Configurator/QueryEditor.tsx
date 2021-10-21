@@ -65,9 +65,9 @@ const QueryEditor: FC<QueryEditorProps> = ({
     const ctrlMetaKey = ctrlKey || metaKey;
     if (key === "Enter" && ctrlMetaKey) {
       runQuery();
-    } else if (key === "ArrowUp" && ctrlKey) {
+    } else if (key === "ArrowUp" && ctrlMetaKey) {
       setHistoryIndex(-1);
-    } else if (key === "ArrowDown" && ctrlKey) {
+    } else if (key === "ArrowDown" && ctrlMetaKey) {
       setHistoryIndex(1);
     }
   };
