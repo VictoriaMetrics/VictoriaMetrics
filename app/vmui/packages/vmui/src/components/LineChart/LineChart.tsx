@@ -5,24 +5,24 @@ import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlo
 import UplotReact from "uplot-react";
 import "uplot/dist/uPlot.min.css";
 import numeral from "numeral";
-import "./legend.css";
 import "./tooltip.css";
 import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
-import {getDataChart, getLimitsTimes, getLimitsYaxis, getSeries, setTooltip} from "../../utils/uPlot";
+import {getDataChart, getHideSeries, getLegend, getLimitsTimes, getLimitsYaxis, getSeries, setTooltip } from "../../utils/uPlot";
+import {Legend, LegendItem} from "../Legend/Legend";
 
 const LineChart: FC<GraphViewProps> = ({data = []}) => {
-
   const dispatch = useAppDispatch();
   const {time: {period}} = useAppState();
+  const graphDispatch = useGraphDispatch();
+  const { yaxis } = useGraphState();
   const [scale, setScale] = useState({min: period.start, max: period.end});
   const refContainer = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [zoomPos, setZoomPos] = useState(0);
-  const tooltipIdx = {seriesIdx: 1, dataIdx: 0};
-  const tooltipOffset = {left: 0, top: 0};
+  const [hideSeries, setHideSeries] = useState<string[]>([]);
+  const tooltipIdx = { seriesIdx: 1, dataIdx: 0 };
+  const tooltipOffset = { left: 0, top: 0 };
 
-  const {yaxis} = useGraphState();
-  const graphDispatch = useGraphDispatch();
   const setStateLimits = (range: [number, number]) => {
     if (!yaxis.limits.enable || (yaxis.limits.range.every(item => !item))) {
       graphDispatch({type: "SET_YAXIS_LIMITS", payload: range});
@@ -36,12 +36,16 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     return output;
   }, [data]);
 
-  const series = useMemo((): uPlotSeries[] => getSeries(data), [data]);
-
+  const series = useMemo((): uPlotSeries[] => getSeries(data, hideSeries), [data, hideSeries]);
   const dataChart = useMemo((): uPlotData => getDataChart(data, times), [data]);
+  const legend = useMemo((): LegendItem[] => getLegend(series), [series]);
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
+
+  const onChangeLegend = (label: string, metaKey: boolean) => {
+    setHideSeries(getHideSeries({hideSeries, label, metaKey, series}));
+  };
 
   const onReadyChart = (u: uPlot) => {
     const factor = 0.85;
@@ -110,11 +114,9 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   };
 
   useEffect(() => { setStateLimits(getLimitsYaxis(data)); }, [data]);
-
   useEffect(() => { setScale({min: period.start, max: period.end}); }, [period]);
-
   useEffect(() => {
-    const duration = (period.end - period.start)/3;
+    const duration = (period.end - period.start) / 3;
     const factor = duration / (scale.max - scale.min);
     if (scale.max > period.end + duration || scale.min < period.start - duration || factor >= 0.7) {
       dispatch({type: "SET_PERIOD", payload: {from: new Date(scale.min * 1000), to: new Date(scale.max * 1000)}});
@@ -122,18 +124,14 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   }, [scale]);
 
   const options: uPlotOptions = {
-    width: refContainer.current ? refContainer.current.offsetWidth : 400,
-    height: 500,
-    series: series,
-    plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
-    cursor: {drag: {x: false, y: false}, focus: {prox: 30}},
+    width: refContainer.current ? refContainer.current.offsetWidth : 400, height: 500, series: series,
+    plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus }}],
+    cursor: { drag: { x: false, y: false }, focus: { prox: 30 }},
+    legend: { show: false },
     axes: [
-      {space: 80},
-      {
-        show: true,
-        font: "10px Arial",
-        values: (self, ticks) => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n)
-      }
+      { space: 80 },
+      { show: true, font: "10px Arial",
+        values: (self, ticks) => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n) }
     ],
     scales: {
       x: {range: () => [scale.min, scale.max]},
@@ -142,7 +140,10 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   };
 
   return <div ref={refContainer} style={{pointerEvents: isPanning ? "none" : "auto"}}>
-    {dataChart && <UplotReact options={options} data={dataChart}/>}
+    {dataChart && <>
+      <UplotReact options={options} data={dataChart}/>
+      <Legend labels={legend} onChange={onChangeLegend}/>
+    </>}
   </div>;
 };
 
