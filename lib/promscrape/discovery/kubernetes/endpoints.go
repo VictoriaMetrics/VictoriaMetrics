@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -102,6 +103,14 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
 			ms = appendEndpointLabelsForAddresses(ms, gw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
 			ms = appendEndpointLabelsForAddresses(ms, gw, podPortsSeen, eps, ess.NotReadyAddresses, epp, svc, "false")
 		}
+	}
+	// See https://kubernetes.io/docs/reference/labels-annotations-taints/#endpoints-kubernetes-io-over-capacity
+	// and https://github.com/kubernetes/kubernetes/pull/99975
+	switch eps.Metadata.Annotations.GetByName("endpoints.kubernetes.io/over-capacity") {
+	case "truncated":
+		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and has been truncated; please use "role: endpointslice" instead`, eps.Metadata.key())
+	case "warning":
+		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and will be truncated in the next k8s releases; please use "role: endpointslice" instead`, eps.Metadata.key())
 	}
 
 	// Append labels for skipped ports on seen pods.

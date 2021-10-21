@@ -28,6 +28,7 @@ func initLinks() {
 		{path.Join(pathPrefix, "api/v1/groups"), "list all loaded groups and rules"},
 		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
 		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "get alert status by ID"},
+		{path.Join(pathPrefix, "flags"), "command-line flags"},
 		{path.Join(pathPrefix, "metrics"), "list of application metrics"},
 		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
 	}
