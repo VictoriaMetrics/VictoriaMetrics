@@ -1,10 +1,11 @@
 package graphite
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
@@ -258,6 +259,34 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		},
 	})
+
+	// With tab as separator
+	f("foo.baz\t125.456\t1789\n", &Rows{
+		Rows: []Row{{
+			Metric:    "foo.baz",
+			Value:     125.456,
+			Timestamp: 1789,
+		}},
+	})
+	// With tab as separator and tags
+	f("foo;baz=bar;bb=;y=x;=z\t1\t2", &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{
+				{
+					Key:   "baz",
+					Value: "bar",
+				},
+				{
+					Key:   "y",
+					Value: "x",
+				},
+			},
+			Value:     1,
+			Timestamp: 2,
+		}},
+	})
+
 }
 
 func Test_streamContext_Read(t *testing.T) {

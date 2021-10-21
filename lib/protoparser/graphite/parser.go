@@ -84,9 +84,9 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
-	n := strings.IndexByte(s, ' ')
+	n := strings.IndexFunc(s, isGraphiteSeparator)
 	if n < 0 {
-		return tagsPool, fmt.Errorf("cannot find whitespace between metric and value in %q", s)
+		return tagsPool, fmt.Errorf("cannot find separator between metric and value in %q", s)
 	}
 	metricAndTags := s[:n]
 	tail := s[n+1:]
@@ -96,7 +96,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, err
 	}
 
-	n = strings.IndexByte(tail, ' ')
+	n = strings.IndexFunc(tail, isGraphiteSeparator)
 	if n < 0 {
 		// There is no timestamp. Use default timestamp instead.
 		v, err := fastfloat.Parse(tail)
@@ -210,4 +210,10 @@ func (t *Tag) unmarshal(s string) {
 		t.Key = s[:n]
 		t.Value = s[n+1:]
 	}
+}
+
+// graphite text line protocol may use white space or tab as separator
+// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
+func isGraphiteSeparator(r rune) bool {
+	return r == ' ' || r == '\t'
 }
