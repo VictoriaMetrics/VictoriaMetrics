@@ -35,7 +35,7 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, error) {
+func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, []Header, error) {
 	u := *uOrig
 	// Prevent from attacks with using `..` in r.URL.Path
 	u.Path = path.Clean(u.Path)
@@ -46,13 +46,13 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, error) {
 	for _, e := range ui.URLMap {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return e.URLPrefix.mergeURLs(&u), nil
+				return e.URLPrefix.mergeURLs(&u), e.Headers, nil
 			}
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix.mergeURLs(&u), nil
+		return ui.URLPrefix.mergeURLs(&u), ui.Headers, nil
 	}
 	missingRouteRequests.Inc()
-	return nil, fmt.Errorf("missing route for %q", u.String())
+	return nil, nil, fmt.Errorf("missing route for %q", u.String())
 }
