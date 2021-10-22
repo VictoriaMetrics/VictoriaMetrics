@@ -25,7 +25,8 @@ sort: 15
 * BUGFIX: vmalert: fix links in [Web UI](https://docs.victoriametrics.com/vmalert.html#web). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1717).
 * BUGFIX: vmagent: set `honor_timestamps: true` by default in [scrape configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) if this options isn't set explicitly. This aligns the behaviour with Prometheus.
 * BUGFIX: vmagent: group scrape targets by the original job names at `http://vmagent:8429/targets` page like Prometheus does. Previously they were grouped by the job name after relabeling, which may result in unexpected empty target groups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1707).
-* BUGFIX: vmctl: fix importing boolean fields from InfluxDB line protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1709).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix importing boolean fields from InfluxDB line protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1709).
+* FEATURE: allow using tab separators additionally to whitespace separators when [ingesting data in Graphite plaintext protocol](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd). Such separators are [supported by Carbon-c-relay](https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528).
 
 
 ## [v1.67.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.67.0)
