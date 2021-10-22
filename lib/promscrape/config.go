@@ -974,9 +974,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
 		originalLabels = append([]prompbmarshal.Label{}, labels...)
-		promrelabel.SortLabels(originalLabels)
-		// Reduce memory usage by interning all the strings in originalLabels.
-		internLabelStrings(originalLabels)
 	}
 	labels = swc.relabelConfigs.Apply(labels, 0, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
@@ -997,6 +994,11 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if needSkip {
 			return nil, nil
 		}
+	}
+	if !*dropOriginalLabels {
+		promrelabel.SortLabels(originalLabels)
+		// Reduce memory usage by interning all the strings in originalLabels.
+		internLabelStrings(originalLabels)
 	}
 	if len(labels) == 0 {
 		// Drop target without labels.
