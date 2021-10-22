@@ -9,6 +9,10 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 )
 
+// graphite text line protocol may use white space or tab as separator
+// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
+const graphiteSeparators = " \t"
+
 // Rows contains parsed graphite rows.
 type Rows struct {
 	Rows []Row
@@ -84,9 +88,9 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
-	n := strings.IndexByte(s, ' ')
+	n := strings.IndexAny(s, graphiteSeparators)
 	if n < 0 {
-		return tagsPool, fmt.Errorf("cannot find whitespace between metric and value in %q", s)
+		return tagsPool, fmt.Errorf("cannot find separator between metric and value in %q", s)
 	}
 	metricAndTags := s[:n]
 	tail := s[n+1:]
@@ -96,7 +100,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, err
 	}
 
-	n = strings.IndexByte(tail, ' ')
+	n = strings.IndexAny(tail, graphiteSeparators)
 	if n < 0 {
 		// There is no timestamp. Use default timestamp instead.
 		v, err := fastfloat.Parse(tail)
