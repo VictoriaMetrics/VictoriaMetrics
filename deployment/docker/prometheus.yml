@@ -17,5 +17,5 @@ scrape_configs:
       - targets: ['vmselect:8481']
   - job_name: 'vmstorage-1'
     static_configs:
-      - targets: ['vmstorage-1:8482']
-      - targets: ['vmstorage-2:8482']
+      - targets: ['vmstorage-1:8482', 'vmstorage-2:8482']
+      
