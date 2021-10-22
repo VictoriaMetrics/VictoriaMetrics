@@ -57,8 +57,6 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped uint64
 	dailySeriesLimitRowsDropped  uint64
 
-	isReadOnly uint32
-
 	path           string
 	cachePath      string
 	retentionMsecs int64
@@ -137,6 +135,8 @@ type Storage struct {
 	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
+
+	isReadOnly uint32
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
@@ -581,10 +581,15 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		if freeSpaceBytes < freeDiskSpaceLimitBytes {
 			// Switch the storage to readonly mode if there is no enough free space left at s.path
+			logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
+				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
 			atomic.StoreUint32(&s.isReadOnly, 1)
 			return
 		}
-		atomic.StoreUint32(&s.isReadOnly, 0)
+		if atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
+			logger.Warnf("enabling writing to the storage at %s, since it has more than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
+				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
+		}
 	}
 	f()
 	s.freeDiskSpaceWatcherWG.Add(1)

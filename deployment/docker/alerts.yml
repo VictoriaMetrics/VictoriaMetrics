@@ -261,3 +261,22 @@ groups:
             This usually means that `-remoteWrite.queues` command-line flag must be increased in order to increase
             the number of connections per each remote storage."
 
+      - alert: SeriesLimitHourReached
+        expr: (vmagent_hourly_series_limit_current_series / vmagent_hourly_series_limit_max_series) > 0.9
+        labels:
+          severity: critical
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=88&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} reached 90% of the limit"
+          description: "Max series limit set via -remoteWrite.maxHourlySeries flag is close to reaching the max value. 
+            Then samples for new time series will be dropped instead of sending them to remote storage systems."
+
+      - alert: SeriesLimitDayReached
+        expr: (vmagent_daily_series_limit_current_series / vmagent_daily_series_limit_max_series) > 0.9
+        labels:
+          severity: critical
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=90&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} reached 90% of the limit"
+          description: "Max series limit set via -remoteWrite.maxDailySeries flag is close to reaching the max value. 
+            Then samples for new time series will be dropped instead of sending them to remote storage systems."

@@ -306,12 +306,14 @@ You can read more about relabeling in the following articles:
 * If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
 * Stale markers are sent for all the scraped metrics on graceful shutdown of `vmagent`.
 
-Prometheus staleness markers aren't sent to `-remoteWrite.url` in [stream parsing mode](#stream-parsing-mode) or if `-promscrape.noStaleMarkers` command-line is set.
+Prometheus staleness markers' tracking needs additional memory, since it must store the previous response body per each scrape target in order to compare it to the current response body. The memory usage may be reduced by passing `-promscrape.noStaleMarkers` command-line flag to `vmagent`. This disables staleness tracking. This also disables tracking the number of new time series per each scrape with the auto-generated `scrape_series_added` metric. See [these docs](https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series) for details.
 
 
 ## Stream parsing mode
 
-By default `vmagent` reads the full response from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics. Stream parsing mode may be enabled in the following places:
+By default `vmagent` reads the full response body from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics.
+
+Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes bigger than the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally, the stream parsing mode can be explicitly enabled in the following places:
 
 - Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
 - Via `stream_parse: true` option at `scrape_configs` section. In this case all the scrape targets defined in this section are scraped in stream parsing mode.
@@ -333,7 +335,7 @@ scrape_configs:
     'match[]': ['{__name__!=""}']
 ```
 
-Note that `sample_limit` option doesn't prevent from data push to remote storage if stream parsing is enabled because the parsed data is pushed to remote storage as soon as it is parsed.
+Note that `sample_limit` and `series_limit` options cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
 
 
 ## Scraping big number of targets
@@ -453,7 +455,8 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
   as `vmagent` establishes at least a single TCP connection per target.
 
 * If `vmagent` uses too big amounts of memory, then the following options can help:
-  * Enabling stream parsing. See [these docs](#stream-parsing-mode).
+  * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
+  * Enabling stream parsing mode. See [these docs](#stream-parsing-mode).
   * Reducing the number of output queues with `-remoteWrite.queues` command-line option.
   * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option. Another option is to reduce memory limits in Docker and/or Kuberntes if `vmagent` runs under these systems.
   * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`, where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
@@ -710,6 +713,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
 
   -csvTrimTimestamp duration
     	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -datadog.maxInsertRequestSize size
+    	The maximum size in bytes of a single DataDog POST request to /api/v1/series
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -dryRun
     	Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
   -enableTCP6
@@ -857,8 +863,11 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.minResponseSizeForStreamParse size
+    	The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 1000000)
   -promscrape.noStaleMarkers
-    	Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+    	Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
     	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
   -promscrape.seriesLimitPerTarget int

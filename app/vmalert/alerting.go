@@ -163,7 +163,13 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 			// so the hash key will be consistent on restore
 			s.SetLabel(k, v)
 		}
-
+		// set additional labels to identify group and rule name
+		if ar.Name != "" {
+			s.SetLabel(alertNameLabel, ar.Name)
+		}
+		if !*disableAlertGroupLabel && ar.GroupName != "" {
+			s.SetLabel(alertGroupNameLabel, ar.GroupName)
+		}
 		a, err := ar.newAlert(s, time.Time{}, qFn) // initial alert
 		if err != nil {
 			return nil, fmt.Errorf("failed to create alert: %s", err)
@@ -178,13 +184,11 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 
 		// if alert with For > 0
 		prevT := time.Time{}
-		//activeAt := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
 			if at.Sub(prevT) > ar.EvalInterval {
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
-				//activeAt = at
 				a.Start = at
 			} else if at.Sub(a.Start) >= ar.For {
 				a.State = notifier.StateFiring
@@ -230,6 +234,14 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 			// apply extra labels to datasource
 			// so the hash key will be consistent on restore
 			m.SetLabel(k, v)
+		}
+		// set additional labels to identify group and rule name
+		// set additional labels to identify group and rule name
+		if ar.Name != "" {
+			m.SetLabel(alertNameLabel, ar.Name)
+		}
+		if !*disableAlertGroupLabel && ar.GroupName != "" {
+			m.SetLabel(alertGroupNameLabel, ar.GroupName)
 		}
 		h := hash(m)
 		if _, ok := updated[h]; ok {
@@ -352,11 +364,6 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notif
 		Start:   start,
 		Expr:    ar.Expr,
 	}
-	// label defined here to make override possible by
-	// time series labels.
-	if !*disableAlertGroupLabel && ar.GroupName != "" {
-		a.Labels[alertGroupNameLabel] = ar.GroupName
-	}
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
 		if l.Name == "__name__" {
@@ -415,7 +422,7 @@ func (ar *AlertingRule) AlertsAPI() []*APIAlert {
 }
 
 func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
-	return &APIAlert{
+	aa := &APIAlert{
 		// encode as strings to avoid rounding
 		ID:      fmt.Sprintf("%d", a.ID),
 		GroupID: fmt.Sprintf("%d", a.GroupID),
@@ -427,8 +434,13 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 		Annotations: a.Annotations,
 		State:       a.State.String(),
 		ActiveAt:    a.Start,
+		Restored:    a.Restored,
 		Value:       strconv.FormatFloat(a.Value, 'f', -1, 32),
 	}
+	if alertURLGeneratorFn != nil {
+		aa.SourceLink = alertURLGeneratorFn(a)
+	}
+	return aa
 }
 
 const (
@@ -443,43 +455,42 @@ const (
 	alertStateLabel = "alertstate"
 
 	// alertGroupNameLabel defines the label name attached for generated time series.
+	// attaching this label may be disabled via `-disableAlertgroupLabel` flag.
 	alertGroupNameLabel = "alertgroup"
 )
 
 // alertToTimeSeries converts the given alert with the given timestamp to timeseries
 func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
-	tss = append(tss, alertToTimeSeries(ar.Name, a, timestamp))
+	tss = append(tss, alertToTimeSeries(a, timestamp))
 	if ar.For > 0 {
-		tss = append(tss, alertForToTimeSeries(ar.Name, a, timestamp))
+		tss = append(tss, alertForToTimeSeries(a, timestamp))
 	}
 	return tss
 }
 
-func alertToTimeSeries(name string, a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
+func alertToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
 	labels := make(map[string]string)
 	for k, v := range a.Labels {
 		labels[k] = v
 	}
 	labels["__name__"] = alertMetricName
-	labels[alertNameLabel] = name
 	labels[alertStateLabel] = a.State.String()
 	return newTimeSeries([]float64{1}, []int64{timestamp}, labels)
 }
 
 // alertForToTimeSeries returns a timeseries that represents
 // state of active alerts, where value is time when alert become active
-func alertForToTimeSeries(name string, a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
+func alertForToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
 	labels := make(map[string]string)
 	for k, v := range a.Labels {
 		labels[k] = v
 	}
 	labels["__name__"] = alertForStateMetricName
-	labels[alertNameLabel] = name
 	return newTimeSeries([]float64{float64(a.Start.Unix())}, []int64{timestamp}, labels)
 }
 
-// Restore restores the state of active alerts basing on previously written timeseries.
+// Restore restores the state of active alerts basing on previously written time series.
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
@@ -507,23 +518,13 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	}
 
 	for _, m := range qMetrics {
-		labels := m.Labels
-		m.Labels = make([]datasource.Label, 0)
-		// drop all extra labels, so hash key will
-		// be identical to time series received in Exec
-		for _, l := range labels {
-			if l.Name == alertNameLabel || l.Name == alertGroupNameLabel {
-				continue
-			}
-			m.Labels = append(m.Labels, l)
-		}
-
 		a, err := ar.newAlert(m, time.Unix(int64(m.Values[0]), 0), qFn)
 		if err != nil {
 			return fmt.Errorf("failed to create alert: %w", err)
 		}
 		a.ID = hash(m)
 		a.State = notifier.StatePending
+		a.Restored = true
 		ar.alerts[a.ID] = a
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.Start)
 	}

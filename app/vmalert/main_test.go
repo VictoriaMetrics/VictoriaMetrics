@@ -102,8 +102,9 @@ groups:
 	}
 
 	syncCh := make(chan struct{})
+	sighupCh := procutil.NewSighupChan()
 	go func() {
-		configReload(ctx, m, nil)
+		configReload(ctx, m, nil, sighupCh)
 		close(syncCh)
 	}()
 

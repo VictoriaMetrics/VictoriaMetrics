@@ -69,6 +69,14 @@ users:
   - [foo]
 `)
 
+	// Invalid headers
+	f(`
+users:
+- username: foo
+  url_prefix: http://foo.bar
+  headers: foobar
+`)
+
 	// empty url_prefix
 	f(`
 users:
@@ -156,6 +164,27 @@ users:
   - src_paths: ['fo[obar']
     url_prefix: http://foobar
 `)
+
+	// Invalid headers in url_map (missing ':')
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foobar']
+    url_prefix: http://foobar
+    headers:
+    - foobar
+`)
+	// Invalid headers in url_map (dictionary instead of array)
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foobar']
+    url_prefix: http://foobar
+    headers:
+      aaa: bbb
+`)
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
@@ -231,6 +260,9 @@ users:
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
+    headers:
+    - "foo: bar"
+    - "xxx: y"
 `, map[string]*UserInfo{
 		getAuthToken("foo", "", ""): {
 			BearerToken: "foo",
@@ -245,6 +277,16 @@ users:
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
 					}),
+					Headers: []Header{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+						{
+							Name:  "xxx",
+							Value: "y",
+						},
+					},
 				},
 			},
 		},

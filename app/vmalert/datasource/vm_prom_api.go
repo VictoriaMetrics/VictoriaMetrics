@@ -82,10 +82,10 @@ const (
 func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, error) {
 	r := &promResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return nil, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL, err)
+		return nil, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
 	}
 	if r.Status == statusError {
-		return nil, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL, r.ErrorType, r.Error)
+		return nil, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
 	}
 	if r.Status != statusSuccess {
 		return nil, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
@@ -118,7 +118,9 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 	if s.appendTypePrefix {
 		r.URL.Path += prometheusPrefix
 	}
-	r.URL.Path += prometheusInstantPath
+	if !s.disablePathAppend {
+		r.URL.Path += prometheusInstantPath
+	}
 	q := r.URL.Query()
 	if s.lookBack > 0 {
 		timestamp = timestamp.Add(-s.lookBack)
@@ -136,7 +138,9 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 	if s.appendTypePrefix {
 		r.URL.Path += prometheusPrefix
 	}
-	r.URL.Path += prometheusRangePath
+	if !s.disablePathAppend {
+		r.URL.Path += prometheusRangePath
+	}
 	q := r.URL.Query()
 	q.Add("start", fmt.Sprintf("%d", start.Unix()))
 	q.Add("end", fmt.Sprintf("%d", end.Unix()))

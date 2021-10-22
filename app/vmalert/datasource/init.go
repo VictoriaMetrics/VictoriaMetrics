@@ -52,6 +52,9 @@ func Init(extraParams []Param) (QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	tr.MaxIdleConnsPerHost = *maxIdleConnections
+	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
+		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
+	}
 
 	if *roundDigits > 0 {
 		extraParams = append(extraParams, Param{

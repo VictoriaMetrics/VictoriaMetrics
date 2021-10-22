@@ -27,7 +27,6 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
-					alertNameLabel:  "instant",
 				}),
 			},
 		},
@@ -41,7 +40,6 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
-					alertNameLabel:  "instant extra labels",
 					"job":           "foo",
 					"instance":      "bar",
 				}),
@@ -57,7 +55,6 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
-					alertNameLabel:  "instant labels override",
 				}),
 			},
 		},
@@ -68,13 +65,11 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
-					alertNameLabel:  "for",
 				}),
 				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
 					[]int64{timestamp.UnixNano()},
 					map[string]string{
-						"__name__":     alertForStateMetricName,
-						alertNameLabel: "for",
+						"__name__": alertForStateMetricName,
 					}),
 			},
 		},
@@ -85,13 +80,11 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StatePending.String(),
-					alertNameLabel:  "for pending",
 				}),
 				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
 					[]int64{timestamp.UnixNano()},
 					map[string]string{
-						"__name__":     alertForStateMetricName,
-						alertNameLabel: "for pending",
+						"__name__": alertForStateMetricName,
 					}),
 			},
 		},
@@ -109,23 +102,27 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 
 func TestAlertingRule_Exec(t *testing.T) {
 	const defaultStep = 5 * time.Millisecond
+	type testAlert struct {
+		labels []string
+		alert  *notifier.Alert
+	}
 	testCases := []struct {
 		rule      *AlertingRule
 		steps     [][]datasource.Metric
-		expAlerts map[uint64]*notifier.Alert
+		expAlerts []testAlert
 	}{
 		{
 			newTestAlertingRule("empty", 0),
 			[][]datasource.Metric{},
-			map[uint64]*notifier.Alert{},
+			nil,
 		},
 		{
 			newTestAlertingRule("empty labels", 0),
 			[][]datasource.Metric{
 				{datasource.Metric{Values: []float64{1}, Timestamps: []int64{1}}},
 			},
-			map[uint64]*notifier.Alert{
-				hash(datasource.Metric{}): {State: notifier.StateFiring},
+			[]testAlert{
+				{alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -133,8 +130,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -143,8 +140,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 				{},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
 			},
 		},
 		{
@@ -154,8 +151,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -166,8 +163,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 				{},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
 			},
 		},
 		{
@@ -179,7 +176,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{},
 			},
-			map[uint64]*notifier.Alert{},
+			nil,
 		},
 		{
 			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
@@ -191,8 +188,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -204,10 +201,10 @@ func TestAlertingRule_Exec(t *testing.T) {
 					metricWithLabels(t, "name", "foo2"),
 				},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")):  {State: notifier.StateFiring},
-				hash(metricWithLabels(t, "name", "foo1")): {State: notifier.StateFiring},
-				hash(metricWithLabels(t, "name", "foo2")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+				{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -220,9 +217,9 @@ func TestAlertingRule_Exec(t *testing.T) {
 			// 1: fire first alert
 			// 2: fire second alert, set first inactive
 			// 3: fire third alert, set second inactive, delete first one
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo1")): {State: notifier.StateInactive},
-				hash(metricWithLabels(t, "name", "foo2")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+				{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -230,8 +227,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StatePending},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}},
 			},
 		},
 		{
@@ -240,8 +237,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 		{
@@ -252,7 +249,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 				// empty step to reset and delete pending alerts
 				{},
 			},
-			map[uint64]*notifier.Alert{},
+			nil,
 		},
 		{
 			newTestAlertingRule("for-pending=>firing=>inactive", defaultStep),
@@ -262,8 +259,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				// empty step to reset pending alerts
 				{},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
 			},
 		},
 		{
@@ -275,8 +272,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StatePending},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}},
 			},
 		},
 		{
@@ -289,8 +286,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
 		},
 	}
@@ -312,7 +309,15 @@ func TestAlertingRule_Exec(t *testing.T) {
 			if len(tc.rule.alerts) != len(tc.expAlerts) {
 				t.Fatalf("expected %d alerts; got %d", len(tc.expAlerts), len(tc.rule.alerts))
 			}
-			for key, exp := range tc.expAlerts {
+			expAlerts := make(map[uint64]*notifier.Alert)
+			for _, ta := range tc.expAlerts {
+				labels := ta.labels
+				labels = append(labels, alertNameLabel)
+				labels = append(labels, tc.rule.Name)
+				h := hash(metricWithLabels(t, labels...))
+				expAlerts[h] = ta.alert
+			}
+			for key, exp := range expAlerts {
 				got, ok := tc.rule.alerts[key]
 				if !ok {
 					t.Fatalf("expected to have key %d", key)
@@ -468,6 +473,11 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 			var j int
 			for _, series := range tc.data {
 				for _, timestamp := range series.Timestamps {
+					a := tc.expAlerts[j]
+					if a.Labels == nil {
+						a.Labels = make(map[string]string)
+					}
+					a.Labels[alertNameLabel] = tc.rule.Name
 					expTS = append(expTS, tc.rule.alertToTimeSeries(tc.expAlerts[j], timestamp)...)
 					j++
 				}
@@ -496,7 +506,6 @@ func TestAlertingRule_Restore(t *testing.T) {
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
 					"__name__", alertForStateMetricName,
-					alertNameLabel, "",
 				),
 			},
 			map[uint64]*notifier.Alert{
@@ -509,7 +518,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
 					"__name__", alertForStateMetricName,
-					alertNameLabel, "",
+					alertNameLabel, "metric labels",
 					alertGroupNameLabel, "groupID",
 					"foo", "bar",
 					"namespace", "baz",
@@ -517,6 +526,8 @@ func TestAlertingRule_Restore(t *testing.T) {
 			},
 			map[uint64]*notifier.Alert{
 				hash(metricWithLabels(t,
+					alertNameLabel, "metric labels",
+					alertGroupNameLabel, "groupID",
 					"foo", "bar",
 					"namespace", "baz",
 				)): {State: notifier.StatePending,
@@ -528,7 +539,6 @@ func TestAlertingRule_Restore(t *testing.T) {
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
 					"__name__", alertForStateMetricName,
-					alertNameLabel, "",
 					"foo", "bar",
 					"namespace", "baz",
 					// extra labels set by rule
@@ -645,18 +655,20 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 1, "instance", "bar"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "region", "east", "instance", "foo")): {
+				hash(metricWithLabels(t, alertNameLabel, "common", "region", "east", "instance", "foo")): {
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						"region":   "east",
-						"instance": "foo",
+						alertNameLabel: "common",
+						"region":       "east",
+						"instance":     "foo",
 					},
 				},
-				hash(metricWithLabels(t, "region", "east", "instance", "bar")): {
+				hash(metricWithLabels(t, alertNameLabel, "common", "region", "east", "instance", "bar")): {
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						"region":   "east",
-						"instance": "bar",
+						alertNameLabel: "common",
+						"region":       "east",
+						"instance":     "bar",
 					},
 				},
 			},
@@ -679,20 +691,22 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 10, "instance", "bar"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "region", "east", "instance", "foo")): {
+				hash(metricWithLabels(t, alertNameLabel, "override label", "region", "east", "instance", "foo")): {
 					Labels: map[string]string{
-						"instance": "foo",
-						"region":   "east",
+						alertNameLabel: "override label",
+						"instance":     "foo",
+						"region":       "east",
 					},
 					Annotations: map[string]string{
 						"summary":     `Too high connection number for "foo" for region east`,
 						"description": `It is 2 connections for "foo"`,
 					},
 				},
-				hash(metricWithLabels(t, "region", "east", "instance", "bar")): {
+				hash(metricWithLabels(t, alertNameLabel, "override label", "region", "east", "instance", "bar")): {
 					Labels: map[string]string{
-						"instance": "bar",
-						"region":   "east",
+						alertNameLabel: "override label",
+						"instance":     "bar",
+						"region":       "east",
 					},
 					Annotations: map[string]string{
 						"summary":     `Too high connection number for "bar" for region east`,

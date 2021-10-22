@@ -23,7 +23,7 @@ var (
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
 	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens   = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
-		`Such requests are always counted at vmagent_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
+		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 )
 
 func main() {
@@ -84,12 +84,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ui.requests.Inc()
-	targetURL, err := createTargetURL(ui, r.URL)
+	targetURL, headers, err := createTargetURL(ui, r.URL)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
 		return true
 	}
 	r.Header.Set("vm-target-url", targetURL.String())
+	for _, h := range headers {
+		r.Header.Set(h.Name, h.Value)
+	}
 	proxyRequest(w, r)
 	return true
 }
@@ -109,9 +112,9 @@ func proxyRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 var (
-	configReloadRequests     = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
-	invalidAuthTokenRequests = metrics.NewCounter(`vmagent_http_request_errors_total{reason="invalid_auth_token"}`)
-	missingRouteRequests     = metrics.NewCounter(`vmagent_http_request_errors_total{reason="missing_route"}`)
+	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
+	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
+	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
 
 var reverseProxy = &httputil.ReverseProxy{
@@ -130,6 +133,9 @@ var reverseProxy = &httputil.ReverseProxy{
 		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
 		tr.ForceAttemptHTTP2 = false
 		tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
+		if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
+			tr.MaxIdleConns = tr.MaxIdleConnsPerHost
+		}
 		return tr
 	}(),
 	FlushInterval: time.Second,

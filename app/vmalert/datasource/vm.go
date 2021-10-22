@@ -24,18 +24,20 @@ type VMStorage struct {
 	evaluationInterval time.Duration
 	extraLabels        []string
 	extraParams        []Param
+	disablePathAppend  bool
 }
 
 // Clone makes clone of VMStorage, shares http client.
 func (s *VMStorage) Clone() *VMStorage {
 	return &VMStorage{
-		c:                s.c,
-		authCfg:          s.authCfg,
-		datasourceURL:    s.datasourceURL,
-		lookBack:         s.lookBack,
-		queryStep:        s.queryStep,
-		appendTypePrefix: s.appendTypePrefix,
-		dataSourceType:   s.dataSourceType,
+		c:                 s.c,
+		authCfg:           s.authCfg,
+		datasourceURL:     s.datasourceURL,
+		lookBack:          s.lookBack,
+		queryStep:         s.queryStep,
+		appendTypePrefix:  s.appendTypePrefix,
+		dataSourceType:    s.dataSourceType,
+		disablePathAppend: s.disablePathAppend,
 	}
 }
 
@@ -57,15 +59,16 @@ func (s *VMStorage) BuildWithParams(params QuerierParams) Querier {
 }
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client, disablePathAppend bool) *VMStorage {
 	return &VMStorage{
-		c:                c,
-		authCfg:          authCfg,
-		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
-		appendTypePrefix: appendTypePrefix,
-		lookBack:         lookBack,
-		queryStep:        queryStep,
-		dataSourceType:   NewPrometheusType(),
+		c:                 c,
+		authCfg:           authCfg,
+		datasourceURL:     strings.TrimSuffix(baseURL, "/"),
+		appendTypePrefix:  appendTypePrefix,
+		lookBack:          lookBack,
+		queryStep:         queryStep,
+		dataSourceType:    NewPrometheusType(),
+		disablePathAppend: disablePathAppend,
 	}
 }
 
@@ -132,12 +135,12 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("error getting response from %s: %w", req.URL, err)
+		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
+		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL.Redacted(), body)
 	}
 	return resp, nil
 }

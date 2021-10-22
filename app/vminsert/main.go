@@ -196,6 +196,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
+	case "/prometheus/config", "/config":
+		promscrapeConfigRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		promscrape.WriteConfigData(w)
+		return true
 	case "/prometheus/-/reload", "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
@@ -249,6 +254,8 @@ var (
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeConfigRequests = metrics.NewCounter(`vm_http_requests_total{path="/config"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/reload"}`)
 

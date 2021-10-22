@@ -17,6 +17,8 @@ type APIAlert struct {
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
 	ActiveAt    time.Time         `json:"activeAt"`
+	SourceLink  string            `json:"source"`
+	Restored    bool              `json:"restored"`
 }
 
 // APIGroup represents Group for WEB view

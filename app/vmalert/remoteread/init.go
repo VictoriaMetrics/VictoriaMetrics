@@ -12,7 +12,7 @@ import (
 var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts "+
 		"state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
-		"E.g. http://127.0.0.1:8428")
+		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
 	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
 	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
 	basicAuthPasswordFile = flag.String("remoteRead.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteRead.url")
@@ -26,6 +26,7 @@ var (
 		"By default system CA is used")
 	tlsServerName = flag.String("remoteRead.tlsServerName", "", "Optional TLS server name to use for connections to -remoteRead.url. "+
 		"By default the server name from -remoteRead.url is used")
+	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path to the configured -remoteRead.url.")
 )
 
 // Init creates a Querier from provided flag values.
@@ -43,5 +44,5 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, authCfg, 0, 0, false, c), nil
+	return datasource.NewVMStorage(*addr, authCfg, 0, 0, false, c, *disablePathAppend), nil
 }

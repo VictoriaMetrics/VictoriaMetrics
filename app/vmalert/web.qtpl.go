@@ -190,7 +190,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, groups []APIGroup) {
 //line app/vmalert/web.qtpl:54
 			if rNotOk[g.Name] > 0 {
 //line app/vmalert/web.qtpl:54
-				qw422016.N().S(`<span class="badge bg-danger" title="Number of rules withs status Error">`)
+				qw422016.N().S(`<span class="badge bg-danger" title="Number of rules with status Error">`)
 //line app/vmalert/web.qtpl:54
 				qw422016.N().D(rNotOk[g.Name])
 //line app/vmalert/web.qtpl:54
@@ -573,11 +573,17 @@ func StreamListAlerts(qw422016 *qt422016.Writer, groupAlerts []GroupAlerts) {
 //line app/vmalert/web.qtpl:158
 				qw422016.N().D(len(alertsByRule[ruleID]))
 //line app/vmalert/web.qtpl:158
-				qw422016.N().S(`)<br>
+				qw422016.N().S(`)
+                     | <span><a target="_blank" href="`)
+//line app/vmalert/web.qtpl:159
+				qw422016.E().S(defaultAR.SourceLink)
+//line app/vmalert/web.qtpl:159
+				qw422016.N().S(`">Source</a></span>
+                    <br>
                     <b>expr:</b><code><pre>`)
-//line app/vmalert/web.qtpl:159
+//line app/vmalert/web.qtpl:161
 				qw422016.E().S(defaultAR.Expression)
-//line app/vmalert/web.qtpl:159
+//line app/vmalert/web.qtpl:161
 				qw422016.N().S(`</pre></code>
                     <table class="table table-striped table-hover table-sm">
                         <thead>
@@ -591,152 +597,151 @@ func StreamListAlerts(qw422016 *qt422016.Writer, groupAlerts []GroupAlerts) {
                         </thead>
                         <tbody>
                         `)
-//line app/vmalert/web.qtpl:171
+//line app/vmalert/web.qtpl:173
 				for _, ar := range alertsByRule[ruleID] {
-//line app/vmalert/web.qtpl:171
+//line app/vmalert/web.qtpl:173
 					qw422016.N().S(`
                             <tr>
                                 <td>
                                     `)
-//line app/vmalert/web.qtpl:174
+//line app/vmalert/web.qtpl:176
 					for _, k := range labelKeys {
-//line app/vmalert/web.qtpl:174
+//line app/vmalert/web.qtpl:176
 						qw422016.N().S(`
                                         <span class="ms-1 badge bg-primary">`)
-//line app/vmalert/web.qtpl:175
+//line app/vmalert/web.qtpl:177
 						qw422016.E().S(k)
-//line app/vmalert/web.qtpl:175
+//line app/vmalert/web.qtpl:177
 						qw422016.N().S(`=`)
-//line app/vmalert/web.qtpl:175
+//line app/vmalert/web.qtpl:177
 						qw422016.E().S(ar.Labels[k])
-//line app/vmalert/web.qtpl:175
+//line app/vmalert/web.qtpl:177
 						qw422016.N().S(`</span>
                                     `)
-//line app/vmalert/web.qtpl:176
+//line app/vmalert/web.qtpl:178
 					}
-//line app/vmalert/web.qtpl:176
+//line app/vmalert/web.qtpl:178
 					qw422016.N().S(`
                                 </td>
-                                <td><span class="badge `)
-//line app/vmalert/web.qtpl:178
-					if ar.State == "firing" {
-//line app/vmalert/web.qtpl:178
-						qw422016.N().S(`bg-danger`)
-//line app/vmalert/web.qtpl:178
-					} else {
-//line app/vmalert/web.qtpl:178
-						qw422016.N().S(` bg-warning text-dark`)
-//line app/vmalert/web.qtpl:178
-					}
-//line app/vmalert/web.qtpl:178
-					qw422016.N().S(`">`)
-//line app/vmalert/web.qtpl:178
-					qw422016.E().S(ar.State)
-//line app/vmalert/web.qtpl:178
-					qw422016.N().S(`</span></td>
-                                <td>`)
-//line app/vmalert/web.qtpl:179
-					qw422016.E().S(ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00"))
-//line app/vmalert/web.qtpl:179
-					qw422016.N().S(`</td>
                                 <td>`)
 //line app/vmalert/web.qtpl:180
-					qw422016.E().S(ar.Value)
+					streambadgeState(qw422016, ar.State)
 //line app/vmalert/web.qtpl:180
 					qw422016.N().S(`</td>
                                 <td>
+                                    `)
+//line app/vmalert/web.qtpl:182
+					qw422016.E().S(ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00"))
+//line app/vmalert/web.qtpl:182
+					qw422016.N().S(`
+                                    `)
+//line app/vmalert/web.qtpl:183
+					if ar.Restored {
+//line app/vmalert/web.qtpl:183
+						streambadgeRestored(qw422016)
+//line app/vmalert/web.qtpl:183
+					}
+//line app/vmalert/web.qtpl:183
+					qw422016.N().S(`
+                                </td>
+                                <td>`)
+//line app/vmalert/web.qtpl:185
+					qw422016.E().S(ar.Value)
+//line app/vmalert/web.qtpl:185
+					qw422016.N().S(`</td>
+                                <td>
                                     <a href="/`)
-//line app/vmalert/web.qtpl:182
+//line app/vmalert/web.qtpl:187
 					qw422016.E().S(g.ID)
-//line app/vmalert/web.qtpl:182
+//line app/vmalert/web.qtpl:187
 					qw422016.N().S(`/`)
-//line app/vmalert/web.qtpl:182
+//line app/vmalert/web.qtpl:187
 					qw422016.E().S(ar.ID)
-//line app/vmalert/web.qtpl:182
+//line app/vmalert/web.qtpl:187
 					qw422016.N().S(`/status">Details</a>
                                 </td>
                             </tr>
                         `)
-//line app/vmalert/web.qtpl:185
+//line app/vmalert/web.qtpl:190
 				}
-//line app/vmalert/web.qtpl:185
+//line app/vmalert/web.qtpl:190
 				qw422016.N().S(`
                      </tbody>
                     </table>
                 `)
-//line app/vmalert/web.qtpl:188
+//line app/vmalert/web.qtpl:193
 			}
-//line app/vmalert/web.qtpl:188
+//line app/vmalert/web.qtpl:193
 			qw422016.N().S(`
             </div>
             <br>
         `)
-//line app/vmalert/web.qtpl:191
+//line app/vmalert/web.qtpl:196
 		}
-//line app/vmalert/web.qtpl:191
+//line app/vmalert/web.qtpl:196
 		qw422016.N().S(`
 
     `)
-//line app/vmalert/web.qtpl:193
+//line app/vmalert/web.qtpl:198
 	} else {
-//line app/vmalert/web.qtpl:193
+//line app/vmalert/web.qtpl:198
 		qw422016.N().S(`
         <div>
             <p>No items...</p>
         </div>
     `)
-//line app/vmalert/web.qtpl:197
+//line app/vmalert/web.qtpl:202
 	}
-//line app/vmalert/web.qtpl:197
+//line app/vmalert/web.qtpl:202
 	qw422016.N().S(`
 
     `)
-//line app/vmalert/web.qtpl:199
+//line app/vmalert/web.qtpl:204
 	tpl.StreamFooter(qw422016)
-//line app/vmalert/web.qtpl:199
+//line app/vmalert/web.qtpl:204
 	qw422016.N().S(`
 
 `)
-//line app/vmalert/web.qtpl:201
-}
-
-//line app/vmalert/web.qtpl:201
-func WriteListAlerts(qq422016 qtio422016.Writer, groupAlerts []GroupAlerts) {
-//line app/vmalert/web.qtpl:201
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/web.qtpl:201
-	StreamListAlerts(qw422016, groupAlerts)
-//line app/vmalert/web.qtpl:201
-	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/web.qtpl:201
-}
-
-//line app/vmalert/web.qtpl:201
-func ListAlerts(groupAlerts []GroupAlerts) string {
-//line app/vmalert/web.qtpl:201
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/web.qtpl:201
-	WriteListAlerts(qb422016, groupAlerts)
-//line app/vmalert/web.qtpl:201
-	qs422016 := string(qb422016.B)
-//line app/vmalert/web.qtpl:201
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/web.qtpl:201
-	return qs422016
-//line app/vmalert/web.qtpl:201
-}
-
-//line app/vmalert/web.qtpl:203
-func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
-//line app/vmalert/web.qtpl:203
-	qw422016.N().S(`
-    `)
-//line app/vmalert/web.qtpl:204
-	tpl.StreamHeader(qw422016, "", navItems)
-//line app/vmalert/web.qtpl:204
-	qw422016.N().S(`
-    `)
 //line app/vmalert/web.qtpl:206
+}
+
+//line app/vmalert/web.qtpl:206
+func WriteListAlerts(qq422016 qtio422016.Writer, groupAlerts []GroupAlerts) {
+//line app/vmalert/web.qtpl:206
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmalert/web.qtpl:206
+	StreamListAlerts(qw422016, groupAlerts)
+//line app/vmalert/web.qtpl:206
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmalert/web.qtpl:206
+}
+
+//line app/vmalert/web.qtpl:206
+func ListAlerts(groupAlerts []GroupAlerts) string {
+//line app/vmalert/web.qtpl:206
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmalert/web.qtpl:206
+	WriteListAlerts(qb422016, groupAlerts)
+//line app/vmalert/web.qtpl:206
+	qs422016 := string(qb422016.B)
+//line app/vmalert/web.qtpl:206
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmalert/web.qtpl:206
+	return qs422016
+//line app/vmalert/web.qtpl:206
+}
+
+//line app/vmalert/web.qtpl:208
+func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
+//line app/vmalert/web.qtpl:208
+	qw422016.N().S(`
+    `)
+//line app/vmalert/web.qtpl:209
+	tpl.StreamHeader(qw422016, "", navItems)
+//line app/vmalert/web.qtpl:209
+	qw422016.N().S(`
+    `)
+//line app/vmalert/web.qtpl:211
 	var labelKeys []string
 	for k := range alert.Labels {
 		labelKeys = append(labelKeys, k)
@@ -749,28 +754,28 @@ func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
 	}
 	sort.Strings(annotationKeys)
 
-//line app/vmalert/web.qtpl:217
+//line app/vmalert/web.qtpl:222
 	qw422016.N().S(`
     <div class="display-6 pb-3 mb-3">`)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	qw422016.E().S(alert.Name)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	qw422016.N().S(`<span class="ms-2 badge `)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	if alert.State == "firing" {
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 		qw422016.N().S(`bg-danger`)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	} else {
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 		qw422016.N().S(` bg-warning text-dark`)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	}
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	qw422016.N().S(`">`)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	qw422016.E().S(alert.State)
-//line app/vmalert/web.qtpl:218
+//line app/vmalert/web.qtpl:223
 	qw422016.N().S(`</span></div>
     <div class="container border-bottom p-2">
       <div class="row">
@@ -779,9 +784,9 @@ func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
         </div>
         <div class="col">
           `)
-//line app/vmalert/web.qtpl:225
+//line app/vmalert/web.qtpl:230
 	qw422016.E().S(alert.ActiveAt.Format("2006-01-02T15:04:05Z07:00"))
-//line app/vmalert/web.qtpl:225
+//line app/vmalert/web.qtpl:230
 	qw422016.N().S(`
         </div>
       </div>
@@ -793,9 +798,9 @@ func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
         </div>
         <div class="col">
           <code><pre>`)
-//line app/vmalert/web.qtpl:235
+//line app/vmalert/web.qtpl:240
 	qw422016.E().S(alert.Expression)
-//line app/vmalert/web.qtpl:235
+//line app/vmalert/web.qtpl:240
 	qw422016.N().S(`</pre></code>
         </div>
       </div>
@@ -807,23 +812,23 @@ func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
         </div>
         <div class="col">
            `)
-//line app/vmalert/web.qtpl:245
+//line app/vmalert/web.qtpl:250
 	for _, k := range labelKeys {
-//line app/vmalert/web.qtpl:245
+//line app/vmalert/web.qtpl:250
 		qw422016.N().S(`
                 <span class="m-1 badge bg-primary">`)
-//line app/vmalert/web.qtpl:246
+//line app/vmalert/web.qtpl:251
 		qw422016.E().S(k)
-//line app/vmalert/web.qtpl:246
+//line app/vmalert/web.qtpl:251
 		qw422016.N().S(`=`)
-//line app/vmalert/web.qtpl:246
+//line app/vmalert/web.qtpl:251
 		qw422016.E().S(alert.Labels[k])
-//line app/vmalert/web.qtpl:246
+//line app/vmalert/web.qtpl:251
 		qw422016.N().S(`</span>
           `)
-//line app/vmalert/web.qtpl:247
+//line app/vmalert/web.qtpl:252
 	}
-//line app/vmalert/web.qtpl:247
+//line app/vmalert/web.qtpl:252
 	qw422016.N().S(`
         </div>
       </div>
@@ -835,24 +840,24 @@ func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
         </div>
         <div class="col">
            `)
-//line app/vmalert/web.qtpl:257
+//line app/vmalert/web.qtpl:262
 	for _, k := range annotationKeys {
-//line app/vmalert/web.qtpl:257
+//line app/vmalert/web.qtpl:262
 		qw422016.N().S(`
                 <b>`)
-//line app/vmalert/web.qtpl:258
+//line app/vmalert/web.qtpl:263
 		qw422016.E().S(k)
-//line app/vmalert/web.qtpl:258
+//line app/vmalert/web.qtpl:263
 		qw422016.N().S(`:</b><br>
                 <p>`)
-//line app/vmalert/web.qtpl:259
+//line app/vmalert/web.qtpl:264
 		qw422016.E().S(alert.Annotations[k])
-//line app/vmalert/web.qtpl:259
+//line app/vmalert/web.qtpl:264
 		qw422016.N().S(`</p>
           `)
-//line app/vmalert/web.qtpl:260
+//line app/vmalert/web.qtpl:265
 	}
-//line app/vmalert/web.qtpl:260
+//line app/vmalert/web.qtpl:265
 	qw422016.N().S(`
         </div>
       </div>
@@ -864,49 +869,150 @@ func StreamAlert(qw422016 *qt422016.Writer, alert *APIAlert) {
         </div>
         <div class="col">
            <a target="_blank" href="/groups#group-`)
-//line app/vmalert/web.qtpl:270
+//line app/vmalert/web.qtpl:275
 	qw422016.E().S(alert.GroupID)
-//line app/vmalert/web.qtpl:270
+//line app/vmalert/web.qtpl:275
 	qw422016.N().S(`">`)
-//line app/vmalert/web.qtpl:270
+//line app/vmalert/web.qtpl:275
 	qw422016.E().S(alert.GroupID)
-//line app/vmalert/web.qtpl:270
+//line app/vmalert/web.qtpl:275
 	qw422016.N().S(`</a>
         </div>
       </div>
     </div>
+     <div class="container border-bottom p-2">
+      <div class="row">
+        <div class="col-2">
+          Source link
+        </div>
+        <div class="col">
+           <a target="_blank" href="`)
+//line app/vmalert/web.qtpl:285
+	qw422016.E().S(alert.SourceLink)
+//line app/vmalert/web.qtpl:285
+	qw422016.N().S(`">Link</a>
+        </div>
+      </div>
+    </div>
     `)
-//line app/vmalert/web.qtpl:274
+//line app/vmalert/web.qtpl:289
 	tpl.StreamFooter(qw422016)
-//line app/vmalert/web.qtpl:274
+//line app/vmalert/web.qtpl:289
 	qw422016.N().S(`
 
 `)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 }
 
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 func WriteAlert(qq422016 qtio422016.Writer, alert *APIAlert) {
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	StreamAlert(qw422016, alert)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 }
 
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 func Alert(alert *APIAlert) string {
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	WriteAlert(qb422016, alert)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	qs422016 := string(qb422016.B)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
 	return qs422016
-//line app/vmalert/web.qtpl:276
+//line app/vmalert/web.qtpl:291
+}
+
+//line app/vmalert/web.qtpl:293
+func streambadgeState(qw422016 *qt422016.Writer, state string) {
+//line app/vmalert/web.qtpl:293
+	qw422016.N().S(`
+`)
+//line app/vmalert/web.qtpl:295
+	badgeClass := "bg-warning text-dark"
+	if state == "firing" {
+		badgeClass = "bg-danger"
+	}
+
+//line app/vmalert/web.qtpl:299
+	qw422016.N().S(`
+<span class="badge `)
+//line app/vmalert/web.qtpl:300
+	qw422016.E().S(badgeClass)
+//line app/vmalert/web.qtpl:300
+	qw422016.N().S(`">`)
+//line app/vmalert/web.qtpl:300
+	qw422016.E().S(state)
+//line app/vmalert/web.qtpl:300
+	qw422016.N().S(`</span>
+`)
+//line app/vmalert/web.qtpl:301
+}
+
+//line app/vmalert/web.qtpl:301
+func writebadgeState(qq422016 qtio422016.Writer, state string) {
+//line app/vmalert/web.qtpl:301
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmalert/web.qtpl:301
+	streambadgeState(qw422016, state)
+//line app/vmalert/web.qtpl:301
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmalert/web.qtpl:301
+}
+
+//line app/vmalert/web.qtpl:301
+func badgeState(state string) string {
+//line app/vmalert/web.qtpl:301
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmalert/web.qtpl:301
+	writebadgeState(qb422016, state)
+//line app/vmalert/web.qtpl:301
+	qs422016 := string(qb422016.B)
+//line app/vmalert/web.qtpl:301
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmalert/web.qtpl:301
+	return qs422016
+//line app/vmalert/web.qtpl:301
+}
+
+//line app/vmalert/web.qtpl:303
+func streambadgeRestored(qw422016 *qt422016.Writer) {
+//line app/vmalert/web.qtpl:303
+	qw422016.N().S(`
+<span class="badge bg-warning text-dark" title="Alert state was restored after reload from remote storage">restored</span>
+`)
+//line app/vmalert/web.qtpl:305
+}
+
+//line app/vmalert/web.qtpl:305
+func writebadgeRestored(qq422016 qtio422016.Writer) {
+//line app/vmalert/web.qtpl:305
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmalert/web.qtpl:305
+	streambadgeRestored(qw422016)
+//line app/vmalert/web.qtpl:305
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmalert/web.qtpl:305
+}
+
+//line app/vmalert/web.qtpl:305
+func badgeRestored() string {
+//line app/vmalert/web.qtpl:305
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmalert/web.qtpl:305
+	writebadgeRestored(qb422016)
+//line app/vmalert/web.qtpl:305
+	qs422016 := string(qb422016.B)
+//line app/vmalert/web.qtpl:305
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmalert/web.qtpl:305
+	return qs422016
+//line app/vmalert/web.qtpl:305
 }

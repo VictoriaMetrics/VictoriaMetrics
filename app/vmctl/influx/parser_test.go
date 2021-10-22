@@ -1,6 +1,7 @@
 package influx
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -56,5 +57,30 @@ func TestSeries_Unmarshal(t *testing.T) {
 		if !reflect.DeepEqual(s, tc.want) {
 			t.Fatalf("%q: expected\n%#v\nto be equal\n%#v", tc.got, s, tc.want)
 		}
+	}
+}
+
+func TestToFloat64(t *testing.T) {
+	f := func(in interface{}, want float64) {
+		t.Helper()
+		got, err := toFloat64(in)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
+		if got != want {
+			t.Errorf("got %v; want %v", got, want)
+		}
+	}
+	f("123.4", 123.4)
+	f(float64(123.4), 123.4)
+	f(float32(12), 12)
+	f(123, 123)
+	f(true, 1)
+	f(false, 0)
+	f(json.Number("123456.789"), 123456.789)
+
+	_, err := toFloat64("text")
+	if err == nil {
+		t.Fatalf("expected to get err; got nil instead")
 	}
 }

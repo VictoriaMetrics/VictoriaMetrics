@@ -28,13 +28,14 @@ func initLinks() {
 		{path.Join(pathPrefix, "api/v1/groups"), "list all loaded groups and rules"},
 		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
 		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "get alert status by ID"},
+		{path.Join(pathPrefix, "flags"), "command-line flags"},
 		{path.Join(pathPrefix, "metrics"), "list of application metrics"},
 		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: path.Join(pathPrefix, "/")},
+		{Name: "vmalert", Url: pathPrefix},
 		{Name: "Groups", Url: path.Join(pathPrefix, "groups")},
-		{Name: "Alerts", Url: path.Join(pathPrefix, "/alerts")},
+		{Name: "Alerts", Url: path.Join(pathPrefix, "alerts")},
 		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
 	}
 }
