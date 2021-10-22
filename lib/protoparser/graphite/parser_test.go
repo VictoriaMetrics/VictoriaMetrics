@@ -261,6 +261,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// With tab as separator
+	// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
 	f("foo.baz\t125.456\t1789\n", &Rows{
 		Rows: []Row{{
 			Metric:    "foo.baz",
