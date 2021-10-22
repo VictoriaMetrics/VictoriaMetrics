@@ -1,3 +1,4 @@
+/* eslint max-lines: 0 */
 import {DisplayType} from "../../components/Home/Configurator/DisplayTypeSwitch";
 import {TimeParams, TimePeriod} from "../../types";
 import {dateFromSeconds, formatDateToLocal, getDateNowUTC, getDurationFromPeriod, getTimeperiodForDuration} from "../../utils/time";
@@ -10,11 +11,17 @@ export interface TimeState {
   period: TimeParams;
 }
 
+export interface QueryHistory {
+  index: number,
+  values: string[]
+}
+
 export interface AppState {
   serverUrl: string;
   displayType: DisplayType;
   query: string;
   time: TimeState;
+  queryHistory: QueryHistory,
   queryControls: {
     autoRefresh: boolean;
     autocomplete: boolean,
@@ -26,6 +33,8 @@ export type Action =
     | { type: "SET_DISPLAY_TYPE", payload: DisplayType }
     | { type: "SET_SERVER", payload: string }
     | { type: "SET_QUERY", payload: string }
+    | { type: "SET_QUERY_HISTORY_INDEX", payload: number }
+    | { type: "SET_QUERY_HISTORY_VALUES", payload: string[] }
     | { type: "SET_DURATION", payload: string }
     | { type: "SET_UNTIL", payload: Date }
     | { type: "SET_PERIOD", payload: TimePeriod }
@@ -37,11 +46,13 @@ export type Action =
 
 const duration = getQueryStringValue("g0.range_input", "1h") as string;
 const endInput = formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date);
+const query = getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n") as string;
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
   displayType: "chart",
-  query: getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as string || "\n") as string, // demo_memory_usage_bytes
+  query: query, // demo_memory_usage_bytes
+  queryHistory: { index: 0, values: [query] },
   time: {
     duration,
     period: getTimeperiodForDuration(duration, new Date(endInput))
@@ -69,6 +80,22 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         query: action.payload
+      };
+    case "SET_QUERY_HISTORY_INDEX":
+      return {
+        ...state,
+        queryHistory: {
+          ...state.queryHistory,
+          index: action.payload
+        }
+      };
+    case "SET_QUERY_HISTORY_VALUES":
+      return {
+        ...state,
+        queryHistory: {
+          ...state.queryHistory,
+          values: action.payload
+        }
       };
     case "SET_DURATION":
       return {
