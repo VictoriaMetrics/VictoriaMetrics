@@ -205,7 +205,8 @@ func compareTimeSeries(t *testing.T, a, b []prompbmarshal.TimeSeries) error {
 			}*/
 		}
 		if len(expTS.Labels) != len(gotTS.Labels) {
-			return fmt.Errorf("expected number of labels %d; got %d", len(expTS.Labels), len(gotTS.Labels))
+			return fmt.Errorf("expected number of labels %d (%v); got %d (%v)",
+				len(expTS.Labels), expTS.Labels, len(gotTS.Labels), gotTS.Labels)
 		}
 		for i, exp := range expTS.Labels {
 			got := gotTS.Labels[i]

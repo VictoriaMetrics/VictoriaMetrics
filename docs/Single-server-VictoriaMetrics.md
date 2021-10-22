@@ -613,6 +613,10 @@ The UI allows exploring query results via graphs and tables. Graphs support scro
 * Drag the graph to the left / right in order to move the displayed time range into the past / future.
 * Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
 
+Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
+
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
+
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
 
@@ -1723,7 +1727,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 1000000)
   -promscrape.noStaleMarkers
-    	Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+    	Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
     	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
   -promscrape.seriesLimitPerTarget int
