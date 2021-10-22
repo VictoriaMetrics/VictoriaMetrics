@@ -39,9 +39,9 @@ services:
       - 8400
       - 8401
     volumes:
-      - strgdata:/storage-1
+      - strgdata-1:/storage
     command:
-      - '--storageDataPath=/storage-1'
+      - '--storageDataPath=/storage'
     restart: always
     
   vmstorage-2:
@@ -52,9 +52,9 @@ services:
       - 8400
       - 8401
     volumes:
-      - strgdata:/storage-2
+      - strgdata-2:/storage
     command:
-      - '--storageDataPath=strgdata:/storage-2'
+      - '--storageDataPath=/storage'
     restart: always
     
   vminsert:
@@ -117,5 +117,6 @@ services:
 
 volumes:
   vmagentdata: {}
-  strgdata: {}
+  strgdata-1: {}
+  strgdata-2: {}
   grafanadata: {}
