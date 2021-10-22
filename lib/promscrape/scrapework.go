@@ -453,13 +453,18 @@ func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
 }
 
 type streamBodyReader struct {
-	sr   *streamReader
-	body []byte
+	sr          *streamReader
+	body        []byte
+	bodyLen     int
+	captureBody bool
 }
 
 func (sbr *streamBodyReader) Read(b []byte) (int, error) {
 	n, err := sbr.sr.Read(b)
-	sbr.body = append(sbr.body, b[:n]...)
+	sbr.bodyLen += n
+	if sbr.captureBody {
+		sbr.body = append(sbr.body, b[:n]...)
+	}
 	return n, err
 }
 
@@ -468,7 +473,9 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesPostRelabeling := 0
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	// Do not pool sbr and do not pre-allocate sbr.body in order to reduce memory usage when scraping big responses.
-	sbr := &streamBodyReader{}
+	sbr := &streamBodyReader{
+		captureBody: !*noStaleMarkers,
+	}
 
 	sr, err := sw.GetStreamReader()
 	if err != nil {
@@ -507,7 +514,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
-	scrapeResponseSize.Update(float64(len(bodyString)))
+	scrapeResponseSize.Update(float64(sbr.bodyLen))
 	up := 1
 	if err != nil {
 		if samplesScraped == 0 {
@@ -530,7 +537,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
-	sw.prevBodyLen = len(bodyString)
+	sw.prevBodyLen = sbr.bodyLen
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
