@@ -38,7 +38,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-// This is needed until https://github.com/googleapis/google-cloud-go/issues/4783 is resolved
-replace cloud.google.com/go v0.94.1 => cloud.google.com/go v0.93.3
-
 go 1.16
