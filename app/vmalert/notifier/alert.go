@@ -34,6 +34,8 @@ type Alert struct {
 	Value float64
 	// ID is the unique identifer for the Alert
 	ID uint64
+	// Restored is true if Alert was restored after restart
+	Restored bool
 }
 
 // AlertState type indicates the Alert state

@@ -51,7 +51,7 @@
               <div class="group-heading{% if rNotOk[g.Name] > 0 %} alert-danger{% endif %}"  data-bs-target="rules-{%s g.ID %}">
                 <span class="anchor" id="group-{%s g.ID %}"></span>
                 <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%s g.Interval %})</a>
-                 {% if rNotOk[g.Name] > 0 %}<span class="badge bg-danger" title="Number of rules withs status Error">{%d rNotOk[g.Name] %}</span> {% endif %}
+                 {% if rNotOk[g.Name] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.Name] %}</span> {% endif %}
                 <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.Name] %}</span>
                 <p class="fs-6 fw-lighter">{%s g.File %}</p>
                 {% if len(g.ExtraFilterLabels) > 0 %}
@@ -177,8 +177,11 @@
                                         <span class="ms-1 badge bg-primary">{%s k %}={%s ar.Labels[k] %}</span>
                                     {% endfor %}
                                 </td>
-                                <td><span class="badge {% if ar.State=="firing" %}bg-danger{% else %} bg-warning text-dark{% endif %}">{%s ar.State %}</span></td>
-                                <td>{%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}</td>
+                                <td>{%= badgeState(ar.State) %}</td>
+                                <td>
+                                    {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
+                                    {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
+                                </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
                                     <a href="/{%s g.ID %}/{%s ar.ID %}/status">Details</a>
@@ -285,4 +288,18 @@
     </div>
     {%= tpl.Footer() %}
 
+{% endfunc %}
+
+{% func badgeState(state string) %}
+{%code
+    badgeClass := "bg-warning text-dark"
+    if state == "firing" {
+        badgeClass = "bg-danger"
+    }
+%}
+<span class="badge {%s badgeClass %}">{%s state %}</span>
+{% endfunc %}
+
+{% func badgeRestored() %}
+<span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 {% endfunc %}
