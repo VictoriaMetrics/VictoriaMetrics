@@ -172,7 +172,7 @@ func (c *Client) ReadObject(ctx context.Context, req *storagepb.ReadObjectReques
 // each following call to Create. If there is an error or the connection is
 // broken during the resumable Create(), the client should check the status
 // of the Create() by calling QueryWriteStatus() and continue writing from
-// the returned committed_size. This may be less than the amount of data the
+// the returned persisted_size. This may be less than the amount of data the
 // client previously sent.
 //
 // The service will not view the object as complete until the client has
@@ -192,7 +192,7 @@ func (c *Client) StartResumableWrite(ctx context.Context, req *storagepb.StartRe
 	return c.internalClient.StartResumableWrite(ctx, req, opts...)
 }
 
-// QueryWriteStatus determines the committed_size for an object that is being written, which
+// QueryWriteStatus determines the persisted_size for an object that is being written, which
 // can then be used as the write_offset for the next Write() call.
 //
 // If the object does not exist (i.e., the object has been deleted, or the
@@ -203,7 +203,7 @@ func (c *Client) StartResumableWrite(ctx context.Context, req *storagepb.StartRe
 // much data has been processed for this object. This is useful if the
 // client is buffering data and needs to know which data can be safely
 // evicted. For any sequence of QueryWriteStatus() calls for a given
-// object name, the sequence of returned committed_size values will be
+// object name, the sequence of returned persisted_size values will be
 // non-decreasing.
 func (c *Client) QueryWriteStatus(ctx context.Context, req *storagepb.QueryWriteStatusRequest, opts ...gax.CallOption) (*storagepb.QueryWriteStatusResponse, error) {
 	return c.internalClient.QueryWriteStatus(ctx, req, opts...)

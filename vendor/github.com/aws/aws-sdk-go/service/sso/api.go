@@ -1022,7 +1022,7 @@ func (s *LogoutInput) SetAccessToken(v string) *LogoutInput {
 }
 
 type LogoutOutput struct {
-	_ struct{} `type:"structure" nopayload:"true"`
+	_ struct{} `type:"structure"`
 }
 
 // String returns the string representation.
