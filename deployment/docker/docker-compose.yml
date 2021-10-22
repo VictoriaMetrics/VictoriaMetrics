@@ -30,7 +30,6 @@ services:
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
 
-    
   vmstorage-1:
     container_name: vmstorage-1
     image: victoriametrics/vmstorage
@@ -43,7 +42,6 @@ services:
     command:
       - '--storageDataPath=/storage'
     restart: always
-    
   vmstorage-2:
     container_name: vmstorage-2
     image: victoriametrics/vmstorage
@@ -56,7 +54,6 @@ services:
     command:
       - '--storageDataPath=/storage'
     restart: always
-    
   vminsert:
     container_name: vminsert
     image: victoriametrics/vminsert
@@ -69,7 +66,6 @@ services:
     ports:
       - 8480
     restart: always
-    
   vmselect:
     container_name: vmselect
     image: victoriametrics/vmselect
