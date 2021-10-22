@@ -30,7 +30,7 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
-	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. See also https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
 	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
@@ -211,6 +211,8 @@ type scrapeWork struct {
 	prevLabelsLen int
 
 	// lastScrape holds the last response from scrape target.
+	// It is used for staleness tracking and for populating scrape_series_added metric.
+	// The lastScrape isn't populated if -promscrape.noStaleMarkers is set. This reduces memory usage.
 	lastScrape []byte
 
 	// lastScrapeCompressed is used for storing the compressed lastScrape between scrapes
@@ -219,16 +221,15 @@ type scrapeWork struct {
 	lastScrapeCompressed []byte
 }
 
-func (sw *scrapeWork) loadLastScrape() {
-	if len(sw.lastScrapeCompressed) == 0 {
-		// The lastScrape is already stored in sw.lastScrape
-		return
+func (sw *scrapeWork) loadLastScrape() string {
+	if len(sw.lastScrapeCompressed) > 0 {
+		b, err := encoding.DecompressZSTD(sw.lastScrape[:0], sw.lastScrapeCompressed)
+		if err != nil {
+			logger.Panicf("BUG: cannot unpack compressed previous response: %s", err)
+		}
+		sw.lastScrape = b
 	}
-	b, err := encoding.DecompressZSTD(sw.lastScrape[:0], sw.lastScrapeCompressed)
-	if err != nil {
-		logger.Panicf("BUG: cannot unpack compressed previous response: %s", err)
-	}
-	sw.lastScrape = b
+	return bytesutil.ToUnsafeString(sw.lastScrape)
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrape []byte) {
@@ -303,7 +304,8 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		select {
 		case <-stopCh:
 			t := time.Now().UnixNano() / 1e6
-			sw.sendStaleSeries("", t, true)
+			lastScrape := sw.loadLastScrape()
+			sw.sendStaleSeries(lastScrape, "", t, true)
 			if sw.seriesLimiter != nil {
 				job := sw.Config.Job()
 				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
@@ -375,10 +377,9 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	scrapeResponseSize.Update(float64(len(body.B)))
 	up := 1
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-	sw.loadLastScrape()
+	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
-	lastScrape := bytesutil.ToUnsafeString(sw.lastScrape)
-	areIdenticalSeries := parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := *noStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -407,7 +408,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = sw.getSeriesAdded(bodyString)
+		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	if sw.seriesLimitExceeded || !areIdenticalSeries {
 		if sw.applySeriesLimit(wc) {
@@ -432,7 +433,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	}
 	// body must be released only after wc is released, since wc refers to body.
 	if !areIdenticalSeries {
-		sw.sendStaleSeries(bodyString, scrapeTimestamp, false)
+		sw.sendStaleSeries(lastScrape, bodyString, scrapeTimestamp, false)
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
@@ -498,10 +499,9 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		}, sw.logError)
 		sr.MustClose()
 	}
-	sw.loadLastScrape()
+	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(sbr.body)
-	lastScrape := bytesutil.ToUnsafeString(sw.lastScrape)
-	areIdenticalSeries := parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := *noStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 
 	scrapedSamples.Update(float64(samplesScraped))
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -520,7 +520,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = sw.getSeriesAdded(bodyString)
+		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
@@ -534,7 +534,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
-		sw.sendStaleSeries(bodyString, scrapeTimestamp, false)
+		sw.sendStaleSeries(lastScrape, bodyString, scrapeTimestamp, false)
 		sw.storeLastScrape(sbr.body)
 	}
 	sw.finalizeLastScrape()
@@ -610,11 +610,10 @@ func (wc *writeRequestCtx) resetNoRows() {
 
 var writeRequestCtxPool leveledWriteRequestCtxPool
 
-func (sw *scrapeWork) getSeriesAdded(currScrape string) int {
+func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 	if currScrape == "" {
 		return 0
 	}
-	lastScrape := bytesutil.ToUnsafeString(sw.lastScrape)
 	bodyString := parser.GetRowsDiff(currScrape, lastScrape)
 	return strings.Count(bodyString, "\n")
 }
@@ -659,11 +658,10 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) bool {
 	return limitExceeded
 }
 
-func (sw *scrapeWork) sendStaleSeries(currScrape string, timestamp int64, addAutoSeries bool) {
+func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
 	if *noStaleMarkers {
 		return
 	}
-	lastScrape := bytesutil.ToUnsafeString(sw.lastScrape)
 	bodyString := lastScrape
 	if currScrape != "" {
 		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
