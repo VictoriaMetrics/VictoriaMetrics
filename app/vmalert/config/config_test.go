@@ -96,10 +96,6 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "group name must be set",
 		},
 		{
-			group:  &Group{Name: "test"},
-			expErr: "contain no rules",
-		},
-		{
 			group: &Group{Name: "test",
 				Rules: []Rule{
 					{

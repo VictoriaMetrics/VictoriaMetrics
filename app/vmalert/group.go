@@ -283,14 +283,15 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 		case <-t.C:
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
-			resolveDuration := getResolveDuration(g.Interval)
-			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, resolveDuration)
-			for err := range errs {
-				if err != nil {
-					logger.Errorf("group %q: %s", g.Name, err)
+			if len(g.Rules) > 0 {
+				resolveDuration := getResolveDuration(g.Interval)
+				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, resolveDuration)
+				for err := range errs {
+					if err != nil {
+						logger.Errorf("group %q: %s", g.Name, err)
+					}
 				}
 			}
-
 			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
 	}
