@@ -77,10 +77,11 @@ func newClient(sw *ScrapeWork) *client {
 		if isTLS {
 			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
 		}
+		proxyURLOrig := proxyURL
 		getProxyAuthHeader = func() string {
-			return proxyURL.GetAuthHeader(sw.ProxyAuthConfig)
+			return proxyURLOrig.GetAuthHeader(sw.ProxyAuthConfig)
 		}
-		proxyURL = proxy.URL{}
+		proxyURL = &proxy.URL{}
 	}
 	if !strings.Contains(host, ":") {
 		if !isTLS {
@@ -107,8 +108,8 @@ func newClient(sw *ScrapeWork) *client {
 	}
 	var sc *http.Client
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
-	if proxyURL := sw.ProxyURL.URL(); proxyURL != nil {
-		proxyURLFunc = http.ProxyURL(proxyURL)
+	if pu := sw.ProxyURL.URL(); pu != nil {
+		proxyURLFunc = http.ProxyURL(pu)
 	}
 	sc = &http.Client{
 		Transport: &http.Transport{

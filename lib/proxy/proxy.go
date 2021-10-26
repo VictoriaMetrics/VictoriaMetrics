@@ -23,12 +23,12 @@ type URL struct {
 }
 
 // MustNewURL returns new URL for the given u.
-func MustNewURL(u string) URL {
+func MustNewURL(u string) *URL {
 	pu, err := url.Parse(u)
 	if err != nil {
 		logger.Panicf("BUG: cannot parse u=%q: %s", u, err)
 	}
-	return URL{
+	return &URL{
 		url: pu,
 	}
 }
