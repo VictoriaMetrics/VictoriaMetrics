@@ -125,7 +125,7 @@ type ScrapeConfig struct {
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
-	ProxyURL             proxy.URL                   `yaml:"proxy_url,omitempty"`
+	ProxyURL             *proxy.URL                  `yaml:"proxy_url,omitempty"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
@@ -796,7 +796,7 @@ type scrapeWorkConfig struct {
 	metricsPath          string
 	scheme               string
 	params               map[string][]string
-	proxyURL             proxy.URL
+	proxyURL             *proxy.URL
 	proxyAuthConfig      *promauth.Config
 	authConfig           *promauth.Config
 	honorLabels          bool

@@ -8,6 +8,8 @@ sort: 15
 
 * FEATURE: vmalert: allow groups with empty rules list like Prometheus does. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1742).
 
+* BUGFIX: vmagent: properly display `proxy_url` config option at `http://vmagent:8429/config` page.
+
 
 ## [v1.68.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.68.0)
 

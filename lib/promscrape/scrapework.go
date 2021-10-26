@@ -82,7 +82,7 @@ type ScrapeWork struct {
 	Labels []prompbmarshal.Label
 
 	// ProxyURL HTTP proxy url
-	ProxyURL proxy.URL
+	ProxyURL *proxy.URL
 
 	// Auth config for ProxyUR:
 	ProxyAuthConfig *promauth.Config

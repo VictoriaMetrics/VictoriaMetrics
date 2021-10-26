@@ -105,11 +105,11 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		if !strings.Contains(pURL, "://") {
 			logger.Fatalf("cannot parse -remoteWrite.proxyURL=%q: it must start with `http://`, `https://` or `socks5://`", pURL)
 		}
-		urlProxy, err := url.Parse(pURL)
+		pu, err := url.Parse(pURL)
 		if err != nil {
 			logger.Fatalf("cannot parse -remoteWrite.proxyURL=%q: %s", pURL, err)
 		}
-		tr.Proxy = http.ProxyURL(urlProxy)
+		tr.Proxy = http.ProxyURL(pu)
 	}
 	c := &client{
 		sanitizedURL:   sanitizedURL,

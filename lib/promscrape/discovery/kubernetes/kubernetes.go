@@ -24,7 +24,7 @@ type SDConfig struct {
 	Role string `yaml:"role"`
 
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
-	ProxyURL         proxy.URL                 `yaml:"proxy_url,omitempty"`
+	ProxyURL         *proxy.URL                `yaml:"proxy_url,omitempty"`
 	Namespaces       Namespaces                `yaml:"namespaces,omitempty"`
 	Selectors        []Selector                `yaml:"selectors,omitempty"`
 
