@@ -21,19 +21,29 @@ code {
 .cm-activeLine {
   background-color: inherit !important;
 }
-.cm-wrap {
+.cm-editor {
   border-radius: 4px;
   border-color: #b9b9b9;
   border-style: solid;
   border-width: 1px;
   font-size: 10px;
 }
-.one-line-scroll .cm-wrap {
+
+.one-line-scroll .cm-editor {
   height: 24px;
 }
-.cm-content, .cm-gutter { min-height: 51px; }
+
+.cm-gutters {
+  border-radius: 4px 0 0 4px;
+  height: 100%;
+}
+
+.multi-line-scroll .cm-content,
+.multi-line-scroll .cm-gutters {
+  min-height: 51px !important;
+}
 
 .one-line-scroll .cm-content,
-.one-line-scroll .cm-gutter {
+.one-line-scroll .cm-gutters {
   min-height: auto;
 }

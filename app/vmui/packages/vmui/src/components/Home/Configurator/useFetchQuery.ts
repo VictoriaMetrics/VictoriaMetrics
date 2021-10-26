@@ -79,7 +79,7 @@ export const useFetchQuery = (): {
           }
         }
         catch (e) {
-          setError(e.message);
+          if (e instanceof Error) setError(e.message);
         }
         setIsLoading(false);
       }
