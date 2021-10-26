@@ -1,14 +1,13 @@
 .legendWrapper {
-    display: grid;
-    width: 100%;
     margin-top: 20px;
 }
 
 .legendItem {
-    display: grid;
-    grid-template-columns: auto 1fr;
+    display: inline-grid;
+    grid-template-columns: auto auto;
     grid-gap: 4px;
     align-items: center;
+    justify-content: start;
     padding: 5px 10px;
     background-color: #FFF;
     cursor: pointer;

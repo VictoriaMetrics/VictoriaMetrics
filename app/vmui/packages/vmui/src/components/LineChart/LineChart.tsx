@@ -15,7 +15,6 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
   const {time: {period}} = useAppState();
   const graphDispatch = useGraphDispatch();
   const { yaxis } = useGraphState();
-  const [scale, setScale] = useState({min: period.start, max: period.end});
   const refContainer = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [zoomPos, setZoomPos] = useState(0);
@@ -35,7 +34,6 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     for (let i = start; i < end; i += period.step || 1) { output.push(i); }
     return output;
   }, [data]);
-
   const series = useMemo((): uPlotSeries[] => getSeries(data, hideSeries), [data, hideSeries]);
   const dataChart = useMemo((): uPlotData => getDataChart(data, times), [data]);
   const legend = useMemo((): LegendItem[] => getLegend(series), [series]);
@@ -52,14 +50,12 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
     tooltipOffset.left = parseFloat(u.over.style.left);
     tooltipOffset.top = parseFloat(u.over.style.top);
     u.root.querySelector(".u-wrap")?.appendChild(tooltip);
-
     // wheel drag pan
     u.over.addEventListener("mousedown", e => {
       if (e.button !== 0) return;
       setIsPanning(true);
       e.preventDefault();
       const left0 = e.clientX;
-
       const onmove = (e: MouseEvent) => {
         e.preventDefault();
         const dx = (u.posToVal(1, "x") - u.posToVal(0, "x")) * (e.clientX - left0);
@@ -68,17 +64,14 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         u.setScale("x", {min, max});
         setScale({min, max});
       };
-
       const onup = () => {
         setIsPanning(false);
         document.removeEventListener("mousemove", onmove);
         document.removeEventListener("mouseup", onup);
       };
-
       document.addEventListener("mousemove", onmove);
       document.addEventListener("mouseup", onup);
     });
-
     // wheel scroll zoom
     u.over.addEventListener("wheel", e => {
       if (!e.ctrlKey && !e.metaKey) return;
@@ -113,15 +106,11 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
       : tooltip.style.display = "none";
   };
 
+  const setScale = ({min, max}: {min: number, max: number}): void => {
+    dispatch({type: "SET_PERIOD", payload: {from: new Date(min * 1000), to: new Date(max * 1000)}});
+  };
+
   useEffect(() => { setStateLimits(getLimitsYaxis(data)); }, [data]);
-  useEffect(() => { setScale({min: period.start, max: period.end}); }, [period]);
-  useEffect(() => {
-    const duration = (period.end - period.start) / 3;
-    const factor = duration / (scale.max - scale.min);
-    if (scale.max > period.end + duration || scale.min < period.start - duration || factor >= 0.7) {
-      dispatch({type: "SET_PERIOD", payload: {from: new Date(scale.min * 1000), to: new Date(scale.max * 1000)}});
-    }
-  }, [scale]);
 
   const options: uPlotOptions = {
     width: refContainer.current ? refContainer.current.offsetWidth : 400, height: 500, series: series,
@@ -134,7 +123,7 @@ const LineChart: FC<GraphViewProps> = ({data = []}) => {
         values: (self, ticks) => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n) }
     ],
     scales: {
-      x: {range: () => [scale.min, scale.max]},
+      x: {range: () => [period.start, period.end]},
       y: {range: (self, min, max) => yaxis.limits.enable ? yaxis.limits.range : [min, max]}
     }
   };
