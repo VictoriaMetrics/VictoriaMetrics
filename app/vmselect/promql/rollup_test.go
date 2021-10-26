@@ -1167,7 +1167,9 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 			}
 			continue
 		}
-		if math.Abs(v-vExpected) > 1e-15 {
+		// Compare values with the reduced precision because of different precision errors
+		// on different OS/architectures. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1738
+		if math.Abs(v-vExpected) > 1e-13 {
 			t.Fatalf("unexpected value at values[%d]; got %f; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
 				i, v, vExpected, values, valuesExpected)
 		}

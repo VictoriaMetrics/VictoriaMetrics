@@ -436,7 +436,7 @@ func (w *Writer) queryProgress() (int64, error) {
 	q, err := w.o.c.gc.QueryWriteStatus(w.ctx, &storagepb.QueryWriteStatusRequest{UploadId: w.upid})
 
 	// q.GetCommittedSize() will return 0 if q is nil.
-	return q.GetCommittedSize(), err
+	return q.GetPersistedSize(), err
 }
 
 // uploadBuffer opens a Write stream and uploads the buffer at the given offset (if

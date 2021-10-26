@@ -84,12 +84,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ui.requests.Inc()
-	targetURL, err := createTargetURL(ui, r.URL)
+	targetURL, headers, err := createTargetURL(ui, r.URL)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
 		return true
 	}
 	r.Header.Set("vm-target-url", targetURL.String())
+	for _, h := range headers {
+		r.Header.Set(h.Name, h.Value)
+	}
 	proxyRequest(w, r)
 	return true
 }

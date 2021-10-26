@@ -1539,11 +1539,19 @@ func (cs *clientStream) writeRequestBody(req *http.Request) (err error) {
 				return err
 			}
 		}
-		if err == io.EOF {
-			sawEOF = true
-			err = nil
-		} else if err != nil {
-			return err
+		if err != nil {
+			cc.mu.Lock()
+			bodyClosed := cs.reqBodyClosed
+			cc.mu.Unlock()
+			switch {
+			case bodyClosed:
+				return errStopReqBodyWrite
+			case err == io.EOF:
+				sawEOF = true
+				err = nil
+			default:
+				return err
+			}
 		}
 
 		remain := buf[:n]
