@@ -182,7 +182,7 @@ export const AuthDialog: React.FC<DialogProps> = (props) => {
                 InputProps={{
                   onPaste: onBearerPaste
                 }}
-                rowsMax={6}
+                maxRows={6}
               />
             </TabPanel>
           </Box>

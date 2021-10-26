@@ -69,11 +69,11 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
       </Box>
       <Box my={2}>
         <Typography variant="body2">
-          Possible options<span aria-owns={open ? "mouse-over-popover" : undefined}
+          <span aria-owns={open ? "mouse-over-popover" : undefined}
             aria-haspopup="true"
             style={{cursor: "pointer"}}
             onMouseEnter={handlePopoverOpen}
-            onMouseLeave={handlePopoverClose}>:&nbsp;</span>
+            onMouseLeave={handlePopoverClose}>Possible options:&nbsp;</span>
           <Popover
             open={open}
             anchorEl={anchorEl}
