@@ -41,15 +41,22 @@ Each `url_prefix` in the [-auth.config](#auth-config) may contain either a singl
 `-auth.config` is represented in the following simple `yml` format:
 
 ```yml
-
 # Arbitrary number of usernames may be put here.
-# Usernames must be unique.
+# Username and bearer_token values must be unique.
 
 users:
   # Requests with the 'Authorization: Bearer XXXX' header are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
+
+  # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
+  # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+- bearer_token: "YYY"
+  url_prefix: "http://localhost:8428"
+  headers:
+  - "X-Scope-OrgID: foobar"
 
   # The user for querying local single-node VictoriaMetrics.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
@@ -93,7 +100,6 @@ users:
   - "http://vminsert1:8480/insert/42/prometheus"
   - "http://vminsert2:8480/insert/42/prometheus"
 
-
   # A single user for querying and inserting data:
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
   #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
@@ -101,7 +107,8 @@ users:
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
-  # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
+  # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
+  #   The "X-Scope-OrgID: abc" http header is added to these requests.
 - username: "foobar"
   url_map:
   - src_paths:
@@ -113,7 +120,8 @@ users:
     - "http://vmselect2:8481/select/42/prometheus"
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
-```
+    headers:
+    - "X-Scope-OrgID: abc"```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.

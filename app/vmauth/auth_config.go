@@ -27,24 +27,53 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users []UserInfo `yaml:"users"`
+	Users []UserInfo `yaml:"users,omitempty"`
 }
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	BearerToken string     `yaml:"bearer_token"`
-	Username    string     `yaml:"username"`
-	Password    string     `yaml:"password"`
-	URLPrefix   *URLPrefix `yaml:"url_prefix"`
-	URLMap      []URLMap   `yaml:"url_map"`
+	BearerToken string     `yaml:"bearer_token,omitempty"`
+	Username    string     `yaml:"username,omitempty"`
+	Password    string     `yaml:"password,omitempty"`
+	URLPrefix   *URLPrefix `yaml:"url_prefix,omitempty"`
+	URLMap      []URLMap   `yaml:"url_map,omitempty"`
+	Headers     []Header   `yaml:"headers,omitempty"`
 
 	requests *metrics.Counter
 }
 
+// Header is `Name: Value` http header, which must be added to the proxied request.
+type Header struct {
+	Name  string
+	Value string
+}
+
+// UnmarshalYAML unmarshals h from f.
+func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
+	var s string
+	if err := f(&s); err != nil {
+		return err
+	}
+	n := strings.IndexByte(s, ':')
+	if n < 0 {
+		return fmt.Errorf("missing speparator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
+	}
+	h.Name = strings.TrimSpace(s[:n])
+	h.Value = strings.TrimSpace(s[n+1:])
+	return nil
+}
+
+// MarshalYAML marshals h to yaml.
+func (h *Header) MarshalYAML() (interface{}, error) {
+	s := fmt.Sprintf("%s: %s", h.Name, h.Value)
+	return s, nil
+}
+
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths  []*SrcPath `yaml:"src_paths"`
-	URLPrefix *URLPrefix `yaml:"url_prefix"`
+	SrcPaths  []*SrcPath `yaml:"src_paths,omitempty"`
+	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
+	Headers   []Header   `yaml:"headers,omitempty"`
 }
 
 // SrcPath represents an src path

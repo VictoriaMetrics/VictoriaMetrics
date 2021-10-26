@@ -76,9 +76,6 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
 	}
-	if len(g.Rules) == 0 {
-		return fmt.Errorf("group %q can't contain no rules", g.Name)
-	}
 
 	uniqueRules := map[uint64]struct{}{}
 	for _, r := range g.Rules {

@@ -21,6 +21,6 @@ updates:
     schedule:
       interval: "daily"
   - package-ecosystem: "npm"
-    directory: "/app/vmui"
+    directory: "/app/vmui/packages/vmui"
     schedule:
       interval: "weekly"

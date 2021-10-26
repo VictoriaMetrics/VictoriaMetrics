@@ -882,6 +882,31 @@ var awsPartition = partition{
 				"us-west-2":      endpoint{},
 			},
 		},
+		"applicationinsights": service{
+
+			Endpoints: endpoints{
+				"af-south-1":     endpoint{},
+				"ap-east-1":      endpoint{},
+				"ap-northeast-1": endpoint{},
+				"ap-northeast-2": endpoint{},
+				"ap-south-1":     endpoint{},
+				"ap-southeast-1": endpoint{},
+				"ap-southeast-2": endpoint{},
+				"ca-central-1":   endpoint{},
+				"eu-central-1":   endpoint{},
+				"eu-north-1":     endpoint{},
+				"eu-south-1":     endpoint{},
+				"eu-west-1":      endpoint{},
+				"eu-west-2":      endpoint{},
+				"eu-west-3":      endpoint{},
+				"me-south-1":     endpoint{},
+				"sa-east-1":      endpoint{},
+				"us-east-1":      endpoint{},
+				"us-east-2":      endpoint{},
+				"us-west-1":      endpoint{},
+				"us-west-2":      endpoint{},
+			},
+		},
 		"appmesh": service{
 
 			Endpoints: endpoints{
@@ -8182,6 +8207,17 @@ var awsPartition = partition{
 				},
 			},
 		},
+		"wisdom": service{
+
+			Endpoints: endpoints{
+				"ap-northeast-1": endpoint{},
+				"ap-southeast-2": endpoint{},
+				"eu-central-1":   endpoint{},
+				"eu-west-2":      endpoint{},
+				"us-east-1":      endpoint{},
+				"us-west-2":      endpoint{},
+			},
+		},
 		"workdocs": service{
 
 			Endpoints: endpoints{
@@ -8388,6 +8424,13 @@ var awscnPartition = partition{
 			Defaults: endpoint{
 				Protocols: []string{"http", "https"},
 			},
+			Endpoints: endpoints{
+				"cn-north-1":     endpoint{},
+				"cn-northwest-1": endpoint{},
+			},
+		},
+		"applicationinsights": service{
+
 			Endpoints: endpoints{
 				"cn-north-1":     endpoint{},
 				"cn-northwest-1": endpoint{},
@@ -9478,6 +9521,23 @@ var awsusgovPartition = partition{
 				},
 			},
 		},
+		"applicationinsights": service{
+
+			Endpoints: endpoints{
+				"us-gov-east-1": endpoint{
+					Hostname: "applicationinsights.us-gov-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-east-1",
+					},
+				},
+				"us-gov-west-1": endpoint{
+					Hostname: "applicationinsights.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+				},
+			},
+		},
 		"appstream2": service{
 			Defaults: endpoint{
 				Protocols: []string{"https"},
@@ -10384,6 +10444,12 @@ var awsusgovPartition = partition{
 		"kendra": service{
 
 			Endpoints: endpoints{
+				"fips-us-gov-west-1": endpoint{
+					Hostname: "kendra-fips.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+				},
 				"us-gov-west-1": endpoint{},
 			},
 		},
