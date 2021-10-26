@@ -14,9 +14,9 @@ jobs:
         id: go
       - name: Dependencies
         run: |
-          go get -u golang.org/x/lint/golint
-          go get -u github.com/kisielk/errcheck
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.29.0
+          make install-golint
+          make install-errcheck
+          make install-golangci-lint
       - name: Code checkout
         uses: actions/checkout@master
       - name: Build
