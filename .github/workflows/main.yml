@@ -12,13 +12,13 @@ jobs:
         with:
           go-version: 1.16
         id: go
+      - name: Code checkout
+        uses: actions/checkout@master
       - name: Dependencies
         run: |
           make install-golint
           make install-errcheck
           make install-golangci-lint
-      - name: Code checkout
-        uses: actions/checkout@master
       - name: Build
         env:
           GO111MODULE: on
