@@ -986,7 +986,7 @@ func badgeState(state string) string {
 func streambadgeRestored(qw422016 *qt422016.Writer) {
 //line app/vmalert/web.qtpl:303
 	qw422016.N().S(`
-<span class="badge bg-warning text-dark" title="Alert state was restored after reload from remote storage">restored</span>
+<span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 `)
 //line app/vmalert/web.qtpl:305
 }
