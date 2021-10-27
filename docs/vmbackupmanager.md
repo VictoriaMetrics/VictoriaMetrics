@@ -102,11 +102,11 @@ The result on the GCS bucket
 
 - The root folder
   
-  ![root](root.png)
+  ![root](vmbackupmanager_root_folder.png)
 
 - The latest folder
 
-  ![latest](latest.png)
+  ![latest](vmbackupmanager_latest_folder.png)
 
 ## Backup Retention Policy
 
@@ -121,7 +121,7 @@ Backup retention policy is controlled by:
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
-![daily](rp_daily_1.png)
+![daily](vmbackupmanager_rp_daily_1.png)
 
 
 We enable backup retention policy for backup manager by using following configuration:
@@ -147,4 +147,4 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-![daily](rp_daily_2.png)
+![daily](vmbackupmanager_rp_daily_2.png)
