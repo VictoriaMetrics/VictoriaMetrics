@@ -226,7 +226,7 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
 	if !skipRandSleepOnGroupStart {
-		randSleep := uint64(float64(g.Interval) * (float64(uint32(g.ID())) / (1 << 32)))
+		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
 		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
 		if randSleep < sleepOffset {
 			randSleep += uint64(g.Interval)
