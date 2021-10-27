@@ -54,7 +54,6 @@ export const useFetchQuery = (): {
     }
 
     try {
-      console.log("FETCH");
       const response = await fetch(fetchUrl, { headers });
       if (response.ok) {
         saveToStorage("LAST_QUERY", query);
@@ -88,6 +87,10 @@ export const useFetchQuery = (): {
     }
   },
   [serverUrl, period, displayType]);
+
+  useEffect(() => {
+    setPrevPeriod(undefined);
+  }, [query]);
 
   // TODO: this should depend on query as well, but need to decide when to do the request.
   //       Doing it on each query change - looks to be a bad idea. Probably can be done on blur

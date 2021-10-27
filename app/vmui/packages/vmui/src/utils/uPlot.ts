@@ -1,13 +1,11 @@
-import uPlot, {AlignedData, Series} from "uplot";
+import uPlot, {Series} from "uplot";
 import {getColorFromString} from "./color";
 import dayjs from "dayjs";
 import {MetricResult} from "../api/types";
-import {getNameForMetric} from "./metric";
-import {LegendItem} from "../components/Legend/Legend";
 
 interface SetupTooltip {
     u: uPlot,
-    data: MetricResult[],
+    metrics: MetricResult[],
     series: Series[],
     tooltip: HTMLDivElement,
     tooltipOffset: {left: number, top: number},
@@ -21,11 +19,11 @@ interface HideSeriesArgs {
   series: Series[]
 }
 
-export const setTooltip = ({ u, tooltipIdx, data, series, tooltip, tooltipOffset }: SetupTooltip) : void => {
+export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset }: SetupTooltip) : void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
   const dataSeries = u.data[seriesIdx][dataIdx];
   const dataTime = u.data[0][dataIdx];
-  const metric = data[seriesIdx - 1]?.metric || {};
+  const metric = metrics[seriesIdx - 1]?.metric || {};
   const color = getColorFromString(series[seriesIdx].label || "");
 
   const {width, height} = u.over.getBoundingClientRect();
@@ -46,39 +44,6 @@ export const setTooltip = ({ u, tooltipIdx, data, series, tooltip, tooltipOffset
                          ${marker}${metric.__name__ || ""}: <b>${dataSeries}</b>
                        </div>
                        <div class="u-tooltip__info">${info}</div>`;
-};
-
-export const getSeries = (data: MetricResult[], hideSeries: string[]): Series[] => [{}, ...data.map(d => {
-  const label = getNameForMetric(d);
-  return {
-    label,
-    width: 1.5,
-    stroke: getColorFromString(label),
-    show: !hideSeries.includes(label)
-  };
-})];
-
-export const getLegend = (series: Series[]): LegendItem[] => series.slice(1).map(s => ({
-  label: s.label || "",
-  color: s.stroke as string,
-  checked: s.show || false
-}));
-
-export const getLimitsTimes = (data: MetricResult[]): [number, number] => {
-  const allTimes = data.map(d => d.values.map(v => v[0])).flat().sort((a,b) => a-b);
-  return [allTimes[0], allTimes[allTimes.length - 1]];
-};
-
-export const getLimitsYaxis = (data: MetricResult[]): [number, number] => {
-  const allValues = data.map(d => d.values.map(v => +v[1])).flat().sort((a,b) => a-b);
-  return [allValues[0], allValues[allValues.length - 1]];
-};
-
-export const getDataChart = (data: MetricResult[], times: number[]): AlignedData => {
-  return [times, ...data.map(d => times.map(t => {
-    const v = d.values.find(v => v[0] === t);
-    return v ? +v[1] : null;
-  }))];
 };
 
 export const getHideSeries = ({hideSeries, label, metaKey, series}: HideSeriesArgs): string[] => {
