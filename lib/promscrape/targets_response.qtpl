@@ -32,7 +32,7 @@ job={%q= jobName %} (0/0 up)
 
 {% endfunc %}
 
-{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, redirectPath string, onlyUnhealthy bool) %}
+{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,12 +44,10 @@ job={%q= jobName %} (0/0 up)
 <body class="m-3">
   <h1>Scrape targets</h1>
   <div>
-    <button type="button" class="btn{% space %} {% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
-        {% if onlyUnhealthy %}onclick="location.href='{%s redirectPath %}'"{% endif %}>
+    <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
         All
     </button>
-    <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
-        {% if !onlyUnhealthy %}onclick="location.href='{%s= redirectPath %}?show_only_unhealthy=true'"{% endif %}>
+    <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
         Unhealthy
     </button>
   </div>
@@ -57,8 +55,11 @@ job={%q= jobName %} (0/0 up)
     {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
     <div>
       <h4>
-        <a>{%s js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)</a>
+        {%s js.job %}{% space %}({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('table-{%d i %}').style.display='none'">collapse</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('table-{%d i %}').style.display='block'">expand</button>
       </h4>
+      <div id="table-{%d i %}">
       <table class="table table-striped table-hover table-bordered table-sm">
         <thead>
           <tr>
@@ -93,6 +94,7 @@ job={%q= jobName %} (0/0 up)
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
   {% endfor %}
 

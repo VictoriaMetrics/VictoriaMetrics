@@ -164,6 +164,20 @@ func TestUnescapeValue(t *testing.T) {
 	f(`foo\`, "foo\\")
 }
 
+func TestAppendEscapedValue(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := appendEscapedValue(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+	f(``, ``)
+	f(`f`, `f`)
+	f(`foobar`, `foobar`)
+	f("\"\n\t\\xyz", "\\\"\\n\t\\\\xyz")
+}
+
 func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()

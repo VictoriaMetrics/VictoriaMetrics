@@ -83,7 +83,7 @@ env CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm CGO_ENABLED=1 go build ./main
     A: `go1.10` and newer. Pull requests for older go versions are accepted.
 
   * Q: _Which platforms/architectures are supported?_  
-    A: `linux/amd64`, `linux/arm`, `linux/arm64`, `freebsd/amd64`, `darwin/amd64`, `windows/amd64`. Pull requests for other platforms/architectures
+    A: `linux/amd64`, `linux/arm`, `linux/arm64`, `freebsd/amd64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`. Pull requests for other platforms/architectures
        are accepted.
        
   * Q: _I don't trust `libzstd*.a` binary files from the repo or these files dont't work on my OS/ARCH. How to rebuild them?_
