@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -363,8 +361,7 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 // accepts filter to show only unhealthy targets.
 func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool) {
 	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	targetsPath := path.Join(httpserver.GetPathPrefix(), "/targets")
-	WriteTargetsResponseHTML(w, jss, emptyJobs, targetsPath, showOnlyUnhealthy)
+	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
