@@ -107,7 +107,7 @@ The backup algorithm is the following:
    These are usually the biggest and the oldest files, which are shared between backups.
 5. Upload the remaining files from step 3 from `-snapshotName` to `-dst`.
 
-The algorithm splits source files into 100 MB chunks in the backup. Each chunk stored as a separate file in the backup.
+The algorithm splits source files into 1 GiB chunks in the backup. Each chunk stored as a separate file in the backup.
 Such splitting minimizes the amounts of data to re-transfer after temporary errors.
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:

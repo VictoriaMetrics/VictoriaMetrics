@@ -24,7 +24,7 @@ var SDCheckInterval = flag.Duration("promscrape.digitaloceanSDCheckInterval", ti
 type SDConfig struct {
 	Server            string                     `yaml:"server,omitempty"`
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
-	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
+	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	Port              int                        `yaml:"port,omitempty"`
 }

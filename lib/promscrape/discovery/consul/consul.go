@@ -21,7 +21,7 @@ type SDConfig struct {
 	Username          string                     `yaml:"username"`
 	Password          string                     `yaml:"password"`
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
-	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
+	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	Services          []string                   `yaml:"services,omitempty"`
 	Tags              []string                   `yaml:"tags,omitempty"`

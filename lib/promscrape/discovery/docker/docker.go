@@ -24,7 +24,7 @@ type SDConfig struct {
 	HostNetworkingHost string   `yaml:"host_networking_host,omitempty"`
 
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
-	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
+	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	// refresh_interval is obtained from `-promscrape.dockerSDCheckInterval` command-line option
 }
