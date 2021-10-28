@@ -36,8 +36,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 		r = zr
 	}
 
-	// Default precision is 'ns'. See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp
-	tsMultiplier := int64(1e6)
+	tsMultiplier := int64(0)
 	switch precision {
 	case "ns":
 		tsMultiplier = 1e6
@@ -189,7 +188,14 @@ func (uw *unmarshalWork) Unmarshal() {
 	// Adjust timestamps according to uw.tsMultiplier
 	currentTs := time.Now().UnixNano() / 1e6
 	tsMultiplier := uw.tsMultiplier
-	if tsMultiplier >= 1 {
+	if tsMultiplier == 0 {
+		// Default precision is 'ns'. See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp
+		// But it can be in ns, us, ms or s depending on the number of digits in practice.
+		for i := range rows {
+			tsPtr := &rows[i].Timestamp
+			*tsPtr = detectTimestamp(*tsPtr, currentTs)
+		}
+	} else if tsMultiplier >= 1 {
 		for i := range rows {
 			row := &rows[i]
 			if row.Timestamp == 0 {
@@ -237,3 +243,23 @@ func putUnmarshalWork(uw *unmarshalWork) {
 }
 
 var unmarshalWorkPool sync.Pool
+
+func detectTimestamp(ts, currentTs int64) int64 {
+	if ts == 0 {
+		return currentTs
+	}
+	if ts >= 1e17 {
+		// convert nanoseconds to milliseconds
+		return ts / 1e6
+	}
+	if ts >= 1e14 {
+		// convert microseconds to milliseconds
+		return ts / 1e3
+	}
+	if ts >= 1e11 {
+		// the ts is in milliseconds
+		return ts
+	}
+	// convert seconds to milliseconds
+	return ts * 1e3
+}
