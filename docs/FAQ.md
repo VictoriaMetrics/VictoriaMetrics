@@ -314,3 +314,10 @@ Please see [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-da
 ## How to migrate data from Graphite to VictoriaMetrics?
 
 Please use [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading the data from Graphite and pushing it to VictoriaMetrics via [Graphite import API](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+
+
+## Why do same metrics have differences in VictoriaMetrics and Prometheus dashboards?
+
+In most cases, for the same __metric_name__ VictoriaMetrics can accept values from multiple sources.
+Prometheus at the same time will consider them as different metrics.
+Such cases can be debugged using api/v1/export
