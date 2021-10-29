@@ -286,6 +286,11 @@ High cardinality usually means high number of [active time series](#what-is-acti
 VictoriaMetrics maintains in-memory cache for mapping of [active time series](#what-is-active-time-series) into internal series ids. The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache, then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache. This operation is much slower than the cache lookup, so such insert is named `slow insert`. High percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring) indicates on memory shortage for the current number of [active time series](#what-is-active-time-series). Such a condition usually leads to significant slowdown for data ingestion, to significantly increased disk IO and CPU usage. The solution is to add more memory or to reduce the number of [active time series](#what-is-active-time-series). The `/api/v1/status/tsdb` page can be helpful for locating the source of high number of active time seriess - see [these docs](https://docs.victoriametrics.com/#tsdb-stats).
 
 
+## How to optimize MetricsQL query?
+
+See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
+
+
 ## Why MetricsQL isn't 100% compatible with PromQL?
 
 [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) provides better user experience than PromQL. It fixes a few annoying issues in PromQL. This prevents MetricsQL to be 100% compatible with PromQL. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
