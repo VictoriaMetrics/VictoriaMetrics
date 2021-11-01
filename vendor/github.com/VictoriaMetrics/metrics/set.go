@@ -511,6 +511,8 @@ func (s *Set) UnregisterMetric(name string) bool {
 
 // ListMetricNames returns a list of all the metrics in s.
 func (s *Set) ListMetricNames() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var list []string
 	for name := range s.m {
 		list = append(list, name)
