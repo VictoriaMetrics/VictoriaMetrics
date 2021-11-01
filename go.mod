@@ -10,10 +10,15 @@ require (
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.27.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/aws/aws-sdk-go v1.41.10
+	github.com/aws/aws-sdk-go v1.41.14
+	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
+	github.com/cncf/udpa/go v0.0.0-20210930031921-04548b0d99d4 // indirect
+	github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/envoyproxy/go-control-plane v0.10.0 // indirect
+	github.com/envoyproxy/protoc-gen-validate v0.6.2 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/golang/snappy v0.0.4
@@ -30,11 +35,11 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.14.2
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20211020060615-d418f374d309
-	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
-	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359
-	google.golang.org/api v0.59.0
-	google.golang.org/genproto v0.0.0-20211026145609-4688e4c4e024 // indirect
+	golang.org/x/net v0.0.0-20211029224645-99673261e6eb
+	golang.org/x/oauth2 v0.0.0-20211028175245-ba495a64dcb5
+	golang.org/x/sys v0.0.0-20211031064116-611d5d643895
+	google.golang.org/api v0.60.0
+	google.golang.org/genproto v0.0.0-20211029142109-e255c875f7c7 // indirect
 	google.golang.org/grpc v1.41.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
