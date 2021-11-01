@@ -711,6 +711,8 @@ vmagent collects metrics data via popular data ingestion protocols and routes th
 
 See the docs at https://docs.victoriametrics.com/vmagent.html .
 
+  -configAuthKey string
+    	Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
     	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
@@ -794,7 +796,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-    	Auth key for /metrics. It overrides httpAuth settings
+    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
     	TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
   -opentsdbListenAddr string
@@ -807,7 +809,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -opentsdbhttpTrimTimestamp duration
     	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
-    	Auth key for /debug/pprof. It overrides httpAuth settings
+    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.cluster.memberNum int
     	The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster
   -promscrape.cluster.membersCount int
