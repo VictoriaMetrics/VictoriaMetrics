@@ -117,7 +117,8 @@ users:
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
-    - "X-Scope-OrgID: abc"```
+    - "X-Scope-OrgID: abc"
+```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.

@@ -86,6 +86,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 ### Tutorials, guides and how-to articles
 
 * [PromQL tutorial for beginners and humans](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
+* [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986)
 * [Analyzing Prometheus data with external tools](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
 * [Prometheus Subqueries in VictoriaMetrics](https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3)
 * [How to migrate data from Prometheus to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043)

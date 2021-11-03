@@ -42,6 +42,7 @@ var (
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
+	configAuthKey          = flag.String("configAuthKey", "", "Authorization key for accessing /config page. It must be passed via authKey query arg")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superfluous labels are dropped")
 )
 
@@ -197,6 +198,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
 	case "/prometheus/config", "/config":
+		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
+			err := &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
+				StatusCode: http.StatusUnauthorized,
+			}
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		promscrapeConfigRequests.Inc()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		promscrape.WriteConfigData(w)

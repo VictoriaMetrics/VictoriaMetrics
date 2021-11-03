@@ -418,7 +418,7 @@ The `/api/v1/export` endpoint should return the following response:
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
 * [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics.
+* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
 
 ## How to send data from OpenTSDB-compatible agents
@@ -561,8 +561,7 @@ visible to the given tenant. It is expected that the `extra_label` query arg is 
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
-For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
-and it is easier to use when migrating from Graphite to VictoriaMetrics.
+For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function.
 
 
 ### Graphite Render API usage
@@ -1213,6 +1212,7 @@ Consider setting the following command-line flags:
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
 * `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
+* `-configAuthKey` for pretecting `/config` endpoint, since it may contain sensitive information such as passwords.
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
@@ -1368,6 +1368,7 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then use `{__graphite__="foo.*.baz"}` syntax for selecting such metrics.
   This expression is equivalent to `{__name__=~"foo[.][^.]*[.]baz"}`, but it works faster and it is easier to use when migrating from Graphite.
+  See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function, which allows extracting the given groups from Graphite metric names.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
@@ -1549,6 +1550,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 ```
   -bigMergeConcurrency int
     	The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+  -configAuthKey string
+    	Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
     	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
@@ -1648,7 +1651,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-    	Auth key for /metrics. It overrides httpAuth settings
+    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
     	TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
   -opentsdbListenAddr string
@@ -1661,7 +1664,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -opentsdbhttpTrimTimestamp duration
     	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
-    	Auth key for /debug/pprof. It overrides httpAuth settings
+    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
     	The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
   -promscrape.cluster.memberNum int

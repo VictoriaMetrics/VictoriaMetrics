@@ -26,7 +26,7 @@
   "description": "Stores and retrieves potentially large, immutable data objects.",
   "discoveryVersion": "v1",
   "documentationLink": "https://developers.google.com/storage/docs/json_api/",
-  "etag": "\"353939383733353534373734383337373436\"",
+  "etag": "\"3133363930393533313437363430303131373733\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -3230,7 +3230,7 @@
       }
     }
   },
-  "revision": "20210918",
+  "revision": "20211018",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "Bucket": {
@@ -3248,6 +3248,21 @@
             "$ref": "BucketAccessControl"
           },
           "type": "array"
+        },
+        "autoclass": {
+          "description": "The bucket's Autoclass configuration.",
+          "properties": {
+            "enabled": {
+              "description": "Whether or not Autoclass is enabled on this bucket",
+              "type": "boolean"
+            },
+            "toggleTime": {
+              "description": "A date and time in RFC 3339 format representing the instant at which \"enabled\" was last toggled.",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "billing": {
           "description": "The bucket's billing configuration.",

@@ -32,6 +32,7 @@ var aggrFuncs = map[string]aggrFunc{
 	// PromQL extension funcs
 	"median":         aggrFuncMedian,
 	"limitk":         aggrFuncLimitK,
+	"limit_offset":   aggrFuncLimitOffset,
 	"distinct":       newAggrFunc(aggrFuncDistinct),
 	"sum2":           newAggrFunc(aggrFuncSum2),
 	"geomean":        newAggrFunc(aggrFuncGeomean),
@@ -999,20 +1000,45 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 2); err != nil {
 		return nil, err
 	}
-	ks, err := getScalar(args[0], 0)
+	limits, err := getScalar(args[0], 0)
 	if err != nil {
+		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
+	}
+	limit := 0
+	if len(limits) > 0 {
+		limit = int(limits[0])
+	}
+	afe := newLimitOffsetAggrFunc(limit, 0)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
+func aggrFuncLimitOffset(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
 		return nil, err
 	}
-	maxK := 0
-	for _, kf := range ks {
-		k := int(kf)
-		if k > maxK {
-			maxK = k
-		}
+	limit, err := getIntNumber(args[0], 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
-		// Sort series by metricName in order to get consistent set of output series
-		// across multiple calls to limitk() function.
+	offset, err := getIntNumber(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain offset arg: %w", err)
+	}
+	afe := newLimitOffsetAggrFunc(limit, offset)
+	return aggrFuncExt(afe, args[2], &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
+func newLimitOffsetAggrFunc(limit, offset int) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	if offset < 0 {
+		offset = 0
+	}
+	if limit < 0 {
+		limit = 0
+	}
+	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		// Sort series by metricName hash in order to get consistent set of output series
+		// across multiple calls to limitk() and limit_offset() functions.
 		// Sort series by hash in order to guarantee uniform selection across series.
 		type hashSeries struct {
 			h  uint64
@@ -1033,21 +1059,15 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 		for i, hs := range hss {
 			tss[i] = hs.ts
 		}
-		if len(tss) > maxK {
-			tss = tss[:maxK]
+		if offset > len(tss) {
+			return nil
 		}
-		for i, kf := range ks {
-			k := int(kf)
-			if k < 0 {
-				k = 0
-			}
-			for j := k; j < len(tss); j++ {
-				tss[j].Values[i] = nan
-			}
+		tss = tss[offset:]
+		if limit < len(tss) {
+			tss = tss[:limit]
 		}
 		return tss
 	}
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 func getHash(d *xxhash.Digest, mn *storage.MetricName) uint64 {
