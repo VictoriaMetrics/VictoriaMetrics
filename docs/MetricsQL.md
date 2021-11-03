@@ -815,9 +815,14 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `histogram(q)` calculates [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) per each group of points with the same timestamp. Useful for visualizing big number of time series via a heatmap. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
 
+#### limit_offset
+
+`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
+
+
 #### limitk
 
-`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls.
+`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls. See also [limit_offset](#limit_offset).
 
 #### mad
 

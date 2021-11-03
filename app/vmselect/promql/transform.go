@@ -359,7 +359,10 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	limit := int(limits[0])
+	limit := 0
+	if len(limits) > 0 {
+		limit = int(limits[0])
+	}
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -1185,10 +1188,10 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(phis) == 0 {
-		return nil, nil
+	phi := float64(0)
+	if len(phis) > 0 {
+		phi = phis[0]
 	}
-	phi := phis[0]
 	rvs := args[1]
 	a := getFloat64s()
 	values := a.A[:0]
@@ -1745,13 +1748,9 @@ func transformLabelGraphiteGroup(tfa *transformFuncArg) ([]*timeseries, error) {
 	groupArgs := args[1:]
 	groupIDs := make([]int, len(groupArgs))
 	for i, arg := range groupArgs {
-		tmp, err := getScalar(arg, i+1)
+		groupID, err := getIntNumber(arg, i+1)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get group name from arg #%d: %w", i+1, err)
-		}
-		groupID := 0
-		if len(tmp) > 0 {
-			groupID = int(tmp[0])
 		}
 		groupIDs[i] = groupID
 	}
@@ -2012,7 +2011,9 @@ func newTransformRand(newRandFunc func(r *rand.Rand) func() float64) transformFu
 			if err != nil {
 				return nil, err
 			}
-			seed = int64(tmp[0])
+			if len(tmp) > 0 {
+				seed = int64(tmp[0])
+			}
 		} else {
 			seed = time.Now().UnixNano()
 		}
