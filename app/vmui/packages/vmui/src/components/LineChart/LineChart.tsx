@@ -96,7 +96,17 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const options: uPlotOptions = {
     width: refContainer.current ? refContainer.current.offsetWidth : 400, height: 500, series: series,
     plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus }}],
-    cursor: { drag: { x: false, y: false }, focus: { prox: 30 }},
+    cursor: {
+      drag: { x: false, y: false },
+      focus: { prox: 30 },
+      bind: {
+        mouseup: () => null,
+        mousedown: () => null,
+        click: () => null,
+        dblclick: () => null,
+        mouseenter: () => null,
+      }
+    },
     legend: { show: false },
     axes: [
       { space: 80 },

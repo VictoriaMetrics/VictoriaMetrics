@@ -35,8 +35,8 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   };
 
   const setLimitsYaxis = (values: number[]) => {
-    const allValues = values.flat().sort((a,b) => a-b);
     if (!yaxis.limits.enable || (yaxis.limits.range.every(item => !item))) {
+      const allValues = values.flat().sort((a,b) => a-b);
       graphDispatch({type: "SET_YAXIS_LIMITS", payload: [allValues[0], allValues[allValues.length - 1]]});
     }
   };
@@ -64,8 +64,14 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   useEffect(() => {
     const tempTimes: number[] = [];
     const tempValues: number[] = [];
+    const tempLegend: LegendItem[] = [];
+    const tempSeries: uPlotSeries[] = [];
 
     data?.forEach(d => {
+      const seriesItem = getSeriesItem(d);
+      tempSeries.push(seriesItem);
+      tempLegend.push(getLegendItem(seriesItem));
+
       d.values.forEach(v => {
         tempTimes.push(v[0]);
         tempValues.push(+v[1]);
@@ -74,6 +80,8 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
 
     setTimes(tempTimes);
     setLimitsYaxis(tempValues);
+    setSeries([{}, ...tempSeries]);
+    setLegend(tempLegend);
   }, [data]);
 
   useEffect(() => {
