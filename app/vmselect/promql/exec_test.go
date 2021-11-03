@@ -2012,6 +2012,62 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_graphite_group()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(label_graphite_group((
+			alias(1, "foo.bar.baz"),
+			alias(2, "abc"),
+			label_set(alias(3, "a.xx.zz.asd"), "qwe", "rty"),
+	        ), 1, 3))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("bar.")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte(".")
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("xx.asd")
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("qwe"),
+			Value: []byte("rty"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`sum(label_graphite_group)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(sum by (__name__) (
+			label_graphite_group((
+				alias(1, "foo.bar.baz"),
+				alias(2, "x.y.z"),
+				alias(3, "qe.bar.qqq"),
+			), 1)
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("y")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("bar")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`two_timeseries`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(time() or label_set(2, "xx", "foo"))`
@@ -7276,6 +7332,7 @@ func TestExecError(t *testing.T) {
 	f(`label_keep()`)
 	f(`label_match()`)
 	f(`label_mismatch()`)
+	f(`label_graphite_group()`)
 	f(`round()`)
 	f(`round(1,2,3)`)
 	f(`sgn()`)
