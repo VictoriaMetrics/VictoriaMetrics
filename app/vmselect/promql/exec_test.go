@@ -5139,6 +5139,21 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset()`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 0, (label_set(10, "foo", "bar"), label_set(time()/150, "xbaz", "sss")))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 	t.Run(`limitk(10)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(limitk(10, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
@@ -7436,6 +7451,7 @@ func TestExecError(t *testing.T) {
 	f(`bitmap_or()`)
 	f(`bitmap_xor()`)
 	f(`quantiles()`)
+	f(`limit_offset()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -7448,6 +7464,8 @@ func TestExecError(t *testing.T) {
 	f(`topk(label_set(2, "xx", "foo") or 1, 12)`)
 	f(`topk_avg(label_set(2, "xx", "foo") or 1, 12)`)
 	f(`limitk(label_set(2, "xx", "foo") or 1, 12)`)
+	f(`limit_offet((alias(1,"foo"),alias(2,"bar")), 2, 10)`)
+	f(`limit_offet(1, (alias(1,"foo"),alias(2,"bar")), 10)`)
 	f(`round(1, 1 or label_set(2, "xx", "foo"))`)
 	f(`histogram_quantile(1 or label_set(2, "xx", "foo"), 1)`)
 	f(`label_set(1, 2, 3)`)

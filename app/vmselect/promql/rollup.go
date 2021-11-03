@@ -1950,6 +1950,18 @@ func getScalar(arg interface{}, argNum int) ([]float64, error) {
 	return ts[0].Values, nil
 }
 
+func getIntNumber(arg interface{}, argNum int) (int, error) {
+	v, err := getScalar(arg, argNum)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	if len(v) > 0 {
+		n = int(v[0])
+	}
+	return n, nil
+}
+
 func getString(tss []*timeseries, argNum int) (string, error) {
 	if len(tss) != 1 {
 		return "", fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(tss))
