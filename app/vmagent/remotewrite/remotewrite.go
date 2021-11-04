@@ -301,17 +301,30 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		if len(tssBlock) > 0 {
-			for _, rwctx := range rwctxs {
-				rwctx.Push(tssBlock)
-			}
-		}
+		pushBlockToRemoteStorages(rwctxs, tssBlock)
 		if rctx != nil {
 			rctx.reset()
 		}
 	}
 	if rctx != nil {
 		putRelabelCtx(rctx)
+	}
+}
+
+func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries) {
+	if len(tssBlock) == 0 {
+		// Nothing to push
+		return
+	}
+	// Push block to remote storages in parallel in order to reduce the time needed for sending the data to multiple remote storage systems.
+	var wg sync.WaitGroup
+	for _, rwctx := range rwctxs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rwctx.Push(tssBlock)
+		}()
+		wg.Wait()
 	}
 }
 
