@@ -323,12 +323,12 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 	var wg sync.WaitGroup
 	for _, rwctx := range rwctxs {
 		wg.Add(1)
-		go func() {
+		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
 			rwctx.Push(tssBlock)
-		}()
-		wg.Wait()
+		}(rwctx)
 	}
+	wg.Wait()
 }
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
