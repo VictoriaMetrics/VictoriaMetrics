@@ -11,6 +11,7 @@ sort: 15
 * FEATURE: automatically detect timestamp precision (ns, us, ms or s) for the data ingested into VictoriaMetrics via [InfluxDB line protocol](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
 * FEATURE: vmagent: add ability to protect `/config` page with auth key via `-configAuthKey` command-line flag. This page may contain sensitive information such as passwords, so it may be good to restrict access to this page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1764).
 * FEATURE: vmagent: add `-promscrape.maxResponseHeadersSize` command-line flag for tuning the maximum HTTP response headers size for Prometheus scrape targets.
+* FEATURE: vmagent: send data to multiple configured remote storage systems in parallel (e.g. when multiple `-remoteWrite.url` flag values are specified). This should improve data ingestion speed.
 * FEATURE: add [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric names.
 * FEATURE: add [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset) function, which can be used for implementing simple paging over big number of time series. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1778).
 
