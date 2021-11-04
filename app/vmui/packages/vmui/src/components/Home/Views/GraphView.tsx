@@ -26,12 +26,12 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   const [hideSeries, setHideSeries] = useState<string[]>([]);
 
   const setTimes = (times: number[]) => {
-    const allTimes = times.flat().sort((a,b) => a-b);
-    const output = [];
-    for (let i = allTimes[0]; i < allTimes[allTimes.length - 1]; i += period.step || 1) {
-      output.push(i);
-    }
-    setTimeArray(output);
+    const allTimes = times.sort((a,b) => a-b);
+    const startTime = allTimes[0] || 0;
+    const endTime = allTimes[allTimes.length - 1] || 0;
+    const step = period.step || 1;
+    const length = Math.round((endTime - startTime) / step);
+    setTimeArray(new Array(length).fill(0).map((d, i) => startTime + (step * i)));
   };
 
   const setLimitsYaxis = (values: number[]) => {
@@ -73,7 +73,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
       tempLegend.push(getLegendItem(seriesItem));
 
       d.values.forEach(v => {
-        tempTimes.push(v[0]);
+        if (tempTimes.indexOf(v[0]) === -1) tempTimes.push(v[0]);
         tempValues.push(+v[1]);
       });
     });

@@ -114,12 +114,17 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
         values: (self, ticks) => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n) }
     ],
     scales: {
-      x: {range: () => [period.start, period.end]},
-      y: {range: (self, min, max) => yaxis.limits.enable ? yaxis.limits.range : [min, max]}
+      x: { range: () => [period.start, period.end] },
+      y: {
+        range: (self, min, max) => {
+          const offsetFactor = 0.05; // 5%
+          return yaxis.limits.enable ? yaxis.limits.range : [min - (min * offsetFactor), max + (max * offsetFactor)];
+        }
+      }
     }
   };
 
-  return <div ref={refContainer} style={{pointerEvents: isPanning ? "none" : "auto"}}>
+  return <div ref={refContainer} style={{pointerEvents: isPanning ? "none" : "auto", height: "500px"}}>
     <UplotReact options={options} data={data}/>
   </div>;
 };

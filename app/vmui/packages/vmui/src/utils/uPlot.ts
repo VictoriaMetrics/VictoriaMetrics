@@ -41,7 +41,7 @@ export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOff
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
   tooltip.innerHTML = `<div>${date}</div>
                        <div class="u-tooltip-data">
-                         ${marker}${metric.__name__ || ""}: <b>${dataSeries}</b>
+                         ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${dataSeries}</b>
                        </div>
                        <div class="u-tooltip__info">${info}</div>`;
 };

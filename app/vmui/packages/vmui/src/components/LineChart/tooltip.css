@@ -21,6 +21,12 @@
     flex-wrap: wrap;
     align-items: center;
     font-size: 11px;
+    line-height: 150%;
+}
+
+.u-tooltip-data__value {
+    padding: 4px;
+    font-weight: bold;
 }
 
 .u-tooltip__info {

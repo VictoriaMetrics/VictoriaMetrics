@@ -12,7 +12,6 @@
     background-color: #FFF;
     cursor: pointer;
     transition: 0.2s ease;
-    border-radius: 2px;
 }
 
 .legendItemHide {
@@ -24,16 +23,11 @@
     background-color: rgba(0, 0, 0, 0.1);
 }
 
-.legendItem:hover .legendMarker {
-    border-width: 6px;
-}
-
 .legendMarker {
     width: 12px;
     height: 12px;
     border-width: 2px;
     border-style: solid;
-    border-radius: 2px;
     box-sizing: border-box;
     transition: 0.2s ease;
 }
