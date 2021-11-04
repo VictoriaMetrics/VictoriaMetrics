@@ -20,15 +20,9 @@ import (
 var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
 		"This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url")
-	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
-		"It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics")
+	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxRowsPerBlock")
+	maxRowsPerBlock      = flag.Int("remoteWrite.maxRowsPerBlock", 10000, "The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
 )
-
-// the maximum number of rows to send per each block.
-const maxRowsPerBlock = 10000
-
-// the maximum number of labels to send per each block.
-const maxLabelsPerBlock = 10 * maxRowsPerBlock
 
 type pendingSeries struct {
 	mu sync.Mutex
@@ -153,10 +147,13 @@ func (wr *writeRequest) adjustSampleValues() {
 
 func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
 	tssDst := wr.tss
+	maxSamplesPerBlock := *maxRowsPerBlock
+	// Allow up to 10x of labels per each block on average.
+	maxLabelsPerBlock := 10 * maxSamplesPerBlock
 	for i := range src {
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
 		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
-		if len(wr.samples) >= maxRowsPerBlock || len(wr.labels) >= maxLabelsPerBlock {
+		if len(wr.samples) >= maxSamplesPerBlock || len(wr.labels) >= maxLabelsPerBlock {
 			wr.tss = tssDst
 			wr.flush()
 			tssDst = wr.tss

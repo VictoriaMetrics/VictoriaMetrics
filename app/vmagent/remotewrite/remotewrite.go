@@ -171,7 +171,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
 
-	maxInmemoryBlocks := memory.Allowed() / len(urls) / maxRowsPerBlock / 100
+	maxInmemoryBlocks := memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
 	if maxInmemoryBlocks > 400 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
@@ -274,6 +274,9 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries
+	maxSamplesPerBlock := *maxRowsPerBlock
+	// Allow up to 10x of labels per each block on average.
+	maxLabelsPerBlock := 10 * maxSamplesPerBlock
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
 		samplesCount := 0
@@ -283,7 +286,7 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 			samplesCount += len(tss[i].Samples)
 			labelsCount += len(tss[i].Labels)
 			i++
-			if samplesCount >= maxRowsPerBlock || labelsCount >= maxLabelsPerBlock {
+			if samplesCount >= maxSamplesPerBlock || labelsCount >= maxLabelsPerBlock {
 				break
 			}
 		}
