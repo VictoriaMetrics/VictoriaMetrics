@@ -1519,7 +1519,7 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 
 ## VictoriaMetrics Logo
 
-[Zip](VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
+[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
 
 Files included in each folder:
 
