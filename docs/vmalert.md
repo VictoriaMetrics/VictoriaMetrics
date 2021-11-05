@@ -230,6 +230,9 @@ If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-re
 contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
 `vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
 
+If `-clusterMode` is enabled and the `tenant` in a particular group is missing, then the tenant value
+is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depending on the `type` of the group.
+
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
