@@ -172,11 +172,11 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	}
 
 	maxInmemoryBlocks := memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
-	if maxInmemoryBlocks > 400 {
+	if maxInmemoryBlocks / *queues > 100 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
 		// will continue growing. It is better storing the queue to file.
-		maxInmemoryBlocks = 400
+		maxInmemoryBlocks = 100 * *queues
 	}
 	if maxInmemoryBlocks < 2 {
 		maxInmemoryBlocks = 2
