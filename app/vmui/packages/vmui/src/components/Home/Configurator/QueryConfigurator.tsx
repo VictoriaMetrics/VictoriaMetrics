@@ -47,8 +47,8 @@ const QueryConfigurator: FC = () => {
   
   const onRunQuery = () => {
     const { values } = queryHistory;
-    if (query === values[values.length - 1]) return;
     dispatch({type: "RUN_QUERY"});
+    if (query === values[values.length - 1]) return;
     dispatch({type: "SET_QUERY_HISTORY_INDEX", payload: values.length});
     dispatch({type: "SET_QUERY_HISTORY_VALUES", payload: [...values, query]});
   };

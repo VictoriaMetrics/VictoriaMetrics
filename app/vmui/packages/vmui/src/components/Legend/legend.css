@@ -1,0 +1,38 @@
+.legendWrapper {
+    margin-top: 20px;
+}
+
+.legendItem {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    grid-gap: 4px;
+    align-items: center;
+    justify-content: start;
+    padding: 5px 10px;
+    background-color: #FFF;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.legendItemHide {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.legendItem:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.legendMarker {
+    width: 12px;
+    height: 12px;
+    border-width: 2px;
+    border-style: solid;
+    box-sizing: border-box;
+    transition: 0.2s ease;
+}
+
+.legendLabel {
+    font-size: 12px;
+    font-weight: 600;
+}
