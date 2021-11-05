@@ -20,7 +20,7 @@ var (
 	basicAuthPass = "bar"
 	baCfg         = &promauth.BasicAuthConfig{
 		Username: basicAuthName,
-		Password: basicAuthPass,
+		Password: promauth.NewSecret(basicAuthPass),
 	}
 	query       = "vm_rows"
 	queryRender = "constantLine(10)"

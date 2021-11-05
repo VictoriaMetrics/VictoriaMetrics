@@ -165,7 +165,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	if username != "" || password != "" || passwordFile != "" {
 		basicAuthCfg = &promauth.BasicAuthConfig{
 			Username:     username,
-			Password:     password,
+			Password:     promauth.NewSecret(password),
 			PasswordFile: passwordFile,
 		}
 	}
@@ -179,7 +179,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	if clientSecretFile != "" || clientSecret != "" {
 		oauth2Cfg = &promauth.OAuth2Config{
 			ClientID:         oauth2ClientID.GetOptionalArg(argIdx),
-			ClientSecret:     clientSecret,
+			ClientSecret:     promauth.NewSecret(clientSecret),
 			ClientSecretFile: clientSecretFile,
 			TokenURL:         oauth2TokenURL.GetOptionalArg(argIdx),
 			Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(argIdx), ";"),

@@ -44,10 +44,10 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, err
 	}
 	if token != "" {
-		if hcc.BearerToken != "" {
+		if hcc.BearerToken != nil {
 			return nil, fmt.Errorf("cannot set both token and bearer_token configs")
 		}
-		hcc.BearerToken = token
+		hcc.BearerToken = promauth.NewSecret(token)
 	}
 	if len(sdc.Username) > 0 {
 		if hcc.BasicAuth != nil {
@@ -104,9 +104,9 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return cfg, nil
 }
 
-func getToken(token *string) (string, error) {
+func getToken(token *promauth.Secret) (string, error) {
 	if token != nil {
-		return *token, nil
+		return token.String(), nil
 	}
 	if tokenFile := os.Getenv("CONSUL_HTTP_TOKEN_FILE"); tokenFile != "" {
 		data, err := ioutil.ReadFile(tokenFile)
