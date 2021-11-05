@@ -60,7 +60,7 @@ func (rr *RecordingRule) ID() uint64 {
 
 func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
-		Type:    cfg.Type,
+		Type:    group.Type,
 		RuleID:  cfg.ID,
 		Name:    cfg.Record,
 		Expr:    cfg.Expr,
@@ -68,7 +68,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
 		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     &cfg.Type,
+			DataSourceType:     &group.Type,
 			EvaluationInterval: group.Interval,
 			ExtraLabels:        group.ExtraFilterLabels,
 		}),

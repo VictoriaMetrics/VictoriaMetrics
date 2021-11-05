@@ -21,10 +21,3 @@ groups:
         annotations:
           summary: Too high connection number for {{$labels.instance}}
           description: "It is {{ $value }} connections for {{$labels.instance}}"
-      - alert: HostDown
-        type: graphite
-        expr: filterSeries(sumSeries(host.receiver.interface.up),'last','=', 0)
-        for: 3m
-        annotations:
-          summary: Too high connection number for {{$labels.instance}}
-          description: "It is {{ $value }} connections for {{$labels.instance}}"
