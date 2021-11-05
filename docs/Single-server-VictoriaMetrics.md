@@ -1519,7 +1519,7 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 
 ## VictoriaMetrics Logo
 
-[Zip](VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
+[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
 
 Files included in each folder:
 
@@ -1723,6 +1723,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
   -promscrape.maxDroppedTargets int
     	The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+  -promscrape.maxResponseHeadersSize size
+    	The maximum size of http response headers from Prometheus scrape targets
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 4096)
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)

@@ -171,7 +171,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
 
-	maxInmemoryBlocks := memory.Allowed() / len(urls) / maxRowsPerBlock / 100
+	maxInmemoryBlocks := memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
 	if maxInmemoryBlocks > 400 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
@@ -274,6 +274,9 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries
+	maxSamplesPerBlock := *maxRowsPerBlock
+	// Allow up to 10x of labels per each block on average.
+	maxLabelsPerBlock := 10 * maxSamplesPerBlock
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
 		samplesCount := 0
@@ -283,7 +286,7 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 			samplesCount += len(tss[i].Samples)
 			labelsCount += len(tss[i].Labels)
 			i++
-			if samplesCount >= maxRowsPerBlock || labelsCount >= maxLabelsPerBlock {
+			if samplesCount >= maxSamplesPerBlock || labelsCount >= maxLabelsPerBlock {
 				break
 			}
 		}
@@ -301,11 +304,7 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		if len(tssBlock) > 0 {
-			for _, rwctx := range rwctxs {
-				rwctx.Push(tssBlock)
-			}
-		}
+		pushBlockToRemoteStorages(rwctxs, tssBlock)
 		if rctx != nil {
 			rctx.reset()
 		}
@@ -313,6 +312,23 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	if rctx != nil {
 		putRelabelCtx(rctx)
 	}
+}
+
+func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries) {
+	if len(tssBlock) == 0 {
+		// Nothing to push
+		return
+	}
+	// Push block to remote storages in parallel in order to reduce the time needed for sending the data to multiple remote storage systems.
+	var wg sync.WaitGroup
+	for _, rwctx := range rwctxs {
+		wg.Add(1)
+		go func(rwctx *remoteWriteCtx) {
+			defer wg.Done()
+			rwctx.Push(tssBlock)
+		}(rwctx)
+	}
+	wg.Wait()
 }
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
