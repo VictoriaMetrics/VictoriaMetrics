@@ -66,11 +66,11 @@ type ProxyClientConfig struct {
 // OAuth2Config represent OAuth2 configuration
 type OAuth2Config struct {
 	ClientID         string            `yaml:"client_id"`
-	ClientSecret     string            `yaml:"client_secret"`
-	ClientSecretFile string            `yaml:"client_secret_file"`
-	Scopes           []string          `yaml:"scopes"`
+	ClientSecret     string            `yaml:"client_secret,omitempty"`
+	ClientSecretFile string            `yaml:"client_secret_file,omitempty"`
+	Scopes           []string          `yaml:"scopes,omitempty"`
 	TokenURL         string            `yaml:"token_url"`
-	EndpointParams   map[string]string `yaml:"endpoint_params"`
+	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
 }
 
 // String returns string representation of o.
