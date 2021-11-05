@@ -9,8 +9,8 @@ Supported storage systems for backups:
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/docs/mimic/radosgw/s3/) or [Swift](https://www.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`
 
-`vmbackup` supports incremental and full backups. Incremental backups created automatically if the destination path already contains data from the previous backup.
-Full backups can be sped up with `-origin` pointing to already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
+`vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
+Full backups can be sped up with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
@@ -34,7 +34,7 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
-  There is no need to stop VictoriaMetrics for creating backups, since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
+  There is no need to stop VictoriaMetrics for creating backups since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 * `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots). `vmbackup` can create the snapshot on itself if `-snapshot.createURL` command-line flag is set to an url for creating snapshots. In this case `-snapshotName` flag isn't needed.
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
@@ -54,7 +54,7 @@ It saves time and network bandwidth costs by performing server-side copy for the
 
 ### Incremental backups
 
-Incremental backups performed if `-dst` points to an already existing backup. In this case only new data uploaded to remote storage.
+Incremental backups are performed if `-dst` points to an already existing backup. In this case only new data is uploaded to remote storage.
 It saves time and network bandwidth costs when working with big backups:
 
 ```
@@ -87,7 +87,7 @@ Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
 This apporach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
 or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when creating daily backup.
 
-Do not forget removing old snapshots and backups when they are no longer needed for saving storage costs.
+Do not forget to remove old snapshots and backups when they are no longer needed in order to save storage costs.
 
 See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) for automating smart backups.
 
@@ -97,19 +97,19 @@ See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager
 The backup algorithm is the following:
 
 1. Collect information about files in the `-snapshotName`, in the `-dst` and in the `-origin`.
-2. Determine files in `-dst`, which are missing in `-snapshotName`, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
-3. Determine files from `-snapshotName`, which are missing in `-dst`. These are usually small new files and bigger merged files.
-4. Determine files from step 3, which exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
+2. Determine which files in `-dst` are missing in `-snapshotName`, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
+3. Determine which files in `-snapshotName` are missing in `-dst`. These are usually small new files and bigger merged files.
+4. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
    These are usually the biggest and the oldest files, which are shared between backups.
 5. Upload the remaining files from step 3 from `-snapshotName` to `-dst`.
 
-The algorithm splits source files into 1 GiB chunks in the backup. Each chunk stored as a separate file in the backup.
+The algorithm splits source files into 1 GiB chunks in the backup. Each chunk is stored as a separate file in the backup.
 Such splitting minimizes the amounts of data to re-transfer after temporary errors.
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:
 
 - All the files in the snapshot are immutable.
-- Old files periodically merged into new files.
+- Old files are periodically merged into new files.
 - Smaller files have higher probability to be merged.
 - Consecutive snapshots share many identical files.
 
