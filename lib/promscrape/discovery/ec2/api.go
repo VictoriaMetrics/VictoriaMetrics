@@ -93,8 +93,8 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if len(sdc.AccessKey) > 0 {
 		cfg.defaultAccessKey = sdc.AccessKey
 	}
-	if len(sdc.SecretKey) > 0 {
-		cfg.defaultSecretKey = sdc.SecretKey
+	if sdc.SecretKey != nil {
+		cfg.defaultSecretKey = sdc.SecretKey.String()
 	}
 	cfg.creds = &apiCredentials{
 		AccessKeyID:     cfg.defaultAccessKey,

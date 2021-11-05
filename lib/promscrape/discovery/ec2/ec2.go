@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 // SDCheckInterval defines interval for targets refresh.
@@ -15,10 +17,10 @@ var SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config
 type SDConfig struct {
-	Region    string `yaml:"region,omitempty"`
-	Endpoint  string `yaml:"endpoint,omitempty"`
-	AccessKey string `yaml:"access_key,omitempty"`
-	SecretKey string `yaml:"secret_key,omitempty"`
+	Region    string           `yaml:"region,omitempty"`
+	Endpoint  string           `yaml:"endpoint,omitempty"`
+	AccessKey string           `yaml:"access_key,omitempty"`
+	SecretKey *promauth.Secret `yaml:"secret_key,omitempty"`
 	// TODO add support for Profile, not working atm
 	Profile string `yaml:"profile,omitempty"`
 	RoleARN string `yaml:"role_arn,omitempty"`

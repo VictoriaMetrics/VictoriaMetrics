@@ -3,6 +3,8 @@ package openstack
 import (
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 func Test_buildAuthRequestBody1(t *testing.T) {
@@ -27,7 +29,7 @@ func Test_buildAuthRequestBody1(t *testing.T) {
 			args: args{
 				sdc: &SDConfig{
 					Username:   "some-user",
-					Password:   "some-password",
+					Password:   promauth.NewSecret("some-password"),
 					DomainName: "some-domain",
 				},
 			},
@@ -38,7 +40,7 @@ func Test_buildAuthRequestBody1(t *testing.T) {
 			args: args{
 				sdc: &SDConfig{
 					ApplicationCredentialID:     "some-id",
-					ApplicationCredentialSecret: "some-secret",
+					ApplicationCredentialSecret: promauth.NewSecret("some-secret"),
 				},
 			},
 			want: []byte(`{"auth":{"identity":{"methods":["application_credential"],"application_credential":{"id":"some-id","secret":"some-secret"}}}}`),
