@@ -56,14 +56,6 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if g.Type.Get() == "" {
 		g.Type.Set(datasource.NewPrometheusType())
 	}
-	// update rules with empty type.
-	for i, r := range g.Rules {
-		if r.Type.Get() == "" {
-			r.Type.Set(g.Type)
-			r.ID = HashRule(r)
-			g.Rules[i] = r
-		}
-	}
 
 	h := md5.New()
 	h.Write(b)
@@ -94,9 +86,6 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 			// its needed only for tests.
 			// because correct types must be inherited after unmarshalling.
 			exprValidator := g.Type.ValidateExpr
-			if r.Type.Get() != "" {
-				exprValidator = r.Type.ValidateExpr
-			}
 			if err := exprValidator(r.Expr); err != nil {
 				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
 			}
@@ -117,7 +106,6 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 // recording rule or alerting rule.
 type Rule struct {
 	ID          uint64
-	Type        datasource.Type    `yaml:"type,omitempty"`
 	Record      string             `yaml:"record,omitempty"`
 	Alert       string             `yaml:"alert,omitempty"`
 	Expr        string             `yaml:"expr"`
@@ -159,7 +147,6 @@ func HashRule(r Rule) uint64 {
 		h.Write([]byte("alerting"))
 		h.Write([]byte(r.Alert))
 	}
-	h.Write([]byte(r.Type.Get()))
 	kv := sortMap(r.Labels)
 	for _, i := range kv {
 		h.Write([]byte(i.key))

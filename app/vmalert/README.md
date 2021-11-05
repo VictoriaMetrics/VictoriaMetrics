@@ -85,7 +85,7 @@ name: <string>
 [ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default "prometheus" rule type is used.
+# By default "prometheus" type is used.
 [ type: <string> ]
 
 # Optional list of label filters applied to every rule's
@@ -130,12 +130,8 @@ The syntax for alerting rule is the following:
 # The name of the alert. Must be a valid metric name.
 alert: <string>
 
-# Optional type for the rule. Supported values: "graphite", "prometheus".
-# By default "prometheus" rule type is used.
-[ type: <string> ]
-
 # The expression to evaluate. The expression language depends on the type value.
-# By default PromQL/MetricsQL expression is used. If type="graphite", then the expression
+# By default PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -166,12 +162,8 @@ The syntax for recording rules is following:
 # The name of the time series to output to. Must be a valid metric name.
 record: <string>
 
-# Optional type for the rule. Supported values: "graphite", "prometheus".
-# By default "prometheus" rule type is used.
-[ type: <string> ]
-
 # The expression to evaluate. The expression language depends on the type value.
-# By default MetricsQL expression is used. If type="graphite", then the expression
+# By default MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -308,8 +300,8 @@ max range per request:  8h20m0s
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
 executed sequentially as well (`concurrency` setting is ignored). Vmalert sends rule's expression
 to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) endpoint
-of the configured `-datasource.url`. Returned data then processed according to the rule type and
-backfilled to `-remoteWrite.url` via [Remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
+of the configured `-datasource.url`. Returned data then processed according to the `group.type` and
+backfilled to `-remoteWrite.url` via [remote write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
 Vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
