@@ -80,10 +80,10 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	}
 
 	ts := time.Now()
-	switch s.dataSourceType.name {
-	case "", prometheusType:
+	switch s.dataSourceType.String() {
+	case "prometheus":
 		s.setPrometheusInstantReqParams(req, query, ts)
-	case graphiteType:
+	case "graphite":
 		s.setGraphiteReqParams(req, query, ts)
 	default:
 		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
@@ -98,7 +98,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	}()
 
 	parseFn := parsePrometheusResponse
-	if s.dataSourceType.name != prometheusType {
+	if s.dataSourceType.name != "prometheus" {
 		parseFn = parseGraphiteResponse
 	}
 	return parseFn(req, resp)
@@ -108,7 +108,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 // For Prometheus type see https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 // Graphite type isn't supported.
 func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end time.Time) ([]Metric, error) {
-	if s.dataSourceType.name != prometheusType {
+	if s.dataSourceType.name != "prometheus" {
 		return nil, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType.name)
 	}
 	req, err := s.newRequestPOST()
