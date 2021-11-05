@@ -58,7 +58,7 @@ type alertingRuleMetrics struct {
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
-		Type:         cfg.Type,
+		Type:         group.Type,
 		RuleID:       cfg.ID,
 		Name:         cfg.Alert,
 		Expr:         cfg.Expr,
@@ -69,7 +69,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:    group.Name,
 		EvalInterval: group.Interval,
 		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     &cfg.Type,
+			DataSourceType:     &group.Type,
 			EvaluationInterval: group.Interval,
 			ExtraLabels:        group.ExtraFilterLabels,
 		}),
