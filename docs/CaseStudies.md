@@ -494,7 +494,7 @@ Numbers:
 
 Numbers:
 
-* The number of active time series per VictoriaMetrics instance is 50 millios.
+* The number of active time series per VictoriaMetrics instance is 50 millions.
 * The total number of time series per VictoriaMetrics instance is 5000 million.
 * Ingestion rate per VictoriaMetrics instance is 1.1 millions data points per second.
 * The total number of datapoints per VictoriaMetrics instance is 8.5 trillion.
