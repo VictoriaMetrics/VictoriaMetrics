@@ -9,7 +9,8 @@ sort: 15
 * FEATURE: vmalert: allow groups with empty rules list like Prometheus does. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1742).
 * FEATURE: vmagent: add `collapse` and `expand` buttons per each group of targets with the same `job_name` at `http://vmagent:8429/targets` page.
 * FEATURE: automatically detect timestamp precision (ns, us, ms or s) for the data ingested into VictoriaMetrics via [InfluxDB line protocol](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
-* FEATURE: vmagent: add ability to protect `/config` page with auth key via `-configAuthKey` command-line flag. This page may contain sensitive information such as passwords, so it may be good to restrict access to this page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1764).
+* FEATURE: vmagent: add ability to protect `/config` page with auth key via `-configAuthKey` command-line flag. This page may contain sensitive config information, so it may be good to restrict access to this page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1764).
+* FEATURE: vmagent: hide passwords and auth tokens at `/config` page like Prometheus does. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1764).
 * FEATURE: vmagent: add `-promscrape.maxResponseHeadersSize` command-line flag for tuning the maximum HTTP response headers size for Prometheus scrape targets.
 * FEATURE: vmagent: send data to multiple configured remote storage systems in parallel (e.g. when multiple `-remoteWrite.url` flag values are specified). This should improve data ingestion speed.
 * FEATURE: vmagent: add `-remoteWrite.maxRowsPerBlock` command-line flag for tuning the number of samples to send to remote storage per each block. Bigger values may improve data ingestion performance at the cost of higher memory usage.

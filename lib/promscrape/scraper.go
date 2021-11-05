@@ -43,7 +43,7 @@ func CheckConfig() error {
 	if *promscrapeConfigFile == "" {
 		return fmt.Errorf("missing -promscrape.config option")
 	}
-	_, err := loadConfig(*promscrapeConfigFile)
+	_, _, err := loadConfig(*promscrapeConfigFile)
 	return err
 }
 
@@ -99,12 +99,12 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	sighupCh := procutil.NewSighupChan()
 
 	logger.Infof("reading Prometheus configs from %q", configFile)
-	cfg, err := loadConfig(configFile)
+	cfg, data, err := loadConfig(configFile)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
-	data := cfg.marshal()
-	configData.Store(&data)
+	marshaledData := cfg.marshal()
+	configData.Store(&marshaledData)
 	cfg.mustStart()
 
 	scs := newScrapeConfigs(pushData)
@@ -134,12 +134,11 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
-			cfgNew, err := loadConfig(configFile)
+			cfgNew, dataNew, err := loadConfig(configFile)
 			if err != nil {
 				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			dataNew := cfgNew.marshal()
 			if bytes.Equal(data, dataNew) {
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
@@ -148,14 +147,14 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			cfgNew.mustStart()
 			cfg = cfgNew
 			data = dataNew
-			configData.Store(&data)
+			marshaledData = cfgNew.marshal()
+			configData.Store(&marshaledData)
 		case <-tickerCh:
-			cfgNew, err := loadConfig(configFile)
+			cfgNew, dataNew, err := loadConfig(configFile)
 			if err != nil {
 				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			dataNew := cfgNew.marshal()
 			if bytes.Equal(data, dataNew) {
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
@@ -164,7 +163,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			cfgNew.mustStart()
 			cfg = cfgNew
 			data = dataNew
-			configData.Store(&data)
+			configData.Store(&marshaledData)
 		case <-globalStopCh:
 			cfg.mustStop()
 			logger.Infof("stopping Prometheus scrapers")

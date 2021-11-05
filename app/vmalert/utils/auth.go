@@ -10,7 +10,7 @@ func AuthConfig(baUser, baPass, baFile, bearerToken, bearerTokenFile string) (*p
 	if baUser != "" || baPass != "" || baFile != "" {
 		baCfg = &promauth.BasicAuthConfig{
 			Username:     baUser,
-			Password:     baPass,
+			Password:     promauth.NewSecret(baPass),
 			PasswordFile: baFile,
 		}
 	}
