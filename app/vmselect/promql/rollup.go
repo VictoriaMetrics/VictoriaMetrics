@@ -63,6 +63,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"tmax_over_time":         newRollupFuncOneArg(rollupTmax),
 	"tfirst_over_time":       newRollupFuncOneArg(rollupTfirst),
 	"tlast_over_time":        newRollupFuncOneArg(rollupTlast),
+	"duration_over_time":     newRollupDurationOverTime,
 	"share_le_over_time":     newRollupShareLE,
 	"share_gt_over_time":     newRollupShareGT,
 	"count_le_over_time":     newRollupCountLE,
@@ -877,6 +878,37 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	k := (tvSum - tSum*vSum/n) / (ttSum - tSum*tSum/n)
 	v := vSum/n - k*tSum/n
 	return v, k
+}
+
+func newRollupDurationOverTime(args []interface{}) (rollupFunc, error) {
+	if err := expectRollupArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	dMaxs, err := getScalar(args[1], 1)
+	if err != nil {
+		return nil, err
+	}
+	rf := func(rfa *rollupFuncArg) float64 {
+		// There is no need in handling NaNs here, since they must be cleaned up
+		// before calling rollup funcs.
+		values := rfa.values
+		if len(values) == 0 {
+			return nan
+		}
+		timestamps := rfa.timestamps
+		tPrev := timestamps[0]
+		dSum := int64(0)
+		dMax := int64(dMaxs[rfa.idx] * 1000)
+		for _, t := range timestamps {
+			d := t - tPrev
+			if d <= dMax {
+				dSum += d
+			}
+			tPrev = t
+		}
+		return float64(dSum / 1000)
+	}
+	return rf, nil
 }
 
 func newRollupShareLE(args []interface{}) (rollupFunc, error) {
