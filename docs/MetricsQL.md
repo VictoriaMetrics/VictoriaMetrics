@@ -324,7 +324,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### tlast_over_time
 
-`tlast_over_time(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [last_over_time](#last_over_time).
+`tlast_over_time(series_selector[d])` is an alias for [timestamp](#timestamp).
 
 #### tmax_over_time
 
