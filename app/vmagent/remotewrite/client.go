@@ -105,11 +105,11 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		if !strings.Contains(pURL, "://") {
 			logger.Fatalf("cannot parse -remoteWrite.proxyURL=%q: it must start with `http://`, `https://` or `socks5://`", pURL)
 		}
-		urlProxy, err := url.Parse(pURL)
+		pu, err := url.Parse(pURL)
 		if err != nil {
 			logger.Fatalf("cannot parse -remoteWrite.proxyURL=%q: %s", pURL, err)
 		}
-		tr.Proxy = http.ProxyURL(urlProxy)
+		tr.Proxy = http.ProxyURL(pu)
 	}
 	c := &client{
 		sanitizedURL:   sanitizedURL,
@@ -165,7 +165,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	if username != "" || password != "" || passwordFile != "" {
 		basicAuthCfg = &promauth.BasicAuthConfig{
 			Username:     username,
-			Password:     password,
+			Password:     promauth.NewSecret(password),
 			PasswordFile: passwordFile,
 		}
 	}
@@ -179,7 +179,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	if clientSecretFile != "" || clientSecret != "" {
 		oauth2Cfg = &promauth.OAuth2Config{
 			ClientID:         oauth2ClientID.GetOptionalArg(argIdx),
-			ClientSecret:     clientSecret,
+			ClientSecret:     promauth.NewSecret(clientSecret),
 			ClientSecretFile: clientSecretFile,
 			TokenURL:         oauth2TokenURL.GetOptionalArg(argIdx),
 			Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(argIdx), ";"),

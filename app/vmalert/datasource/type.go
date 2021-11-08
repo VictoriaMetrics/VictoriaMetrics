@@ -7,9 +7,6 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-const graphiteType = "graphite"
-const prometheusType = "prometheus"
-
 // Type represents data source type
 type Type struct {
 	name string
@@ -17,12 +14,16 @@ type Type struct {
 
 // NewPrometheusType returns prometheus datasource type
 func NewPrometheusType() Type {
-	return Type{name: prometheusType}
+	return Type{
+		name: "prometheus",
+	}
 }
 
 // NewGraphiteType returns graphite datasource type
 func NewGraphiteType() Type {
-	return Type{name: graphiteType}
+	return Type{
+		name: "graphite",
+	}
 }
 
 // NewRawType returns datasource type from raw string
@@ -44,19 +45,19 @@ func (t *Type) Set(d Type) {
 // String implements String interface with default value.
 func (t Type) String() string {
 	if t.name == "" {
-		return prometheusType
+		return "prometheus"
 	}
 	return t.name
 }
 
 // ValidateExpr validates query expression with datasource ql.
 func (t *Type) ValidateExpr(expr string) error {
-	switch t.name {
-	case graphiteType:
+	switch t.String() {
+	case "graphite":
 		if _, err := graphiteql.Parse(expr); err != nil {
 			return fmt.Errorf("bad graphite expr: %q, err: %w", expr, err)
 		}
-	case "", prometheusType:
+	case "prometheus":
 		if _, err := metricsql.Parse(expr); err != nil {
 			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
 		}
@@ -72,12 +73,13 @@ func (t *Type) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
+	if s == "" {
+		s = "prometheus"
+	}
 	switch s {
-	case "":
-		s = prometheusType
-	case graphiteType, prometheusType:
+	case "graphite", "prometheus":
 	default:
-		return fmt.Errorf("unknown datasource type=%q, want %q or %q", s, prometheusType, graphiteType)
+		return fmt.Errorf("unknown datasource type=%q, want %q or %q", s, "prometheus", "graphite")
 	}
 	t.name = s
 	return nil

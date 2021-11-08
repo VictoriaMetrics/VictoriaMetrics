@@ -7,7 +7,7 @@ sort: 11
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
-* [AbiosGaming](#aboisgaming)
+* [AbiosGaming](#abiosgaming)
 * [adidas](#adidas)
 * [Adsterra](#adsterra)
 * [ARNES](#arnes)
@@ -494,7 +494,7 @@ Numbers:
 
 Numbers:
 
-* The number of active time series per VictoriaMetrics instance is 50 millios.
+* The number of active time series per VictoriaMetrics instance is 50 millions.
 * The total number of time series per VictoriaMetrics instance is 5000 million.
 * Ingestion rate per VictoriaMetrics instance is 1.1 millions data points per second.
 * The total number of datapoints per VictoriaMetrics instance is 8.5 trillion.

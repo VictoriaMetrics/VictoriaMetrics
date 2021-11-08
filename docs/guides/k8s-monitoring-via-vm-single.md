@@ -282,7 +282,7 @@ cat <<EOF | helm install my-grafana grafana/grafana -f -
     default:
       victoriametrics:
         gnetId: 10229
-        revision: 20
+        revision: 21
         datasource: victoriametrics
       kubernetes:
         gnetId: 14205

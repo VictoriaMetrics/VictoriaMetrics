@@ -4,7 +4,8 @@ import HomeLayout from "./components/Home/HomeLayout";
 import {StateProvider} from "./state/common/StateContext";
 import {AuthStateProvider} from "./state/auth/AuthStateContext";
 import {GraphStateProvider} from "./state/graph/GraphStateContext";
-import {createMuiTheme, MuiThemeProvider} from "@material-ui/core";
+import {MuiThemeProvider} from "@material-ui/core";
+import {createTheme} from "@material-ui/core/styles";
 
 import CssBaseline from "@material-ui/core/CssBaseline";
 
@@ -14,7 +15,7 @@ import DayJsUtils from "@date-io/dayjs";
 
 const App: FC = () => {
 
-  const THEME = createMuiTheme({
+  const THEME = createTheme({
     typography: {
       "fontSize": 10
     }

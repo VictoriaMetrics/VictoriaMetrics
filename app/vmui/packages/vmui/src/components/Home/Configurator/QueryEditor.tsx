@@ -1,9 +1,9 @@
-import {EditorState} from "@codemirror/next/state";
-import {EditorView, keymap} from "@codemirror/next/view";
-import {defaultKeymap} from "@codemirror/next/commands";
+import {EditorState} from "@codemirror/state";
+import {EditorView, keymap} from "@codemirror/view";
+import {defaultKeymap} from "@codemirror/commands";
 import React, {FC, useEffect, useRef, useState} from "react";
 import { PromQLExtension } from "codemirror-promql";
-import { basicSetup } from "@codemirror/next/basic-setup";
+import { basicSetup } from "@codemirror/basic-setup";
 import {QueryHistory} from "../../../state/common/reducer";
 
 export interface QueryEditorProps {
@@ -41,7 +41,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   useEffect(() => {
     const promQL = new PromQLExtension();
     promQL.activateCompletion(autocomplete);
-    promQL.setComplete({url: server});
+    promQL.setComplete({ remote: { url: server } });
 
     const listenerExtension = EditorView.updateListener.of(editorUpdate => {
       if (editorUpdate.docChanged) {
@@ -53,7 +53,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       doc: query,
       extensions: [
         basicSetup,
-        keymap(defaultKeymap),
+        keymap.of(defaultKeymap),
         listenerExtension,
         promQL.asExtension(),
       ]
@@ -75,7 +75,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   return (
     <>
       {/*Class one-line-scroll and other codemirror styles are declared in index.css*/}
-      <div ref={ref} className={oneLiner ? "one-line-scroll" : undefined} onKeyUp={onKeyUp}/>
+      <div ref={ref} className={oneLiner ? "one-line-scroll" : "multi-line-scroll"} onKeyUp={onKeyUp}/>
     </>
   );
 };

@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
@@ -88,18 +89,20 @@ var transformFuncs = map[string]transformFunc{
 	"year":   newTransformFuncDateTime(transformYear),
 
 	// New funcs
-	"label_set":           transformLabelSet,
-	"label_map":           transformLabelMap,
-	"label_uppercase":     transformLabelUppercase,
-	"label_lowercase":     transformLabelLowercase,
-	"label_del":           transformLabelDel,
-	"label_keep":          transformLabelKeep,
-	"label_copy":          transformLabelCopy,
-	"label_move":          transformLabelMove,
-	"label_transform":     transformLabelTransform,
-	"label_value":         transformLabelValue,
-	"label_match":         transformLabelMatch,
-	"label_mismatch":      transformLabelMismatch,
+	"label_set":            transformLabelSet,
+	"label_map":            transformLabelMap,
+	"label_uppercase":      transformLabelUppercase,
+	"label_lowercase":      transformLabelLowercase,
+	"label_del":            transformLabelDel,
+	"label_keep":           transformLabelKeep,
+	"label_copy":           transformLabelCopy,
+	"label_move":           transformLabelMove,
+	"label_transform":      transformLabelTransform,
+	"label_value":          transformLabelValue,
+	"label_match":          transformLabelMatch,
+	"label_mismatch":       transformLabelMismatch,
+	"label_graphite_group": transformLabelGraphiteGroup,
+
 	"union":               transformUnion,
 	"":                    transformUnion, // empty func is a synonym to union
 	"keep_last_value":     transformKeepLastValue,
@@ -356,7 +359,10 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	limit := int(limits[0])
+	limit := 0
+	if len(limits) > 0 {
+		limit = int(limits[0])
+	}
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -1182,10 +1188,10 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(phis) == 0 {
-		return nil, nil
+	phi := float64(0)
+	if len(phis) > 0 {
+		phi = phis[0]
 	}
-	phi := phis[0]
 	rvs := args[1]
 	a := getFloat64s()
 	values := a.A[:0]
@@ -1733,6 +1739,39 @@ func transformLabelMismatch(tfa *transformFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
+func transformLabelGraphiteGroup(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 2 {
+		return nil, fmt.Errorf("unexpected number of args: %d; want at least 2 args", len(args))
+	}
+	tss := args[0]
+	groupArgs := args[1:]
+	groupIDs := make([]int, len(groupArgs))
+	for i, arg := range groupArgs {
+		groupID, err := getIntNumber(arg, i+1)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get group name from arg #%d: %w", i+1, err)
+		}
+		groupIDs[i] = groupID
+	}
+	for _, ts := range tss {
+		groups := bytes.Split(ts.MetricName.MetricGroup, dotSeparator)
+		groupName := ts.MetricName.MetricGroup[:0]
+		for j, groupID := range groupIDs {
+			if groupID >= 0 && groupID < len(groups) {
+				groupName = append(groupName, groups[groupID]...)
+			}
+			if j < len(groupIDs)-1 {
+				groupName = append(groupName, '.')
+			}
+		}
+		ts.MetricName.MetricGroup = groupName
+	}
+	return tss, nil
+}
+
+var dotSeparator = []byte(".")
+
 func transformLn(v float64) float64 {
 	return math.Log(v)
 }
@@ -1972,7 +2011,9 @@ func newTransformRand(newRandFunc func(r *rand.Rand) func() float64) transformFu
 			if err != nil {
 				return nil, err
 			}
-			seed = int64(tmp[0])
+			if len(tmp) > 0 {
+				seed = int64(tmp[0])
+			}
 		} else {
 			seed = time.Now().UnixNano()
 		}

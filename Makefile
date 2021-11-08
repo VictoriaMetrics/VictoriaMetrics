@@ -88,6 +88,12 @@ release-snap:
 	snapcraft
 	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
 
+publish-release:
+	git checkout $(TAG) && $(MAKE) release publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+
 release: \
 	release-victoria-metrics \
 	release-vmutils
@@ -261,7 +267,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.42.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.43.0
 
 install-wwhrd:
 	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd

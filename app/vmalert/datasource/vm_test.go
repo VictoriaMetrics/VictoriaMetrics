@@ -20,7 +20,7 @@ var (
 	basicAuthPass = "bar"
 	baCfg         = &promauth.BasicAuthConfig{
 		Username: basicAuthName,
-		Password: basicAuthPass,
+		Password: promauth.NewSecret(basicAuthPass),
 	}
 	query       = "vm_rows"
 	queryRender = "constantLine(10)"
@@ -501,14 +501,14 @@ func TestRequestParams(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			switch tc.vm.dataSourceType.name {
-			case "", prometheusType:
+			switch tc.vm.dataSourceType.String() {
+			case "prometheus":
 				if tc.queryRange {
 					tc.vm.setPrometheusRangeReqParams(req, query, timestamp, timestamp)
 				} else {
 					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
 				}
-			case graphiteType:
+			case "graphite":
 				tc.vm.setGraphiteReqParams(req, query, timestamp)
 			}
 			tc.checkFn(t, req)

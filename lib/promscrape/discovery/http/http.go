@@ -20,7 +20,7 @@ var SDCheckInterval = flag.Duration("promscrape.httpSDCheckInterval", time.Minut
 type SDConfig struct {
 	URL               string                     `yaml:"url"`
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
-	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
+	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 }
 

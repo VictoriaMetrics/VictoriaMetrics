@@ -50,7 +50,7 @@ var (
 	stdDialerOnce sync.Once
 )
 
-func newStatDialFunc(proxyURL proxy.URL, ac *promauth.Config) (fasthttp.DialFunc, error) {
+func newStatDialFunc(proxyURL *proxy.URL, ac *promauth.Config) (fasthttp.DialFunc, error) {
 	dialFunc, err := proxyURL.NewDialFunc(ac)
 	if err != nil {
 		return nil, err

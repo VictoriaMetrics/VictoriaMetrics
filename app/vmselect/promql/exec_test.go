@@ -2012,6 +2012,62 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_graphite_group()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(label_graphite_group((
+			alias(1, "foo.bar.baz"),
+			alias(2, "abc"),
+			label_set(alias(3, "a.xx.zz.asd"), "qwe", "rty"),
+	        ), 1, 3))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("bar.")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte(".")
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("xx.asd")
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("qwe"),
+			Value: []byte("rty"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`sum(label_graphite_group)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(sum by (__name__) (
+			label_graphite_group((
+				alias(1, "foo.bar.baz"),
+				alias(2, "x.y.z"),
+				alias(3, "qe.bar.qqq"),
+			), 1)
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("y")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("bar")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`two_timeseries`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(time() or label_set(2, "xx", "foo"))`
@@ -4974,6 +5030,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`duration_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `duration_over_time((time()<1200)[600s:10s], 20s)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{590, 580, 380, 180, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`share_gt_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `share_gt_over_time(rand(0)[200s:10s], 0.7)`
@@ -5071,6 +5138,21 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`limitk(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `limitk(1, label_set(10, "foo", "bar") or label_set(time()/150, "xbaz", "sss"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`limit_offset()`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 0, (label_set(10, "foo", "bar"), label_set(time()/150, "xbaz", "sss")))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},
@@ -7276,6 +7358,7 @@ func TestExecError(t *testing.T) {
 	f(`label_keep()`)
 	f(`label_match()`)
 	f(`label_mismatch()`)
+	f(`label_graphite_group()`)
 	f(`round()`)
 	f(`round(1,2,3)`)
 	f(`sgn()`)
@@ -7368,6 +7451,7 @@ func TestExecError(t *testing.T) {
 	f(`prometheus_buckets()`)
 	f(`buckets_limit()`)
 	f(`buckets_limit(1)`)
+	f(`duration_over_time()`)
 	f(`share_le_over_time()`)
 	f(`share_gt_over_time()`)
 	f(`count_le_over_time()`)
@@ -7379,6 +7463,7 @@ func TestExecError(t *testing.T) {
 	f(`bitmap_or()`)
 	f(`bitmap_xor()`)
 	f(`quantiles()`)
+	f(`limit_offset()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -7391,6 +7476,8 @@ func TestExecError(t *testing.T) {
 	f(`topk(label_set(2, "xx", "foo") or 1, 12)`)
 	f(`topk_avg(label_set(2, "xx", "foo") or 1, 12)`)
 	f(`limitk(label_set(2, "xx", "foo") or 1, 12)`)
+	f(`limit_offet((alias(1,"foo"),alias(2,"bar")), 2, 10)`)
+	f(`limit_offet(1, (alias(1,"foo"),alias(2,"bar")), 10)`)
 	f(`round(1, 1 or label_set(2, "xx", "foo"))`)
 	f(`histogram_quantile(1 or label_set(2, "xx", "foo"), 1)`)
 	f(`label_set(1, 2, 3)`)

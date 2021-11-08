@@ -49,7 +49,7 @@ type Client struct {
 }
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyAC *promauth.Config) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config) (*Client, error) {
 	var u fasthttp.URI
 	u.Update(apiServer)
 
@@ -81,10 +81,11 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyA
 		if isTLS {
 			tlsCfg = proxyAC.NewTLSConfig()
 		}
+		proxyURLOrig := proxyURL
 		getProxyAuthHeader = func() string {
-			return proxyURL.GetAuthHeader(proxyAC)
+			return proxyURLOrig.GetAuthHeader(proxyAC)
 		}
-		proxyURL = proxy.URL{}
+		proxyURL = &proxy.URL{}
 	}
 	if !strings.Contains(hostPort, ":") {
 		port := "80"

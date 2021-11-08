@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 // authResponse represents identity api response
@@ -53,7 +55,7 @@ func getComputeEndpointURL(catalog []catalogItem, availability, region string) (
 
 // buildAuthRequestBody builds request for authentication
 func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
-	if len(sdc.Password) == 0 && len(sdc.ApplicationCredentialID) == 0 && len(sdc.ApplicationCredentialName) == 0 {
+	if sdc.Password == nil && len(sdc.ApplicationCredentialID) == 0 && len(sdc.ApplicationCredentialName) == 0 {
 		return nil, fmt.Errorf("password and application credentials are missing")
 	}
 	type domainReq struct {
@@ -97,24 +99,25 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 	// if insufficient or incompatible information is present.
 	var req request
 
-	if len(sdc.Password) == 0 {
+	if sdc.Password == nil {
 		// There are three kinds of possible application_credential requests
 		// 1. application_credential id + secret
 		// 2. application_credential name + secret + user_id
 		// 3. application_credential name + secret + username + domain_id / domain_name
 		if len(sdc.ApplicationCredentialID) > 0 {
-			if len(sdc.ApplicationCredentialSecret) == 0 {
+			if sdc.ApplicationCredentialSecret == nil {
 				return nil, fmt.Errorf("ApplicationCredentialSecret is empty")
 			}
 			req.Auth.Identity.Methods = []string{"application_credential"}
+			secret := sdc.ApplicationCredentialSecret.String()
 			req.Auth.Identity.ApplicationCredential = &applicationCredentialReq{
 				ID:     &sdc.ApplicationCredentialID,
-				Secret: &sdc.ApplicationCredentialSecret,
+				Secret: &secret,
 			}
 			return json.Marshal(req)
 		}
 
-		if len(sdc.ApplicationCredentialSecret) == 0 {
+		if sdc.ApplicationCredentialSecret == nil {
 			return nil, fmt.Errorf("missing application_credential_secret when application_credential_name is set")
 		}
 		var userRequest *userReq
@@ -143,10 +146,11 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 			return nil, fmt.Errorf("domain_id and domain_name cannot be empty for application_credential_name auth")
 		}
 		req.Auth.Identity.Methods = []string{"application_credential"}
+		secret := sdc.ApplicationCredentialSecret.String()
 		req.Auth.Identity.ApplicationCredential = &applicationCredentialReq{
 			Name:   &sdc.ApplicationCredentialName,
 			User:   userRequest,
-			Secret: &sdc.ApplicationCredentialSecret,
+			Secret: &secret,
 		}
 		return json.Marshal(req)
 	}
@@ -168,11 +172,12 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 				return nil, fmt.Errorf("both domain_id and domain_name is present")
 			}
 			// Configure the request for Username and Password authentication with a DomainID.
-			if len(sdc.Password) > 0 {
+			if sdc.Password != nil {
+				password := sdc.Password.String()
 				req.Auth.Identity.Password = &passwordReq{
 					User: userReq{
 						Name:     &sdc.Username,
-						Password: &sdc.Password,
+						Password: &password,
 						Domain:   &domainReq{ID: &sdc.DomainID},
 					},
 				}
@@ -180,11 +185,12 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 		}
 		if len(sdc.DomainName) > 0 {
 			// Configure the request for Username and Password authentication with a DomainName.
-			if len(sdc.Password) > 0 {
+			if sdc.Password != nil {
+				password := sdc.Password.String()
 				req.Auth.Identity.Password = &passwordReq{
 					User: userReq{
 						Name:     &sdc.Username,
-						Password: &sdc.Password,
+						Password: &password,
 						Domain:   &domainReq{Name: &sdc.DomainName},
 					},
 				}
@@ -199,11 +205,12 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 			return nil, fmt.Errorf("both user_id and domain_name is present")
 		}
 		// Configure the request for UserID and Password authentication.
-		if len(sdc.Password) > 0 {
+		if sdc.Password != nil {
+			password := sdc.Password.String()
 			req.Auth.Identity.Password = &passwordReq{
 				User: userReq{
 					ID:       &sdc.UserID,
-					Password: &sdc.Password,
+					Password: &password,
 				},
 			}
 		}
@@ -300,13 +307,13 @@ func readCredentialsFromEnv() SDConfig {
 		IdentityEndpoint:            authURL,
 		Username:                    username,
 		UserID:                      userID,
-		Password:                    password,
+		Password:                    promauth.NewSecret(password),
 		ProjectName:                 tenantName,
 		ProjectID:                   tenantID,
 		DomainName:                  domainName,
 		DomainID:                    domainID,
 		ApplicationCredentialName:   applicationCredentialName,
 		ApplicationCredentialID:     applicationCredentialID,
-		ApplicationCredentialSecret: applicationCredentialSecret,
+		ApplicationCredentialSecret: promauth.NewSecret(applicationCredentialSecret),
 	}
 }

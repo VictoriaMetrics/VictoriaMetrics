@@ -25,8 +25,8 @@ implementation and aims to be compatible with its syntax.
 * `vmalert` execute queries against remote datasource which has reliability risks because of network.
 It is recommended to configure alerts thresholds and rules expressions with understanding that network request
 may fail;
-* by default, rules execution is sequential within one group, but persisting of execution results to remote
-storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
+* by default, rules execution is sequential within one group, but persistence of execution results to remote
+storage is asynchronous. Hence, user shouldn't rely on chaining of recording rules when result of previous
 recording rule is reused in next one;
 
 ## QuickStart
@@ -59,7 +59,7 @@ Then configure `vmalert` accordingly:
     -external.label=replica=a                # Multiple external labels may be set
 ```
 
-See the fill list of configuration flags in [configuration](#configuration) section.
+See the full list of configuration flags in [configuration](#configuration) section.
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
 to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts.
@@ -89,7 +89,7 @@ name: <string>
 [ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default "prometheus" rule type is used.
+# By default "prometheus" type is used.
 [ type: <string> ]
 
 # Optional list of label filters applied to every rule's
@@ -117,14 +117,14 @@ expression and then act according to the Rule type.
 
 There are two types of Rules:
 * [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
-Alerting rules allows to define alert conditions via `expr` field and to send notifications
+Alerting rules allow to define alert conditions via `expr` field and to send notifications to
 [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty.
 * [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
-Recording rules allows to define `expr` which result will be than backfilled to configured
+Recording rules allow to define `expr` which result will be then backfilled to configured
 `-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
 expensive expressions and save their result as a new set of time series.
 
-`vmalert` forbids to define duplicates - rules with the same combination of name, expression and labels
+`vmalert` forbids defining duplicates - rules with the same combination of name, expression and labels
 within one group.
 
 #### Alerting rules
@@ -134,12 +134,8 @@ The syntax for alerting rule is the following:
 # The name of the alert. Must be a valid metric name.
 alert: <string>
 
-# Optional type for the rule. Supported values: "graphite", "prometheus".
-# By default "prometheus" rule type is used.
-[ type: <string> ]
-
 # The expression to evaluate. The expression language depends on the type value.
-# By default PromQL/MetricsQL expression is used. If type="graphite", then the expression
+# By default PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -170,12 +166,8 @@ The syntax for recording rules is following:
 # The name of the time series to output to. Must be a valid metric name.
 record: <string>
 
-# Optional type for the rule. Supported values: "graphite", "prometheus".
-# By default "prometheus" rule type is used.
-[ type: <string> ]
-
 # The expression to evaluate. The expression language depends on the type value.
-# By default MetricsQL expression is used. If type="graphite", then the expression
+# By default MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -194,18 +186,18 @@ the process alerts state will be lost. To avoid this situation, `vmalert` should
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
 into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
 These are regular time series and may be queried from VM just as any other time series.
-The state stored to the configured address on every rule evaluation.
+The state is stored to the configured address on every rule evaluation.
 * `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
 from configured address by querying time series with name `ALERTS_FOR_STATE`.
 
-Both flags are required for the proper state restoring. Restore process may fail if time series are missing
+Both flags are required for proper state restoring. Restore process may fail if time series are missing
 in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by `-remoteRead.lookback`)
 or received state doesn't match current `vmalert` rules configuration.
 
 
 ### Multitenancy
 
-There are the following approaches for alerting and recording rules across
+The following are the approaches for alerting and recording rules across
 [multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy):
 
 * To run a separate `vmalert` instance per each tenant.
@@ -238,12 +230,15 @@ If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-re
 contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
 `vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
 
+If `-clusterMode` is enabled and the `tenant` in a particular group is missing, then the tenant value
+is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depending on the `type` of the group.
+
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
 
-### WEB
+### Web
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 * `http://<vmalert-addr>` - UI;
@@ -266,7 +261,7 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 ## Rules backfilling
 
 vmalert supports alerting and recording rules backfilling (aka `replay`). In replay mode vmalert
-can read the same rules configuration as normally, evaluate them on the given time range and backfill
+can read the same rules configuration as normal, evaluate them on the given time range and backfill
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
 
@@ -312,8 +307,8 @@ max range per request:  8h20m0s
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
 executed sequentially as well (`concurrency` setting is ignored). Vmalert sends rule's expression
 to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) endpoint
-of the configured `-datasource.url`. Returned data then processed according to the rule type and
-backfilled to `-remoteWrite.url` via [Remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
+of the configured `-datasource.url`. Returned data is then processed according to the rule type and
+backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
 Vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.

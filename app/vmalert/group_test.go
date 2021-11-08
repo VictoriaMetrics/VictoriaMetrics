@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 )
@@ -106,17 +105,6 @@ func TestUpdateWith(t *testing.T) {
 				{Alert: "foo3"},
 				{Alert: "foo4"},
 				{Record: "foo5"},
-			},
-		},
-		{
-			"update datasource type",
-			[]config.Rule{
-				{Alert: "foo1", Type: datasource.NewPrometheusType()},
-				{Alert: "foo3", Type: datasource.NewGraphiteType()},
-			},
-			[]config.Rule{
-				{Alert: "foo1", Type: datasource.NewGraphiteType()},
-				{Alert: "foo10", Type: datasource.NewPrometheusType()},
 			},
 		},
 	}

@@ -27,7 +27,7 @@ func TestNewConfig(t *testing.T) {
 			args: args{
 				oauth: &OAuth2Config{
 					ClientID:     "some-id",
-					ClientSecret: "some-secret",
+					ClientSecret: NewSecret("some-secret"),
 					TokenURL:     "http://localhost:8511",
 				},
 			},
@@ -49,7 +49,7 @@ func TestNewConfig(t *testing.T) {
 			args: args{
 				oauth: &OAuth2Config{
 					ClientID:         "some-id",
-					ClientSecret:     "some-secret",
+					ClientSecret:     NewSecret("some-secret"),
 					ClientSecretFile: "testdata/test_secretfile.txt",
 					TokenURL:         "http://localhost:8511",
 				},
@@ -61,7 +61,7 @@ func TestNewConfig(t *testing.T) {
 			args: args{
 				basicAuth: &BasicAuthConfig{
 					Username: "user",
-					Password: "password",
+					Password: NewSecret("password"),
 				},
 			},
 			expectHeader: "Basic dXNlcjpwYXNzd29yZA==",
@@ -81,7 +81,7 @@ func TestNewConfig(t *testing.T) {
 			args: args{
 				az: &Authorization{
 					Type:        "Bearer",
-					Credentials: "Value",
+					Credentials: NewSecret("Value"),
 				},
 			},
 			expectHeader: "Bearer Value",

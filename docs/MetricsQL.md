@@ -18,7 +18,7 @@ The following functionality is implemented differently in MetricsQL compared to 
 * MetricsQL returns the expected non-empty responses for [rate](#rate) with `step` values smaller than scrape interval. This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451). See also [this blog post](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
 * MetricsQL treats `scalar` type the same as `instant vector` without labels, since subtle differences between these types usually confuse users. See [the corresponding Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) for details.
 * MetricsQL removes all the `NaN` values from the output, so some queries like `(-1)^0.5` return empty results in VictoriaMetrics, while returning a series of `NaN` values in Prometheus. Note that Grafana doesn't draw any lines or dots for `NaN` values, so the end result looks the same for both VictoriaMetrics and Prometheus.
-* MetricsQL keeps metric names after applying functions, which don't change the meaining of the original time series. For example, [min_over_time(foo)](#min_over_time) or [round(foo)](#round) leaves `foo` metric name in the result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674) for details.
+* MetricsQL keeps metric names after applying functions, which don't change the meaning of the original time series. For example, [min_over_time(foo)](#min_over_time) or [round(foo)](#round) leaves `foo` metric name in the result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674) for details.
 
 Read more about the diffferences between PromQL and MetricsQL in [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e).
 
@@ -30,7 +30,7 @@ MetricsQL implements [PromQL](https://medium.com/@valyala/promql-tutorial-for-be
 
 This functionality can be evaluated at [an editable Grafana dashboard](https://play-grafana.victoriametrics.com/d/4ome8yJmz/node-exporter-on-victoriametrics-demo) or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
-- Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. This is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but usually works faster and is easier to use when migrating from Graphite. VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details.
+- Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. This is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but usually works faster and is easier to use when migrating from Graphite. VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details. See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
 - Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)). For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`. It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
 - [Aggregate functions](#aggregate-functions) accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 - [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier), lookbehind window in square brackets and `step` value for [subquery](#subqueries) may refer to the current step aka `$__interval` value from Grafana with `[Ni]` syntax. For instance, `rate(metric[10i] offset 5i)` would return per-second rate over a range covering 10 previous steps with the offset of 5 steps.
@@ -142,6 +142,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `distinct_over_time(series_selector[d])` returns the number of distinct raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
 
+#### duration_over_time
+
+`duration_over_time(series_selector[d], max_interval)` returns the duration in seconds when time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) were present over the given lookbehind window `d`. It is expected that intervals between adjacent samples per each series don't exceed the `max_interval`. Otherwise such intervals are considered as gaps and aren't counted. See also [lifetime](#lifetime) and [lag](#lag).
+
 #### first_over_time
 
 `first_over_time(series_selector[d])` returns the first raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). See also [last_over_time](#last_over_time) and [tfirst_over_time](#tfirst_over_time).
@@ -196,7 +200,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### lag
 
-`lag(series_selector[d])` returns the duration in seconds between the last sample on the given lookbehind window `d` and the timestamp of the current point. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [lifetime](#lifetime).
+`lag(series_selector[d])` returns the duration in seconds between the last sample on the given lookbehind window `d` and the timestamp of the current point. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [lifetime](#lifetime) and [duration_over_time](#duration_over_time).
 
 #### last_over_time
 
@@ -204,7 +208,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### lifetime
 
-`lifetime(series_selector[d])` calculates the lifetime in seconds per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The returned lifetime is limited by the given lookbehind window `d`. Metric names are stripped from the resulting rollups. See also [lag](#lag).
+`lifetime(series_selector[d])` returns the duration in seconds between the last and the first sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [duration_over_time](#duration_over_time) and [lag](#lag).
 
 #### max_over_time
 
@@ -689,6 +693,16 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `label_del(q, "label1", ..., "labelN")` deletes the given `label*` labels from all the time series returned by `q`.
 
+#### label_graphite_group
+
+`label_graphite_group(q, groupNum1, ... groupNumN)` replaces metric names returned from `q` with the given Graphite group values concatenated via `.` char. For example, `label_graphite_group({__graphite__="foo*.bar.*"}, 0, 2)` would substitute `foo<any_value>.bar.<other_value>` metric names with `foo<any_value>.<other_value>`. This function is useful for aggregating Graphite metrics with [aggregate functions](#aggregate-functions). For example, the following query would return per-app memory usage:
+
+```
+sum by (__name__) (
+    label_graphite_group({__graphite__="app*.host*.memory_usage"}, 0)
+)
+```
+
 #### label_join
 
 `label_join(q, "dst_label", "separator", "src_label1", ..., "src_labelN")` joins `src_label*` values with the given `separator` and stores the result in `dst_label`. This is performed individually per each time series returned by `q`. For example, `label_join(up{instance="xxx",job="yyy"}, "foo", "-", "instance", "job")` would store `xxx-yyy` label value into `foo` label. This function is supported by PromQL.
@@ -805,9 +819,14 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `histogram(q)` calculates [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) per each group of points with the same timestamp. Useful for visualizing big number of time series via a heatmap. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
 
+#### limit_offset
+
+`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
+
+
 #### limitk
 
-`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls.
+`limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls. See also [limit_offset](#limit_offset).
 
 #### mad
 

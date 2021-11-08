@@ -22,6 +22,7 @@ var aggrFuncs = map[string]bool{
 	// MetricsQL extension funcs
 	"median":         true,
 	"limitk":         true,
+	"limit_offset":   true,
 	"distinct":       true,
 	"sum2":           true,
 	"geomean":        true,

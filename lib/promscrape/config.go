@@ -125,7 +125,7 @@ type ScrapeConfig struct {
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
-	ProxyURL             proxy.URL                   `yaml:"proxy_url,omitempty"`
+	ProxyURL             *proxy.URL                  `yaml:"proxy_url,omitempty"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
@@ -240,27 +240,29 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 }
 
 // loadConfig loads Prometheus config from the given path.
-func loadConfig(path string) (*Config, error) {
+func loadConfig(path string) (*Config, []byte, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
+		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
 	var c Config
-	if err := c.parseData(data, path); err != nil {
-		return nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
+	dataNew, err := c.parseData(data, path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
-	return &c, nil
+	return &c, dataNew, nil
 }
 
-func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]ScrapeConfig, error) {
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]ScrapeConfig, []byte, error) {
 	var scrapeConfigs []ScrapeConfig
+	var scsData []byte
 	for _, filePath := range scrapeConfigFiles {
 		filePath := getFilepath(baseDir, filePath)
 		paths := []string{filePath}
 		if strings.Contains(filePath, "*") {
 			ps, err := filepath.Glob(filePath)
 			if err != nil {
-				return nil, fmt.Errorf("invalid pattern %q in `scrape_config_files`: %w", filePath, err)
+				return nil, nil, fmt.Errorf("invalid pattern %q: %w", filePath, err)
 			}
 			sort.Strings(ps)
 			paths = ps
@@ -268,17 +270,19 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]Scrape
 		for _, path := range paths {
 			data, err := ioutil.ReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("cannot load %q from `scrape_config_files`: %w", filePath, err)
+				return nil, nil, fmt.Errorf("cannot load %q: %w", path, err)
 			}
 			data = envtemplate.Replace(data)
 			var scs []ScrapeConfig
 			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-				return nil, fmt.Errorf("cannot parse %q from `scrape_config_files`: %w", filePath, err)
+				return nil, nil, fmt.Errorf("cannot parse %q: %w", path, err)
 			}
 			scrapeConfigs = append(scrapeConfigs, scs...)
+			scsData = append(scsData, '\n')
+			scsData = append(scsData, data...)
 		}
 	}
-	return scrapeConfigs, nil
+	return scrapeConfigs, scsData, nil
 }
 
 // IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
@@ -286,30 +290,31 @@ func IsDryRun() bool {
 	return *dryRun
 }
 
-func (cfg *Config) parseData(data []byte, path string) error {
+func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 	if err := unmarshalMaybeStrict(data, cfg); err != nil {
-		return fmt.Errorf("cannot unmarshal data: %w", err)
+		return nil, fmt.Errorf("cannot unmarshal data: %w", err)
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
+		return nil, fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
 	}
 	cfg.baseDir = filepath.Dir(absPath)
 
 	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
-	scs, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
+	scs, scsData, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
 	if err != nil {
-		return fmt.Errorf("cannot load `scrape_config_files` from %q: %w", path, err)
+		return nil, fmt.Errorf("cannot load `scrape_config_files` from %q: %w", path, err)
 	}
 	cfg.ScrapeConfigFiles = nil
 	cfg.ScrapeConfigs = append(cfg.ScrapeConfigs, scs...)
+	dataNew := append(data, scsData...)
 
 	// Check that all the scrape configs have unique JobName
 	m := make(map[string]struct{}, len(cfg.ScrapeConfigs))
 	for i := range cfg.ScrapeConfigs {
 		jobName := cfg.ScrapeConfigs[i].JobName
 		if _, ok := m[jobName]; ok {
-			return fmt.Errorf("duplicate `job_name` in `scrape_configs` loaded from %q: %q", path, jobName)
+			return nil, fmt.Errorf("duplicate `job_name` in `scrape_configs` loaded from %q: %q", path, jobName)
 		}
 		m[jobName] = struct{}{}
 	}
@@ -319,11 +324,11 @@ func (cfg *Config) parseData(data []byte, path string) error {
 		sc := &cfg.ScrapeConfigs[i]
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
+			return nil, fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
 		}
 		sc.swc = swc
 	}
-	return nil
+	return dataNew, nil
 }
 
 func unmarshalMaybeStrict(data []byte, dst interface{}) error {
@@ -796,7 +801,7 @@ type scrapeWorkConfig struct {
 	metricsPath          string
 	scheme               string
 	params               map[string][]string
-	proxyURL             proxy.URL
+	proxyURL             *proxy.URL
 	proxyAuthConfig      *promauth.Config
 	authConfig           *promauth.Config
 	honorLabels          bool

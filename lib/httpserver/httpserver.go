@@ -40,8 +40,8 @@ var (
 		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
 	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty")
-	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It overrides httpAuth settings")
-	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof. It overrides httpAuth settings")
+	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)

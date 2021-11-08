@@ -7,13 +7,16 @@ require (
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
-	github.com/VictoriaMetrics/metrics v1.18.0
-	github.com/VictoriaMetrics/metricsql v0.27.0
+	github.com/VictoriaMetrics/metrics v1.18.1
+	github.com/VictoriaMetrics/metricsql v0.30.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/aws/aws-sdk-go v1.41.8
+	github.com/aws/aws-sdk-go v1.41.19
+	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/envoyproxy/go-control-plane v0.10.0 // indirect
+	github.com/envoyproxy/protoc-gen-validate v0.6.2 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-kit/kit v0.12.0
 	github.com/golang/snappy v0.0.4
@@ -28,14 +31,14 @@ require (
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
-	github.com/valyala/gozstd v1.14.1
+	github.com/valyala/gozstd v1.14.2
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20211020060615-d418f374d309
-	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
-	golang.org/x/sys v0.0.0-20211020174200-9d6173849985
-	google.golang.org/api v0.59.0
-	google.golang.org/genproto v0.0.0-20211021150943-2b146023228c // indirect
-	google.golang.org/grpc v1.41.0 // indirect
+	golang.org/x/net v0.0.0-20211105192438-b53810dc28af
+	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
+	golang.org/x/sys v0.0.0-20211107104306-e0b2ad06fe42
+	google.golang.org/api v0.60.0
+	google.golang.org/genproto v0.0.0-20211104193956-4c6863e31247 // indirect
+	google.golang.org/grpc v1.42.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
 

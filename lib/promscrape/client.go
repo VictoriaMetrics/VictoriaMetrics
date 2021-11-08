@@ -23,7 +23,8 @@ import (
 var (
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected")
-	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. "+
+	maxResponseHeadersSize = flagutil.NewBytes("promscrape.maxResponseHeadersSize", 4096, "The maximum size of http response headers from Prometheus scrape targets")
+	disableCompression     = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. "+
 		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. "+
 		"It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
 	disableKeepAlive = flag.Bool("promscrape.disableKeepAlive", false, "Whether to disable HTTP keep-alive connections when scraping all the targets. "+
@@ -77,10 +78,11 @@ func newClient(sw *ScrapeWork) *client {
 		if isTLS {
 			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
 		}
+		proxyURLOrig := proxyURL
 		getProxyAuthHeader = func() string {
-			return proxyURL.GetAuthHeader(sw.ProxyAuthConfig)
+			return proxyURLOrig.GetAuthHeader(sw.ProxyAuthConfig)
 		}
-		proxyURL = proxy.URL{}
+		proxyURL = &proxy.URL{}
 	}
 	if !strings.Contains(host, ":") {
 		if !isTLS {
@@ -104,22 +106,24 @@ func newClient(sw *ScrapeWork) *client {
 		WriteTimeout:                 10 * time.Second,
 		MaxResponseBodySize:          maxScrapeSize.N,
 		MaxIdempotentRequestAttempts: 1,
+		ReadBufferSize:               maxResponseHeadersSize.N,
 	}
 	var sc *http.Client
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
-	if proxyURL := sw.ProxyURL.URL(); proxyURL != nil {
-		proxyURLFunc = http.ProxyURL(proxyURL)
+	if pu := sw.ProxyURL.URL(); pu != nil {
+		proxyURLFunc = http.ProxyURL(pu)
 	}
 	sc = &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig:     tlsCfg,
-			Proxy:               proxyURLFunc,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     2 * sw.ScrapeInterval,
-			DisableCompression:  *disableCompression || sw.DisableCompression,
-			DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:         statStdDial,
-			MaxIdleConnsPerHost: 100,
+			TLSClientConfig:        tlsCfg,
+			Proxy:                  proxyURLFunc,
+			TLSHandshakeTimeout:    10 * time.Second,
+			IdleConnTimeout:        2 * sw.ScrapeInterval,
+			DisableCompression:     *disableCompression || sw.DisableCompression,
+			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
+			DialContext:            statStdDial,
+			MaxIdleConnsPerHost:    100,
+			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
 
 			// Set timeout for receiving the first response byte,
 			// since the duration for reading the full response can be much bigger because of stream parsing.

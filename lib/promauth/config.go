@@ -17,6 +17,51 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+// Secret represents a string secret such as password or auth token.
+//
+// It is marshaled to "<secret>" string in yaml.
+//
+// This is needed for hiding secret strings in /config page output.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1764
+type Secret struct {
+	s string
+}
+
+// NewSecret returns new secret for s.
+func NewSecret(s string) *Secret {
+	if s == "" {
+		return nil
+	}
+	return &Secret{
+		s: s,
+	}
+}
+
+// MarshalYAML implements yaml.Marshaler interface.
+//
+// It substitutes the secret with "<secret>" string.
+func (s *Secret) MarshalYAML() (interface{}, error) {
+	return "<secret>", nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler interface.
+func (s *Secret) UnmarshalYAML(f func(interface{}) error) error {
+	var secret string
+	if err := f(&secret); err != nil {
+		return fmt.Errorf("cannot parse secret: %w", err)
+	}
+	s.s = secret
+	return nil
+}
+
+// String returns the secret in plaintext.
+func (s *Secret) String() string {
+	if s == nil {
+		return ""
+	}
+	return s.s
+}
+
 // TLSConfig represents TLS config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
@@ -32,23 +77,23 @@ type TLSConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Authorization struct {
-	Type            string `yaml:"type,omitempty"`
-	Credentials     string `yaml:"credentials,omitempty"`
-	CredentialsFile string `yaml:"credentials_file,omitempty"`
+	Type            string  `yaml:"type,omitempty"`
+	Credentials     *Secret `yaml:"credentials,omitempty"`
+	CredentialsFile string  `yaml:"credentials_file,omitempty"`
 }
 
 // BasicAuthConfig represents basic auth config.
 type BasicAuthConfig struct {
-	Username     string `yaml:"username"`
-	Password     string `yaml:"password,omitempty"`
-	PasswordFile string `yaml:"password_file,omitempty"`
+	Username     string  `yaml:"username"`
+	Password     *Secret `yaml:"password,omitempty"`
+	PasswordFile string  `yaml:"password_file,omitempty"`
 }
 
 // HTTPClientConfig represents http client config.
 type HTTPClientConfig struct {
 	Authorization   *Authorization   `yaml:"authorization,omitempty"`
 	BasicAuth       *BasicAuthConfig `yaml:"basic_auth,omitempty"`
-	BearerToken     string           `yaml:"bearer_token,omitempty"`
+	BearerToken     *Secret          `yaml:"bearer_token,omitempty"`
 	BearerTokenFile string           `yaml:"bearer_token_file,omitempty"`
 	OAuth2          *OAuth2Config    `yaml:"oauth2,omitempty"`
 	TLSConfig       *TLSConfig       `yaml:"tls_config,omitempty"`
@@ -58,7 +103,7 @@ type HTTPClientConfig struct {
 type ProxyClientConfig struct {
 	Authorization   *Authorization   `yaml:"proxy_authorization,omitempty"`
 	BasicAuth       *BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
-	BearerToken     string           `yaml:"proxy_bearer_token,omitempty"`
+	BearerToken     *Secret          `yaml:"proxy_bearer_token,omitempty"`
 	BearerTokenFile string           `yaml:"proxy_bearer_token_file,omitempty"`
 	TLSConfig       *TLSConfig       `yaml:"proxy_tls_config,omitempty"`
 }
@@ -66,11 +111,11 @@ type ProxyClientConfig struct {
 // OAuth2Config represent OAuth2 configuration
 type OAuth2Config struct {
 	ClientID         string            `yaml:"client_id"`
-	ClientSecret     string            `yaml:"client_secret"`
-	ClientSecretFile string            `yaml:"client_secret_file"`
-	Scopes           []string          `yaml:"scopes"`
+	ClientSecret     *Secret           `yaml:"client_secret,omitempty"`
+	ClientSecretFile string            `yaml:"client_secret_file,omitempty"`
+	Scopes           []string          `yaml:"scopes,omitempty"`
 	TokenURL         string            `yaml:"token_url"`
-	EndpointParams   map[string]string `yaml:"endpoint_params"`
+	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
 }
 
 // String returns string representation of o.
@@ -83,10 +128,10 @@ func (o *OAuth2Config) validate() error {
 	if o.ClientID == "" {
 		return fmt.Errorf("client_id cannot be empty")
 	}
-	if o.ClientSecret == "" && o.ClientSecretFile == "" {
+	if o.ClientSecret == nil && o.ClientSecretFile == "" {
 		return fmt.Errorf("ClientSecret or ClientSecretFile must be set")
 	}
-	if o.ClientSecret != "" && o.ClientSecretFile != "" {
+	if o.ClientSecret != nil && o.ClientSecretFile != "" {
 		return fmt.Errorf("ClientSecret and ClientSecretFile cannot be set simultaneously")
 	}
 	if o.TokenURL == "" {
@@ -109,7 +154,7 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 	oi := &oauth2ConfigInternal{
 		cfg: &clientcredentials.Config{
 			ClientID:       o.ClientID,
-			ClientSecret:   o.ClientSecret,
+			ClientSecret:   o.ClientSecret.String(),
 			TokenURL:       o.TokenURL,
 			Scopes:         o.Scopes,
 			EndpointParams: urlValuesFromMap(o.EndpointParams),
@@ -238,12 +283,12 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 
 // NewConfig creates auth config for the given hcc.
 func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken, hcc.BearerTokenFile, hcc.OAuth2, hcc.TLSConfig)
+	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken.String(), hcc.BearerTokenFile, hcc.OAuth2, hcc.TLSConfig)
 }
 
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken, pcc.BearerTokenFile, nil, pcc.TLSConfig)
+	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken.String(), pcc.BearerTokenFile, nil, pcc.TLSConfig)
 }
 
 // NewConfig creates auth config from the given args.
@@ -256,7 +301,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			azType = az.Type
 		}
 		if az.CredentialsFile != "" {
-			if az.Credentials != "" {
+			if az.Credentials != nil {
 				return nil, fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
 			}
 			filePath := getFilepath(baseDir, az.CredentialsFile)
@@ -271,7 +316,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			authDigest = fmt.Sprintf("custom(type=%q, credsFile=%q)", az.Type, filePath)
 		} else {
 			getAuthHeader = func() string {
-				return azType + " " + az.Credentials
+				return azType + " " + az.Credentials.String()
 			}
 			authDigest = fmt.Sprintf("custom(type=%q, creds=%q)", az.Type, az.Credentials)
 		}
@@ -284,7 +329,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			return nil, fmt.Errorf("missing `username` in `basic_auth` section")
 		}
 		if basicAuth.PasswordFile != "" {
-			if basicAuth.Password != "" {
+			if basicAuth.Password != nil {
 				return nil, fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", basicAuth.Password, basicAuth.PasswordFile)
 			}
 			filePath := getFilepath(baseDir, basicAuth.PasswordFile)
@@ -303,7 +348,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		} else {
 			getAuthHeader = func() string {
 				// See https://en.wikipedia.org/wiki/Basic_access_authentication
-				token := basicAuth.Username + ":" + basicAuth.Password
+				token := basicAuth.Username + ":" + basicAuth.Password.String()
 				token64 := base64.StdEncoding.EncodeToString([]byte(token))
 				return "Basic " + token64
 			}
