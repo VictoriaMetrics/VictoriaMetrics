@@ -204,7 +204,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### lifetime
 
-`lifetime(series_selector[d])` calculates the lifetime in seconds per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The returned lifetime is limited by the given lookbehind window `d`. Metric names are stripped from the resulting rollups. See also [lag](#lag).
+`lifetime(series_selector[d])` returns the duration in seconds between the last and the first sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [lag](#lag).
 
 #### max_over_time
 
