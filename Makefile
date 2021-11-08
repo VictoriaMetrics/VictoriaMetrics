@@ -39,6 +39,12 @@ package: \
 	package-vmselect \
 	package-vmstorage
 
+publish-release:
+	git checkout $(TAG) && $(MAKE) release publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+
 release: \
 	release-vmcluster
 
