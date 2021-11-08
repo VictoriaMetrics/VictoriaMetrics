@@ -1,9 +1,9 @@
 import React, {FC, useEffect, useState} from "react";
-import {Box, FormControlLabel, IconButton, Switch, Tooltip} from "@material-ui/core";
-import EqualizerIcon from "@material-ui/icons/Equalizer";
+import {Box, FormControlLabel, IconButton, Switch, Tooltip} from "@mui/material";
+import EqualizerIcon from "@mui/icons-material/Equalizer";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
 import CircularProgressWithLabel from "../../common/CircularProgressWithLabel";
-import {makeStyles} from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
 const useStyles = makeStyles({
   colorizing: {
@@ -78,7 +78,7 @@ export const ExecutionControls: FC = () => {
         onClick={() => {iterateDelays();}} />
       <Tooltip title="Change delay refresh">
         <Box ml={1}>
-          <IconButton onClick={() => {iterateDelays();}}><EqualizerIcon style={{color: "white"}} /></IconButton>
+          <IconButton onClick={() => {iterateDelays();}} size="large"><EqualizerIcon style={{color: "white"}} /></IconButton>
         </Box>
       </Tooltip>
     </>}

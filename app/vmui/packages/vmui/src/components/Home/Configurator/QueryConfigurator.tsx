@@ -1,14 +1,14 @@
 import React, {FC, useRef, useState} from "react";
 import { Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, TextField, Typography, FormControlLabel,
-  Tooltip, Switch } from "@material-ui/core";
+  Tooltip, Switch } from "@mui/material";
 import QueryEditor from "./QueryEditor";
 import {TimeSelector} from "./TimeSelector";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import SecurityIcon from "@material-ui/icons/Security";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import SecurityIcon from "@mui/icons-material/Security";
 import {AuthDialog} from "./AuthDialog";
-import PlayCircleOutlineIcon from "@material-ui/icons/PlayCircleOutline";
-import Portal from "@material-ui/core/Portal";
+import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+import Portal from "@mui/material/Portal";
 import {saveToStorage} from "../../../utils/storage";
 import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
 import debounce from "lodash.debounce";
@@ -73,7 +73,7 @@ const QueryConfigurator: FC = () => {
         aria-controls="panel1a-content"
         id="panel1a-header"
       >
-        <Box mr={2}><Typography variant="h6" component="h2">Query Configuration</Typography></Box>
+        <Box display="flex" alignItems="center" mr={2}><Typography variant="h6" component="h2">Query Configuration</Typography></Box>
         <Box flexGrow={1} onClick={e => e.stopPropagation()} onFocusCapture={e => e.stopPropagation()}>
           <Portal disablePortal={!expanded} container={queryContainer.current}>
             <Box display="flex" alignItems="center">
@@ -82,7 +82,7 @@ const QueryConfigurator: FC = () => {
                   queryHistory={queryHistory} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
               </Box>
               <Tooltip title="Execute Query">
-                <IconButton onClick={onRunQuery}><PlayCircleOutlineIcon /></IconButton>
+                <IconButton onClick={onRunQuery} size="large"><PlayCircleOutlineIcon /></IconButton>
               </Tooltip>
             </Box>
           </Portal>
@@ -91,14 +91,14 @@ const QueryConfigurator: FC = () => {
       <AccordionDetails>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <Box display="grid" gridGap={16}>
+            <Box display="grid" gap={2} gridTemplateRows="auto 1fr">
               <Box display="flex" alignItems="center">
                 <TextField variant="outlined" fullWidth label="Server URL" value={serverUrl}
                   inputProps={{style: {fontFamily: "Monospace"}}}
                   onChange={onSetServer}/>
                 <Box>
                   <Tooltip title="Request Auth Settings">
-                    <IconButton onClick={() => setDialogOpen(true)}><SecurityIcon/></IconButton>
+                    <IconButton onClick={() => setDialogOpen(true)} size="large"><SecurityIcon/></IconButton>
                   </Tooltip>
                 </Box>
               </Box>
@@ -107,28 +107,29 @@ const QueryConfigurator: FC = () => {
           </Grid>
           <Grid item xs={8} md={6} >
             <Box style={{
+              minHeight: "128px",
+              padding: "10px 0",
               borderRadius: "4px",
               borderColor: "#b9b9b9",
               borderStyle: "solid",
-              borderWidth: "1px",
-              height: "100%",}}>
+              borderWidth: "1px"}}>
               <TimeSelector setDuration={onSetDuration} duration={duration}/>
             </Box>
           </Grid>
           <Grid item xs={12}>
             <Box px={1} display="flex" alignItems="center" minHeight={52}>
-              <Box><FormControlLabel
-                control={<Switch size="small" checked={autocomplete} onChange={onChangeAutocomplete}/>} label="Enable autocomplete"
+              <Box><FormControlLabel label="Enable autocomplete"
+                control={<Switch size="small" checked={autocomplete} onChange={onChangeAutocomplete}/>}
               /></Box>
-              <Box ml={4}><FormControlLabel
-                control={<Switch size="small" checked={!nocache} onChange={onChangeCache}/>} label="Enable cache"
+              <Box ml={2}><FormControlLabel label="Enable cache"
+                control={<Switch size="small" checked={!nocache} onChange={onChangeCache}/>}
               /></Box>
-              <Box ml={4} display="flex" alignItems="center">
+              <Box ml={2} display="flex" alignItems="center">
                 <FormControlLabel
                   control={<Switch size="small" checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
-                  label="fix the limits for y-axis"
+                  label="Fix the limits for y-axis"
                 />
-                {yaxis.limits.enable && <Box display="grid" gridTemplateColumns="120px 120px" gridGap={10}>
+                {yaxis.limits.enable && <Box display="grid" gridTemplateColumns="120px 120px" gap={1}>
                   <TextField label="Min" type="number" size="small" variant="outlined"
                     defaultValue={yaxis.limits.range[0]} onChange={debounce(setMinLimit, 750)}/>
                   <TextField label="Max" type="number" size="small" variant="outlined"

@@ -41,7 +41,7 @@ export const setQueryStringValue = (newValue: Record<string, unknown>): void => 
   const queryMap = new Map(Object.entries(stateToUrlParams));
   const newQsValue: string[] = [];
   queryMap.forEach((queryKey, stateKey) => {
-    const queryKeyEncoded = encodeURIComponent(queryKey);
+    // const queryKeyEncoded = encodeURIComponent(queryKey);
     const value = get(newValue, stateKey, "") as string;
     if (value) {
       const valueEncoded = encodeURIComponent(value);
