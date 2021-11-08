@@ -1,5 +1,5 @@
 import React, {FC} from "react";
-import {Box, Button, Grid, Typography} from "@material-ui/core";
+import {Box, Button, Grid, Typography} from "@mui/material";
 import {useSnack} from "../../contexts/Snackbar";
 
 interface UrlLineProps {

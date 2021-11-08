@@ -1,6 +1,6 @@
 import React, {FC} from "react";
-import {Box, IconButton, Tooltip} from "@material-ui/core";
-import FileCopyIcon from "@material-ui/icons/FileCopy";
+import {Box, IconButton, Tooltip} from "@mui/material";
+import FileCopyIcon from "@mui/icons-material/FileCopy";
 import {useSnack} from "../../contexts/Snackbar";
 
 interface UrlCopyProps {
