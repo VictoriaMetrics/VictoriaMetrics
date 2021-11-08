@@ -262,7 +262,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]Scrape
 		if strings.Contains(filePath, "*") {
 			ps, err := filepath.Glob(filePath)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid pattern %q in `scrape_config_files`: %w", filePath, err)
+				return nil, nil, fmt.Errorf("invalid pattern %q: %w", filePath, err)
 			}
 			sort.Strings(ps)
 			paths = ps
@@ -270,12 +270,12 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]Scrape
 		for _, path := range paths {
 			data, err := ioutil.ReadFile(path)
 			if err != nil {
-				return nil, nil, fmt.Errorf("cannot load %q from `scrape_config_files`: %w", filePath, err)
+				return nil, nil, fmt.Errorf("cannot load %q: %w", path, err)
 			}
 			data = envtemplate.Replace(data)
 			var scs []ScrapeConfig
 			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-				return nil, nil, fmt.Errorf("cannot parse %q from `scrape_config_files`: %w", filePath, err)
+				return nil, nil, fmt.Errorf("cannot parse %q: %w", path, err)
 			}
 			scrapeConfigs = append(scrapeConfigs, scs...)
 			scsData = append(scsData, '\n')
