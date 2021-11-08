@@ -15,6 +15,7 @@ sort: 15
 * FEATURE: vmagent: add `-promscrape.maxResponseHeadersSize` command-line flag for tuning the maximum HTTP response headers size for Prometheus scrape targets.
 * FEATURE: vmagent: send data to multiple configured remote storage systems in parallel (e.g. when multiple `-remoteWrite.url` flag values are specified). This should improve data ingestion speed.
 * FEATURE: vmagent: add `-remoteWrite.maxRowsPerBlock` command-line flag for tuning the number of samples to send to remote storage per each block. Bigger values may improve data ingestion performance at the cost of higher memory usage.
+* FEATURE: vmagent: distribute Kafka messages among all the partitions when [writing data to Kafka](https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-kafka).
 * FEATURE: add [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric names.
 * FEATURE: add [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset) function, which can be used for implementing simple paging over big number of time series. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1778).
 
