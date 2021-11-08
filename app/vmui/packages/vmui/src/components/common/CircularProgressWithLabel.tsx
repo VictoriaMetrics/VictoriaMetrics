@@ -1,6 +1,6 @@
-import CircularProgress, {CircularProgressProps} from "@material-ui/core/CircularProgress";
-import {Box} from "@material-ui/core";
-import Typography from "@material-ui/core/Typography";
+import CircularProgress, {CircularProgressProps} from "@mui/material/CircularProgress";
+import {Box} from "@mui/material";
+import Typography from "@mui/material/Typography";
 import React, {FC} from "react";
 
 const CircularProgressWithLabel: FC<CircularProgressProps & { label: number }> = (props) => {

@@ -1,6 +1,6 @@
 import React, {FC, useMemo} from "react";
 import {InstantMetricResult} from "../../../api/types";
-import {Box, Button} from "@material-ui/core";
+import {Box, Button} from "@mui/material";
 import {useSnack} from "../../../contexts/Snackbar";
 
 export interface JsonViewProps {

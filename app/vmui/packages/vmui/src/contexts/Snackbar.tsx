@@ -1,6 +1,5 @@
 import React, {createContext, FC, useContext, useEffect, useState} from "react";
-import {Snackbar} from "@material-ui/core";
-import {Alert} from "@material-ui/lab";
+import {Alert, Snackbar} from "@mui/material";
 
 export interface SnackModel {
   message?: string;
