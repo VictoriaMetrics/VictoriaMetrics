@@ -88,6 +88,12 @@ release-snap:
 	snapcraft
 	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
 
+publish-release:
+	git checkout $(TAG) && $(MAKE) release publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+
 release: \
 	release-victoria-metrics \
 	release-vmutils

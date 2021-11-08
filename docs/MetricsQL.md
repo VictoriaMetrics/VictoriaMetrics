@@ -142,6 +142,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `distinct_over_time(series_selector[d])` returns the number of distinct raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
 
+#### duration_over_time
+
+`duration_over_time(series_selector[d], max_interval)` returns the duration in seconds when time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) were present over the given lookbehind window `d`. It is expected that intervals between adjacent samples per each series don't exceed the `max_interval`. Otherwise such intervals are considered as gaps and aren't counted. See also [lifetime](#lifetime) and [lag](#lag).
+
 #### first_over_time
 
 `first_over_time(series_selector[d])` returns the first raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). See also [last_over_time](#last_over_time) and [tfirst_over_time](#tfirst_over_time).
@@ -196,7 +200,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### lag
 
-`lag(series_selector[d])` returns the duration in seconds between the last sample on the given lookbehind window `d` and the timestamp of the current point. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [lifetime](#lifetime).
+`lag(series_selector[d])` returns the duration in seconds between the last sample on the given lookbehind window `d` and the timestamp of the current point. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [lifetime](#lifetime) and [duration_over_time](#duration_over_time).
 
 #### last_over_time
 
@@ -204,7 +208,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### lifetime
 
-`lifetime(series_selector[d])` calculates the lifetime in seconds per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The returned lifetime is limited by the given lookbehind window `d`. Metric names are stripped from the resulting rollups. See also [lag](#lag).
+`lifetime(series_selector[d])` returns the duration in seconds between the last and the first sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. See also [duration_over_time](#duration_over_time) and [lag](#lag).
 
 #### max_over_time
 

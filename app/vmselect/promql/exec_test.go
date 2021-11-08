@@ -5030,6 +5030,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`duration_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `duration_over_time((time()<1200)[600s:10s], 20s)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{590, 580, 380, 180, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`share_gt_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `share_gt_over_time(rand(0)[200s:10s], 0.7)`
@@ -7440,6 +7451,7 @@ func TestExecError(t *testing.T) {
 	f(`prometheus_buckets()`)
 	f(`buckets_limit()`)
 	f(`buckets_limit(1)`)
+	f(`duration_over_time()`)
 	f(`share_le_over_time()`)
 	f(`share_gt_over_time()`)
 	f(`count_le_over_time()`)
