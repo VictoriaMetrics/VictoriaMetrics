@@ -1248,8 +1248,9 @@ or Prometheus by adding the corresponding scrape config to it.
 Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
 For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
 
-There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176).
-There is also an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831).
+There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176). There is also an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831).
+
+Graphs on these dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
