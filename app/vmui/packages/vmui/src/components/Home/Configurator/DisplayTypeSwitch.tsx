@@ -1,12 +1,12 @@
 import React, {FC} from "react";
 
-import TableChartIcon from "@material-ui/icons/TableChart";
-import ShowChartIcon from "@material-ui/icons/ShowChart";
-import CodeIcon from "@material-ui/icons/Code";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import CodeIcon from "@mui/icons-material/Code";
 
-import {ToggleButton, ToggleButtonGroup} from "@material-ui/lab";
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
-import {withStyles} from "@material-ui/core";
+import withStyles from "@mui/styles/withStyles";
 
 export type DisplayType = "table" | "chart" | "code";
 

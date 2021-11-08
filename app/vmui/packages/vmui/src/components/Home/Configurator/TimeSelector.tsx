@@ -1,6 +1,6 @@
 import React, {FC, useEffect, useState} from "react";
-import {Box, Popover, TextField, Typography} from "@material-ui/core";
-import { KeyboardDateTimePicker } from "@material-ui/pickers";
+import {Box, Popover, TextField, Typography} from "@mui/material";
+import DateTimePicker from "@mui/lab/DateTimePicker";
 import {TimeDurationPopover} from "./TimeDurationPopover";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
 import {checkDurationLimit, dateFromSeconds, formatDateForNativeInput} from "../../../utils/time";
@@ -58,6 +58,7 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
     <Box px={1}>
       <Box>
         <TextField label="Duration" value={durationString} onChange={handleDurationChange}
+          variant="standard"
           fullWidth={true} 
           onBlur={() => {
             setFocused(false);
@@ -69,11 +70,13 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
       </Box>
       <Box my={2}>
         <Typography variant="body2">
-          Possible options<span aria-owns={open ? "mouse-over-popover" : undefined}
+          <span aria-owns={open ? "mouse-over-popover" : undefined}
             aria-haspopup="true"
             style={{cursor: "pointer"}}
             onMouseEnter={handlePopoverOpen}
-            onMouseLeave={handlePopoverClose}>:&nbsp;</span>
+            onMouseLeave={handlePopoverClose}>
+            Possible options:&nbsp;
+          </span>
           <Popover
             open={open}
             anchorEl={anchorEl}
@@ -100,14 +103,15 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
     {/*setup end time*/}
     <Box px={1}>
       <Box>
-        <KeyboardDateTimePicker
-          variant="inline"
-          ampm={false}
+        <DateTimePicker
           label="Until"
+          ampm={false}
           value={until}
           onChange={date => dispatch({type: "SET_UNTIL", payload: date as unknown as Date})}
           onError={console.log}
-          format="DD/MM/YYYY HH:mm:ss"
+          inputFormat="DD/MM/YYYY HH:mm:ss"
+          mask="__/__/____ __:__:__"
+          renderInput={(params) => <TextField {...params} variant="standard"/>}
         />
       </Box>
 

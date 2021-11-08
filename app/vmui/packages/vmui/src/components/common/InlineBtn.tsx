@@ -1,6 +1,6 @@
-import {makeStyles} from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import React from "react";
-import {Link} from "@material-ui/core";
+import {Link} from "@mui/material";
 
 const useStyles = makeStyles({
   inlineBtn: {

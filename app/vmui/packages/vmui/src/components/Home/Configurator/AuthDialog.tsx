@@ -1,13 +1,12 @@
 /* eslint max-lines: ["error", {"max": 300}] */
 
 import React, {useState} from "react";
-import DialogTitle from "@material-ui/core/DialogTitle";
-import Dialog from "@material-ui/core/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import Dialog from "@mui/material/Dialog";
 import {
   Box,
   Button,
   Checkbox,
-  createStyles,
   DialogActions,
   DialogContent,
   DialogContentText,
@@ -20,12 +19,13 @@ import {
   Tab,
   Tabs,
   TextField,
-  Typography
-} from "@material-ui/core";
+  Typography,
+} from "@mui/material";
+import createStyles from "@mui/styles/createStyles";
 import TabPanel from "./AuthTabPanel";
-import PersonIcon from "@material-ui/icons/Person";
-import LockIcon from "@material-ui/icons/Lock";
-import {makeStyles} from "@material-ui/core/styles";
+import PersonIcon from "@mui/icons-material/Person";
+import LockIcon from "@mui/icons-material/Lock";
+import makeStyles from "@mui/styles/makeStyles";
 import {useAuthDispatch, useAuthState} from "../../../state/auth/AuthStateContext";
 import {AUTH_METHOD, WithCheckbox} from "../../../state/auth/reducer";
 
