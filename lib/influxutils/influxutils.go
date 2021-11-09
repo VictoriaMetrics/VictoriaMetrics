@@ -16,7 +16,7 @@ func WriteDatabaseNames(w http.ResponseWriter) {
 	// Emulate fake response for influx query.
 	// This is required for TSBS benchmark and some Telegraf plugins.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1124
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	dbNames := *influxDatabaseNames
 	if len(dbNames) == 0 {
 		dbNames = []string{"_internal"}

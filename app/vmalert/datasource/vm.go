@@ -150,7 +150,7 @@ func (s *VMStorage) newRequestPOST() (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Content-Type", "application/json")
 	if s.authCfg != nil {
 		if auth := s.authCfg.GetAuthHeader(); auth != "" {
 			req.Header.Set("Authorization", auth)
