@@ -141,7 +141,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"})",
+              "expr": "sum(vm_rows{job=~\"$job_storage\", type!=\"indexdb\"})",
               "format": "time_series",
               "instant": true,
               "interval": "",
@@ -274,7 +274,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\", type!=\"indexdb\"}) / sum(vm_rows{job=~\"$job_storage\", type!=\"indexdb\"})",
               "format": "time_series",
               "instant": true,
               "interval": "",
@@ -406,7 +406,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(vm_rows{job=\"$job_storage\", type=\"indexdb\"})",
+              "expr": "sum(vm_rows{job=~\"$job_storage\", type=\"indexdb\"})",
               "format": "time_series",
               "instant": true,
               "interval": "",
@@ -472,7 +472,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\", type!=\"indexdb\"})",
               "format": "time_series",
               "instant": true,
               "interval": "",
@@ -1508,7 +1508,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\"}) by(instance) /\n(\n  sum(vm_free_disk_space_bytes{job=\"$job_storage\", instance=~\"$instance\"}) by(instance) +\n  sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\"}) by(instance)\n)",
+          "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) by(instance) /\n(\n  sum(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) by(instance) +\n  sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) by(instance)\n)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -2269,7 +2269,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2278,7 +2278,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2901,7 +2901,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_queries_total{job=\"$job_select\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job_select\", instance=~\"$instance\"}[5m]))",
               "interval": "",
               "legendFormat": "slow queries rate",
               "refId": "A"
@@ -3002,7 +3002,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_row_inserts_total{job=\"$job_storage\"}[5m])) / sum(rate(vm_rows_inserted_total{job=\"$job_insert\"}[5m]))",
+              "expr": "sum(rate(vm_slow_row_inserts_total{job=~\"$job_storage\"}[5m])) / sum(rate(vm_rows_inserted_total{job=~\"$job_insert\"}[5m]))",
               "interval": "",
               "legendFormat": "slow inserts",
               "refId": "A"
@@ -3103,7 +3103,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=\"$job_insert\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m]))",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -4114,7 +4114,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_vminsert_metrics_read_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "expr": "sum(rate(vm_vminsert_metrics_read_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -4215,7 +4215,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "vm_free_disk_space_bytes{job=\"$job_storage\", instance=~\"$instance\"} / ignoring(path) ((rate(vm_rows_added_to_storage_total{job=\"$job_storage\", instance=~\"$instance\"}[1d]) - ignoring(type) rate(vm_deduplicated_samples_total{job=\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])) * scalar(sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})))",
+              "expr": "vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} / ignoring(path) ((rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d]) - ignoring(type) rate(vm_deduplicated_samples_total{job=~\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])) * scalar(sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -4317,7 +4317,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
+              "expr": "sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -4426,7 +4426,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_pending_rows{job=\"$job_storage\", instance=~\"$instance\", type=\"storage\"})",
+              "expr": "sum(vm_pending_rows{job=~\"$job_storage\", instance=~\"$instance\", type=\"storage\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -4434,7 +4434,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(vm_pending_rows{job=\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"})",
+              "expr": "sum(vm_pending_rows{job=~\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -4537,7 +4537,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -4638,7 +4638,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"}) by(instance)",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"}) by(instance)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -4738,7 +4738,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_active_merges{job=\"$job_storage\", instance=~\"$instance\"}) by(type)",
+              "expr": "sum(vm_active_merges{job=~\"$job_storage\", instance=~\"$instance\"}) by(type)",
               "legendFormat": "{{type}}",
               "refId": "A"
             }
@@ -4837,7 +4837,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rows_merged_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(type)",
+              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(type)",
               "legendFormat": "{{type}}",
               "refId": "A"
             }
@@ -4931,7 +4931,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(vm_rows_ignored_total{job=\"$job_storage\", instance=~\"$instance\"}) by (reason)",
+              "expr": "sum(vm_rows_ignored_total{job=~\"$job_storage\", instance=~\"$instance\"}) by (reason)",
               "interval": "",
               "legendFormat": "{{reason}}",
               "refId": "A"
@@ -5031,7 +5031,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_parts{job=\"$job_storage\", instance=~\"$instance\"}) by (type)",
+              "expr": "sum(vm_parts{job=~\"$job_storage\", instance=~\"$instance\"}) by (type)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -5139,14 +5139,14 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "max(vm_concurrent_addrows_capacity{job=\"$job_storage\", instance=~\"$instance\"})",
+              "expr": "max(vm_concurrent_addrows_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
               "interval": "",
               "legendFormat": "max",
               "refId": "A"
             },
             {
               "exemplar": true,
-              "expr": "sum(avg_over_time(vm_concurrent_addrows_current{job=\"$job_storage\", instance=~\"$instance\"}[1m])) by(instance)",
+              "expr": "sum(avg_over_time(vm_concurrent_addrows_current{job=~\"$job_storage\", instance=~\"$instance\"}[1m])) by(instance)",
               "hide": false,
               "interval": "",
               "legendFormat": "{{instance}}",
@@ -5371,7 +5371,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(max_over_time(vm_concurrent_queries{job=\"$job_select\", instance=~\"$instance\"}[1m]))",
+              "expr": "sum(max_over_time(vm_concurrent_queries{job=~\"$job_select\", instance=~\"$instance\"}[1m]))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -5379,7 +5379,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(vm_concurrent_select_capacity{job=\"$job_select\", instance=~\"$instance\"})",
+              "expr": "sum(vm_concurrent_select_capacity{job=~\"$job_select\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "max",
@@ -5720,7 +5720,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_concurrent_insert_current{job=\"$job_insert\", instance=~\"$instance\"})",
+              "expr": "sum(vm_concurrent_insert_current{job=~\"$job_insert\", instance=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -5729,7 +5729,7 @@
             },
             {
               "exemplar": true,
-              "expr": "sum(vm_concurrent_insert_capacity{job=\"$job_insert\", instance=~\"$instance\"})",
+              "expr": "sum(vm_concurrent_insert_capacity{job=~\"$job_insert\", instance=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
