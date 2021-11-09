@@ -197,7 +197,7 @@ or received state doesn't match current `vmalert` rules configuration.
 
 ### Multitenancy
 
-The following are the approaches for alerting and recording rules across
+The are the following approaches exist for alerting and recording rules across
 [multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy):
 
 * To run a separate `vmalert` instance per each tenant.
