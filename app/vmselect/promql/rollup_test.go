@@ -193,6 +193,27 @@ func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpecte
 	}
 }
 
+func TestRollupDurationOverTime(t *testing.T) {
+	f := func(maxInterval, dExpected float64) {
+		t.Helper()
+		maxIntervals := []*timeseries{{
+			Values:     []float64{maxInterval},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, maxIntervals}
+		testRollupFunc(t, "duration_over_time", args, &me, dExpected)
+	}
+	f(-123, 0)
+	f(0, 0)
+	f(0.001, 0)
+	f(0.005, 0.007)
+	f(0.01, 0.036)
+	f(0.02, 0.125)
+	f(1, 0.125)
+	f(100, 0.125)
+}
+
 func TestRollupShareLEOverTime(t *testing.T) {
 	f := func(le, vExpected float64) {
 		t.Helper()
