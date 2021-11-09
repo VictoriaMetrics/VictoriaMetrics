@@ -1481,7 +1481,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(rate(vm_log_messages_total{job=\"$job\", instance=~\"$instance\"}[5m])) by (level) ",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (level) ",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -4382,7 +4382,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": "$ds",
-        "definition": "label_values(vmagent_remotewrite_requests_total{job=\"$job\", instance=~\"$instance\"}, url)",
+        "definition": "label_values(vmagent_remotewrite_requests_total{job=~\"$job\", instance=~\"$instance\"}, url)",
         "description": "The remote write URLs",
         "error": null,
         "hide": 0,
@@ -4392,7 +4392,7 @@
         "name": "url",
         "options": [],
         "query": {
-          "query": "label_values(vmagent_remotewrite_requests_total{job=\"$job\", instance=~\"$instance\"}, url)",
+          "query": "label_values(vmagent_remotewrite_requests_total{job=~\"$job\", instance=~\"$instance\"}, url)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
