@@ -891,11 +891,10 @@ func newRollupDurationOverTime(args []interface{}) (rollupFunc, error) {
 	rf := func(rfa *rollupFuncArg) float64 {
 		// There is no need in handling NaNs here, since they must be cleaned up
 		// before calling rollup funcs.
-		values := rfa.values
-		if len(values) == 0 {
+		timestamps := rfa.timestamps
+		if len(timestamps) == 0 {
 			return nan
 		}
-		timestamps := rfa.timestamps
 		tPrev := timestamps[0]
 		dSum := int64(0)
 		dMax := int64(dMaxs[rfa.idx] * 1000)
@@ -906,7 +905,7 @@ func newRollupDurationOverTime(args []interface{}) (rollupFunc, error) {
 			}
 			tPrev = t
 		}
-		return float64(dSum / 1000)
+		return float64(dSum) / 1000
 	}
 	return rf, nil
 }
