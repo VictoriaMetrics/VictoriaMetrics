@@ -68,7 +68,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
 	case "/api/v1/alerts":
@@ -77,7 +77,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
 	case "/-/reload":
@@ -102,7 +102,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 				httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
 				return true
 			}
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(data)
 			return true
 		}

@@ -62,7 +62,7 @@ func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		totalDeleted += n
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	if totalDeleted > 0 {
 		fmt.Fprintf(w, "true")
 	} else {
@@ -142,7 +142,7 @@ func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	// Return response
 	contentType := "text/plain; charset=utf-8"
 	if isJSONResponse {
-		contentType = "application/json; charset=utf-8"
+		contentType = "application/json"
 	}
 	w.Header().Set("Content-Type", contentType)
 	WriteTagsTagMultiSeriesResponse(w, canonicalPaths, isJSONResponse)
@@ -370,7 +370,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 		paths = paths[:limit]
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteTagsFindSeriesResponse(bw, isPartial, paths)
@@ -427,7 +427,7 @@ func TagValuesHandler(startTime time.Time, at *auth.Token, tagName string, w htt
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteTagValuesResponse(bw, isPartial, tagName, tagValues)
@@ -459,7 +459,7 @@ func TagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteTagsResponse(bw, isPartial, labels)

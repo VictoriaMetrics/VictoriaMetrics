@@ -182,7 +182,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 
 	switch path {
 	case "/create":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshotPath, err := strg.CreateSnapshot()
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
@@ -192,7 +192,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
 		return true
 	case "/list":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := strg.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
@@ -209,7 +209,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		fmt.Fprintf(w, `]}`)
 		return true
 	case "/delete":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 		if err := strg.DeleteSnapshot(snapshotName); err != nil {
 			err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
@@ -219,7 +219,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/delete_all":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := strg.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)

@@ -590,7 +590,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelValuesResponse(bw, isPartial, labelValues)
@@ -685,7 +685,7 @@ func LabelsCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		return fmt.Errorf(`cannot obtain label entries: %w`, err)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelsCountResponse(bw, isPartial, labelEntries)
@@ -756,7 +756,7 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteTSDBStatusResponse(bw, isPartial, status)
@@ -852,7 +852,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelsResponse(bw, isPartial, labels)
@@ -933,7 +933,7 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteSeriesCountResponse(bw, isPartial, n)
@@ -985,7 +985,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		if err != nil {
 			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		bw := bufferedwriter.Get(w)
 		defer bufferedwriter.Put(bw)
 		resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -1010,7 +1010,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -1147,7 +1147,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteQueryResponse(bw, ec.IsPartialResponse, result)
@@ -1243,7 +1243,7 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
 	result = removeEmptyValuesAndTimeseries(result)
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteQueryRangeResponse(bw, ec.IsPartialResponse, result)
@@ -1423,7 +1423,7 @@ func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		return fmt.Errorf("cannot parse `maxLifetime` arg: %w", err)
 	}
 	maxLifetime := time.Duration(maxLifetimeMsecs) * time.Millisecond
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	if at == nil {
