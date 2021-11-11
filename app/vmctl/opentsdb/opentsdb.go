@@ -230,11 +230,9 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	*/
 	if len(output) < 1 {
 		// no results returned...return an empty object without error
-		log.Println(fmt.Sprintf("Empty Metric for %v, %v", series.Metric, tagStr))
 		return Metric{}, nil
-	} else {
-		log.Println(fmt.Sprint("We have data! %v", output))
 	}
+	
 	// cast interface to an actual metric object
 	results := output[0].(OtsdbMetric)
 	if len(results.AggregateTags) > 0 {
