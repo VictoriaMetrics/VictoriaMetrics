@@ -232,7 +232,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		// no results returned...return an empty object without error
 		return Metric{}, nil
 	}
-	
+
 	// cast interface to an actual metric object
 	results := output[0].(OtsdbMetric)
 	if len(results.AggregateTags) > 0 {
