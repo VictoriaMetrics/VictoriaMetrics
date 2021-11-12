@@ -92,7 +92,7 @@ type OtsdbMetric struct {
 	Metric        string
 	Tags          map[string]string
 	AggregateTags []string
-	Dps           [][]float64
+	Dps           map[int64]float64
 }
 
 // Metric holds the time series data in VictoriaMetrics format
@@ -234,7 +234,10 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	}
 
 	// cast interface to an actual metric object
-	results := output[0].(OtsdbMetric)
+	results, ok := output[0].(OtsdbMetric)
+	if ok != true {
+		return Metric{}, fmt.Errorf("Couldn't cast results: %v", output)
+	}
 	if len(results.AggregateTags) > 0 {
 		return Metric{}, fmt.Errorf("Query somehow has aggregate tags: %v", results.AggregateTags)
 	}
@@ -257,9 +260,9 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		can be a float64, we have to initially cast _all_ objects that way
 		then convert the timestamp back to something reasonable.
 	*/
-	for _, tsobj := range results.Dps {
-		data.Timestamps = append(data.Timestamps, int64(tsobj[0]))
-		data.Values = append(data.Values, tsobj[1])
+	for ts, val := range results.Dps {
+		data.Timestamps = append(data.Timestamps, ts)
+		data.Values = append(data.Values, val)
 	}
 	return data, nil
 }
@@ -269,9 +272,12 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
 	offsetPrint := int64(time.Now().Unix())
+	offsetSecs := cfg.Offset * 24 * 60 * 60
 	if cfg.MsecsTime {
 		// 1000000 == Nanoseconds -> Milliseconds difference
 		offsetPrint = int64(time.Now().UnixNano() / 1000000)
+		// also bump offsetSecs to milliseconds
+		offsetSecs = offsetSecs * 1000
 	}
 	if cfg.HardTS > 0 {
 		/*
@@ -279,20 +285,16 @@ func NewClient(cfg Config) (*Client, error) {
 			Just present that if it is defined
 		*/
 		offsetPrint = cfg.HardTS
-	} else if cfg.Offset > 0 {
+	} else if offsetSecs > 0 {
 		/*
-			Our "offset" is the number of days we should step
+			Our "offset" is the number of days (in seconds) we should step
 			back before starting to scan for data
 		*/
-		if cfg.MsecsTime {
-			offsetPrint = offsetPrint - (cfg.Offset * 24 * 60 * 60 * 1000)
-		} else {
-			offsetPrint = offsetPrint - (cfg.Offset * 24 * 60 * 60)
-		}
+		offsetPrint = offsetPrint - offsetSecs
 	}
 	log.Println(fmt.Sprintf("Will collect data starting at TS %v", offsetPrint))
 	for _, r := range cfg.Retentions {
-		ret, err := convertRetention(r, cfg.Offset, cfg.MsecsTime)
+		ret, err := convertRetention(r, offsetSecs, cfg.MsecsTime)
 		if err != nil {
 			return &Client{}, fmt.Errorf("Couldn't parse retention %q :: %v", r, err)
 		}
