@@ -235,7 +235,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 
 	// cast interface to an actual metric object
 	results, ok := output[0].(OtsdbMetric)
-	if ok != true {
+	if !ok {
 		return Metric{}, fmt.Errorf("Couldn't cast results: %v", output)
 	}
 	if len(results.AggregateTags) > 0 {
