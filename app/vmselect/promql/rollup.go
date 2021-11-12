@@ -875,7 +875,12 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 		tvSum += dt * v
 		ttSum += dt * dt
 	}
-	k := (tvSum - tSum*vSum/n) / (ttSum - tSum*tSum/n)
+	k := float64(0)
+	tDiff := ttSum - tSum*tSum/n
+	if math.Abs(tDiff) >= 1e-6 {
+		// Prevent from incorrect division for too small tDiff values.
+		k = (tvSum - tSum*vSum/n) / tDiff
+	}
 	v := vSum/n - k*tSum/n
 	return v, k
 }
