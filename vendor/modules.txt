@@ -21,7 +21,7 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.18.1
 ## explicit
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.30.0
+# github.com/VictoriaMetrics/metricsql v0.30.1
 ## explicit
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
