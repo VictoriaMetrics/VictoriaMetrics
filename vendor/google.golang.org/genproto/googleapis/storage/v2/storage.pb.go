@@ -1288,7 +1288,6 @@ type CommonRequestParams struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Required. Required when using buckets with Requestor Pays feature enabled.
-	// Example: `projects/123456`.
 	UserProject string `protobuf:"bytes,1,opt,name=user_project,json=userProject,proto3" json:"user_project,omitempty"`
 }
 
@@ -1377,19 +1376,12 @@ type Bucket struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Immutable. The name of the bucket.
-	// Global buckets will be of the format `projects/{project}/buckets/{bucket}`.
-	// Other sorts of buckets in the future are not guaranteed to follow this
-	// pattern.
-	// For globally unique bucket names, a `_` may be substituted for the project
-	// ID.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Output only. The user-chosen part of the bucket name. The `{bucket}` portion of the
 	// `name` field. For globally unique buckets, this is equal to the "bucket
 	// name" of other Cloud Storage APIs. Example: "pub".
 	BucketId string `protobuf:"bytes,2,opt,name=bucket_id,json=bucketId,proto3" json:"bucket_id,omitempty"`
 	// Immutable. The project which owns this bucket.
-	// Format: projects/{project_number}
-	// Example: `projects/123456`.
 	Project string `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	// Output only. The metadata generation of this bucket.
 	// Attempting to set or update this field will result in a
@@ -1956,7 +1948,6 @@ type Object struct {
 	// (bucket, object, generation).
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Immutable. The name of the bucket containing this object.
-	// Example: `projects/_/buckets/foo`.
 	Bucket string `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
 	// Immutable. The content generation of this object. Used for object versioning.
 	// Attempting to set or update this field will result in a
