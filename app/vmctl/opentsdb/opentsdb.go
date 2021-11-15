@@ -195,7 +195,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	if err != nil {
 		return Metric{}, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
 	}
-	var output []interface{}
+	var output []OtsdbMetric
 	err = json.Unmarshal(body, &output)
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to unmarshal response from %q [%v]: %s", q, body, err)
@@ -232,18 +232,17 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		// no results returned...return an empty object without error
 		return Metric{}, nil
 	}
-
-	// cast interface to an actual metric object
-	results, ok := output[0].(OtsdbMetric)
-	if !ok {
-		return Metric{}, fmt.Errorf("Couldn't cast results: %v", output)
+	if len(output) > 1 {
+		// multiple series returned for a single query. We can't process this right, so...
+		return Metric{}, fmt.Errorf("Query returned multiple results: %v", output)
 	}
-	if len(results.AggregateTags) > 0 {
-		return Metric{}, fmt.Errorf("Query somehow has aggregate tags: %v", results.AggregateTags)
+	if len(output[0].AggregateTags) > 0 {
+		// This failure means we've suppressed potential series somehow...
+		return Metric{}, fmt.Errorf("Query somehow has aggregate tags: %v", output[0].AggregateTags)
 	}
 	data := Metric{}
-	data.Metric = results.Metric
-	data.Tags = results.Tags
+	data.Metric = output[0].Metric
+	data.Tags = output[0].Tags
 	/*
 		We evaluate data for correctness before formatting the actual values
 		to skip a little bit of time if the series has invalid formatting
@@ -260,7 +259,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		can be a float64, we have to initially cast _all_ objects that way
 		then convert the timestamp back to something reasonable.
 	*/
-	for ts, val := range results.Dps {
+	for ts, val := range output[0].Dps {
 		data.Timestamps = append(data.Timestamps, ts)
 		data.Values = append(data.Values, val)
 	}
