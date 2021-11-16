@@ -1395,6 +1395,7 @@ See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
 ## Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
+See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules-backfilling).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
