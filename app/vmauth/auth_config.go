@@ -32,6 +32,7 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
+	Name        string     `yaml:"name,omitempty"`
 	BearerToken string     `yaml:"bearer_token,omitempty"`
 	Username    string     `yaml:"username,omitempty"`
 	Password    string     `yaml:"password,omitempty"`
@@ -299,14 +300,22 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			return nil, fmt.Errorf("missing `url_prefix`")
 		}
 		if ui.BearerToken != "" {
+			name := "bearer_token"
+			if ui.Name != "" {
+				name = ui.Name
+			}
 			if ui.Password != "" {
 				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
-			ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total{username="bearer_token"}`)
+			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 			byBearerToken[ui.BearerToken] = true
 		}
 		if ui.Username != "" {
-			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, ui.Username))
+			name := ui.Username
+			if ui.Name != "" {
+				name = ui.Name
+			}
+			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 			byUsername[ui.Username] = true
 		}
 		byAuthToken[authToken] = ui

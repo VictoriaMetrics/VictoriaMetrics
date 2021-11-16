@@ -6,6 +6,8 @@ sort: 15
 
 ## tip
 
+* FEATURE: vmauth: allow using optional `name` field in configs. This field is then used as `username` label value for `vmauth_user_requests_total` metric. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1805).
+
 * BUGFIX: vmstorage [enterprise](https://victoriametrics.com/enterprise.html): added missing `vm_tenant_used_tenant_bytes` metric, which shows the approximate per-tenant disk usage. See [these docs](https://docs.victoriametrics.com/PerTenantStatistic.html) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1605).
 * BUGFIX: vmauth: properly take into account the value passed to `-maxIdleConnsPerBackend` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1300).
 * BUGFIX: vmagent: fix [reading data from Kafka](https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka).
