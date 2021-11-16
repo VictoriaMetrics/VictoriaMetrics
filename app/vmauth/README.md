@@ -147,6 +147,14 @@ It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
+`vmauth` exports `vmauth_user_requests_total` metric with `username` label. The `username` label value equals to `username` field value set in the `-auth.config` file. It is possible to override or hide the value in the label by specifying `name` field. For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
+
+```yml
+users:
+- username: "secret_user"
+  name: "foobar"
+  # other config options here
+```
 
 ## How to build from sources
 
