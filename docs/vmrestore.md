@@ -117,6 +117,8 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+  -s3ForcePathStyle
+    	Prefixing endpoint with bucket name when set false, true by default. (default true)
   -skipBackupCompleteCheck
     	Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
