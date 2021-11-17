@@ -74,6 +74,7 @@ var transformFuncs = map[string]transformFunc{
 	"log10":                newTransformFuncOneArg(transformLog10),
 	"minute":               newTransformFuncDateTime(transformMinute),
 	"month":                newTransformFuncDateTime(transformMonth),
+	"now":                  transformNow,
 	"pi":                   transformPi,
 	"prometheus_buckets":   transformPrometheusBuckets,
 	"rad":                  newTransformFuncOneArg(transformRad),
@@ -2043,6 +2044,14 @@ func transformPi(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	return evalNumber(tfa.ec, math.Pi), nil
+}
+
+func transformNow(tfa *transformFuncArg) ([]*timeseries, error) {
+	if err := expectTransformArgsNum(tfa.args, 0); err != nil {
+		return nil, err
+	}
+	now := float64(time.Now().UnixNano()) / 1e9
+	return evalNumber(tfa.ec, now), nil
 }
 
 func bitmapAnd(a, b uint64) uint64 {
