@@ -276,9 +276,12 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if byUsername[ui.Username] {
 			return nil, fmt.Errorf("duplicate username found; username: %q", ui.Username)
 		}
-		authToken := getAuthToken(ui.BearerToken, ui.Username, ui.Password)
-		if byAuthToken[authToken] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", authToken, ui.BearerToken, ui.Username)
+		at1, at2 := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		if byAuthToken[at1] != nil {
+			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at1)
+		}
+		if byAuthToken[at2] != nil {
+			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at2)
 		}
 		if ui.URLPrefix != nil {
 			if err := ui.URLPrefix.sanitize(); err != nil {
@@ -318,9 +321,21 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 			byUsername[ui.Username] = true
 		}
-		byAuthToken[authToken] = ui
+		byAuthToken[at1] = ui
+		byAuthToken[at2] = ui
 	}
 	return byAuthToken, nil
+}
+
+func getAuthTokens(bearerToken, username, password string) (string, string) {
+	if bearerToken != "" {
+		// Accept the bearerToken as Basic Auth username with empty password
+		at1 := getAuthToken(bearerToken, "", "")
+		at2 := getAuthToken("", bearerToken, "")
+		return at1, at2
+	}
+	at := getAuthToken("", username, password)
+	return at, at
 }
 
 func getAuthToken(bearerToken, username, password string) string {
