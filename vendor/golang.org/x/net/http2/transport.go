@@ -1313,6 +1313,7 @@ func (cs *clientStream) writeRequest(req *http.Request) (err error) {
 		case <-respHeaderTimer:
 			return errTimeout
 		case <-respHeaderRecv:
+			respHeaderRecv = nil
 			respHeaderTimer = nil // keep waiting for END_STREAM
 		case <-cs.abort:
 			return cs.abortErr
