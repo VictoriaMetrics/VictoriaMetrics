@@ -6409,9 +6409,9 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`deriv(1)`, func(t *testing.T) {
+	t.Run(`deriv(N)`, func(t *testing.T) {
 		t.Parallel()
-		q := `deriv(1)`
+		q := `deriv(1000)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
