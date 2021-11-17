@@ -61,6 +61,7 @@ var transformFuncs = map[string]bool{
 	"log10":                true,
 	"minute":               true,
 	"month":                true,
+	"now":                  true,
 	"pi":                   true,
 	"prometheus_buckets":   true,
 	"rad":                  true,

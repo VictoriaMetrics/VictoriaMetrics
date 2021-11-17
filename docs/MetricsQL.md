@@ -507,6 +507,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `month(q)` returns the month for every point of every time series returned by `q`. It is expected that `q` returns unix timestamps. The returned values are in the range `[1...12]`, where `1` means January and `12` means December. Metric names are stripped from the resulting series. This function is supported by PromQL.
 
+#### now
+
+`now()` returns the current timestamp as a floating-point value in seconds. See also [time](#time).
+
 #### pi
 
 `pi()` returns [Pi number](https://en.wikipedia.org/wiki/Pi). This function is supported by PromQL.
