@@ -43,6 +43,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) may contain either a singl
 users:
   # Requests with the 'Authorization: Bearer XXXX' header are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
