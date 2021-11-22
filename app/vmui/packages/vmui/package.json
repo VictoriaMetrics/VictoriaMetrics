@@ -9,7 +9,7 @@
     "@codemirror/commands": "^0.19.5",
     "@codemirror/highlight": "^0.19.6",
     "@codemirror/state": "^0.19.4",
-    "@codemirror/view": "^0.19.14",
+    "@codemirror/view": "^0.19.20",
     "@date-io/dayjs": "^2.11.0",
     "@emotion/react": "^11.5.0",
     "@emotion/styled": "^11.3.0",
