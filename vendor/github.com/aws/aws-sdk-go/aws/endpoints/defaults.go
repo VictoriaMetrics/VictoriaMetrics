@@ -1702,6 +1702,73 @@ var awsPartition = partition{
 				}: endpoint{},
 			},
 		},
+		"appconfigdata": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "af-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-northeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-northeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-northeast-3",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "ca-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-north-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-3",
+				}: endpoint{},
+				endpointKey{
+					Region: "me-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "sa-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{},
+			},
+		},
 		"appflow": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -5716,6 +5783,37 @@ var awsPartition = partition{
 						Region: "us-west-2",
 					},
 				},
+			},
+		},
+		"drs": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "ap-northeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{},
 			},
 		},
 		"ds": service{
@@ -11067,6 +11165,15 @@ var awsPartition = partition{
 					Deprecated: boxedTrue,
 				},
 				endpointKey{
+					Region: "ap-southeast-3-fips",
+				}: endpoint{
+					Hostname: "kms-fips.ap-southeast-3.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ap-southeast-3",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
 					Region: "ca-central-1",
 				}: endpoint{},
 				endpointKey{
@@ -12623,6 +12730,9 @@ var awsPartition = partition{
 		"mgn": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
+					Region: "af-south-1",
+				}: endpoint{},
+				endpointKey{
 					Region: "ap-east-1",
 				}: endpoint{},
 				endpointKey{
@@ -12653,10 +12763,19 @@ var awsPartition = partition{
 					Region: "eu-north-1",
 				}: endpoint{},
 				endpointKey{
+					Region: "eu-south-1",
+				}: endpoint{},
+				endpointKey{
 					Region: "eu-west-1",
 				}: endpoint{},
 				endpointKey{
 					Region: "eu-west-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-3",
+				}: endpoint{},
+				endpointKey{
+					Region: "me-south-1",
 				}: endpoint{},
 				endpointKey{
 					Region: "sa-east-1",
@@ -20937,6 +21056,16 @@ var awscnPartition = partition{
 				}: endpoint{},
 			},
 		},
+		"appconfigdata": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "cn-north-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "cn-northwest-1",
+				}: endpoint{},
+			},
+		},
 		"application-autoscaling": service{
 			Defaults: endpointDefaults{
 				defaultKey{}: endpoint{
@@ -22674,6 +22803,16 @@ var awsusgovPartition = partition{
 			},
 		},
 		"apigateway": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "us-gov-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-gov-west-1",
+				}: endpoint{},
+			},
+		},
+		"appconfigdata": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
 					Region: "us-gov-east-1",
