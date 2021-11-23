@@ -765,33 +765,10 @@ when new data is ingested into it.
 
 VictoriaMetrics provides the following handlers for exporting data:
 
-* `/api/v1/export/native` for exporting data in native binary format. This is the most efficient format for data export.
-  See [these docs](#how-to-export-data-in-native-format) for details.
 * `/api/v1/export` for exporing data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
 * `/api/v1/export/csv` for exporting data in CSV. See [these docs](#how-to-export-csv-data) for details.
-
-
-### How to export data in native format
-
-Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=<timeseries_selector_for_export>`,
-where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
-for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time series.
-
-On large databases you may experience problems with limit on unique timeseries (default value is 300000). In this case you need to adjust `-search.maxUniqueTimeseries` parameter:
-
-```bash
-# count unique timeseries in database
-wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
-
-# relaunch victoriametrics with search.maxUniqueTimeseries more than value from previous command
-```
-
-Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
-unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
-
-The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
-The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
-can fail to be imported into VictoriaMetrics release Y.
+* `/api/v1/export/native` for exporting data in native binary format. This is the most efficient format for data export.
+  See [these docs](#how-to-export-data-in-native-format) for details.
 
 
 ### How to export data in JSON line format
@@ -850,6 +827,29 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
 
+### How to export data in native format
+
+Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=<timeseries_selector_for_export>`,
+where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
+for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time series.
+
+On large databases you may experience problems with limit on unique timeseries (default value is 300000). In this case you need to adjust `-search.maxUniqueTimeseries` parameter:
+
+```bash
+# count unique timeseries in database
+wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
+
+# relaunch victoriametrics with search.maxUniqueTimeseries more than value from previous command
+```
+
+Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
+unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+
+The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
+The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
+can fail to be imported into VictoriaMetrics release Y.
+
+
 ## How to import time series data
 
 Time series data can be imported via any supported ingestion protocol:
@@ -866,36 +866,6 @@ Time series data can be imported via any supported ingestion protocol:
   See [these docs](#how-to-import-data-in-native-format) for details.
 * `/api/v1/import/csv` for importing arbitrary CSV data. See [these docs](#how-to-import-csv-data) for details.
 * `/api/v1/import/prometheus` for importing data in Prometheus exposition format. See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
-
-
-### How to import data in native format
-
-The specification of VictoriaMetrics' native format may yet change and is not formally documented yet. So currently we do not recommend that external clients attempt to pack their own metrics in native format file.
-
-If you have a native format file obtained via [/api/v1/export/native](#how-to-export-data-in-native-format) however this is the most efficient protocol for importing data in.
-
-```bash
-# Export the data from <source-victoriametrics>:
-curl http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin
-
-# Import the data to <destination-victoriametrics>:
-curl -X POST http://destination-victoriametrics:8428/api/v1/import/native -T exported_data.bin
-```
-
-Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/native` for importing gzipped data:
-
-```bash
-# Export gzipped data from <source-victoriametrics>:
-curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin.gz
-
-# Import gzipped data to <destination-victoriametrics>:
-curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/native -T exported_data.bin.gz
-```
-
-Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
-For example, `/api/v1/import/native?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported time series.
-
-Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 
 ### How to import data in JSON line format
@@ -926,6 +896,26 @@ For example, `/api/v1/import?extra_label=foo=bar` would add `"foo":"bar"` label 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage. This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines. The solution is to split too long JSON lines into smaller lines. It is OK if samples for a single time series are split among multiple JSON lines.
+
+
+### How to import data in native format
+
+The specification of VictoriaMetrics' native format may yet change and is not formally documented yet. So currently we do not recommend that external clients attempt to pack their own metrics in native format file.
+
+If you have a native format file obtained via [/api/v1/export/native](#how-to-export-data-in-native-format) however this is the most efficient protocol for importing data in.
+
+```bash
+# Export the data from <source-victoriametrics>:
+curl http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin
+
+# Import the data to <destination-victoriametrics>:
+curl -X POST http://destination-victoriametrics:8428/api/v1/import/native -T exported_data.bin
+```
+
+Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
+For example, `/api/v1/import/native?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported time series.
+
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 
 ### How to import CSV data
@@ -1001,6 +991,13 @@ It should return something like the following:
 
 ```
 {"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
+```
+
+Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
+
+```bash
+# Import gzipped data to <destination-victoriametrics>:
+curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/prometheus -T prometheus_data.gz
 ```
 
 Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
@@ -1248,8 +1245,9 @@ or Prometheus by adding the corresponding scrape config to it.
 Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
 For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
 
-There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176).
-There is also an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831).
+There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176). There is also an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831).
+
+Graphs on these dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
@@ -1393,6 +1391,7 @@ See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
 ## Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
+See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules-backfilling).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing

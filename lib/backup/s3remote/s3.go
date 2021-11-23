@@ -37,6 +37,9 @@ type FS struct {
 	// Set for using S3-compatible enpoint such as MinIO etc.
 	CustomEndpoint string
 
+	// Force to use path style for s3, true by default.
+	S3ForcePathStyle bool
+
 	// The name of S3 config profile to use.
 	ProfileName string
 
@@ -83,7 +86,7 @@ func (fs *FS) Init() error {
 		sess.Config.WithEndpoint(fs.CustomEndpoint)
 
 		// Disable prefixing endpoint with bucket name
-		sess.Config.WithS3ForcePathStyle(true)
+		sess.Config.WithS3ForcePathStyle(fs.S3ForcePathStyle)
 	} else {
 		// Determine bucket region.
 		ctx := context.Background()

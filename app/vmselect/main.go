@@ -200,7 +200,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if strings.HasPrefix(path, "/functions") {
 		graphiteFunctionsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{}`)
 		return true
 	}
@@ -404,25 +404,25 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/rules", "/rules":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
 		return true
 	case "/api/v1/alerts", "/alerts":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
 		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 		metadataRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
 	case "/api/v1/query_exemplars":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
 		queryExemplarsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":null}`)
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
@@ -459,7 +459,7 @@ func isGraphiteTagsPath(path string) bool {
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	logger.Warnf("error in %q: %s", httpserver.GetRequestURI(r), err)
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
 	var esc *httpserver.ErrorWithStatusCode
 	if errors.As(err, &esc) {

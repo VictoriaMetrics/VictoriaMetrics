@@ -41,11 +41,12 @@ The build binary will be placed to `VictoriaMetrics/bin` folder.
 
 To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
-* datasource address - reachable VictoriaMetrics instance for rules execution;
+* datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
 aggregating alerts and sending notifications.
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
-compatible storage address for storing recording rules results and alerts state in for of timeseries.
+  compatible storage to persist rules and alerts state info;
+* remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
 
 Then configure `vmalert` accordingly:
 ```
@@ -53,11 +54,17 @@ Then configure `vmalert` accordingly:
     -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
-    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules
+    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info
     -remoteRead.url=http://localhost:8428 \  # MetricsQL compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
     -external.label=replica=a                # Multiple external labels may be set
 ```
+
+Note there's a separate `remoteRead.url` to allow writing results of
+alerting/recording rules into a different storage than the initial data that's
+queried.  This allows using `vmalert` to aggregate data from a short-term,
+high-frequency, high-cardinality storage into a long-term storage with
+decreased cardinality and a bigger interval between samples.
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
@@ -197,7 +204,7 @@ or received state doesn't match current `vmalert` rules configuration.
 
 ### Multitenancy
 
-The following are the approaches for alerting and recording rules across
+The are the following approaches exist for alerting and recording rules across
 [multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy):
 
 * To run a separate `vmalert` instance per each tenant.
@@ -354,7 +361,7 @@ See full description for these flags in `./vmalert --help`.
 We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
 metrics may be analyzed later.
 
-Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 

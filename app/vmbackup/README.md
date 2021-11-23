@@ -215,6 +215,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -origin string
     	Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
+  -s3ForcePathStyle
+    	Prefixing endpoint with bucket name when set false, true by default. (default true)
   -snapshot.createURL string
     	VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
   -snapshot.deleteURL string

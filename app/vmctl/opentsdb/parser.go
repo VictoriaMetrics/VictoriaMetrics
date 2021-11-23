@@ -107,6 +107,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	}
 	// bump by the offset so we don't look at empty ranges any time offset > ttl
 	ttl += offset
+
 	var timeChunks []TimeRange
 	var i int64
 	for i = offset; i <= ttl; i = i + rowLength {

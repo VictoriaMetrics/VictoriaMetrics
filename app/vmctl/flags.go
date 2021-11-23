@@ -155,7 +155,7 @@ var (
 		&cli.IntFlag{
 			Name:  otsdbQueryLimit,
 			Usage: "Result limit on meta queries to OpenTSDB (affects both metric name and tag value queries, recommended to use a value exceeding your largest series)",
-			Value: 100e3,
+			Value: 100e6,
 		},
 		&cli.BoolFlag{
 			Name:  otsdbMsecsTime,

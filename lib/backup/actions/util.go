@@ -21,6 +21,7 @@ var (
 	configProfile = flag.String("configProfile", "", "Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), "+
 		"or if both not set, DefaultSharedConfigProfile is used")
 	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set")
+	s3ForcePathStyle = flag.Bool("s3ForcePathStyle", true, "Prefixing endpoint with bucket name when set false, true by default.")
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -219,12 +220,13 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		bucket := dir[:n]
 		dir = dir[n:]
 		fs := &s3remote.FS{
-			CredsFilePath:  *credsFilePath,
-			ConfigFilePath: *configFilePath,
-			CustomEndpoint: *customS3Endpoint,
-			ProfileName:    *configProfile,
-			Bucket:         bucket,
-			Dir:            dir,
+			CredsFilePath:    *credsFilePath,
+			ConfigFilePath:   *configFilePath,
+			CustomEndpoint:   *customS3Endpoint,
+			S3ForcePathStyle: *s3ForcePathStyle,
+			ProfileName:      *configProfile,
+			Bucket:           bucket,
+			Dir:              dir,
 		}
 		if err := fs.Init(); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)

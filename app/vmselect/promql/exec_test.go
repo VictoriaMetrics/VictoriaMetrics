@@ -1017,6 +1017,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("now()", func(t *testing.T) {
+		t.Parallel()
+		q := `round(now()/now())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("pi()", func(t *testing.T) {
 		t.Parallel()
 		q := `pi()`
@@ -6398,9 +6409,9 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`deriv(1)`, func(t *testing.T) {
+	t.Run(`deriv(N)`, func(t *testing.T) {
 		t.Parallel()
-		q := `deriv(1)`
+		q := `deriv(1000)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
@@ -7412,6 +7423,7 @@ func TestExecError(t *testing.T) {
 	f(`rand_normal(123, 456)`)
 	f(`rand_exponential(122, 456)`)
 	f(`pi(123)`)
+	f(`now(123)`)
 	f(`label_copy()`)
 	f(`label_move()`)
 	f(`median_over_time()`)
