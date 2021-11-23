@@ -12,12 +12,8 @@ export type DisplayType = "table" | "chart" | "code";
 
 const StylizedToggleButton = withStyles({
   root: {
-    display: "grid",
-    gridTemplateColumns: "18px auto",
-    gridGap: 6,
-    padding: "8px 12px",
+    padding: 6,
     color: "white",
-    lineHeight: "19px",
     "&.Mui-selected": {
       color: "white"
     }
@@ -38,13 +34,13 @@ export const DisplayTypeSwitch: FC = () => {
         dispatch({type: "SET_DISPLAY_TYPE", payload: val ?? displayType})
     }>
     <StylizedToggleButton value="chart" aria-label="display as chart">
-      <ShowChartIcon/><span>Query Range as Chart</span>
+      <ShowChartIcon/>&nbsp;Query Range as Chart
     </StylizedToggleButton>
     <StylizedToggleButton value="code" aria-label="display as code">
-      <CodeIcon/><span>Instant Query as JSON</span>
+      <CodeIcon/>&nbsp;Instant Query as JSON
     </StylizedToggleButton>
     <StylizedToggleButton value="table" aria-label="display as table">
-      <TableChartIcon/><span>Instant Query as Table</span>
+      <TableChartIcon/>&nbsp;Instant Query as Table
     </StylizedToggleButton>
   </ToggleButtonGroup>;
 };

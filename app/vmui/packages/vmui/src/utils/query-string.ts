@@ -6,7 +6,7 @@ const stateToUrlParams = {
   "time.duration": "g0.range_input",
   "time.period.date": "g0.end_input",
   "time.period.step": "g0.step_input",
-  "displayType": "tab"
+  "stacked": "g0.stacked",
 };
 
 // TODO need function for detect types.

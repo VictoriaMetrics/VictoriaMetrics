@@ -50,7 +50,7 @@ const query = getQueryStringValue("g0.expr", getFromStorage("LAST_QUERY") as str
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
-  displayType: getQueryStringValue("tab", "chart") as DisplayType,
+  displayType: "chart",
   query: query, // demo_memory_usage_bytes
   queryHistory: { index: 0, values: [query] },
   time: {
