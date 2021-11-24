@@ -4,7 +4,7 @@ import {defaultKeymap} from "@codemirror/commands";
 import React, {FC, useEffect, useRef, useState} from "react";
 import { PromQLExtension } from "codemirror-promql";
 import { basicSetup } from "@codemirror/basic-setup";
-import {QueryHistory} from "../../../state/common/reducer";
+import {QueryHistory} from "../../../../state/common/reducer";
 
 export interface QueryEditorProps {
   setHistoryIndex: (step: number) => void;

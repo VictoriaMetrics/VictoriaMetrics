@@ -2,15 +2,15 @@ import React, {FC, useRef, useState} from "react";
 import { Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, TextField, Typography, FormControlLabel,
   Tooltip, Switch } from "@mui/material";
 import QueryEditor from "./QueryEditor";
-import {TimeSelector} from "./Time/TimeSelector";
-import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
+import {TimeSelector} from "../Time/TimeSelector";
+import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SecurityIcon from "@mui/icons-material/Security";
-import {AuthDialog} from "./AuthDialog";
+import {AuthDialog} from "../AuthDialog";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import Portal from "@mui/material/Portal";
-import {saveToStorage} from "../../../utils/storage";
-import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
+import {saveToStorage} from "../../../../utils/storage";
+import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 import debounce from "lodash.debounce";
 
 const QueryConfigurator: FC = () => {

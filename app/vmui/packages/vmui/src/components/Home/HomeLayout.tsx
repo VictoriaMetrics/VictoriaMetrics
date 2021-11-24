@@ -5,8 +5,8 @@ import {DisplayTypeSwitch} from "./Configurator/DisplayTypeSwitch";
 import GraphView from "./Views/GraphView";
 import TableView from "./Views/TableView";
 import {useAppState} from "../../state/common/StateContext";
-import QueryConfigurator from "./Configurator/QueryConfigurator";
-import {useFetchQuery} from "./Configurator/useFetchQuery";
+import QueryConfigurator from "./Configurator/Query/QueryConfigurator";
+import {useFetchQuery} from "./Configurator/Query/useFetchQuery";
 import JsonView from "./Views/JsonView";
 import {UrlCopy} from "./UrlCopy";
 
