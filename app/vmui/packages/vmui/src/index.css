@@ -40,7 +40,7 @@ code {
 
 .multi-line-scroll .cm-content,
 .multi-line-scroll .cm-gutters {
-  min-height: 64px !important;
+  min-height: 48px !important;
 }
 
 .one-line-scroll .cm-content,

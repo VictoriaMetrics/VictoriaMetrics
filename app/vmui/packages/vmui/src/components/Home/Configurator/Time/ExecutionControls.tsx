@@ -78,7 +78,9 @@ export const ExecutionControls: FC = () => {
         onClick={() => {iterateDelays();}} />
       <Tooltip title="Change delay refresh">
         <Box ml={1}>
-          <IconButton onClick={() => {iterateDelays();}} size="large"><EqualizerIcon style={{color: "white"}} /></IconButton>
+          <IconButton onClick={() => {iterateDelays();}} size="large">
+            <EqualizerIcon style={{color: "white"}} />
+          </IconButton>
         </Box>
       </Tooltip>
     </>}
