@@ -6,7 +6,7 @@ import {TimeSelector} from "../Time/TimeSelector";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SecurityIcon from "@mui/icons-material/Security";
-import {AuthDialog} from "../AuthDialog";
+import {AuthDialog} from "../Auth/AuthDialog";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import Portal from "@mui/material/Portal";
 import {saveToStorage} from "../../../../utils/storage";
