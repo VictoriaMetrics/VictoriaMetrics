@@ -2,7 +2,7 @@ import React, {FC, useRef, useState} from "react";
 import { Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, TextField, Typography, FormControlLabel,
   Tooltip, Switch } from "@mui/material";
 import QueryEditor from "./QueryEditor";
-import {TimeSelector} from "./TimeSelector";
+import {TimeSelector} from "./Time/TimeSelector";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SecurityIcon from "@mui/icons-material/Security";

@@ -1,6 +1,6 @@
 import React, {FC} from "react";
 import {Alert, AppBar, Box, CircularProgress, Fade, Link, Toolbar, Typography} from "@mui/material";
-import {ExecutionControls} from "./Configurator/ExecutionControls";
+import {ExecutionControls} from "./Configurator/Time/ExecutionControls";
 import {DisplayTypeSwitch} from "./Configurator/DisplayTypeSwitch";
 import GraphView from "./Views/GraphView";
 import TableView from "./Views/TableView";

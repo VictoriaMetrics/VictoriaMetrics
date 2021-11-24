@@ -2,9 +2,9 @@ import React, {FC, useEffect, useState} from "react";
 import {Box, Popover, TextField, Typography} from "@mui/material";
 import DateTimePicker from "@mui/lab/DateTimePicker";
 import {TimeDurationPopover} from "./TimeDurationPopover";
-import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
-import {checkDurationLimit, dateFromSeconds, formatDateForNativeInput} from "../../../utils/time";
-import {InlineBtn} from "../../common/InlineBtn";
+import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
+import {checkDurationLimit, dateFromSeconds, formatDateForNativeInput} from "../../../../utils/time";
+import {InlineBtn} from "../../../common/InlineBtn";
 
 interface TimeSelectorProps {
   setDuration: (str: string) => void;

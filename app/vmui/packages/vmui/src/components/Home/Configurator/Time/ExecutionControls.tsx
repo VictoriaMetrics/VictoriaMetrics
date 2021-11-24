@@ -1,8 +1,8 @@
 import React, {FC, useEffect, useState} from "react";
 import {Box, FormControlLabel, IconButton, Switch, Tooltip} from "@mui/material";
 import EqualizerIcon from "@mui/icons-material/Equalizer";
-import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
-import CircularProgressWithLabel from "../../common/CircularProgressWithLabel";
+import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
+import CircularProgressWithLabel from "../../../common/CircularProgressWithLabel";
 import makeStyles from "@mui/styles/makeStyles";
 
 const useStyles = makeStyles({
