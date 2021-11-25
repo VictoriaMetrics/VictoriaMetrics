@@ -1,15 +1,15 @@
 import {TimeParams, TimePeriod} from "../types";
-
 import dayjs, {UnitTypeShort} from "dayjs";
 import duration from "dayjs/plugin/duration";
 import utc from "dayjs/plugin/utc";
+import numeral from "numeral";
 
 dayjs.extend(duration);
 dayjs.extend(utc);
 
-const MAX_ITEMS_PER_CHART = window.screen.availWidth / 2;
+const MAX_ITEMS_PER_CHART = window.innerWidth / 2;
 
-export const limitsDurations = {min: 1000, max: 1.578e+11}; // min: 1 seconds, max: 5 years
+export const limitsDurations = {min: 1, max: 1.578e+11}; // min: 1 ms, max: 5 years
 
 export const dateIsoFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
@@ -25,6 +25,8 @@ export const supportedDurations = [
 ];
 
 const shortDurations = supportedDurations.map(d => d.short);
+
+export const roundTimeSeconds = (num: number): number => +(numeral(num).format("0.000"));
 
 export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, string>> | undefined => {
 
@@ -57,7 +59,7 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
   }, {});
 
   const delta = dayjs.duration(durObject).asSeconds();
-  const step = Math.ceil(delta / MAX_ITEMS_PER_CHART);
+  const step = roundTimeSeconds(delta / MAX_ITEMS_PER_CHART) || 0.001;
 
   return {
     start: n - delta,
