@@ -2,7 +2,6 @@ import {useEffect, useMemo, useState} from "react";
 import {getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
 import {useAppState} from "../../../../state/common/StateContext";
 import {InstantMetricResult, MetricResult} from "../../../../api/types";
-import {saveToStorage} from "../../../../utils/storage";
 import {isValidHttpUrl} from "../../../../utils/url";
 import {useAuthState} from "../../../../state/auth/AuthStateContext";
 import {TimeParams} from "../../../../types";
@@ -56,7 +55,6 @@ export const useFetchQuery = (): {
     try {
       const response = await fetch(fetchUrl, { headers });
       if (response.ok) {
-        saveToStorage("LAST_QUERY", query);
         const resp = await response.json();
         setError(undefined);
         displayType === "chart" ? setGraphData(resp.data.result) : setLiveData(resp.data.result);
