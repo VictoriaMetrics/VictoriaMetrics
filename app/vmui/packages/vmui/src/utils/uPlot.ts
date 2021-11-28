@@ -1,4 +1,4 @@
-import uPlot, {Series as uPlotSeries, Series} from "uplot";
+import uPlot, {Series, Axis} from "uplot";
 import {getColorFromString} from "./color";
 import dayjs from "dayjs";
 import {MetricResult} from "../api/types";
@@ -16,14 +16,12 @@ interface SetupTooltip {
     tooltipOffset: {left: number, top: number},
     tooltipIdx: {seriesIdx: number, dataIdx: number}
 }
-
 interface HideSeriesArgs {
   hideSeries: string[],
   label: string,
   metaKey: boolean,
   series: Series[]
 }
-
 interface DragArgs {
   e: MouseEvent,
   u: uPlot,
@@ -33,24 +31,24 @@ interface DragArgs {
 }
 
 const stub = (): null => null;
-
 export const defaultOptions = {
   height: 500,
   legend: { show: false },
-  axes: [
-    { space: 80 },
-    {
-      show: true,
-      font: "10px Arial",
-      values: (self: uPlot, ticks: number[]): (string | number)[] => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n)
-    }
-  ],
   cursor: {
     drag: { x: false, y: false },
     focus: { prox: 30 },
     bind: { mouseup: stub, mousedown: stub, click: stub, dblclick: stub, mouseenter: stub }
   },
 };
+
+export const formatTicks = (u: uPlot, ticks: number[]): (string | number)[] => {
+  return ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n);
+};
+export const getAxes = (series: Series[]): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
+  const axis = { scale: a, show: true, font: "10px Arial", values: formatTicks };
+  if (!(Number(a)%2)) return {...axis, side: 1};
+  return a ? axis : { space: 80 };
+});
 
 export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset }: SetupTooltip) : void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
@@ -108,17 +106,16 @@ export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series  =>
   const label = getNameForMetric(d);
   return {
     label,
+    dash: d.group <= 1 ? [] : [10, d.group * 2],
     width: 1.5,
     stroke: getColorFromString(label),
     show: !hideSeries.includes(label),
-    scale: "y"
+    scale: String(d.group)
   };
 };
 
-export const getLegendItem = (s: uPlotSeries): LegendItem => ({
-  label: s.label || "",
-  color: s.stroke as string,
-  checked: s.show || false
+export const getLegendItem = (s: Series, group: number): LegendItem => ({
+  group, label: s.label || "", color: s.stroke as string, checked: s.show || false
 });
 
 export const dragChart = ({e, factor = 0.85, u, setPanning, setPlotScale}: DragArgs): void => {
@@ -135,7 +132,6 @@ export const dragChart = ({e, factor = 0.85, u, setPanning, setPlotScale}: DragA
     const dx = xUnitsPerPx * ((e.clientX - leftStart) * factor);
     setPlotScale({u, min: scXMin - dx, max: scXMax - dx});
   };
-
   const mouseUp = () => {
     setPanning(false);
     document.removeEventListener("mousemove", mouseMove);

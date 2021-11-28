@@ -43,7 +43,7 @@ const AdditionalSettings: FC = () => {
         control={<Switch size="small" checked={!nocache} onChange={onChangeCache}/>}
       />
     </Box>
-    <Box ml={2} display="flex" alignItems="center" minHeight={52}>
+    <Box ml={2} display="flex" alignItems="center" minHeight={34}>
       <FormControlLabel
         control={<Switch size="small" checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
         label="Fix the limits for y-axis"

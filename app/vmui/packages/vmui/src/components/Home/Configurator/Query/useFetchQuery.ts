@@ -1,13 +1,13 @@
 import {useEffect, useMemo, useState} from "react";
 import {getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
 import {useAppState} from "../../../../state/common/StateContext";
-import {InstantMetricResult, MetricResult} from "../../../../api/types";
+import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
 import {isValidHttpUrl} from "../../../../utils/url";
 import {useAuthState} from "../../../../state/auth/AuthStateContext";
 import {TimeParams} from "../../../../types";
 
 export const useFetchQuery = (): {
-  fetchUrl?: string,
+  fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
@@ -40,7 +40,7 @@ export const useFetchQuery = (): {
   }, [period]);
 
   const fetchData = async () => {
-    if (!fetchUrl) return;
+    if (!fetchUrl?.length) return;
     setIsLoading(true);
     setPrevPeriod(period);
 
@@ -53,14 +53,23 @@ export const useFetchQuery = (): {
     }
 
     try {
-      const response = await fetch(fetchUrl, { headers });
-      if (response.ok) {
-        const resp = await response.json();
-        setError(undefined);
-        displayType === "chart" ? setGraphData(resp.data.result) : setLiveData(resp.data.result);
-      } else {
-        setError((await response.json())?.error);
+      const responses = await Promise.all(fetchUrl.map(url => fetch(url, {headers})));
+      const tempData = [];
+      let counter = 1;
+      for await (const response of responses) {
+        if (response.ok) {
+          const resp = await response.json();
+          setError(undefined);
+          tempData.push(...resp.data.result.map((d: MetricBase) => {
+            d.group = counter;
+            return d;
+          }));
+          counter++;
+        } else {
+          setError((await response.json())?.error);
+        }
       }
+      displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
     } catch (e) {
       if (e instanceof Error) setError(e.message);
     }
@@ -72,14 +81,14 @@ export const useFetchQuery = (): {
     if (!period) return;
     if (!serverUrl) {
       setError("Please enter Server URL");
-    } else if (!query.trim()) {
+    } else if (query.every(q => !q.trim())) {
       setError("Please enter a valid Query and execute it");
     } else if (isValidHttpUrl(serverUrl)) {
       const duration = (period.end - period.start) / 2;
       const bufferPeriod = {...period, start: period.start - duration, end: period.end + duration};
-      return displayType === "chart"
-        ? getQueryRangeUrl(serverUrl, query, bufferPeriod, nocache)
-        : getQueryUrl(serverUrl, query, period);
+      return query.filter(q => q.trim()).map(q => displayType === "chart"
+        ? getQueryRangeUrl(serverUrl, q, bufferPeriod, nocache)
+        : getQueryUrl(serverUrl, q, period));
     } else {
       setError("Please provide a valid URL");
     }

@@ -1,9 +1,12 @@
 import React, {FC, useRef, useState} from "react";
-import { Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, Typography, Tooltip } from "@mui/material";
+import { Accordion,  AccordionDetails,  AccordionSummary,  Box,  Grid,  IconButton, Typography, Tooltip,
+  Button } from "@mui/material";
 import QueryEditor from "./QueryEditor";
 import {TimeSelector} from "../Time/TimeSelector";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HighlightOffIcon from "@mui/icons-material/HighlightOff";
+import AddIcon from "@mui/icons-material/Add";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import Portal from "@mui/material/Portal";
 import ServerConfigurator from "./ServerConfigurator";
@@ -21,21 +24,29 @@ const QueryConfigurator: FC = () => {
   const onRunQuery = () => {
     const { values } = queryHistory;
     dispatch({type: "RUN_QUERY"});
-    if (query === values[values.length - 1]) return;
     dispatch({type: "SET_QUERY_HISTORY_INDEX", payload: values.length});
-    dispatch({type: "SET_QUERY_HISTORY_VALUES", payload: [...values, query]});
+    dispatch({type: "SET_QUERY_HISTORY_VALUES", payload: [...values, ...query]});
   };
 
-  const onSetQuery = (newQuery: string) => {
-    if (query === newQuery) return;
+  const onAddQuery = () => {
+    dispatch({type: "SET_QUERY", payload: [...query, ""]});
+  };
+
+  const onRemoveQuery = () => {
+    dispatch({type: "SET_QUERY", payload: [query[0]]});
+  };
+
+  const onSetQuery = (queryString: string, index: number) => {
+    const newQuery = [...query];
+    newQuery[index] = queryString;
     dispatch({type: "SET_QUERY", payload: newQuery});
   };
 
-  const setHistoryIndex = (step: number) => {
-    const index = queryHistory.index + step;
-    if (index < -1 || index > queryHistory.values.length) return;
-    dispatch({type: "SET_QUERY_HISTORY_INDEX", payload: index});
-    onSetQuery(queryHistory.values[index] || "");
+  const setHistoryIndex = (step: number, indexQuery: number) => {
+    const indexHistory = queryHistory.index + step;
+    if (indexHistory < -1 || indexHistory > queryHistory.values.length) return;
+    dispatch({type: "SET_QUERY_HISTORY_INDEX", payload: indexHistory});
+    onSetQuery(queryHistory.values[indexHistory] || "", indexQuery);
   };
 
   return <>
@@ -50,10 +61,11 @@ const QueryConfigurator: FC = () => {
         </Box>
         <Box flexGrow={1} onClick={e => e.stopPropagation()} onFocusCapture={e => e.stopPropagation()}>
           <Portal disablePortal={!expanded} container={queryContainer.current}>
-            <Box display="flex" alignItems={!expanded ? "center" : "start"}>
+            <Box display="flex" alignItems={!expanded ? "center" : "start"} mb={2}>
               <Box width="100%">
-                <QueryEditor server={serverUrl} query={query} oneLiner={!expanded} autocomplete={autocomplete}
-                  queryHistory={queryHistory} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
+                <QueryEditor server={serverUrl} query={query} index={0} oneLiner={!expanded} autocomplete={autocomplete}
+                  queryHistory={queryHistory} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery}
+                  setQuery={onSetQuery}/>
               </Box>
               <Tooltip title="Execute Query">
                 <IconButton onClick={onRunQuery} size="large" sx={{marginTop: !expanded ? "0" : "4.43px"}}>
@@ -61,6 +73,24 @@ const QueryConfigurator: FC = () => {
                 </IconButton>
               </Tooltip>
             </Box>
+            {query.length > 1 && <Box display="flex" alignItems={!expanded ? "center" : "start"}>
+              <Box width="100%">
+                <QueryEditor server={serverUrl} query={query} index={1} oneLiner={!expanded} autocomplete={autocomplete}
+                  queryHistory={queryHistory} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery}
+                  setQuery={onSetQuery}/>
+              </Box>
+              <Tooltip title="Remove Query">
+                <IconButton onClick={onRemoveQuery} size="large" sx={{marginTop: !expanded ? "0" : "4.43px"}}>
+                  <HighlightOffIcon/>
+                </IconButton>
+              </Tooltip>
+            </Box>}
+            {query.length < 2 && <Tooltip title="Add Second Query">
+              <Button onClick={onAddQuery} variant="outlined">
+                <AddIcon sx={{fontSize: 18, marginRight: "6px"}}/>
+                <span>Query</span>
+              </Button>
+            </Tooltip>}
           </Portal>
         </Box>
       </AccordionSummary>

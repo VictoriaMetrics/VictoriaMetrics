@@ -8,13 +8,12 @@ import {useAppState} from "../../state/common/StateContext";
 import QueryConfigurator from "./Configurator/Query/QueryConfigurator";
 import {useFetchQuery} from "./Configurator/Query/useFetchQuery";
 import JsonView from "./Views/JsonView";
-import {UrlCopy} from "./UrlCopy";
 
 const HomeLayout: FC = () => {
 
   const {displayType, time: {period}} = useAppState();
 
-  const {fetchUrl, isLoading, liveData, graphData, error} = useFetchQuery();
+  const {isLoading, liveData, graphData, error} = useFetchQuery();
 
   return (
     <>
@@ -46,7 +45,6 @@ const HomeLayout: FC = () => {
             <ExecutionControls/>
           </Box>
           <DisplayTypeSwitch/>
-          <UrlCopy url={fetchUrl}/>
         </Toolbar>
       </AppBar>
       <Box p={2} display="grid" gridTemplateRows="auto 1fr" gap={"20px"} style={{minHeight: "calc(100vh - 64px)"}}>

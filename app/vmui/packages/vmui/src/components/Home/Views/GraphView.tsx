@@ -41,7 +41,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
     data?.forEach(d => {
       const seriesItem = getSeriesItem(d, hideSeries);
       tempSeries.push(seriesItem);
-      tempLegend.push(getLegendItem(seriesItem));
+      tempLegend.push(getLegendItem(seriesItem, d.group));
 
       d.values.forEach(v => {
         tempTimes.push(v[0]);
@@ -68,7 +68,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
     data?.forEach(d => {
       const seriesItem = getSeriesItem(d, hideSeries);
       tempSeries.push(seriesItem);
-      tempLegend.push(getLegendItem(seriesItem));
+      tempLegend.push(getLegendItem(seriesItem, d.group));
     });
     setSeries([{}, ...tempSeries]);
     setLegend(tempLegend);

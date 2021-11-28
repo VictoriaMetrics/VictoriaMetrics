@@ -7,10 +7,11 @@ import { basicSetup } from "@codemirror/basic-setup";
 import {QueryHistory} from "../../../../state/common/reducer";
 
 export interface QueryEditorProps {
-  setHistoryIndex: (step: number) => void;
-  setQuery: (query: string) => void;
+  setHistoryIndex: (step: number, index: number) => void;
+  setQuery: (query: string, index: number) => void;
   runQuery: () => void;
-  query: string;
+  query: string[],
+  index: number;
   queryHistory: QueryHistory;
   server: string;
   oneLiner?: boolean;
@@ -18,7 +19,15 @@ export interface QueryEditorProps {
 }
 
 const QueryEditor: FC<QueryEditorProps> = ({
-  query, queryHistory, setHistoryIndex, setQuery, runQuery, server, oneLiner = false, autocomplete
+  index,
+  query,
+  queryHistory,
+  setHistoryIndex,
+  setQuery,
+  runQuery,
+  server,
+  oneLiner = false,
+  autocomplete
 }) => {
 
   const ref = useRef<HTMLDivElement>(null);
@@ -45,12 +54,12 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
     const listenerExtension = EditorView.updateListener.of(editorUpdate => {
       if (editorUpdate.docChanged) {
-        setQuery(editorUpdate.state.doc.toJSON().map(el => el.trim()).join(""));
+        setQuery(editorUpdate.state.doc.toJSON().map(el => el.trim()).join(""), index);
       }
     });
 
     editorView?.setState(EditorState.create({
-      doc: query,
+      doc: query[index],
       extensions: [
         basicSetup,
         keymap.of(defaultKeymap),
@@ -66,9 +75,9 @@ const QueryEditor: FC<QueryEditorProps> = ({
     if (key === "Enter" && ctrlMetaKey) {
       runQuery();
     } else if (key === "ArrowUp" && ctrlMetaKey) {
-      setHistoryIndex(-1);
+      setHistoryIndex(-1, index);
     } else if (key === "ArrowDown" && ctrlMetaKey) {
-      setHistoryIndex(1);
+      setHistoryIndex(1, index);
     }
   };
 
