@@ -461,7 +461,7 @@ The shortlist of configuration flags is the following:
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-    	Auth key for /metrics. It overrides httpAuth settings
+    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
     	Optional basic auth password for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -487,7 +487,7 @@ The shortlist of configuration flags is the following:
     	Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
     	Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
-    	Auth key for /debug/pprof. It overrides httpAuth settings
+    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -remoteRead.basicAuth.password string
     	Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.passwordFile string
