@@ -4,7 +4,7 @@
   "private": true,
   "homepage": "./",
   "dependencies": {
-    "@codemirror/autocomplete": "^0.19.4",
+    "@codemirror/autocomplete": "^0.19.9",
     "@codemirror/basic-setup": "^0.19.0",
     "@codemirror/commands": "^0.19.5",
     "@codemirror/highlight": "^0.19.6",
@@ -15,7 +15,7 @@
     "@emotion/styled": "^11.3.0",
     "@mui/icons-material": "^5.0.5",
     "@mui/lab": "^5.0.0-alpha.55",
-    "@mui/material": "^5.0.6",
+    "@mui/material": "^5.2.1",
     "@mui/styles": "^5.0.2",
     "@testing-library/jest-dom": "^5.15.0",
     "@testing-library/react": "^12.1.2",
