@@ -47,6 +47,8 @@ func stdErrLogger(s string) {
 	logger.ErrorfSkipframes(1, "%s", s)
 }
 
+func noOpLogger(s string) {}
+
 // UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
 //
 // It calls errLogger for logging parsing errors.
@@ -467,13 +469,16 @@ func (li *linesIterator) Init(s string) {
 
 // NextKey advances to the next key in li.
 //
-// It returns true if the next key is found and Key is successcully updated.
+// It returns true if the next key is found and Key is successfully updated.
 func (li *linesIterator) NextKey() bool {
 	for {
 		if len(li.a) == 0 {
 			return false
 		}
-		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, stdErrLogger)
+		// there is no need to log error here,
+		// it's already logged by GetRowsDiff caller.
+		// otherwise, there is no good way to suppress it.
+		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, noOpLogger)
 		li.a = li.a[1:]
 		if len(li.rows) > 0 {
 			li.Key = marshalMetricNameWithTags(li.Key[:0], &li.rows[0])
