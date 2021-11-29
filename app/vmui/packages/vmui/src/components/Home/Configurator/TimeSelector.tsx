@@ -51,6 +51,13 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
     setAnchorEl(null);
   };
 
+  const onKeyUp = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    const target = event.target as HTMLInputElement;
+    target.blur();
+    setDurationString(target.value);
+  };
+
   const open = Boolean(anchorEl);
 
   return <Box m={1} flexDirection="row" display="flex">
@@ -59,13 +66,10 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
       <Box>
         <TextField label="Duration" value={durationString} onChange={handleDurationChange}
           variant="standard"
-          fullWidth={true} 
-          onBlur={() => {
-            setFocused(false);
-          }}
-          onFocus={() => {
-            setFocused(true);
-          }}
+          fullWidth={true}
+          onKeyUp={onKeyUp}
+          onBlur={() => {setFocused(false);}}
+          onFocus={() => {setFocused(true);}}
         />
       </Box>
       <Box my={2}>
