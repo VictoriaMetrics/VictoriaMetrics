@@ -226,8 +226,10 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 	tagsPool, err = r.unmarshal(s, tagsPool, noEscapes)
 	if err != nil {
 		dst = dst[:len(dst)-1]
-		msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
-		errLogger(msg)
+		if errLogger != nil {
+			msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
+			errLogger(msg)
+		}
 		invalidLines.Inc()
 	}
 	return dst, tagsPool
@@ -467,13 +469,14 @@ func (li *linesIterator) Init(s string) {
 
 // NextKey advances to the next key in li.
 //
-// It returns true if the next key is found and Key is successcully updated.
+// It returns true if the next key is found and Key is successfully updated.
 func (li *linesIterator) NextKey() bool {
 	for {
 		if len(li.a) == 0 {
 			return false
 		}
-		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, stdErrLogger)
+		// Do not log errors here, since they will be logged during the real data parsing later.
+		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, nil)
 		li.a = li.a[1:]
 		if len(li.rows) > 0 {
 			li.Key = marshalMetricNameWithTags(li.Key[:0], &li.rows[0])
