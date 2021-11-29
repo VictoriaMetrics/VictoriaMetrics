@@ -12,34 +12,6 @@ object-assign
  * http://adamwdraper.github.com/Numeral-js/
  */
 
-/*! exports provided: default */
-
-/*! exports provided: optionsUpdateState, dataMatch */
-
-/*! no static exports found */
-
-/*! react */
-
-/*! uplot */
-
-/*! uplot-wrappers-common */
-
-/*!*************************!*\
-        !*** ./common/index.ts ***!
-        \*************************/
-
-/*!*******************************!*\
-        !*** ./react/uplot-react.tsx ***!
-        \*******************************/
-
-/*!**************************************************************************************!*\
-        !*** external {"amd":"react","commonjs":"react","commonjs2":"react","root":"React"} ***!
-        \**************************************************************************************/
-
-/*!**************************************************************************************!*\
-        !*** external {"amd":"uplot","commonjs":"uplot","commonjs2":"uplot","root":"uPlot"} ***!
-        \**************************************************************************************/
-
 /**
  * A better abstraction over CSS.
  *
