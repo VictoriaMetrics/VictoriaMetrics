@@ -26,7 +26,7 @@
     "@types/node": "^16.11.10",
     "@types/numeral": "^2.0.2",
     "@types/qs": "^6.9.7",
-    "@types/react": "^17.0.34",
+    "@types/react": "^17.0.37",
     "@types/react-dom": "^17.0.11",
     "@types/react-measure": "^2.0.8",
     "codemirror-promql": "^0.18.0",
