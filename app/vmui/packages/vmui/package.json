@@ -8,7 +8,7 @@
     "@codemirror/basic-setup": "^0.19.0",
     "@codemirror/commands": "^0.19.5",
     "@codemirror/highlight": "^0.19.6",
-    "@codemirror/state": "^0.19.4",
+    "@codemirror/state": "^0.19.6",
     "@codemirror/view": "^0.19.21",
     "@date-io/dayjs": "^2.11.0",
     "@emotion/react": "^11.7.0",
