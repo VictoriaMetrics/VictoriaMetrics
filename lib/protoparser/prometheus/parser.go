@@ -47,8 +47,6 @@ func stdErrLogger(s string) {
 	logger.ErrorfSkipframes(1, "%s", s)
 }
 
-func noOpLogger(s string) {}
-
 // UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
 //
 // It calls errLogger for logging parsing errors.
@@ -228,8 +226,10 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 	tagsPool, err = r.unmarshal(s, tagsPool, noEscapes)
 	if err != nil {
 		dst = dst[:len(dst)-1]
-		msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
-		errLogger(msg)
+		if errLogger != nil {
+			msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
+			errLogger(msg)
+		}
 		invalidLines.Inc()
 	}
 	return dst, tagsPool
@@ -475,10 +475,8 @@ func (li *linesIterator) NextKey() bool {
 		if len(li.a) == 0 {
 			return false
 		}
-		// there is no need to log error here,
-		// it's already logged by GetRowsDiff caller.
-		// otherwise, there is no good way to suppress it.
-		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, noOpLogger)
+		// Do not log errors here, since they will be logged during the real data parsing later.
+		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, nil)
 		li.a = li.a[1:]
 		if len(li.rows) > 0 {
 			li.Key = marshalMetricNameWithTags(li.Key[:0], &li.rows[0])
