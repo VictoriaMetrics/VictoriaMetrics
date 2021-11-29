@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	addrs             = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	addrs             = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
 	basicAuthUsername = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
 
@@ -24,10 +24,6 @@ var (
 
 // Init creates a Notifier object based on provided flags.
 func Init(gen AlertURLGenerator) ([]Notifier, error) {
-	if len(*addrs) == 0 {
-		return nil, fmt.Errorf("at least one `-notifier.url` must be set")
-	}
-
 	var notifiers []Notifier
 	for i, addr := range *addrs {
 		cert, key := tlsCertFile.GetOptionalArg(i), tlsKeyFile.GetOptionalArg(i)
