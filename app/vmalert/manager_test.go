@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 )
 
 func TestMain(m *testing.M) {
@@ -218,7 +220,11 @@ func TestManagerUpdate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
-			m := &manager{groups: make(map[uint64]*Group), querierBuilder: &fakeQuerier{}}
+			m := &manager{
+				groups:         make(map[uint64]*Group),
+				querierBuilder: &fakeQuerier{},
+				notifiers:      []notifier.Notifier{&fakeNotifier{}},
+			}
 
 			cfgInit := loadCfg(t, []string{tc.initPath}, true, true)
 			if err := m.update(ctx, cfgInit, false); err != nil {
@@ -243,6 +249,78 @@ func TestManagerUpdate(t *testing.T) {
 
 			cancel()
 			m.close()
+		})
+	}
+}
+
+func TestManagerUpdateNegative(t *testing.T) {
+	testCases := []struct {
+		notifiers []notifier.Notifier
+		rw        *remotewrite.Client
+		cfg       config.Group
+		expErr    string
+	}{
+		{
+			nil,
+			nil,
+			config.Group{Name: "Recording rule only",
+				Rules: []config.Rule{
+					{Record: "record", Expr: "max(up)"},
+				},
+			},
+			"contains recording rules",
+		},
+		{
+			nil,
+			nil,
+			config.Group{Name: "Alerting rule only",
+				Rules: []config.Rule{
+					{Alert: "alert", Expr: "up > 0"},
+				},
+			},
+			"contains alerting rules",
+		},
+		{
+			[]notifier.Notifier{&fakeNotifier{}},
+			nil,
+			config.Group{Name: "Recording and alerting rules",
+				Rules: []config.Rule{
+					{Alert: "alert1", Expr: "up > 0"},
+					{Alert: "alert2", Expr: "up > 0"},
+					{Record: "record", Expr: "max(up)"},
+				},
+			},
+			"contains recording rules",
+		},
+		{
+			nil,
+			&remotewrite.Client{},
+			config.Group{Name: "Recording and alerting rules",
+				Rules: []config.Rule{
+					{Record: "record1", Expr: "max(up)"},
+					{Record: "record2", Expr: "max(up)"},
+					{Alert: "alert", Expr: "up > 0"},
+				},
+			},
+			"contains alerting rules",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.cfg.Name, func(t *testing.T) {
+			m := &manager{
+				groups:         make(map[uint64]*Group),
+				querierBuilder: &fakeQuerier{},
+				notifiers:      tc.notifiers,
+				rw:             tc.rw,
+			}
+			err := m.update(context.Background(), []config.Group{tc.cfg}, false)
+			if err == nil {
+				t.Fatalf("expected to get error; got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected err to contain %q; got %q", tc.expErr, err)
+			}
 		})
 	}
 }

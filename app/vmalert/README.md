@@ -38,7 +38,7 @@ The build binary will be placed to `VictoriaMetrics/bin` folder.
 To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
-* notifier address - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
+* notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
 aggregating alerts and sending notifications.
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
@@ -48,9 +48,9 @@ Then configure `vmalert` accordingly:
 ```
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
-    -notifier.url=http://localhost:9093 \    # AlertManager URL
+    -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
-    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info
+    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
     -remoteRead.url=http://localhost:8428 \  # MetricsQL compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
     -external.label=replica=a                # Multiple external labels may be set
@@ -484,7 +484,7 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
     	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
-    	Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
+    	Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
     	Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
     	Auth key for /debug/pprof. It overrides httpAuth settings
