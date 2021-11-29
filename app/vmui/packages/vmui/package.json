@@ -75,7 +75,7 @@
     "@typescript-eslint/eslint-plugin": "^5.3.0",
     "@typescript-eslint/parser": "^5.4.0",
     "customize-cra": "^1.0.0",
-    "eslint-plugin-react": "^7.26.1",
+    "eslint-plugin-react": "^7.27.1",
     "react-app-rewired": "^2.1.8"
   }
 }
