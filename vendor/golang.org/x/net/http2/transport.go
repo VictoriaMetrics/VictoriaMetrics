@@ -1124,36 +1124,49 @@ func (cc *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 
+	handleResponseHeaders := func() (*http.Response, error) {
+		res := cs.res
+		if res.StatusCode > 299 {
+			// On error or status code 3xx, 4xx, 5xx, etc abort any
+			// ongoing write, assuming that the server doesn't care
+			// about our request body. If the server replied with 1xx or
+			// 2xx, however, then assume the server DOES potentially
+			// want our body (e.g. full-duplex streaming:
+			// golang.org/issue/13444). If it turns out the server
+			// doesn't, they'll RST_STREAM us soon enough. This is a
+			// heuristic to avoid adding knobs to Transport. Hopefully
+			// we can keep it.
+			cs.abortRequestBodyWrite()
+		}
+		res.Request = req
+		res.TLS = cc.tlsState
+		if res.Body == noBody && actualContentLength(req) == 0 {
+			// If there isn't a request or response body still being
+			// written, then wait for the stream to be closed before
+			// RoundTrip returns.
+			if err := waitDone(); err != nil {
+				return nil, err
+			}
+		}
+		return res, nil
+	}
+
 	for {
 		select {
 		case <-cs.respHeaderRecv:
-			res := cs.res
-			if res.StatusCode > 299 {
-				// On error or status code 3xx, 4xx, 5xx, etc abort any
-				// ongoing write, assuming that the server doesn't care
-				// about our request body. If the server replied with 1xx or
-				// 2xx, however, then assume the server DOES potentially
-				// want our body (e.g. full-duplex streaming:
-				// golang.org/issue/13444). If it turns out the server
-				// doesn't, they'll RST_STREAM us soon enough. This is a
-				// heuristic to avoid adding knobs to Transport. Hopefully
-				// we can keep it.
-				cs.abortRequestBodyWrite()
-			}
-			res.Request = req
-			res.TLS = cc.tlsState
-			if res.Body == noBody && actualContentLength(req) == 0 {
-				// If there isn't a request or response body still being
-				// written, then wait for the stream to be closed before
-				// RoundTrip returns.
-				if err := waitDone(); err != nil {
-					return nil, err
-				}
-			}
-			return res, nil
+			return handleResponseHeaders()
 		case <-cs.abort:
-			waitDone()
-			return nil, cs.abortErr
+			select {
+			case <-cs.respHeaderRecv:
+				// If both cs.respHeaderRecv and cs.abort are signaling,
+				// pick respHeaderRecv. The server probably wrote the
+				// response and immediately reset the stream.
+				// golang.org/issue/49645
+				return handleResponseHeaders()
+			default:
+				waitDone()
+				return nil, cs.abortErr
+			}
 		case <-ctx.Done():
 			err := ctx.Err()
 			cs.abortStream(err)

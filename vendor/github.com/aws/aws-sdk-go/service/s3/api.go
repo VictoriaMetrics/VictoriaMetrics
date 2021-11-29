@@ -196,6 +196,10 @@ func (c *S3) CompleteMultipartUploadRequest(input *CompleteMultipartUploadInput)
 // to retry the failed requests. For more information, see Amazon S3 Error Best
 // Practices (https://docs.aws.amazon.com/AmazonS3/latest/dev/ErrorBestPractices.html).
 //
+// You cannot use Content-Type: application/x-www-form-urlencoded with Complete
+// Multipart Upload requests. Also, if you do not provide a Content-Type header,
+// CompleteMultipartUpload returns a 200 OK response.
+//
 // For more information about multipart uploads, see Uploading Objects Using
 // Multipart Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html).
 //
@@ -4586,8 +4590,9 @@ func (c *S3) GetObjectRequest(input *GetObjectInput) (req *request.Request, outp
 // By default, the GET action returns the current version of an object. To return
 // a different version, use the versionId subresource.
 //
-//    * You need the s3:GetObjectVersion permission to access a specific version
-//    of an object.
+//    * If you supply a versionId, you need the s3:GetObjectVersion permission
+//    to access a specific version of an object. If you request a specific version,
+//    you do not need to have the s3:GetObject permission.
 //
 //    * If the current version of the object is a delete marker, Amazon S3 behaves
 //    as if the object was deleted and includes x-amz-delete-marker: true in
@@ -12687,6 +12692,9 @@ type CompletedMultipartUpload struct {
 	_ struct{} `type:"structure"`
 
 	// Array of CompletedPart data types.
+	//
+	// If you do not supply a valid Part with your request, the service sends back
+	// an HTTP 400 response.
 	Parts []*CompletedPart `locationName:"Part" type:"list" flattened:"true"`
 }
 
@@ -24692,6 +24700,12 @@ func (s *LifecycleRule) SetTransitions(v []*Transition) *LifecycleRule {
 type LifecycleRuleAndOperator struct {
 	_ struct{} `type:"structure"`
 
+	// Minimum object size to which the rule applies.
+	ObjectSizeGreaterThan *int64 `type:"long"`
+
+	// Maximum object size to which the rule applies.
+	ObjectSizeLessThan *int64 `type:"long"`
+
 	// Prefix identifying one or more objects to which the rule applies.
 	Prefix *string `type:"string"`
 
@@ -24738,6 +24752,18 @@ func (s *LifecycleRuleAndOperator) Validate() error {
 	return nil
 }
 
+// SetObjectSizeGreaterThan sets the ObjectSizeGreaterThan field's value.
+func (s *LifecycleRuleAndOperator) SetObjectSizeGreaterThan(v int64) *LifecycleRuleAndOperator {
+	s.ObjectSizeGreaterThan = &v
+	return s
+}
+
+// SetObjectSizeLessThan sets the ObjectSizeLessThan field's value.
+func (s *LifecycleRuleAndOperator) SetObjectSizeLessThan(v int64) *LifecycleRuleAndOperator {
+	s.ObjectSizeLessThan = &v
+	return s
+}
+
 // SetPrefix sets the Prefix field's value.
 func (s *LifecycleRuleAndOperator) SetPrefix(v string) *LifecycleRuleAndOperator {
 	s.Prefix = &v
@@ -24759,6 +24785,12 @@ type LifecycleRuleFilter struct {
 	// more predicates. The Lifecycle Rule will apply to any object matching all
 	// of the predicates configured inside the And operator.
 	And *LifecycleRuleAndOperator `type:"structure"`
+
+	// Minimum object size to which the rule applies.
+	ObjectSizeGreaterThan *int64 `type:"long"`
+
+	// Maximum object size to which the rule applies.
+	ObjectSizeLessThan *int64 `type:"long"`
 
 	// Prefix identifying one or more objects to which the rule applies.
 	//
@@ -24812,6 +24844,18 @@ func (s *LifecycleRuleFilter) Validate() error {
 // SetAnd sets the And field's value.
 func (s *LifecycleRuleFilter) SetAnd(v *LifecycleRuleAndOperator) *LifecycleRuleFilter {
 	s.And = v
+	return s
+}
+
+// SetObjectSizeGreaterThan sets the ObjectSizeGreaterThan field's value.
+func (s *LifecycleRuleFilter) SetObjectSizeGreaterThan(v int64) *LifecycleRuleFilter {
+	s.ObjectSizeGreaterThan = &v
+	return s
+}
+
+// SetObjectSizeLessThan sets the ObjectSizeLessThan field's value.
+func (s *LifecycleRuleFilter) SetObjectSizeLessThan(v int64) *LifecycleRuleFilter {
+	s.ObjectSizeLessThan = &v
 	return s
 }
 
@@ -27890,6 +27934,13 @@ func (s *MultipartUpload) SetUploadId(v string) *MultipartUpload {
 type NoncurrentVersionExpiration struct {
 	_ struct{} `type:"structure"`
 
+	// Specifies how many noncurrent versions Amazon S3 will retain. If there are
+	// this many more recent noncurrent versions, Amazon S3 will take the associated
+	// action. For more information about noncurrent versions, see Lifecycle configuration
+	// elements (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
+	// in the Amazon S3 User Guide.
+	NewerNoncurrentVersions *int64 `type:"integer"`
+
 	// Specifies the number of days an object is noncurrent before Amazon S3 can
 	// perform the associated action. For information about the noncurrent days
 	// calculations, see How Amazon S3 Calculates When an Object Became Noncurrent
@@ -27916,6 +27967,12 @@ func (s NoncurrentVersionExpiration) GoString() string {
 	return s.String()
 }
 
+// SetNewerNoncurrentVersions sets the NewerNoncurrentVersions field's value.
+func (s *NoncurrentVersionExpiration) SetNewerNoncurrentVersions(v int64) *NoncurrentVersionExpiration {
+	s.NewerNoncurrentVersions = &v
+	return s
+}
+
 // SetNoncurrentDays sets the NoncurrentDays field's value.
 func (s *NoncurrentVersionExpiration) SetNoncurrentDays(v int64) *NoncurrentVersionExpiration {
 	s.NoncurrentDays = &v
@@ -27931,6 +27988,13 @@ func (s *NoncurrentVersionExpiration) SetNoncurrentDays(v int64) *NoncurrentVers
 // lifetime.
 type NoncurrentVersionTransition struct {
 	_ struct{} `type:"structure"`
+
+	// Specifies how many noncurrent versions Amazon S3 will retain. If there are
+	// this many more recent noncurrent versions, Amazon S3 will take the associated
+	// action. For more information about noncurrent versions, see Lifecycle configuration
+	// elements (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
+	// in the Amazon S3 User Guide.
+	NewerNoncurrentVersions *int64 `type:"integer"`
 
 	// Specifies the number of days an object is noncurrent before Amazon S3 can
 	// perform the associated action. For information about the noncurrent days
@@ -27959,6 +28023,12 @@ func (s NoncurrentVersionTransition) String() string {
 // value will be replaced with "sensitive".
 func (s NoncurrentVersionTransition) GoString() string {
 	return s.String()
+}
+
+// SetNewerNoncurrentVersions sets the NewerNoncurrentVersions field's value.
+func (s *NoncurrentVersionTransition) SetNewerNoncurrentVersions(v int64) *NoncurrentVersionTransition {
+	s.NewerNoncurrentVersions = &v
+	return s
 }
 
 // SetNoncurrentDays sets the NoncurrentDays field's value.
