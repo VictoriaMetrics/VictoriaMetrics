@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
@@ -99,6 +100,8 @@ groups:
 		querierBuilder: &fakeQuerier{},
 		groups:         make(map[uint64]*Group),
 		labels:         map[string]string{},
+		notifiers:      []notifier.Notifier{&fakeNotifier{}},
+		rw:             &remotewrite.Client{},
 	}
 
 	syncCh := make(chan struct{})

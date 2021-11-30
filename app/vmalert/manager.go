@@ -85,10 +85,29 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) er
 }
 
 func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
+	var rrPresent, arPresent bool
 	groupsRegistry := make(map[uint64]*Group)
 	for _, cfg := range groupsCfg {
+		for _, r := range cfg.Rules {
+			if rrPresent && arPresent {
+				continue
+			}
+			if r.Record != "" {
+				rrPresent = true
+			}
+			if r.Alert != "" {
+				arPresent = true
+			}
+		}
 		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
 		groupsRegistry[ng.ID()] = ng
+	}
+
+	if rrPresent && m.rw == nil {
+		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
+	}
+	if arPresent && m.notifiers == nil {
+		return fmt.Errorf("config contains alerting rules but `-notifier.url` isn't set")
 	}
 
 	type updateItem struct {

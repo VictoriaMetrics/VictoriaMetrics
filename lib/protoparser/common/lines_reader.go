@@ -2,8 +2,10 @@ package common
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -50,15 +52,18 @@ again:
 		if err == nil {
 			return dstBuf, tailBuf, fmt.Errorf("no forward progress made")
 		}
-		if err == io.EOF && len(dstBuf) > 0 {
+		isEOF := isEOFLikeError(err)
+		if isEOF && len(dstBuf) > 0 {
 			// Missing newline in the end of stream. This is OK,
 			// so suppress io.EOF for now. It will be returned during the next
 			// call to ReadLinesBlock.
 			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/60 .
 			return dstBuf, tailBuf, nil
 		}
-		if err != io.EOF {
+		if !isEOF {
 			err = fmt.Errorf("cannot read a block of data in %.3fs: %w", time.Since(startTime).Seconds(), err)
+		} else {
+			err = io.EOF
 		}
 		return dstBuf, tailBuf, err
 	}
@@ -85,4 +90,12 @@ again:
 	tailBuf = append(tailBuf[:0], dstBuf[nn+1:]...)
 	dstBuf = dstBuf[:nn]
 	return dstBuf, tailBuf, nil
+}
+
+func isEOFLikeError(err error) bool {
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	s := err.Error()
+	return strings.Contains(s, "reset by peer")
 }
