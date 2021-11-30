@@ -47,7 +47,7 @@ const HomeLayout: FC = () => {
           <DisplayTypeSwitch/>
         </Toolbar>
       </AppBar>
-      <Box p={2} display="grid" gridTemplateRows="auto 1fr" gap={"20px"} style={{minHeight: "calc(100vh - 64px)"}}>
+      <Box p={4} display="grid" gridTemplateRows="auto 1fr" gap={"20px"} style={{minHeight: "calc(100vh - 64px)"}}>
         <Box>
           <QueryConfigurator/>
         </Box>
@@ -66,7 +66,7 @@ const HomeLayout: FC = () => {
               <CircularProgress/>
             </Box>
           </Fade>}
-          {<Box height={"100%"} p={3} bgcolor={"#fff"}>
+          {<Box height={"100%"} bgcolor={"#fff"}>
             {error &&
               <Alert color="error" severity="error" style={{fontSize: "14px"}}>
                 {error}

@@ -7,6 +7,7 @@ import {getNameForMetric} from "./metric";
 import {getMaxFromArray, getMinFromArray} from "./math";
 import {roundTimeSeconds} from "./time";
 import numeral from "numeral";
+import {AxisRange} from "../state/graph/reducer";
 
 interface SetupTooltip {
     u: uPlot,
@@ -46,8 +47,9 @@ export const formatTicks = (u: uPlot, ticks: number[]): (string | number)[] => {
 };
 export const getAxes = (series: Series[]): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
   const axis = { scale: a, show: true, font: "10px Arial", values: formatTicks };
+  if (!a) return { space: 80 };
   if (!(Number(a)%2)) return {...axis, side: 1};
-  return a ? axis : { space: 80 };
+  return axis;
 });
 
 export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset }: SetupTooltip) : void => {
@@ -58,7 +60,7 @@ export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOff
   const color = getColorFromString(series[seriesIdx].label || "");
 
   const {width, height} = u.over.getBoundingClientRect();
-  const top = u.valToPos((dataSeries || 0), "y");
+  const top = u.valToPos((dataSeries || 0), series[seriesIdx]?.scale || "1");
   const lft = u.valToPos(dataTime, "x");
   const {width: tooltipWidth, height: tooltipHeight} = tooltip.getBoundingClientRect();
   const overflowX = lft + tooltipWidth >= width;
@@ -96,17 +98,22 @@ export const getTimeSeries = (times: number[]): number[] => {
   return new Array(length).fill(startTime).map((d, i) => roundTimeSeconds(d + (step * i)));
 };
 
-export const getLimitsYAxis = (values: number[]): [number, number] => {
-  const min = getMinFromArray(values);
-  const max = getMaxFromArray(values);
-  return [min - (min * 0.05), max + (max * 0.05)];
+export const getLimitsYAxis = (values: {[key: string]: number[]}): AxisRange => {
+  const result: AxisRange = {};
+  for (const key in values) {
+    const numbers = values[key];
+    const min = getMinFromArray(numbers);
+    const max = getMaxFromArray(numbers);
+    result[key] = [min - (min * 0.05), max + (max * 0.05)];
+  }
+  return result;
 };
 
 export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series  => {
   const label = getNameForMetric(d);
   return {
     label,
-    dash: d.group <= 1 ? [] : [10, d.group * 2],
+    dash: d.group <= 1 ? [] : [10, d.group],
     width: 1.5,
     stroke: getColorFromString(label),
     show: !hideSeries.includes(label),
