@@ -789,7 +789,7 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
-In this case the output may contain multiple lines with distinct samples for the same time series.
+In this case the output may contain multiple lines with samples for the same time series.
 
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
@@ -801,6 +801,9 @@ curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]=
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
+
+The [deduplication](#deduplication) is applied to the data exported via `/api/v1/export` by default. The deduplication
+isn't applied if `reduce_mem_usage=1` query arg is passed to the request.
 
 
 ### How to export CSV data
@@ -826,6 +829,8 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
+The [deduplication](#deduplication) isn't applied for the data exported in CSV. It is expected that the de-duplication is performed during data import.
+
 
 ### How to export data in native format
 
@@ -848,6 +853,8 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
 The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
 can fail to be imported into VictoriaMetrics release Y.
+
+The [deduplication](#deduplication) isn't applied for the data exported in native format. It is expected that the de-duplication is performed during data import.
 
 
 ## How to import time series data
