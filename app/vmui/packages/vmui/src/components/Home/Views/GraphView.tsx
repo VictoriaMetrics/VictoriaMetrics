@@ -5,6 +5,8 @@ import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import {Legend, LegendItem} from "../../Legend/Legend";
 import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
 import {getHideSeries, getLegendItem, getLimitsYAxis, getSeriesItem, getTimeSeries} from "../../../utils/uPlot";
+import {AxisRange} from "../../../state/graph/reducer";
+import AxesLimitsConfigurator from "../Configurator/Graph/AxesLimitsConfigurator";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -18,10 +20,10 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItem[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
-  const [valuesLimit, setValuesLimit] = useState<[number, number]>([0, 1]);
+  const [valuesLimit, setValuesLimit] = useState<AxisRange>({"1": [0, 1]});
 
-  const setLimitsYaxis = (values: number[]) => {
-    if (!yaxis.limits.enable || (yaxis.limits.range.every(item => !item))) {
+  const setLimitsYaxis = (values: {[key: string]: number[]}) => {
+    if (!yaxis.limits.enable) {
       const limits = getLimitsYAxis(values);
       setValuesLimit(limits);
       graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
@@ -34,18 +36,18 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
 
   useEffect(() => {
     const tempTimes: number[] = [];
-    const tempValues: number[] = [];
+    const tempValues: {[key: string]: number[]} = {};
     const tempLegend: LegendItem[] = [];
     const tempSeries: uPlotSeries[] = [];
 
-    data?.forEach(d => {
+    data?.forEach((d) => {
       const seriesItem = getSeriesItem(d, hideSeries);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
 
       d.values.forEach(v => {
         tempTimes.push(v[0]);
-        tempValues.push(+v[1]);
+        tempValues[d.group] ? tempValues[d.group].push(+v[1]) : tempValues[d.group] = [+v[1]];
       });
     });
 
@@ -77,6 +79,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   return <>
     {(data.length > 0)
       ? <div>
+        <AxesLimitsConfigurator/>
         <LineChart data={dataChart} series={series} metrics={data} limits={valuesLimit}/>
         <Legend labels={legend} onChange={onChangeLegend}/>
       </div>
