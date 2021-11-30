@@ -978,6 +978,10 @@ func SetFinalMergeDelay(delay time.Duration) {
 
 func getMaxOutBytes(path string, workersCount int) uint64 {
 	n := fs.MustGetFreeSpace(path)
+	if n < freeDiskSpaceLimitBytes {
+		return 0
+	}
+	n -= freeDiskSpaceLimitBytes
 	// Divide free space by the max number concurrent merges.
 	maxOutBytes := n / uint64(workersCount)
 	if maxOutBytes > maxBigPartSize {
