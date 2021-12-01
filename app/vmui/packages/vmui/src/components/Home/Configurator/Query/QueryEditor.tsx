@@ -10,7 +10,7 @@ export interface QueryEditorProps {
   setHistoryIndex: (step: number, index: number) => void;
   setQuery: (query: string, index: number) => void;
   runQuery: () => void;
-  query: string[],
+  query: string,
   index: number;
   queryHistory: QueryHistory;
   server: string;
@@ -59,7 +59,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     });
 
     editorView?.setState(EditorState.create({
-      doc: query[index],
+      doc: query,
       extensions: [
         basicSetup,
         keymap.of(defaultKeymap),

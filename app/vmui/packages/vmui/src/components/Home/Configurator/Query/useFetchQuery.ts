@@ -97,6 +97,7 @@ export const useFetchQuery = (): {
 
   useEffect(() => {
     setPrevPeriod(undefined);
+    fetchData();
   }, [query]);
 
   // TODO: this should depend on query as well, but need to decide when to do the request.

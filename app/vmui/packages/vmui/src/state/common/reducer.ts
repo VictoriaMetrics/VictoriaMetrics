@@ -21,7 +21,7 @@ export interface AppState {
   displayType: DisplayType;
   query: string[];
   time: TimeState;
-  queryHistory: QueryHistory,
+  queryHistory: QueryHistory[],
   queryControls: {
     autoRefresh: boolean;
     autocomplete: boolean,
@@ -33,8 +33,8 @@ export type Action =
     | { type: "SET_DISPLAY_TYPE", payload: DisplayType }
     | { type: "SET_SERVER", payload: string }
     | { type: "SET_QUERY", payload: string[] }
-    | { type: "SET_QUERY_HISTORY_INDEX", payload: number }
-    | { type: "SET_QUERY_HISTORY_VALUES", payload: string[] }
+    | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: {value: QueryHistory, queryNumber: number} }
+    | { type: "SET_QUERY_HISTORY", payload: QueryHistory[] }
     | { type: "SET_DURATION", payload: string }
     | { type: "SET_UNTIL", payload: Date }
     | { type: "SET_PERIOD", payload: TimePeriod }
@@ -52,7 +52,7 @@ export const initialState: AppState = {
   serverUrl: getDefaultServer(),
   displayType: getQueryStringValue("tab", "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
-  queryHistory: { index: 0, values: query },
+  queryHistory: query.map(q => ({index: 0, values: [q]})),
   time: {
     duration,
     period: getTimeperiodForDuration(duration, new Date(endInput))
@@ -81,21 +81,15 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         query: action.payload
       };
-    case "SET_QUERY_HISTORY_INDEX":
+    case "SET_QUERY_HISTORY":
       return {
         ...state,
-        queryHistory: {
-          ...state.queryHistory,
-          index: action.payload
-        }
+        queryHistory: action.payload
       };
-    case "SET_QUERY_HISTORY_VALUES":
+    case "SET_QUERY_HISTORY_BY_INDEX":
       return {
         ...state,
-        queryHistory: {
-          ...state.queryHistory,
-          values: action.payload
-        }
+        queryHistory: state.queryHistory.splice(action.payload.queryNumber, 1, action.payload.value)
       };
     case "SET_DURATION":
       return {
