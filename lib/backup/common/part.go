@@ -34,7 +34,8 @@ type Part struct {
 }
 
 func (p *Part) key() string {
-	return fmt.Sprintf("%s%016X%016X%016X%016X", p.Path, p.FileSize, p.Offset, p.Size, p.ActualSize)
+	// Do not use p.FileSize in the key, since it cannot be properly initialized when resuming the restore for partially restored file
+	return fmt.Sprintf("%s%016X%016X%016X", p.Path, p.Offset, p.Size, p.ActualSize)
 }
 
 // String returns human-readable representation of the part.

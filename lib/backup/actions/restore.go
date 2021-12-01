@@ -133,9 +133,6 @@ func (r *Restore) Run() error {
 			}
 			deleteSize += size
 		}
-		if err != nil {
-			return err
-		}
 		if err := dst.RemoveEmptyDirs(); err != nil {
 			return fmt.Errorf("cannot remove empty directories at %s: %w", dst, err)
 		}
