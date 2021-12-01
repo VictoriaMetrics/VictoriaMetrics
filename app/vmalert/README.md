@@ -22,12 +22,12 @@ implementation and aims to be compatible with its syntax.
 * Lightweight without extra dependencies.
 
 ## Limitations
-* `vmalert` execute queries against remote datasource which has reliability risks because of network.
-It is recommended to configure alerts thresholds and rules expressions with understanding that network request
-may fail;
+* `vmalert` execute queries against remote datasource which has reliability risks because of the network.
+It is recommended to configure alerts thresholds and rules expressions with the understanding that network 
+requests may fail;
 * by default, rules execution is sequential within one group, but persistence of execution results to remote
 storage is asynchronous. Hence, user shouldn't rely on chaining of recording rules when result of previous
-recording rule is reused in next one;
+recording rule is reused in the next one;
 
 ## QuickStart
 
@@ -37,13 +37,13 @@ git clone https://github.com/VictoriaMetrics/VictoriaMetrics
 cd VictoriaMetrics
 make vmalert
 ```
-The build binary will be placed to `VictoriaMetrics/bin` folder.
+The build binary will be placed in `VictoriaMetrics/bin` folder.
 
 To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
-aggregating alerts and sending notifications.
+aggregating alerts, and sending notifications.
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
@@ -62,7 +62,7 @@ Then configure `vmalert` accordingly:
 
 Note there's a separate `remoteRead.url` to allow writing results of
 alerting/recording rules into a different storage than the initial data that's
-queried.  This allows using `vmalert` to aggregate data from a short-term,
+queried. This allows using `vmalert` to aggregate data from a short-term,
 high-frequency, high-cardinality storage into a long-term storage with
 decreased cardinality and a bigger interval between samples.
 
@@ -124,14 +124,14 @@ expression and then act according to the Rule type.
 
 There are two types of Rules:
 * [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
-Alerting rules allow to define alert conditions via `expr` field and to send notifications to
+Alerting rules allow defining alert conditions via `expr` field and to send notifications to
 [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty.
 * [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
-Recording rules allow to define `expr` which result will be then backfilled to configured
+Recording rules allow defining `expr` which result will be then backfilled to configured
 `-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
 expensive expressions and save their result as a new set of time series.
 
-`vmalert` forbids defining duplicates - rules with the same combination of name, expression and labels
+`vmalert` forbids defining duplicates - rules with the same combination of name, expression, and labels
 within one group.
 
 #### Alerting rules
@@ -147,7 +147,7 @@ alert: <string>
 expr: <string>
 
 # Alerts are considered firing once they have been returned for this long.
-# Alerts which have not yet fired for long enough are considered pending.
+# Alerts which have not yet been fired for long enough are considered pending.
 # If param is omitted or set to 0 then alerts will be immediately considered
 # as firing once they return.
 [ for: <duration> | default = 0s ]
@@ -192,19 +192,19 @@ For recording rules to work `-remoteWrite.url` must be specified.
 the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
 into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
-These are regular time series and may be queried from VM just as any other time series.
+These are regular time series and maybe queried from VM just as any other time series.
 The state is stored to the configured address on every rule evaluation.
 * `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
 from configured address by querying time series with name `ALERTS_FOR_STATE`.
 
-Both flags are required for proper state restoring. Restore process may fail if time series are missing
+Both flags are required for proper state restoration. Restore process may fail if time series are missing
 in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by `-remoteRead.lookback`)
 or received state doesn't match current `vmalert` rules configuration.
 
 
 ### Multitenancy
 
-The are the following approaches exist for alerting and recording rules across
+There are the following approaches exist for alerting and recording rules across
 [multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy):
 
 * To run a separate `vmalert` instance per each tenant.
@@ -363,7 +363,7 @@ vmalert sends requests to `<-datasource.url>/render?format=json` during evaluati
 if the corresponding group or rule contains `type: "graphite"` config option. It is expected that the `<-datasource.url>/render`
 implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) for `format=json`.
 When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VM do not forget
-to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on query type.
+to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
 
 ## Rules backfilling
 
@@ -422,11 +422,11 @@ to prevent cache pollution and unwanted time range boundaries adjustment during 
 
 #### Recording rules
 
-Result of recording rules `replay` should match with results of normal rules evaluation.
+The result of recording rules `replay` should match with results of normal rules evaluation.
 
 #### Alerting rules
 
-Result of alerting rules `replay` is time series reflecting [alert's state](#alerts-state-on-restarts).
+The result of alerting rules `replay` is time series reflecting [alert's state](#alerts-state-on-restarts).
 To see if `replayed` alert has fired in the past use the following PromQL/MetricsQL expression:
 ```
 ALERTS{alertname="your_alertname", alertstate="firing"}
@@ -439,7 +439,7 @@ There are following non-required `replay` flags:
 
 * `-replay.maxDatapointsPerQuery` - the max number of data points expected to receive in one request.
 In two words, it affects the max time range for every `/query_range` request. The higher the value,
-the less requests will be issued during `replay`.
+the fewer requests will be issued during `replay`.
 * `-replay.ruleRetryAttempts` - when datasource fails to respond vmalert will make this number of retries
 per rule before giving up.
 * `-replay.rulesDelay` - delay between sequential rules execution. Important in cases if there are chaining
@@ -461,7 +461,7 @@ See full description for these flags in `./vmalert --help`.
 We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
 metrics may be analyzed later.
 
-Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
