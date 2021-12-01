@@ -21,6 +21,7 @@ sort: 15
 * BUGFIX: vmagent: fix [reading data from Kafka](https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka).
 * BUGFIX: vmalert: fix [replay mode](https://docs.victoriametrics.com/vmalert.html#rules-backfilling) in enterprise version.
 * BUGFIX: consistently return zero from [deriv()](https://docs.victoriametrics.com/MetricsQL.html#deriv) function applied to a constant time series. Previously it could return small non-zero values in this case.
+* BUGFIX: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): properly resume downloading for partially downloaded big files. Previously such files were re-downloaded from the beginning after the interrupt. Now only the remaining parts of the file are downloaded. This allows saving network bandwidth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/487).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not store the last query across vmui page reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1694).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `Cannot read properties of undefined` error at table view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1797).
 
