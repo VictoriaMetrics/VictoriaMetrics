@@ -2,7 +2,11 @@
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
-rules against configured address. It is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
+rules against configured `-datasource.url`. For sending alerting notifications
+vmalert relies on [Alertmanager]((https://github.com/prometheus/alertmanager)) configured via `-notifier.url` flag.
+Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
+protocol and require `-remoteWrite.url` to be configured.
+Vmalert is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
 ## Features
@@ -240,6 +244,106 @@ The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` 
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
+### Topology examples
+
+The following sections are showing how `vmalert` may be used and configured 
+for different scenarios. 
+
+Please note, not all flags in examples are required: 
+* `-remoteWrite.url` and `-remoteRead.url` are optional and are needed only if
+you have recording rules or want to store [alerts state](#alerts-state-on-restarts) on `vmalert` restarts;
+* `-notifier.url` is optional and is needed only if you have alerting rules.
+
+#### Single-node VictoriaMetrics
+
+<img alt="vmalert single" src="vmalert_single.png">
+
+`vmalert` configuration flags:
+```
+./bin/vmalert -rule=rules.yml  \                    # Path to the file with rules configuration. Supports wildcard
+    -datasource.url=http://victoriametrics:8428 \   # VM-single addr for executing rules expressions
+    -remoteWrite.url=http://victoriametrics:8428 \  # VM-single addr to persist alerts state and recording rules results
+    -remoteRead.url=http://victoriametrics:8428 \   # VM-single addr for restoring alerts state after restart
+    -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
+```
+
+The simplest configuration where one single-node VM server is used for
+rules execution, storing recording rules results and alerts state.
+
+#### Cluster VictoriaMetrics
+
+<img alt="vmalert cluster" src="vmalert_cluster.png">
+
+`vmalert` configuration flags:
+```
+./bin/vmalert -rule=rules.yml  \                                # Path to the file with rules configuration. Supports wildcard
+    -datasource.url=http://vmselect:8481/select/0/prometheus    # vmselect addr for executing rules expressions
+    -remoteWrite.url=http://vminsert:8480/insert/0/prometheuss  # vminsert addr to persist alerts state and recording rules results
+    -remoteRead.url=http://vmselect:8481/select/0/prometheus    # vmselect addr for restoring alerts state after restart
+    -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
+```
+
+In [cluster mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+VictoriaMetrics has separate components for writing and reading path:
+`vminsert` and `vmselect` components respectively. `vmselect` is used for executing rules expressions
+and `vminsert` is used to persist recording rules results and alerts state.
+Cluster mode could have multiple `vminsert` and `vmselect` components. In case when you want
+to spread the load on these components - add balancers before them and configure 
+`vmalert` with balancer's addresses. Please, see more about VM's cluster architecture
+[here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
+
+#### vmalert high availability
+
+<img alt="vmalert ha" src="vmalert_ha.png">
+
+`vmalert` configuration flags:
+```
+./bin/vmalert -rule=rules.yml \                   # Path to the file with rules configuration. Supports wildcard
+    -datasource.url=http://victoriametrics:8428 \   # VM-single addr for executing rules expressions
+    -remoteWrite.url=http://victoriametrics:8428 \  # VM-single addr to persist alerts state and recording rules results
+    -remoteRead.url=http://victoriametrics:8428 \   # VM-single addr for restoring alerts state after restart
+    -notifier.url=http://alertmanager1:9093 \       # Multiple AlertManager addresses to send alerts when they trigger
+    -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
+```
+
+For HA user can run multiple identically configured `vmalert` instances.
+It means all of them will execute the same rules, write state and results to
+the same destinations, and send alert notifications to multiple configured
+Alertmanagers.
+
+To avoid recording rules results and alerts state duplication in VictoriaMetrics server
+don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
+
+Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
+all `vmalert`s are having the same config.
+
+Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
+for Alertmanagers for better reliability.
+
+This example uses single-node VM server for the sake of simplicity. 
+Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed. 
+
+#### Downsampling and aggregation via vmalert
+
+<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
+
+`vmalert` configuration flags:
+```
+./bin/vmalert -rule=downsampling-rules.yml \                                        # Path to the file with rules configuration. Supports wildcard
+    -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recordi ng rules expressions
+    -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheuss   # vminsert addr to persist recording rules results
+```
+
+Example shows how to build a topology where `vmalert` will process data from one cluster
+and write results into another. Such clusters may be called as "hot" (low retention, 
+high-speed disks, used for operative monitoring) and "cold" (long term retention, 
+slower/cheaper disks, low resolution data). With help of `vmalert`, user can setup 
+recording rules to process raw data from "hot" cluster (by applying additional transformations 
+or reducing resolution) and push results to "cold" cluster. 
+
+Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
+
+Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
 ### Web
 
