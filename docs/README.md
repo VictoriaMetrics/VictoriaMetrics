@@ -1148,7 +1148,7 @@ Older data is eventually deleted during [background merge](https://medium.com/@v
 
 ## Multiple retentions
 
-Just start multiple VictoriaMetrics instances with distinct values for the following flags:
+A single instance of VictoriaMetrics supports only a single retention, which can be configured via `-retentionPeriod` command-line flag. If you need multiple retentions, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
 
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
@@ -1157,6 +1157,7 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 Then set up [vmauth](https://docs.victoriametrics.com/vmauth.html) in front of VictoriaMetrics instances,
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
 The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
 
 
 ## Downsampling
