@@ -11,8 +11,14 @@
 }
 
 .legendGroupTitle {
+    display: flex;
+    align-items: center;
     padding: 10px 0 5px;
     font-size: 11px;
+}
+
+.legendGroupLine {
+    margin: 0 10px;
 }
 
 .legendItem {
@@ -43,7 +49,7 @@
     border-style: solid;
     box-sizing: border-box;
     transition: 0.2s ease;
-    margin: 5px 0;
+    margin: 3px 0;
 }
 
 .legendLabel {

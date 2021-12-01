@@ -52,7 +52,7 @@ const QueryConfigurator: FC = () => {
     const value = [...queryString];
     value.splice(index, 1);
     setQueryString(value);
-    dispatch({type: "SET_QUERY", payload: value});
+    onRunQuery();
   };
 
   const onSetQuery = (value: string, index: number) => {
