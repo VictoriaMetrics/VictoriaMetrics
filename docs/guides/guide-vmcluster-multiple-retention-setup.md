@@ -12,7 +12,7 @@ VictoriaMetrics instance (single node or vmstorage node) supports only one reten
 
 **Solution**
 
-A multi-retention setup can be implemented by dividing a [victoriametrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) for logical groups. 
+A multi-retention setup can be implemented by dividing a [victoriametrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) into logical groups with different retentions.
 
 Example:
 Setup should handle 3 different retention groups 3months, 1year and 3 years.
@@ -25,16 +25,16 @@ The diagram below shows a proposed solution
 </p>
 
 **Implementation Details**
-  1. Groups of vminserts A know about only vmstorages A and this is explicitly specified in [storageNode configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
-  2. Groups of vminserts B know about only vmstorages B and this is explicitly specified in storageNode configuration. 
-  3. Groups of vminserts C know about only vmstorages A and this is explicitly specified in storageNode configuration. 
+  1. Groups of vminserts A know about only vmstorages A and this is explicitly specified in [-storageNode configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
+  2. Groups of vminserts B know about only vmstorages B and this is explicitly specified in `-storageNode` configuration. 
+  3. Groups of vminserts C know about only vmstorages A and this is explicitly specified in `-storageNode` configuration. 
   4. Vmselect reads data from all vmstorage nodes.
-  5. Vmagents divides input data by labels or metrics. Every source can have label retention=X for this purpose and can be drop on [vminsert level](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#list-of-command-line-flags-for-vminsert).
+  5. Vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig`. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
 **Multi-Tenant Setup**
 
-Every group of vmstorages can handle one tenant or multiple one. Different groups can have overlapping tenants. As vmselects reads from all storages the data is aggregated on its level. 
+Every group of vmstorages can handle one tenant or multiple one. Different groups can have overlapping tenants. As vmselect reads from all vmstorage nodes, the data is aggregated on its level.
 
 **Additional Enhancements**
 
-You can set up additional vmagent per each vminsert+vmstorage group, this allows to separate configuration of routing by retention period and general relabeling rules.
+You can set up [vmauth](https://docs.victoriametrics.com/vmauth.html) for routing data to the given vminsert group depending on the needed retention.
