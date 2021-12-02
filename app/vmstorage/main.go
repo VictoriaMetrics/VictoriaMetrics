@@ -713,6 +713,31 @@ func registerStorageMetrics() {
 		return float64(m().PrefetchedMetricIDsSizeBytes)
 	})
 
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/tsid"}`, func() float64 {
+		return float64(m().TSIDCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/metricIDs"}`, func() float64 {
+		return float64(m().MetricIDCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/metricName"}`, func() float64 {
+		return float64(m().MetricNameCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/bigIndexBlocks"}`, func() float64 {
+		return float64(tm().BigIndexBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/smallIndexBlocks"}`, func() float64 {
+		return float64(tm().SmallIndexBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/dataBlocks"}`, func() float64 {
+		return float64(idbm().DataBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/indexBlocks"}`, func() float64 {
+		return float64(idbm().IndexBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/tagFilters"}`, func() float64 {
+		return float64(idbm().TagFiltersCacheSizeMaxBytes)
+	})
+
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/tsid"}`, func() float64 {
 		return float64(m().TSIDCacheRequests)
 	})

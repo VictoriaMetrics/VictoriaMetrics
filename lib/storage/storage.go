@@ -439,23 +439,26 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
-	TSIDCacheSize       uint64
-	TSIDCacheSizeBytes  uint64
-	TSIDCacheRequests   uint64
-	TSIDCacheMisses     uint64
-	TSIDCacheCollisions uint64
+	TSIDCacheSize         uint64
+	TSIDCacheSizeBytes    uint64
+	TSIDCacheSizeMaxBytes uint64
+	TSIDCacheRequests     uint64
+	TSIDCacheMisses       uint64
+	TSIDCacheCollisions   uint64
 
-	MetricIDCacheSize       uint64
-	MetricIDCacheSizeBytes  uint64
-	MetricIDCacheRequests   uint64
-	MetricIDCacheMisses     uint64
-	MetricIDCacheCollisions uint64
+	MetricIDCacheSize         uint64
+	MetricIDCacheSizeBytes    uint64
+	MetricIDCacheSizeMaxBytes uint64
+	MetricIDCacheRequests     uint64
+	MetricIDCacheMisses       uint64
+	MetricIDCacheCollisions   uint64
 
-	MetricNameCacheSize       uint64
-	MetricNameCacheSizeBytes  uint64
-	MetricNameCacheRequests   uint64
-	MetricNameCacheMisses     uint64
-	MetricNameCacheCollisions uint64
+	MetricNameCacheSize         uint64
+	MetricNameCacheSizeBytes    uint64
+	MetricNameCacheSizeMaxBytes uint64
+	MetricNameCacheRequests     uint64
+	MetricNameCacheMisses       uint64
+	MetricNameCacheCollisions   uint64
 
 	DateMetricIDCacheSize        uint64
 	DateMetricIDCacheSizeBytes   uint64
@@ -515,6 +518,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	s.tsidCache.UpdateStats(&cs)
 	m.TSIDCacheSize += cs.EntriesCount
 	m.TSIDCacheSizeBytes += cs.BytesSize
+	m.TSIDCacheSizeMaxBytes += cs.MaxBytesSize
 	m.TSIDCacheRequests += cs.GetCalls
 	m.TSIDCacheMisses += cs.Misses
 	m.TSIDCacheCollisions += cs.Collisions
@@ -523,6 +527,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	s.metricIDCache.UpdateStats(&cs)
 	m.MetricIDCacheSize += cs.EntriesCount
 	m.MetricIDCacheSizeBytes += cs.BytesSize
+	m.MetricIDCacheSizeMaxBytes += cs.MaxBytesSize
 	m.MetricIDCacheRequests += cs.GetCalls
 	m.MetricIDCacheMisses += cs.Misses
 	m.MetricIDCacheCollisions += cs.Collisions
@@ -531,6 +536,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	s.metricNameCache.UpdateStats(&cs)
 	m.MetricNameCacheSize += cs.EntriesCount
 	m.MetricNameCacheSizeBytes += cs.BytesSize
+	m.MetricNameCacheSizeMaxBytes += cs.MaxBytesSize
 	m.MetricNameCacheRequests += cs.GetCalls
 	m.MetricNameCacheMisses += cs.Misses
 	m.MetricNameCacheCollisions += cs.Collisions
