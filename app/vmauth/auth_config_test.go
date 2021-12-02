@@ -368,3 +368,19 @@ func mustParseURLs(us []string) *URLPrefix {
 		urls: pus,
 	}
 }
+
+func TestIsHttpUrlSuccess(t *testing.T) {
+	assert := func(s string, expected bool) {
+		t.Helper()
+		res := isHttpUrl(s)
+		if res != expected {
+			t.Fatalf("expecting %t, got %t", expected, res)
+		}
+	}
+
+	assert("http://isvalid:8000/filepath", true)  // test http
+	assert("https://isvalid:8000/filepath", true) // test https
+	assert("tcp://notvalid:8000/filepath", false) // test tcp
+	assert("0/filepath", false)                   // something invalid
+	assert("filepath.extension", false)           // something invalid
+}
