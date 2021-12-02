@@ -241,7 +241,7 @@ func readAuthConfig(path string) (map[string]*UserInfo, error) {
 	var data []byte
 	var err error
 	// reads remote file via http, if url is given
-	if isHttpUrl(path) {
+	if isHTTPURL(path) {
 		httpPath, err := http.Get(path)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %w", path, err)
@@ -386,9 +386,9 @@ func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {
 	return urlPrefix, nil
 }
 
-// isHttpUrl checks if a given targetUrl is valid and contains a valid http scheme
-func isHttpUrl(targetUrl string) bool {
-	parsed, err := url.Parse(targetUrl)
+// isHTTPURL checks if a given targetURL is valid and contains a valid http scheme
+func isHTTPURL(targetURL string) bool {
+	parsed, err := url.Parse(targetURL)
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 
 }

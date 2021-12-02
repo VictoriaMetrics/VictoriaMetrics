@@ -369,10 +369,10 @@ func mustParseURLs(us []string) *URLPrefix {
 	}
 }
 
-func TestIsHttpUrlSuccess(t *testing.T) {
+func TestIsHTTPURLSuccess(t *testing.T) {
 	assert := func(s string, expected bool) {
 		t.Helper()
-		res := isHttpUrl(s)
+		res := isHTTPURL(s)
 		if res != expected {
 			t.Fatalf("expecting %t, got %t", expected, res)
 		}
