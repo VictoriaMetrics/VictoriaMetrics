@@ -246,7 +246,7 @@ func readAuthConfig(path string) (map[string]*UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %w", path, err)
 		}
-		defer httpPath.Body.Close()
+		defer func() { _ = httpPath.Body.Close() }()
 		data, err = ioutil.ReadAll(httpPath.Body)
 	} else {
 		data, err = ioutil.ReadFile(path)
