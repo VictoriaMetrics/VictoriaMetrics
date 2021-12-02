@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -15,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -238,21 +237,9 @@ var authConfigWG sync.WaitGroup
 var stopCh chan struct{}
 
 func readAuthConfig(path string) (map[string]*UserInfo, error) {
-	var data []byte
-	var err error
-	// reads remote file via http, if url is given
-	if isHTTPURL(path) {
-		httpPath, err := http.Get(path)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read %q: %w", path, err)
-		}
-		defer func() { _ = httpPath.Body.Close() }()
-		data, err = ioutil.ReadAll(httpPath.Body)
-	} else {
-		data, err = ioutil.ReadFile(path)
-	}
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read %q: %w", path, err)
+		return nil, err
 	}
 	m, err := parseAuthConfig(data)
 	if err != nil {
@@ -384,11 +371,4 @@ func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {
 		return nil, fmt.Errorf("missing hostname in `url_prefix %q`", urlPrefix.Host)
 	}
 	return urlPrefix, nil
-}
-
-// isHTTPURL checks if a given targetURL is valid and contains a valid http scheme
-func isHTTPURL(targetURL string) bool {
-	parsed, err := url.Parse(targetURL)
-	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
-
 }
