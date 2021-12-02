@@ -104,8 +104,7 @@ func main() {
 		}
 		// prevent queries from caching and boundaries aligning
 		// when querying VictoriaMetrics datasource.
-		noCache := datasource.Param{Key: "nocache", Value: "1"}
-		q, err := datasource.Init([]datasource.Param{noCache})
+		q, err := datasource.Init(url.Values{"nocache": {"1"}})
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}

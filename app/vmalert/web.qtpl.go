@@ -211,22 +211,18 @@ func StreamListGroups(qw422016 *qt422016.Writer, groups []APIGroup) {
 			qw422016.N().S(`</p>
                 `)
 //line app/vmalert/web.qtpl:57
-			if len(g.ExtraFilterLabels) > 0 {
+			if len(g.Params) > 0 {
 //line app/vmalert/web.qtpl:57
 				qw422016.N().S(`
-                    <div class="fs-6 fw-lighter">Extra filter labels
+                    <div class="fs-6 fw-lighter">Extra params
                     `)
 //line app/vmalert/web.qtpl:59
-				for k, v := range g.ExtraFilterLabels {
+				for _, param := range g.Params {
 //line app/vmalert/web.qtpl:59
 					qw422016.N().S(`
                             <span class="float-left badge bg-primary">`)
 //line app/vmalert/web.qtpl:60
-					qw422016.E().S(k)
-//line app/vmalert/web.qtpl:60
-					qw422016.N().S(`=`)
-//line app/vmalert/web.qtpl:60
-					qw422016.E().S(v)
+					qw422016.E().S(param)
 //line app/vmalert/web.qtpl:60
 					qw422016.N().S(`</span>
                     `)
