@@ -205,7 +205,7 @@ if a query covers 1000 metrics with 10K values each, then the remote read API ha
 This is slow and expensive.
 Prometheus remote read API isn't intended for querying foreign data aka `global query view`. See [this issue](https://github.com/prometheus/prometheus/issues/4456) for details.
 
-So just query VictoriaMetrics directly via [Prometheus Querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+So just query VictoriaMetrics directly via [vmui](https://docs.victoriametrics.com/#vmui), [Prometheus Querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/#grafana-setup).
 
 
