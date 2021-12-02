@@ -96,14 +96,19 @@ name: <string>
 [ type: <string> ]
 
 # Warning: DEPRECATED
-# Please use `params` instead
+# Please use `params` instead:
+#   params:
+#     extra_label: ["job=nodeexporter", "env=prod"]
 extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
 
 # Optional list of HTTP URL parameters
-# applied for all requests withing a group
-# For example, extra filtering via `extra_label` param
-# or disabling partial responses via `deny_partial_response` param -  
+# applied for all rules requests within a group
+# For example:
+#  params:
+#    nocache: ["1"]                # disable caching for vmselect
+#    denyPartialResponse: ["true"] # fail if one or more vmstorage nodes returned an error
+#    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests 
 # see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
 params:
   [ <string>: [<string>, ...]]
