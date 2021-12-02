@@ -305,6 +305,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		},
 	})
 
+	// Multiple whitespaces as separators
+	f("foo.baz \t125  1789 \t\n", &Rows{
+		Rows: []Row{{
+			Metric:    "foo.baz",
+			Value:     125,
+			Timestamp: 1789,
+		}},
+	})
 }
 
 func Test_streamContext_Read(t *testing.T) {
