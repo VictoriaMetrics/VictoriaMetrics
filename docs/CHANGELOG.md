@@ -10,6 +10,8 @@ sort: 15
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying `http` and `https` urls in the following command-line flags: `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`.
 * FEATURE: vminsert: allow specifying `http` and `https` urls in `-relabelConfig` command-line flag.
 
+* BUGFIX: fix `unaligned 64-bit atomic operation` panic on 32-bit architectures, which has been introduced in v1.70.0.
+
 
 ## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
 
