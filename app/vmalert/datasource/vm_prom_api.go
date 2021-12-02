@@ -150,6 +150,14 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 
 func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 	q := r.URL.Query()
+	for k, vs := range s.extraParams {
+		if q.Has(k) { // extraParams are prior to params in URL
+			q.Del(k)
+		}
+		for _, v := range vs {
+			q.Add(k, v)
+		}
+	}
 	q.Set("query", query)
 	if s.evaluationInterval > 0 {
 		// set step as evaluationInterval by default
@@ -158,12 +166,6 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 	if s.queryStep > 0 {
 		// override step with user-specified value
 		q.Set("step", s.queryStep.String())
-	}
-	for _, l := range s.extraLabels {
-		q.Add("extra_label", l)
-	}
-	for _, p := range s.extraParams {
-		q.Add(p.Key, p.Value)
 	}
 	r.URL.RawQuery = q.Encode()
 }

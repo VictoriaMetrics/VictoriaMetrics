@@ -23,16 +23,16 @@ type APIAlert struct {
 
 // APIGroup represents Group for WEB view
 type APIGroup struct {
-	Name              string             `json:"name"`
-	Type              string             `json:"type"`
-	ID                string             `json:"id"`
-	File              string             `json:"file"`
-	Interval          string             `json:"interval"`
-	Concurrency       int                `json:"concurrency"`
-	ExtraFilterLabels map[string]string  `json:"extra_filter_labels"`
-	Labels            map[string]string  `json:"labels,omitempty"`
-	AlertingRules     []APIAlertingRule  `json:"alerting_rules"`
-	RecordingRules    []APIRecordingRule `json:"recording_rules"`
+	Name           string             `json:"name"`
+	Type           string             `json:"type"`
+	ID             string             `json:"id"`
+	File           string             `json:"file"`
+	Interval       string             `json:"interval"`
+	Concurrency    int                `json:"concurrency"`
+	Params         []string           `json:"params"`
+	Labels         map[string]string  `json:"labels,omitempty"`
+	AlertingRules  []APIAlertingRule  `json:"alerting_rules"`
+	RecordingRules []APIRecordingRule `json:"recording_rules"`
 }
 
 // APIAlertingRule represents AlertingRule for WEB view
