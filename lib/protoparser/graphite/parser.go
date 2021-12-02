@@ -114,13 +114,30 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail[:n], err)
 	}
-	ts, err := fastfloat.Parse(tail[n+1:])
+	tail = stripTailSpace(tail[n+1:])
+	ts, err := fastfloat.Parse(tail)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail[n+1:], err)
+		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail, err)
 	}
 	r.Value = v
 	r.Timestamp = int64(ts)
 	return tagsPool, nil
+}
+
+func stripTailSpace(s string) string {
+	n := len(s)
+	for {
+		n--
+		if n < 0 {
+			return ""
+		}
+		ch := s[n]
+		// graphite text line protocol may use white space or tab as separator
+		// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
+		if ch != ' ' && ch != '\t' {
+			return s[:n+1]
+		}
+	}
 }
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag) ([]Row, []Tag) {
