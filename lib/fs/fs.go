@@ -397,6 +397,14 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 	return data, nil
 }
 
+// GetFilepath returns full path to file for the given baseDir and path.
+func GetFilepath(baseDir, path string) string {
+	if filepath.IsAbs(path) || isHTTPURL(path) {
+		return path
+	}
+	return filepath.Join(baseDir, path)
+}
+
 // isHTTPURL checks if a given targetURL is valid and contains a valid http scheme
 func isHTTPURL(targetURL string) bool {
 	parsed, err := url.Parse(targetURL)

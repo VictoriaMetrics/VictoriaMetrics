@@ -3,7 +3,6 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"path/filepath"
 	"sort"
@@ -15,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -227,7 +227,7 @@ type StaticConfig struct {
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
@@ -241,7 +241,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 
 // loadConfig loads Prometheus config from the given path.
 func loadConfig(path string) (*Config, []byte, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
@@ -257,7 +257,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]Scrape
 	var scrapeConfigs []ScrapeConfig
 	var scsData []byte
 	for _, filePath := range scrapeConfigFiles {
-		filePath := getFilepath(baseDir, filePath)
+		filePath := fs.GetFilepath(baseDir, filePath)
 		paths := []string{filePath}
 		if strings.Contains(filePath, "*") {
 			ps, err := filepath.Glob(filePath)
@@ -268,7 +268,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]Scrape
 			paths = ps
 		}
 		for _, path := range paths {
-			data, err := ioutil.ReadFile(path)
+			data, err := fs.ReadFileOrHTTP(path)
 			if err != nil {
 				return nil, nil, fmt.Errorf("cannot load %q: %w", path, err)
 			}
@@ -877,7 +877,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 
 func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[string][]*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
 	for _, file := range sdc.Files {
-		pathPattern := getFilepath(baseDir, file)
+		pathPattern := fs.GetFilepath(baseDir, file)
 		paths := []string{pathPattern}
 		if strings.Contains(pathPattern, "*") {
 			var err error
@@ -1199,13 +1199,6 @@ func mergeLabels(swc *scrapeWorkConfig, target string, extraLabels, metaLabels m
 		})
 	}
 	return result
-}
-
-func getFilepath(baseDir, path string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(baseDir, path)
 }
 
 func addMissingPort(scheme, target string) string {

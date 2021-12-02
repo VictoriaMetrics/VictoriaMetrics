@@ -1,21 +1,14 @@
 package promauth
 
 import (
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
-func getFilepath(baseDir, path string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(baseDir, path)
-}
-
 func readPasswordFromFile(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return "", err
 	}
