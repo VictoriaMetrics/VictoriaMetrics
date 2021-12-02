@@ -4,7 +4,6 @@
 It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) and `Bearer token` is supported),
 matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 
-
 ## Quick start
 
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
@@ -26,11 +25,9 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
-
 ## Load balancing
 
 Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls. In the latter case `vmauth` balances load among the configured urls in a round-robin manner. This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
-
 
 ## Auth config
 
@@ -124,7 +121,6 @@ users:
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
 
-
 ## Security
 
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
@@ -141,7 +137,6 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
 It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
-
 
 ## Monitoring
 
@@ -160,7 +155,6 @@ users:
 ## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmauth` is located in `vmutils-*` archives there.
-
 
 ### Development build
 
@@ -187,7 +181,6 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ROOT_IMAGE=scratch make package-vmauth
 ```
 
-
 ## Profiling
 
 `vmauth` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
@@ -208,7 +201,6 @@ The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 
-
 ## Advanced usage
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
@@ -221,7 +213,7 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
-    	Path to auth config. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
+    	Http URL or File Path to auth config. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
