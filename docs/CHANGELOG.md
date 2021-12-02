@@ -27,6 +27,7 @@ sort: 15
 * BUGFIX: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): properly resume downloading for partially downloaded big files. Previously such files were re-downloaded from the beginning after the interrupt. Now only the remaining parts of the file are downloaded. This allows saving network bandwidth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/487).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not store the last query across vmui page reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1694).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `Cannot read properties of undefined` error at table view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1797).
+* BUGFIX: properly parse Graphite plaintext lines with whitespace after the timestamp. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1865).
 
 
 ## [v1.69.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.69.0)
