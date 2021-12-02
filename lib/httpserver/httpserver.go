@@ -288,6 +288,16 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
 		return
+	case "/-/healthy":
+		// This is needed for Prometheus compatibility
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
+		fmt.Fprintf(w, "VictoriaMetrics is Healthy.\n")
+		return
+	case "/-/ready":
+		// This is needed for Prometheus compatibility
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
+		fmt.Fprintf(w, "VictoriaMetrics is Ready.\n")
+		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
