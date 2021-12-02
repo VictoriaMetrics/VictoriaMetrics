@@ -280,3 +280,12 @@ func (ibc *indexBlockCache) SizeBytes() uint64 {
 	ibc.mu.Unlock()
 	return uint64(n)
 }
+
+func (ibc *indexBlockCache) SizeMaxBytes() uint64 {
+	avgBlockSize := float64(64 * 1024)
+	blocksCount := ibc.Len()
+	if blocksCount > 0 {
+		avgBlockSize = float64(ibc.SizeBytes()) / float64(blocksCount)
+	}
+	return uint64(avgBlockSize * float64(getMaxCachedIndexBlocksPerPart()))
+}

@@ -130,10 +130,11 @@ const noDeadline = 1<<64 - 1
 
 // IndexDBMetrics contains essential metrics for indexDB.
 type IndexDBMetrics struct {
-	TagFiltersCacheSize      uint64
-	TagFiltersCacheSizeBytes uint64
-	TagFiltersCacheRequests  uint64
-	TagFiltersCacheMisses    uint64
+	TagFiltersCacheSize         uint64
+	TagFiltersCacheSizeBytes    uint64
+	TagFiltersCacheSizeMaxBytes uint64
+	TagFiltersCacheRequests     uint64
+	TagFiltersCacheMisses       uint64
 
 	DeletedMetricsCount uint64
 
@@ -173,6 +174,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	db.tagFiltersCache.UpdateStats(&cs)
 	m.TagFiltersCacheSize += cs.EntriesCount
 	m.TagFiltersCacheSizeBytes += cs.BytesSize
+	m.TagFiltersCacheSizeMaxBytes += cs.MaxBytesSize
 	m.TagFiltersCacheRequests += cs.GetCalls
 	m.TagFiltersCacheMisses += cs.Misses
 

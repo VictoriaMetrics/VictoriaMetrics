@@ -10,7 +10,7 @@ cloud.google.com/go/internal/version
 ## explicit
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal/apiv2
-# github.com/VictoriaMetrics/fastcache v1.7.0
+# github.com/VictoriaMetrics/fastcache v1.8.0
 ## explicit
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/fasthttp v1.1.0
