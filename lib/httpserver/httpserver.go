@@ -68,7 +68,7 @@ type server struct {
 // In such cases the caller must serve the request.
 type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
-// Serve starts an http server on the given addr with the given rh.
+// Serve starts an http server on the given addr with the given optional rh.
 //
 // By default all the responses are transparently compressed, since Google
 // charges a lot for the egress traffic. The compression may be disabled
@@ -76,6 +76,11 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
+	if rh == nil {
+		rh = func(w http.ResponseWriter, r *http.Request) bool {
+			return false
+		}
+	}
 	scheme := "http"
 	if *tlsEnable {
 		scheme = "https"
