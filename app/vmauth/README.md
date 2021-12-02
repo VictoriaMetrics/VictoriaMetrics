@@ -3,6 +3,7 @@
 `vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
 It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) and `Bearer token` is supported),
 matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
+The `-auth.config` can point to either local file or to http url.
 
 ## Quick start
 
@@ -213,7 +214,7 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
-    	Http URL or File Path to auth config. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
+    	Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -241,7 +242,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -httpListenAddr string
     	TCP address to listen for http connections (default ":8427")
   -logInvalidAuthTokens
-    	Whether to log requests with invalid auth tokens. Such requests are always counted at vmagent_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
+    	Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -264,9 +265,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-    	Auth key for /metrics. It overrides httpAuth settings
+    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
-    	Auth key for /debug/pprof. It overrides httpAuth settings
+    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -reloadAuthKey string
     	Auth key for /-/reload http endpoint. It must be passed as authKey=...
   -tls

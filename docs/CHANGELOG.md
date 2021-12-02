@@ -7,6 +7,8 @@ sort: 15
 ## tip
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): allow specifying `http` and `https` urls in `-auth.config` command-line flag. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1898). Thanks for @TFM93 .
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying `http` and `https` urls in the following command-line flags: `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`.
+* FEATURE: vminsert: allow specifying `http` and `https` urls in `-relabelConfig` command-line flag.
 
 
 ## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
