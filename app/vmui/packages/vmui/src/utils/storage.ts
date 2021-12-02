@@ -1,5 +1,4 @@
-export type StorageKeys = "LAST_QUERY"
-    | "BASIC_AUTH_DATA"
+export type StorageKeys = "BASIC_AUTH_DATA"
     | "BEARER_AUTH_DATA"
     | "AUTH_TYPE"
     | "AUTOCOMPLETE"

@@ -158,12 +158,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent.html'>https://docs.victoriametrics.com/vmagent.html</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
-			{"/targets", "discovered targets list"},
-			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
-			{"/config", "-promscrape.config contents"},
-			{"/metrics", "available service metrics"},
-			{"/flags", "command-line flags"},
-			{"/-/reload", "reload configuration"},
+			{"targets", "discovered targets list"},
+			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
+			{"config", "-promscrape.config contents"},
+			{"metrics", "available service metrics"},
+			{"flags", "command-line flags"},
+			{"-/reload", "reload configuration"},
 		})
 		return true
 	}
@@ -236,26 +236,26 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/datadog/api/v1/validate":
 		datadogValidateRequests.Inc()
 		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"valid":true}`)
 		return true
 	case "/datadog/api/v1/check_run":
 		datadogCheckRunRequests.Inc()
 		// See https://docs.datadoghq.com/api/latest/service-checks/#submit-a-service-check
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/datadog/intake/":
 		datadogIntakeRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
 	case "/targets":
@@ -277,7 +277,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
@@ -391,19 +391,19 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 	case "datadog/api/v1/validate":
 		datadogValidateRequests.Inc()
 		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"valid":true}`)
 		return true
 	case "datadog/api/v1/check_run":
 		datadogCheckRunRequests.Inc()
 		// See https://docs.datadoghq.com/api/latest/service-checks/#submit-a-service-check
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "datadog/intake/":
 		datadogIntakeRequests.Inc()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
 	default:

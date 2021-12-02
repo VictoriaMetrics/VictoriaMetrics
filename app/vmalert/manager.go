@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"sort"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -85,10 +87,29 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) er
 }
 
 func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
+	var rrPresent, arPresent bool
 	groupsRegistry := make(map[uint64]*Group)
 	for _, cfg := range groupsCfg {
+		for _, r := range cfg.Rules {
+			if rrPresent && arPresent {
+				continue
+			}
+			if r.Record != "" {
+				rrPresent = true
+			}
+			if r.Alert != "" {
+				arPresent = true
+			}
+		}
 		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
 		groupsRegistry[ng.ID()] = ng
+	}
+
+	if rrPresent && m.rw == nil {
+		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
+	}
+	if arPresent && m.notifiers == nil {
+		return fmt.Errorf("config contains alerting rules but `-notifier.url` isn't set")
 	}
 
 	type updateItem struct {
@@ -142,13 +163,13 @@ func (g *Group) toAPI() APIGroup {
 		// encode as string to avoid rounding
 		ID: fmt.Sprintf("%d", g.ID()),
 
-		Name:              g.Name,
-		Type:              g.Type.String(),
-		File:              g.File,
-		Interval:          g.Interval.String(),
-		Concurrency:       g.Concurrency,
-		ExtraFilterLabels: g.ExtraFilterLabels,
-		Labels:            g.Labels,
+		Name:        g.Name,
+		Type:        g.Type.String(),
+		File:        g.File,
+		Interval:    g.Interval.String(),
+		Concurrency: g.Concurrency,
+		Params:      urlValuesToStrings(g.Params),
+		Labels:      g.Labels,
 	}
 	for _, r := range g.Rules {
 		switch v := r.(type) {
@@ -159,4 +180,25 @@ func (g *Group) toAPI() APIGroup {
 		}
 	}
 	return ag
+}
+
+func urlValuesToStrings(values url.Values) []string {
+	if len(values) < 1 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var res []string
+	for _, k := range keys {
+		params := values[k]
+		for _, v := range params {
+			res = append(res, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+	return res
 }

@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -108,7 +109,7 @@ func proxyRequest(w http.ResponseWriter, r *http.Request) {
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	reverseProxy.ServeHTTP(w, r)
+	getReverseProxy().ServeHTTP(w, r)
 }
 
 var (
@@ -117,29 +118,42 @@ var (
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
 
-var reverseProxy = &httputil.ReverseProxy{
-	Director: func(r *http.Request) {
-		targetURL := r.Header.Get("vm-target-url")
-		target, err := url.Parse(targetURL)
-		if err != nil {
-			logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
-		}
-		r.URL = target
-	},
-	Transport: func() *http.Transport {
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
-		tr.DisableCompression = true
-		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
-		tr.ForceAttemptHTTP2 = false
-		tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
-		if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
-			tr.MaxIdleConns = tr.MaxIdleConnsPerHost
-		}
-		return tr
-	}(),
-	FlushInterval: time.Second,
-	ErrorLog:      logger.StdErrorLogger(),
+var (
+	reverseProxy     *httputil.ReverseProxy
+	reverseProxyOnce sync.Once
+)
+
+func getReverseProxy() *httputil.ReverseProxy {
+	reverseProxyOnce.Do(initReverseProxy)
+	return reverseProxy
+}
+
+// initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
+func initReverseProxy() {
+	reverseProxy = &httputil.ReverseProxy{
+		Director: func(r *http.Request) {
+			targetURL := r.Header.Get("vm-target-url")
+			target, err := url.Parse(targetURL)
+			if err != nil {
+				logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
+			}
+			r.URL = target
+		},
+		Transport: func() *http.Transport {
+			tr := http.DefaultTransport.(*http.Transport).Clone()
+			// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
+			tr.DisableCompression = true
+			// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
+			tr.ForceAttemptHTTP2 = false
+			tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
+			if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
+				tr.MaxIdleConns = tr.MaxIdleConnsPerHost
+			}
+			return tr
+		}(),
+		FlushInterval: time.Second,
+		ErrorLog:      logger.StdErrorLogger(),
+	}
 }
 
 func usage() {

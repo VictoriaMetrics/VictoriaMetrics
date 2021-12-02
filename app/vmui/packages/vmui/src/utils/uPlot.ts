@@ -1,7 +1,12 @@
-import uPlot, {Series} from "uplot";
+import uPlot, {Series as uPlotSeries, Series} from "uplot";
 import {getColorFromString} from "./color";
 import dayjs from "dayjs";
 import {MetricResult} from "../api/types";
+import {LegendItem} from "../components/Legend/Legend";
+import {getNameForMetric} from "./metric";
+import {getMaxFromArray, getMinFromArray} from "./math";
+import {roundTimeSeconds} from "./time";
+import numeral from "numeral";
 
 interface SetupTooltip {
     u: uPlot,
@@ -18,6 +23,34 @@ interface HideSeriesArgs {
   metaKey: boolean,
   series: Series[]
 }
+
+interface DragArgs {
+  e: MouseEvent,
+  u: uPlot,
+  factor: number,
+  setPanning: (enable: boolean) => void,
+  setPlotScale: ({u, min, max}: {u: uPlot, min: number, max: number}) => void
+}
+
+const stub = (): null => null;
+
+export const defaultOptions = {
+  height: 500,
+  legend: { show: false },
+  axes: [
+    { space: 80 },
+    {
+      show: true,
+      font: "10px Arial",
+      values: (self: uPlot, ticks: number[]): (string | number)[] => ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n)
+    }
+  ],
+  cursor: {
+    drag: { x: false, y: false },
+    focus: { prox: 30 },
+    bind: { mouseup: stub, mousedown: stub, click: stub, dblclick: stub, mouseenter: stub }
+  },
+};
 
 export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset }: SetupTooltip) : void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
@@ -55,4 +88,60 @@ export const getHideSeries = ({hideSeries, label, metaKey, series}: HideSeriesAr
     return hideSeries.length === series.length - 2 ? [] : [...labels.filter(l => l !== label)];
   }
   return include ? hideSeries.filter(l => l !== label) : [...hideSeries, label];
+};
+
+export const getTimeSeries = (times: number[]): number[] => {
+  const allTimes = Array.from(new Set(times)).sort((a,b) => a-b);
+  const step = getMinFromArray(allTimes.map((t, i) => allTimes[i + 1] - t));
+  const length = allTimes.length;
+  const startTime = allTimes[0] || 0;
+  return new Array(length).fill(startTime).map((d, i) => roundTimeSeconds(d + (step * i)));
+};
+
+export const getLimitsYAxis = (values: number[]): [number, number] => {
+  const min = getMinFromArray(values);
+  const max = getMaxFromArray(values);
+  return [min - (min * 0.05), max + (max * 0.05)];
+};
+
+export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series  => {
+  const label = getNameForMetric(d);
+  return {
+    label,
+    width: 1.5,
+    stroke: getColorFromString(label),
+    show: !hideSeries.includes(label),
+    scale: "y"
+  };
+};
+
+export const getLegendItem = (s: uPlotSeries): LegendItem => ({
+  label: s.label || "",
+  color: s.stroke as string,
+  checked: s.show || false
+});
+
+export const dragChart = ({e, factor = 0.85, u, setPanning, setPlotScale}: DragArgs): void => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  setPanning(true);
+  const leftStart = e.clientX;
+  const xUnitsPerPx = u.posToVal(1, "x") - u.posToVal(0, "x");
+  const scXMin = u.scales.x.min || 0;
+  const scXMax = u.scales.x.max || 0;
+
+  const mouseMove = (e: MouseEvent) => {
+    e.preventDefault();
+    const dx = xUnitsPerPx * ((e.clientX - leftStart) * factor);
+    setPlotScale({u, min: scXMin - dx, max: scXMax - dx});
+  };
+
+  const mouseUp = () => {
+    setPanning(false);
+    document.removeEventListener("mousemove", mouseMove);
+    document.removeEventListener("mouseup", mouseUp);
+  };
+
+  document.addEventListener("mousemove", mouseMove);
+  document.addEventListener("mouseup", mouseUp);
 };

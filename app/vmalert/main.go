@@ -104,8 +104,7 @@ func main() {
 		}
 		// prevent queries from caching and boundaries aligning
 		// when querying VictoriaMetrics datasource.
-		noCache := datasource.Param{Key: "nocache", Value: "1"}
-		q, err := datasource.Init([]datasource.Param{noCache})
+		q, err := datasource.Init(url.Values{"nocache": {"1"}})
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}
@@ -284,13 +283,13 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			// config didn't change - skip it
 			continue
 		}
-		groupsCfg = newGroupsCfg
-		if err := m.update(ctx, groupsCfg, false); err != nil {
+		if err := m.update(ctx, newGroupsCfg, false); err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
 			logger.Errorf("error while reloading rules: %s", err)
 			continue
 		}
+		groupsCfg = newGroupsCfg
 		configSuccess.Set(1)
 		configTimestamp.Set(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)

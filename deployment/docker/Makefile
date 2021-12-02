@@ -2,11 +2,11 @@
 
 DOCKER_NAMESPACE := victoriametrics
 
-ROOT_IMAGE ?= alpine:3.14.2
-CERTS_IMAGE := alpine:3.14.2
+ROOT_IMAGE ?= alpine:3.15.0
+CERTS_IMAGE := alpine:3.15.0
 GO_BUILDER_IMAGE := golang:1.17.3-alpine
-BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
-BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
+BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)
+BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \

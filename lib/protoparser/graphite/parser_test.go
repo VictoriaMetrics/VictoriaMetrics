@@ -288,6 +288,31 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
+	// Whitespace after the timestamp
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1865
+	f("foo.baz 125 1789 \na 1.34 567\t  ", &Rows{
+		Rows: []Row{
+			{
+				Metric:    "foo.baz",
+				Value:     125,
+				Timestamp: 1789,
+			},
+			{
+				Metric:    "a",
+				Value:     1.34,
+				Timestamp: 567,
+			},
+		},
+	})
+
+	// Multiple whitespaces as separators
+	f("foo.baz \t125  1789 \t\n", &Rows{
+		Rows: []Row{{
+			Metric:    "foo.baz",
+			Value:     125,
+			Timestamp: 1789,
+		}},
+	})
 }
 
 func Test_streamContext_Read(t *testing.T) {

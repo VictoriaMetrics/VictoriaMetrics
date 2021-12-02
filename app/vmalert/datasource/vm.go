@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -22,8 +23,7 @@ type VMStorage struct {
 
 	dataSourceType     Type
 	evaluationInterval time.Duration
-	extraLabels        []string
-	extraParams        []Param
+	extraParams        url.Values
 	disablePathAppend  bool
 }
 
@@ -47,9 +47,7 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 		s.dataSourceType = *params.DataSourceType
 	}
 	s.evaluationInterval = params.EvaluationInterval
-	for k, v := range params.ExtraLabels {
-		s.extraLabels = append(s.extraLabels, fmt.Sprintf("%s=%s", k, v))
-	}
+	s.extraParams = params.QueryParams
 	return s
 }
 
@@ -150,7 +148,7 @@ func (s *VMStorage) newRequestPOST() (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Content-Type", "application/json")
 	if s.authCfg != nil {
 		if auth := s.authCfg.GetAuthHeader(); auth != "" {
 			req.Header.Set("Authorization", auth)

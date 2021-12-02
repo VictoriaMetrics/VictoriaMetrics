@@ -32,7 +32,7 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctx)
 	if am.basicAuthPass != "" {
 		req.SetBasicAuth(am.basicAuthUser, am.basicAuthPass)

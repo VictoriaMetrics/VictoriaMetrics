@@ -93,7 +93,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, fmt.Errorf("cannot find separator between metric and value in %q", s)
 	}
 	metricAndTags := s[:n]
-	tail := s[n+1:]
+	tail := stripLeadingWhitespace(s[n+1:])
 
 	tagsPool, err := r.UnmarshalMetricAndTags(metricAndTags, tagsPool)
 	if err != nil {
@@ -114,9 +114,11 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail[:n], err)
 	}
-	ts, err := fastfloat.Parse(tail[n+1:])
+	tail = stripLeadingWhitespace(tail[n+1:])
+	tail = stripTrailingWhitespace(tail)
+	ts, err := fastfloat.Parse(tail)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail[n+1:], err)
+		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail, err)
 	}
 	r.Value = v
 	r.Timestamp = int64(ts)
@@ -214,4 +216,31 @@ func (t *Tag) unmarshal(s string) {
 		t.Key = s[:n]
 		t.Value = s[n+1:]
 	}
+}
+
+func stripTrailingWhitespace(s string) string {
+	n := len(s)
+	for {
+		n--
+		if n < 0 {
+			return ""
+		}
+		ch := s[n]
+		// graphite text line protocol may use white space or tab as separator
+		// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
+		if ch != ' ' && ch != '\t' {
+			return s[:n+1]
+		}
+	}
+}
+
+func stripLeadingWhitespace(s string) string {
+	for len(s) > 0 {
+		ch := s[0]
+		if ch != ' ' && ch != '\t' {
+			return s
+		}
+		s = s[1:]
+	}
+	return ""
 }

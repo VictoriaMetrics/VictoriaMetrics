@@ -475,7 +475,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_tenant_used_tenant_bytes{job=\"$job_storage\", instance=~\"$instance\",accountID=~\"$accountID\",projectID=~\"$projectID\"}) by(accountID,projectID)",
+          "expr": "sum(vm_tenant_used_tenant_bytes{job=~\"$job_storage\", instance=~\"$instance\",accountID=~\"$accountID\",projectID=~\"$projectID\"}) by(accountID,projectID)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,

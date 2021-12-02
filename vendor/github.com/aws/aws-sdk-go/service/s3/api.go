@@ -196,6 +196,10 @@ func (c *S3) CompleteMultipartUploadRequest(input *CompleteMultipartUploadInput)
 // to retry the failed requests. For more information, see Amazon S3 Error Best
 // Practices (https://docs.aws.amazon.com/AmazonS3/latest/dev/ErrorBestPractices.html).
 //
+// You cannot use Content-Type: application/x-www-form-urlencoded with Complete
+// Multipart Upload requests. Also, if you do not provide a Content-Type header,
+// CompleteMultipartUpload returns a 200 OK response.
+//
 // For more information about multipart uploads, see Uploading Objects Using
 // Multipart Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html).
 //
@@ -416,6 +420,21 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 // see Access Control List (ACL) Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html)
 // and Managing ACLs Using the REST API (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html).
 //
+// If the bucket that you're copying objects to uses the bucket owner enforced
+// setting for S3 Object Ownership, ACLs are disabled and no longer affect permissions.
+// Buckets that use this setting only accept PUT requests that don't specify
+// an ACL or PUT requests that specify bucket owner full control ACLs, such
+// as the bucket-owner-full-control canned ACL or an equivalent form of this
+// ACL expressed in the XML format.
+//
+// For more information, see Controlling ownership of objects and disabling
+// ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide.
+//
+// If your bucket uses the bucket owner enforced setting for Object Ownership,
+// all objects written to the bucket by any account will be owned by the bucket
+// owner.
+//
 // Storage Class Options
 //
 // You can use the CopyObject action to change the storage class of an object
@@ -554,8 +573,19 @@ func (c *S3) CreateBucketRequest(input *CreateBucketInput) (req *request.Request
 // your application must be able to handle 307 redirect. For more information,
 // see Virtual hosting of buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html).
 //
-// When creating a bucket using this operation, you can optionally specify the
-// accounts or groups that should be granted specific permissions on the bucket.
+// Access control lists (ACLs)
+//
+// When creating a bucket using this operation, you can optionally configure
+// the bucket ACL to specify the accounts or groups that should be granted specific
+// permissions on the bucket.
+//
+// If your CreateBucket request includes the BucketOwnerEnforced value for the
+// x-amz-object-ownership header, your request can either not specify an ACL
+// or specify bucket owner full control ACLs, such as the bucket-owner-full-control
+// canned ACL or an equivalent ACL expressed in the XML format. For more information,
+// see Controlling object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide.
+//
 // There are two ways to grant the appropriate permissions using the request
 // headers.
 //
@@ -568,11 +598,11 @@ func (c *S3) CreateBucketRequest(input *CreateBucketInput) (req *request.Request
 //    x-amz-grant-read-acp, x-amz-grant-write-acp, and x-amz-grant-full-control
 //    headers. These headers map to the set of permissions Amazon S3 supports
 //    in an ACL. For more information, see Access control list (ACL) overview
-//    (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html). You
-//    specify each grantee as a type=value pair, where the type is one of the
-//    following: id – if the value specified is the canonical user ID of an
-//    Amazon Web Services account uri – if you are granting permissions to
-//    a predefined group emailAddress – if the value specified is the email
+//    (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html).
+//    You specify each grantee as a type=value pair, where the type is one of
+//    the following: id – if the value specified is the canonical user ID
+//    of an Amazon Web Services account uri – if you are granting permissions
+//    to a predefined group emailAddress – if the value specified is the email
 //    address of an Amazon Web Services account Using email addresses to specify
 //    a grantee is only supported in the following Amazon Web Services Regions:
 //    US East (N. Virginia) US West (N. California) US West (Oregon) Asia Pacific
@@ -589,15 +619,23 @@ func (c *S3) CreateBucketRequest(input *CreateBucketInput) (req *request.Request
 //
 // Permissions
 //
-// If your CreateBucket request specifies ACL permissions and the ACL is public-read,
-// public-read-write, authenticated-read, or if you specify access permissions
-// explicitly through any other ACL, both s3:CreateBucket and s3:PutBucketAcl
-// permissions are needed. If the ACL the CreateBucket request is private, only
-// s3:CreateBucket permission is needed.
+// In addition to s3:CreateBucket, the following permissions are required when
+// your CreateBucket includes specific headers:
 //
-// If ObjectLockEnabledForBucket is set to true in your CreateBucket request,
-// s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning permissions
-// are required.
+//    * ACLs - If your CreateBucket request specifies ACL permissions and the
+//    ACL is public-read, public-read-write, authenticated-read, or if you specify
+//    access permissions explicitly through any other ACL, both s3:CreateBucket
+//    and s3:PutBucketAcl permissions are needed. If the ACL the CreateBucket
+//    request is private or doesn't specify any ACLs, only s3:CreateBucket permission
+//    is needed.
+//
+//    * Object Lock - If ObjectLockEnabledForBucket is set to true in your CreateBucket
+//    request, s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning
+//    permissions are required.
+//
+//    * S3 Object Ownership - If your CreateBucket request includes the the
+//    x-amz-object-ownership header, s3:PutBucketOwnershipControls permission
+//    is required.
 //
 // The following operations are related to CreateBucket:
 //
@@ -1277,17 +1315,16 @@ func (c *S3) DeleteBucketIntelligentTieringConfigurationRequest(input *DeleteBuc
 // The S3 Intelligent-Tiering storage class is designed to optimize storage
 // costs by automatically moving data to the most cost-effective storage access
 // tier, without performance impact or operational overhead. S3 Intelligent-Tiering
-// delivers automatic cost savings in two low latency and high throughput access
-// tiers. For data that can be accessed asynchronously, you can choose to activate
-// automatic archiving capabilities within the S3 Intelligent-Tiering storage
-// class.
+// delivers automatic cost savings in three low latency and high throughput
+// access tiers. To get the lowest storage cost on data that can be accessed
+// in minutes to hours, you can choose to activate additional archiving capabilities.
 //
 // The S3 Intelligent-Tiering storage class is the ideal storage class for data
 // with unknown, changing, or unpredictable access patterns, independent of
 // object size or retention period. If the size of an object is less than 128
-// KB, it is not eligible for auto-tiering. Smaller objects can be stored, but
-// they are always charged at the Frequent Access tier rates in the S3 Intelligent-Tiering
-// storage class.
+// KB, it is not monitored and not eligible for auto-tiering. Smaller objects
+// can be stored, but they are always charged at the Frequent Access tier rates
+// in the S3 Intelligent-Tiering storage class.
 //
 // For more information, see Storage class for automatically optimizing frequently
 // and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
@@ -2614,6 +2651,12 @@ func (c *S3) GetBucketAclRequest(input *GetBucketAclInput) (req *request.Request
 // is granted to the anonymous user, you can return the ACL of the bucket without
 // using an authorization header.
 //
+// If your bucket uses the bucket owner enforced setting for S3 Object Ownership,
+// requests to read ACLs are still supported and return the bucket-owner-full-control
+// ACL with the owner being the account that created the bucket. For more information,
+// see Controlling object ownership and disabling ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide.
+//
 // Related Resources
 //
 //    * ListObjects (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)
@@ -2967,17 +3010,16 @@ func (c *S3) GetBucketIntelligentTieringConfigurationRequest(input *GetBucketInt
 // The S3 Intelligent-Tiering storage class is designed to optimize storage
 // costs by automatically moving data to the most cost-effective storage access
 // tier, without performance impact or operational overhead. S3 Intelligent-Tiering
-// delivers automatic cost savings in two low latency and high throughput access
-// tiers. For data that can be accessed asynchronously, you can choose to activate
-// automatic archiving capabilities within the S3 Intelligent-Tiering storage
-// class.
+// delivers automatic cost savings in three low latency and high throughput
+// access tiers. To get the lowest storage cost on data that can be accessed
+// in minutes to hours, you can choose to activate additional archiving capabilities.
 //
 // The S3 Intelligent-Tiering storage class is the ideal storage class for data
 // with unknown, changing, or unpredictable access patterns, independent of
 // object size or retention period. If the size of an object is less than 128
-// KB, it is not eligible for auto-tiering. Smaller objects can be stored, but
-// they are always charged at the Frequent Access tier rates in the S3 Intelligent-Tiering
-// storage class.
+// KB, it is not monitored and not eligible for auto-tiering. Smaller objects
+// can be stored, but they are always charged at the Frequent Access tier rates
+// in the S3 Intelligent-Tiering storage class.
 //
 // For more information, see Storage class for automatically optimizing frequently
 // and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
@@ -3805,10 +3847,10 @@ func (c *S3) GetBucketOwnershipControlsRequest(input *GetBucketOwnershipControls
 //
 // Retrieves OwnershipControls for an Amazon S3 bucket. To use this operation,
 // you must have the s3:GetBucketOwnershipControls permission. For more information
-// about Amazon S3 permissions, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
+// about Amazon S3 permissions, see Specifying permissions in a policy (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html).
 //
 // For information about Amazon S3 Object Ownership, see Using Object Ownership
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/about-object-ownership.html).
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html).
 //
 // The following operations are related to GetBucketOwnershipControls:
 //
@@ -4586,8 +4628,9 @@ func (c *S3) GetObjectRequest(input *GetObjectInput) (req *request.Request, outp
 // By default, the GET action returns the current version of an object. To return
 // a different version, use the versionId subresource.
 //
-//    * You need the s3:GetObjectVersion permission to access a specific version
-//    of an object.
+//    * If you supply a versionId, you need the s3:GetObjectVersion permission
+//    to access a specific version of an object. If you request a specific version,
+//    you do not need to have the s3:GetObject permission.
 //
 //    * If the current version of the object is a delete marker, Amazon S3 behaves
 //    as if the object was deleted and includes x-amz-delete-marker: true in
@@ -4733,6 +4776,12 @@ func (c *S3) GetObjectAclRequest(input *GetObjectAclInput) (req *request.Request
 //
 // By default, GET returns ACL information about the current version of an object.
 // To return ACL information about a different version, use the versionId subresource.
+//
+// If your bucket uses the bucket owner enforced setting for S3 Object Ownership,
+// requests to read ACLs are still supported and return the bucket-owner-full-control
+// ACL with the owner being the account that created the bucket. For more information,
+// see Controlling object ownership and disabling ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide.
 //
 // The following operations are related to GetObjectAcl:
 //
@@ -5675,17 +5724,16 @@ func (c *S3) ListBucketIntelligentTieringConfigurationsRequest(input *ListBucket
 // The S3 Intelligent-Tiering storage class is designed to optimize storage
 // costs by automatically moving data to the most cost-effective storage access
 // tier, without performance impact or operational overhead. S3 Intelligent-Tiering
-// delivers automatic cost savings in two low latency and high throughput access
-// tiers. For data that can be accessed asynchronously, you can choose to activate
-// automatic archiving capabilities within the S3 Intelligent-Tiering storage
-// class.
+// delivers automatic cost savings in three low latency and high throughput
+// access tiers. To get the lowest storage cost on data that can be accessed
+// in minutes to hours, you can choose to activate additional archiving capabilities.
 //
 // The S3 Intelligent-Tiering storage class is the ideal storage class for data
 // with unknown, changing, or unpredictable access patterns, independent of
 // object size or retention period. If the size of an object is less than 128
-// KB, it is not eligible for auto-tiering. Smaller objects can be stored, but
-// they are always charged at the Frequent Access tier rates in the S3 Intelligent-Tiering
-// storage class.
+// KB, it is not monitored and not eligible for auto-tiering. Smaller objects
+// can be stored, but they are always charged at the Frequent Access tier rates
+// in the S3 Intelligent-Tiering storage class.
 //
 // For more information, see Storage class for automatically optimizing frequently
 // and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
@@ -6980,6 +7028,14 @@ func (c *S3) PutBucketAclRequest(input *PutBucketAclInput) (req *request.Request
 // existing application that updates a bucket ACL using the request body, then
 // you can continue to use that approach.
 //
+// If your bucket uses the bucket owner enforced setting for S3 Object Ownership,
+// ACLs are disabled and no longer affect permissions. You must use policies
+// to grant access to your bucket and the objects in it. Requests to set ACLs
+// or update ACLs fail and return the AccessControlListNotSupported error code.
+// Requests to read ACLs are still supported. For more information, see Controlling
+// object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide.
+//
 // Access Permissions
 //
 // You can set access permissions using one of the following methods:
@@ -7474,17 +7530,16 @@ func (c *S3) PutBucketIntelligentTieringConfigurationRequest(input *PutBucketInt
 // The S3 Intelligent-Tiering storage class is designed to optimize storage
 // costs by automatically moving data to the most cost-effective storage access
 // tier, without performance impact or operational overhead. S3 Intelligent-Tiering
-// delivers automatic cost savings in two low latency and high throughput access
-// tiers. For data that can be accessed asynchronously, you can choose to activate
-// automatic archiving capabilities within the S3 Intelligent-Tiering storage
-// class.
+// delivers automatic cost savings in three low latency and high throughput
+// access tiers. To get the lowest storage cost on data that can be accessed
+// in minutes to hours, you can choose to activate additional archiving capabilities.
 //
 // The S3 Intelligent-Tiering storage class is the ideal storage class for data
 // with unknown, changing, or unpredictable access patterns, independent of
 // object size or retention period. If the size of an object is less than 128
-// KB, it is not eligible for auto-tiering. Smaller objects can be stored, but
-// they are always charged at the Frequent Access tier rates in the S3 Intelligent-Tiering
-// storage class.
+// KB, it is not monitored and not eligible for auto-tiering. Smaller objects
+// can be stored, but they are always charged at the Frequent Access tier rates
+// in the S3 Intelligent-Tiering storage class.
 //
 // For more information, see Storage class for automatically optimizing frequently
 // and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
@@ -7998,6 +8053,12 @@ func (c *S3) PutBucketLoggingRequest(input *PutBucketLoggingInput) (req *request
 // the Grantee request element to grant access to other people. The Permissions
 // request element specifies the kind of access the grantee has to the logs.
 //
+// If the target bucket for log delivery uses the bucket owner enforced setting
+// for S3 Object Ownership, you can't use the Grantee request element to grant
+// access to others. Permissions can only be granted using policies. For more
+// information, see Permissions for server access log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
+// in the Amazon S3 User Guide.
+//
 // Grantee Values
 //
 // You can specify the person (grantee) to whom you're assigning access rights
@@ -8021,7 +8082,8 @@ func (c *S3) PutBucketLoggingRequest(input *PutBucketLoggingInput) (req *request
 // <BucketLoggingStatus xmlns="http://doc.s3.amazonaws.com/2006-03-01" />
 //
 // For more information about server access logging, see Server Access Logging
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerLogs.html).
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html) in
+// the Amazon S3 User Guide.
 //
 // For more information about creating a bucket, see CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html).
 // For more information about returning the logging status of a bucket, see
@@ -8430,11 +8492,11 @@ func (c *S3) PutBucketOwnershipControlsRequest(input *PutBucketOwnershipControls
 //
 // Creates or modifies OwnershipControls for an Amazon S3 bucket. To use this
 // operation, you must have the s3:PutBucketOwnershipControls permission. For
-// more information about Amazon S3 permissions, see Specifying Permissions
-// in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
+// more information about Amazon S3 permissions, see Specifying permissions
+// in a policy (https://docs.aws.amazon.com/AmazonS3/latest/user-guide/using-with-s3-actions.html).
 //
-// For information about Amazon S3 Object Ownership, see Using Object Ownership
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/about-object-ownership.html).
+// For information about Amazon S3 Object Ownership, see Using object ownership
+// (https://docs.aws.amazon.com/AmazonS3/latest/user-guide/about-object-ownership.html).
 //
 // The following operations are related to PutBucketOwnershipControls:
 //
@@ -9272,6 +9334,23 @@ func (c *S3) PutObjectRequest(input *PutObjectInput) (req *request.Request, outp
 // Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html)
 // and Managing ACLs Using the REST API (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html).
 //
+// If the bucket that you're uploading objects to uses the bucket owner enforced
+// setting for S3 Object Ownership, ACLs are disabled and no longer affect permissions.
+// Buckets that use this setting only accept PUT requests that don't specify
+// an ACL or PUT requests that specify bucket owner full control ACLs, such
+// as the bucket-owner-full-control canned ACL or an equivalent form of this
+// ACL expressed in the XML format. PUT requests that contain other ACLs (for
+// example, custom grants to certain Amazon Web Services accounts) fail and
+// return a 400 error with the error code AccessControlListNotSupported.
+//
+// For more information, see Controlling ownership of objects and disabling
+// ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide.
+//
+// If your bucket uses the bucket owner enforced setting for Object Ownership,
+// all objects written to the bucket by any account will be owned by the bucket
+// owner.
+//
 // Storage Class Options
 //
 // By default, Amazon S3 uses the STANDARD Storage Class to store newly created
@@ -9389,6 +9468,14 @@ func (c *S3) PutObjectAclRequest(input *PutObjectAclInput) (req *request.Request
 // have an existing application that updates a bucket ACL using the request
 // body, you can continue to use that approach. For more information, see Access
 // Control List (ACL) Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html)
+// in the Amazon S3 User Guide.
+//
+// If your bucket uses the bucket owner enforced setting for S3 Object Ownership,
+// ACLs are disabled and no longer affect permissions. You must use policies
+// to grant access to your bucket and the objects in it. Requests to set ACLs
+// or update ACLs fail and return the AccessControlListNotSupported error code.
+// Requests to read ACLs are still supported. For more information, see Controlling
+// object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide.
 //
 // Access Permissions
@@ -12687,6 +12774,9 @@ type CompletedMultipartUpload struct {
 	_ struct{} `type:"structure"`
 
 	// Array of CompletedPart data types.
+	//
+	// If you do not supply a valid Part with your request, the service sends back
+	// an HTTP 400 response.
 	Parts []*CompletedPart `locationName:"Part" type:"list" flattened:"true"`
 }
 
@@ -13726,6 +13816,22 @@ type CreateBucketInput struct {
 
 	// Specifies whether you want S3 Object Lock to be enabled for the new bucket.
 	ObjectLockEnabledForBucket *bool `location:"header" locationName:"x-amz-bucket-object-lock-enabled" type:"boolean"`
+
+	// The container element for object ownership for a bucket's ownership controls.
+	//
+	// BucketOwnerPreferred - Objects uploaded to the bucket change ownership to
+	// the bucket owner if the objects are uploaded with the bucket-owner-full-control
+	// canned ACL.
+	//
+	// ObjectWriter - The uploading account will own the object if the object is
+	// uploaded with the bucket-owner-full-control canned ACL.
+	//
+	// BucketOwnerEnforced - Access control lists (ACLs) are disabled and no longer
+	// affect permissions. The bucket owner automatically owns and has full control
+	// over every object in the bucket. The bucket only accepts PUT requests that
+	// don't specify an ACL or bucket owner full control ACLs, such as the bucket-owner-full-control
+	// canned ACL or an equivalent form of this ACL expressed in the XML format.
+	ObjectOwnership *string `location:"header" locationName:"x-amz-object-ownership" type:"string" enum:"ObjectOwnership"`
 }
 
 // String returns the string representation.
@@ -13820,6 +13926,12 @@ func (s *CreateBucketInput) SetGrantWriteACP(v string) *CreateBucketInput {
 // SetObjectLockEnabledForBucket sets the ObjectLockEnabledForBucket field's value.
 func (s *CreateBucketInput) SetObjectLockEnabledForBucket(v bool) *CreateBucketInput {
 	s.ObjectLockEnabledForBucket = &v
+	return s
+}
+
+// SetObjectOwnership sets the ObjectOwnership field's value.
+func (s *CreateBucketInput) SetObjectOwnership(v string) *CreateBucketInput {
+	s.ObjectOwnership = &v
 	return s
 }
 
@@ -17813,6 +17925,29 @@ func (s *ErrorDocument) SetKey(v string) *ErrorDocument {
 	return s
 }
 
+// A container for specifying the configuration for Amazon EventBridge.
+type EventBridgeConfiguration struct {
+	_ struct{} `type:"structure"`
+}
+
+// String returns the string representation.
+//
+// API parameter values that are decorated as "sensitive" in the API will not
+// be included in the string output. The member name will be present, but the
+// value will be replaced with "sensitive".
+func (s EventBridgeConfiguration) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation.
+//
+// API parameter values that are decorated as "sensitive" in the API will not
+// be included in the string output. The member name will be present, but the
+// value will be replaced with "sensitive".
+func (s EventBridgeConfiguration) GoString() string {
+	return s.String()
+}
+
 // Optional configuration to replicate existing source bucket objects. For more
 // information, see Replicating Existing Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication)
 // in the Amazon S3 User Guide.
@@ -19659,8 +19794,8 @@ func (s GetBucketOwnershipControlsInput) updateArnableField(v string) (interface
 type GetBucketOwnershipControlsOutput struct {
 	_ struct{} `type:"structure" payload:"OwnershipControls"`
 
-	// The OwnershipControls (BucketOwnerPreferred or ObjectWriter) currently in
-	// effect for this Amazon S3 bucket.
+	// The OwnershipControls (BucketOwnerEnforced, BucketOwnerPreferred, or ObjectWriter)
+	// currently in effect for this Amazon S3 bucket.
 	OwnershipControls *OwnershipControls `type:"structure"`
 }
 
@@ -24692,6 +24827,12 @@ func (s *LifecycleRule) SetTransitions(v []*Transition) *LifecycleRule {
 type LifecycleRuleAndOperator struct {
 	_ struct{} `type:"structure"`
 
+	// Minimum object size to which the rule applies.
+	ObjectSizeGreaterThan *int64 `type:"long"`
+
+	// Maximum object size to which the rule applies.
+	ObjectSizeLessThan *int64 `type:"long"`
+
 	// Prefix identifying one or more objects to which the rule applies.
 	Prefix *string `type:"string"`
 
@@ -24738,6 +24879,18 @@ func (s *LifecycleRuleAndOperator) Validate() error {
 	return nil
 }
 
+// SetObjectSizeGreaterThan sets the ObjectSizeGreaterThan field's value.
+func (s *LifecycleRuleAndOperator) SetObjectSizeGreaterThan(v int64) *LifecycleRuleAndOperator {
+	s.ObjectSizeGreaterThan = &v
+	return s
+}
+
+// SetObjectSizeLessThan sets the ObjectSizeLessThan field's value.
+func (s *LifecycleRuleAndOperator) SetObjectSizeLessThan(v int64) *LifecycleRuleAndOperator {
+	s.ObjectSizeLessThan = &v
+	return s
+}
+
 // SetPrefix sets the Prefix field's value.
 func (s *LifecycleRuleAndOperator) SetPrefix(v string) *LifecycleRuleAndOperator {
 	s.Prefix = &v
@@ -24759,6 +24912,12 @@ type LifecycleRuleFilter struct {
 	// more predicates. The Lifecycle Rule will apply to any object matching all
 	// of the predicates configured inside the And operator.
 	And *LifecycleRuleAndOperator `type:"structure"`
+
+	// Minimum object size to which the rule applies.
+	ObjectSizeGreaterThan *int64 `type:"long"`
+
+	// Maximum object size to which the rule applies.
+	ObjectSizeLessThan *int64 `type:"long"`
 
 	// Prefix identifying one or more objects to which the rule applies.
 	//
@@ -24812,6 +24971,18 @@ func (s *LifecycleRuleFilter) Validate() error {
 // SetAnd sets the And field's value.
 func (s *LifecycleRuleFilter) SetAnd(v *LifecycleRuleAndOperator) *LifecycleRuleFilter {
 	s.And = v
+	return s
+}
+
+// SetObjectSizeGreaterThan sets the ObjectSizeGreaterThan field's value.
+func (s *LifecycleRuleFilter) SetObjectSizeGreaterThan(v int64) *LifecycleRuleFilter {
+	s.ObjectSizeGreaterThan = &v
+	return s
+}
+
+// SetObjectSizeLessThan sets the ObjectSizeLessThan field's value.
+func (s *LifecycleRuleFilter) SetObjectSizeLessThan(v int64) *LifecycleRuleFilter {
+	s.ObjectSizeLessThan = &v
 	return s
 }
 
@@ -27410,6 +27581,11 @@ type LoggingEnabled struct {
 	TargetBucket *string `type:"string" required:"true"`
 
 	// Container for granting information.
+	//
+	// Buckets that use the bucket owner enforced setting for Object Ownership don't
+	// support target grants. For more information, see Permissions for server access
+	// log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
+	// in the Amazon S3 User Guide.
 	TargetGrants []*TargetGrant `locationNameList:"Grant" type:"list"`
 
 	// A prefix for all log object keys. If you store log files from multiple Amazon
@@ -27890,6 +28066,13 @@ func (s *MultipartUpload) SetUploadId(v string) *MultipartUpload {
 type NoncurrentVersionExpiration struct {
 	_ struct{} `type:"structure"`
 
+	// Specifies how many noncurrent versions Amazon S3 will retain. If there are
+	// this many more recent noncurrent versions, Amazon S3 will take the associated
+	// action. For more information about noncurrent versions, see Lifecycle configuration
+	// elements (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
+	// in the Amazon S3 User Guide.
+	NewerNoncurrentVersions *int64 `type:"integer"`
+
 	// Specifies the number of days an object is noncurrent before Amazon S3 can
 	// perform the associated action. For information about the noncurrent days
 	// calculations, see How Amazon S3 Calculates When an Object Became Noncurrent
@@ -27916,6 +28099,12 @@ func (s NoncurrentVersionExpiration) GoString() string {
 	return s.String()
 }
 
+// SetNewerNoncurrentVersions sets the NewerNoncurrentVersions field's value.
+func (s *NoncurrentVersionExpiration) SetNewerNoncurrentVersions(v int64) *NoncurrentVersionExpiration {
+	s.NewerNoncurrentVersions = &v
+	return s
+}
+
 // SetNoncurrentDays sets the NoncurrentDays field's value.
 func (s *NoncurrentVersionExpiration) SetNoncurrentDays(v int64) *NoncurrentVersionExpiration {
 	s.NoncurrentDays = &v
@@ -27923,14 +28112,21 @@ func (s *NoncurrentVersionExpiration) SetNoncurrentDays(v int64) *NoncurrentVers
 }
 
 // Container for the transition rule that describes when noncurrent objects
-// transition to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER,
-// or DEEP_ARCHIVE storage class. If your bucket is versioning-enabled (or versioning
-// is suspended), you can set this action to request that Amazon S3 transition
-// noncurrent object versions to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING,
-// GLACIER, or DEEP_ARCHIVE storage class at a specific period in the object's
-// lifetime.
+// transition to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER_IR,
+// GLACIER, or DEEP_ARCHIVE storage class. If your bucket is versioning-enabled
+// (or versioning is suspended), you can set this action to request that Amazon
+// S3 transition noncurrent object versions to the STANDARD_IA, ONEZONE_IA,
+// INTELLIGENT_TIERING, GLACIER_IR, GLACIER, or DEEP_ARCHIVE storage class at
+// a specific period in the object's lifetime.
 type NoncurrentVersionTransition struct {
 	_ struct{} `type:"structure"`
+
+	// Specifies how many noncurrent versions Amazon S3 will retain. If there are
+	// this many more recent noncurrent versions, Amazon S3 will take the associated
+	// action. For more information about noncurrent versions, see Lifecycle configuration
+	// elements (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
+	// in the Amazon S3 User Guide.
+	NewerNoncurrentVersions *int64 `type:"integer"`
 
 	// Specifies the number of days an object is noncurrent before Amazon S3 can
 	// perform the associated action. For information about the noncurrent days
@@ -27961,6 +28157,12 @@ func (s NoncurrentVersionTransition) GoString() string {
 	return s.String()
 }
 
+// SetNewerNoncurrentVersions sets the NewerNoncurrentVersions field's value.
+func (s *NoncurrentVersionTransition) SetNewerNoncurrentVersions(v int64) *NoncurrentVersionTransition {
+	s.NewerNoncurrentVersions = &v
+	return s
+}
+
 // SetNoncurrentDays sets the NoncurrentDays field's value.
 func (s *NoncurrentVersionTransition) SetNoncurrentDays(v int64) *NoncurrentVersionTransition {
 	s.NoncurrentDays = &v
@@ -27977,6 +28179,9 @@ func (s *NoncurrentVersionTransition) SetStorageClass(v string) *NoncurrentVersi
 // If this element is empty, notifications are turned off for the bucket.
 type NotificationConfiguration struct {
 	_ struct{} `type:"structure"`
+
+	// Enables delivery of events to Amazon EventBridge.
+	EventBridgeConfiguration *EventBridgeConfiguration `type:"structure"`
 
 	// Describes the Lambda functions to invoke and the events for which to invoke
 	// them.
@@ -28047,6 +28252,12 @@ func (s *NotificationConfiguration) Validate() error {
 		return invalidParams
 	}
 	return nil
+}
+
+// SetEventBridgeConfiguration sets the EventBridgeConfiguration field's value.
+func (s *NotificationConfiguration) SetEventBridgeConfiguration(v *EventBridgeConfiguration) *NotificationConfiguration {
+	s.EventBridgeConfiguration = v
+	return s
 }
 
 // SetLambdaFunctionConfigurations sets the LambdaFunctionConfigurations field's value.
@@ -28759,6 +28970,12 @@ type OwnershipControlsRule struct {
 	//
 	// ObjectWriter - The uploading account will own the object if the object is
 	// uploaded with the bucket-owner-full-control canned ACL.
+	//
+	// BucketOwnerEnforced - Access control lists (ACLs) are disabled and no longer
+	// affect permissions. The bucket owner automatically owns and has full control
+	// over every object in the bucket. The bucket only accepts PUT requests that
+	// don't specify an ACL or bucket owner full control ACLs, such as the bucket-owner-full-control
+	// canned ACL or an equivalent form of this ACL expressed in the XML format.
 	//
 	// ObjectOwnership is a required field
 	ObjectOwnership *string `type:"string" required:"true" enum:"ObjectOwnership"`
@@ -30710,6 +30927,10 @@ type PutBucketNotificationConfigurationInput struct {
 	//
 	// NotificationConfiguration is a required field
 	NotificationConfiguration *NotificationConfiguration `locationName:"NotificationConfiguration" type:"structure" required:"true" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
+
+	// Skips validation of Amazon SQS, Amazon SNS, and Lambda destinations. True
+	// or false value.
+	SkipDestinationValidation *bool `location:"header" locationName:"x-amz-skip-destination-validation" type:"boolean"`
 }
 
 // String returns the string representation.
@@ -30776,6 +30997,12 @@ func (s *PutBucketNotificationConfigurationInput) SetExpectedBucketOwner(v strin
 // SetNotificationConfiguration sets the NotificationConfiguration field's value.
 func (s *PutBucketNotificationConfigurationInput) SetNotificationConfiguration(v *NotificationConfiguration) *PutBucketNotificationConfigurationInput {
 	s.NotificationConfiguration = v
+	return s
+}
+
+// SetSkipDestinationValidation sets the SkipDestinationValidation field's value.
+func (s *PutBucketNotificationConfigurationInput) SetSkipDestinationValidation(v bool) *PutBucketNotificationConfigurationInput {
+	s.SkipDestinationValidation = &v
 	return s
 }
 
@@ -30971,8 +31198,8 @@ type PutBucketOwnershipControlsInput struct {
 	// error.
 	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
-	// The OwnershipControls (BucketOwnerPreferred or ObjectWriter) that you want
-	// to apply to this Amazon S3 bucket.
+	// The OwnershipControls (BucketOwnerEnforced, BucketOwnerPreferred, or ObjectWriter)
+	// that you want to apply to this Amazon S3 bucket.
 	//
 	// OwnershipControls is a required field
 	OwnershipControls *OwnershipControls `locationName:"OwnershipControls" type:"structure" required:"true" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
@@ -35092,12 +35319,12 @@ type Rule struct {
 	NoncurrentVersionExpiration *NoncurrentVersionExpiration `type:"structure"`
 
 	// Container for the transition rule that describes when noncurrent objects
-	// transition to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER,
-	// or DEEP_ARCHIVE storage class. If your bucket is versioning-enabled (or versioning
-	// is suspended), you can set this action to request that Amazon S3 transition
-	// noncurrent object versions to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING,
-	// GLACIER, or DEEP_ARCHIVE storage class at a specific period in the object's
-	// lifetime.
+	// transition to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER_IR,
+	// GLACIER, or DEEP_ARCHIVE storage class. If your bucket is versioning-enabled
+	// (or versioning is suspended), you can set this action to request that Amazon
+	// S3 transition noncurrent object versions to the STANDARD_IA, ONEZONE_IA,
+	// INTELLIGENT_TIERING, GLACIER_IR, GLACIER, or DEEP_ARCHIVE storage class at
+	// a specific period in the object's lifetime.
 	NoncurrentVersionTransition *NoncurrentVersionTransition `type:"structure"`
 
 	// Object key prefix that identifies one or more objects to which this rule
@@ -36553,6 +36780,11 @@ func (s *Tagging) SetTagSet(v []*Tag) *Tagging {
 }
 
 // Container for granting information.
+//
+// Buckets that use the bucket owner enforced setting for Object Ownership don't
+// support target grants. For more information, see Permissions server access
+// log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
+// in the Amazon S3 User Guide.
 type TargetGrant struct {
 	_ struct{} `type:"structure"`
 
@@ -38621,6 +38853,36 @@ const (
 
 	// EventS3ReplicationOperationReplicatedAfterThreshold is a Event enum value
 	EventS3ReplicationOperationReplicatedAfterThreshold = "s3:Replication:OperationReplicatedAfterThreshold"
+
+	// EventS3ObjectRestoreDelete is a Event enum value
+	EventS3ObjectRestoreDelete = "s3:ObjectRestore:Delete"
+
+	// EventS3LifecycleTransition is a Event enum value
+	EventS3LifecycleTransition = "s3:LifecycleTransition"
+
+	// EventS3IntelligentTiering is a Event enum value
+	EventS3IntelligentTiering = "s3:IntelligentTiering"
+
+	// EventS3ObjectAclPut is a Event enum value
+	EventS3ObjectAclPut = "s3:ObjectAcl:Put"
+
+	// EventS3LifecycleExpiration is a Event enum value
+	EventS3LifecycleExpiration = "s3:LifecycleExpiration:*"
+
+	// EventS3LifecycleExpirationDelete is a Event enum value
+	EventS3LifecycleExpirationDelete = "s3:LifecycleExpiration:Delete"
+
+	// EventS3LifecycleExpirationDeleteMarkerCreated is a Event enum value
+	EventS3LifecycleExpirationDeleteMarkerCreated = "s3:LifecycleExpiration:DeleteMarkerCreated"
+
+	// EventS3ObjectTagging is a Event enum value
+	EventS3ObjectTagging = "s3:ObjectTagging:*"
+
+	// EventS3ObjectTaggingPut is a Event enum value
+	EventS3ObjectTaggingPut = "s3:ObjectTagging:Put"
+
+	// EventS3ObjectTaggingDelete is a Event enum value
+	EventS3ObjectTaggingDelete = "s3:ObjectTagging:Delete"
 )
 
 // Event_Values returns all elements of the Event enum
@@ -38643,6 +38905,16 @@ func Event_Values() []string {
 		EventS3ReplicationOperationNotTracked,
 		EventS3ReplicationOperationMissedThreshold,
 		EventS3ReplicationOperationReplicatedAfterThreshold,
+		EventS3ObjectRestoreDelete,
+		EventS3LifecycleTransition,
+		EventS3IntelligentTiering,
+		EventS3ObjectAclPut,
+		EventS3LifecycleExpiration,
+		EventS3LifecycleExpirationDelete,
+		EventS3LifecycleExpirationDeleteMarkerCreated,
+		EventS3ObjectTagging,
+		EventS3ObjectTaggingPut,
+		EventS3ObjectTaggingDelete,
 	}
 }
 
@@ -39050,12 +39322,21 @@ func ObjectLockRetentionMode_Values() []string {
 //
 // ObjectWriter - The uploading account will own the object if the object is
 // uploaded with the bucket-owner-full-control canned ACL.
+//
+// BucketOwnerEnforced - Access control lists (ACLs) are disabled and no longer
+// affect permissions. The bucket owner automatically owns and has full control
+// over every object in the bucket. The bucket only accepts PUT requests that
+// don't specify an ACL or bucket owner full control ACLs, such as the bucket-owner-full-control
+// canned ACL or an equivalent form of this ACL expressed in the XML format.
 const (
 	// ObjectOwnershipBucketOwnerPreferred is a ObjectOwnership enum value
 	ObjectOwnershipBucketOwnerPreferred = "BucketOwnerPreferred"
 
 	// ObjectOwnershipObjectWriter is a ObjectOwnership enum value
 	ObjectOwnershipObjectWriter = "ObjectWriter"
+
+	// ObjectOwnershipBucketOwnerEnforced is a ObjectOwnership enum value
+	ObjectOwnershipBucketOwnerEnforced = "BucketOwnerEnforced"
 )
 
 // ObjectOwnership_Values returns all elements of the ObjectOwnership enum
@@ -39063,6 +39344,7 @@ func ObjectOwnership_Values() []string {
 	return []string{
 		ObjectOwnershipBucketOwnerPreferred,
 		ObjectOwnershipObjectWriter,
+		ObjectOwnershipBucketOwnerEnforced,
 	}
 }
 
@@ -39090,6 +39372,9 @@ const (
 
 	// ObjectStorageClassOutposts is a ObjectStorageClass enum value
 	ObjectStorageClassOutposts = "OUTPOSTS"
+
+	// ObjectStorageClassGlacierIr is a ObjectStorageClass enum value
+	ObjectStorageClassGlacierIr = "GLACIER_IR"
 )
 
 // ObjectStorageClass_Values returns all elements of the ObjectStorageClass enum
@@ -39103,6 +39388,7 @@ func ObjectStorageClass_Values() []string {
 		ObjectStorageClassIntelligentTiering,
 		ObjectStorageClassDeepArchive,
 		ObjectStorageClassOutposts,
+		ObjectStorageClassGlacierIr,
 	}
 }
 
@@ -39377,6 +39663,9 @@ const (
 
 	// StorageClassOutposts is a StorageClass enum value
 	StorageClassOutposts = "OUTPOSTS"
+
+	// StorageClassGlacierIr is a StorageClass enum value
+	StorageClassGlacierIr = "GLACIER_IR"
 )
 
 // StorageClass_Values returns all elements of the StorageClass enum
@@ -39390,6 +39679,7 @@ func StorageClass_Values() []string {
 		StorageClassGlacier,
 		StorageClassDeepArchive,
 		StorageClassOutposts,
+		StorageClassGlacierIr,
 	}
 }
 
@@ -39456,6 +39746,9 @@ const (
 
 	// TransitionStorageClassDeepArchive is a TransitionStorageClass enum value
 	TransitionStorageClassDeepArchive = "DEEP_ARCHIVE"
+
+	// TransitionStorageClassGlacierIr is a TransitionStorageClass enum value
+	TransitionStorageClassGlacierIr = "GLACIER_IR"
 )
 
 // TransitionStorageClass_Values returns all elements of the TransitionStorageClass enum
@@ -39466,6 +39759,7 @@ func TransitionStorageClass_Values() []string {
 		TransitionStorageClassOnezoneIa,
 		TransitionStorageClassIntelligentTiering,
 		TransitionStorageClassDeepArchive,
+		TransitionStorageClassGlacierIr,
 	}
 }
 

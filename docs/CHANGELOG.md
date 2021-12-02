@@ -7,6 +7,34 @@ sort: 15
 ## tip
 
 
+## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
+
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add ability to pass arbitrary query args to `-datasource.url` on a per-group basis via `params` option. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1892).
+* FEATURE: add `now()` function to MetricsQL. This function returns the current timestamp in seconds. See [these docs](https://docs.victoriametrics.com/MetricsQL.html#now).
+* FEATURE: vmauth: allow using optional `name` field in configs. This field is then used as `username` label value for `vmauth_user_requests_total` metric. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1805).
+* FEATURE: vmagent: export `vm_persistentqueue_read_duration_seconds_total` and `vm_persistentqueue_write_duration_seconds_total` metrics, which can be used for detecting persistent queue saturation with `rate(vm_persistentqueue_write_duration_seconds_total) > 0.9` alerting rule.
+* FEATURE: export `vm_filestream_read_duration_seconds_total` and `vm_filestream_write_duration_seconds_total` metrics, which can be used for detecting persistent disk saturation with `rate(vm_filestream_read_duration_seconds_total) > 0.9` alerting rule.
+* FEATURE: export `vm_cache_size_max_bytes` metrics, which show capacity for various caches. These metrics can be used for determining caches reaches its capacity with `vm_cache_size_bytes / vm_cache_size_max_bytes > 0.9` query.
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html), [vmrestore](https://docs.victoriametrics.com/vmrestore.html): add `-s3ForcePathStyle` command-line flag, which can be used for making backups to [Aliyun OSS](https://www.aliyun.com/product/oss). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1802).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): improve data migration from OpenTSDB. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1809). Thanks to @johnseekins .
+* FEATURE: suppress `connection reset by peer` errors when remote client resets TCP connection to VictoriaMetrics / vmagent while ingesting the data via InfluxDB line protocol, Graphite protocol or OpenTSDB protocol. This error is expected, so there is no need in logging it.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): store the display type in URL, so it isn't lost when copy-pasting the URL. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1804).
+* FEATURE: vmalert: make `-notifier.url` command-line flag optional. This flag can be omitted if `vmalert` is used solely for recording rules and doesn't evaluate alerting rules. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1870).
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html), [vmrestore](https://docs.victoriametrics.com/vmrestore.html): export internal metrics at `http://vmbackup:8420/metrics` and `http://vmrestore:8421/metrics` for better visibility of the backup/restore process.
+* FEATURE: allow trailing whitespace after the timestamp when [parsing Graphite plaintext lines](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1865).
+* FEATURE: expose `/-/healthy` and `/-/ready` endpoints as Prometheus does. This is needed for improving integration with third-party solutions, which rely on these endpoints. See [tis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833).
+
+* BUGFIX: vmagent: prevent from scraping duplicate targets if `-promscrape.dropOriginalLabels` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1830). Thanks to @guidao for the fix.
+* BUGFIX: vmstorage [enterprise](https://victoriametrics.com/enterprise.html): added missing `vm_tenant_used_tenant_bytes` metric, which shows the approximate per-tenant disk usage. See [these docs](https://docs.victoriametrics.com/PerTenantStatistic.html) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1605).
+* BUGFIX: vmauth: properly take into account the value passed to `-maxIdleConnsPerBackend` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1300).
+* BUGFIX: vmagent: fix [reading data from Kafka](https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka).
+* BUGFIX: vmalert: fix [replay mode](https://docs.victoriametrics.com/vmalert.html#rules-backfilling) in enterprise version.
+* BUGFIX: consistently return zero from [deriv()](https://docs.victoriametrics.com/MetricsQL.html#deriv) function applied to a constant time series. Previously it could return small non-zero values in this case.
+* BUGFIX: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): properly resume downloading for partially downloaded big files. Previously such files were re-downloaded from the beginning after the interrupt. Now only the remaining parts of the file are downloaded. This allows saving network bandwidth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/487).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not store the last query across vmui page reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1694).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `Cannot read properties of undefined` error at table view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1797).
+
+
 ## [v1.69.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.69.0)
 
 * FEATURE: vmalert: allow groups with empty rules list like Prometheus does. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1742).

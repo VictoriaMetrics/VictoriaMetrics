@@ -96,15 +96,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/'>https://docs.victoriametrics.com/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
-			{"/vmui", "Web UI"},
-			{"/targets", "discovered targets list"},
-			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
-			{"/config", "-promscrape.config contents"},
-			{"/metrics", "available service metrics"},
-			{"/flags", "command-line flags"},
-			{"/api/v1/status/tsdb", "tsdb status page"},
-			{"/api/v1/status/top_queries", "top queries"},
-			{"/api/v1/status/active_queries", "active queries"},
+			{"vmui", "Web UI"},
+			{"targets", "discovered targets list"},
+			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
+			{"config", "-promscrape.config contents"},
+			{"metrics", "available service metrics"},
+			{"flags", "command-line flags"},
+			{"api/v1/status/tsdb", "tsdb status page"},
+			{"api/v1/status/top_queries", "top queries"},
+			{"api/v1/status/active_queries", "active queries"},
 		})
 		for _, p := range customAPIPathList {
 			p, doc := p[0], p[1]

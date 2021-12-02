@@ -324,8 +324,8 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 	var swsToStart []*ScrapeWork
 	for _, sw := range sws {
 		key := sw.key()
-		originalLabels := swsMap[key]
-		if originalLabels != nil {
+		originalLabels, ok := swsMap[key]
+		if ok {
 			if !*suppressDuplicateScrapeTargetErrors {
 				logger.Errorf("skipping duplicate scrape target with identical labels; endpoint=%s, labels=%s; "+
 					"make sure service discovery and relabeling is set up properly; "+

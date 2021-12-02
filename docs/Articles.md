@@ -17,6 +17,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/nerd-for-tech/sismology-iguana-solutions-monitoring-system-f46e4170447f)
 * [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
 * [How we improved our Kubernetes monitoring at Smarkets, and how you could too](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3)
+* [Kubernetes and VictoriaMetrics in Mist v4.6](https://mist.io/blog/2021-11-26-kubernetes-and-victoriametrics-in-Mist-v4-6)
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
 * [Observations on Better Resource Usage with Percona Monitoring and Management v2.12.0](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/)
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
@@ -98,5 +99,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Other articles
 
+* [How ClickHouse inspired us to build a high performance time series database](https://www.youtube.com/watch?v=p9qjb_yoBro). See also [slides](https://docs.google.com/presentation/d/1SdFrwsyR-HMXfbzrY8xfDZH_Dg6E7E5NJ84tQozMn3w/edit?usp=sharing).
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)

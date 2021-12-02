@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -363,8 +364,6 @@ func (q *queue) metainfoPath() string {
 // MustWriteBlock writes block to q.
 //
 // The block size cannot exceed MaxBlockSize.
-//
-// It is safe calling this function from concurrent goroutines.
 func (q *queue) MustWriteBlock(block []byte) {
 	if uint64(len(block)) > q.maxBlockSize {
 		logger.Panicf("BUG: too big block to send: %d bytes; it mustn't exceed %d bytes", len(block), q.maxBlockSize)
@@ -408,6 +407,10 @@ func (q *queue) MustWriteBlock(block []byte) {
 var blockBufPool bytesutil.ByteBufferPool
 
 func (q *queue) writeBlock(block []byte) error {
+	startTime := time.Now()
+	defer func() {
+		writeDurationSeconds.Add(time.Since(startTime).Seconds())
+	}()
 	if q.writerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
 		if err := q.nextChunkFileForWrite(); err != nil {
 			return fmt.Errorf("cannot create next chunk file: %w", err)
@@ -432,6 +435,8 @@ func (q *queue) writeBlock(block []byte) error {
 	q.bytesWritten.Add(len(block))
 	return q.flushWriterMetainfoIfNeeded()
 }
+
+var writeDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_write_duration_seconds_total`)
 
 func (q *queue) nextChunkFileForWrite() error {
 	// Finalize the current chunk and start new one.
@@ -478,6 +483,10 @@ func (q *queue) MustReadBlockNonblocking(dst []byte) ([]byte, bool) {
 }
 
 func (q *queue) readBlock(dst []byte) ([]byte, error) {
+	startTime := time.Now()
+	defer func() {
+		readDurationSeconds.Add(time.Since(startTime).Seconds())
+	}()
 	if q.readerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
 		if err := q.nextChunkFileForRead(); err != nil {
 			return dst, fmt.Errorf("cannot open next chunk file: %w", err)
@@ -523,6 +532,8 @@ again:
 	}
 	return dst, nil
 }
+
+var readDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_read_duration_seconds_total`)
 
 func (q *queue) skipBrokenChunkFile() error {
 	// Try to recover from broken chunk file by skipping it.

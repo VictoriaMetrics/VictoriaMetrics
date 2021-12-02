@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -440,10 +441,10 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
-			"round digits",
+			"prometheus extra params",
 			false,
 			&VMStorage{
-				extraParams: []Param{{"round_digits", "10"}},
+				extraParams: url.Values{"round_digits": {"10"}},
 			},
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("query=%s&round_digits=10&time=%d", query, timestamp.Unix())
@@ -451,45 +452,32 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
-			"extra labels",
-			false,
-			&VMStorage{
-				extraLabels: []string{
-					"env=prod",
-					"query=es=cape",
-				},
-			},
-			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("extra_label=env%%3Dprod&extra_label=query%%3Des%%3Dcape&query=%s&time=%d", query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
-			},
-		},
-		{
-			"extra labels range",
+			"prometheus extra params range",
 			true,
 			&VMStorage{
-				extraLabels: []string{
-					"env=prod",
-					"query=es=cape",
+				extraParams: url.Values{
+					"nocache":      {"1"},
+					"max_lookback": {"1h"},
 				},
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("end=%d&extra_label=env%%3Dprod&extra_label=query%%3Des%%3Dcape&query=%s&start=%d",
+				exp := fmt.Sprintf("end=%d&max_lookback=1h&nocache=1&query=%s&start=%d",
 					timestamp.Unix(), query, timestamp.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
 		{
-			"extra params",
+			"graphite extra params",
 			false,
 			&VMStorage{
-				extraParams: []Param{
-					{Key: "nocache", Value: "1"},
-					{Key: "max_lookback", Value: "1h"},
+				dataSourceType: NewGraphiteType(),
+				extraParams: url.Values{
+					"nocache":      {"1"},
+					"max_lookback": {"1h"},
 				},
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("max_lookback=1h&nocache=1&query=%s&time=%d", query, timestamp.Unix())
+				exp := fmt.Sprintf("format=json&from=-5min&max_lookback=1h&nocache=1&target=%s&until=now", query)
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
@@ -519,7 +507,7 @@ func TestRequestParams(t *testing.T) {
 func checkEqualString(t *testing.T, exp, got string) {
 	t.Helper()
 	if got != exp {
-		t.Errorf("expected to get %q; got %q", exp, got)
+		t.Errorf("expected to get: \n%q; \ngot: \n%q", exp, got)
 	}
 }
 

@@ -456,7 +456,7 @@ const maxRegexpCacheSize = 10000
 
 func getContentType(jsonp string) string {
 	if jsonp == "" {
-		return "application/json; charset=utf-8"
+		return "application/json"
 	}
 	return "text/javascript; charset=utf-8"
 }

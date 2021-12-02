@@ -410,15 +410,17 @@ type TableMetrics struct {
 	ItemsCount  uint64
 	SizeBytes   uint64
 
-	DataBlocksCacheSize      uint64
-	DataBlocksCacheSizeBytes uint64
-	DataBlocksCacheRequests  uint64
-	DataBlocksCacheMisses    uint64
+	DataBlocksCacheSize         uint64
+	DataBlocksCacheSizeBytes    uint64
+	DataBlocksCacheSizeMaxBytes uint64
+	DataBlocksCacheRequests     uint64
+	DataBlocksCacheMisses       uint64
 
-	IndexBlocksCacheSize      uint64
-	IndexBlocksCacheSizeBytes uint64
-	IndexBlocksCacheRequests  uint64
-	IndexBlocksCacheMisses    uint64
+	IndexBlocksCacheSize         uint64
+	IndexBlocksCacheSizeBytes    uint64
+	IndexBlocksCacheSizeMaxBytes uint64
+	IndexBlocksCacheRequests     uint64
+	IndexBlocksCacheMisses       uint64
 
 	PartsRefCount uint64
 }
@@ -443,11 +445,13 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 
 		m.DataBlocksCacheSize += p.ibCache.Len()
 		m.DataBlocksCacheSizeBytes += p.ibCache.SizeBytes()
+		m.DataBlocksCacheSizeMaxBytes += p.ibCache.SizeMaxBytes()
 		m.DataBlocksCacheRequests += p.ibCache.Requests()
 		m.DataBlocksCacheMisses += p.ibCache.Misses()
 
 		m.IndexBlocksCacheSize += p.idxbCache.Len()
 		m.IndexBlocksCacheSizeBytes += p.idxbCache.SizeBytes()
+		m.IndexBlocksCacheSizeMaxBytes += p.idxbCache.SizeMaxBytes()
 		m.IndexBlocksCacheRequests += p.idxbCache.Requests()
 		m.IndexBlocksCacheMisses += p.idxbCache.Misses()
 

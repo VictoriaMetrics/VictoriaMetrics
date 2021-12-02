@@ -308,7 +308,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	switch path {
 	case "/create":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshotPath, err := Storage.CreateSnapshot()
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
@@ -322,7 +322,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/list":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
@@ -339,7 +339,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `]}`)
 		return true
 	case "/delete":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 		if err := Storage.DeleteSnapshot(snapshotName); err != nil {
 			err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
@@ -349,7 +349,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/delete_all":
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
@@ -715,6 +715,31 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSizeBytes)
+	})
+
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/tsid"}`, func() float64 {
+		return float64(m().TSIDCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/metricIDs"}`, func() float64 {
+		return float64(m().MetricIDCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/metricName"}`, func() float64 {
+		return float64(m().MetricNameCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/bigIndexBlocks"}`, func() float64 {
+		return float64(tm().BigIndexBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/smallIndexBlocks"}`, func() float64 {
+		return float64(tm().SmallIndexBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/dataBlocks"}`, func() float64 {
+		return float64(idbm().DataBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/indexBlocks"}`, func() float64 {
+		return float64(idbm().IndexBlocksCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/tagFilters"}`, func() float64 {
+		return float64(idbm().TagFiltersCacheSizeMaxBytes)
 	})
 
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/tsid"}`, func() float64 {
