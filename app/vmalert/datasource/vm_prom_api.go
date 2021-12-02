@@ -151,6 +151,9 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 	q := r.URL.Query()
 	for k, vs := range s.extraParams {
+		if q.Has(k) { // extraParams are prior to params in URL
+			q.Del(k)
+		}
 		for _, v := range vs {
 			q.Add(k, v)
 		}
