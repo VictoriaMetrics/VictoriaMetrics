@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
@@ -40,9 +41,9 @@ type Param struct {
 }
 
 // Init creates a Querier from provided flag values.
-// Provided extraParams will be added as GET params to
+// Provided extraParams will be added as GET params for
 // each request.
-func Init(extraParams []Param) (QuerierBuilder, error) {
+func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, fmt.Errorf("datasource.url is empty")
 	}
@@ -56,11 +57,11 @@ func Init(extraParams []Param) (QuerierBuilder, error) {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
 
+	if extraParams == nil {
+		extraParams = url.Values{}
+	}
 	if *roundDigits > 0 {
-		extraParams = append(extraParams, Param{
-			Key:   "round_digits",
-			Value: fmt.Sprintf("%d", *roundDigits),
-		})
+		extraParams.Set("round_digits", fmt.Sprintf("%d", *roundDigits))
 	}
 
 	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile)

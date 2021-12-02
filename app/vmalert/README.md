@@ -95,11 +95,18 @@ name: <string>
 # By default "prometheus" type is used.
 [ type: <string> ]
 
-# Optional list of label filters applied to every rule's
-# request withing a group. Is compatible only with VM datasource.
-# See more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+# Warning: DEPRECATED
+# Please use `params` instead
 extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
+
+# Optional list of HTTP URL parameters
+# applied for all requests withing a group
+# For example, extra filtering via `extra_label` param
+# or disabling partial responses via `deny_partial_response` param -  
+# see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+params:
+  [ <string>: [<string>, ...]]
 
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
