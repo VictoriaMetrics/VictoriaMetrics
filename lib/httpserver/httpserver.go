@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
-	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -607,7 +606,6 @@ func GetPathPrefix() string {
 func WriteAPIHelp(w io.Writer, pathList [][2]string) {
 	for _, p := range pathList {
 		p, doc := p[0], p[1]
-		p = path.Join(*pathPrefix, p)
 		fmt.Fprintf(w, "<a href=%q>%s</a> - %s<br/>", p, p, doc)
 	}
 }
