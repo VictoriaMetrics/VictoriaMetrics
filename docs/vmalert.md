@@ -260,7 +260,8 @@ you have recording rules or want to store [alerts state](#alerts-state-on-restar
 
 #### Single-node VictoriaMetrics
 
-<img alt="vmalert single" src="vmalert_single.png">
+The simplest configuration where one single-node VM server is used for
+rules execution, storing recording rules results and alerts state.
 
 `vmalert` configuration flags:
 ```
@@ -271,12 +272,16 @@ you have recording rules or want to store [alerts state](#alerts-state-on-restar
     -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
 ```
 
-The simplest configuration where one single-node VM server is used for
-rules execution, storing recording rules results and alerts state.
+<img alt="vmalert single" width="500" src="vmalert_single.png">
+
 
 #### Cluster VictoriaMetrics
 
-<img alt="vmalert cluster" src="vmalert_cluster.png">
+In [cluster mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+VictoriaMetrics has separate components for writing and reading path:
+`vminsert` and `vmselect` components respectively. `vmselect` is used for executing rules expressions
+and `vminsert` is used to persist recording rules results and alerts state.
+Cluster mode could have multiple `vminsert` and `vmselect` components. 
 
 `vmalert` configuration flags:
 ```
@@ -287,18 +292,18 @@ rules execution, storing recording rules results and alerts state.
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
 
-In [cluster mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
-VictoriaMetrics has separate components for writing and reading path:
-`vminsert` and `vmselect` components respectively. `vmselect` is used for executing rules expressions
-and `vminsert` is used to persist recording rules results and alerts state.
-Cluster mode could have multiple `vminsert` and `vmselect` components. In case when you want
-to spread the load on these components - add balancers before them and configure 
+<img alt="vmalert cluster" src="vmalert_cluster.png">
+
+In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer's addresses. Please, see more about VM's cluster architecture
 [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
 
-#### vmalert high availability
+#### HA vmalert
 
-<img alt="vmalert ha" src="vmalert_ha.png">
+For HA user can run multiple identically configured `vmalert` instances.
+It means all of them will execute the same rules, write state and results to
+the same destinations, and send alert notifications to multiple configured
+Alertmanagers.
 
 `vmalert` configuration flags:
 ```
@@ -310,10 +315,7 @@ to spread the load on these components - add balancers before them and configure
     -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
 ```
 
-For HA user can run multiple identically configured `vmalert` instances.
-It means all of them will execute the same rules, write state and results to
-the same destinations, and send alert notifications to multiple configured
-Alertmanagers.
+<img alt="vmalert ha" width="800px" src="vmalert_ha.png">
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
@@ -327,9 +329,15 @@ for Alertmanagers for better reliability.
 This example uses single-node VM server for the sake of simplicity. 
 Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed. 
 
+
 #### Downsampling and aggregation via vmalert
 
-<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
+Example shows how to build a topology where `vmalert` will process data from one cluster
+and write results into another. Such clusters may be called as "hot" (low retention,
+high-speed disks, used for operative monitoring) and "cold" (long term retention,
+slower/cheaper disks, low resolution data). With help of `vmalert`, user can setup
+recording rules to process raw data from "hot" cluster (by applying additional transformations
+or reducing resolution) and push results to "cold" cluster.
 
 `vmalert` configuration flags:
 ```
@@ -338,16 +346,12 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheuss   # vminsert addr to persist recording rules results
 ```
 
-Example shows how to build a topology where `vmalert` will process data from one cluster
-and write results into another. Such clusters may be called as "hot" (low retention, 
-high-speed disks, used for operative monitoring) and "cold" (long term retention, 
-slower/cheaper disks, low resolution data). With help of `vmalert`, user can setup 
-recording rules to process raw data from "hot" cluster (by applying additional transformations 
-or reducing resolution) and push results to "cold" cluster. 
+<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
+
 
 ### Web
 
