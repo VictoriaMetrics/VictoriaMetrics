@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -218,7 +219,7 @@ func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
 	if !ok {
 		return rvs
 	}
-	tfs := toTagFilters(me.LabelFilters)
+	tfs := searchutils.ToTagFilters(me.LabelFilters)
 	for i := range tfs {
 		tf := &tfs[i]
 		if len(tf.Key) == 0 {
