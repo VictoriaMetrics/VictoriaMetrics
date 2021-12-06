@@ -1,7 +1,8 @@
 import React, {FC, useCallback, useMemo} from "react";
-import {Box, FormControlLabel, Switch, TextField} from "@mui/material";
+import {Box, FormControlLabel, TextField} from "@mui/material";
 import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 import debounce from "lodash.debounce";
+import BasicSwitch from "../../../../theme/switch";
 
 const AxesLimitsConfigurator: FC = () => {
 
@@ -18,24 +19,22 @@ const AxesLimitsConfigurator: FC = () => {
   };
   const debouncedOnChangeLimit = useCallback(debounce(onChangeLimit, 500), [yaxis.limits.range]);
 
-
-
-  return <Box display="flex" alignItems="center" minHeight="50px" px={3}>
+  return <Box display="grid" alignItems="center" gap={2}>
     <FormControlLabel
-      control={<Switch size="small" checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
+      control={<BasicSwitch checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
       label="Fix the limits for y-axis"
     />
-    <Box display="flex" alignItems="center" flexGrow={12}>
-      {yaxis.limits.enable && axes.map(axis =>
-        <Box display="grid" gridTemplateColumns="120px 120px" gap={1} mr={4} key={axis}>
-          <TextField label={`Min ${axis}`} type="number" size="small" variant="outlined"
-            defaultValue={yaxis.limits.range[axis][0]}
-            onChange={(e) => debouncedOnChangeLimit(e, axis, 0)} />
-          <TextField label={`Max ${axis}`} type="number" size="small" variant="outlined"
-            defaultValue={yaxis.limits.range[axis][1]}
-            onChange={(e) => debouncedOnChangeLimit(e, axis, 1)} />
-        </Box>
-      )}
+    <Box display="grid" alignItems="center" gap={4}>
+      {axes.map(axis => <Box display="grid" gridTemplateColumns="120px 120px" gap={1} key={axis}>
+        <TextField label={`Min ${axis}`} type="number" size="small" variant="outlined"
+          disabled={!yaxis.limits.enable}
+          defaultValue={yaxis.limits.range[axis][0]}
+          onChange={(e) => debouncedOnChangeLimit(e, axis, 0)}/>
+        <TextField label={`Max ${axis}`} type="number" size="small" variant="outlined"
+          disabled={!yaxis.limits.enable}
+          defaultValue={yaxis.limits.range[axis][1]}
+          onChange={(e) => debouncedOnChangeLimit(e, axis, 1)} />
+      </Box>)}
     </Box>
   </Box>;
 };

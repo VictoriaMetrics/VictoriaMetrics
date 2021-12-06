@@ -16,13 +16,13 @@ const ServerConfigurator: FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return <>
-    <Box display="flex" alignItems="center" mb={2} minHeight={50}>
+    <Box display="grid" gridTemplateColumns="1fr auto" gap="4px" alignItems="center" width="100%" mb={2} minHeight={50}>
       <TextField variant="outlined" fullWidth label="Server URL" value={serverUrl}
         inputProps={{style: {fontFamily: "Monospace"}}}
         onChange={onSetServer}/>
       <Box>
         <Tooltip title="Request Auth Settings">
-          <IconButton onClick={() => setDialogOpen(true)} size="large">
+          <IconButton onClick={() => setDialogOpen(true)}>
             <SecurityIcon/>
           </IconButton>
         </Tooltip>

@@ -3,17 +3,16 @@ import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import {Legend, LegendItem} from "../../Legend/Legend";
-import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
+import {useGraphDispatch} from "../../../state/graph/GraphStateContext";
 import {getHideSeries, getLegendItem, getLimitsYAxis, getSeriesItem, getTimeSeries} from "../../../utils/uPlot";
 import {AxisRange} from "../../../state/graph/reducer";
-import AxesLimitsConfigurator from "../Configurator/Graph/AxesLimitsConfigurator";
+import GraphSettings from "../Configurator/Graph/GraphSettings";
 
 export interface GraphViewProps {
   data?: MetricResult[];
 }
 
 const GraphView: FC<GraphViewProps> = ({data = []}) => {
-  const { yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
@@ -23,11 +22,9 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   const [valuesLimit, setValuesLimit] = useState<AxisRange>({"1": [0, 1]});
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
-    if (!yaxis.limits.enable) {
-      const limits = getLimitsYAxis(values);
-      setValuesLimit(limits);
-      graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
-    }
+    const limits = getLimitsYAxis(values);
+    setValuesLimit(limits);
+    graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
   };
 
   const onChangeLegend = (label: string, metaKey: boolean) => {
@@ -79,7 +76,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   return <>
     {(data.length > 0)
       ? <div>
-        <AxesLimitsConfigurator/>
+        <GraphSettings/>
         <LineChart data={dataChart} series={series} metrics={data} limits={valuesLimit}/>
         <Legend labels={legend} onChange={onChangeLegend}/>
       </div>

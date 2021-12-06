@@ -39,7 +39,7 @@ const QueryConfigurator: FC = () => {
     });
     dispatch({type: "RUN_QUERY"});
     dispatch({type: "SET_QUERY_HISTORY", payload: history});
-    dispatch({type: "SET_QUERY", payload: queryString});
+    dispatch({type: "SET_QUERY", payload: queryStringRef.current});
   };
 
   const onAddQuery = () => {
@@ -76,54 +76,55 @@ const QueryConfigurator: FC = () => {
   return <>
     <Accordion expanded={expanded} onChange={() => setExpanded(prev => !prev)}>
       <AccordionSummary
-        expandIcon={<ExpandMoreIcon/>}
+        expandIcon={<IconButton><ExpandMoreIcon/></IconButton>}
         aria-controls="panel1a-content"
-        id="panel1a-header">
-        <Box display="flex" alignItems="center" mr={2}>
+        id="panel1a-header"
+        sx={{alignItems: "flex-start", padding: "15px"}}
+      >
+        <Box mr={2}>
           <Typography variant="h6" component="h2">Query Configuration</Typography>
         </Box>
         <Box flexGrow={1} onClick={e => e.stopPropagation()} onFocusCapture={e => e.stopPropagation()}>
           <Portal disablePortal={!expanded} container={queryContainer.current}>
             {query.map((q, i) =>
-              <Box key={`${i}_${q}`} display="grid" gridTemplateColumns="1fr auto" width="100%" mb={2}>
+              <Box key={`${i}_${q}`} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
+                mb={i === query.length-1 ? 0 : 2}>
                 <QueryEditor server={serverUrl} query={queryString[i]} index={i} oneLiner={!expanded}
                   autocomplete={autocomplete}
                   queryHistory={queryHistory[i]} setHistoryIndex={setHistoryIndex}
                   runQuery={onRunQuery}
                   setQuery={onSetQuery}/>
                 {i === 0 && <Tooltip title="Execute Query">
-                  <IconButton onClick={onRunQuery} size="large"
-                    sx={{marginTop: !expanded ? "0" : "4.43px"}}>
+                  <IconButton onClick={onRunQuery}>
                     <PlayCircleOutlineIcon/>
                   </IconButton>
                 </Tooltip>}
                 {i > 0 && <Tooltip title="Remove Query">
-                  <IconButton onClick={() => onRemoveQuery(i)} size="large"
-                    sx={{marginTop: !expanded ? "0" : "4.43px"}}>
+                  <IconButton onClick={() => onRemoveQuery(i)}>
                     <HighlightOffIcon/>
                   </IconButton>
                 </Tooltip>}
               </Box>)}
-            {query.length < 2 && <Tooltip title="Add Second Query">
-              <Button onClick={onAddQuery} variant="outlined">
-                <AddIcon sx={{fontSize: 18, marginRight: "6px"}}/>
-                <span>Query</span>
-              </Button>
-            </Tooltip>}
           </Portal>
         </Box>
       </AccordionSummary>
       <AccordionDetails>
-        <Grid container spacing={2}>
+        <Grid container columnSpacing={2}>
           <Grid item xs={6} minWidth={400}>
             <ServerConfigurator/>
             {/* for portal QueryEditor */}
             <div ref={queryContainer}/>
+            {query.length < 2 && <Box display="inline-block" minHeight="40px" mt={2}>
+              <Button onClick={onAddQuery} variant="outlined">
+                <AddIcon sx={{fontSize: 16, marginRight: "4px"}}/>
+                <span style={{lineHeight: 1, paddingTop: "1px"}}>Query</span>
+              </Button>
+            </Box>}
           </Grid>
           <Grid item xs>
             <TimeSelector setDuration={onSetDuration} duration={duration}/>
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} pt={1}>
             <AdditionalSettings/>
           </Grid>
         </Grid>

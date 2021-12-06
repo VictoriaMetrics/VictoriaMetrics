@@ -64,7 +64,7 @@ export const getQueryStringValue = (
 };
 
 export const getQueryArray = (): string[] => {
-  const queryLength = window.location.search.match(/g\d+.expr/gmi)?.length || 0;
+  const queryLength = window.location.search.match(/g\d+.expr/gmi)?.length || 1;
   return new Array(queryLength).fill(1).map((q, i) => {
     return getQueryStringValue(`g${i}.expr`, "") as string;
   });
