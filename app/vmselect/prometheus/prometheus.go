@@ -290,11 +290,11 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if start >= end {
 		end = start + defaultStep
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
-	if err := exportHandler(at, w, r, matches, etf, start, end, format, maxRowsPerLine, reduceMemUsage, deadline); err != nil {
+	if err := exportHandler(at, w, r, matches, etfs, start, end, format, maxRowsPerLine, reduceMemUsage, deadline); err != nil {
 		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %w", matches, start, end, err)
 	}
 	return nil
@@ -302,7 +302,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, matches []string, etf []storage.TagFilter, start, end int64,
+func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, matches []string, etfs [][]storage.TagFilter, start, end int64,
 	format string, maxRowsPerLine int, reduceMemUsage bool, deadline searchutils.Deadline) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
@@ -360,7 +360,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 	if err != nil {
 		return err
 	}
-	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
@@ -533,7 +533,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
@@ -541,7 +541,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	var labelValues []string
 	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if len(matches) == 0 && len(etf) == 0 {
+	if len(matches) == 0 && len(etfs) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
 			labelValues, isPartial, err = netstorage.GetLabelValues(at, denyPartialResponse, labelName, deadline)
@@ -584,7 +584,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 		if err != nil {
 			return err
 		}
-		labelValues, isPartial, err = labelValuesWithMatches(at, denyPartialResponse, labelName, matches, etf, start, end, deadline)
+		labelValues, isPartial, err = labelValuesWithMatches(at, denyPartialResponse, labelName, matches, etfs, start, end, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %w", labelName, matches, start, end, err)
 		}
@@ -600,7 +600,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	return nil
 }
 
-func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName string, matches []string, etf []storage.TagFilter,
+func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName string, matches []string, etfs [][]storage.TagFilter,
 	start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
@@ -622,7 +622,7 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 	if start >= end {
 		end = start + defaultStep
 	}
-	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
@@ -711,7 +711,7 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
@@ -744,13 +744,13 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	var status *storage.TSDBStatus
 	var isPartial bool
-	if len(matches) == 0 && len(etf) == 0 {
+	if len(matches) == 0 && len(etfs) == 0 {
 		status, isPartial, err = netstorage.GetTSDBStatusForDate(at, denyPartialResponse, deadline, date, topN)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, isPartial, err = tsdbStatusWithMatches(at, denyPartialResponse, matches, etf, date, topN, deadline)
+		status, isPartial, err = tsdbStatusWithMatches(at, denyPartialResponse, matches, etfs, date, topN, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -766,12 +766,12 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	return nil
 }
 
-func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etf []storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, false, err
 	}
-	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
@@ -797,7 +797,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
@@ -805,7 +805,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	var labels []string
 	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if len(matches) == 0 && len(etf) == 0 {
+	if len(matches) == 0 && len(etfs) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
 			labels, isPartial, err = netstorage.GetLabels(at, denyPartialResponse, deadline)
@@ -846,7 +846,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		if err != nil {
 			return err
 		}
-		labels, isPartial, err = labelsWithMatches(at, denyPartialResponse, matches, etf, start, end, deadline)
+		labels, isPartial, err = labelsWithMatches(at, denyPartialResponse, matches, etfs, start, end, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %w", matches, start, end, err)
 		}
@@ -862,7 +862,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	return nil
 }
 
-func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etf []storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
+func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, false, err
@@ -870,7 +870,7 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 	if start >= end {
 		end = start + defaultStep
 	}
-	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
@@ -1073,7 +1073,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	if len(query) > maxQueryLen.N {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
@@ -1088,7 +1088,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		if end < start {
 			end = start
 		}
-		if err := exportHandler(at, w, r, []string{childQuery}, etf, start, end, "promapi", 0, false, deadline); err != nil {
+		if err := exportHandler(at, w, r, []string{childQuery}, etfs, start, end, "promapi", 0, false, deadline); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1104,7 +1104,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		start -= offset
 		end := start
 		start = end - window
-		if err := queryRangeHandler(startTime, at, w, childQuery, start, end, step, r, ct, etf); err != nil {
+		if err := queryRangeHandler(startTime, at, w, childQuery, start, end, step, r, ct, etfs); err != nil {
 			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1122,15 +1122,15 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		queryOffset = 0
 	}
 	ec := promql.EvalConfig{
-		AuthToken:          at,
-		Start:              start,
-		End:                start,
-		Step:               step,
-		QuotedRemoteAddr:   httpserver.GetQuotedRemoteAddr(r),
-		Deadline:           deadline,
-		LookbackDelta:      lookbackDelta,
-		RoundDigits:        getRoundDigits(r),
-		EnforcedTagFilters: etf,
+		AuthToken:           at,
+		Start:               start,
+		End:                 start,
+		Step:                step,
+		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
+		Deadline:            deadline,
+		LookbackDelta:       lookbackDelta,
+		RoundDigits:         getRoundDigits(r),
+		EnforcedTagFilterss: etfs,
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
 	}
@@ -1182,17 +1182,17 @@ func QueryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	if err != nil {
 		return err
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
-	if err := queryRangeHandler(startTime, at, w, query, start, end, step, r, ct, etf); err != nil {
+	if err := queryRangeHandler(startTime, at, w, query, start, end, step, r, ct, etfs); err != nil {
 		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
 	return nil
 }
 
-func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64, etf []storage.TagFilter) error {
+func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	mayCache := !searchutils.GetBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
@@ -1215,16 +1215,16 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	}
 
 	ec := promql.EvalConfig{
-		AuthToken:          at,
-		Start:              start,
-		End:                end,
-		Step:               step,
-		QuotedRemoteAddr:   httpserver.GetQuotedRemoteAddr(r),
-		Deadline:           deadline,
-		MayCache:           mayCache,
-		LookbackDelta:      lookbackDelta,
-		RoundDigits:        getRoundDigits(r),
-		EnforcedTagFilters: etf,
+		AuthToken:           at,
+		Start:               start,
+		End:                 end,
+		Step:                step,
+		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
+		Deadline:            deadline,
+		MayCache:            mayCache,
+		LookbackDelta:       lookbackDelta,
+		RoundDigits:         getRoundDigits(r),
+		EnforcedTagFilterss: etfs,
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
 	}
@@ -1334,24 +1334,12 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	return searchutils.GetDuration(r, "max_lookback", d)
 }
 
-func addEnforcedFiltersToTagFilterss(dstTfss [][]storage.TagFilter, enforcedFilters []storage.TagFilter) [][]storage.TagFilter {
-	if len(dstTfss) == 0 {
-		return [][]storage.TagFilter{
-			enforcedFilters,
-		}
-	}
-	for i := range dstTfss {
-		dstTfss[i] = append(dstTfss[i], enforcedFilters...)
-	}
-	return dstTfss
-}
-
 func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {
 	tagFilterss := make([][]storage.TagFilter, 0, len(matches))
 	for _, match := range matches {
-		tagFilters, err := promql.ParseMetricSelector(match)
+		tagFilters, err := searchutils.ParseMetricSelector(match)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse %q: %w", match, err)
+			return nil, fmt.Errorf("cannot parse matches[]=%s: %w", match, err)
 		}
 		tagFilterss = append(tagFilterss, tagFilters)
 	}
@@ -1367,11 +1355,11 @@ func getTagFilterssFromRequest(r *http.Request) ([][]storage.TagFilter, error) {
 	if err != nil {
 		return nil, err
 	}
-	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return nil, err
 	}
-	tagFilterss = addEnforcedFiltersToTagFilterss(tagFilterss, etf)
+	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
 	return tagFilterss, nil
 }
 

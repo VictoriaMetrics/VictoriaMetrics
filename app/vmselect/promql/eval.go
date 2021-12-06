@@ -106,8 +106,8 @@ type EvalConfig struct {
 	// How many decimal digits after the point to leave in response.
 	RoundDigits int
 
-	// EnforcedTagFilters used for apply additional label filters to query.
-	EnforcedTagFilters []storage.TagFilter
+	// EnforcedTagFilterss may contain additional label filters to use in the query.
+	EnforcedTagFilterss [][]storage.TagFilter
 
 	// Whether to deny partial response.
 	DenyPartialResponse bool
@@ -130,7 +130,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
-	ec.EnforcedTagFilters = src.EnforcedTagFilters
+	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse = src.IsPartialResponse
 
@@ -691,16 +691,15 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, funcName string, rf rollupFunc
 	}
 
 	// Fetch the remaining part of the result.
-	tfs := toTagFilters(me.LabelFilters)
-	// append external filters.
-	tfs = append(tfs, ec.EnforcedTagFilters...)
+	tfs := searchutils.ToTagFilters(me.LabelFilters)
+	tfss := searchutils.JoinTagFilterss([][]storage.TagFilter{tfs}, ec.EnforcedTagFilterss)
 	minTimestamp := start - maxSilenceInterval
 	if window > ec.Step {
 		minTimestamp -= window
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, [][]storage.TagFilter{tfs})
+	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss)
 	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, ec.DenyPartialResponse, sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err
@@ -899,26 +898,6 @@ func mulNoOverflow(a, b int64) int64 {
 		return math.MaxInt64
 	}
 	return a * b
-}
-
-func toTagFilters(lfs []metricsql.LabelFilter) []storage.TagFilter {
-	tfs := make([]storage.TagFilter, len(lfs))
-	for i := range lfs {
-		toTagFilter(&tfs[i], &lfs[i])
-	}
-	return tfs
-}
-
-func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {
-	if src.Label != "__name__" {
-		dst.Key = []byte(src.Label)
-	} else {
-		// This is required for storage.Search.
-		dst.Key = nil
-	}
-	dst.Value = []byte(src.Value)
-	dst.IsRegexp = src.IsRegexp
-	dst.IsNegative = src.IsNegative
 }
 
 func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]float64, []int64) {

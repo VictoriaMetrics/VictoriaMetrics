@@ -32,7 +32,7 @@ func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	var row graphiteparser.Row
 	var tagsPool []graphiteparser.Tag
 	ct := startTime.UnixNano() / 1e6
-	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -53,8 +53,8 @@ func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 				Value: []byte(tag.Value),
 			})
 		}
-		tfs = append(tfs, etfs...)
-		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, [][]storage.TagFilter{tfs})
+		tfss := joinTagFilterss(tfs, etfs)
+		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss)
 		n, err := netstorage.DeleteSeries(at, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot delete series for %q: %w", sq, err)
@@ -183,7 +183,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 	exprs := r.Form["expr"]
 	var tagValues []string
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -270,7 +270,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 	tagPrefix := r.FormValue("tagPrefix")
 	exprs := r.Form["expr"]
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -352,7 +352,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 	if len(exprs) == 0 {
 		return fmt.Errorf("expecting at least one `expr` query arg")
 	}
-	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -484,14 +484,14 @@ func getInt(r *http.Request, argName string) (int, error) {
 	return n, nil
 }
 
-func getSearchQueryForExprs(startTime time.Time, at *auth.Token, etfs []storage.TagFilter, exprs []string) (*storage.SearchQuery, error) {
+func getSearchQueryForExprs(startTime time.Time, at *auth.Token, etfs [][]storage.TagFilter, exprs []string) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)
 	if err != nil {
 		return nil, err
 	}
 	ct := startTime.UnixNano() / 1e6
-	tfs = append(tfs, etfs...)
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, [][]storage.TagFilter{tfs})
+	tfss := joinTagFilterss(tfs, etfs)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss)
 	return sq, nil
 }
 
@@ -533,4 +533,8 @@ func parseFilterExpr(s string) (*storage.TagFilter, error) {
 		IsNegative: isNegative,
 		IsRegexp:   isRegexp,
 	}, nil
+}
+
+func joinTagFilterss(tfs []storage.TagFilter, extraFilters [][]storage.TagFilter) [][]storage.TagFilter {
+	return searchutils.JoinTagFilterss([][]storage.TagFilter{tfs}, extraFilters)
 }

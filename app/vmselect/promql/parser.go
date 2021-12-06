@@ -1,9 +1,6 @@
 package promql
 
 import (
-	"fmt"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -42,22 +39,4 @@ func IsMetricSelectorWithRollup(s string) (childQuery string, window, offset *me
 	}
 	wrappedQuery := me.AppendString(nil)
 	return string(wrappedQuery), re.Window, re.Offset
-}
-
-// ParseMetricSelector parses s containing PromQL metric selector
-// and returns the corresponding LabelFilters.
-func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
-	expr, err := parsePromQLWithCache(s)
-	if err != nil {
-		return nil, err
-	}
-	me, ok := expr.(*metricsql.MetricExpr)
-	if !ok {
-		return nil, fmt.Errorf("expecting metricSelector; got %q", expr.AppendString(nil))
-	}
-	if len(me.LabelFilters) == 0 {
-		return nil, fmt.Errorf("labelFilters cannot be empty")
-	}
-	tfs := toTagFilters(me.LabelFilters)
-	return tfs, nil
 }

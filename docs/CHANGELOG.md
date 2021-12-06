@@ -6,6 +6,7 @@ sort: 15
 
 ## tip
 
+* FEATURE: accept optional `extra_filters[]=series_selector` query args at Prometheus query APIs additionally to `extra_label` query args. This allows enforcing additional filters for all the Prometheus query APIs by using [vmgateway](https://docs.victoriametrics.com/vmgateway.html) or [vmauth](https://docs.victoriametrics.com/vmauth.html). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1863).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): allow specifying `http` and `https` urls in `-auth.config` command-line flag. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1898). Thanks for @TFM93 .
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying `http` and `https` urls in the following command-line flags: `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`.
 * FEATURE: vminsert: allow specifying `http` and `https` urls in `-relabelConfig` command-line flag.
