@@ -10,7 +10,7 @@ require (
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.31.0
 	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/aws/aws-sdk-go v1.42.17
+	github.com/aws/aws-sdk-go v1.42.19
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
