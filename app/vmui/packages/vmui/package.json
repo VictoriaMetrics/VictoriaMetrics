@@ -36,7 +36,7 @@
     "lodash.get": "^4.4.2",
     "lodash.throttle": "^4.1.1",
     "numeral": "^2.0.6",
-    "qs": "^6.10.1",
+    "qs": "^6.10.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-draggable": "^4.4.4",
