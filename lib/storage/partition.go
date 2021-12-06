@@ -306,15 +306,17 @@ func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs
 type partitionMetrics struct {
 	PendingRows uint64
 
-	BigIndexBlocksCacheSize      uint64
-	BigIndexBlocksCacheSizeBytes uint64
-	BigIndexBlocksCacheRequests  uint64
-	BigIndexBlocksCacheMisses    uint64
+	BigIndexBlocksCacheSize         uint64
+	BigIndexBlocksCacheSizeBytes    uint64
+	BigIndexBlocksCacheSizeMaxBytes uint64
+	BigIndexBlocksCacheRequests     uint64
+	BigIndexBlocksCacheMisses       uint64
 
-	SmallIndexBlocksCacheSize      uint64
-	SmallIndexBlocksCacheSizeBytes uint64
-	SmallIndexBlocksCacheRequests  uint64
-	SmallIndexBlocksCacheMisses    uint64
+	SmallIndexBlocksCacheSize         uint64
+	SmallIndexBlocksCacheSizeBytes    uint64
+	SmallIndexBlocksCacheSizeMaxBytes uint64
+	SmallIndexBlocksCacheRequests     uint64
+	SmallIndexBlocksCacheMisses       uint64
 
 	BigSizeBytes   uint64
 	SmallSizeBytes uint64
@@ -362,6 +364,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 		m.BigIndexBlocksCacheSize += p.ibCache.Len()
 		m.BigIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
+		m.BigIndexBlocksCacheSizeMaxBytes += p.ibCache.SizeMaxBytes()
 		m.BigIndexBlocksCacheRequests += p.ibCache.Requests()
 		m.BigIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.BigRowsCount += p.ph.RowsCount
@@ -375,6 +378,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 		m.SmallIndexBlocksCacheSize += p.ibCache.Len()
 		m.SmallIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
+		m.SmallIndexBlocksCacheSizeMaxBytes += p.ibCache.SizeMaxBytes()
 		m.SmallIndexBlocksCacheRequests += p.ibCache.Requests()
 		m.SmallIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.SmallRowsCount += p.ph.RowsCount
@@ -978,6 +982,9 @@ func SetFinalMergeDelay(delay time.Duration) {
 
 func getMaxOutBytes(path string, workersCount int) uint64 {
 	n := fs.MustGetFreeSpace(path)
+	// Do not substract freeDiskSpaceLimitBytes from n before calculating the maxOutBytes,
+	// since this will result in sub-optimal merges - e.g. many small parts will be left unmerged.
+
 	// Divide free space by the max number concurrent merges.
 	maxOutBytes := n / uint64(workersCount)
 	if maxOutBytes > maxBigPartSize {

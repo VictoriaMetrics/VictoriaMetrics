@@ -46,7 +46,7 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
 and configure the following flags to the `vmagent` binary in order to start scraping Prometheus targets:
 
-* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`)
+* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`). The path can point either to local file or to http url.
 * `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified multiple times to replicate data concurrently to an arbitrary number of remote storage systems.
 
 Example command line:
@@ -214,15 +214,16 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders w
 
 ## Loading scrape configs from multiple files
 
-`vmagent` supports loading scrape configs from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory plus a `single_scrape_config.yml` file:
+`vmagent` supports loading scrape configs from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file and from `https://config-server/scrape_config.yml` url:
 
 ```yml
 scrape_config_files:
 - configs/*.yml
 - single_scrape_config.yml
+- https://config-server/scrape_config.yml
 ```
 
-Every referred file can contain arbitrary number of any [supported scrape configs](#how-to-collect-metrics-in-prometheus-format). There is no need in specifying top-level `scrape_configs` section in these files. For example:
+Every referred file can contain arbitrary number of [supported scrape configs](#how-to-collect-metrics-in-prometheus-format). There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
 ```yml
 - job_name: foo
@@ -279,7 +280,7 @@ The relabeling can be defined in the following places:
 
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to target labels. This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to all the scraped metrics in the given `scrape_config`. This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
-* At the `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to remote storage. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
+* At the `-remoteWrite.relabelConfig` file. This relabeling is applied to all the collected metrics before sending them to remote storage. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`. This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
 
 You can read more about relabeling in the following articles:
@@ -806,7 +807,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.cluster.replicationFactor int
     	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
-    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
     	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
@@ -931,7 +932,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Optional rate limit in bytes per second for data sent to -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
     	Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
-    	Optional path to file with relabel_config entries. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
+    	Optional path to file with relabel_config entries. The path can point either to local file or to http url. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
   -remoteWrite.relabelDebug
     	Whether to log metrics before and after relabeling with -remoteWrite.relabelConfig. If the -remoteWrite.relabelDebug is enabled, then the metrics aren't sent to remote storage. This is useful for debugging the relabeling configs
   -remoteWrite.roundDigits array
@@ -966,7 +967,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Remote storage URL to write data to. It must support Prometheus remote_write API. It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.multitenantURL
     	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
-    	Optional path to relabel config for the corresponding -remoteWrite.url
+    	Optional path to relabel config for the corresponding -remoteWrite.url. The path can point either to local file or to http url
     	Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelDebug array
     	Whether to log metrics before and after relabeling with -remoteWrite.urlRelabelConfig. If the -remoteWrite.urlRelabelDebug is enabled, then the metrics aren't sent to the corresponding -remoteWrite.url. This is useful for debugging the relabeling configs

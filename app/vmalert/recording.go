@@ -70,7 +70,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     &group.Type,
 			EvaluationInterval: group.Interval,
-			ExtraLabels:        group.ExtraFilterLabels,
+			QueryParams:        group.Params,
 		}),
 	}
 

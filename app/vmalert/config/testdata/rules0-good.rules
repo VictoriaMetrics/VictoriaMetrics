@@ -1,5 +1,8 @@
 groups:
   - name: groupGorSingleAlert
+    params:
+      nocache: ["1"]
+      denyPartialResponse: ["true"]
     rules:
       - alert: VMRows
         for: 10s

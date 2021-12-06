@@ -53,6 +53,9 @@ type Stats struct {
 	// BytesSize is the current size of the cache in bytes.
 	BytesSize uint64
 
+	// MaxBytesSize is the maximum allowed size of the cache in bytes (aka capacity).
+	MaxBytesSize uint64
+
 	// BigStats contains stats for GetBig/SetBig methods.
 	BigStats
 }
@@ -296,6 +299,7 @@ func (b *bucket) UpdateStats(s *Stats) {
 	for _, chunk := range b.chunks {
 		s.BytesSize += uint64(cap(chunk))
 	}
+	s.MaxBytesSize += uint64(len(b.chunks))*chunkSize
 	b.mu.RUnlock()
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"net/url"
 	"sync"
 	"time"
 
@@ -27,8 +28,8 @@ type Group struct {
 	Concurrency int
 	Checksum    string
 
-	ExtraFilterLabels map[string]string
-	Labels            map[string]string
+	Labels map[string]string
+	Params url.Values
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -71,14 +72,14 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
-		Type:              cfg.Type,
-		Name:              cfg.Name,
-		File:              cfg.File,
-		Interval:          cfg.Interval.Duration(),
-		Concurrency:       cfg.Concurrency,
-		Checksum:          cfg.Checksum,
-		ExtraFilterLabels: cfg.ExtraFilterLabels,
-		Labels:            cfg.Labels,
+		Type:        cfg.Type,
+		Name:        cfg.Name,
+		File:        cfg.File,
+		Interval:    cfg.Interval.Duration(),
+		Concurrency: cfg.Concurrency,
+		Checksum:    cfg.Checksum,
+		Params:      cfg.Params,
+		Labels:      cfg.Labels,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -198,7 +199,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	// group.Start function
 	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
-	g.ExtraFilterLabels = newGroup.ExtraFilterLabels
+	g.Params = newGroup.Params
 	g.Labels = newGroup.Labels
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules

@@ -563,7 +563,7 @@ Below is the output for `/path/to/vminsert -help`:
   -opentsdbhttpTrimTimestamp duration
     	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -relabelConfig string
-    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
+    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
     	Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -replicationFactor int

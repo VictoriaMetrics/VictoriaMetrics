@@ -2,6 +2,7 @@ package datasource
 
 import (
 	"context"
+	"net/url"
 	"time"
 )
 
@@ -20,8 +21,7 @@ type QuerierBuilder interface {
 type QuerierParams struct {
 	DataSourceType     *Type
 	EvaluationInterval time.Duration
-	// see https://docs.victoriametrics.com/#prometheus-querying-api-enhancements
-	ExtraLabels map[string]string
+	QueryParams        url.Values
 }
 
 // Metric is the basic entity which should be return by datasource

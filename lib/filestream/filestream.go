@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -108,6 +109,7 @@ func (r *Reader) MustClose() {
 }
 
 var (
+	readDuration      = metrics.NewFloatCounter(`vm_filestream_read_duration_seconds_total`)
 	readCallsBuffered = metrics.NewCounter(`vm_filestream_buffered_read_calls_total`)
 	readCallsReal     = metrics.NewCounter(`vm_filestream_real_read_calls_total`)
 	readBytesBuffered = metrics.NewCounter(`vm_filestream_buffered_read_bytes_total`)
@@ -117,6 +119,11 @@ var (
 
 // Read reads file contents to p.
 func (r *Reader) Read(p []byte) (int, error) {
+	startTime := time.Now()
+	defer func() {
+		d := time.Since(startTime).Seconds()
+		readDuration.Add(d)
+	}()
 	readCallsBuffered.Inc()
 	n, err := r.br.Read(p)
 	readBytesBuffered.Add(n)
@@ -232,6 +239,7 @@ func (w *Writer) MustClose() {
 }
 
 var (
+	writeDuration        = metrics.NewFloatCounter(`vm_filestream_write_duration_seconds_total`)
 	writeCallsBuffered   = metrics.NewCounter(`vm_filestream_buffered_write_calls_total`)
 	writeCallsReal       = metrics.NewCounter(`vm_filestream_real_write_calls_total`)
 	writtenBytesBuffered = metrics.NewCounter(`vm_filestream_buffered_written_bytes_total`)
@@ -241,6 +249,11 @@ var (
 
 // Write writes p to the underlying file.
 func (w *Writer) Write(p []byte) (int, error) {
+	startTime := time.Now()
+	defer func() {
+		d := time.Since(startTime).Seconds()
+		writeDuration.Add(d)
+	}()
 	writeCallsBuffered.Inc()
 	n, err := w.bw.Write(p)
 	writtenBytesBuffered.Add(n)
@@ -257,6 +270,11 @@ func (w *Writer) Write(p []byte) (int, error) {
 //
 // if isSync is true, then the flushed data is fsynced to the underlying storage.
 func (w *Writer) MustFlush(isSync bool) {
+	startTime := time.Now()
+	defer func() {
+		d := time.Since(startTime).Seconds()
+		writeDuration.Add(d)
+	}()
 	if err := w.bw.Flush(); err != nil {
 		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
 	}

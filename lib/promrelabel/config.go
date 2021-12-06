@@ -2,12 +2,12 @@ package promrelabel
 
 import (
 	"fmt"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"gopkg.in/yaml.v2"
 )
 
@@ -123,7 +123,7 @@ func (pcs *ParsedConfigs) String() string {
 
 // LoadRelabelConfigs loads relabel configs from the given path.
 func LoadRelabelConfigs(path string, relabelDebug bool) (*ParsedConfigs, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}

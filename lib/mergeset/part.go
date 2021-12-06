@@ -296,6 +296,15 @@ func (idxbc *indexBlockCache) SizeBytes() uint64 {
 	return uint64(n)
 }
 
+func (idxbc *indexBlockCache) SizeMaxBytes() uint64 {
+	avgBlockSize := float64(64 * 1024)
+	blocksCount := idxbc.Len()
+	if blocksCount > 0 {
+		avgBlockSize = float64(idxbc.SizeBytes()) / float64(blocksCount)
+	}
+	return uint64(avgBlockSize * float64(getMaxCachedIndexBlocksPerPart()))
+}
+
 func (idxbc *indexBlockCache) Requests() uint64 {
 	return atomic.LoadUint64(&idxbc.requests)
 }
@@ -461,6 +470,15 @@ func (ibc *inmemoryBlockCache) SizeBytes() uint64 {
 	}
 	ibc.mu.RUnlock()
 	return uint64(n)
+}
+
+func (ibc *inmemoryBlockCache) SizeMaxBytes() uint64 {
+	avgBlockSize := float64(128 * 1024)
+	blocksCount := ibc.Len()
+	if blocksCount > 0 {
+		avgBlockSize = float64(ibc.SizeBytes()) / float64(blocksCount)
+	}
+	return uint64(avgBlockSize * float64(getMaxCachedInmemoryBlocksPerPart()))
 }
 
 func (ibc *inmemoryBlockCache) Requests() uint64 {

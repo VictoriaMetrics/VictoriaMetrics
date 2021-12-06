@@ -793,7 +793,7 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
-In this case the output may contain multiple lines with distinct samples for the same time series.
+In this case the output may contain multiple lines with samples for the same time series.
 
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
@@ -805,6 +805,9 @@ curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]=
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
+
+The [deduplication](#deduplication) is applied to the data exported via `/api/v1/export` by default. The deduplication
+isn't applied if `reduce_mem_usage=1` query arg is passed to the request.
 
 
 ### How to export CSV data
@@ -830,6 +833,8 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
+The [deduplication](#deduplication) isn't applied for the data exported in CSV. It is expected that the de-duplication is performed during data import.
+
 
 ### How to export data in native format
 
@@ -852,6 +857,8 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
 The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
 can fail to be imported into VictoriaMetrics release Y.
+
+The [deduplication](#deduplication) isn't applied for the data exported in native format. It is expected that the de-duplication is performed during data import.
 
 
 ## How to import time series data
@@ -1022,6 +1029,7 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+The `-relabelConfig` also can point to http or https url. For example, `-relabelConfig=https://config-server/relabel_config.yml`.
 See [this article with relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
 
 Example contents for `-relabelConfig` file:
@@ -1145,7 +1153,7 @@ Older data is eventually deleted during [background merge](https://medium.com/@v
 
 ## Multiple retentions
 
-Just start multiple VictoriaMetrics instances with distinct values for the following flags:
+A single instance of VictoriaMetrics supports only a single retention, which can be configured via `-retentionPeriod` command-line flag. If you need multiple retentions, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
 
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
@@ -1154,6 +1162,7 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 Then set up [vmauth](https://docs.victoriametrics.com/vmauth.html) in front of VictoriaMetrics instances,
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
 The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
 
 
 ## Downsampling
@@ -1677,7 +1686,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.cluster.replicationFactor int
     	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
-    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
     	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
@@ -1744,7 +1753,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.suppressScrapeErrors
     	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
   -relabelConfig string
-    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
+    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
     	Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -retentionPeriod value

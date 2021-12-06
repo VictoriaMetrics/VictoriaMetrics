@@ -10,7 +10,7 @@ cloud.google.com/go/internal/version
 ## explicit
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal/apiv2
-# github.com/VictoriaMetrics/fastcache v1.7.0
+# github.com/VictoriaMetrics/fastcache v1.8.0
 ## explicit
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/fasthttp v1.1.0
@@ -28,7 +28,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.42.14
+# github.com/aws/aws-sdk-go v1.42.17
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -96,7 +96,8 @@ github.com/cheggaaa/pb/v3
 github.com/cheggaaa/pb/v3/termutil
 # github.com/cncf/udpa/go v0.0.0-20210930031921-04548b0d99d4
 github.com/cncf/udpa/go/udpa/type/v1
-# github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1
+# github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490
+## explicit
 github.com/cncf/xds/go/udpa/annotations
 github.com/cncf/xds/go/udpa/type/v1
 github.com/cncf/xds/go/xds/annotations/v3
@@ -303,7 +304,7 @@ go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 go.uber.org/atomic
-# golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
+# golang.org/x/net v0.0.0-20211201190559-0a0e4e1bb54c
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -372,7 +373,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1
+# google.golang.org/genproto v0.0.0-20211129164237-f09f9a12af12
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/expr/v1alpha1
