@@ -1,7 +1,8 @@
 import React, {FC} from "react";
-import {Box, FormControlLabel, Switch} from "@mui/material";
+import {Box, FormControlLabel} from "@mui/material";
 import {saveToStorage} from "../../../../utils/storage";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
+import BasicSwitch from "../../../../theme/switch";
 
 const AdditionalSettings: FC = () => {
 
@@ -18,15 +19,15 @@ const AdditionalSettings: FC = () => {
     saveToStorage("NO_CACHE", !nocache);
   };
 
-  return <Box px={1} display="flex" alignItems="center">
+  return <Box display="flex" alignItems="center">
     <Box>
       <FormControlLabel label="Enable autocomplete"
-        control={<Switch size="small" checked={autocomplete} onChange={onChangeAutocomplete}/>}
+        control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
       />
     </Box>
     <Box ml={2}>
       <FormControlLabel label="Enable cache"
-        control={<Switch size="small" checked={!nocache} onChange={onChangeCache}/>}
+        control={<BasicSwitch checked={!nocache} onChange={onChangeCache}/>}
       />
     </Box>
   </Box>;
