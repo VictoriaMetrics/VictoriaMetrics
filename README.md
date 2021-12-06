@@ -540,8 +540,10 @@ Below is the output for `/path/to/vminsert -help`:
   -maxInsertRequestSize size
     	The maximum size in bytes of a single Prometheus remote_write API request
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -maxLabelValueLen int
+    	The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 16384)
   -maxLabelsPerTimeseries int
-    	The maximum number of labels accepted per time series. Superfluous labels are dropped (default 30)
+    	The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
