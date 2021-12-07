@@ -318,10 +318,7 @@ Please use [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) to
 
 ## Why do same metrics have differences in VictoriaMetrics and Prometheus dashboards?
 
-In most cases, for the same __metric_name__ VictoriaMetrics can accept values from multiple sources.
-Prometheus at the same time will consider them as different metrics.
-Such cases can be debugged using `api/v1/export`
+There is a difference in stored raw time series. Due to different compression algorithms, VM may reduce precision for float values with more than 12 significant decimal digits. Please see [this article](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
 
-There is also a difference in stored raw time series. Due to different compression algorithms, VM may reduce precision for float values with more than 12 significant decimal digits. Please see [this article](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
-Additionaly there is a slight difference in logic and query responses. Please see [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
+There is a slight difference in logic and query responses. Please see [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
 
