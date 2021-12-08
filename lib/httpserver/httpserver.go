@@ -80,8 +80,12 @@ func Serve(addr string, rh RequestHandler) {
 	if *tlsEnable {
 		scheme = "https"
 	}
-	logger.Infof("starting http server at %s://%s/", scheme, addr)
-	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, addr)
+	hostAddr := addr
+	if strings.HasPrefix(hostAddr, ":") {
+		hostAddr = "127.0.0.1" + hostAddr
+	}
+	logger.Infof("starting http server at %s://%s/", scheme, hostAddr)
+	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
 	lnTmp, err := netutil.NewTCPListener(scheme, addr)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
