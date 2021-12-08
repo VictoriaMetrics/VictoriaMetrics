@@ -1,6 +1,6 @@
 name: victoriametrics
 base: core18
-version: git
+adopt-info: build
 icon: logo.png
 summary: VictoriaMetrics is fast, cost-effective and scalable time-series database.
 description: |
@@ -51,7 +51,7 @@ confinement: strict # use 'strict' once you have the right plugs and slots
 parts:
   build:
     plugin: go
-    go-channel: 1.16/stable
+    go-channel: 1.17/stable
     go-importpath: github.com/VictoriaMetrics/VictoriaMetrics
     source: .
     source-type: local
@@ -61,6 +61,9 @@ parts:
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       cp -p $SNAPCRAFT_PART_BUILD/bin/victoria-metrics $SNAPCRAFT_PART_INSTALL/bin/
       cp -p $SNAPCRAFT_PART_SRC/snap/local/victoriametrics-wrapper $SNAPCRAFT_PART_INSTALL/bin/
+    override-pull: |
+      snapcraftctl set-version "$PKG_TAG"
+      snapcraftctl pull
 apps:
   victoriametrics:
     command: bin/victoriametrics-wrapper

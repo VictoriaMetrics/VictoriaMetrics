@@ -7,12 +7,14 @@ snap link: https://snapcraft.io/victoriametrics
 
 #### develop
 
-Install snapcraft and multipass:
+Install snapcraft or docker
+
+build snap package with command
+
  ```text
-sudo snap install snapcraft --classic
+make build-snap
 ```
 
-build victoria-metrics prod binary and run snapcraft ```snapcraft --debug```. 
 It produces snap package with current git version - `victoriametrics_v1.46.0+git1.1bebd021a-dirty_all.snap`.
 You can install it with command: `snap install victoriametrics_v1.46.0+git1.1bebd021a-dirty_all.snap --dangerous`
 
