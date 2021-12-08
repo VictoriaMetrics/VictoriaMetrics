@@ -13,46 +13,13 @@
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-in [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), in [Snap packages](https://snapcraft.io/victoriametrics)
-and in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics follow [these instructions](#how-to-start-victoriametrics).
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
+and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and follow [these instructions](#how-to-start-victoriametrics).
 Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
 
 Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
-See [features available in enterprise package](https://victoriametrics.com/enterprise.html).
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-
-
-## Case studies and talks
-
-Case studies:
-
-* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
-* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
-* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
-* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
-* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
-* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
-* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
-* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
-* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
-* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
-* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
-* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
-* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
-* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
-* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
-* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
-* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
-* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
-* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
-* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
-* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
-* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
-
-See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. See [features available in enterprise package](https://victoriametrics.com/enterprise.html). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Prominent features
@@ -93,6 +60,37 @@ VictoriaMetrics has the following prominent features:
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
+
+
+## Case studies and talks
+
+Case studies:
+
+* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
+* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
+* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
+* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
+* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
+* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
+* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
+* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
+* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
+* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
+* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
+* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
+* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
+* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
+* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
+* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
+* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
+* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
+* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
+* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
+
+See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
 
 
 ## Operation
