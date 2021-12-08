@@ -2,7 +2,10 @@ import React, {FC, useCallback, useEffect, useRef, useState} from "react";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale} from "uplot";
 import {useGraphState} from "../../state/graph/GraphStateContext";
-import {defaultOptions, dragChart, getAxes, setTooltip} from "../../utils/uPlot";
+import {defaultOptions} from "../../utils/uplot/helpers";
+import {dragChart} from "../../utils/uplot/events";
+import {getAxes} from "../../utils/uplot/axes";
+import {setTooltip} from "../../utils/uplot/tooltip";
 import {MetricResult} from "../../api/types";
 import {limitsDurations} from "../../utils/time";
 import throttle from "lodash.throttle";
@@ -16,7 +19,6 @@ export interface LineChartProps {
     series: uPlotSeries[];
     limits: AxisRange;
 }
-
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
 const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => {

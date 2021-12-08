@@ -2,9 +2,11 @@ import React, {FC, useEffect, useState} from "react";
 import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
-import {Legend, LegendItem} from "../../Legend/Legend";
+import Legend from "../../Legend/Legend";
 import {useGraphDispatch} from "../../../state/graph/GraphStateContext";
-import {getHideSeries, getLegendItem, getLimitsYAxis, getSeriesItem, getTimeSeries} from "../../../utils/uPlot";
+import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
+import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
+import {LegendItem} from "../../../utils/uplot/types";
 import {AxisRange} from "../../../state/graph/reducer";
 import GraphSettings from "../Configurator/Graph/GraphSettings";
 
@@ -27,8 +29,8 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
   };
 
-  const onChangeLegend = (label: string, metaKey: boolean) => {
-    setHideSeries(getHideSeries({hideSeries, label, metaKey, series}));
+  const onChangeLegend = (legend: LegendItem, metaKey: boolean) => {
+    setHideSeries(getHideSeries({hideSeries, legend, metaKey, series}));
   };
 
   useEffect(() => {
