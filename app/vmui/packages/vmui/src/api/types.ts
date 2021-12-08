@@ -1,4 +1,5 @@
 export interface MetricBase {
+  group: number;
   metric: {
     [key: string]: string;
   };

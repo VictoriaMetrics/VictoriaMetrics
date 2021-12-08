@@ -1,7 +1,11 @@
+export interface AxisRange {
+  [key: string]: [number, number]
+}
+
 export interface YaxisState {
     limits: {
       enable: boolean,
-      range: [number, number]
+      range: AxisRange
     }
 }
 
@@ -11,11 +15,11 @@ export interface GraphState {
 
 export type GraphAction =
     | { type: "TOGGLE_ENABLE_YAXIS_LIMITS" }
-    | { type: "SET_YAXIS_LIMITS", payload: [number, number] }
+    | { type: "SET_YAXIS_LIMITS", payload: {[key: string]: [number, number]} }
 
 export const initialGraphState: GraphState = {
   yaxis: {
-    limits: {enable: false, range: [0, 0]}
+    limits: {enable: false, range: {"1": [0, 0]}}
   }
 };
 
