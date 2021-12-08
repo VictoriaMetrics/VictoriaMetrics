@@ -14,7 +14,7 @@ code {
 /*Material UI global classes*/
 
 .MuiAccordionSummary-content {
-  margin: 10px 0 !important;
+  margin: 0 !important;
 }
 
 /* TODO: find better way to override codemirror styles */
@@ -30,7 +30,7 @@ code {
 }
 
 .one-line-scroll .cm-editor {
-  height: 24px;
+  height: 40px;
 }
 
 .cm-gutters {
@@ -40,7 +40,7 @@ code {
 
 .multi-line-scroll .cm-content,
 .multi-line-scroll .cm-gutters {
-  min-height: 64px !important;
+  min-height: 38px !important;
 }
 
 .one-line-scroll .cm-content,

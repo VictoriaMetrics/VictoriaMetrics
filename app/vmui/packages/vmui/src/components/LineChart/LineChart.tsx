@@ -1,45 +1,47 @@
 import React, {FC, useCallback, useEffect, useRef, useState} from "react";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
-import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range} from "uplot";
+import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale} from "uplot";
 import {useGraphState} from "../../state/graph/GraphStateContext";
-import {defaultOptions, dragChart, setTooltip} from "../../utils/uPlot";
+import {defaultOptions} from "../../utils/uplot/helpers";
+import {dragChart} from "../../utils/uplot/events";
+import {getAxes} from "../../utils/uplot/axes";
+import {setTooltip} from "../../utils/uplot/tooltip";
 import {MetricResult} from "../../api/types";
 import {limitsDurations} from "../../utils/time";
 import throttle from "lodash.throttle";
 import "uplot/dist/uPlot.min.css";
 import "./tooltip.css";
+import {AxisRange} from "../../state/graph/reducer";
 
 export interface LineChartProps {
-  metrics: MetricResult[]
-  data: uPlotData;
-  series: uPlotSeries[],
-  limits: [number, number]
+    metrics: MetricResult[];
+    data: uPlotData;
+    series: uPlotSeries[];
+    limits: AxisRange;
 }
-
-enum typeChartUpdate { xRange = "xRange", yRange = "yRange", data = "data" }
+enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
 const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => {
   const dispatch = useAppDispatch();
   const {time: {period}} = useAppState();
-  const { yaxis } = useGraphState();
+  const {yaxis} = useGraphState();
   const containerRef = useRef<HTMLDivElement>(null);
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [zoomPos, setZoomPos] = useState(0);
-  const [xRange, setXRange] = useState({ min: period.start, max: period.end });
+  const [xRange, setXRange] = useState({min: period.start, max: period.end});
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
-  const tooltipIdx = { seriesIdx: 1, dataIdx: 0 };
-  const tooltipOffset = { left: 0, top: 0 };
+  const tooltipIdx = {seriesIdx: 1, dataIdx: 0};
+  const tooltipOffset = {left: 0, top: 0};
 
-  const setScale = ({min, max}: {min: number, max: number}): void => {
+  const setScale = ({min, max}: { min: number, max: number }): void => {
     dispatch({type: "SET_PERIOD", payload: {from: new Date(min * 1000), to: new Date(max * 1000)}});
   };
   const throttledSetScale = useCallback(throttle(setScale, 500), []);
-
-  const setPlotScale = ({u, min, max}: {u: uPlot, min: number, max: number}) => {
+  const setPlotScale = ({u, min, max}: { u: uPlot, min: number, max: number }) => {
     const delta = (max - min) * 1000;
     if ((delta < limitsDurations.min) || (delta > limitsDurations.max)) return;
     u.setScale("x", {min, max});
@@ -52,12 +54,8 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
     tooltipOffset.left = parseFloat(u.over.style.left);
     tooltipOffset.top = parseFloat(u.over.style.top);
     u.root.querySelector(".u-wrap")?.appendChild(tooltip);
-
     // wheel drag pan
-    u.over.addEventListener("mousedown", e => {
-      dragChart({u, e, setPanning, setPlotScale, factor});
-    });
-
+    u.over.addEventListener("mousedown", e => dragChart({u, e, setPanning, setPlotScale, factor}));
     // wheel scroll zoom
     u.over.addEventListener("wheel", e => {
       if (!e.ctrlKey && !e.metaKey) return;
@@ -67,7 +65,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
       const xVal = u.posToVal(zoomPos, "x");
       const oxRange = (u.scales.x.max || 0) - (u.scales.x.min || 0);
       const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
-      const min = xVal - (zoomPos/width) * nxRange;
+      const min = xVal - (zoomPos / width) * nxRange;
       const max = min + nxRange;
       u.batch(() => setPlotScale({u, min, max}));
     });
@@ -88,25 +86,27 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
       ? setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset})
       : tooltip.style.display = "none";
   };
-
-  const getRangeY = (u: uPlot, min =  0, max =  1): Range.MinMax => {
-    if (yaxis.limits.enable) return yaxis.limits.range;
-    return min && max ? [min - (min * 0.05), max + (max * 0.05)] : limits;
+  const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
+  const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
+    if (yaxis.limits.enable) return yaxis.limits.range[axis];
+    return min && max ? [min - (min * 0.05), max + (max * 0.05)] : limits[axis];
   };
 
-  const getRangeX = (): Range.MinMax => {
-    return [xRange.min, xRange.max];
+  const getScales = (): Scales => {
+    const scales: { [key: string]: { range: Scale.Range } } = {x: {range: getRangeX}};
+    Object.keys(yaxis.limits.range).forEach(axis => {
+      scales[axis] = {range: (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis)};
+    });
+    return scales;
   };
 
   const options: uPlotOptions = {
     ...defaultOptions,
-    width: containerRef.current ? containerRef.current.offsetWidth : 400,
     series,
-    plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus }}],
-    scales: {
-      x: { range: getRangeX },
-      y: { range: getRangeY }
-    }
+    axes: getAxes(series),
+    scales: {...getScales()},
+    width: containerRef.current ? containerRef.current.offsetWidth : 400,
+    plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
   };
 
   const updateChart = (type: typeChartUpdate): void => {
@@ -116,7 +116,10 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
         uPlotInst.scales.x.range = getRangeX;
         break;
       case typeChartUpdate.yRange:
-        uPlotInst.scales.y.range = getRangeY;
+        Object.keys(yaxis.limits.range).forEach(axis => {
+          if (!uPlotInst.scales[axis]) return;
+          uPlotInst.scales[axis].range = (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis);
+        });
         break;
       case typeChartUpdate.data:
         uPlotInst.setData(data);
@@ -125,13 +128,13 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
     uPlotInst.redraw();
   };
 
-  useEffect(() => setXRange({ min: period.start, max: period.end }), [period]);
+  useEffect(() => setXRange({min: period.start, max: period.end}), [period]);
 
   useEffect(() => {
     if (!uPlotRef.current) return;
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
-    setXRange({ min: period.start, max: period.end });
+    setXRange({min: period.start, max: period.end});
     return u.destroy;
   }, [uPlotRef.current, series]);
 

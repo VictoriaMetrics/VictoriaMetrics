@@ -1,9 +1,10 @@
 import React, {FC, useEffect, useState} from "react";
-import {Box, FormControlLabel, IconButton, Switch, Tooltip} from "@mui/material";
+import {Box, FormControlLabel, IconButton, Tooltip} from "@mui/material";
 import EqualizerIcon from "@mui/icons-material/Equalizer";
-import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
-import CircularProgressWithLabel from "../../common/CircularProgressWithLabel";
+import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
+import CircularProgressWithLabel from "../../../common/CircularProgressWithLabel";
 import makeStyles from "@mui/styles/makeStyles";
+import BasicSwitch from "../../../../theme/switch";
 
 const useStyles = makeStyles({
   colorizing: {
@@ -69,7 +70,7 @@ export const ExecutionControls: FC = () => {
 
   return <Box display="flex" alignItems="center">
     {<FormControlLabel
-      control={<Switch size="small" className={classes.colorizing} checked={autoRefresh} onChange={handleChange} />}
+      control={<BasicSwitch className={classes.colorizing} checked={autoRefresh} onChange={handleChange} />}
       label="Auto-refresh"
     />}
 
@@ -78,7 +79,9 @@ export const ExecutionControls: FC = () => {
         onClick={() => {iterateDelays();}} />
       <Tooltip title="Change delay refresh">
         <Box ml={1}>
-          <IconButton onClick={() => {iterateDelays();}} size="large"><EqualizerIcon style={{color: "white"}} /></IconButton>
+          <IconButton onClick={() => {iterateDelays();}}>
+            <EqualizerIcon style={{color: "white"}} />
+          </IconButton>
         </Box>
       </Tooltip>
     </>}

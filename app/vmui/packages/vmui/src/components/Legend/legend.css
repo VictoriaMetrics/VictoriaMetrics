@@ -1,12 +1,31 @@
 .legendWrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-gap: 20px;
     margin-top: 20px;
+    cursor: default;
+}
+
+.legendGroup {
+    margin-bottom: 24px;
+}
+
+.legendGroupTitle {
+    display: flex;
+    align-items: center;
+    padding: 10px 0 5px;
+    font-size: 11px;
+}
+
+.legendGroupLine {
+    margin: 0 10px;
 }
 
 .legendItem {
     display: inline-grid;
     grid-template-columns: auto auto;
-    grid-gap: 4px;
-    align-items: center;
+    grid-gap: 6px;
+    align-items: start;
     justify-content: start;
     padding: 5px 10px;
     background-color: #FFF;
@@ -30,9 +49,10 @@
     border-style: solid;
     box-sizing: border-box;
     transition: 0.2s ease;
+    margin: 3px 0;
 }
 
 .legendLabel {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: normal;
 }
