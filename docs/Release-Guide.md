@@ -31,10 +31,12 @@ sort: 17
 
 ### Public Announcement 
 
-1. Publish message in slack (victoriametrics.slack.com, general channel)
-2. Post twit with release notes URL
-3. Post in subreddit https://www.reddit.com/r/VictoriaMetrics/ 
-4. Post in linkedin
+- Publish message in Slack  at https://victoriametrics.slack.com
+- Post at Twitter at https://twitter.com/MetricsVictoria
+- Post in Reddit at https://www.reddit.com/r/VictoriaMetrics/
+- Post in Linkedin at https://www.linkedin.com/company/victoriametrics/
+- Publish message in Telegram at https://t.me/VictoriaMetrics_en and https://t.me/VictoriaMetrics_ru1
+- Publish message in google groups at https://groups.google.com/forum/#!forum/victorametrics-users
 
 ## Helm Charts
 
