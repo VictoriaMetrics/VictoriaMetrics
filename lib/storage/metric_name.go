@@ -418,7 +418,18 @@ const maxLabelNameLen = 256
 // The maximum length of label value.
 //
 // Longer values are truncated.
-const maxLabelValueLen = 16 * 1024
+var maxLabelValueLen = 16 * 1024
+
+// SetMaxLabelValueLen sets the limit on the label value length.
+//
+// This function can be called before using the storage package.
+//
+// Label values with longer length are truncated.
+func SetMaxLabelValueLen(n int) {
+	if n > 0 {
+		maxLabelValueLen = n
+	}
+}
 
 // The maximum number of labels per each timeseries.
 var maxLabelsPerTimeseries = 30
@@ -426,12 +437,13 @@ var maxLabelsPerTimeseries = 30
 // SetMaxLabelsPerTimeseries sets the limit on the number of labels
 // per each time series.
 //
+// This function can be called before using the storage package.
+//
 // Superfluous labels are dropped.
 func SetMaxLabelsPerTimeseries(maxLabels int) {
-	if maxLabels <= 0 {
-		logger.Panicf("BUG: maxLabels must be positive; got %d", maxLabels)
+	if maxLabels > 0 {
+		maxLabelsPerTimeseries = maxLabels
 	}
-	maxLabelsPerTimeseries = maxLabels
 }
 
 // MarshalMetricNameRaw marshals labels to dst and returns the result.

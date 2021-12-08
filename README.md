@@ -13,46 +13,13 @@
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-in [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), in [Snap packages](https://snapcraft.io/victoriametrics)
-and in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics follow [these instructions](#how-to-start-victoriametrics).
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
+and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and follow [these instructions](#how-to-start-victoriametrics).
 Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
 
 Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
-See [features available in enterprise package](https://victoriametrics.com/enterprise.html).
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-
-
-## Case studies and talks
-
-Case studies:
-
-* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
-* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
-* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
-* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
-* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
-* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
-* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
-* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
-* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
-* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
-* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
-* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
-* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
-* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
-* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
-* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
-* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
-* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
-* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
-* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
-* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
-* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
-
-See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. See [features available in enterprise package](https://victoriametrics.com/enterprise.html). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Prominent features
@@ -93,6 +60,37 @@ VictoriaMetrics has the following prominent features:
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
+
+
+## Case studies and talks
+
+Case studies:
+
+* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
+* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
+* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
+* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
+* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
+* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
+* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
+* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
+* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
+* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
+* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
+* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
+* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
+* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
+* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
+* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
+* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
+* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
+* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
+* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
+
+See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
 
 
 ## Operation
@@ -517,9 +515,10 @@ All the Prometheus querying API handlers can be prepended with `/prometheus` pre
 ### Prometheus querying API enhancements
 
 VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
-`/api/v1/query_range?extra_label=user_id=123&query=<query>` would automatically add `{user_id="123"}` label filter to the given `<query>`. This functionality can be used
-for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
-in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+`/api/v1/query_range?extra_label=user_id=123&extra_label=group_id=456&query=<query>` would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+
+VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries. For example,
+`/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
 VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
@@ -556,8 +555,8 @@ VictoriaMetrics supports the following Graphite APIs, which are needed for [Grap
 
 All the Graphite handlers can be pre-pended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
 
-VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg for all the Graphite APIs. This arg can be used for limiting the scope of time series
-visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics.
+VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector` query args for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
@@ -1494,6 +1493,7 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [slack](https://slack.victoriametrics.com/)
+* [linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
@@ -1651,8 +1651,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -maxInsertRequestSize size
     	The maximum size in bytes of a single Prometheus remote_write API request
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -maxLabelValueLen int
+    	The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 16384)
   -maxLabelsPerTimeseries int
-    	The maximum number of labels accepted per time series. Superfluous labels are dropped (default 30)
+    	The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)

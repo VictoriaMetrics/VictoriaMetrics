@@ -538,7 +538,7 @@ extra_filter_labels:
 rules:
   - alert: ExampleAlertAlwaysFiring
     expr: sum by(job) (up == 1)
-`, url.Values{extraLabelParam: {"job=victoriametrics", "env=prod"}})
+`, url.Values{"extra_label": {"env=prod", "job=victoriametrics"}})
 	})
 
 	t.Run("extra labels and params", func(t *testing.T) {
@@ -552,6 +552,6 @@ params:
 rules:
   - alert: ExampleAlertAlwaysFiring
     expr: sum by(job) (up == 1)
-`, url.Values{"nocache": {"1"}, extraLabelParam: {"env=prod", "job=victoriametrics"}})
+`, url.Values{"nocache": {"1"}, "extra_label": {"env=prod", "job=victoriametrics"}})
 	})
 }

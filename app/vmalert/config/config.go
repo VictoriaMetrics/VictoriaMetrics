@@ -46,8 +46,6 @@ type Group struct {
 	XXX map[string]interface{} `yaml:",inline"`
 }
 
-const extraLabelParam = "extra_label"
-
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type group Group
@@ -68,8 +66,14 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		if g.Params == nil {
 			g.Params = url.Values{}
 		}
+		// Sort extraFilters for consistent order for query args across runs.
+		extraFilters := make([]string, 0, len(g.ExtraFilterLabels))
 		for k, v := range g.ExtraFilterLabels {
-			g.Params.Add(extraLabelParam, fmt.Sprintf("%s=%s", k, v))
+			extraFilters = append(extraFilters, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(extraFilters)
+		for _, extraFilter := range extraFilters {
+			g.Params.Add("extra_label", extraFilter)
 		}
 	}
 

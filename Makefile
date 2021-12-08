@@ -24,6 +24,8 @@ all: \
 
 include app/*/Makefile
 include deployment/*/Makefile
+include snap/local/Makefile
+
 
 clean:
 	rm -rf bin/*
@@ -84,9 +86,6 @@ vmutils-windows-amd64: \
 	vmauth-windows-amd64 \
 	vmctl-windows-amd64
 
-release-snap:
-	snapcraft
-	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
 
 publish-release:
 	git checkout $(TAG) && $(MAKE) release publish && \
@@ -179,6 +178,7 @@ release-vmutils-windows-generic: \
 			vmauth-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
 			> vmutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
