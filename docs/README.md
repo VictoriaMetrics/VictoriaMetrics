@@ -1493,6 +1493,7 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [slack](https://slack.victoriametrics.com/)
+* [linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
