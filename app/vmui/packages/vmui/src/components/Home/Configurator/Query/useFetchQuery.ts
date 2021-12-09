@@ -4,14 +4,14 @@ import {useAppState} from "../../../../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
 import {isValidHttpUrl} from "../../../../utils/url";
 import {useAuthState} from "../../../../state/auth/AuthStateContext";
-import {TimeParams} from "../../../../types";
+import {ErrorTypes, TimeParams} from "../../../../types";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
-  error?: string,
+  error?: ErrorTypes | string,
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
 
@@ -20,7 +20,7 @@ export const useFetchQuery = (): {
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<ErrorTypes | string>();
   const [prevPeriod, setPrevPeriod] = useState<TimeParams>();
 
   useEffect(() => {
@@ -80,9 +80,9 @@ export const useFetchQuery = (): {
   const fetchUrl = useMemo(() => {
     if (!period) return;
     if (!serverUrl) {
-      setError("Please enter Server URL");
+      setError(ErrorTypes.emptyServer);
     } else if (query.every(q => !q.trim())) {
-      setError("Please enter a valid Query and execute it");
+      setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(serverUrl)) {
       const duration = (period.end - period.start) / 2;
       const bufferPeriod = {...period, start: period.start - duration, end: period.end + duration};
@@ -90,7 +90,7 @@ export const useFetchQuery = (): {
         ? getQueryRangeUrl(serverUrl, q, bufferPeriod, nocache)
         : getQueryUrl(serverUrl, q, period));
     } else {
-      setError("Please provide a valid URL");
+      setError(ErrorTypes.validServer);
     }
   },
   [serverUrl, period, displayType]);

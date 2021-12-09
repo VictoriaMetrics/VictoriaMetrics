@@ -3,9 +3,13 @@ import {Box, TextField, Tooltip, IconButton} from "@mui/material";
 import SecurityIcon from "@mui/icons-material/Security";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {AuthDialog} from "../Auth/AuthDialog";
+import {ErrorTypes} from "../../../../types";
 
+export interface ServerConfiguratorProps {
+  error?: ErrorTypes | string;
+}
 
-const ServerConfigurator: FC = () => {
+const ServerConfigurator: FC<ServerConfiguratorProps> = ({error}) => {
 
   const {serverUrl} = useAppState();
   const dispatch = useAppDispatch();
@@ -18,6 +22,7 @@ const ServerConfigurator: FC = () => {
   return <>
     <Box display="grid" gridTemplateColumns="1fr auto" gap="4px" alignItems="center" width="100%" mb={2} minHeight={50}>
       <TextField variant="outlined" fullWidth label="Server URL" value={serverUrl}
+        error={error === ErrorTypes.validServer || error === ErrorTypes.emptyServer}
         inputProps={{style: {fontFamily: "Monospace"}}}
         onChange={onSetServer}/>
       <Box>
