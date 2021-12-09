@@ -1504,6 +1504,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
+* [articles and talks about VictoriaMetrics in Russian](https://github.com/denisgolius/victoriametrics-ru-links)
 * [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
