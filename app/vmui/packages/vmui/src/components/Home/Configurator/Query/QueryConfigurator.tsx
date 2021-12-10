@@ -12,8 +12,13 @@ import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import Portal from "@mui/material/Portal";
 import ServerConfigurator from "./ServerConfigurator";
 import AdditionalSettings from "./AdditionalSettings";
+import {ErrorTypes} from "../../../../types";
 
-const QueryConfigurator: FC = () => {
+export interface QueryConfiguratorProps {
+  error?: ErrorTypes | string;
+}
+
+const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
 
   const {serverUrl, query, queryHistory, time: {duration}, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
@@ -90,10 +95,8 @@ const QueryConfigurator: FC = () => {
               <Box key={`${i}_${q}`} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
                 mb={i === query.length-1 ? 0 : 2}>
                 <QueryEditor server={serverUrl} query={queryString[i]} index={i} oneLiner={!expanded}
-                  autocomplete={autocomplete}
-                  queryHistory={queryHistory[i]} setHistoryIndex={setHistoryIndex}
-                  runQuery={onRunQuery}
-                  setQuery={onSetQuery}/>
+                  autocomplete={autocomplete} queryHistory={queryHistory[i]} error={error}
+                  setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
                 {i === 0 && <Tooltip title="Execute Query">
                   <IconButton onClick={onRunQuery}>
                     <PlayCircleOutlineIcon/>
@@ -111,7 +114,7 @@ const QueryConfigurator: FC = () => {
       <AccordionDetails>
         <Grid container columnSpacing={2}>
           <Grid item xs={6} minWidth={400}>
-            <ServerConfigurator/>
+            <ServerConfigurator error={error}/>
             {/* for portal QueryEditor */}
             <div ref={queryContainer}/>
             {query.length < 2 && <Box display="inline-block" minHeight="40px" mt={2}>

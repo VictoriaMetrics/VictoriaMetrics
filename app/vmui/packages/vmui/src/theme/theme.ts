@@ -7,9 +7,30 @@ const THEME = createTheme({
     },
     secondary: {
       main: "#F50057"
+    },
+    error: {
+      main: "#FF4141"
     }
   },
   components: {
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          fontSize: "12px",
+          letterSpacing: "normal",
+          lineHeight: "1"
+        }
+      }
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        "root": {
+          "&.Mui-focused fieldset": {
+            "borderWidth": "1px !important"
+          }
+        }
+      }
+    },
     MuiSwitch: {
       defaultProps: {
         color: "secondary"
