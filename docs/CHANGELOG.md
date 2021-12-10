@@ -14,6 +14,7 @@ sort: 15
 * FEATURE: vminsert: add `-maxLabelValueLen` command-line flag for the ability to configure the maximum length of label value. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1908).
 
 * BUGFIX: fix `unaligned 64-bit atomic operation` panic on 32-bit architectures, which has been introduced in v1.70.0.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): restore the ability to use `{{ $labels.alertname }}` in labels templating. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1921).
 
 
 ## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
