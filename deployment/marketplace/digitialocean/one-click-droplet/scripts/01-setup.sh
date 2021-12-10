@@ -9,7 +9,7 @@ chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics-data
 
 rm -rf /var/lib/apt/lists/*
 apt update
-apt -y full-upgrade
-apt -y install curl git wget software-properties-common
+DEBIAN_FRONTEND=noninteractive apt -y full-upgrade
+DEBIAN_FRONTEND=noninteractive apt -y install install curl git wget software-properties-common
 rm -rf /var/log/kern.log
 rm -rf /var/log/ufw.log
