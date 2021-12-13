@@ -28,7 +28,6 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
   const containerRef = useRef<HTMLDivElement>(null);
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
-  const [zoomPos, setZoomPos] = useState(0);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
 
@@ -61,7 +60,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const {width} = u.over.getBoundingClientRect();
-      if (u.cursor.left && u.cursor.left > 0) setZoomPos(u.cursor.left);
+      const zoomPos = u.cursor.left && u.cursor.left > 0 ? u.cursor.left : 0;
       const xVal = u.posToVal(zoomPos, "x");
       const oxRange = (u.scales.x.max || 0) - (u.scales.x.min || 0);
       const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;

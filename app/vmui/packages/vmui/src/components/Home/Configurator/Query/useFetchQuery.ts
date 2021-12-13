@@ -57,8 +57,8 @@ export const useFetchQuery = (): {
       const tempData = [];
       let counter = 1;
       for await (const response of responses) {
+        const resp = await response.json();
         if (response.ok) {
-          const resp = await response.json();
           setError(undefined);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
@@ -66,12 +66,12 @@ export const useFetchQuery = (): {
           }));
           counter++;
         } else {
-          setError((await response.json())?.error);
+          setError(`${resp.errorType}\r\n${resp?.error}`);
         }
       }
       displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
     } catch (e) {
-      if (e instanceof Error) setError(e.message);
+      if (e instanceof Error) setError(`${e.name}: ${e.message}`);
     }
 
     setIsLoading(false);
@@ -97,7 +97,6 @@ export const useFetchQuery = (): {
 
   useEffect(() => {
     setPrevPeriod(undefined);
-    fetchData();
   }, [query]);
 
   // TODO: this should depend on query as well, but need to decide when to do the request.

@@ -68,7 +68,7 @@ const HomeLayout: FC = () => {
           </Fade>}
           {<Box height={"100%"} bgcolor={"#fff"}>
             {error &&
-              <Alert color="error" severity="error" style={{fontSize: "14px"}}>
+              <Alert color="error" severity="error" style={{fontSize: "14px", whiteSpace: "pre-wrap"}}>
                 {error}
               </Alert>}
             {graphData && period && (displayType === "chart") &&
