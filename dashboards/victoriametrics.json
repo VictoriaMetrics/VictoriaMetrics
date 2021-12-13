@@ -1,5 +1,14 @@
 {
-  "__inputs": [],
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "VictoriaMetrics Datasource",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
   "__requires": [
     {
       "type": "grafana",
@@ -80,7 +89,7 @@
   "panels": [
     {
       "collapsed": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -101,7 +110,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "How many entries inverted index contains. This value is proportional to the number of unique timeseries in storage(cardinality).",
       "fieldConfig": {
         "defaults": {
@@ -191,7 +200,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "Total amount of used disk space",
       "fieldConfig": {
         "defaults": {
@@ -281,7 +290,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "How many datapoints are in storage",
       "fieldConfig": {
         "defaults": {
@@ -371,7 +380,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "decimals": 2,
       "description": "Average disk usage per datapoint.",
       "fieldConfig": {
@@ -457,7 +466,7 @@
     },
     {
       "columns": [],
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -556,7 +565,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -659,7 +668,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "How many datapoints are inserted into storage per second by protocol and accountID",
       "fieldConfig": {
         "defaults": {
@@ -753,7 +762,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -852,7 +861,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -951,7 +960,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -1050,7 +1059,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
       "fieldConfig": {
         "defaults": {
@@ -1168,7 +1177,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
@@ -1270,7 +1279,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "Shows amount of remaining disk space at `-storageDataPath`",
       "fieldConfig": {
         "defaults": {
@@ -1367,7 +1376,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "Shows the time needed to reach the 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
       "fieldConfig": {
         "defaults": {
@@ -1464,7 +1473,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
       "fieldConfig": {
         "defaults": {
@@ -1559,7 +1568,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1573,7 +1582,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -1668,7 +1677,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Amount of used memory (resident)",
           "fieldConfig": {
             "defaults": {
@@ -1762,7 +1771,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -1858,7 +1867,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -1954,7 +1963,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -2050,7 +2059,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2064,7 +2073,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
           "fieldConfig": {
             "defaults": {
@@ -2157,7 +2166,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
           "fieldConfig": {
             "defaults": {
@@ -2251,7 +2260,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>50%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
           "fieldConfig": {
             "defaults": {
@@ -2346,7 +2355,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2360,7 +2369,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows number of pushed and sent rows. \n* `Pushed rows` - rows added to internal inserter buffers before send\n* `Sent rows` - successfully transmitted rows to storage nodes",
           "fieldConfig": {
             "defaults": {
@@ -2464,7 +2473,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Rate of RPC errors by type:\n* `Connection` - the number of connection errors to vmstorage node\n* `Dial` -  the number of dial errors to vmstorage node.\n* `Handshake` - the number of handshake errors to vmstorage node\n* `Rerouted` - errors appeared during rerouting of rows from un-healthy storage node to a healthy one.",
           "fieldConfig": {
             "defaults": {
@@ -2582,7 +2591,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The number of rows rerouted to the vmstorage node from other nodes when they were unhealthy.",
           "fieldConfig": {
             "defaults": {
@@ -2679,7 +2688,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The number of rows rerouted from the vmstorage node to healthy nodes when the given node was unhealthy.",
           "fieldConfig": {
             "defaults": {
@@ -2776,7 +2785,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
           "fieldConfig": {
             "defaults": {
@@ -2880,7 +2889,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The number of rows that were lost because of unhealthy vmstorage nodes.",
           "fieldConfig": {
             "defaults": {
@@ -2974,7 +2983,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Network usage by internal VictoriaMetrics RPC protocol",
           "fieldConfig": {
             "defaults": {
@@ -3068,7 +3077,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3082,7 +3091,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
           "fieldConfig": {
             "defaults": {
@@ -3195,7 +3204,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
           "fieldConfig": {
             "defaults": {
@@ -3293,7 +3302,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3307,7 +3316,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows how many datapoints are in the storage.",
           "fieldConfig": {
             "defaults": {
@@ -3405,7 +3414,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows how many rows per second every storage node accepts. This metric doesn't show all stored rows since some of them may be dropped because of wrong timestamps or decode errors.",
           "fieldConfig": {
             "defaults": {
@@ -3501,7 +3510,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows amount of on-disk space occupied by data points.",
           "fieldConfig": {
             "defaults": {
@@ -3597,7 +3606,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows amount of on-disk space occupied by inverted index.",
           "fieldConfig": {
             "defaults": {
@@ -3693,7 +3702,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
           "fieldConfig": {
             "defaults": {
@@ -3787,7 +3796,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
@@ -3900,7 +3909,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
           "fieldConfig": {
             "defaults": {
@@ -3996,7 +4005,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "The number of rows merged per second by storage nodes.",
           "fieldConfig": {
             "defaults": {
@@ -4091,7 +4100,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -4105,7 +4114,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Request rate accepted by vmselect nodes",
           "fieldConfig": {
             "defaults": {
@@ -4204,7 +4213,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2 by default. May be configured with `search.maxConcurrentRequests` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means vmselect node is overloaded and require more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
@@ -4320,7 +4329,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -4433,7 +4442,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -4447,7 +4456,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
           "fieldConfig": {
             "defaults": {
@@ -4546,7 +4555,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 4 by default. May be configured with `maxConcurrentInserts` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and require more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
@@ -4663,7 +4672,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -4775,7 +4784,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -4876,7 +4885,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows the number of insert requests processed concurrently and concurrency limit.\n\n* `max` - controller by `-maxConcurrentInserts`\n* `current` - current number of goroutines busy with processing insert requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\n",
           "fieldConfig": {
             "defaults": {
@@ -5005,7 +5014,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": "${DS_PROMETHEUS}",
           "description": "Shows if vmstorage node is reachable for vminsert. If below 1 means vmstorage is not reachable at this moment of time. ",
           "fieldConfig": {
             "defaults": {
@@ -5112,27 +5121,9 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": false,
-          "text": "VictoriaMetrics",
-          "value": "VictoriaMetrics"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "label": null,
-        "multi": false,
-        "name": "ds",
-        "options": [],
-        "query": "prometheus",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
-      },
-      {
         "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": "${DS_PROMETHEUS}",
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
         "hide": 2,
         "includeAll": false,
@@ -5154,7 +5145,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": "${DS_PROMETHEUS}",
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
         "hide": 2,
         "includeAll": false,
@@ -5176,7 +5167,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": "${DS_PROMETHEUS}",
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
         "hide": 2,
         "includeAll": false,
@@ -5198,7 +5189,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": "${DS_PROMETHEUS}",
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
         "hide": 0,
         "includeAll": true,
@@ -5220,7 +5211,7 @@
       {
         "allValue": ".*",
         "current": {},
-        "datasource": "$ds",
+        "datasource": "${DS_PROMETHEUS}",
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
