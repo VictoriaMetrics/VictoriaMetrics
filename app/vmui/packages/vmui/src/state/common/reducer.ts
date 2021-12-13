@@ -87,9 +87,10 @@ export function reducer(state: AppState, action: Action): AppState {
         queryHistory: action.payload
       };
     case "SET_QUERY_HISTORY_BY_INDEX":
+      state.queryHistory.splice(action.payload.queryNumber, 1, action.payload.value);
       return {
         ...state,
-        queryHistory: state.queryHistory.splice(action.payload.queryNumber, 1, action.payload.value)
+        queryHistory: state.queryHistory
       };
     case "SET_DURATION":
       return {

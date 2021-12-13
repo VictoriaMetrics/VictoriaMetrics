@@ -8,16 +8,16 @@ import {QueryHistory} from "../../../../state/common/reducer";
 import {ErrorTypes} from "../../../../types";
 
 export interface QueryEditorProps {
-  setHistoryIndex: (step: number, index: number) => void;
-  setQuery: (query: string, index: number) => void;
-  runQuery: () => void;
-  query: string;
-  index: number;
-  queryHistory: QueryHistory;
-  server: string;
-  oneLiner?: boolean;
-  autocomplete: boolean;
-  error?: ErrorTypes | string;
+    setHistoryIndex: (step: number, index: number) => void;
+    setQuery: (query: string, index: number) => void;
+    runQuery: () => void;
+    query: string;
+    index: number;
+    queryHistory: QueryHistory;
+    server: string;
+    oneLiner?: boolean;
+    autocomplete: boolean;
+    error?: ErrorTypes | string;
 }
 
 const QueryEditor: FC<QueryEditorProps> = ({
@@ -54,10 +54,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
   useEffect(() => {
     const promQL = new PromQLExtension();
     promQL.activateCompletion(autocomplete);
-    promQL.setComplete({ remote: { url: server } });
+    promQL.setComplete({remote: {url: server}});
 
     const listenerExtension = EditorView.updateListener.of(editorUpdate => {
-      if (editorUpdate.focusChanged && editorView?.hasFocus !== focusEditor) {
+      if (editorUpdate.focusChanged) {
         setFocusEditor(editorView?.hasFocus || false);
       }
       if (editorUpdate.docChanged) {
