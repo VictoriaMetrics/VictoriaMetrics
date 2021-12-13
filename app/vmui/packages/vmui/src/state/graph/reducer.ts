@@ -3,21 +3,30 @@ export interface AxisRange {
 }
 
 export interface YaxisState {
-    limits: {
-      enable: boolean,
-      range: AxisRange
-    }
+  limits: {
+    enable: boolean,
+    range: AxisRange
+  }
+}
+
+export interface CustomStep {
+    enable: boolean,
+    value: number
 }
 
 export interface GraphState {
-    yaxis: YaxisState
+  customStep: CustomStep
+  yaxis: YaxisState
 }
 
 export type GraphAction =
-    | { type: "TOGGLE_ENABLE_YAXIS_LIMITS" }
-    | { type: "SET_YAXIS_LIMITS", payload: {[key: string]: [number, number]} }
+  | { type: "TOGGLE_ENABLE_YAXIS_LIMITS" }
+  | { type: "SET_YAXIS_LIMITS", payload: { [key: string]: [number, number] } }
+  | { type: "TOGGLE_CUSTOM_STEP" }
+  | { type: "SET_CUSTOM_STEP", payload: number}
 
 export const initialGraphState: GraphState = {
+  customStep: {enable: false, value: 1},
   yaxis: {
     limits: {enable: false, range: {"1": [0, 0]}}
   }
@@ -34,6 +43,22 @@ export function reducer(state: GraphState, action: GraphAction): GraphState {
             ...state.yaxis.limits,
             enable: !state.yaxis.limits.enable
           }
+        }
+      };
+    case "TOGGLE_CUSTOM_STEP":
+      return {
+        ...state,
+        customStep: {
+          ...state.customStep,
+          enable: !state.customStep.enable
+        }
+      };
+    case "SET_CUSTOM_STEP":
+      return {
+        ...state,
+        customStep: {
+          ...state.customStep,
+          value: action.payload
         }
       };
     case "SET_YAXIS_LIMITS":

@@ -25,7 +25,9 @@ const useStyles = makeStyles({
     cursor: "move",
   },
   popoverBody: {
-    padding: "0 14px"
+    display: "grid",
+    gridGap: "6px",
+    padding: "0 14px",
   }
 });
 
