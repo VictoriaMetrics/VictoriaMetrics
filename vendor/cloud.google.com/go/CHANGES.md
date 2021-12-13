@@ -1,5 +1,12 @@
 # Changes
 
+## [0.99.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.98.0...v0.99.0) (2021-12-06)
+
+
+### Features
+
+* **dialogflow/cx:** added `TelephonyTransferCall` in response message ([fe27098](https://www.github.com/googleapis/google-cloud-go/commit/fe27098e5d429911428821ded57384353e699774))
+
 ## [0.98.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.97.0...v0.98.0) (2021-12-03)
 
 

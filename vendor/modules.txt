@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.98.0
+# cloud.google.com/go v0.99.0
 ## explicit
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
@@ -22,14 +22,14 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.18.1
 ## explicit
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.31.0
+# github.com/VictoriaMetrics/metricsql v0.32.0
 ## explicit
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.42.19
+# github.com/aws/aws-sdk-go v1.42.22
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -305,7 +305,7 @@ go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.9.0
 go.uber.org/atomic
-# golang.org/x/net v0.0.0-20211205041911-012df41ee64c
+# golang.org/x/net v0.0.0-20211209124913-491a49abca63
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -329,7 +329,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
+# golang.org/x/sys v0.0.0-20211210111614-af8b64212486
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -342,7 +342,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.61.0
+# google.golang.org/api v0.62.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -374,7 +374,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211203200212-54befc351ae9
+# google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/expr/v1alpha1

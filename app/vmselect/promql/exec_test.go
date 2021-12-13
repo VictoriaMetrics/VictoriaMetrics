@@ -2055,6 +2055,24 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 1, sort_by_label((
+			label_set(time()*1, "foo", "y"),
+			label_set(time()*2, "foo", "a"),
+			label_set(time()*3, "foo", "x"),
+		), "foo"))`
+		r := netstorage.Result{
+			Values:     []float64{3000, 3600, 4200, 4800, 5400, 6000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("x"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(label_graphite_group)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(sum by (__name__) (
@@ -5149,21 +5167,6 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`limitk(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `limitk(1, label_set(10, "foo", "bar") or label_set(time()/150, "xbaz", "sss"))`
-		r1 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{10, 10, 10, 10, 10, 10},
-			Timestamps: timestampsExpected,
-		}
-		r1.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("bar"),
-		}}
-		resultExpected := []netstorage.Result{r1}
-		f(q, resultExpected)
-	})
-	t.Run(`limit_offset()`, func(t *testing.T) {
-		t.Parallel()
-		q := `limit_offset(1, 0, (label_set(10, "foo", "bar"), label_set(time()/150, "xbaz", "sss")))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},
