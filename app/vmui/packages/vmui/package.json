@@ -16,7 +16,7 @@
     "@mui/icons-material": "^5.2.0",
     "@mui/lab": "^5.0.0-alpha.58",
     "@mui/material": "^5.2.2",
-    "@mui/styles": "^5.2.2",
+    "@mui/styles": "^5.2.3",
     "@testing-library/jest-dom": "^5.16.0",
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
