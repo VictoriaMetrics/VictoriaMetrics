@@ -15,7 +15,7 @@ import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
 
 export interface QueryConfiguratorProps {
-  error?: ErrorTypes | string;
+    error?: ErrorTypes | string;
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
@@ -32,13 +32,16 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
   const onSetDuration = (dur: string) => dispatch({type: "SET_DURATION", payload: dur});
 
   const updateHistory = () => {
-    dispatch({type: "SET_QUERY_HISTORY", payload: queryHistory.map((h, i) => {
-      const lastQueryEqual = query[i] === h.values[h.values.length - 1];
-      return {
-        index: h.values.length - Number(lastQueryEqual),
-        values: lastQueryEqual || !query[i] ? h.values : [...h.values, query[i]]
-      };
-    })});
+    dispatch({
+      type: "SET_QUERY_HISTORY", payload: query.map((q, i) => {
+        const h = queryHistory[i] || {values: []};
+        const queryEqual = q === h.values[h.values.length - 1];
+        return {
+          index: h.values.length - Number(queryEqual),
+          values: !queryEqual && q ? [...h.values, q] : h.values
+        };
+      })
+    });
   };
 
   const onRunQuery = () => {
@@ -87,10 +90,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
           <Portal disablePortal={!expanded} container={queryContainer.current}>
             {query.map((q, i) =>
               <Box key={i} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
-                mb={i === query.length-1 ? 0 : 2}>
+                mb={i === query.length - 1 ? 0 : 2}>
                 <QueryEditor server={serverUrl} query={query[i]} index={i} oneLiner={!expanded}
                   autocomplete={autocomplete} queryHistory={queryHistory[i]} error={error}
-                  setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
+                  setHistoryIndex={setHistoryIndex} runQuery={onRunQuery}
+                  setQuery={onSetQuery}/>
                 {i === 0 && <Tooltip title="Execute Query">
                   <IconButton onClick={onRunQuery}>
                     <PlayCircleOutlineIcon/>
