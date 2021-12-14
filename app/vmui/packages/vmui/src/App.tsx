@@ -4,43 +4,14 @@ import HomeLayout from "./components/Home/HomeLayout";
 import {StateProvider} from "./state/common/StateContext";
 import {AuthStateProvider} from "./state/auth/AuthStateContext";
 import {GraphStateProvider} from "./state/graph/GraphStateContext";
-import { ThemeProvider, Theme, StyledEngineProvider, createTheme } from "@mui/material/styles";
-
+import { ThemeProvider, StyledEngineProvider } from "@mui/material/styles";
+import THEME from "./theme/theme";
 import CssBaseline from "@mui/material/CssBaseline";
-
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
-// pick a date util library
 import DayjsUtils from "@date-io/dayjs";
 
 
-declare module "@mui/styles/defaultTheme" {
-  // eslint-disable-next-line @typescript-eslint/no-empty-interface
-  interface DefaultTheme extends Theme {}
-}
-
-
 const App: FC = () => {
-
-  const THEME = createTheme({
-    palette: {
-      primary: {
-        main: "#3F51B5"
-      },
-      secondary: {
-        main: "#F50057"
-      }
-    },
-    components: {
-      MuiSwitch: {
-        defaultProps: {
-          color: "secondary"
-        }
-      }
-    },
-    typography: {
-      "fontSize": 10
-    }
-  });
 
   return <>
     <CssBaseline /> {/* CSS Baseline: kind of normalize.css made by materialUI team - can be scoped */}

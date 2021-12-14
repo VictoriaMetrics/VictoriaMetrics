@@ -26,8 +26,8 @@ import TabPanel from "./AuthTabPanel";
 import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
 import makeStyles from "@mui/styles/makeStyles";
-import {useAuthDispatch, useAuthState} from "../../../state/auth/AuthStateContext";
-import {AUTH_METHOD, WithCheckbox} from "../../../state/auth/reducer";
+import {useAuthDispatch, useAuthState} from "../../../../state/auth/AuthStateContext";
+import {AUTH_METHOD, WithCheckbox} from "../../../../state/auth/reducer";
 
 // TODO: make generic when creating second dialog
 export interface DialogProps {

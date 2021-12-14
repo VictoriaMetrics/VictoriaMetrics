@@ -103,11 +103,23 @@ name: <string>
 # By default "prometheus" type is used.
 [ type: <string> ]
 
-# Optional list of label filters applied to every rule's
-# request withing a group. Is compatible only with VM datasource.
-# See more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+# Warning: DEPRECATED
+# Please use `params` instead:
+#   params:
+#     extra_label: ["job=nodeexporter", "env=prod"]
 extra_filter_labels:
   [ <labelname>: <labelvalue> ... ]
+
+# Optional list of HTTP URL parameters
+# applied for all rules requests within a group
+# For example:
+#  params:
+#    nocache: ["1"]                # disable caching for vmselect
+#    denyPartialResponse: ["true"] # fail if one or more vmstorage nodes returned an error
+#    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests 
+# see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+params:
+  [ <string>: [<string>, ...]]
 
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
@@ -476,6 +488,8 @@ a review to the dashboard.
 
 ## Configuration
 
+### Flags
+
 Pass `-help` to `vmalert` in order to see the full list of supported
 command-line flags with their descriptions.
 
@@ -697,11 +711,31 @@ The shortlist of configuration flags is the following:
     	Show VictoriaMetrics version
 ```
 
+### Hot config reload
 `vmalert` supports "hot" config reload via the following methods:
 * send SIGHUP signal to `vmalert` process;
 * send GET request to `/-/reload` endpoint;
 * configure `-rule.configCheckInterval` flag for periodic reload
 on config change.
+
+### URL params
+
+To set additional URL params for `datasource.url`, `remoteWrite.url` or `remoteRead.url`
+just add them in address: `-datasource.url=http://localhost:8428?nocache=1`.
+
+To set additional URL params for specific [group of rules](#Groups) modify
+the `params` group:
+```yaml
+groups:
+  - name: TestGroup
+    params:
+      denyPartialResponse: ["true"]
+      extra_label: ["env=dev"]
+```
+Please note, `params` are used only for executing rules expressions (requests to `datasource.url`).
+If there would be a conflict between URL params set in `datasource.url` flag and params in group definition
+the latter will have higher priority.
+
 
 ## Contributing
 
@@ -718,7 +752,7 @@ It is recommended using
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
 2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
@@ -735,7 +769,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
 2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
 

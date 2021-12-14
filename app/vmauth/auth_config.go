@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	authConfigPath = flag.String("auth.config", "", "Path to auth config. See https://docs.victoriametrics.com/vmauth.html "+
-		"for details on the format of this auth config")
+	authConfigPath = flag.String("auth.config", "", "Path to auth config. It can point either to local file or to http url. "+
+		"See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config")
 )
 
 // AuthConfig represents auth config.
@@ -237,9 +237,9 @@ var authConfigWG sync.WaitGroup
 var stopCh chan struct{}
 
 func readAuthConfig(path string) (map[string]*UserInfo, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read %q: %w", path, err)
+		return nil, err
 	}
 	m, err := parseAuthConfig(data)
 	if err != nil {

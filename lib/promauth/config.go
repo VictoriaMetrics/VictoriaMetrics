@@ -7,11 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -161,7 +161,7 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		},
 	}
 	if o.ClientSecretFile != "" {
-		oi.clientSecretFile = getFilepath(baseDir, o.ClientSecretFile)
+		oi.clientSecretFile = fs.GetFilepath(baseDir, o.ClientSecretFile)
 		secret, err := readPasswordFromFile(oi.clientSecretFile)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read OAuth2 secret from %q: %w", oi.clientSecretFile, err)
@@ -304,7 +304,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			if az.Credentials != nil {
 				return nil, fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
 			}
-			filePath := getFilepath(baseDir, az.CredentialsFile)
+			filePath := fs.GetFilepath(baseDir, az.CredentialsFile)
 			getAuthHeader = func() string {
 				token, err := readPasswordFromFile(filePath)
 				if err != nil {
@@ -332,7 +332,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			if basicAuth.Password != nil {
 				return nil, fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", basicAuth.Password, basicAuth.PasswordFile)
 			}
-			filePath := getFilepath(baseDir, basicAuth.PasswordFile)
+			filePath := fs.GetFilepath(baseDir, basicAuth.PasswordFile)
 			getAuthHeader = func() string {
 				password, err := readPasswordFromFile(filePath)
 				if err != nil {
@@ -362,7 +362,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		if bearerToken != "" {
 			return nil, fmt.Errorf("both `bearer_token`=%q and `bearer_token_file`=%q are set", bearerToken, bearerTokenFile)
 		}
-		filePath := getFilepath(baseDir, bearerTokenFile)
+		filePath := fs.GetFilepath(baseDir, bearerTokenFile)
 		getAuthHeader = func() string {
 			token, err := readPasswordFromFile(filePath)
 			if err != nil {
@@ -416,8 +416,8 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
 			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 				// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
-				certPath := getFilepath(baseDir, tlsConfig.CertFile)
-				keyPath := getFilepath(baseDir, tlsConfig.KeyFile)
+				certPath := fs.GetFilepath(baseDir, tlsConfig.CertFile)
+				keyPath := fs.GetFilepath(baseDir, tlsConfig.KeyFile)
 				cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 				if err != nil {
 					return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
@@ -431,8 +431,8 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tlsConfig.CertFile, tlsConfig.KeyFile)
 		}
 		if tlsConfig.CAFile != "" {
-			path := getFilepath(baseDir, tlsConfig.CAFile)
-			data, err := ioutil.ReadFile(path)
+			path := fs.GetFilepath(baseDir, tlsConfig.CAFile)
+			data, err := fs.ReadFileOrHTTP(path)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read `ca_file` %q: %w", tlsConfig.CAFile, err)
 			}

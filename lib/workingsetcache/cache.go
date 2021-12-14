@@ -25,6 +25,9 @@ type Cache struct {
 	curr atomic.Value
 	prev atomic.Value
 
+	// cs holds cache stats
+	cs fastcache.Stats
+
 	// mode indicates whether to use only curr and skip prev.
 	//
 	// This flag is set to switching if curr is filled for more than 50% space.
@@ -39,9 +42,6 @@ type Cache struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
-
-	// cs holds cache stats
-	cs fastcache.Stats
 }
 
 // Load loads the cache from filePath and limits its size to maxBytes

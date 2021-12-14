@@ -73,7 +73,6 @@ func main() {
 		}()
 	}
 
-	logger.Infof("starting http server for exporting metrics at http://%q/metrics", *httpListenAddr)
 	go httpserver.Serve(*httpListenAddr, nil)
 
 	srcFS, err := newSrcFS()

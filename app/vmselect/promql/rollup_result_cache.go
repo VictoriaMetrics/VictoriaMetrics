@@ -194,7 +194,7 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilters)
+	bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		return nil, ec.Start
@@ -214,7 +214,7 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 	if len(compressedResultBuf.B) == 0 {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilters)
+		bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -317,7 +317,7 @@ func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window in
 	bb.B = key.Marshal(bb.B[:0])
 	rrc.c.SetBig(bb.B, compressedResultBuf.B)
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilters)
+	bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf) > 0 {
@@ -347,14 +347,19 @@ var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 // Increment this value every time the format of the cache changes.
 const rollupResultCacheVersion = 8
 
-func marshalRollupResultCacheKey(dst []byte, expr metricsql.Expr, window, step int64, filters []storage.TagFilter) []byte {
+func marshalRollupResultCacheKey(dst []byte, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix)
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
 	dst = expr.AppendString(dst)
-	for _, f := range filters {
-		dst = f.Marshal(dst)
+	for i, etf := range etfs {
+		for _, f := range etf {
+			dst = f.Marshal(dst)
+		}
+		if i+1 < len(etfs) {
+			dst = append(dst, '|')
+		}
 	}
 	return dst
 }

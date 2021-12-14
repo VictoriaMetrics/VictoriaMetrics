@@ -4,7 +4,7 @@ import {TimeParams, TimePeriod} from "../../types";
 import {dateFromSeconds, formatDateToLocal, getDateNowUTC, getDurationFromPeriod, getTimeperiodForDuration} from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
 import {getDefaultServer} from "../../utils/default-server-url";
-import {getQueryStringValue} from "../../utils/query-string";
+import {getQueryArray, getQueryStringValue} from "../../utils/query-string";
 
 export interface TimeState {
   duration: string;
@@ -19,9 +19,9 @@ export interface QueryHistory {
 export interface AppState {
   serverUrl: string;
   displayType: DisplayType;
-  query: string;
+  query: string[];
   time: TimeState;
-  queryHistory: QueryHistory,
+  queryHistory: QueryHistory[],
   queryControls: {
     autoRefresh: boolean;
     autocomplete: boolean,
@@ -32,9 +32,9 @@ export interface AppState {
 export type Action =
     | { type: "SET_DISPLAY_TYPE", payload: DisplayType }
     | { type: "SET_SERVER", payload: string }
-    | { type: "SET_QUERY", payload: string }
-    | { type: "SET_QUERY_HISTORY_INDEX", payload: number }
-    | { type: "SET_QUERY_HISTORY_VALUES", payload: string[] }
+    | { type: "SET_QUERY", payload: string[] }
+    | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: {value: QueryHistory, queryNumber: number} }
+    | { type: "SET_QUERY_HISTORY", payload: QueryHistory[] }
     | { type: "SET_DURATION", payload: string }
     | { type: "SET_UNTIL", payload: Date }
     | { type: "SET_PERIOD", payload: TimePeriod }
@@ -46,13 +46,13 @@ export type Action =
 
 const duration = getQueryStringValue("g0.range_input", "1h") as string;
 const endInput = formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date);
-const query = getQueryStringValue("g0.expr", "") as string;
+const query = getQueryArray();
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
   displayType: getQueryStringValue("tab", "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
-  queryHistory: { index: 0, values: [query] },
+  queryHistory: query.map(q => ({index: 0, values: [q]})),
   time: {
     duration,
     period: getTimeperiodForDuration(duration, new Date(endInput))
@@ -81,21 +81,16 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         query: action.payload
       };
-    case "SET_QUERY_HISTORY_INDEX":
+    case "SET_QUERY_HISTORY":
       return {
         ...state,
-        queryHistory: {
-          ...state.queryHistory,
-          index: action.payload
-        }
+        queryHistory: action.payload
       };
-    case "SET_QUERY_HISTORY_VALUES":
+    case "SET_QUERY_HISTORY_BY_INDEX":
+      state.queryHistory.splice(action.payload.queryNumber, 1, action.payload.value);
       return {
         ...state,
-        queryHistory: {
-          ...state.queryHistory,
-          values: action.payload
-        }
+        queryHistory: state.queryHistory
       };
     case "SET_DURATION":
       return {

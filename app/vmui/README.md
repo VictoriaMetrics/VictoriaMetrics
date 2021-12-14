@@ -2,19 +2,6 @@
 
 Web UI for VictoriaMetrics
 
-Features:
-
-- configurable Server URL
-- configurable time range - every variant have own resolution to show around 30 data points
-- query editor has basic highlighting and can be multi-line
-- chart is responsive by width
-- color assignment for series is automatic
-- legend with reduced naming
-- tooltips for closest data point
-- auto-refresh mode with several time interval presets
-- table and raw JSON Query viewer
-
-
 ## Docker image build
 
 Run the following command from the root of VictoriaMetrics repository in order to build `victoriametrics/vmui` Docker image:
@@ -65,4 +52,4 @@ Then run the built binary with the following command:
 bin/victoria-metrics -selfScrapeInterval=5s
 ```
 
-Then navigate to `http://localhost:8428/vmui/`
+Then navigate to `http://localhost:8428/vmui/`. See [these docs](https://docs.victoriametrics.com/#vmui) for more details.
