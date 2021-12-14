@@ -368,10 +368,10 @@ func (m *QuicProtocolOptions) validate(all bool) error {
 
 	if wrapper := m.GetNumTimeoutsToTriggerPortMigration(); wrapper != nil {
 
-		if val := wrapper.GetValue(); val < 0 || val > 1 {
+		if val := wrapper.GetValue(); val < 0 || val > 5 {
 			err := QuicProtocolOptionsValidationError{
 				field:  "NumTimeoutsToTriggerPortMigration",
-				reason: "value must be inside range [0, 1]",
+				reason: "value must be inside range [0, 5]",
 			}
 			if !all {
 				return err

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
@@ -11,11 +12,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
-	src = flag.String("src", "", "Source path with backup on the remote storage. "+
+	httpListenAddr = flag.String("httpListenAddr", ":8421", "TCP address for exporting metrics at /metrics page")
+	src            = flag.String("src", "", "Source path with backup on the remote storage. "+
 		"Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir")
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Destination path where backup must be restored. "+
 		"VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir "+
@@ -32,6 +35,8 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	go httpserver.Serve(*httpListenAddr, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {
@@ -52,6 +57,13 @@ func main() {
 	}
 	srcFS.MustStop()
 	dstFS.MustStop()
+
+	startTime := time.Now()
+	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
+	if err := httpserver.Stop(*httpListenAddr); err != nil {
+		logger.Fatalf("cannot stop http server for metrics: %s", err)
+	}
+	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 
 func usage() {

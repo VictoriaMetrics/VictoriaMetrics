@@ -13,46 +13,13 @@
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-in [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), in [Snap packages](https://snapcraft.io/victoriametrics)
-and in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics follow [these instructions](#how-to-start-victoriametrics).
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
+and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and follow [these instructions](#how-to-start-victoriametrics).
 Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
 
 Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
-See [features available in enterprise package](https://victoriametrics.com/enterprise.html).
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-
-
-## Case studies and talks
-
-Case studies:
-
-* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
-* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
-* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
-* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
-* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
-* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
-* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
-* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
-* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
-* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
-* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
-* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
-* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
-* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
-* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
-* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
-* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
-* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
-* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
-* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
-* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
-* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
-
-See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. See [features available in enterprise package](https://victoriametrics.com/enterprise.html). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Prominent features
@@ -93,6 +60,37 @@ VictoriaMetrics has the following prominent features:
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
+
+
+## Case studies and talks
+
+Case studies:
+
+* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
+* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
+* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
+* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
+* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
+* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
+* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
+* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
+* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
+* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
+* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
+* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
+* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
+* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
+* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
+* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
+* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
+* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
+* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
+* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
+
+See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
 
 
 ## Operation
@@ -418,7 +416,7 @@ The `/api/v1/export` endpoint should return the following response:
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
 * [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
+* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
 
 ## How to send data from OpenTSDB-compatible agents
@@ -517,9 +515,10 @@ All the Prometheus querying API handlers can be prepended with `/prometheus` pre
 ### Prometheus querying API enhancements
 
 VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
-`/api/v1/query_range?extra_label=user_id=123&query=<query>` would automatically add `{user_id="123"}` label filter to the given `<query>`. This functionality can be used
-for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
-in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+`/api/v1/query_range?extra_label=user_id=123&extra_label=group_id=456&query=<query>` would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+
+VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries. For example,
+`/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
 VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
@@ -556,12 +555,12 @@ VictoriaMetrics supports the following Graphite APIs, which are needed for [Grap
 
 All the Graphite handlers can be pre-pended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
 
-VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg for all the Graphite APIs. This arg can be used for limiting the scope of time series
-visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics.
+VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector` query args for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
-For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function.
+For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function.
 
 
 ### Graphite Render API usage
@@ -611,6 +610,10 @@ The UI allows exploring query results via graphs and tables. Graphs support scro
 Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
 When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
+
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
+
+VMUI allows investigating correlations between two queries on the same graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -789,7 +792,7 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
-In this case the output may contain multiple lines with distinct samples for the same time series.
+In this case the output may contain multiple lines with samples for the same time series.
 
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
@@ -801,6 +804,9 @@ curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]=
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
+
+The [deduplication](#deduplication) is applied to the data exported via `/api/v1/export` by default. The deduplication
+isn't applied if `reduce_mem_usage=1` query arg is passed to the request.
 
 
 ### How to export CSV data
@@ -826,6 +832,8 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
+The [deduplication](#deduplication) isn't applied for the data exported in CSV. It is expected that the de-duplication is performed during data import.
+
 
 ### How to export data in native format
 
@@ -848,6 +856,8 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
 The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
 can fail to be imported into VictoriaMetrics release Y.
+
+The [deduplication](#deduplication) isn't applied for the data exported in native format. It is expected that the de-duplication is performed during data import.
 
 
 ## How to import time series data
@@ -1018,6 +1028,7 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+The `-relabelConfig` also can point to http or https url. For example, `-relabelConfig=https://config-server/relabel_config.yml`.
 See [this article with relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
 
 Example contents for `-relabelConfig` file:
@@ -1141,7 +1152,7 @@ Older data is eventually deleted during [background merge](https://medium.com/@v
 
 ## Multiple retentions
 
-Just start multiple VictoriaMetrics instances with distinct values for the following flags:
+A single instance of VictoriaMetrics supports only a single retention, which can be configured via `-retentionPeriod` command-line flag. If you need multiple retentions, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
 
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
@@ -1150,6 +1161,7 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 Then set up [vmauth](https://docs.victoriametrics.com/vmauth.html) in front of VictoriaMetrics instances,
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
 The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
 
 
 ## Downsampling
@@ -1209,7 +1221,8 @@ Consider setting the following command-line flags:
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
 * `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
-* `-configAuthKey` for pretecting `/config` endpoint, since it may contain sensitive information such as passwords.
+* `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
+- `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
@@ -1366,6 +1379,7 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then use `{__graphite__="foo.*.baz"}` syntax for selecting such metrics.
   This expression is equivalent to `{__name__=~"foo[.][^.]*[.]baz"}`, but it works faster and it is easier to use when migrating from Graphite.
+  See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards).
   See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function, which allows extracting the given groups from Graphite metric names.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
@@ -1391,6 +1405,7 @@ See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
 ## Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
+See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules-backfilling).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
@@ -1484,9 +1499,11 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [slack](https://slack.victoriametrics.com/)
+* [linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
+* [articles and talks about VictoriaMetrics in Russian](https://github.com/denisgolius/victoriametrics-ru-links)
 * [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
@@ -1641,8 +1658,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -maxInsertRequestSize size
     	The maximum size in bytes of a single Prometheus remote_write API request
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -maxLabelValueLen int
+    	The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 16384)
   -maxLabelsPerTimeseries int
-    	The maximum number of labels accepted per time series. Superfluous labels are dropped (default 30)
+    	The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
@@ -1672,7 +1691,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.cluster.replicationFactor int
     	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
-    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
     	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
@@ -1739,7 +1758,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.suppressScrapeErrors
     	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
   -relabelConfig string
-    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
+    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
     	Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -retentionPeriod value

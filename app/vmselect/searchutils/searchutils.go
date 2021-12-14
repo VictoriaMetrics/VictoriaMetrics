@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -198,15 +197,17 @@ func (d *Deadline) String() string {
 	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds); the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), elapsed.Seconds(), d.flagHint)
 }
 
-// GetEnforcedTagFiltersFromRequest returns additional filters from request.
-func GetEnforcedTagFiltersFromRequest(r *http.Request) ([]storage.TagFilter, error) {
-	// fast path.
-	extraLabels := r.Form["extra_label"]
-	if len(extraLabels) == 0 {
-		return nil, nil
-	}
-	tagFilters := make([]storage.TagFilter, 0, len(extraLabels))
-	for _, match := range extraLabels {
+// GetExtraTagFilters returns additional label filters from request.
+//
+// Label filters can be present in extra_label and extra_filters[] query args.
+// They are combined. For example, the following query args:
+//   extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
+// should be translated to the following filters joined with "or":
+//   {env="prod",team="devops",t1="v1",t2="v2"}
+//   {env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
+func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
+	var tagFilters []storage.TagFilter
+	for _, match := range r.Form["extra_label"] {
 		tmp := strings.SplitN(match, "=", 2)
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
@@ -216,5 +217,79 @@ func GetEnforcedTagFiltersFromRequest(r *http.Request) ([]storage.TagFilter, err
 			Value: []byte(tmp[1]),
 		})
 	}
-	return tagFilters, nil
+	extraFilters := r.Form["extra_filters"]
+	extraFilters = append(extraFilters, r.Form["extra_filters[]"]...)
+	if len(extraFilters) == 0 {
+		if len(tagFilters) == 0 {
+			return nil, nil
+		}
+		return [][]storage.TagFilter{tagFilters}, nil
+	}
+	var etfs [][]storage.TagFilter
+	for _, extraFilter := range extraFilters {
+		tfs, err := ParseMetricSelector(extraFilter)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
+		}
+		tfs = append(tfs, tagFilters...)
+		etfs = append(etfs, tfs)
+	}
+	return etfs, nil
+}
+
+// JoinTagFilterss adds etfs to every src filter and returns the result.
+func JoinTagFilterss(src, etfs [][]storage.TagFilter) [][]storage.TagFilter {
+	if len(src) == 0 {
+		return etfs
+	}
+	if len(etfs) == 0 {
+		return src
+	}
+	var dst [][]storage.TagFilter
+	for _, tf := range src {
+		for _, etf := range etfs {
+			tfs := append([]storage.TagFilter{}, tf...)
+			tfs = append(tfs, etf...)
+			dst = append(dst, tfs)
+		}
+	}
+	return dst
+}
+
+// ParseMetricSelector parses s containing PromQL metric selector and returns the corresponding LabelFilters.
+func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
+	expr, err := metricsql.Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	me, ok := expr.(*metricsql.MetricExpr)
+	if !ok {
+		return nil, fmt.Errorf("expecting metricSelector; got %q", expr.AppendString(nil))
+	}
+	if len(me.LabelFilters) == 0 {
+		return nil, fmt.Errorf("labelFilters cannot be empty")
+	}
+	tfs := ToTagFilters(me.LabelFilters)
+	return tfs, nil
+}
+
+// ToTagFilters converts lfs to a slice of storage.TagFilter
+func ToTagFilters(lfs []metricsql.LabelFilter) []storage.TagFilter {
+	tfs := make([]storage.TagFilter, len(lfs))
+	for i := range lfs {
+		toTagFilter(&tfs[i], &lfs[i])
+	}
+	return tfs
+}
+
+func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {
+	if src.Label != "__name__" {
+		dst.Key = []byte(src.Label)
+	} else {
+		// This is required for storage.Search.
+		dst.Key = nil
+	}
+	dst.Value = []byte(src.Value)
+	dst.IsRegexp = src.IsRegexp
+	dst.IsNegative = src.IsNegative
 }

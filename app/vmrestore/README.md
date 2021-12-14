@@ -85,12 +85,32 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -customS3Endpoint string
     	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
+  -enableTCP6
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -http.connTimeout duration
+    	Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
+  -http.disableResponseCompression
+    	Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+  -http.idleConnTimeout duration
+    	Timeout for incoming idle http connections (default 1m0s)
+  -http.maxGracefulShutdownDuration duration
+    	The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+  -http.pathPrefix string
+    	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
+  -http.shutdownDelay duration
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+    	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+    	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpListenAddr string
+    	TCP address for exporting metrics at /metrics page (default ":8421")
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -113,12 +133,24 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pprofAuthKey string
+    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -s3ForcePathStyle
+    	Prefixing endpoint with bucket name when set false, true by default. (default true)
   -skipBackupCompleteCheck
     	Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
     	Source path with backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -storageDataPath string
     	Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
+  -tls
+    	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+  -tlsCertFile string
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+  -tlsKeyFile string
+    	Path to file with TLS key. Used only if -tls is set
   -version
     	Show VictoriaMetrics version
 ```

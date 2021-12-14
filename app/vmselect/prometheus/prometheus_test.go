@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
@@ -195,39 +194,4 @@ func TestAdjustLastPoints(t *testing.T) {
 			Values:     []float64{1, 2, 2},
 		},
 	})
-}
-
-// helper for tests
-func tfFromKV(k, v string) storage.TagFilter {
-	return storage.TagFilter{
-		Key:   []byte(k),
-		Value: []byte(v),
-	}
-}
-
-func Test_addEnforcedFiltersToTagFilterss(t *testing.T) {
-	f := func(t *testing.T, dstTfss [][]storage.TagFilter, enforcedFilters []storage.TagFilter, want [][]storage.TagFilter) {
-		t.Helper()
-		got := addEnforcedFiltersToTagFilterss(dstTfss, enforcedFilters)
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("unxpected result for addEnforcedFiltersToTagFilterss, \ngot: %v,\n want: %v", want, got)
-		}
-	}
-	f(t, [][]storage.TagFilter{{tfFromKV("label", "value")}},
-		nil,
-		[][]storage.TagFilter{{tfFromKV("label", "value")}})
-
-	f(t, nil,
-		[]storage.TagFilter{tfFromKV("ext-label", "ext-value")},
-		[][]storage.TagFilter{{tfFromKV("ext-label", "ext-value")}})
-
-	f(t, [][]storage.TagFilter{
-		{tfFromKV("l1", "v1")},
-		{tfFromKV("l2", "v2")},
-	},
-		[]storage.TagFilter{tfFromKV("ext-l1", "v2")},
-		[][]storage.TagFilter{
-			{tfFromKV("l1", "v1"), tfFromKV("ext-l1", "v2")},
-			{tfFromKV("l2", "v2"), tfFromKV("ext-l1", "v2")},
-		})
 }

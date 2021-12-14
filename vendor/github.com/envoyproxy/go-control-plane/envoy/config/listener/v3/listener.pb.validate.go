@@ -819,6 +819,8 @@ func (m *Listener) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for EnableMptcp
+
 	switch m.ListenerSpecifier.(type) {
 
 	case *Listener_InternalListener:

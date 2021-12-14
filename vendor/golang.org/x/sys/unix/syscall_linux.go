@@ -131,8 +131,10 @@ func Pipe2(p []int, flags int) error {
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
@@ -1773,6 +1775,16 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 		return err
 	}
 	return mount(source, target, fstype, flags, datap)
+}
+
+//sys	mountSetattr(dirfd int, pathname string, flags uint, attr *MountAttr, size uintptr) (err error) = SYS_MOUNT_SETATTR
+
+// MountSetattr is a wrapper for mount_setattr(2).
+// https://man7.org/linux/man-pages/man2/mount_setattr.2.html
+//
+// Requires kernel >= 5.12.
+func MountSetattr(dirfd int, pathname string, flags uint, attr *MountAttr) error {
+	return mountSetattr(dirfd, pathname, flags, attr, unsafe.Sizeof(*attr))
 }
 
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {

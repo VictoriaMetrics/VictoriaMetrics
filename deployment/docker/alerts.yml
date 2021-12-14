@@ -192,7 +192,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=74&var-instance={{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=74&var-instance={{ $labels.instance }}"
           summary: "Metrics ingested in ({{ $labels.instance }}) are exceeding labels limit"
           description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
            This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured

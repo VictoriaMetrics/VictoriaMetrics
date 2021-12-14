@@ -3,7 +3,7 @@
 `vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
 It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) and `Bearer token` is supported),
 matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
-
+The `-auth.config` can point to either local file or to http url.
 
 ## Quick start
 
@@ -26,11 +26,9 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
-
 ## Load balancing
 
 Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls. In the latter case `vmauth` balances load among the configured urls in a round-robin manner. This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
-
 
 ## Auth config
 
@@ -43,6 +41,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) may contain either a singl
 users:
   # Requests with the 'Authorization: Bearer XXXX' header are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
@@ -123,7 +122,6 @@ users:
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
 
-
 ## Security
 
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
@@ -141,17 +139,23 @@ Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termi
 
 It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 
-
 ## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
+`vmauth` exports `vmauth_user_requests_total` metric with `username` label. The `username` label value equals to `username` field value set in the `-auth.config` file. It is possible to override or hide the value in the label by specifying `name` field. For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
+
+```yml
+users:
+- username: "secret_user"
+  name: "foobar"
+  # other config options here
+```
 
 ## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmauth` is located in `vmutils-*` archives there.
-
 
 ### Development build
 
@@ -178,7 +182,6 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ROOT_IMAGE=scratch make package-vmauth
 ```
 
-
 ## Profiling
 
 `vmauth` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
@@ -199,7 +202,6 @@ The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 
-
 ## Advanced usage
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
@@ -212,7 +214,7 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
-    	Path to auth config. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
+    	Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -240,7 +242,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -httpListenAddr string
     	TCP address to listen for http connections (default ":8427")
   -logInvalidAuthTokens
-    	Whether to log requests with invalid auth tokens. Such requests are always counted at vmagent_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
+    	Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -263,9 +265,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-    	Auth key for /metrics. It overrides httpAuth settings
+    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
-    	Auth key for /debug/pprof. It overrides httpAuth settings
+    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -reloadAuthKey string
     	Auth key for /-/reload http endpoint. It must be passed as authKey=...
   -tls

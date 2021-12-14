@@ -850,7 +850,7 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	if n == 0 {
 		return nan, nan
 	}
-	if n == 1 {
+	if areConstValues(values) {
 		return values[0], 0
 	}
 
@@ -875,6 +875,20 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	}
 	v := vSum/n - k*tSum/n
 	return v, k
+}
+
+func areConstValues(values []float64) bool {
+	if len(values) <= 1 {
+		return true
+	}
+	vPrev := values[0]
+	for _, v := range values[1:] {
+		if v != vPrev {
+			return false
+		}
+		vPrev = v
+	}
+	return true
 }
 
 func newRollupDurationOverTime(args []interface{}) (rollupFunc, error) {

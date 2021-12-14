@@ -487,6 +487,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `keep_next_value(q)` fills gaps with the value of the next non-empty point in every time series returned by `q`. See also [keep_last_value](#keep_last_value) and [interpolate](#interpolate).
 
+#### limit_offset
+
+`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series per each group. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
+
 #### ln
 
 `ln(q)` calculates `ln(v)` for every point `v` of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [exp](#exp) and [log2](#log2).
@@ -506,6 +510,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 #### month
 
 `month(q)` returns the month for every point of every time series returned by `q`. It is expected that `q` returns unix timestamps. The returned values are in the range `[1...12]`, where `1` means January and `12` means December. Metric names are stripped from the resulting series. This function is supported by PromQL.
+
+#### now
+
+`now()` returns the current timestamp as a floating-point value in seconds. See also [time](#time).
 
 #### pi
 
@@ -818,11 +826,6 @@ See also [implicit query conversions](#implicit-query-conversions).
 #### histogram
 
 `histogram(q)` calculates [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) per each group of points with the same timestamp. Useful for visualizing big number of time series via a heatmap. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
-
-#### limit_offset
-
-`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
-
 
 #### limitk
 

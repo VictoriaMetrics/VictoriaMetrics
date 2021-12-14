@@ -290,6 +290,32 @@ users:
 				},
 			},
 		},
+		getAuthToken("", "foo", ""): {
+			BearerToken: "foo",
+			URLMap: []URLMap{
+				{
+					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
+				},
+				{
+					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					URLPrefix: mustParseURLs([]string{
+						"http://vminsert1/insert/0/prometheus",
+						"http://vminsert2/insert/0/prometheus",
+					}),
+					Headers: []Header{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+						{
+							Name:  "xxx",
+							Value: "y",
+						},
+					},
+				},
+			},
+		},
 	})
 }
 

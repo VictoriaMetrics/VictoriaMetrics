@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
@@ -473,5 +474,84 @@ rules:
   - alert: ExampleAlertWithFor
     expr: sum by(job) (up == 1)
 `)
+	})
+
+	t.Run("`params` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+params:
+    nocache: ["1"]
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+params:
+    nocache: ["0"]
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`)
+	})
+}
+
+func TestGroupParams(t *testing.T) {
+	f := func(t *testing.T, data string, expParams url.Values) {
+		t.Helper()
+		var g Group
+		if err := yaml.Unmarshal([]byte(data), &g); err != nil {
+			t.Fatalf("failed to unmarshal: %s", err)
+		}
+		got, exp := g.Params.Encode(), expParams.Encode()
+		if got != exp {
+			t.Fatalf("expected to have %q; got %q", exp, got)
+		}
+	}
+
+	t.Run("no params", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+rules:
+  - alert: ExampleAlertAlwaysFiring
+    expr: sum by(job) (up == 1)
+`, url.Values{})
+	})
+
+	t.Run("params", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+params:
+  nocache: ["1"]
+  denyPartialResponse: ["true"]
+rules:
+  - alert: ExampleAlertAlwaysFiring
+    expr: sum by(job) (up == 1)
+`, url.Values{"nocache": {"1"}, "denyPartialResponse": {"true"}})
+	})
+
+	t.Run("extra labels", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+extra_filter_labels:
+  job: victoriametrics
+  env: prod
+rules:
+  - alert: ExampleAlertAlwaysFiring
+    expr: sum by(job) (up == 1)
+`, url.Values{"extra_label": {"env=prod", "job=victoriametrics"}})
+	})
+
+	t.Run("extra labels and params", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+extra_filter_labels:
+  job: victoriametrics
+params:
+  nocache: ["1"]
+  extra_label: ["env=prod"]
+rules:
+  - alert: ExampleAlertAlwaysFiring
+    expr: sum by(job) (up == 1)
+`, url.Values{"nocache": {"1"}, "extra_label": {"env=prod", "job=victoriametrics"}})
 	})
 }

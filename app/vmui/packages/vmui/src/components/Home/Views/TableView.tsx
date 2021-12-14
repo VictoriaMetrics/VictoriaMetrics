@@ -24,7 +24,7 @@ const TableView: FC<GraphViewProps> = ({data}) => {
   const rows: InstantDataSeries[] = useMemo(() => {
     return data?.map(d => ({
       metadata: sortedColumns.map(c => d.metric[c.key] || "-"),
-      value: d.value[1]
+      value: d.value ? d.value[1] : "-"
     }));
   }, [sortedColumns, data]);
 

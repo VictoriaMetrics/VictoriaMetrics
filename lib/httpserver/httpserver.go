@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
-	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -68,7 +67,7 @@ type server struct {
 // In such cases the caller must serve the request.
 type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
-// Serve starts an http server on the given addr with the given rh.
+// Serve starts an http server on the given addr with the given optional rh.
 //
 // By default all the responses are transparently compressed, since Google
 // charges a lot for the egress traffic. The compression may be disabled
@@ -76,12 +75,21 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
+	if rh == nil {
+		rh = func(w http.ResponseWriter, r *http.Request) bool {
+			return false
+		}
+	}
 	scheme := "http"
 	if *tlsEnable {
 		scheme = "https"
 	}
-	logger.Infof("starting http server at %s://%s/", scheme, addr)
-	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, addr)
+	hostAddr := addr
+	if strings.HasPrefix(hostAddr, ":") {
+		hostAddr = "127.0.0.1" + hostAddr
+	}
+	logger.Infof("starting http server at %s://%s/", scheme, hostAddr)
+	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
 	lnTmp, err := netutil.NewTCPListener(scheme, addr)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
@@ -283,6 +291,16 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	case "/flags":
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
+		return
+	case "/-/healthy":
+		// This is needed for Prometheus compatibility
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
+		fmt.Fprintf(w, "VictoriaMetrics is Healthy.\n")
+		return
+	case "/-/ready":
+		// This is needed for Prometheus compatibility
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
+		fmt.Fprintf(w, "VictoriaMetrics is Ready.\n")
 		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
@@ -632,7 +650,6 @@ func GetPathPrefix() string {
 func WriteAPIHelp(w io.Writer, pathList [][2]string) {
 	for _, p := range pathList {
 		p, doc := p[0], p[1]
-		p = path.Join(*pathPrefix, p)
 		fmt.Fprintf(w, "<a href=%q>%s</a> - %s<br/>", p, p, doc)
 	}
 }

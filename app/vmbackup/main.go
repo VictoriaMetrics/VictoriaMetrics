@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmbackup/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
@@ -14,10 +15,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
+	httpListenAddr    = flag.String("httpListenAddr", ":8420", "TCP address for exporting metrics at /metrics page")
 	storageDataPath   = flag.String("storageDataPath", "victoria-metrics-data", "Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage")
 	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set")
 	snapshotCreateURL = flag.String("snapshot.createURL", "", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
@@ -70,6 +73,8 @@ func main() {
 		}()
 	}
 
+	go httpserver.Serve(*httpListenAddr, nil)
+
 	srcFS, err := newSrcFS()
 	if err != nil {
 		logger.Fatalf("%s", err)
@@ -94,6 +99,13 @@ func main() {
 	srcFS.MustStop()
 	dstFS.MustStop()
 	originFS.MustStop()
+
+	startTime := time.Now()
+	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
+	if err := httpserver.Stop(*httpListenAddr); err != nil {
+		logger.Fatalf("cannot stop http server for metrics: %s", err)
+	}
+	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 
 func usage() {

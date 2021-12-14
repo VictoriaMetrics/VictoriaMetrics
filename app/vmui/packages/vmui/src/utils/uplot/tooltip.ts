@@ -1,33 +1,16 @@
-import uPlot, {Series} from "uplot";
-import {getColorFromString} from "./color";
 import dayjs from "dayjs";
-import {MetricResult} from "../api/types";
+import {SetupTooltip} from "./types";
+import {getColorLine} from "./helpers";
 
-interface SetupTooltip {
-    u: uPlot,
-    metrics: MetricResult[],
-    series: Series[],
-    tooltip: HTMLDivElement,
-    tooltipOffset: {left: number, top: number},
-    tooltipIdx: {seriesIdx: number, dataIdx: number}
-}
-
-interface HideSeriesArgs {
-  hideSeries: string[],
-  label: string,
-  metaKey: boolean,
-  series: Series[]
-}
-
-export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset }: SetupTooltip) : void => {
+export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset}: SetupTooltip): void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
   const dataSeries = u.data[seriesIdx][dataIdx];
   const dataTime = u.data[0][dataIdx];
   const metric = metrics[seriesIdx - 1]?.metric || {};
-  const color = getColorFromString(series[seriesIdx].label || "");
+  const color = getColorLine(Number(series[seriesIdx].scale || 0), series[seriesIdx].label || "");
 
   const {width, height} = u.over.getBoundingClientRect();
-  const top = u.valToPos((dataSeries || 0), "y");
+  const top = u.valToPos((dataSeries || 0), series[seriesIdx]?.scale || "1");
   const lft = u.valToPos(dataTime, "x");
   const {width: tooltipWidth, height: tooltipHeight} = tooltip.getBoundingClientRect();
   const overflowX = lft + tooltipWidth >= width;
@@ -44,15 +27,4 @@ export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOff
                          ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${dataSeries}</b>
                        </div>
                        <div class="u-tooltip__info">${info}</div>`;
-};
-
-export const getHideSeries = ({hideSeries, label, metaKey, series}: HideSeriesArgs): string[] => {
-  const include = hideSeries.includes(label);
-  const labels = series.map(s => s.label || "").filter(l => l);
-  if (metaKey && include) {
-    return [...labels.filter(l => l !== label)];
-  } else if (metaKey && !include) {
-    return hideSeries.length === series.length - 2 ? [] : [...labels.filter(l => l !== label)];
-  }
-  return include ? hideSeries.filter(l => l !== label) : [...hideSeries, label];
 };

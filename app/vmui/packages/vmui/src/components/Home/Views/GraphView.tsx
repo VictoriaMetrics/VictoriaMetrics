@@ -2,111 +2,84 @@ import React, {FC, useEffect, useState} from "react";
 import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
-import {Legend, LegendItem} from "../../Legend/Legend";
-import {useAppState} from "../../../state/common/StateContext";
-import {getNameForMetric} from "../../../utils/metric";
-import {getColorFromString} from "../../../utils/color";
-import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
-import {getHideSeries} from "../../../utils/uPlot";
+import Legend from "../../Legend/Legend";
+import {useGraphDispatch} from "../../../state/graph/GraphStateContext";
+import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
+import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
+import {LegendItem} from "../../../utils/uplot/types";
+import {AxisRange} from "../../../state/graph/reducer";
+import GraphSettings from "../Configurator/Graph/GraphSettings";
 
 export interface GraphViewProps {
   data?: MetricResult[];
 }
 
 const GraphView: FC<GraphViewProps> = ({data = []}) => {
-  const {time: {period}} = useAppState();
-
-  const { yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
-  const [timeArray, setTimeArray] = useState<number[]>([]);
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItem[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
+  const [valuesLimit, setValuesLimit] = useState<AxisRange>({"1": [0, 1]});
 
-  const setTimes = (times: number[]) => {
-    const allTimes = times.sort((a,b) => a-b);
-    const startTime = allTimes[0] || 0;
-    const endTime = allTimes[allTimes.length - 1] || 0;
-    const step = period.step || 1;
-    const length = Math.round((endTime - startTime) / step);
-    setTimeArray(new Array(length).fill(0).map((d, i) => startTime + (step * i)));
+  const setLimitsYaxis = (values: {[key: string]: number[]}) => {
+    const limits = getLimitsYAxis(values);
+    setValuesLimit(limits);
+    graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
   };
 
-  const setLimitsYaxis = (values: number[]) => {
-    if (!yaxis.limits.enable || (yaxis.limits.range.every(item => !item))) {
-      const allValues = values.flat().sort((a,b) => a-b);
-      graphDispatch({type: "SET_YAXIS_LIMITS", payload: [allValues[0], allValues[allValues.length - 1]]});
-    }
-  };
-
-  const getSeriesItem = (d: MetricResult) => {
-    const label = getNameForMetric(d);
-    return {
-      label,
-      width: 1.5,
-      stroke: getColorFromString(label),
-      show: !hideSeries.includes(label)
-    };
-  };
-
-  const getLegendItem = (s: uPlotSeries): LegendItem => ({
-    label: s.label || "",
-    color: s.stroke as string,
-    checked: s.show || false
-  });
-
-  const onChangeLegend = (label: string, metaKey: boolean) => {
-    setHideSeries(getHideSeries({hideSeries, label, metaKey, series}));
+  const onChangeLegend = (legend: LegendItem, metaKey: boolean) => {
+    setHideSeries(getHideSeries({hideSeries, legend, metaKey, series}));
   };
 
   useEffect(() => {
     const tempTimes: number[] = [];
-    const tempValues: number[] = [];
+    const tempValues: {[key: string]: number[]} = {};
     const tempLegend: LegendItem[] = [];
     const tempSeries: uPlotSeries[] = [];
 
-    data?.forEach(d => {
-      const seriesItem = getSeriesItem(d);
+    data?.forEach((d) => {
+      const seriesItem = getSeriesItem(d, hideSeries);
       tempSeries.push(seriesItem);
-      tempLegend.push(getLegendItem(seriesItem));
+      tempLegend.push(getLegendItem(seriesItem, d.group));
 
       d.values.forEach(v => {
-        if (tempTimes.indexOf(v[0]) === -1) tempTimes.push(v[0]);
-        tempValues.push(+v[1]);
+        tempTimes.push(v[0]);
+        tempValues[d.group] ? tempValues[d.group].push(+v[1]) : tempValues[d.group] = [+v[1]];
       });
     });
 
-    setTimes(tempTimes);
+    const timeSeries = getTimeSeries(tempTimes);
+    setDataChart([timeSeries, ...data.map(d => {
+      return new Array(timeSeries.length).fill(1).map((v, i) => d.values[i] ? +d.values[i][1] : null);
+    })] as uPlotData);
     setLimitsYaxis(tempValues);
-    setSeries([{}, ...tempSeries]);
-    setLegend(tempLegend);
+
+    const newSeries = [{}, ...tempSeries];
+    if (JSON.stringify(newSeries) !== JSON.stringify(series)) {
+      setSeries(newSeries);
+      setLegend(tempLegend);
+    }
   }, [data]);
 
   useEffect(() => {
     const tempLegend: LegendItem[] = [];
     const tempSeries: uPlotSeries[] = [];
     data?.forEach(d => {
-      const seriesItem = getSeriesItem(d);
+      const seriesItem = getSeriesItem(d, hideSeries);
       tempSeries.push(seriesItem);
-      tempLegend.push(getLegendItem(seriesItem));
+      tempLegend.push(getLegendItem(seriesItem, d.group));
     });
     setSeries([{}, ...tempSeries]);
     setLegend(tempLegend);
   }, [hideSeries]);
 
-  useEffect(() => {
-    setDataChart([timeArray, ...data.map(d => timeArray.map(t => {
-      const v = d.values.find(v => v[0] === t);
-      return v ? +v[1] : null;
-    }))]);
-  }, [timeArray]);
-
   return <>
     {(data.length > 0)
       ? <div>
-        <LineChart data={dataChart} series={series} metrics={data}/>
+        <GraphSettings/>
+        <LineChart data={dataChart} series={series} metrics={data} limits={valuesLimit}/>
         <Legend labels={legend} onChange={onChangeLegend}/>
       </div>
       : <div style={{textAlign: "center"}}>No data to show</div>}

@@ -71,7 +71,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     &group.Type,
 			EvaluationInterval: group.Interval,
-			ExtraLabels:        group.ExtraFilterLabels,
+			QueryParams:        group.Params,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
 		metrics: &alertingRuleMetrics{},
@@ -153,6 +153,13 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range series {
+		// set additional labels to identify group and rule name
+		if ar.Name != "" {
+			s.SetLabel(alertNameLabel, ar.Name)
+		}
+		if !*disableAlertGroupLabel && ar.GroupName != "" {
+			s.SetLabel(alertGroupNameLabel, ar.GroupName)
+		}
 		// extra labels could contain templates, so we expand them first
 		labels, err := expandLabels(s, qFn, ar)
 		if err != nil {
@@ -162,13 +169,6 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 			// apply extra labels to datasource
 			// so the hash key will be consistent on restore
 			s.SetLabel(k, v)
-		}
-		// set additional labels to identify group and rule name
-		if ar.Name != "" {
-			s.SetLabel(alertNameLabel, ar.Name)
-		}
-		if !*disableAlertGroupLabel && ar.GroupName != "" {
-			s.SetLabel(alertGroupNameLabel, ar.GroupName)
 		}
 		a, err := ar.newAlert(s, time.Time{}, qFn) // initial alert
 		if err != nil {
@@ -225,6 +225,13 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
+		// set additional labels to identify group and rule name
+		if ar.Name != "" {
+			m.SetLabel(alertNameLabel, ar.Name)
+		}
+		if !*disableAlertGroupLabel && ar.GroupName != "" {
+			m.SetLabel(alertGroupNameLabel, ar.GroupName)
+		}
 		// extra labels could contain templates, so we expand them first
 		labels, err := expandLabels(m, qFn, ar)
 		if err != nil {
@@ -234,14 +241,6 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 			// apply extra labels to datasource
 			// so the hash key will be consistent on restore
 			m.SetLabel(k, v)
-		}
-		// set additional labels to identify group and rule name
-		// set additional labels to identify group and rule name
-		if ar.Name != "" {
-			m.SetLabel(alertNameLabel, ar.Name)
-		}
-		if !*disableAlertGroupLabel && ar.GroupName != "" {
-			m.SetLabel(alertGroupNameLabel, ar.GroupName)
 		}
 		h := hash(m)
 		if _, ok := updated[h]; ok {

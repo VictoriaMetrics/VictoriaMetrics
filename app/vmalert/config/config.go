@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
+	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"gopkg.in/yaml.v2"
 )
 
 // Group contains list of Rules grouped into
@@ -30,6 +31,7 @@ type Group struct {
 	// ExtraFilterLabels is a list label filters applied to every rule
 	// request withing a group. Is compatible only with VM datasources.
 	// See https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+	// DEPRECATED: use Params field instead
 	ExtraFilterLabels map[string]string `yaml:"extra_filter_labels"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	// It has priority over the external labels.
@@ -37,6 +39,8 @@ type Group struct {
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
 	Checksum string
+	// Optional HTTP URL parameters added to each rule request
+	Params url.Values `yaml:"params"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -55,6 +59,22 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// change default value to prometheus datasource.
 	if g.Type.Get() == "" {
 		g.Type.Set(datasource.NewPrometheusType())
+	}
+
+	// backward compatibility with deprecated `ExtraFilterLabels` param
+	if len(g.ExtraFilterLabels) > 0 {
+		if g.Params == nil {
+			g.Params = url.Values{}
+		}
+		// Sort extraFilters for consistent order for query args across runs.
+		extraFilters := make([]string, 0, len(g.ExtraFilterLabels))
+		for k, v := range g.ExtraFilterLabels {
+			extraFilters = append(extraFilters, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(extraFilters)
+		for _, extraFilter := range extraFilters {
+			g.Params.Add("extra_label", extraFilter)
+		}
 	}
 
 	h := md5.New()
@@ -178,6 +198,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		fp = append(fp, matches...)
 	}
 	errGroup := new(utils.ErrGroup)
+	var isExtraFilterLabelsUsed bool
 	var groups []Group
 	for _, file := range fp {
 		uniqueGroups := map[string]struct{}{}
@@ -197,6 +218,9 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 			}
 			uniqueGroups[g.Name] = struct{}{}
 			g.File = file
+			if len(g.ExtraFilterLabels) > 0 {
+				isExtraFilterLabelsUsed = true
+			}
 			groups = append(groups, g)
 		}
 	}
@@ -205,6 +229,9 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 	}
 	if len(groups) < 1 {
 		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+	}
+	if isExtraFilterLabelsUsed {
+		logger.Warnf("field `extra_filter_labels` is deprecated - use `params` instead")
 	}
 	return groups, nil
 }
