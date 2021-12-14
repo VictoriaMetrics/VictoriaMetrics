@@ -13,6 +13,7 @@ sort: 15
 * FEATURE: vminsert: allow specifying `http` and `https` urls in `-relabelConfig` command-line flag.
 * FEATURE: vminsert: add `-maxLabelValueLen` command-line flag for the ability to configure the maximum length of label value. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1908).
 * FEATURE: preserve the order of time series passed to [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset) function. This allows implementing series paging via `limit_offset(limit, offset, sort_by_label(...))`. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1920) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/951) issues.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to override the interval between returned datapoints. By default it is automatically calculated depending on the selected time range and horizontal resolution of the graph. Now it is possible to override it with custom values. This may be useful during data exploration and debugging.
 
 * BUGFIX: fix `unaligned 64-bit atomic operation` panic on 32-bit architectures, which has been introduced in v1.70.0.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): restore the ability to use `{{ $labels.alertname }}` in labels templating. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1921).

@@ -3,6 +3,7 @@ import {Box, FormControlLabel} from "@mui/material";
 import {saveToStorage} from "../../../../utils/storage";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import BasicSwitch from "../../../../theme/switch";
+import StepConfigurator from "./StepConfigurator";
 
 const AdditionalSettings: FC = () => {
 
@@ -29,6 +30,9 @@ const AdditionalSettings: FC = () => {
       <FormControlLabel label="Enable cache"
         control={<BasicSwitch checked={!nocache} onChange={onChangeCache}/>}
       />
+    </Box>
+    <Box ml={2}>
+      <StepConfigurator/>
     </Box>
   </Box>;
 };
