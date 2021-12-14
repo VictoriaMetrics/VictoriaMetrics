@@ -13,6 +13,16 @@ const THEME = createTheme({
     }
   },
   components: {
+    MuiFormHelperText: {
+      styleOverrides: {
+        root: {
+          position: "absolute",
+          top: "36px",
+          left: "2px",
+          margin: 0,
+        }
+      }
+    },
     MuiInputLabel: {
       styleOverrides: {
         root: {

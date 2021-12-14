@@ -24,7 +24,7 @@ const AxesLimitsConfigurator: FC = () => {
       control={<BasicSwitch checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
       label="Fix the limits for y-axis"
     />
-    <Box display="grid" alignItems="center" gap={4}>
+    <Box display="grid" alignItems="center" gap={2}>
       {axes.map(axis => <Box display="grid" gridTemplateColumns="120px 120px" gap={1} key={axis}>
         <TextField label={`Min ${axis}`} type="number" size="small" variant="outlined"
           disabled={!yaxis.limits.enable}

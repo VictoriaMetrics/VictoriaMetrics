@@ -5,6 +5,7 @@ import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/typ
 import {isValidHttpUrl} from "../../../../utils/url";
 import {useAuthState} from "../../../../state/auth/AuthStateContext";
 import {ErrorTypes, TimeParams} from "../../../../types";
+import {useGraphState} from "../../../../state/graph/GraphStateContext";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
@@ -16,6 +17,7 @@ export const useFetchQuery = (): {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
 
   const {basicData, bearerData, authMethod} = useAuthState();
+  const {customStep} = useGraphState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
@@ -86,6 +88,7 @@ export const useFetchQuery = (): {
     } else if (isValidHttpUrl(serverUrl)) {
       const duration = (period.end - period.start) / 2;
       const bufferPeriod = {...period, start: period.start - duration, end: period.end + duration};
+      if (customStep.enable) bufferPeriod.step = customStep.value;
       return query.filter(q => q.trim()).map(q => displayType === "chart"
         ? getQueryRangeUrl(serverUrl, q, bufferPeriod, nocache)
         : getQueryUrl(serverUrl, q, period));
@@ -93,7 +96,7 @@ export const useFetchQuery = (): {
       setError(ErrorTypes.validServer);
     }
   },
-  [serverUrl, period, displayType]);
+  [serverUrl, period, displayType, customStep]);
 
   useEffect(() => {
     setPrevPeriod(undefined);
@@ -103,7 +106,7 @@ export const useFetchQuery = (): {
   //       Doing it on each query change - looks to be a bad idea. Probably can be done on blur
   useEffect(() => {
     fetchData();
-  }, [serverUrl, displayType]);
+  }, [serverUrl, displayType, customStep]);
 
   useEffect(() => {
     if (needUpdateData) {
