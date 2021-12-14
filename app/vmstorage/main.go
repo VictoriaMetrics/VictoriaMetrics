@@ -58,7 +58,7 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
+	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)

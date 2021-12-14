@@ -70,7 +70,7 @@ func main() {
 
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
-	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
+	storage.SetDedupInterval(*minScrapeInterval)
 	if len(*storageNodes) == 0 {
 		logger.Fatalf("missing -storageNode arg")
 	}
