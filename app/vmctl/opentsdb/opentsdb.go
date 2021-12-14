@@ -188,7 +188,8 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
 	if resp.StatusCode != 200 {
-		return Metric{}, fmt.Errorf("Bad return from OpenTSDB: %q: %v", resp.StatusCode, resp)
+		// bad returns _can_ happen and shouldn't kill the whole program
+		return Metric{}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
