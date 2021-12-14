@@ -14,6 +14,24 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
+func TestReplaceAlternateRegexpsWithGraphiteWildcards(t *testing.T) {
+	f := func(q, resultExpected string) {
+		t.Helper()
+		result := replaceAlternateRegexpsWithGraphiteWildcards([]byte(q))
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result for %s\ngot\n%s\nwant\n%s", q, result, resultExpected)
+		}
+	}
+	f("", "")
+	f("foo", "foo")
+	f("foo(bar", "foo(bar")
+	f("foo.(bar|baz", "foo.(bar|baz")
+	f("foo.(bar).x", "foo.{bar}.x")
+	f("foo.(bar|baz).*.{x,y}", "foo.{bar,baz}.*.{x,y}")
+	f("foo.(bar|baz).*.{x,y}(z|aa)", "foo.{bar,baz}.*.{x,y}{z,aa}")
+	f("foo(.*)", "foo*")
+}
+
 func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
 	f := func(q, expectedRegexp string) {
 		t.Helper()
