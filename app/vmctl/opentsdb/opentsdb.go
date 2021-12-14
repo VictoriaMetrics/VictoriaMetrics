@@ -187,19 +187,25 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
+	/*
+		There are three potential failures here, none of which should kill the entire
+		migration run:
+		1. bad response code
+		2. failure to read response body
+		3. bad format of response body
+	*/
 	if resp.StatusCode != 200 {
-		// bad returns _can_ happen and shouldn't kill the whole program
 		return Metric{}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return Metric{}, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
+		return Metric{}, nil
 	}
 	var output []OtsdbMetric
 	err = json.Unmarshal(body, &output)
 	if err != nil {
-		return Metric{}, fmt.Errorf("failed to unmarshal response from %q [%v]: %s", q, body, err)
+		return Metric{}, nil
 	}
 	/*
 		We expect results to look like:
@@ -228,6 +234,8 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		An empty array doesn't cast to a OtsdbMetric struct well, and there's no reason to try, so we should just skip it
 		Because we're trying to migrate data without transformations, seeing aggregate tags could mean
 		we're dropping series on the floor.
+
+		In all "bad" cases, we don't end the migration, we just don't process that particular message
 	*/
 	if len(output) < 1 {
 		// no results returned...return an empty object without error
@@ -235,11 +243,11 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	}
 	if len(output) > 1 {
 		// multiple series returned for a single query. We can't process this right, so...
-		return Metric{}, fmt.Errorf("Query returned multiple results: %v", output)
+		return Metric{}, nil
 	}
 	if len(output[0].AggregateTags) > 0 {
 		// This failure means we've suppressed potential series somehow...
-		return Metric{}, fmt.Errorf("Query somehow has aggregate tags: %v", output[0].AggregateTags)
+		return Metric{}, nil
 	}
 	data := Metric{}
 	data.Metric = output[0].Metric
@@ -250,7 +258,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	*/
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
-		return Metric{}, fmt.Errorf("invalid series data from %q: %s", q, err)
+		return Metric{}, nil
 	}
 
 	/*
