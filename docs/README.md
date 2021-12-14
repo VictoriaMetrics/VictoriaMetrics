@@ -416,8 +416,14 @@ The `/api/v1/export` endpoint should return the following response:
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
 * [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
+* [Prometheus querying API](#prometheus-querying-api-usage). See also [selecting Graphite metrics](#selecting-graphite-metrics).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
+
+## Selecting Graphite metrics
+
+VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
+
+The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`. They are transparently converted to `{value1,...,valueN}` syntax [used in Graphite](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). This allows using [multi-value template variables in Grafana](https://grafana.com/docs/grafana/latest/variables/formatting-multi-value-variables/) inside `__graphite__` pseudo-label. For example, Grafana expands `{__graphite__=~"foo.$bar.baz"}` into `{__graphite__=~"foo.(x|y).baz"}` if `$bar` template variable contains `x` and `y` values. In this case the query is automatically converted into `{__graphite__=~"foo.{x,y}.baz"}` before execution.
 
 ## How to send data from OpenTSDB-compatible agents
 
@@ -559,8 +565,7 @@ VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_va
 
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
-VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
-For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function.
+VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). See [these docs](#selecting-graphite-metrics).
 
 
 ### Graphite Render API usage
@@ -1377,10 +1382,7 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
-* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then use `{__graphite__="foo.*.baz"}` syntax for selecting such metrics.
-  This expression is equivalent to `{__name__=~"foo[.][^.]*[.]baz"}`, but it works faster and it is easier to use when migrating from Graphite.
-  See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards).
-  See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function, which allows extracting the given groups from Graphite metric names.
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics. See [these docs](#selecting-graphite-metrics) for details.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
