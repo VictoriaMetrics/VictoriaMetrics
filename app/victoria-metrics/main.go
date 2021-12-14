@@ -51,7 +51,7 @@ func main() {
 
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
-	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
+	storage.SetDedupInterval(*minScrapeInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()

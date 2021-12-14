@@ -147,14 +147,14 @@ func (b *Block) tooBig() bool {
 	return false
 }
 
-func (b *Block) deduplicateSamplesDuringMerge() {
+func (b *Block) deduplicateSamplesDuringMerge(dedupInterval int64) {
 	if len(b.values) == 0 {
 		// Nothing to dedup or the data is already marshaled.
 		return
 	}
 	srcTimestamps := b.timestamps[b.nextIdx:]
 	srcValues := b.values[b.nextIdx:]
-	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues)
+	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues, dedupInterval)
 	dedups := len(srcTimestamps) - len(timestamps)
 	atomic.AddUint64(&dedupsDuringMerge, uint64(dedups))
 	b.timestamps = b.timestamps[:b.nextIdx+len(timestamps)]
