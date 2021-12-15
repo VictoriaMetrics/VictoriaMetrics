@@ -1575,7 +1575,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum size in bytes of a single DataDog POST request to /api/v1/series
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -dedup.minScrapeInterval duration
-    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
   -deleteAuthKey string
     	authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
