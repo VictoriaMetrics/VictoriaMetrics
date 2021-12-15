@@ -1228,7 +1228,50 @@ func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []
 
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
 func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	return s.searchGraphitePaths(tr, nil, query, maxPaths, deadline)
+}
+
+// replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
+func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
+	var dst []byte
+	for {
+		n := bytes.IndexByte(b, '(')
+		if n < 0 {
+			if len(dst) == 0 {
+				// Fast path - b doesn't contain the openining brace.
+				return b
+			}
+			dst = append(dst, b...)
+			return dst
+		}
+		dst = append(dst, b[:n]...)
+		b = b[n+1:]
+		n = bytes.IndexByte(b, ')')
+		if n < 0 {
+			dst = append(dst, '(')
+			dst = append(dst, b...)
+			return dst
+		}
+		x := b[:n]
+		b = b[n+1:]
+		if string(x) == ".*" {
+			dst = append(dst, '*')
+			continue
+		}
+		dst = append(dst, '{')
+		for len(x) > 0 {
+			n = bytes.IndexByte(x, '|')
+			if n < 0 {
+				dst = append(dst, x...)
+				break
+			}
+			dst = append(dst, x[:n]...)
+			x = x[n+1:]
+			dst = append(dst, ',')
+		}
+		dst = append(dst, '}')
+	}
 }
 
 func (s *Storage) searchGraphitePaths(tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {

@@ -715,6 +715,44 @@ func TestAlertingRule_Template(t *testing.T) {
 				},
 			},
 		},
+		{
+			&AlertingRule{
+				Name:      "ExtraTemplating",
+				GroupName: "Testing",
+				Labels: map[string]string{
+					"name":     "alert_{{ $labels.alertname }}",
+					"group":    "group_{{ $labels.alertgroup }}",
+					"instance": "{{ $labels.instance }}",
+				},
+				Annotations: map[string]string{
+					"summary":     `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
+					"description": `Alert "{{ $labels.name }}({{ $labels.group }})" for instance {{ $labels.instance }}`,
+				},
+				alerts: make(map[uint64]*notifier.Alert),
+			},
+			[]datasource.Metric{
+				metricWithValueAndLabels(t, 1, "instance", "foo"),
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, alertNameLabel, "ExtraTemplating",
+					"name", "alert_ExtraTemplating",
+					alertGroupNameLabel, "Testing",
+					"group", "group_Testing",
+					"instance", "foo")): {
+					Labels: map[string]string{
+						alertNameLabel:      "ExtraTemplating",
+						"name":              "alert_ExtraTemplating",
+						alertGroupNameLabel: "Testing",
+						"group":             "group_Testing",
+						"instance":          "foo",
+					},
+					Annotations: map[string]string{
+						"summary":     `Alert "ExtraTemplating(Testing)" for instance foo`,
+						"description": `Alert "alert_ExtraTemplating(group_Testing)" for instance foo`,
+					},
+				},
+			},
+		},
 	}
 	fakeGroup := Group{Name: "TestRule_Exec"}
 	for _, tc := range testCases {

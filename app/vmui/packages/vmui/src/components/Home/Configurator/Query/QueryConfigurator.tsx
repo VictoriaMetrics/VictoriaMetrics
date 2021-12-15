@@ -1,4 +1,4 @@
-import React, {FC, useRef, useState} from "react";
+import React, {FC, useEffect, useRef, useState} from "react";
 import {
   Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, Typography, Tooltip, Button
 } from "@mui/material";
@@ -12,61 +12,63 @@ import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import Portal from "@mui/material/Portal";
 import ServerConfigurator from "./ServerConfigurator";
 import AdditionalSettings from "./AdditionalSettings";
+import {ErrorTypes} from "../../../../types";
 
-const QueryConfigurator: FC = () => {
+export interface QueryConfiguratorProps {
+    error?: ErrorTypes | string;
+}
+
+const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
 
   const {serverUrl, query, queryHistory, time: {duration}, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
   const [expanded, setExpanded] = useState(true);
-  const [queryString, _setQueryString] = useState(query);
-  const queryStringRef = useRef(queryString);
   const queryContainer = useRef<HTMLDivElement>(null);
-
-  const setQueryString = (data: string[]) => {
-    queryStringRef.current = data;
-    _setQueryString(data);
-  };
+  const queryRef = useRef(query);
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
 
   const onSetDuration = (dur: string) => dispatch({type: "SET_DURATION", payload: dur});
 
-  const onRunQuery = () => {
-    const history = queryHistory.map((h, i) => {
-      const lastQueryEqual = queryString[i] === h.values[h.values.length - 1];
-      return {
-        index: h.values.length - Number(lastQueryEqual),
-        values: lastQueryEqual ? h.values : [...h.values, queryString[i]]
-      };
+  const updateHistory = () => {
+    dispatch({
+      type: "SET_QUERY_HISTORY", payload: query.map((q, i) => {
+        const h = queryHistory[i] || {values: []};
+        const queryEqual = q === h.values[h.values.length - 1];
+        return {
+          index: h.values.length - Number(queryEqual),
+          values: !queryEqual && q ? [...h.values, q] : h.values
+        };
+      })
     });
-    dispatch({type: "RUN_QUERY"});
-    dispatch({type: "SET_QUERY_HISTORY", payload: history});
-    dispatch({type: "SET_QUERY", payload: queryStringRef.current});
   };
 
-  const onAddQuery = () => {
-    const value = [...queryString, ""];
-    setQueryString(value);
-    dispatch({type: "SET_QUERY", payload: value});
+  const onRunQuery = () => {
+    updateHistory();
+    dispatch({type: "SET_QUERY", payload: query});
+    dispatch({type: "RUN_QUERY"});
   };
+
+  const onAddQuery = () => dispatch({type: "SET_QUERY", payload: [...queryRef.current, ""]});
 
   const onRemoveQuery = (index: number) => {
-    const value = [...queryString];
-    value.splice(index, 1);
-    setQueryString(value);
-    onRunQuery();
+    const newQuery = [...queryRef.current];
+    newQuery.splice(index, 1);
+    dispatch({type: "SET_QUERY", payload: newQuery});
   };
 
   const onSetQuery = (value: string, index: number) => {
-    const newQuery = [...queryStringRef.current];
+    const newQuery = [...queryRef.current];
     newQuery[index] = value;
-    setQueryString(newQuery);
+    dispatch({type: "SET_QUERY", payload: newQuery});
   };
 
   const setHistoryIndex = (step: number, indexQuery: number) => {
     const {index, values} = queryHistory[indexQuery];
     const newIndexHistory = index + step;
     if (newIndexHistory < 0 || newIndexHistory >= values.length) return;
-    const newQuery = values[newIndexHistory] || "";
-    onSetQuery(newQuery, indexQuery);
+    onSetQuery(values[newIndexHistory] || "", indexQuery);
     dispatch({
       type: "SET_QUERY_HISTORY_BY_INDEX",
       payload: {value: {values, index: newIndexHistory}, queryNumber: indexQuery}
@@ -87,12 +89,11 @@ const QueryConfigurator: FC = () => {
         <Box flexGrow={1} onClick={e => e.stopPropagation()} onFocusCapture={e => e.stopPropagation()}>
           <Portal disablePortal={!expanded} container={queryContainer.current}>
             {query.map((q, i) =>
-              <Box key={`${i}_${q}`} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
-                mb={i === query.length-1 ? 0 : 2}>
-                <QueryEditor server={serverUrl} query={queryString[i]} index={i} oneLiner={!expanded}
-                  autocomplete={autocomplete}
-                  queryHistory={queryHistory[i]} setHistoryIndex={setHistoryIndex}
-                  runQuery={onRunQuery}
+              <Box key={i} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
+                mb={i === query.length - 1 ? 0 : 2}>
+                <QueryEditor server={serverUrl} query={query[i]} index={i} oneLiner={!expanded}
+                  autocomplete={autocomplete} queryHistory={queryHistory[i]} error={error}
+                  setHistoryIndex={setHistoryIndex} runQuery={onRunQuery}
                   setQuery={onSetQuery}/>
                 {i === 0 && <Tooltip title="Execute Query">
                   <IconButton onClick={onRunQuery}>
@@ -111,7 +112,7 @@ const QueryConfigurator: FC = () => {
       <AccordionDetails>
         <Grid container columnSpacing={2}>
           <Grid item xs={6} minWidth={400}>
-            <ServerConfigurator/>
+            <ServerConfigurator error={error}/>
             {/* for portal QueryEditor */}
             <div ref={queryContainer}/>
             {query.length < 2 && <Box display="inline-block" minHeight="40px" mt={2}>

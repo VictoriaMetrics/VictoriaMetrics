@@ -22,5 +22,10 @@ After packer build finished you need to update a product page.
 
 1. Go to [https://cloud.digitalocean.com/vendorportal](https://cloud.digitalocean.com/vendorportal).
 2. Choose a product that you need to update.
+<<<<<<< HEAD
 3. Enter newer information for this release and choose a droplet's snapshot which was builded recently.
 4. Submit updates for approve on DigitalOcean Marketplace.
+=======
+3. Enter a new information for this release and choose a droplet's snapshot which was built recently.
+4. Submit updates for approve on DigitalOcean Marketplace.
+>>>>>>> 30a254df6241a9a7bc1aae436af8efefaf0f8588
