@@ -524,6 +524,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("descent_over_time", 231)
 	f("zscore_over_time", -0.4254336383156416)
 	f("timestamp", 0.13)
+	f("timestamp_with_name", 0.13)
 	f("mode_over_time", 34)
 	f("rate_over_sum", 4520)
 }
