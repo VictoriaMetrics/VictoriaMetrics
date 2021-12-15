@@ -468,8 +468,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 	if firstErr != nil {
 		return firstErr
 	}
-	di := storage.GetDedupInterval()
-	dedupInterval := di.Milliseconds()
+	dedupInterval := storage.GetDedupInterval()
 	mergeSortBlocks(dst, sbs, dedupInterval)
 	return nil
 }

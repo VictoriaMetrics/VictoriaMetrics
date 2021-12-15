@@ -187,8 +187,7 @@ func (bsw *blockStreamWriter) MustClose() {
 func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsMerged *uint64, needDedup bool) {
 	atomic.AddUint64(rowsMerged, uint64(b.rowsCount()))
 	if needDedup {
-		di := GetDedupInterval()
-		dedupInterval := di.Milliseconds()
+		dedupInterval := GetDedupInterval()
 		b.deduplicateSamplesDuringMerge(dedupInterval)
 	}
 	headerData, timestampsData, valuesData := b.MarshalData(bsw.timestampsBlockOffset, bsw.valuesBlockOffset)

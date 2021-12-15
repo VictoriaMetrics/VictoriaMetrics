@@ -10,15 +10,15 @@ import (
 //
 // This function must be called before initializing the storage.
 func SetDedupInterval(dedupInterval time.Duration) {
-	globalDedupInterval = dedupInterval
+	globalDedupInterval = dedupInterval.Milliseconds()
 }
 
-// GetDedupInterval returns the dedup interval set via SetDedupInterval.
-func GetDedupInterval() time.Duration {
+// GetDedupInterval returns the dedup interval in milliseconds, which has been set via SetDedupInterval.
+func GetDedupInterval() int64 {
 	return globalDedupInterval
 }
 
-var globalDedupInterval time.Duration
+var globalDedupInterval int64
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in millseconds.
 func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterval int64) ([]int64, []float64) {
