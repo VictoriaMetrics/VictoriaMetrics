@@ -19,7 +19,6 @@ var aggrFuncs = map[string]bool{
 	"geomean":        true,
 	"group":          true,
 	"histogram":      true,
-	"limit_offset":   true,
 	"limitk":         true,
 	"mad":            true,
 	"max":            true,

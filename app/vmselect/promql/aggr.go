@@ -29,7 +29,6 @@ var aggrFuncs = map[string]aggrFunc{
 	"geomean":        newAggrFunc(aggrFuncGeomean),
 	"group":          newAggrFunc(aggrFuncGroup),
 	"histogram":      newAggrFunc(aggrFuncHistogram),
-	"limit_offset":   aggrFuncLimitOffset,
 	"limitk":         aggrFuncLimitK,
 	"mad":            newAggrFunc(aggrFuncMAD),
 	"max":            newAggrFunc(aggrFuncMax),
@@ -1005,37 +1004,12 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 	if len(limits) > 0 {
 		limit = int(limits[0])
 	}
-	afe := newLimitOffsetAggrFunc(limit, 0)
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
-}
-
-func aggrFuncLimitOffset(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 3); err != nil {
-		return nil, err
-	}
-	limit, err := getIntNumber(args[0], 0)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
-	}
-	offset, err := getIntNumber(args[1], 1)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain offset arg: %w", err)
-	}
-	afe := newLimitOffsetAggrFunc(limit, offset)
-	return aggrFuncExt(afe, args[2], &afa.ae.Modifier, afa.ae.Limit, true)
-}
-
-func newLimitOffsetAggrFunc(limit, offset int) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
-	if offset < 0 {
-		offset = 0
-	}
 	if limit < 0 {
 		limit = 0
 	}
-	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		// Sort series by metricName hash in order to get consistent set of output series
-		// across multiple calls to limitk() and limit_offset() functions.
+		// across multiple calls to limitk() function.
 		// Sort series by hash in order to guarantee uniform selection across series.
 		type hashSeries struct {
 			h  uint64
@@ -1056,15 +1030,12 @@ func newLimitOffsetAggrFunc(limit, offset int) func(tss []*timeseries, modifier 
 		for i, hs := range hss {
 			tss[i] = hs.ts
 		}
-		if offset > len(tss) {
-			return nil
-		}
-		tss = tss[offset:]
 		if limit < len(tss) {
 			tss = tss[:limit]
 		}
 		return tss
 	}
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 func getHash(d *xxhash.Digest, mn *storage.MetricName) uint64 {

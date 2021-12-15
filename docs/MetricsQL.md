@@ -30,7 +30,7 @@ MetricsQL implements [PromQL](https://medium.com/@valyala/promql-tutorial-for-be
 
 This functionality can be evaluated at [an editable Grafana dashboard](https://play-grafana.victoriametrics.com/d/4ome8yJmz/node-exporter-on-victoriametrics-demo) or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
-- Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. This is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but usually works faster and is easier to use when migrating from Graphite. VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details. See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
+- Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics). VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details. See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
 - Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)). For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`. It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
 - [Aggregate functions](#aggregate-functions) accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 - [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier), lookbehind window in square brackets and `step` value for [subquery](#subqueries) may refer to the current step aka `$__interval` value from Grafana with `[Ni]` syntax. For instance, `rate(metric[10i] offset 5i)` would return per-second rate over a range covering 10 previous steps with the offset of 5 steps.
@@ -487,6 +487,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `keep_next_value(q)` fills gaps with the value of the next non-empty point in every time series returned by `q`. See also [keep_last_value](#keep_last_value) and [interpolate](#interpolate).
 
+#### limit_offset
+
+`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series per each group. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
+
 #### ln
 
 `ln(q)` calculates `ln(v)` for every point `v` of every time series returned by `q`. Metric names are stripped from the resulting series. This function is supported by PromQL. See also [exp](#exp) and [log2](#log2).
@@ -822,11 +826,6 @@ See also [implicit query conversions](#implicit-query-conversions).
 #### histogram
 
 `histogram(q)` calculates [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) per each group of points with the same timestamp. Useful for visualizing big number of time series via a heatmap. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
-
-#### limit_offset
-
-`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
-
 
 #### limitk
 

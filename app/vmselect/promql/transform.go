@@ -70,6 +70,7 @@ var transformFuncs = map[string]transformFunc{
 	"label_transform":      transformLabelTransform,
 	"label_uppercase":      transformLabelUppercase,
 	"label_value":          transformLabelValue,
+	"limit_offset":         transformLimitOffset,
 	"ln":                   newTransformFuncOneArg(transformLn),
 	"log2":                 newTransformFuncOneArg(transformLog2),
 	"log10":                newTransformFuncOneArg(transformLog10),
@@ -1770,6 +1771,29 @@ func transformLabelGraphiteGroup(tfa *transformFuncArg) ([]*timeseries, error) {
 }
 
 var dotSeparator = []byte(".")
+
+func transformLimitOffset(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
+		return nil, err
+	}
+	limit, err := getIntNumber(args[0], 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
+	}
+	offset, err := getIntNumber(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain offset arg: %w", err)
+	}
+	rvs := args[2]
+	if len(rvs) >= offset {
+		rvs = rvs[offset:]
+	}
+	if len(rvs) > limit {
+		rvs = rvs[:limit]
+	}
+	return rvs, nil
+}
 
 func transformLn(v float64) float64 {
 	return math.Log(v)
