@@ -147,12 +147,25 @@ func (b *Block) tooBig() bool {
 	return false
 }
 
-func (b *Block) deduplicateSamplesDuringMerge(dedupInterval int64) {
-	if len(b.values) == 0 {
-		// Nothing to dedup or the data is already marshaled.
+func (b *Block) deduplicateSamplesDuringMerge() {
+	if !isDedupEnabled() {
+		// Deduplication is disabled
 		return
 	}
+	// Unmarshal block if it isn't unmarshaled yet in order to apply the de-duplication to unmarshaled samples.
+	if err := b.UnmarshalData(); err != nil {
+		logger.Panicf("FATAL: cannot unmarshal block: %s", err)
+	}
 	srcTimestamps := b.timestamps[b.nextIdx:]
+	if len(srcTimestamps) < 2 {
+		// Nothing to dedup.
+		return
+	}
+	dedupInterval := GetDedupInterval()
+	if dedupInterval <= 0 {
+		// Deduplication is disabled.
+		return
+	}
 	srcValues := b.values[b.nextIdx:]
 	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues, dedupInterval)
 	dedups := len(srcTimestamps) - len(timestamps)
