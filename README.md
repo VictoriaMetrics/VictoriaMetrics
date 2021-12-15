@@ -403,6 +403,11 @@ Restoring from backup:
 3. Start `vmstorage` node.
 
 
+## Downsampling
+
+Downsampling is available in [enterprise version of VictoriaMetrics](https://victoriametrics.com/enterprise.html). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
+
+
 ## Profiling
 
 All the cluster components provide the following handlers for [profiling](https://blog.golang.org/profiling-go-programs):
@@ -480,6 +485,8 @@ Below is the output for `/path/to/vminsert -help`:
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -592,12 +599,17 @@ Below is the output for `/path/to/vmselect -help`:
     	Path to directory for cache files. Cache isn't saved if empty
   -dedup.minScrapeInterval duration
     	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+  -downsampling.period array
+    	Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
+    	Supports an array of values separated by comma or specified via multiple flags.
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteTrimTimestamp duration
@@ -643,6 +655,10 @@ Below is the output for `/path/to/vmselect -help`:
     	Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
   -search.disableCache
     	Whether to disable response caching. This may be useful during data backfilling
+  -search.graphiteMaxPointsPerSeries int
+    	The maximum number of points per series Graphite render API can return (default 1000000)
+  -search.graphiteStorageStep duration
+    	The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overriden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
     	The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
@@ -711,12 +727,17 @@ Below is the output for `/path/to/vmstorage -help`:
     	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueriesOutsideRetention
     	Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+  -downsampling.period array
+    	Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
+    	Supports an array of values separated by comma or specified via multiple flags.
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -finalMergeDelay duration
     	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -forceFlushAuthKey string
