@@ -20,6 +20,10 @@ func GetDedupInterval() int64 {
 
 var globalDedupInterval int64
 
+func isDedupEnabled() bool {
+	return globalDedupInterval > 0
+}
+
 // DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in millseconds.
 func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterval int64) ([]int64, []float64) {
 	if !needsDedup(srcTimestamps, dedupInterval) {
