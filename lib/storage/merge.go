@@ -76,14 +76,14 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			if bsm.Block.bh.TSID.Less(&pendingBlock.bh.TSID) {
 				logger.Panicf("BUG: the next TSID=%+v is smaller than the current TSID=%+v", &bsm.Block.bh.TSID, &pendingBlock.bh.TSID)
 			}
-			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged, true)
+			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
 			pendingBlock.CopyFrom(bsm.Block)
 			continue
 		}
 		if pendingBlock.tooBig() && pendingBlock.bh.MaxTimestamp <= bsm.Block.bh.MinTimestamp {
 			// Fast path - pendingBlock is too big and it doesn't overlap with bsm.Block.
 			// Write the pendingBlock and then deal with bsm.Block.
-			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged, true)
+			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
 			pendingBlock.CopyFrom(bsm.Block)
 			continue
 		}
@@ -119,13 +119,13 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		tmpBlock.timestamps = tmpBlock.timestamps[:maxRowsPerBlock]
 		tmpBlock.values = tmpBlock.values[:maxRowsPerBlock]
 		tmpBlock.fixupTimestamps()
-		bsw.WriteExternalBlock(tmpBlock, ph, rowsMerged, true)
+		bsw.WriteExternalBlock(tmpBlock, ph, rowsMerged)
 	}
 	if err := bsm.Error(); err != nil {
 		return fmt.Errorf("cannot read block to be merged: %w", err)
 	}
 	if !pendingBlockIsEmpty {
-		bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged, true)
+		bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
 	}
 	return nil
 }

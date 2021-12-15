@@ -835,7 +835,17 @@ func (pt *partition) ForceMergeAllParts() error {
 		// Nothing to merge.
 		return nil
 	}
-	// If len(pws) == 1, then the merge must run anyway, so deleted time series could be removed from the part.
+
+	// Check whether there is enough disk space for merging pws.
+	newPartSize := getPartsSize(pws)
+	maxOutBytes := fs.MustGetFreeSpace(pt.bigPartsPath)
+	if newPartSize > maxOutBytes {
+		freeSpaceNeededBytes := newPartSize - maxOutBytes
+		logger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
+		return nil
+	}
+
+	// If len(pws) == 1, then the merge must run anyway. This allows removing the deleted series and performing de-duplication if needed.
 	if err := pt.mergePartsOptimal(pws, pt.stopCh); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
@@ -1056,6 +1066,31 @@ func atomicSetBool(p *uint64, b bool) {
 	atomic.StoreUint64(p, v)
 }
 
+func (pt *partition) runFinalDedup() error {
+	if !isDedupNeeded(pt) {
+		return nil
+	}
+	t := time.Now()
+	logger.Infof("starting final dedup for partition %s", pt.name)
+	if err := pt.ForceMergeAllParts(); err != nil {
+		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.name, err)
+	}
+	logger.Infof("final dedup for partition %s finished in %.3f seconds", pt.name, time.Since(t).Seconds())
+	return nil
+}
+
+func isDedupNeeded(pt *partition) bool {
+	pws := pt.GetParts(nil)
+	defer pt.PutParts(pws)
+	dedupInterval := GetDedupInterval()
+	if dedupInterval <= 0 {
+		// The deduplication isn't needed.
+		return false
+	}
+	minDedupInterval := getMinDedupInterval(pws)
+	return minDedupInterval < dedupInterval
+}
+
 // mergeParts merges pws.
 //
 // Merging is immediately stopped if stopCh is closed.
@@ -1146,6 +1181,11 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 	bsrs = nil
 
+	ph.MinDedupInterval = getMinDedupInterval(pws)
+	if err := ph.writeMinDedupInterval(tmpPartPath); err != nil {
+		return fmt.Errorf("cannot store min dedup interval for part %q: %w", tmpPartPath, err)
+	}
+
 	// Create a transaction for atomic deleting old parts and moving
 	// new part to its destination place.
 	var bb bytesutil.ByteBuffer
@@ -1223,6 +1263,20 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	return nil
+}
+
+func getMinDedupInterval(pws []*partWrapper) int64 {
+	if len(pws) == 0 {
+		return 0
+	}
+	dMin := pws[0].p.ph.MinDedupInterval
+	for _, pw := range pws[1:] {
+		d := pw.p.ph.MinDedupInterval
+		if d < dMin {
+			dMin = d
+		}
+	}
+	return dMin
 }
 
 func getCompressLevelForRowsCount(rowsCount, blocksCount uint64) int {
