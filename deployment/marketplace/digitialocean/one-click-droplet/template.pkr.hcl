@@ -1,6 +1,6 @@
 variable "token" {
   type        = string
-  default     = "${env("DIGITALOCEAN_TOKEN")}"
+  default     = "${env("DIGITALOCEAN_API_TOKEN")}"
   description = "DigitalOcean API token used to create droplets."
 }
 
@@ -58,7 +58,7 @@ build {
   # Install VictoriaMetrics
   provisioner "shell" {
     environment_vars = [
-      "VICTORIAMETRICS_VERSION=${var.victoriametrics_version}",
+      "VM_VER=${var.victoriametrics_version}",
       "DEBIAN_FRONTEND=noninteractive"
     ]
     scripts = [

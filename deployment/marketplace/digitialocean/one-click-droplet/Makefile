@@ -1,10 +1,8 @@
 RELEASE_NAME := vm-oneclick-droplet
-VM_VERSION := $(VM_VER)
-DIGITALOCEAN_API_TOKEN := $(DIGITALOCEAN_API_TOKEN)
+VM_VERSION ?= $(shell git describe --abbrev=0 --tags)
 
-# include deployment/marketplace/digitalocean/one-click-droplet/Makefile
+.PHONY: $(MAKECMDGOALS)
 
 release-victoria-metrics-digitalocean-oneclick-droplet:
-	export DIGITALOCEAN_API_TOKEN=$(DIGITALOCEAN_API_TOKEN)
-	export VM_VERSION=$(VM_VER)
+	sed -i -e "s/VM_VERSION/${VM_VERSION}/g" ./files/etc/update-motd.d/99-one-click
 	packer build template.pkr.hcl

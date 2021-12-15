@@ -2,18 +2,19 @@
 
 ### Build image
 
-Set preferable version of VictoriaMetrics e.g. `v1.70.0`:
+To build the snapshot in DigitalOcean account you will need API Token.
+API Token can be generated on [https://cloud.digitalocean.com/account/api/tokens](https://cloud.digitalocean.com/account/api/tokens) or use already generated from OnePassword.
+
+Set variable `DIGITALOCEAN_API_TOKEN` for environment:
 
 ```bash
-export PKR_VAR_VM_VER='v1.70.0'
+export DIGITALOCEAN_API_TOKEN="your_token_here"
 ```
+or set it by with make:
 
-and run make:
 ```bash
-make release-victoria-metrics-digitalocean-oneclick-droplet
+make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOKEN="your_token_here"
 ```
-
-to build the snapshot in DigitalOcean account.
 
 ### Update information on Vendor Portal
 
