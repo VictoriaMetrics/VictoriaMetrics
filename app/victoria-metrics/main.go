@@ -28,6 +28,8 @@ var (
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
 		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
+	downsamplingPeriods = flagutil.NewArray("downsampling.period", "Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs "+
+		"to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details")
 )
 
 // custom api help links [["/api","doc"]] without http.pathPrefix.
@@ -57,7 +59,10 @@ func main() {
 
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
-	storage.SetDedupInterval(*minScrapeInterval)
+	err := storage.SetDownsamplingPeriods(*downsamplingPeriods, *minScrapeInterval)
+	if err != nil {
+		logger.Fatalf("cannot parse -downsampling.period: %s", err)
+	}
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()

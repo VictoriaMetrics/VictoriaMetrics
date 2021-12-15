@@ -1082,7 +1082,14 @@ func (pt *partition) runFinalDedup() error {
 func isDedupNeeded(pt *partition) bool {
 	pws := pt.GetParts(nil)
 	defer pt.PutParts(pws)
-	dedupInterval := GetDedupInterval()
+	// Get dedup interval, which covers all the parts in the partition.
+	var maxTimestamp int64
+	for _, pw := range pws {
+		if maxTimestamp < pw.p.ph.MaxTimestamp {
+			maxTimestamp = pw.p.ph.MaxTimestamp
+		}
+	}
+	dedupInterval := GetDedupInterval(maxTimestamp)
 	if dedupInterval <= 0 {
 		// The deduplication isn't needed.
 		return false

@@ -1,27 +1,7 @@
 package storage
 
-import (
-	"time"
-)
-
-// SetDedupInterval sets the deduplication interval, which is applied to raw samples during data ingestion and querying.
-//
-// De-duplication is disabled if dedupInterval is 0.
-//
-// This function must be called before initializing the storage.
-func SetDedupInterval(dedupInterval time.Duration) {
-	globalDedupInterval = dedupInterval.Milliseconds()
-}
-
-// GetDedupInterval returns the dedup interval in milliseconds, which has been set via SetDedupInterval.
-func GetDedupInterval() int64 {
-	return globalDedupInterval
-}
-
-var globalDedupInterval int64
-
 func isDedupEnabled() bool {
-	return globalDedupInterval > 0
+	return len(downsamplingPeriods) > 0
 }
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in millseconds.

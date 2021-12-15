@@ -161,7 +161,8 @@ func (b *Block) deduplicateSamplesDuringMerge() {
 		// Nothing to dedup.
 		return
 	}
-	dedupInterval := GetDedupInterval()
+	maxTimestamp := srcTimestamps[len(srcTimestamps)-1]
+	dedupInterval := GetDedupInterval(maxTimestamp)
 	if dedupInterval <= 0 {
 		// Deduplication is disabled.
 		return

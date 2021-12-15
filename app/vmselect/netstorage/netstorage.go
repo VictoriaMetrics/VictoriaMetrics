@@ -483,7 +483,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 		dst.Values = append(dst.Values, pts.pd.values...)
 		dst.Timestamps = append(dst.Timestamps, pts.pd.timestamps...)
 	}
-	dedupInterval := storage.GetDedupInterval()
+	dedupInterval := storage.GetDedupInterval(tr.MinTimestamp)
 	mergeSortBlocks(dst, sbs, dedupInterval)
 	if pts.pd != nil {
 		if !sort.IsSorted(dst) {
