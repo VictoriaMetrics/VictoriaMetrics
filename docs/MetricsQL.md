@@ -316,7 +316,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### timestamp
 
-`timestamp(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL.
+`timestamp(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [timestamp_with_name](#timestamp_with_name).
+
+#### timestamp_with_name
+
+`timestamp_with_name(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are preserved in the resulting rollups. See also [timestamp](#timestamp).
 
 #### tfirst_over_time
 
