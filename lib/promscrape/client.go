@@ -236,19 +236,27 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	}
 	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
 	statusCode := resp.StatusCode()
-	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
+	redirectsCount := 0
+	for err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
+		if redirectsCount > 5 {
+			err = fmt.Errorf("too many redirects")
+			break
+		}
 		if c.denyRedirects {
 			err = fmt.Errorf("cannot follow redirects if `follow_redirects: false` is set")
-		} else {
-			// Allow a single redirect.
-			// It is expected that the redirect is made on the same host.
-			// Otherwise it won't work.
-			if location := resp.Header.Peek("Location"); len(location) > 0 {
-				req.URI().UpdateBytes(location)
-				err = c.hc.DoDeadline(req, resp, deadline)
-				statusCode = resp.StatusCode()
-			}
+			break
 		}
+		// It is expected that the redirect is made on the same host.
+		// Otherwise it won't work.
+		location := resp.Header.Peek("Location")
+		if len(location) == 0 {
+			err = fmt.Errorf("missing Location header")
+			break
+		}
+		req.URI().UpdateBytes(location)
+		err = doRequestWithPossibleRetry(c.hc, req, resp, deadline)
+		statusCode = resp.StatusCode()
+		redirectsCount++
 	}
 	if swapResponseBodies {
 		dst = resp.SwapBody(dst)

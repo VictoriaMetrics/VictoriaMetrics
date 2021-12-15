@@ -23,6 +23,7 @@ sort: 15
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): add missing `query` caption to the input field for the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1900).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix navigation over query history with `Ctrl+up/down` and fix zoom relatively to the cursor position. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1936).
 * BUGFIX: deduplicate samples more thoroughly if [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled. Previously some duplicate samples may be left on disk for time series with high churn rate. This may result in bigger storage space requirements.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): follow up to 5 redirects when `follow_redirects: true` is set for a particular scrape config. Previously only a single redirect was performed in this case. It is expected these redirects are performed to the original hostname. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1945).
 
 
 ## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
