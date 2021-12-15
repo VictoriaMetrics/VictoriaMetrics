@@ -1175,20 +1175,13 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ## Downsampling
 
-There is no downsampling support at the moment, but:
+[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
 
-* VictoriaMetrics is optimized for querying big amounts of raw data. See benchmark results for heavy queries
-  in [this article](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-* VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
-  for details.
-* The downsampling doesn't improve query performance on a long time range if the time range contains big number of time series due to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The query performance depends on the number of unique time series on the selected time range, while downsampling doesn't reduce the number of unique time series in the database - it can reduce only the number of samples per each time series.
+* `-downsampling.period=30d:5m` instructs VictoriaMetrics to [deduplicate](#deduplication) samples older than 30 days with 5 minutes interval.
 
-These properties reduce the need of downsampling. We plan to implement downsampling in the future.
-See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
+* `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
-It is possible to (ab)use [-dedup.minScrapeInterval](#deduplication) for basic downsampling.
-For instance, if interval between the ingested data points is 15s, then `-dedup.minScrapeInterval=5m` will leave
-only a single data point out of 20 initial data points per each 5m interval.
+Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsamlping doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series.
 
 
 ## Multi-tenancy
@@ -1584,6 +1577,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
     	Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+  -downsampling.period array
+    	Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
+    	Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
     	Whether to check only -promscrape.config and then exit. Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
   -enableTCP6
@@ -1592,6 +1588,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -finalMergeDelay duration
     	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -forceFlushAuthKey string
@@ -1776,6 +1774,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to disable automatic response cache reset if a sample with timestamp outside -search.cacheTimestampOffset is inserted into VictoriaMetrics
   -search.disableCache
     	Whether to disable response caching. This may be useful during data backfilling
+  -search.graphiteMaxPointsPerSeries int
+    	The maximum number of points per series Graphite render API can return (default 1000000)
+  -search.graphiteStorageStep duration
+    	The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overriden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
     	The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
