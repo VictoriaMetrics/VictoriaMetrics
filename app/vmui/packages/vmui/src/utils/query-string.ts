@@ -1,6 +1,5 @@
 import qs from "qs";
 import get from "lodash.get";
-import {getAppModeEnable} from "./app-mode";
 
 const stateToUrlParams = {
   "time.duration": "range_input",
@@ -8,8 +7,6 @@ const stateToUrlParams = {
   "time.period.step": "step_input",
   "displayType": "tab"
 };
-
-const appModeEnable = getAppModeEnable();
 
 // TODO need function for detect types.
 // const decoder = (value: string)  => {
@@ -34,16 +31,12 @@ const appModeEnable = getAppModeEnable();
 export const setQueryStringWithoutPageReload = (qsValue: string): void => {
   const w = window;
   if (w) {
-    const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}${qsValue ? "?" : ""}${qsValue}`;
+    const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}?${qsValue}`;
     w.history.pushState({ path: newurl }, "", newurl);
   }
 };
 
 export const setQueryStringValue = (newValue: Record<string, unknown>): void => {
-  if (appModeEnable) {
-    setQueryStringWithoutPageReload("");
-    return;
-  }
   const queryMap = new Map(Object.entries(stateToUrlParams));
   const query = get(newValue, "query", "") as string[];
   const newQsValue: string[] = [];
