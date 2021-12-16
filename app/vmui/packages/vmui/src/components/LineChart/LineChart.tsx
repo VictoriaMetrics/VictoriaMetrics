@@ -12,6 +12,7 @@ import throttle from "lodash.throttle";
 import "uplot/dist/uPlot.min.css";
 import "./tooltip.css";
 import {AxisRange} from "../../state/graph/reducer";
+import useWindowSize from "../../hooks/useWindowSize";
 
 export interface LineChartProps {
     metrics: MetricResult[];
@@ -25,11 +26,11 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
   const dispatch = useAppDispatch();
   const {time: {period}} = useAppState();
   const {yaxis} = useGraphState();
-  const containerRef = useRef<HTMLDivElement>(null);
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
+  const windowSize = useWindowSize();
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
@@ -104,7 +105,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
     series,
     axes: getAxes(series),
     scales: {...getScales()},
-    width: containerRef.current ? containerRef.current.offsetWidth : 400,
+    width: windowSize.width ? windowSize.width - 64 : 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
   };
 
@@ -135,13 +136,13 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
     setUPlotInst(u);
     setXRange({min: period.start, max: period.end});
     return u.destroy;
-  }, [uPlotRef.current, series]);
+  }, [uPlotRef.current, series, windowSize]);
 
   useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
-  return <div ref={containerRef} style={{pointerEvents: isPanning ? "none" : "auto", height: "500px"}}>
+  return <div style={{pointerEvents: isPanning ? "none" : "auto", height: "500px"}}>
     <div ref={uPlotRef}/>
   </div>;
 };
