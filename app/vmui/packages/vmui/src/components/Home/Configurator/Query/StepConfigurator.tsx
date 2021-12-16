@@ -29,10 +29,6 @@ const StepConfigurator: FC = () => {
   };
 
   useEffect(() => {
-    if (customStep.enable) onChangeEnableStep();
-  }, [duration]);
-
-  useEffect(() => {
     if (!customStep.enable) graphDispatch({type: "SET_CUSTOM_STEP", payload: step || 1});
   }, [step]);
 
