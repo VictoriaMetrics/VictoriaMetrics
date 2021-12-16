@@ -9,7 +9,7 @@ const StepConfigurator: FC = () => {
   const {customStep} = useGraphState();
   const graphDispatch = useGraphDispatch();
   const [error, setError] = useState(false);
-  const {time: {period: {step}, duration}} = useAppState();
+  const {time: {period: {step}}} = useAppState();
 
   const onChangeStep = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = +e.target.value;

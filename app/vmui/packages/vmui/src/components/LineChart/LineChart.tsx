@@ -11,18 +11,16 @@ import {limitsDurations} from "../../utils/time";
 import throttle from "lodash.throttle";
 import "uplot/dist/uPlot.min.css";
 import "./tooltip.css";
-import {AxisRange} from "../../state/graph/reducer";
 import useWindowSize from "../../hooks/useWindowSize";
 
 export interface LineChartProps {
     metrics: MetricResult[];
     data: uPlotData;
     series: uPlotSeries[];
-    limits: AxisRange;
 }
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
-const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => {
+const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const dispatch = useAppDispatch();
   const {time: {period}} = useAppState();
   const {yaxis} = useGraphState();
@@ -89,7 +87,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
-    return min && max ? [min - (min * 0.05), max + (max * 0.05)] : limits[axis];
+    return [min - ((min + 1) * 0.05), max + ((max + 1) * 0.05)];
   };
 
   const getScales = (): Scales => {

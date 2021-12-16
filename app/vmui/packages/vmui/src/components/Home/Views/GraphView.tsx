@@ -21,11 +21,9 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItem[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
-  const [valuesLimit, setValuesLimit] = useState<AxisRange>({"1": [0, 1]});
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
     const limits = getLimitsYAxis(values);
-    setValuesLimit(limits);
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
   };
 
@@ -79,7 +77,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
     {(data.length > 0)
       ? <div>
         <GraphSettings/>
-        <LineChart data={dataChart} series={series} metrics={data} limits={valuesLimit}/>
+        <LineChart data={dataChart} series={series} metrics={data}/>
         <Legend labels={legend} onChange={onChangeLegend}/>
       </div>
       : <div style={{textAlign: "center"}}>No data to show</div>}

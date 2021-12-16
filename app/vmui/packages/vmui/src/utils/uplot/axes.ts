@@ -24,7 +24,7 @@ export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange =
     const numbers = values[key];
     const min = getMinFromArray(numbers);
     const max = getMaxFromArray(numbers);
-    result[key] = [min - (min * 0.05), max + (max * 0.05)];
+    result[key] = [min - ((min + 1)* 0.05), max + ((max + 1) * 0.05)];
   }
   return result;
 };
