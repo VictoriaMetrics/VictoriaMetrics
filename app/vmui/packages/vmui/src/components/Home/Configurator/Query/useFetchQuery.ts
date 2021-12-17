@@ -6,6 +6,10 @@ import {isValidHttpUrl} from "../../../../utils/url";
 import {useAuthState} from "../../../../state/auth/AuthStateContext";
 import {ErrorTypes, TimeParams} from "../../../../types";
 import {useGraphState} from "../../../../state/graph/GraphStateContext";
+import {getAppModeEnable, getAppModeParams} from "../../../../utils/app-mode";
+
+const appModeEnable = getAppModeEnable();
+const {serverURL: appServerUrl} = getAppModeParams();
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
@@ -80,18 +84,19 @@ export const useFetchQuery = (): {
   };
 
   const fetchUrl = useMemo(() => {
+    const server = appModeEnable ? appServerUrl : serverUrl;
     if (!period) return;
-    if (!serverUrl) {
+    if (!server) {
       setError(ErrorTypes.emptyServer);
     } else if (query.every(q => !q.trim())) {
       setError(ErrorTypes.validQuery);
-    } else if (isValidHttpUrl(serverUrl)) {
+    } else if (isValidHttpUrl(server)) {
       const duration = (period.end - period.start) / 2;
       const bufferPeriod = {...period, start: period.start - duration, end: period.end + duration};
       if (customStep.enable) bufferPeriod.step = customStep.value;
       return query.filter(q => q.trim()).map(q => displayType === "chart"
-        ? getQueryRangeUrl(serverUrl, q, bufferPeriod, nocache)
-        : getQueryUrl(serverUrl, q, period));
+        ? getQueryRangeUrl(server, q, bufferPeriod, nocache)
+        : getQueryUrl(server, q, period));
     } else {
       setError(ErrorTypes.validServer);
     }

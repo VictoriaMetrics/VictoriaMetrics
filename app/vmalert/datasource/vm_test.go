@@ -436,7 +436,20 @@ func TestRequestParams(t *testing.T) {
 				queryStep: time.Minute,
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, time.Minute, timestamp.Unix())
+				exp := fmt.Sprintf("query=%s&step=%ds&time=%d", query, int(time.Minute.Seconds()), timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"step to seconds",
+			false,
+			&VMStorage{
+				evaluationInterval: 3 * time.Hour,
+			},
+			func(t *testing.T, r *http.Request) {
+				evalInterval := 3 * time.Hour
+				tt := timestamp.Truncate(evalInterval)
+				exp := fmt.Sprintf("query=%s&step=%ds&time=%d", query, int(evalInterval.Seconds()), tt.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},

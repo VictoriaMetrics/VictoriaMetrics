@@ -82,11 +82,12 @@ var rollupFuncs = map[string]newRollupFunc{
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
-	"timestamp":        newRollupFuncOneArg(rollupTlast),
-	"tlast_over_time":  newRollupFuncOneArg(rollupTlast),
-	"tmax_over_time":   newRollupFuncOneArg(rollupTmax),
-	"tmin_over_time":   newRollupFuncOneArg(rollupTmin),
-	"zscore_over_time": newRollupFuncOneArg(rollupZScoreOverTime),
+	"timestamp":           newRollupFuncOneArg(rollupTlast),
+	"timestamp_with_name": newRollupFuncOneArg(rollupTlast), // + rollupFuncsKeepMetricGroup
+	"tlast_over_time":     newRollupFuncOneArg(rollupTlast),
+	"tmax_over_time":      newRollupFuncOneArg(rollupTmax),
+	"tmin_over_time":      newRollupFuncOneArg(rollupTmin),
+	"zscore_over_time":    newRollupFuncOneArg(rollupZScoreOverTime),
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -130,6 +131,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"sum2_over_time":      rollupSum2,
 	"tfirst_over_time":    rollupTfirst,
 	"timestamp":           rollupTlast,
+	"timestamp_with_name": rollupTlast,
 	"tlast_over_time":     rollupTlast,
 	"tmax_over_time":      rollupTmax,
 	"tmin_over_time":      rollupTmin,
@@ -186,6 +188,7 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"quantiles_over_time":   true,
 	"rollup":                true,
 	"rollup_candlestick":    true,
+	"timestamp_with_name":   true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
