@@ -195,16 +195,19 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		3. bad format of response body
 	*/
 	if resp.StatusCode != 200 {
+		log.Println(fmt.Sprintf("bad response code from OpenTSDB query %v...skipping", resp.StatusCode))
 		return Metric{}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Println("couldn't read response body from OpenTSDB query...skipping")
 		return Metric{}, nil
 	}
 	var output []OtsdbMetric
 	err = json.Unmarshal(body, &output)
 	if err != nil {
+		log.Println(fmt.Sprintf("couldn't marshall response body from OpenTSDB query (%s)...skipping", body))
 		return Metric{}, nil
 	}
 	/*
