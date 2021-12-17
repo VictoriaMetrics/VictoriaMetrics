@@ -161,7 +161,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
