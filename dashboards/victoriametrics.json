@@ -1,11 +1,12 @@
 {
   "__inputs": [],
+  "__elements": [],
   "__requires": [
     {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.0.0"
+      "version": "8.3.2"
     },
     {
       "type": "panel",
@@ -41,16 +42,22 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.64.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.70.0 or higher",
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1630495970262,
+  "iteration": 1640012887049,
   "links": [
     {
       "icon": "doc",
@@ -77,10 +84,10 @@
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
   ],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": true,
-      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -90,8 +97,9 @@
       "id": 137,
       "panels": [
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "How many datapoints are in storage",
           "fieldConfig": {
             "defaults": {
@@ -103,8 +111,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -119,7 +126,6 @@
             "y": 1
           },
           "id": 131,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -137,7 +143,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -150,14 +156,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Total datapoints",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The minimum free disk space left among all storage nodes.",
           "fieldConfig": {
             "defaults": {
@@ -169,8 +174,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -185,7 +189,6 @@
             "y": 1
           },
           "id": 124,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -203,7 +206,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -216,14 +219,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Min free disk space",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Average disk usage per datapoint.",
           "fieldConfig": {
             "defaults": {
@@ -236,8 +238,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -252,7 +253,6 @@
             "y": 1
           },
           "id": 112,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -270,7 +270,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -283,14 +283,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Bytes per point",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Total size of allowed memory via flag `-memory.allowedPercent` for all VM components",
           "fieldConfig": {
             "defaults": {
@@ -302,8 +301,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -318,7 +316,6 @@
             "y": 1
           },
           "id": 130,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -336,7 +333,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -349,14 +346,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Allowed memory",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "How many entries inverted index contains. This value is proportional to the number of unique timeseries in storage(cardinality).",
           "fieldConfig": {
             "defaults": {
@@ -368,8 +364,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -384,7 +379,6 @@
             "y": 3
           },
           "id": 34,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -402,7 +396,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -415,14 +409,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Index size",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Total amount of used disk space",
           "fieldConfig": {
             "defaults": {
@@ -434,8 +427,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -450,7 +442,6 @@
             "y": 3
           },
           "id": 35,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -468,7 +459,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -481,14 +472,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Disk space usage",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Total number of available CPUs for all VM components. ",
           "fieldConfig": {
             "defaults": {
@@ -500,8 +490,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -516,7 +505,6 @@
             "y": 3
           },
           "id": 126,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -534,7 +522,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -547,14 +535,13 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Available CPU",
           "type": "stat"
         },
         {
-          "cacheTimeout": null,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Total size of available memory for all VM components.",
           "fieldConfig": {
             "defaults": {
@@ -566,8 +553,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -582,7 +568,6 @@
             "y": 3
           },
           "id": 128,
-          "interval": null,
           "links": [],
           "maxDataPoints": 100,
           "options": {
@@ -600,7 +585,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -613,14 +598,14 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Available memory",
           "type": "stat"
         },
         {
           "columns": [],
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fontSize": "100%",
           "gridPos": {
             "h": 5,
@@ -629,7 +614,6 @@
             "y": 5
           },
           "id": 26,
-          "pageSize": null,
           "scroll": true,
           "showHeader": true,
           "sort": {
@@ -660,7 +644,6 @@
             {
               "alias": "",
               "align": "auto",
-              "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
                 "rgba(237, 129, 40, 0.89)",
@@ -677,7 +660,6 @@
             {
               "alias": "",
               "align": "auto",
-              "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
                 "rgba(237, 129, 40, 0.89)",
@@ -702,8 +684,6 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Uptime",
           "transform": "table",
           "type": "table-old"
@@ -713,7 +693,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -740,7 +722,6 @@
             "min": false,
             "rightSide": true,
             "show": true,
-            "sideWidth": null,
             "sort": "current",
             "sortDesc": false,
             "total": false,
@@ -753,7 +734,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -771,9 +752,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Uptime",
           "tooltip": {
             "shared": true,
@@ -782,9 +761,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -792,19 +769,13 @@
             {
               "decimals": 0,
               "format": "none",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
-              "decimals": null,
               "format": "short",
               "label": "",
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
@@ -819,7 +790,9 @@
     },
     {
       "collapsed": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -836,7 +809,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "How many datapoints are inserted into storage per second by protocol and accountID",
       "fieldConfig": {
         "defaults": {
@@ -873,7 +848,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -891,9 +866,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Datapoints ingestion rate ($instance)",
       "tooltip": {
         "shared": true,
@@ -902,33 +875,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -936,7 +902,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -974,7 +942,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -992,9 +960,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Requests rate ($instance)",
       "tooltip": {
         "shared": true,
@@ -1003,33 +969,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1037,7 +996,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -1075,7 +1036,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1093,9 +1054,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Requests error rate ($instance)",
       "tooltip": {
         "shared": true,
@@ -1104,33 +1063,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1138,7 +1090,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -1176,7 +1130,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1194,9 +1148,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Query duration ($instance)",
       "tooltip": {
         "shared": true,
@@ -1205,33 +1157,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "s",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1239,7 +1184,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
       "fieldConfig": {
         "defaults": {
@@ -1277,7 +1224,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 1,
       "points": false,
       "renderer": "flot",
@@ -1309,9 +1256,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "RPC errors ($instance)",
       "tooltip": {
         "shared": true,
@@ -1320,33 +1265,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "rps",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1354,7 +1292,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
       "fieldConfig": {
         "defaults": {
@@ -1392,7 +1332,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1413,9 +1353,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Logging rate",
       "tooltip": {
         "shared": true,
@@ -1424,34 +1362,25 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
-          "decimals": null,
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1459,7 +1388,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "Shows the percentage of remaining disk space at `-storageDataPath` by instance",
       "fieldConfig": {
         "defaults": {
@@ -1497,7 +1428,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1527,9 +1458,7 @@
           "yaxis": "left"
         }
       ],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Disk space used ($instance)",
       "tooltip": {
         "shared": true,
@@ -1538,33 +1467,25 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "percentunit",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1572,7 +1493,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
@@ -1616,7 +1539,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "8.3.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1634,9 +1557,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Active time series ($instance)",
       "tooltip": {
         "shared": true,
@@ -1645,38 +1566,33 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1690,7 +1606,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Amount of used memory (resident)\nContains memory share which can be freed by OS when needed.",
           "fieldConfig": {
             "defaults": {
@@ -1746,9 +1664,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "RSS memory usage ($instance)",
           "tooltip": {
             "shared": true,
@@ -1757,33 +1673,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -1791,7 +1699,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "RSS share for memory allocated by the process itself. This share cannot be freed by the OS, so it must be taken into account by OOM killer.",
           "fieldConfig": {
             "defaults": {
@@ -1847,9 +1757,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "RSS anonymous memory usage ($instance)",
           "tooltip": {
             "shared": true,
@@ -1858,33 +1766,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -1892,7 +1792,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -1949,9 +1851,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "CPU ($instance)",
           "tooltip": {
             "shared": true,
@@ -1960,33 +1860,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -1994,7 +1886,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows average GC duration by instance",
           "fieldConfig": {
             "defaults": {
@@ -2052,9 +1946,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "GC duration ($instance)",
           "tooltip": {
             "shared": true,
@@ -2063,33 +1955,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2097,7 +1981,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Panel shows the number of open file descriptors in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
           "fieldConfig": {
             "defaults": {
@@ -2169,9 +2055,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Open FDs ($instance)",
           "tooltip": {
             "shared": true,
@@ -2180,9 +2064,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -2190,24 +2072,18 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 2,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2215,7 +2091,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows the number of bytes read/write from the storage layer.",
           "fieldConfig": {
             "defaults": {
@@ -2288,9 +2166,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Disk writes/reads ($instance)",
           "tooltip": {
             "shared": true,
@@ -2299,34 +2175,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
-              "decimals": null,
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2334,7 +2201,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -2391,9 +2260,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Goroutines ($instance)",
           "tooltip": {
             "shared": true,
@@ -2402,9 +2269,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -2412,24 +2277,18 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2437,7 +2296,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fill": 0,
           "fillGradient": 0,
           "gridPos": {
@@ -2485,9 +2346,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "TCP connections ($instance)",
           "tooltip": {
             "shared": true,
@@ -2496,33 +2355,24 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2530,7 +2380,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -2587,9 +2439,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Threads ($instance)",
           "tooltip": {
             "shared": true,
@@ -2598,9 +2448,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -2608,24 +2456,18 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2633,7 +2475,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "fill": 0,
           "fillGradient": 0,
           "gridPos": {
@@ -2681,9 +2525,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "TCP connections rate ($instance)",
           "tooltip": {
             "shared": true,
@@ -2692,33 +2534,24 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         }
       ],
@@ -2727,7 +2560,9 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2741,7 +2576,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
           "fieldConfig": {
             "defaults": {
@@ -2755,7 +2592,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 102,
@@ -2778,7 +2615,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2809,9 +2646,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Churn rate ($instance)",
           "tooltip": {
             "shared": true,
@@ -2820,33 +2655,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2854,7 +2681,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
           "fieldConfig": {
             "defaults": {
@@ -2868,7 +2697,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 107,
@@ -2891,7 +2720,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2908,9 +2737,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Slow queries rate ($instance)",
           "tooltip": {
             "shared": true,
@@ -2919,9 +2746,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -2929,25 +2754,19 @@
             {
               "$$hashKey": "object:892",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "$$hashKey": "object:893",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -2955,7 +2774,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>50%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
           "fieldConfig": {
             "defaults": {
@@ -2969,7 +2790,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 108,
@@ -2992,7 +2813,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3009,9 +2830,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Slow inserts",
           "tooltip": {
             "shared": true,
@@ -3020,33 +2839,27 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
+              "$$hashKey": "object:738",
               "format": "percentunit",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
+              "$$hashKey": "object:739",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3054,7 +2867,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
           "fieldConfig": {
             "defaults": {
@@ -3068,7 +2883,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 116,
@@ -3092,7 +2907,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3113,9 +2928,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Labels limit exceeded ($instance)",
           "tooltip": {
             "shared": true,
@@ -3124,9 +2937,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -3135,25 +2946,330 @@
               "$$hashKey": "object:1046",
               "decimals": 2,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "$$hashKey": "object:1047",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "The value is above 0 when the vmstorage at the given `addr` communicates to the given vminsert node that it cannot accept new data because it is in the read-only mode.",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 52
+          },
+          "hiddenSeries": false,
+          "id": 142,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Readonly mode",
+              "url": "https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode"
+            }
+          ],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 1,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "sum(vm_rpc_vmstorage_is_read_only{job=~\"$job_insert\", instance=~\"$instance\"}) by(instance, addr)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} => {{addr}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Storage in readonly status for vminsert ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:536",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:537",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 52
+          },
+          "hiddenSeries": false,
+          "id": 144,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "vm_cache_size_bytes{job=~\"$job_storage\", instance=~\"$instance\"} / vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "{{ instance }} / {{ type }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Cache usage % by vmstorage ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:107",
+              "format": "percentunit",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:108",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows whether background merges were deferred because of not enough of disk space. \n\nBefore starting the data parts merge (improves compression and reduces number of files), VictoriaMetrics estimates if there is enough of disk space for the operation. If panel shows values higher than zero, it means no disk space left for merging operation.\n\nConsider extending the disk size or decreasing retention. ",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 60
+          },
+          "hiddenSeries": false,
+          "id": 145,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Readonly mode",
+              "url": "https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode"
+            }
+          ],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 1,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "sum(vm_merge_need_free_disk_space{job=~\"$job_storage\", instance=~\"$instance\"}) by(instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{ instance }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Merges deferred by vmstorage ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:536",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:537",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
           }
         }
       ],
@@ -3162,7 +3278,9 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3176,7 +3294,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows number of pushed and sent rows. \n* `Pushed rows` - rows added to internal inserter buffers before send\n* `Sent rows` - successfully transmitted rows to storage nodes",
           "fieldConfig": {
             "defaults": {
@@ -3214,7 +3334,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3239,9 +3359,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Rows ($instance)",
           "tooltip": {
             "shared": true,
@@ -3250,9 +3368,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -3260,25 +3376,19 @@
             {
               "$$hashKey": "object:1108",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "$$hashKey": "object:1109",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3286,7 +3396,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Rate of RPC errors by type:\n* `Connection` - the number of connection errors to vmstorage node\n* `Dial` -  the number of dial errors to vmstorage node.\n* `Handshake` - the number of handshake errors to vmstorage node\n* `Rerouted` - errors appeared during rerouting of rows from un-healthy storage node to a healthy one.",
           "fieldConfig": {
             "defaults": {
@@ -3324,7 +3436,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3356,9 +3468,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "RPC errors ($instance)",
           "tooltip": {
             "shared": true,
@@ -3367,33 +3477,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3401,7 +3503,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The number of rows rerouted to the vmstorage node from other nodes when they were unhealthy.",
           "fieldConfig": {
             "defaults": {
@@ -3439,7 +3543,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3459,9 +3563,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Rows ($instance) rerouted to ",
           "tooltip": {
             "shared": true,
@@ -3470,33 +3572,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "rps",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3504,7 +3598,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The number of rows rerouted from the vmstorage node to healthy nodes when the given node was unhealthy.",
           "fieldConfig": {
             "defaults": {
@@ -3542,7 +3638,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3562,9 +3658,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Rows ($instance) rerouted from",
           "tooltip": {
             "shared": true,
@@ -3573,33 +3667,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "rps",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3607,7 +3694,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
           "fieldConfig": {
             "defaults": {
@@ -3644,7 +3733,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3670,9 +3759,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Pending",
           "tooltip": {
             "shared": true,
@@ -3681,33 +3768,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3715,7 +3795,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Network usage by internal VictoriaMetrics RPC protocol",
           "fieldConfig": {
             "defaults": {
@@ -3752,7 +3834,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3768,9 +3850,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "RPC network usage ($instance)",
           "tooltip": {
             "shared": true,
@@ -3779,33 +3859,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bps",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         }
       ],
@@ -3814,7 +3886,9 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3828,7 +3902,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
           "fieldConfig": {
             "defaults": {
@@ -3901,9 +3977,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Cache size ($instance)",
           "tooltip": {
             "shared": true,
@@ -3912,33 +3986,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -3946,7 +4013,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
           "fieldConfig": {
             "defaults": {
@@ -4006,9 +4075,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Cache hit ratio ($instance)",
           "tooltip": {
             "shared": true,
@@ -4017,16 +4084,13 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "percentunit",
-              "label": null,
               "logBase": 1,
               "max": "1",
               "min": "0",
@@ -4034,16 +4098,13 @@
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         }
       ],
@@ -4052,7 +4113,9 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -4066,7 +4129,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows how many rows per second every storage node accepts. This metric doesn't show all stored rows since some of them may be dropped because of wrong timestamps or decode errors.",
           "fieldConfig": {
             "defaults": {
@@ -4080,7 +4145,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 7
           },
           "hiddenSeries": false,
           "id": 100,
@@ -4104,7 +4169,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4122,9 +4187,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Ingestion rate ($instance)",
           "tooltip": {
             "shared": true,
@@ -4133,33 +4196,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4167,7 +4223,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows the time needed to reach the 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
           "fieldConfig": {
             "defaults": {
@@ -4181,7 +4239,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 7
           },
           "hiddenSeries": false,
           "id": 113,
@@ -4205,7 +4263,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4224,9 +4282,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Storage full ETA ($instance)",
           "tooltip": {
             "shared": true,
@@ -4235,33 +4291,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4269,7 +4317,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows how many datapoints are in the storage.",
           "fieldConfig": {
             "defaults": {
@@ -4283,7 +4333,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 16,
@@ -4307,7 +4357,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4326,9 +4376,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Datapoints ($instance)",
           "tooltip": {
             "shared": true,
@@ -4337,34 +4385,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
-              "decimals": null,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4372,7 +4412,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
@@ -4386,7 +4428,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 14,
@@ -4411,7 +4453,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4443,9 +4485,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Pending datapoints ($instance)",
           "tooltip": {
             "shared": true,
@@ -4454,34 +4494,27 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "decimals": 3,
               "format": "none",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4489,7 +4522,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows amount of on-disk space occupied by data points.",
           "fieldConfig": {
             "defaults": {
@@ -4503,7 +4538,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 23
           },
           "hiddenSeries": false,
           "id": 18,
@@ -4527,7 +4562,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4545,9 +4580,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Disk space usage (datapoints) ($instance)",
           "tooltip": {
             "shared": true,
@@ -4556,33 +4589,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4590,7 +4616,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows amount of on-disk space occupied by inverted index.",
           "fieldConfig": {
             "defaults": {
@@ -4604,7 +4632,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 23
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4628,7 +4656,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4646,9 +4674,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Disk space usage (index)  ($instance)",
           "tooltip": {
             "shared": true,
@@ -4657,33 +4683,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bytes",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4691,7 +4710,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
           "fieldConfig": {
             "defaults": {
@@ -4705,7 +4726,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 63
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 54,
@@ -4728,7 +4749,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4744,9 +4765,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Active merges ($instance)",
           "tooltip": {
             "shared": true,
@@ -4755,9 +4774,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -4765,24 +4782,19 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4790,7 +4802,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "The number of rows merged per second by storage nodes.",
           "fieldConfig": {
             "defaults": {
@@ -4804,7 +4818,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 63
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 55,
@@ -4827,7 +4841,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4843,9 +4857,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Merge speed",
           "tooltip": {
             "shared": true,
@@ -4854,9 +4866,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -4864,24 +4874,19 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4889,7 +4894,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
           "fill": 1,
           "fillGradient": 0,
@@ -4897,7 +4904,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 71
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 135,
@@ -4920,7 +4927,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4938,9 +4945,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Rows ignored ($instance)",
           "tooltip": {
             "shared": true,
@@ -4949,33 +4954,24 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -4983,7 +4979,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
           "fieldConfig": {
             "defaults": {
@@ -4997,7 +4995,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 71
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 22,
@@ -5021,7 +5019,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5040,9 +5038,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "LSM parts ($instance)",
           "tooltip": {
             "shared": true,
@@ -5051,33 +5047,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -5085,7 +5074,106 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Value > 0 means vmstorage is in readonly mode.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 47
+          },
+          "hiddenSeries": false,
+          "id": 141,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Readonly mode",
+              "url": "https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode"
+            }
+          ],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "vm_storage_is_read_only{job=~\"$job_storage\", instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "{{ instance }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Readonly mode",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:131",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:132",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
           "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.",
           "fill": 0,
           "fillGradient": 0,
@@ -5093,7 +5181,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 79
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 133,
@@ -5123,7 +5211,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5138,6 +5226,10 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
               "exemplar": true,
               "expr": "max(vm_concurrent_addrows_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
               "interval": "",
@@ -5145,6 +5237,10 @@
               "refId": "A"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
               "exemplar": true,
               "expr": "sum(avg_over_time(vm_concurrent_addrows_current{job=~\"$job_storage\", instance=~\"$instance\"}[1m])) by(instance)",
               "hide": false,
@@ -5154,9 +5250,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Concurrent flushes on disk ($instance)",
           "tooltip": {
             "shared": true,
@@ -5165,33 +5259,24 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         }
       ],
@@ -5200,7 +5285,9 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -5214,7 +5301,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Request rate accepted by vmselect nodes",
           "fieldConfig": {
             "defaults": {
@@ -5270,9 +5359,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Requests rate ($instance)",
           "tooltip": {
             "shared": true,
@@ -5281,33 +5368,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -5315,7 +5395,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2 by default. May be configured with `search.maxConcurrentRequests` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means vmselect node is overloaded and require more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
@@ -5387,9 +5469,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Concurrent selects ($instance)",
           "tooltip": {
             "shared": true,
@@ -5398,9 +5478,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -5408,25 +5486,20 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -5434,7 +5507,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -5503,9 +5578,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Network usage ($instance)",
           "tooltip": {
             "shared": true,
@@ -5514,33 +5587,24 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bps",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         }
       ],
@@ -5549,7 +5613,9 @@
     },
     {
       "collapsed": true,
-      "datasource": "$ds",
+      "datasource": {
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -5563,7 +5629,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
           "fieldConfig": {
             "defaults": {
@@ -5601,7 +5669,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5619,9 +5687,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Requests rate ($instance)",
           "tooltip": {
             "shared": true,
@@ -5630,33 +5696,26 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -5664,7 +5723,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 4 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
@@ -5704,7 +5765,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5738,9 +5799,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Concurrent inserts ($instance)",
           "tooltip": {
             "shared": true,
@@ -5749,9 +5808,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -5759,25 +5816,20 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -5785,7 +5837,10 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -5793,7 +5848,7 @@
             },
             "overrides": []
           },
-          "fill": 6,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
@@ -5823,40 +5878,31 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "/write.*/",
-              "transform": "negative-Y"
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
-          "stack": false,
+          "stack": true,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
               "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "read - {{instance}}",
+              "legendFormat": "{{instance}}",
               "refId": "A"
-            },
-            {
-              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "write - {{instance}}",
-              "refId": "B"
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Network usage ($instance)",
           "tooltip": {
             "shared": true,
@@ -5865,33 +5911,25 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "bps",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -5899,7 +5937,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -5937,7 +5977,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5956,9 +5996,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Rows per insert ($instance)",
           "tooltip": {
             "shared": true,
@@ -5967,9 +6005,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -5977,24 +6013,19 @@
             {
               "decimals": 2,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -6002,7 +6033,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows the saturation level of connection between vminsert and vmstorage components. If the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vminsert won't be able to keep up. This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase the total number of vminsert -> vmstorage links.\n",
           "fieldConfig": {
             "defaults": {
@@ -6040,7 +6073,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -6070,9 +6103,7 @@
               "yaxis": "left"
             }
           ],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Storage connection saturation ($instance)",
           "tooltip": {
             "shared": true,
@@ -6081,9 +6112,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -6092,25 +6121,20 @@
               "$$hashKey": "object:156",
               "decimals": 0,
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "$$hashKey": "object:157",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -6118,7 +6142,9 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$ds",
+          "datasource": {
+            "uid": "$ds"
+          },
           "description": "Shows if vmstorage node is reachable for vminsert. If below 1 means vmstorage is not reachable at this moment of time. ",
           "fieldConfig": {
             "defaults": {
@@ -6156,7 +6182,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -6175,9 +6201,7 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Storage reachability ($instance)",
           "tooltip": {
             "shared": true,
@@ -6186,9 +6210,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -6196,24 +6218,19 @@
             {
               "decimals": 0,
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         }
       ],
@@ -6221,7 +6238,7 @@
       "type": "row"
     }
   ],
-  "schemaVersion": 30,
+  "schemaVersion": 33,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -6232,11 +6249,8 @@
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },
-        "description": null,
-        "error": null,
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "ds",
         "options": [],
@@ -6247,15 +6261,13 @@
         "type": "datasource"
       },
       {
-        "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": {
+          "uid": "$ds"
+        },
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
-        "description": null,
-        "error": null,
         "hide": 2,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "job_insert",
         "options": [],
@@ -6273,15 +6285,13 @@
         "useTags": false
       },
       {
-        "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": {
+          "uid": "$ds"
+        },
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
-        "description": null,
-        "error": null,
         "hide": 2,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "job_select",
         "options": [],
@@ -6299,15 +6309,13 @@
         "useTags": false
       },
       {
-        "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": {
+          "uid": "$ds"
+        },
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
-        "description": null,
-        "error": null,
         "hide": 2,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "job_storage",
         "options": [],
@@ -6325,15 +6333,13 @@
         "useTags": false
       },
       {
-        "allValue": null,
         "current": {},
-        "datasource": "$ds",
+        "datasource": {
+          "uid": "$ds"
+        },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
-        "description": null,
-        "error": null,
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": true,
         "name": "job",
         "options": [],
@@ -6353,13 +6359,12 @@
       {
         "allValue": ".*",
         "current": {},
-        "datasource": "$ds",
+        "datasource": {
+          "uid": "$ds"
+        },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
-        "description": null,
-        "error": null,
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": true,
         "name": "instance",
         "options": [],
@@ -6395,5 +6400,6 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 1
+  "version": 1,
+  "weekStart": ""
 }
