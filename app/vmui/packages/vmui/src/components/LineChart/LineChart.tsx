@@ -32,7 +32,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
-  const tooltipIdx = {seriesIdx: 1, dataIdx: 0};
+  const tooltipIdx: {seriesIdx: number | null, dataIdx: number | undefined} = {seriesIdx: null, dataIdx: undefined};
   const tooltipOffset = {left: 0, top: 0};
 
   const setScale = ({min, max}: { min: number, max: number }): void => {
@@ -72,22 +72,22 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const setCursor = (u: uPlot) => {
     if (tooltipIdx.dataIdx === u.cursor.idx) return;
     tooltipIdx.dataIdx = u.cursor.idx || 0;
-    if (tooltipIdx.seriesIdx && tooltipIdx.dataIdx) {
+    if (tooltipIdx.seriesIdx !== null && tooltipIdx.dataIdx !== undefined) {
       setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset});
     }
   };
 
   const seriesFocus = (u: uPlot, sidx: (number | null)) => {
     if (tooltipIdx.seriesIdx === sidx) return;
-    tooltipIdx.seriesIdx = sidx || 0;
-    sidx && tooltipIdx.dataIdx
+    tooltipIdx.seriesIdx = sidx;
+    sidx && tooltipIdx.dataIdx !== undefined
       ? setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset})
       : tooltip.style.display = "none";
   };
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
-    return [min - ((min + 1) * 0.05), max + ((max + 1) * 0.05)];
+    return min && max ? [min - (min * 0.25), max + (max * 0.25)] : [-1, 1];
   };
 
   const getScales = (): Scales => {
