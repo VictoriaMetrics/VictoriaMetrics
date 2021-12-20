@@ -57,7 +57,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1640012887043,
+  "iteration": 1640012887049,
   "links": [
     {
       "icon": "doc",
@@ -4145,7 +4145,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 7
           },
           "hiddenSeries": false,
           "id": 100,
@@ -4239,7 +4239,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 7
           },
           "hiddenSeries": false,
           "id": 113,
@@ -4333,7 +4333,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 16,
@@ -4428,7 +4428,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 14,
@@ -4538,7 +4538,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 23
           },
           "hiddenSeries": false,
           "id": 18,
@@ -4632,7 +4632,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 23
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4726,7 +4726,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 54,
@@ -4818,7 +4818,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 55,
@@ -4904,7 +4904,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 63
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 135,
@@ -4995,7 +4995,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 63
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 22,
@@ -5085,7 +5085,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 71
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 141,
@@ -5181,7 +5181,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 71
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 133,
@@ -5645,7 +5645,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 33
+            "y": 9
           },
           "hiddenSeries": false,
           "id": 97,
@@ -5739,7 +5739,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 33
+            "y": 9
           },
           "hiddenSeries": false,
           "id": 99,
@@ -5838,6 +5838,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "",
@@ -5847,13 +5848,13 @@
             },
             "overrides": []
           },
-          "fill": 6,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 17
           },
           "hiddenSeries": false,
           "id": 90,
@@ -5881,30 +5882,23 @@
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "/write.*/",
-              "transform": "negative-Y"
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
-          "stack": false,
+          "stack": true,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
               "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "read - {{instance}}",
+              "legendFormat": "{{instance}}",
               "refId": "A"
-            },
-            {
-              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "write - {{instance}}",
-              "refId": "B"
             }
           ],
           "thresholds": [],
@@ -5959,7 +5953,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 17
           },
           "hiddenSeries": false,
           "id": 88,
@@ -6055,7 +6049,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 25
           },
           "hiddenSeries": false,
           "id": 139,
@@ -6164,7 +6158,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 25
           },
           "hiddenSeries": false,
           "id": 114,
