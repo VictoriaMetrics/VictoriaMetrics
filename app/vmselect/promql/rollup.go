@@ -164,12 +164,13 @@ var rollupFuncsCanAdjustWindow = map[string]bool{
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
-	"increase":        true,
-	"increase_pure":   true,
-	"irate":           true,
-	"rate":            true,
-	"rollup_increase": true,
-	"rollup_rate":     true,
+	"increase":            true,
+	"increase_prometheus": true,
+	"increase_pure":       true,
+	"irate":               true,
+	"rate":                true,
+	"rollup_increase":     true,
+	"rollup_rate":         true,
 }
 
 // These functions don't change physical meaning of input time series,
@@ -1492,51 +1493,12 @@ func rollupDeltaPrometheus(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
-	prevValue := rfa.prevValue
-	if math.IsNaN(prevValue) {
-		if len(values) == 0 {
-			return nan
-		}
-		if !math.IsNaN(rfa.realPrevValue) {
-			// Assume that the value didn't change during the current gap.
-			// This should fix high delta() and increase() values at the end of gaps.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
-			return values[len(values)-1] - rfa.realPrevValue
-		}
-		// Assume that the previous non-existing value was 0 only in the following cases:
-		//
-		// - If the delta with the next value equals to 0.
-		//   This is the case for slow-changing counter - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962
-		// - If the first value doesn't exceed too much the delta with the next value.
-		//
-		// This should prevent from improper increase() results for os-level counters
-		// such as cpu time or bytes sent over the network interface.
-		// These counters may start long ago before the first value appears in the db.
-		//
-		// This also should prevent from improper increase() results when a part of label values are changed
-		// without counter reset.
-		var d float64
-		if len(values) > 1 {
-			d = values[1] - values[0]
-		} else if !math.IsNaN(rfa.realNextValue) {
-			d = rfa.realNextValue - values[0]
-		}
-		if d == 0 {
-			d = 10
-		}
-		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
-			//prevValue = 0
-			prevValue = values[0]
-		} else {
-			prevValue = values[0]
-			values = values[1:]
-		}
+	// Just return the difference between the last and the first sample like Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1962
+	if len(values) < 2 {
+		return nan
 	}
-	if len(values) == 0 {
-		// Assume that the value didn't change on the given interval.
-		return 0
-	}
-	return values[len(values)-1] - prevValue
+	return values[len(values)-1] - values[0]
 }
 
 func rollupIdelta(rfa *rollupFuncArg) float64 {
@@ -1702,17 +1664,14 @@ func rollupChangesPrometheus(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
-	prevValue := rfa.prevValue
-	n := 0
-	if math.IsNaN(prevValue) {
-		if len(values) == 0 {
-			return nan
-		}
-		prevValue = values[0]
-		values = values[1:]
-		//n++
+	// Do not take into account rfa.prevValue like Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1962
+	if len(values) < 1 {
+		return nan
 	}
-	for _, v := range values {
+	prevValue := values[0]
+	n := 0
+	for _, v := range values[1:] {
 		if v != prevValue {
 			n++
 			prevValue = v
