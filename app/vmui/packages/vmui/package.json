@@ -5,7 +5,7 @@
   "homepage": "./",
   "dependencies": {
     "@codemirror/autocomplete": "^0.19.9",
-    "@codemirror/basic-setup": "^0.19.0",
+    "@codemirror/basic-setup": "^0.19.1",
     "@codemirror/commands": "^0.19.6",
     "@codemirror/highlight": "^0.19.6",
     "@codemirror/state": "^0.19.6",
