@@ -92,7 +92,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### changes
 
-`changes(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL.
+`changes(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Unlike `changes()` in Prometheus it takes into account the change from the last sample before the given lookbehind window `d`. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [changes_prometheus](#changes_prometheus).
+
+#### changes_prometheus
+
+`changes_prometheus(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It doesn't take into account the change from the last sample before the given lookbehind window `d` in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [changes](#changes).
 
 #### count_eq_over_time
 
@@ -124,7 +128,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### delta
 
-`delta(series_selector[d])` calculates the difference between the first and the last point over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase](#increase).
+`delta(series_selector[d])` calculates the difference between the last sample before the given lookbehind window `d` and the last sample at the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The behaviour of `delta()` function in MetricsQL is slighly different to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
+
+#### delta_prometheus
+
+`delta_prometheus(series_selector[d])` calculates the difference between the first and the last samples at the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The behaviour of `delta_prometheus()` is close to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. See also [delta](#delta).
 
 #### deriv
 
@@ -180,7 +188,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### increase
 
-`increase(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase_pure](#increase_pure) and [delta](#delta).
+`increase(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Unlike Prometheus it takes into account the last sample before the given lookbehind window `d` when calculating the result. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase_pure](#increase_pure), [increase_prometheus](#increase_prometheus) and [delta](#delta).
+
+#### increase_prometheus
+
+`increase_prometheus(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase_pure](#increase_pure) and [increase](#increase).
 
 #### increase_pure
 
