@@ -330,3 +330,11 @@ Please see [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-da
 ## How to migrate data from Graphite to VictoriaMetrics?
 
 Please use [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading the data from Graphite and pushing it to VictoriaMetrics via [Graphite import API](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+
+
+## Why do same metrics have differences in VictoriaMetrics and Prometheus dashboards?
+
+There could be a slight difference in stored values for time series. Due to different compression algorithms, VM may reduce precision for float values with more than 12 significant decimal digits. Please see [this article](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
+
+The query engine may behave differently for some functions. Please see [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
+
