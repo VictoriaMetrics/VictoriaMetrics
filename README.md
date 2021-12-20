@@ -837,7 +837,7 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
-The [deduplication](#deduplication) isn't applied for the data exported in CSV. It is expected that the de-duplication is performed during data import.
+The [deduplication](#deduplication) is applied for the data exported in CSV by default. It is possible to export raw data without de-duplication by passing `reduce_mem_usage=1` query arg to `/api/v1/export/csv`.
 
 
 ### How to export data in native format
@@ -1439,6 +1439,18 @@ VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+
+
+## Benchmarks
+
+Note, that vendors (including VictoriaMetrics) are often biased when doing such tests. E.g. they try highlighting 
+the best parts of their product, while highlighting the worst parts of competing products. 
+So we encourage users and all independent third parties to conduct their becnhmarks for various products 
+they are evaluating in production and publish the results.
+
+As a reference, please see [benchmarks](https://docs.victoriametrics.com/Articles.html#benchmarks) conducted by
+VictoriaMetrics team. Please also see the [helm chart](https://github.com/VictoriaMetrics/benchmark) 
+for running ingestion benchmarks based on node_exporter metrics.
 
 
 ## Profiling

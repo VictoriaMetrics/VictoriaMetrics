@@ -6270,6 +6270,22 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`increase_prometheus(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `increase_prometheus(time())`
+		f(q, nil)
+	})
+	t.Run(`increase_prometheus(time()[201s])`, func(t *testing.T) {
+		t.Parallel()
+		q := `increase_prometheus(time()[201s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`running_max(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `running_max(1)`
@@ -6507,6 +6523,22 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`delta_prometheus(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `delta_prometheus(time())`
+		f(q, nil)
+	})
+	t.Run(`delta_prometheus(time()[201s])`, func(t *testing.T) {
+		t.Parallel()
+		q := `delta_prometheus(time()[201s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7503,6 +7535,12 @@ func TestExecError(t *testing.T) {
 	f(`bitmap_xor()`)
 	f(`quantiles()`)
 	f(`limit_offset()`)
+	f(`increase()`)
+	f(`increase_prometheus()`)
+	f(`changes()`)
+	f(`changes_prometheus()`)
+	f(`delta()`)
+	f(`delta_prometheus()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
