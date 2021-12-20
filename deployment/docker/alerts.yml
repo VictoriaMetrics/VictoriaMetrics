@@ -216,6 +216,16 @@ groups:
           description: "Vmagent dropped {{ $value | humanize1024 }} from persistent queue
               on instance {{ $labels.instance }} for the last 10m."
 
+      - alert: RejectedRemoteWriteDataBlocksAreDropped
+        expr: sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) by (job, instance) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=79&var-instance={{ $labels.instance }}"
+          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} drops the rejected by 
+          remote-write server data blocks. Check the logs to find the reason for rejects."
+
       - alert: TooManyScrapeErrors
         expr: sum(increase(vm_promscrape_scrapes_failed_total[5m])) by (job, instance) > 0
         for: 15m
