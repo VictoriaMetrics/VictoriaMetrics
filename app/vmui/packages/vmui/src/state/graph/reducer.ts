@@ -21,7 +21,7 @@ export interface GraphState {
 
 export type GraphAction =
   | { type: "TOGGLE_ENABLE_YAXIS_LIMITS" }
-  | { type: "SET_YAXIS_LIMITS", payload: { [key: string]: [number, number] } }
+  | { type: "SET_YAXIS_LIMITS", payload: AxisRange }
   | { type: "TOGGLE_CUSTOM_STEP" }
   | { type: "SET_CUSTOM_STEP", payload: number}
 

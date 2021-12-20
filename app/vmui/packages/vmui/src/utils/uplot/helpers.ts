@@ -15,6 +15,10 @@ export const defaultOptions = {
     focus: {
       prox: 30
     },
+    points: {
+      size: 5.6,
+      width: 1.4
+    },
     bind: {
       mouseup: (): null => null,
       mousedown: (): null => null,

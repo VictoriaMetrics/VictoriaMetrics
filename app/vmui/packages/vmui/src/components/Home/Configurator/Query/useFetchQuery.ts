@@ -18,7 +18,7 @@ export const useFetchQuery = (): {
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
 } => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
+  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, autoRefresh}} = useAppState();
 
   const {basicData, bearerData, authMethod} = useAuthState();
   const {customStep} = useGraphState();
@@ -37,7 +37,7 @@ export const useFetchQuery = (): {
   }, [error]);
 
   const needUpdateData = useMemo(() => {
-    if (!prevPeriod) return true;
+    if (!prevPeriod || autoRefresh) return true;
     const duration = (prevPeriod.end - prevPeriod.start) / 3;
     const factorLimit = duration / (period.end - period.start) >= 0.7;
     const maxLimit = period.end > (prevPeriod.end + duration);
