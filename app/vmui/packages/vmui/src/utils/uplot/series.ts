@@ -10,10 +10,14 @@ export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series => 
   return {
     label,
     dash: getDashLine(d.group),
-    width: 1.5,
+    width: 1.4,
     stroke: getColorLine(d.group, label),
     show: !includesHideSeries(label, d.group, hideSeries),
-    scale: String(d.group)
+    scale: String(d.group),
+    points: {
+      size: 4.2,
+      width: 1.4
+    }
   };
 };
 
