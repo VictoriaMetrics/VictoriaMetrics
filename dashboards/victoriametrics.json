@@ -1,5 +1,6 @@
 {
   "__inputs": [],
+  "__elements": [],
   "__requires": [
     {
       "type": "grafana",
@@ -56,7 +57,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1640005385220,
+  "iteration": 1640012035445,
   "links": [
     {
       "icon": "doc",
@@ -110,7 +111,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -142,7 +144,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -173,7 +175,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -205,7 +208,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -237,7 +240,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -269,7 +273,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -300,7 +304,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -332,7 +337,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -363,7 +368,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -395,7 +401,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -426,7 +432,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -458,7 +465,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -489,7 +496,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -521,7 +529,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -552,7 +560,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -584,7 +593,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "targets": [
             {
               "exemplar": true,
@@ -733,7 +742,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3025,7 +3034,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "sum(vm_rpc_vmstorage_is_read_only{job=~\"$job_insert\", instance=~\"$instance\"}) by(instance, addr)",
@@ -3063,6 +3072,98 @@
               "format": "short",
               "logBase": 1,
               "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 20
+          },
+          "hiddenSeries": false,
+          "id": 144,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "vm_cache_size_bytes{job=~\"$job_storage\", instance=~\"$instance\"} / vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "{{ instance }} / {{ type }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Cache usage % by vmstorage ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:107",
+              "format": "percentunit",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:108",
+              "format": "short",
+              "logBase": 1,
               "show": true
             }
           ],
@@ -3943,7 +4044,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 100,
@@ -4037,7 +4138,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 113,
@@ -4131,7 +4232,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 16,
@@ -4226,7 +4327,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 39
           },
           "hiddenSeries": false,
           "id": 14,
@@ -4336,7 +4437,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 18,
@@ -4430,7 +4531,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4524,7 +4625,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 54,
@@ -4616,7 +4717,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 55,
@@ -4702,7 +4803,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 135,
@@ -4793,7 +4894,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 22,
@@ -4874,7 +4975,7 @@
           "dashes": false,
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Value > 0 means vmstorage is in readonly mode.",
           "fill": 1,
@@ -4883,7 +4984,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 141,
@@ -4922,7 +5023,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "vm_storage_is_read_only{job=~\"$job_storage\", instance=~\"$instance\"}",
@@ -4979,7 +5080,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 133,
@@ -5026,7 +5127,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "max(vm_concurrent_addrows_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
@@ -5037,7 +5138,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "sum(avg_over_time(vm_concurrent_addrows_current{job=~\"$job_storage\", instance=~\"$instance\"}[1m])) by(instance)",
