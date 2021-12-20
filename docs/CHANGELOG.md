@@ -6,6 +6,9 @@ sort: 15
 
 ## tip
 
+
+## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)
+
 * FEATURE: [VictoriaMetrics enterprise](https://victoriametrics.com/enterprise.html): add multi-level downsampling support. See [these docs](https://docs.victoriametrics.com/#downsampling) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to analyze the correlation between two queries on a single graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1916).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to override the interval between returned datapoints. By default it is automatically calculated depending on the selected time range and horizontal resolution of the graph. Now it is possible to override it with custom values. This may be useful during data exploration and debugging.
