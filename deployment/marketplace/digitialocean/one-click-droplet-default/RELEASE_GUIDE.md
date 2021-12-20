@@ -2,7 +2,7 @@
 
 ### Build image
 
-To build the snapshot in DigitalOcean account you will need API Token and [packer](https://learn.hashicorp.com/tutorials/packer/get-started-install-cli)
+To build the snapshot in DigitalOcean account you will need API Token.
 API Token can be generated on [https://cloud.digitalocean.com/account/api/tokens](https://cloud.digitalocean.com/account/api/tokens) or use already generated from OnePassword.
 
 Set variable `DIGITALOCEAN_API_TOKEN` for environment:
@@ -10,7 +10,6 @@ Set variable `DIGITALOCEAN_API_TOKEN` for environment:
 ```bash
 export DIGITALOCEAN_API_TOKEN="your_token_here"
 ```
-
 or set it by with make:
 
 ```bash
