@@ -91,19 +91,6 @@ groups:
             Having less than 20% of free disk space could cripple merges processes and overall performance.
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
-      - alert: InsufficientDiskSpaceForMerges
-        expr: |
-          vm_merge_need_free_disk_space > 0
-        for: 30m
-        labels:
-          severity: critical
-        annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=88&var-instance={{ $labels.instance }}"
-          summary: "Instance {{ $labels.instance }} has insufficient disk space for performing data merges"
-          description: "Lack of disk space prevents VictoriaMetrics to run efficiently, 
-            decreases compression ratio and increases number of files on disk.
-            Consider extending the disk size or decreasing retention. "
-
       - alert: RequestErrorsToAPI
         expr: increase(vm_http_request_errors_total[5m]) > 0
         for: 15m
