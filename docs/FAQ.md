@@ -282,6 +282,13 @@ If old time series are constantly substituted by new time series at a high rate,
 * Increased size of inverted index, which is stored at `<-storageDataPath>/indexdb`, since the inverted index contains entries for every label of every time series with at least a single ingested sample
 * Slow down of queries over multiple days.
 
+The main reason for high churn rate is a metric label with frequently changed value. Examples of such labels:
+
+* `queryid`, which changes with each query at `postgres_exporter`.
+* `app_name` or `deployment_id`, which changes with each new deployment in Kubernetes.
+* A label derived from the current time such as `timestamp`, `minute` or `hour`.
+* A `hash` or `uuid` label, which changes frequently.
+
 The solution against high churn rate is to identify and eliminate labels with frequently changed values. The [/api/v1/status/tsdb](https://docs.victoriametrics.com/#tsdb-stats) page can help determining these labels.
 
 
