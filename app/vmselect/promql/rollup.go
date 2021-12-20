@@ -24,6 +24,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"ascent_over_time":       newRollupFuncOneArg(rollupAscentOverTime),
 	"avg_over_time":          newRollupFuncOneArg(rollupAvg),
 	"changes":                newRollupFuncOneArg(rollupChanges),
+	"changes_prometheus":     newRollupFuncOneArg(rollupChangesPrometheus),
 	"count_eq_over_time":     newRollupCountEQ,
 	"count_gt_over_time":     newRollupCountGT,
 	"count_le_over_time":     newRollupCountLE,
@@ -32,6 +33,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"decreases_over_time":    newRollupFuncOneArg(rollupDecreases),
 	"default_rollup":         newRollupFuncOneArg(rollupDefault), // default rollup func
 	"delta":                  newRollupFuncOneArg(rollupDelta),
+	"delta_prometheus":       newRollupFuncOneArg(rollupDeltaPrometheus),
 	"deriv":                  newRollupFuncOneArg(rollupDerivSlow),
 	"deriv_fast":             newRollupFuncOneArg(rollupDerivFast),
 	"descent_over_time":      newRollupFuncOneArg(rollupDescentOverTime),
@@ -45,8 +47,9 @@ var rollupFuncs = map[string]newRollupFunc{
 	"holt_winters":           newRollupHoltWinters,
 	"idelta":                 newRollupFuncOneArg(rollupIdelta),
 	"ideriv":                 newRollupFuncOneArg(rollupIderiv),
-	"increase":               newRollupFuncOneArg(rollupDelta),        // + rollupFuncsRemoveCounterResets
-	"increase_pure":          newRollupFuncOneArg(rollupIncreasePure), // + rollupFuncsRemoveCounterResets
+	"increase":               newRollupFuncOneArg(rollupDelta),           // + rollupFuncsRemoveCounterResets
+	"increase_prometheus":    newRollupFuncOneArg(rollupDeltaPrometheus), // + rollupFuncsRemoveCounterResets
+	"increase_pure":          newRollupFuncOneArg(rollupIncreasePure),    // + rollupFuncsRemoveCounterResets
 	"increases_over_time":    newRollupFuncOneArg(rollupIncreases),
 	"integrate":              newRollupFuncOneArg(rollupIntegrate),
 	"irate":                  newRollupFuncOneArg(rollupIderiv), // + rollupFuncsRemoveCounterResets
@@ -1485,6 +1488,57 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 	return values[len(values)-1] - prevValue
 }
 
+func rollupDeltaPrometheus(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	prevValue := rfa.prevValue
+	if math.IsNaN(prevValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		if !math.IsNaN(rfa.realPrevValue) {
+			// Assume that the value didn't change during the current gap.
+			// This should fix high delta() and increase() values at the end of gaps.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			return values[len(values)-1] - rfa.realPrevValue
+		}
+		// Assume that the previous non-existing value was 0 only in the following cases:
+		//
+		// - If the delta with the next value equals to 0.
+		//   This is the case for slow-changing counter - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962
+		// - If the first value doesn't exceed too much the delta with the next value.
+		//
+		// This should prevent from improper increase() results for os-level counters
+		// such as cpu time or bytes sent over the network interface.
+		// These counters may start long ago before the first value appears in the db.
+		//
+		// This also should prevent from improper increase() results when a part of label values are changed
+		// without counter reset.
+		var d float64
+		if len(values) > 1 {
+			d = values[1] - values[0]
+		} else if !math.IsNaN(rfa.realNextValue) {
+			d = rfa.realNextValue - values[0]
+		}
+		if d == 0 {
+			d = 10
+		}
+		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
+			//prevValue = 0
+			prevValue = values[0]
+		} else {
+			prevValue = values[0]
+			values = values[1:]
+		}
+	}
+	if len(values) == 0 {
+		// Assume that the value didn't change on the given interval.
+		return 0
+	}
+	return values[len(values)-1] - prevValue
+}
+
 func rollupIdelta(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
@@ -1642,6 +1696,29 @@ func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return (float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) / 1e3) / float64(len(timestamps))
+}
+
+func rollupChangesPrometheus(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	prevValue := rfa.prevValue
+	n := 0
+	if math.IsNaN(prevValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		prevValue = values[0]
+		values = values[1:]
+		//n++
+	}
+	for _, v := range values {
+		if v != prevValue {
+			n++
+			prevValue = v
+		}
+	}
+	return float64(n)
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {
