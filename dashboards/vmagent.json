@@ -58,12 +58,12 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmagent v1.64.0 or higher",
+  "description": "Overview for VictoriaMetrics vmagent v1.70.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1639978702214,
+  "iteration": 1639980687827,
   "links": [
     {
       "icon": "doc",
@@ -1380,7 +1380,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 10
           },
           "hiddenSeries": false,
           "id": 48,
@@ -1472,7 +1472,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 10
           },
           "hiddenSeries": false,
           "id": 76,
@@ -1550,6 +1550,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1564,7 +1565,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 17
           },
           "hiddenSeries": false,
           "id": 20,
@@ -1602,12 +1603,21 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+              },
+              "exemplar": true,
               "expr": "sum(rate(vm_promscrape_scrapes_total{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
               "interval": "",
               "legendFormat": "scrapes",
               "refId": "A"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+              },
               "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
               "interval": "",
               "legendFormat": "samples",
@@ -1666,7 +1676,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 17
           },
           "hiddenSeries": false,
           "id": 31,
@@ -1774,7 +1784,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 25
           },
           "hiddenSeries": false,
           "id": 46,
@@ -1869,7 +1879,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 34
+            "y": 25
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -1944,7 +1954,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 73,
@@ -2044,7 +2054,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 77,
@@ -2144,7 +2154,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 78,
@@ -2237,7 +2247,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 50,
@@ -2346,7 +2356,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2439,7 +2449,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2531,7 +2541,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 61,
@@ -2623,7 +2633,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 65,
@@ -2712,7 +2722,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 28
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2771,7 +2781,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 28
           },
           "hiddenSeries": false,
           "id": 84,
@@ -2872,7 +2882,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 36
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2928,7 +2938,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 36
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2979,7 +2989,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 88,
@@ -3082,7 +3092,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 90,
@@ -3353,6 +3363,224 @@
               "show": true
             },
             {
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows saturation persistent queue for writes. If the threshold of 0.9sec is reached, then persistent is saturated by more than 90% and vmagent won't be able to keep up with flushing data on disk. In this case, consider to decrease load on the vmagent or improve the disk throughput.",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          },
+          "hiddenSeries": false,
+          "id": 98,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+              },
+              "exemplar": true,
+              "expr": "sum(rate(vm_persistentqueue_write_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) by (instance)",
+              "interval": "",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [
+            {
+              "$$hashKey": "object:683",
+              "colorMode": "critical",
+              "fill": true,
+              "line": true,
+              "op": "gt",
+              "value": 0.9,
+              "yaxis": "left"
+            }
+          ],
+          "timeRegions": [],
+          "title": "Persistent queue write saturation ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:662",
+              "format": "s",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:663",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows saturation persistent queue for reads. If the threshold of 0.9sec is reached, then persistent is saturated by more than 90% and vmagent won't be able to keep up with reading data from the disk. In this case, consider to decrease load on the vmagent or improve the disk throughput.",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 13
+          },
+          "hiddenSeries": false,
+          "id": 99,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+              },
+              "exemplar": true,
+              "expr": "sum(rate(vm_persistentqueue_read_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) by (instance)",
+              "interval": "",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [
+            {
+              "$$hashKey": "object:683",
+              "colorMode": "critical",
+              "fill": true,
+              "line": true,
+              "op": "gt",
+              "value": 0.9,
+              "yaxis": "left"
+            }
+          ],
+          "timeRegions": [],
+          "title": "Persistent queue read saturation ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:662",
+              "format": "s",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:663",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -4201,8 +4429,8 @@
       {
         "current": {
           "selected": true,
-          "text": "VictoriaMetrics",
-          "value": "VictoriaMetrics"
+          "text": "dbaas-test-t3-medium-inst",
+          "value": "dbaas-test-t3-medium-inst"
         },
         "hide": 0,
         "includeAll": false,
