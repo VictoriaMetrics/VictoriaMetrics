@@ -1,14 +1,14 @@
-import React, {FC, useEffect, useState} from "react";
+import React, {FC, useEffect, useMemo, useState} from "react";
 import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import Legend from "../../Legend/Legend";
-import {useGraphDispatch} from "../../../state/graph/GraphStateContext";
+import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
 import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
 import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
-import {AxisRange} from "../../../state/graph/reducer";
 import GraphSettings from "../Configurator/Graph/GraphSettings";
+import {useAppState} from "../../../state/common/StateContext";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -16,16 +16,17 @@ export interface GraphViewProps {
 
 const GraphView: FC<GraphViewProps> = ({data = []}) => {
   const graphDispatch = useGraphDispatch();
+  const {time: {period}} = useAppState();
+  const { customStep } = useGraphState();
+  const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItem[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
-  const [valuesLimit, setValuesLimit] = useState<AxisRange>({"1": [0, 1]});
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
     const limits = getLimitsYAxis(values);
-    setValuesLimit(limits);
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
   };
 
@@ -50,9 +51,12 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
       });
     });
 
-    const timeSeries = getTimeSeries(tempTimes);
+    const timeSeries = getTimeSeries(tempTimes, currentStep, period);
     setDataChart([timeSeries, ...data.map(d => {
-      return new Array(timeSeries.length).fill(1).map((v, i) => d.values[i] ? +d.values[i][1] : null);
+      return timeSeries.map(t => {
+        const value = d.values.find(v => v[0] === t);
+        return value ? +value[1] : null;
+      });
     })] as uPlotData);
     setLimitsYaxis(tempValues);
 
@@ -79,7 +83,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
     {(data.length > 0)
       ? <div>
         <GraphSettings/>
-        <LineChart data={dataChart} series={series} metrics={data} limits={valuesLimit}/>
+        <LineChart data={dataChart} series={series} metrics={data}/>
         <Legend labels={legend} onChange={onChangeLegend}/>
       </div>
       : <div style={{textAlign: "center"}}>No data to show</div>}

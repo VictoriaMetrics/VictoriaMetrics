@@ -4,6 +4,7 @@ import {getColorLine} from "./helpers";
 
 export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset}: SetupTooltip): void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
+  if (seriesIdx === null || dataIdx === undefined) return;
   const dataSeries = u.data[seriesIdx][dataIdx];
   const dataTime = u.data[0][dataIdx];
   const metric = metrics[seriesIdx - 1]?.metric || {};

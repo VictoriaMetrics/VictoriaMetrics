@@ -1605,7 +1605,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "sum(rate(vm_promscrape_scrapes_total{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
@@ -1616,7 +1616,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+                "uid": "$ds"
               },
               "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
               "interval": "",
@@ -3429,7 +3429,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "sum(rate(vm_persistentqueue_write_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) by (instance)",
@@ -3538,7 +3538,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_DBAAS-TEST-T3-MEDIUM-INST}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "sum(rate(vm_persistentqueue_read_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) by (instance)",
