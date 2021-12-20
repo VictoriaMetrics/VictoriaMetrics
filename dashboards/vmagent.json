@@ -63,7 +63,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1639728958322,
+  "iteration": 1639978702214,
   "links": [
     {
       "icon": "doc",
@@ -1380,7 +1380,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 48,
@@ -1472,7 +1472,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 76,
@@ -1564,7 +1564,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 20,
@@ -1666,7 +1666,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 31,
@@ -1774,7 +1774,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 56
+            "y": 34
           },
           "hiddenSeries": false,
           "id": 46,
@@ -1869,7 +1869,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 56
+            "y": 34
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -1944,7 +1944,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 42
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 73,
@@ -1968,7 +1968,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2044,7 +2044,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 42
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 77,
@@ -2068,7 +2068,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2144,7 +2144,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 28
           },
           "hiddenSeries": false,
           "id": 78,
@@ -2168,7 +2168,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2237,7 +2237,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 28
           },
           "hiddenSeries": false,
           "id": 50,
@@ -2260,7 +2260,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.1.2",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2346,7 +2346,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2369,7 +2369,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2439,7 +2439,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2462,7 +2462,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2531,7 +2531,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 61,
@@ -2554,7 +2554,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2623,7 +2623,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 65,
@@ -2646,7 +2646,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2712,7 +2712,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 20
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2771,7 +2771,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 84,
@@ -2794,7 +2794,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2872,7 +2872,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 75
+            "y": 28
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2928,7 +2928,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 75
+            "y": 28
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2979,7 +2979,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 83
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 88,
@@ -2999,7 +2999,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3082,7 +3082,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 83
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 90,
@@ -3102,7 +3102,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.2.0",
+          "pluginVersion": "8.3.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3176,6 +3176,198 @@
     },
     {
       "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 94,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "uid": "$ds"
+          },
+          "description": "Shows top 5 job by the number of new series registered by vmagent over the 5min range. These jobs generate the most of the churn rate.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 5
+          },
+          "hiddenSeries": false,
+          "id": 92,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$ds"
+              },
+              "exemplar": false,
+              "expr": "topk(5, sum(sum_over_time(scrape_series_added[5m])) by (job))",
+              "interval": "",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Top 5 jobs by unique samples",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "uid": "$ds"
+          },
+          "description": "Shows top 5 instances by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "hiddenSeries": false,
+          "id": 95,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.2",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$ds"
+              },
+              "exemplar": false,
+              "expr": "topk(5, sum(sum_over_time(scrape_series_added[5m])) by (instance))",
+              "interval": "",
+              "legendFormat": "{{ instance }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Top 5 instances by unique samples",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        }
+      ],
+      "title": "Troubleshooting",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
       "datasource": {
         "uid": "$ds"
       },
@@ -3183,7 +3375,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 44
       },
       "id": 45,
       "panels": [
@@ -3208,7 +3400,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 14
           },
           "hiddenSeries": false,
           "id": 35,
@@ -3307,7 +3499,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 14
           },
           "hiddenSeries": false,
           "id": 37,
@@ -3414,7 +3606,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 22
           },
           "hiddenSeries": false,
           "id": 81,
@@ -3523,7 +3715,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 22
           },
           "hiddenSeries": false,
           "id": 7,
@@ -3625,7 +3817,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 68
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 83,
@@ -3733,7 +3925,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 68
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 39,
@@ -3827,7 +4019,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 76
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 43,
@@ -3919,7 +4111,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 76
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 41,
@@ -4008,7 +4200,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },
