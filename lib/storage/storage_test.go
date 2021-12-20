@@ -362,7 +362,7 @@ func TestNextRetentionDuration(t *testing.T) {
 		if d <= 0 {
 			currTime := time.Now().UTC()
 			nextTime := time.Now().UTC().Add(d)
-			t.Fatalf("unexected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
+			t.Fatalf("unexpected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
 		}
 	}
 }
