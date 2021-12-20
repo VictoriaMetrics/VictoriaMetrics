@@ -11,7 +11,7 @@ import {limitsDurations} from "../../utils/time";
 import throttle from "lodash.throttle";
 import "uplot/dist/uPlot.min.css";
 import "./tooltip.css";
-import useWindowSize from "../../hooks/useWindowSize";
+import useResize from "../../hooks/useResize";
 
 export interface LineChartProps {
     metrics: MetricResult[];
@@ -28,7 +28,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
-  const windowSize = useWindowSize();
+  const layoutSize = useResize(document.getElementById("homeLayout"));
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
@@ -103,7 +103,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
     series,
     axes: getAxes(series),
     scales: {...getScales()},
-    width: windowSize.width ? windowSize.width - 64 : 400,
+    width: layoutSize.width ? layoutSize.width - 64 : 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
   };
 
@@ -134,7 +134,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
     setUPlotInst(u);
     setXRange({min: period.start, max: period.end});
     return u.destroy;
-  }, [uPlotRef.current, series, windowSize]);
+  }, [uPlotRef.current, series, layoutSize]);
 
   useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
