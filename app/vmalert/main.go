@@ -98,7 +98,7 @@ func main() {
 			logger.Fatalf("failed to init remoteWrite: %s", err)
 		}
 		if rw == nil {
-			logger.Fatalf("remoteWrite.url can't be empty")
+			logger.Fatalf("remoteWrite.url can't be empty in replay mode")
 		}
 		notifier.InitTemplateFunc(eu)
 		groupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
