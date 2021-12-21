@@ -7,14 +7,14 @@ import (
 
 var (
 	logThrottlerRegistryMu = sync.Mutex{}
-	logThrottlerRegistry   = make(map[string]*logThrottler)
+	logThrottlerRegistry   = make(map[string]*LogThrottler)
 )
 
-// WithThrottler returns a logger throttled by time - only
-// one message in throttle duration will be logged.
+// WithThrottler returns a logger throttled by time - only one message in throttle duration will be logged.
+//
 // New logger is created only once for each unique name passed.
-// Thread-safe.
-func WithThrottler(name string, throttle time.Duration) *logThrottler {
+// The function is thread-safe.
+func WithThrottler(name string, throttle time.Duration) *LogThrottler {
 	logThrottlerRegistryMu.Lock()
 	defer logThrottlerRegistryMu.Unlock()
 
@@ -30,15 +30,20 @@ func WithThrottler(name string, throttle time.Duration) *logThrottler {
 	return lt
 }
 
-type logThrottler struct {
+// LogThrottler is a logger, which throttles log messages passed to Warnf and Errorf.
+//
+// LogThrottler must be created via WithThrottler() call.
+type LogThrottler struct {
 	ch chan struct{}
 
 	warnF  func(format string, args ...interface{})
 	errorF func(format string, args ...interface{})
 }
 
-func newLogThrottler(throttle time.Duration) *logThrottler {
-	lt := &logThrottler{ch: make(chan struct{}, 1)}
+func newLogThrottler(throttle time.Duration) *LogThrottler {
+	lt := &LogThrottler{
+		ch: make(chan struct{}, 1),
+	}
 	go func() {
 		for {
 			<-lt.ch
@@ -49,7 +54,7 @@ func newLogThrottler(throttle time.Duration) *logThrottler {
 }
 
 // Errorf logs error message.
-func (lt *logThrottler) Errorf(format string, args ...interface{}) {
+func (lt *LogThrottler) Errorf(format string, args ...interface{}) {
 	select {
 	case lt.ch <- struct{}{}:
 		lt.errorF(format, args...)
@@ -58,7 +63,7 @@ func (lt *logThrottler) Errorf(format string, args ...interface{}) {
 }
 
 // Warnf logs warn message.
-func (lt *logThrottler) Warnf(format string, args ...interface{}) {
+func (lt *LogThrottler) Warnf(format string, args ...interface{}) {
 	select {
 	case lt.ch <- struct{}{}:
 		lt.warnF(format, args...)
