@@ -4,6 +4,7 @@
 *.pprof
 /bin
 .idea
+.vscode
 *.test
 *.swp
 /gocache-for-docker
