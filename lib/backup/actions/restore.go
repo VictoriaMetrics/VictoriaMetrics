@@ -3,6 +3,8 @@ package actions
 import (
 	"fmt"
 	"io"
+	"os"
+	"path"
 	"sync/atomic"
 	"time"
 
@@ -44,6 +46,9 @@ func (r *Restore) Run() error {
 	// Make sure VictoriaMetrics doesn't run during the restore process.
 	if err := fs.MkdirAllIfNotExist(r.Dst.Dir); err != nil {
 		return fmt.Errorf("cannot create dir %q: %w", r.Dst.Dir, err)
+	}
+	if err := createRestoreLock(r.Dst.Dir); err != nil {
+		return err
 	}
 	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
 	if err != nil {
@@ -189,7 +194,7 @@ func (r *Restore) Run() error {
 	logger.Infof("restored %d bytes from backup in %.3f seconds; deleted %d bytes; downloaded %d bytes",
 		backupSize, time.Since(startTime).Seconds(), deleteSize, downloadSize)
 
-	return nil
+	return removeLockFile(r.Dst.Dir)
 }
 
 type statWriter struct {
@@ -201,4 +206,21 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.w.Write(p)
 	atomic.AddUint64(sw.bytesWritten, uint64(n))
 	return n, err
+}
+
+func createRestoreLock(dst string) error {
+	lockF := path.Join(dst, "restore.lock")
+	f, err := os.Create(lockF)
+	if err != nil {
+		return fmt.Errorf("cannot create restore lock file at: %q, err: %w", lockF, err)
+	}
+	return f.Close()
+}
+
+func removeLockFile(dst string) error {
+	lockF := path.Join(dst, "restore.lock")
+	if err := os.Remove(lockF); err != nil {
+		return fmt.Errorf("cannote remove restore lock file at: %q, err: %w", lockF, err)
+	}
+	return nil
 }
