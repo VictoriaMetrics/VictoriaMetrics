@@ -1,10 +1,18 @@
 /* eslint max-lines: 0 */
 import {DisplayType} from "../../components/Home/Configurator/DisplayTypeSwitch";
 import {TimeParams, TimePeriod} from "../../types";
-import {dateFromSeconds, formatDateToLocal, getDateNowUTC, getDurationFromPeriod, getTimeperiodForDuration} from "../../utils/time";
+import {
+  dateFromSeconds,
+  formatDateToLocal,
+  getDateNowUTC,
+  getDurationFromPeriod,
+  getTimeperiodForDuration,
+  getDurationFromMilliseconds
+} from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
 import {getDefaultServer} from "../../utils/default-server-url";
 import {getQueryArray, getQueryStringValue} from "../../utils/query-string";
+import dayjs from "dayjs";
 
 export interface TimeState {
   duration: string;
@@ -37,6 +45,7 @@ export type Action =
     | { type: "SET_QUERY_HISTORY", payload: QueryHistory[] }
     | { type: "SET_DURATION", payload: string }
     | { type: "SET_UNTIL", payload: Date }
+    | { type: "SET_FROM", payload: Date }
     | { type: "SET_PERIOD", payload: TimePeriod }
     | { type: "RUN_QUERY"}
     | { type: "RUN_QUERY_TO_NOW"}
@@ -107,6 +116,21 @@ export function reducer(state: AppState, action: Action): AppState {
         time: {
           ...state.time,
           period: getTimeperiodForDuration(state.time.duration, action.payload)
+        }
+      };
+    case "SET_FROM":
+      // eslint-disable-next-line no-case-declarations
+      const durationFrom = getDurationFromMilliseconds(state.time.period.end*1000 - action.payload.valueOf());
+      return {
+        ...state,
+        queryControls: {
+          ...state.queryControls,
+          autoRefresh: false // since we're considering this to action to be fired from period selection on chart
+        },
+        time: {
+          ...state.time,
+          duration: durationFrom,
+          period: getTimeperiodForDuration(durationFrom, dayjs(state.time.period.end*1000).toDate())
         }
       };
     case "SET_PERIOD":
