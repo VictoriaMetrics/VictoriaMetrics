@@ -1924,7 +1924,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
-		logger.Warnf("warn occurred during rows addition: %s", firstWarn)
+		logger.WithThrottler("storageAddRows", 5*time.Second).Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
@@ -1959,6 +1959,8 @@ func (s *Storage) isSeriesCardinalityExceeded(metricID uint64, metricNameRaw []b
 func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
+		// Do not use logger.WithThrottler() here, since this will result in increased CPU load
+		// because of getUserReadableMetricName() calls per each logSkippedSeries call.
 		logger.Warnf("skip series %s because %s=%d reached", getUserReadableMetricName(metricNameRaw), flagName, flagValue)
 	default:
 	}
