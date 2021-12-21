@@ -159,13 +159,15 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 		}
 	}
 	q.Set("query", query)
-	if s.evaluationInterval > 0 {
-		// set step as evaluationInterval by default
-		q.Set("step", s.evaluationInterval.String())
+	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
+		// always convert to seconds to keep compatibility with older
+		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
+		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
 	}
-	if s.queryStep > 0 {
-		// override step with user-specified value
-		q.Set("step", s.queryStep.String())
+	if s.queryStep > 0 { // override step with user-specified value
+		// always convert to seconds to keep compatibility with older
+		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
+		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
 }

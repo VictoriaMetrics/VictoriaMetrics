@@ -24,6 +24,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"ascent_over_time":       newRollupFuncOneArg(rollupAscentOverTime),
 	"avg_over_time":          newRollupFuncOneArg(rollupAvg),
 	"changes":                newRollupFuncOneArg(rollupChanges),
+	"changes_prometheus":     newRollupFuncOneArg(rollupChangesPrometheus),
 	"count_eq_over_time":     newRollupCountEQ,
 	"count_gt_over_time":     newRollupCountGT,
 	"count_le_over_time":     newRollupCountLE,
@@ -32,6 +33,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"decreases_over_time":    newRollupFuncOneArg(rollupDecreases),
 	"default_rollup":         newRollupFuncOneArg(rollupDefault), // default rollup func
 	"delta":                  newRollupFuncOneArg(rollupDelta),
+	"delta_prometheus":       newRollupFuncOneArg(rollupDeltaPrometheus),
 	"deriv":                  newRollupFuncOneArg(rollupDerivSlow),
 	"deriv_fast":             newRollupFuncOneArg(rollupDerivFast),
 	"descent_over_time":      newRollupFuncOneArg(rollupDescentOverTime),
@@ -45,8 +47,9 @@ var rollupFuncs = map[string]newRollupFunc{
 	"holt_winters":           newRollupHoltWinters,
 	"idelta":                 newRollupFuncOneArg(rollupIdelta),
 	"ideriv":                 newRollupFuncOneArg(rollupIderiv),
-	"increase":               newRollupFuncOneArg(rollupDelta),        // + rollupFuncsRemoveCounterResets
-	"increase_pure":          newRollupFuncOneArg(rollupIncreasePure), // + rollupFuncsRemoveCounterResets
+	"increase":               newRollupFuncOneArg(rollupDelta),           // + rollupFuncsRemoveCounterResets
+	"increase_prometheus":    newRollupFuncOneArg(rollupDeltaPrometheus), // + rollupFuncsRemoveCounterResets
+	"increase_pure":          newRollupFuncOneArg(rollupIncreasePure),    // + rollupFuncsRemoveCounterResets
 	"increases_over_time":    newRollupFuncOneArg(rollupIncreases),
 	"integrate":              newRollupFuncOneArg(rollupIntegrate),
 	"irate":                  newRollupFuncOneArg(rollupIderiv), // + rollupFuncsRemoveCounterResets
@@ -161,12 +164,13 @@ var rollupFuncsCanAdjustWindow = map[string]bool{
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
-	"increase":        true,
-	"increase_pure":   true,
-	"irate":           true,
-	"rate":            true,
-	"rollup_increase": true,
-	"rollup_rate":     true,
+	"increase":            true,
+	"increase_prometheus": true,
+	"increase_pure":       true,
+	"irate":               true,
+	"rate":                true,
+	"rollup_increase":     true,
+	"rollup_rate":         true,
 }
 
 // These functions don't change physical meaning of input time series,
@@ -1485,6 +1489,18 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 	return values[len(values)-1] - prevValue
 }
 
+func rollupDeltaPrometheus(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	// Just return the difference between the last and the first sample like Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1962
+	if len(values) < 2 {
+		return nan
+	}
+	return values[len(values)-1] - values[0]
+}
+
 func rollupIdelta(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
@@ -1642,6 +1658,26 @@ func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return (float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) / 1e3) / float64(len(timestamps))
+}
+
+func rollupChangesPrometheus(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	// Do not take into account rfa.prevValue like Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1962
+	if len(values) < 1 {
+		return nan
+	}
+	prevValue := values[0]
+	n := 0
+	for _, v := range values[1:] {
+		if v != prevValue {
+			n++
+			prevValue = v
+		}
+	}
+	return float64(n)
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {

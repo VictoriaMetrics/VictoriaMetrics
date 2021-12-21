@@ -11,8 +11,8 @@ export interface SetupTooltip {
         top: number
     },
     tooltipIdx: {
-        seriesIdx: number,
-        dataIdx: number
+        seriesIdx: number | null,
+        dataIdx: number | undefined
     }
 }
 

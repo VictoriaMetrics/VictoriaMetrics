@@ -82,7 +82,7 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 		t.Helper()
 		pcs, err := ParseRelabelConfigs(rcs, false)
 		if err != nil {
-			t.Fatalf("unexected error: %s", err)
+			t.Fatalf("unexpected error: %s", err)
 		}
 		if !reflect.DeepEqual(pcs, pcsExpected) {
 			t.Fatalf("unexpected pcs; got\n%#v\nwant\n%#v", pcs, pcsExpected)

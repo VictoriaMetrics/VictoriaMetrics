@@ -5,7 +5,7 @@
   "homepage": "./",
   "dependencies": {
     "@codemirror/autocomplete": "^0.19.9",
-    "@codemirror/basic-setup": "^0.19.0",
+    "@codemirror/basic-setup": "^0.19.1",
     "@codemirror/commands": "^0.19.6",
     "@codemirror/highlight": "^0.19.6",
     "@codemirror/state": "^0.19.6",
@@ -13,9 +13,9 @@
     "@date-io/dayjs": "^2.11.0",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
-    "@mui/icons-material": "^5.2.1",
-    "@mui/lab": "^5.0.0-alpha.59",
-    "@mui/material": "^5.2.3",
+    "@mui/icons-material": "^5.2.4",
+    "@mui/lab": "^5.0.0-alpha.60",
+    "@mui/material": "^5.2.4",
     "@mui/styles": "^5.2.3",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/react": "^12.1.2",
@@ -24,7 +24,7 @@
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.get": "^4.4.6",
     "@types/lodash.throttle": "^4.1.6",
-    "@types/node": "^16.11.12",
+    "@types/node": "^17.0.1",
     "@types/numeral": "^2.0.2",
     "@types/qs": "^6.9.7",
     "@types/react": "^17.0.37",
@@ -41,9 +41,9 @@
     "react-dom": "^17.0.2",
     "react-draggable": "^4.4.4",
     "react-measure": "^2.5.2",
-    "react-scripts": "4.0.3",
-    "typescript": "~4.5.3",
-    "uplot": "^1.6.17",
+    "react-scripts": "5.0.0",
+    "typescript": "~4.5.4",
+    "uplot": "^1.6.18",
     "web-vitals": "^2.1.2"
   },
   "scripts": {
@@ -73,9 +73,9 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.0",
-    "@typescript-eslint/eslint-plugin": "^5.6.0",
-    "@typescript-eslint/parser": "^5.6.0",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.5",
+    "@typescript-eslint/eslint-plugin": "^5.7.0",
+    "@typescript-eslint/parser": "^5.7.0",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.27.1",
     "react-app-rewired": "^2.1.8"

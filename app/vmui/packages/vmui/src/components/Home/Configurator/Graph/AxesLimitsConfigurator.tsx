@@ -15,6 +15,7 @@ const AxesLimitsConfigurator: FC = () => {
   const onChangeLimit = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, axis: string, index: number) => {
     const newLimits = yaxis.limits.range;
     newLimits[axis][index] = +e.target.value;
+    if (newLimits[axis][0] === newLimits[axis][1] || newLimits[axis][0] > newLimits[axis][1]) return;
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: newLimits});
   };
   const debouncedOnChangeLimit = useCallback(debounce(onChangeLimit, 500), [yaxis.limits.range]);

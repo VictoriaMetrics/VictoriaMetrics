@@ -129,6 +129,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
+	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
 	deadline := searchutils.GetDeadlineForExport(r, startTime)
 	tagFilterss, err := getTagFilterssFromRequest(r)
 	if err != nil {
@@ -140,30 +141,58 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	defer bufferedwriter.Put(bw)
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
-	doneCh := make(chan error)
-	go func() {
-		err := netstorage.ExportBlocks(sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
-			if err := bw.Error(); err != nil {
-				return err
-			}
-			if err := b.UnmarshalData(); err != nil {
-				return fmt.Errorf("cannot unmarshal block during export: %s", err)
-			}
-			xb := exportBlockPool.Get().(*exportBlock)
-			xb.mn = mn
-			xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
-			if len(xb.timestamps) > 0 {
-				bb := quicktemplate.AcquireByteBuffer()
-				WriteExportCSVLine(bb, xb, fieldNames)
-				resultsCh <- bb
-			}
-			xb.reset()
-			exportBlockPool.Put(xb)
-			return nil
-		})
-		close(resultsCh)
-		doneCh <- err
-	}()
+	writeCSVLine := func(xb *exportBlock) {
+		if len(xb.timestamps) == 0 {
+			return
+		}
+		bb := quicktemplate.AcquireByteBuffer()
+		WriteExportCSVLine(bb, xb, fieldNames)
+		resultsCh <- bb
+	}
+	doneCh := make(chan error, 1)
+	if !reduceMemUsage {
+		rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		go func() {
+			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+				if err := bw.Error(); err != nil {
+					return err
+				}
+				xb := exportBlockPool.Get().(*exportBlock)
+				xb.mn = &rs.MetricName
+				xb.timestamps = rs.Timestamps
+				xb.values = rs.Values
+				writeCSVLine(xb)
+				xb.reset()
+				exportBlockPool.Put(xb)
+				return nil
+			})
+			close(resultsCh)
+			doneCh <- err
+		}()
+	} else {
+		go func() {
+			err := netstorage.ExportBlocks(sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+				if err := bw.Error(); err != nil {
+					return err
+				}
+				if err := b.UnmarshalData(); err != nil {
+					return fmt.Errorf("cannot unmarshal block during export: %s", err)
+				}
+				xb := exportBlockPool.Get().(*exportBlock)
+				xb.mn = mn
+				xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
+				writeCSVLine(xb)
+				xb.reset()
+				exportBlockPool.Put(xb)
+				return nil
+			})
+			close(resultsCh)
+			doneCh <- err
+		}()
+	}
 	// Consume all the data from resultsCh.
 	for bb := range resultsCh {
 		// Do not check for error in bw.Write, since this error is checked inside netstorage.ExportBlocks above.
@@ -360,7 +389,7 @@ func exportHandler(w http.ResponseWriter, matches []string, etfs [][]storage.Tag
 	defer bufferedwriter.Put(bw)
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
-	doneCh := make(chan error)
+	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
 		rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
 		if err != nil {
