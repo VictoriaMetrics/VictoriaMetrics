@@ -181,6 +181,12 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 	s.flockF = flockF
 
+	// Check whether restore process finished successfully
+	restoreLockF := path + "/restore-in-progress"
+	if fs.IsPathExist(restoreLockF) {
+		return nil, fmt.Errorf("restore lock file exists, incomplete vmrestore run. Run vmrestore again or remove lock file %q", restoreLockF)
+	}
+
 	// Pre-create snapshots directory if it is missing.
 	snapshotsPath := path + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {

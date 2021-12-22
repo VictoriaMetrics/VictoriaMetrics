@@ -72,9 +72,8 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 		if name == "." || name == ".." {
 			continue
 		}
-		if name == "flock.lock" {
-			// Do not take into account flock.lock files, since they are used
-			// for preventing from concurrent access.
+		if isSpecialFile(name) {
+			// Do not take into account special files.
 			continue
 		}
 		path := dir + "/" + name
@@ -135,6 +134,10 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 	return dst, nil
 }
 
+func isSpecialFile(name string) bool {
+	return name == "flock.lock" || name == "restore-in-progress"
+}
+
 // RemoveEmptyDirs recursively removes empty directories under the given dir.
 func RemoveEmptyDirs(dir string) error {
 	_, err := removeEmptyDirs(dir)
@@ -173,7 +176,6 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		return false, fmt.Errorf("cannot read directory contents in %q: %w", dir, err)
 	}
 	dirEntries := 0
-	hasFlock := false
 	for _, fi := range fis {
 		name := fi.Name()
 		if name == "." || name == ".." {
@@ -192,11 +194,10 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 			continue
 		}
 		if fi.Mode()&os.ModeSymlink != os.ModeSymlink {
-			if name == "flock.lock" {
-				hasFlock = true
+			if isSpecialFile(name) {
+				// Do not take into account special files
 				continue
 			}
-			// Skip plain files.
 			dirEntries++
 			continue
 		}
@@ -248,14 +249,9 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	if dirEntries > 0 {
 		return false, nil
 	}
-	logger.Infof("removing empty dir %q", dir)
-	if hasFlock {
-		flockFilepath := dir + "/flock.lock"
-		if err := os.Remove(flockFilepath); err != nil {
-			return false, fmt.Errorf("cannot remove %q: %w", flockFilepath, err)
-		}
-	}
-	if err := os.Remove(dir); err != nil {
+	// Use os.RemoveAll() instead of os.Remove(), since the dir may contain special files such as flock.lock and restore-in-progress,
+	// which must be ingored.
+	if err := os.RemoveAll(dir); err != nil {
 		return false, fmt.Errorf("cannot remove %q: %w", dir, err)
 	}
 	return true, nil
