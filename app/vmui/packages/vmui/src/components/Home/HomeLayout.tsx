@@ -16,7 +16,7 @@ const HomeLayout: FC = () => {
   const {isLoading, liveData, graphData, error} = useFetchQuery();
 
   return (
-    <>
+    <Box id="homeLayout">
       <AppBar position="static">
         <Toolbar>
           <Box display="flex">
@@ -49,7 +49,7 @@ const HomeLayout: FC = () => {
       </AppBar>
       <Box p={4} display="grid" gridTemplateRows="auto 1fr" gap={"20px"} style={{minHeight: "calc(100vh - 64px)"}}>
         <Box>
-          <QueryConfigurator/>
+          <QueryConfigurator error={error}/>
         </Box>
         <Box height={"100%"}>
           {isLoading && <Fade in={isLoading} style={{
@@ -68,7 +68,7 @@ const HomeLayout: FC = () => {
           </Fade>}
           {<Box height={"100%"} bgcolor={"#fff"}>
             {error &&
-              <Alert color="error" severity="error" style={{fontSize: "14px"}}>
+              <Alert color="error" severity="error" style={{fontSize: "14px", whiteSpace: "pre-wrap"}}>
                 {error}
               </Alert>}
             {graphData && period && (displayType === "chart") &&
@@ -78,7 +78,7 @@ const HomeLayout: FC = () => {
           </Box>}
         </Box>
       </Box>
-    </>
+    </Box>
   );
 };
 

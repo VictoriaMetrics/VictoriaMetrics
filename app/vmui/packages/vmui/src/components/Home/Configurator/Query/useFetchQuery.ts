@@ -4,23 +4,29 @@ import {useAppState} from "../../../../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
 import {isValidHttpUrl} from "../../../../utils/url";
 import {useAuthState} from "../../../../state/auth/AuthStateContext";
-import {TimeParams} from "../../../../types";
+import {ErrorTypes, TimeParams} from "../../../../types";
+import {useGraphState} from "../../../../state/graph/GraphStateContext";
+import {getAppModeEnable, getAppModeParams} from "../../../../utils/app-mode";
+
+const appModeEnable = getAppModeEnable();
+const {serverURL: appServerUrl} = getAppModeParams();
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
-  error?: string,
+  error?: ErrorTypes | string,
 } => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
+  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, autoRefresh}} = useAppState();
 
   const {basicData, bearerData, authMethod} = useAuthState();
+  const {customStep} = useGraphState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<ErrorTypes | string>();
   const [prevPeriod, setPrevPeriod] = useState<TimeParams>();
 
   useEffect(() => {
@@ -31,7 +37,7 @@ export const useFetchQuery = (): {
   }, [error]);
 
   const needUpdateData = useMemo(() => {
-    if (!prevPeriod) return true;
+    if (!prevPeriod || autoRefresh) return true;
     const duration = (prevPeriod.end - prevPeriod.start) / 3;
     const factorLimit = duration / (period.end - period.start) >= 0.7;
     const maxLimit = period.end > (prevPeriod.end + duration);
@@ -57,8 +63,8 @@ export const useFetchQuery = (): {
       const tempData = [];
       let counter = 1;
       for await (const response of responses) {
+        const resp = await response.json();
         if (response.ok) {
-          const resp = await response.json();
           setError(undefined);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
@@ -66,45 +72,46 @@ export const useFetchQuery = (): {
           }));
           counter++;
         } else {
-          setError((await response.json())?.error);
+          setError(`${resp.errorType}\r\n${resp?.error}`);
         }
       }
       displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
     } catch (e) {
-      if (e instanceof Error) setError(e.message);
+      if (e instanceof Error) setError(`${e.name}: ${e.message}`);
     }
 
     setIsLoading(false);
   };
 
   const fetchUrl = useMemo(() => {
+    const server = appModeEnable ? appServerUrl : serverUrl;
     if (!period) return;
-    if (!serverUrl) {
-      setError("Please enter Server URL");
+    if (!server) {
+      setError(ErrorTypes.emptyServer);
     } else if (query.every(q => !q.trim())) {
-      setError("Please enter a valid Query and execute it");
-    } else if (isValidHttpUrl(serverUrl)) {
+      setError(ErrorTypes.validQuery);
+    } else if (isValidHttpUrl(server)) {
       const duration = (period.end - period.start) / 2;
       const bufferPeriod = {...period, start: period.start - duration, end: period.end + duration};
+      if (customStep.enable) bufferPeriod.step = customStep.value;
       return query.filter(q => q.trim()).map(q => displayType === "chart"
-        ? getQueryRangeUrl(serverUrl, q, bufferPeriod, nocache)
-        : getQueryUrl(serverUrl, q, period));
+        ? getQueryRangeUrl(server, q, bufferPeriod, nocache)
+        : getQueryUrl(server, q, period));
     } else {
-      setError("Please provide a valid URL");
+      setError(ErrorTypes.validServer);
     }
   },
-  [serverUrl, period, displayType]);
+  [serverUrl, period, displayType, customStep]);
 
   useEffect(() => {
     setPrevPeriod(undefined);
-    fetchData();
   }, [query]);
 
   // TODO: this should depend on query as well, but need to decide when to do the request.
   //       Doing it on each query change - looks to be a bad idea. Probably can be done on blur
   useEffect(() => {
     fetchData();
-  }, [serverUrl, displayType]);
+  }, [serverUrl, displayType, customStep]);
 
   useEffect(() => {
     if (needUpdateData) {

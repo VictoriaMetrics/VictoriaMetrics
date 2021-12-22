@@ -593,6 +593,29 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("timestamp(alias(time()>=1600))", func(t *testing.T) {
+		t.Parallel()
+		q := `timestamp(alias(time()>=1600,"foo"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("timestamp_with_name(alias(time()>=1600))", func(t *testing.T) {
+		t.Parallel()
+		q := `timestamp_with_name(alias(time()>=1600,"foo"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foo")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time()/100", func(t *testing.T) {
 		t.Parallel()
 		q := `time()/100`
@@ -2053,6 +2076,24 @@ func TestExecSuccess(t *testing.T) {
 			Value: []byte("rty"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`limit_offset`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 1, sort_by_label((
+			label_set(time()*1, "foo", "y"),
+			label_set(time()*2, "foo", "a"),
+			label_set(time()*3, "foo", "x"),
+		), "foo"))`
+		r := netstorage.Result{
+			Values:     []float64{3000, 3600, 4200, 4800, 5400, 6000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("x"),
+		}}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`sum(label_graphite_group)`, func(t *testing.T) {
@@ -5161,21 +5202,6 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
-	t.Run(`limit_offset()`, func(t *testing.T) {
-		t.Parallel()
-		q := `limit_offset(1, 0, (label_set(10, "foo", "bar"), label_set(time()/150, "xbaz", "sss")))`
-		r1 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{10, 10, 10, 10, 10, 10},
-			Timestamps: timestampsExpected,
-		}
-		r1.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("bar"),
-		}}
-		resultExpected := []netstorage.Result{r1}
-		f(q, resultExpected)
-	})
 	t.Run(`limitk(10)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(limitk(10, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
@@ -6244,6 +6270,22 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`increase_prometheus(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `increase_prometheus(time())`
+		f(q, nil)
+	})
+	t.Run(`increase_prometheus(time()[201s])`, func(t *testing.T) {
+		t.Parallel()
+		q := `increase_prometheus(time()[201s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`running_max(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `running_max(1)`
@@ -6481,6 +6523,22 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`delta_prometheus(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `delta_prometheus(time())`
+		f(q, nil)
+	})
+	t.Run(`delta_prometheus(time()[201s])`, func(t *testing.T) {
+		t.Parallel()
+		q := `delta_prometheus(time()[201s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7379,6 +7437,7 @@ func TestExecError(t *testing.T) {
 	f(`sort_by_label()`)
 	f(`sort_by_label_desc()`)
 	f(`timestamp()`)
+	f(`timestamp_with_name()`)
 	f(`vector()`)
 	f(`histogram_quantile()`)
 	f(`histogram_quantiles()`)
@@ -7476,6 +7535,12 @@ func TestExecError(t *testing.T) {
 	f(`bitmap_xor()`)
 	f(`quantiles()`)
 	f(`limit_offset()`)
+	f(`increase()`)
+	f(`increase_prometheus()`)
+	f(`changes()`)
+	f(`changes_prometheus()`)
+	f(`delta()`)
+	f(`delta_prometheus()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

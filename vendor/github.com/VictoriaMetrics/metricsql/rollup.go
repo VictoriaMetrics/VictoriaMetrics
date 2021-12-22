@@ -10,6 +10,7 @@ var rollupFuncs = map[string]bool{
 	"ascent_over_time":       true,
 	"avg_over_time":          true,
 	"changes":                true,
+	"changes_prometheus":     true,
 	"count_eq_over_time":     true,
 	"count_gt_over_time":     true,
 	"count_le_over_time":     true,
@@ -18,6 +19,7 @@ var rollupFuncs = map[string]bool{
 	"decreases_over_time":    true,
 	"default_rollup":         true,
 	"delta":                  true,
+	"delta_prometheus":       true,
 	"deriv":                  true,
 	"deriv_fast":             true,
 	"descent_over_time":      true,
@@ -32,6 +34,7 @@ var rollupFuncs = map[string]bool{
 	"idelta":                 true,
 	"ideriv":                 true,
 	"increase":               true,
+	"increase_prometheus":    true,
 	"increase_pure":          true,
 	"increases_over_time":    true,
 	"integrate":              true,
@@ -68,11 +71,12 @@ var rollupFuncs = map[string]bool{
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
-	"timestamp":        true,
-	"tlast_over_time":  true,
-	"tmax_over_time":   true,
-	"tmin_over_time":   true,
-	"zscore_over_time": true,
+	"timestamp":           true,
+	"timestamp_with_name": true,
+	"tlast_over_time":     true,
+	"tmax_over_time":      true,
+	"tmin_over_time":      true,
+	"zscore_over_time":    true,
 }
 
 // IsRollupFunc returns whether funcName is known rollup function.

@@ -420,8 +420,14 @@ The `/api/v1/export` endpoint should return the following response:
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
 * [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
+* [Prometheus querying API](#prometheus-querying-api-usage). See also [selecting Graphite metrics](#selecting-graphite-metrics).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
+
+## Selecting Graphite metrics
+
+VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
+
+The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`. They are transparently converted to `{value1,...,valueN}` syntax [used in Graphite](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). This allows using [multi-value template variables in Grafana](https://grafana.com/docs/grafana/latest/variables/formatting-multi-value-variables/) inside `__graphite__` pseudo-label. For example, Grafana expands `{__graphite__=~"foo.($bar).baz"}` into `{__graphite__=~"foo.(x|y).baz"}` if `$bar` template variable contains `x` and `y` values. In this case the query is automatically converted into `{__graphite__=~"foo.{x,y}.baz"}` before execution.
 
 ## How to send data from OpenTSDB-compatible agents
 
@@ -563,8 +569,7 @@ VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_va
 
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
-VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
-For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function.
+VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). See [these docs](#selecting-graphite-metrics).
 
 
 ### Graphite Render API usage
@@ -614,6 +619,8 @@ The UI allows exploring query results via graphs and tables. Graphs support scro
 Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
 When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
+
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
 
 VMUI allows investigating correlations between two queries on the same graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
 
@@ -834,7 +841,7 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
-The [deduplication](#deduplication) isn't applied for the data exported in CSV. It is expected that the de-duplication is performed during data import.
+The [deduplication](#deduplication) is applied for the data exported in CSV by default. It is possible to export raw data without de-duplication by passing `reduce_mem_usage=1` query arg to `/api/v1/export/csv`.
 
 
 ### How to export data in native format
@@ -1080,7 +1087,7 @@ It is recommended leaving the following amounts of spare resources:
 
 * 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
 * 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
-* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag.
+* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line flag description [here](#list-of-command-line-flags).
 
 
 ## High availability
@@ -1168,20 +1175,15 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ## Downsampling
 
-There is no downsampling support at the moment, but:
+[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
 
-* VictoriaMetrics is optimized for querying big amounts of raw data. See benchmark results for heavy queries
-  in [this article](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-* VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
-  for details.
-* The downsampling doesn't improve query performance on a long time range if the time range contains big number of time series due to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The query performance depends on the number of unique time series on the selected time range, while downsampling doesn't reduce the number of unique time series in the database - it can reduce only the number of samples per each time series.
+* `-downsampling.period=30d:5m` instructs VictoriaMetrics to [deduplicate](#deduplication) samples older than 30 days with 5 minutes interval.
 
-These properties reduce the need of downsampling. We plan to implement downsampling in the future.
-See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
+* `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
-It is possible to (ab)use [-dedup.minScrapeInterval](#deduplication) for basic downsampling.
-For instance, if interval between the ingested data points is 15s, then `-dedup.minScrapeInterval=5m` will leave
-only a single data point out of 20 initial data points per each 5m interval.
+Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. It is possible to use recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to reduce the number of time series. See [these docs](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
+
+The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Multi-tenancy
@@ -1379,9 +1381,7 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
-* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then use `{__graphite__="foo.*.baz"}` syntax for selecting such metrics.
-  This expression is equivalent to `{__name__=~"foo[.][^.]*[.]baz"}`, but it works faster and it is easier to use when migrating from Graphite.
-  See also [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function, which allows extracting the given groups from Graphite metric names.
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics. See [these docs](#selecting-graphite-metrics) for details.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
@@ -1445,6 +1445,18 @@ VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+
+
+## Benchmarks
+
+Note, that vendors (including VictoriaMetrics) are often biased when doing such tests. E.g. they try highlighting 
+the best parts of their product, while highlighting the worst parts of competing products. 
+So we encourage users and all independent third parties to conduct their becnhmarks for various products 
+they are evaluating in production and publish the results.
+
+As a reference, please see [benchmarks](https://docs.victoriametrics.com/Articles.html#benchmarks) conducted by
+VictoriaMetrics team. Please also see the [helm chart](https://github.com/VictoriaMetrics/benchmark) 
+for running ingestion benchmarks based on node_exporter metrics.
 
 
 ## Profiling
@@ -1574,11 +1586,14 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum size in bytes of a single DataDog POST request to /api/v1/series
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -dedup.minScrapeInterval duration
-    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+    	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
   -deleteAuthKey string
     	authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
     	Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+  -downsampling.period array
+    	Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
+    	Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
     	Whether to check only -promscrape.config and then exit. Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
   -enableTCP6
@@ -1587,6 +1602,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -finalMergeDelay duration
     	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -forceFlushAuthKey string
@@ -1771,6 +1788,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to disable automatic response cache reset if a sample with timestamp outside -search.cacheTimestampOffset is inserted into VictoriaMetrics
   -search.disableCache
     	Whether to disable response caching. This may be useful during data backfilling
+  -search.graphiteMaxPointsPerSeries int
+    	The maximum number of points per series Graphite render API can return (default 1000000)
+  -search.graphiteStorageStep duration
+    	The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overriden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
     	The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration

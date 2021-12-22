@@ -24,8 +24,13 @@ export interface DataSeries extends MetricBase{
   values: DataValue[]; // sorted by key which is timestamp
 }
 
-
 export interface InstantDataSeries {
   metadata: string[]; // just ordered columns
   value: string;
+}
+
+export enum ErrorTypes {
+  emptyServer = "Please enter Server URL",
+  validServer = "Please provide a valid Server URL",
+  validQuery = "Please enter a valid Query and execute it"
 }

@@ -30,7 +30,7 @@ MetricsQL implements [PromQL](https://medium.com/@valyala/promql-tutorial-for-be
 
 This functionality can be evaluated at [an editable Grafana dashboard](https://play-grafana.victoriametrics.com/d/4ome8yJmz/node-exporter-on-victoriametrics-demo) or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
-- Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. This is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but usually works faster and is easier to use when migrating from Graphite. VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details. See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
+- Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics). VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details. See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
 - Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)). For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`. It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
 - [Aggregate functions](#aggregate-functions) accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 - [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier), lookbehind window in square brackets and `step` value for [subquery](#subqueries) may refer to the current step aka `$__interval` value from Grafana with `[Ni]` syntax. For instance, `rate(metric[10i] offset 5i)` would return per-second rate over a range covering 10 previous steps with the offset of 5 steps.
@@ -92,7 +92,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### changes
 
-`changes(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL.
+`changes(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Unlike `changes()` in Prometheus it takes into account the change from the last sample before the given lookbehind window `d`. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [changes_prometheus](#changes_prometheus).
+
+#### changes_prometheus
+
+`changes_prometheus(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It doesn't take into account the change from the last sample before the given lookbehind window `d` in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [changes](#changes).
 
 #### count_eq_over_time
 
@@ -124,7 +128,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### delta
 
-`delta(series_selector[d])` calculates the difference between the first and the last point over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase](#increase).
+`delta(series_selector[d])` calculates the difference between the last sample before the given lookbehind window `d` and the last sample at the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The behaviour of `delta()` function in MetricsQL is slighly different to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
+
+#### delta_prometheus
+
+`delta_prometheus(series_selector[d])` calculates the difference between the first and the last samples at the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The behaviour of `delta_prometheus()` is close to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. See also [delta](#delta).
 
 #### deriv
 
@@ -180,7 +188,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### increase
 
-`increase(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase_pure](#increase_pure) and [delta](#delta).
+`increase(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Unlike Prometheus it takes into account the last sample before the given lookbehind window `d` when calculating the result. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase_pure](#increase_pure), [increase_prometheus](#increase_prometheus) and [delta](#delta).
+
+#### increase_prometheus
+
+`increase_prometheus(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [increase_pure](#increase_pure) and [increase](#increase).
 
 #### increase_pure
 
@@ -316,7 +328,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### timestamp
 
-`timestamp(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL.
+`timestamp(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [timestamp_with_name](#timestamp_with_name).
+
+#### timestamp_with_name
+
+`timestamp_with_name(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are preserved in the resulting rollups. See also [timestamp](#timestamp).
 
 #### tfirst_over_time
 
@@ -486,6 +502,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 #### keep_next_value
 
 `keep_next_value(q)` fills gaps with the value of the next non-empty point in every time series returned by `q`. See also [keep_last_value](#keep_last_value) and [interpolate](#interpolate).
+
+#### limit_offset
+
+`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series per each group. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
 
 #### ln
 
@@ -823,11 +843,6 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `histogram(q)` calculates [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) per each group of points with the same timestamp. Useful for visualizing big number of time series via a heatmap. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
 
-#### limit_offset
-
-`limit_offset(limit, offset, q)` skips `offset` time series from series returned by `q` and then returns up to `limit` of the remaining time series. This allows implementing simple paging for `q` time series. See also [limitk](#limitk).
-
-
 #### limitk
 
 `limitk(k, q) by (group_labels)` returns up to `k` time series per each `group_labels` out of time series returned by `q`. The returned set of time series remain the same across calls. See also [limit_offset](#limit_offset).
@@ -915,11 +930,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 ## Subqueries
 
-MetricsQL supports and extends PromQL subqueries. See [this article](https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3) for details. Any nested [rollup functions](#rollup-functions) form a subquery. Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions). For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m[1i]))[1i:1i])`, so it becomes a subquery, since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
+MetricsQL supports and extends PromQL subqueries. See [this article](https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3) for details. Any [rollup function](#rollup-functions) for something other than [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) form a subquery. Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions). For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m[1i]))[1i:1i])`, so it becomes a subquery, since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
 
 VictoriaMetrics performs subqueries in the following way:
 
-* It calculates the inner rollup function using the `step` value from the outer rollup function. For example, if `max_over_time(rate(http_requests_total[5m])[1h:30s])` is executed, then the `rate(http_requests_total[5m])` is calculated with the `step` equal to `30s`. The resulting data points are algined by the `step`.
+* It calculates the inner rollup function using the `step` value from the outer rollup function. For example, for expression `max_over_time(rate(http_requests_total[5m])[1h:30s])` the inner function `rate(http_requests_total[5m])` is calculated with `step=30s`. The resulting data points are aligned by the `step`.
 * It calculates the outer rollup function over the results of the inner rollup function using the `step` value passed by Grafana to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
 
 

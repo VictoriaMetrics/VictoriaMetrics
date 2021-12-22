@@ -7,8 +7,7 @@ body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
 /*Material UI global classes*/
@@ -17,33 +16,80 @@ code {
   margin: 0 !important;
 }
 
+/*Codemirror classes*/
+
 /* TODO: find better way to override codemirror styles */
 .cm-activeLine {
   background-color: inherit !important;
 }
 .cm-editor {
+  border: none;
   border-radius: 4px;
-  border-color: #b9b9b9;
-  border-style: solid;
-  border-width: 1px;
   font-size: 10px;
-}
-
-.one-line-scroll .cm-editor {
-  height: 40px;
 }
 
 .cm-gutters {
   border-radius: 4px 0 0 4px;
   height: 100%;
+  overflow: hidden;
+  background-color: #FFFFFF !important;
+  border: none !important;
 }
 
-.multi-line-scroll .cm-content,
-.multi-line-scroll .cm-gutters {
-  min-height: 38px !important;
+.cm-activeLineGutter {
+  background-color: #FFFFFF !important;
 }
 
-.one-line-scroll .cm-content,
-.one-line-scroll .cm-gutters {
-  min-height: auto;
+.query-editor .cm-scroller {
+  align-items: center !important;
+}
+
+.query-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.query-editor-container {
+  position: relative;
+  padding: 12px;
+  border: 1px solid #b9b9b9;
+  border-radius: 4px;
+}
+
+.query-editor-container_focus {
+  border: 1px solid #3F51B5;
+}
+
+.query-editor-container_error {
+  border-color: #FF4141;
+}
+
+.query-editor-container-one-line .query-editor .cm-editor {
+  height: 22px;
+}
+
+.query-editor-container-one-line {
+  padding: 6px;
+}
+
+.query-editor-label {
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: normal;
+  color: rgba(0, 0, 0, 0.6);
+  padding: 0 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(133% - 24px);
+  position: absolute;
+  left: 4px;
+  top: -0.71875em;
+  z-index: 1;
+  background-color: #FFFFFF;
+  transform: scale(0.75);
+}
+
+.query-editor-container_error .query-editor-label {
+  color: #FF4141;
 }

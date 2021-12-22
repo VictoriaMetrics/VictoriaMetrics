@@ -31,7 +31,8 @@ type table struct {
 
 	stop chan struct{}
 
-	retentionWatcherWG sync.WaitGroup
+	retentionWatcherWG  sync.WaitGroup
+	finalDedupWatcherWG sync.WaitGroup
 }
 
 // partitionWrapper provides refcounting mechanism for the partition.
@@ -135,6 +136,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 		tb.addPartitionNolock(pt)
 	}
 	tb.startRetentionWatcher()
+	tb.startFinalDedupWatcher()
 	return tb, nil
 }
 
@@ -193,6 +195,7 @@ func (tb *table) addPartitionNolock(pt *partition) {
 func (tb *table) MustClose() {
 	close(tb.stop)
 	tb.retentionWatcherWG.Wait()
+	tb.finalDedupWatcherWG.Wait()
 
 	tb.ptwsLock.Lock()
 	ptws := tb.ptws
@@ -431,6 +434,47 @@ func (tb *table) retentionWatcher() {
 		for _, ptw := range ptwsDrop {
 			ptw.scheduleToDrop()
 			ptw.decRef()
+		}
+	}
+}
+
+func (tb *table) startFinalDedupWatcher() {
+	tb.finalDedupWatcherWG.Add(1)
+	go func() {
+		tb.finalDedupWatcher()
+		tb.finalDedupWatcherWG.Done()
+	}()
+}
+
+func (tb *table) finalDedupWatcher() {
+	if !isDedupEnabled() {
+		// Deduplication is disabled.
+		return
+	}
+	f := func() {
+		ptws := tb.GetPartitions(nil)
+		defer tb.PutPartitions(ptws)
+		timestamp := timestampFromTime(time.Now())
+		currentPartitionName := timestampToPartitionName(timestamp)
+		for _, ptw := range ptws {
+			if ptw.pt.name == currentPartitionName {
+				// Do not run final dedup for the current month.
+				continue
+			}
+			if err := ptw.pt.runFinalDedup(); err != nil {
+				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
+				continue
+			}
+		}
+	}
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-tb.stop:
+			return
+		case <-t.C:
+			f()
 		}
 	}
 }

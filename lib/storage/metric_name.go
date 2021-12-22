@@ -511,6 +511,8 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
 	select {
 	case <-droppedLabelsLogTicker.C:
+		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
+		// because labelsToString() will be called with each trackDroppedLAbels call.
 		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
 			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)

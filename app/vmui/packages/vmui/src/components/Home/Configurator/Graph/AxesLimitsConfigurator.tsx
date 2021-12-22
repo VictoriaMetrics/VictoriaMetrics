@@ -15,6 +15,7 @@ const AxesLimitsConfigurator: FC = () => {
   const onChangeLimit = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, axis: string, index: number) => {
     const newLimits = yaxis.limits.range;
     newLimits[axis][index] = +e.target.value;
+    if (newLimits[axis][0] === newLimits[axis][1] || newLimits[axis][0] > newLimits[axis][1]) return;
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: newLimits});
   };
   const debouncedOnChangeLimit = useCallback(debounce(onChangeLimit, 500), [yaxis.limits.range]);
@@ -24,7 +25,7 @@ const AxesLimitsConfigurator: FC = () => {
       control={<BasicSwitch checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
       label="Fix the limits for y-axis"
     />
-    <Box display="grid" alignItems="center" gap={4}>
+    <Box display="grid" alignItems="center" gap={2}>
       {axes.map(axis => <Box display="grid" gridTemplateColumns="120px 120px" gap={1} key={axis}>
         <TextField label={`Min ${axis}`} type="number" size="small" variant="outlined"
           disabled={!yaxis.limits.enable}
