@@ -184,11 +184,9 @@ func (bsw *blockStreamWriter) MustClose() {
 }
 
 // WriteExternalBlock writes b to bsw and updates ph and rowsMerged.
-func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsMerged *uint64, needDedup bool) {
+func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsMerged *uint64) {
 	atomic.AddUint64(rowsMerged, uint64(b.rowsCount()))
-	if needDedup {
-		b.deduplicateSamplesDuringMerge()
-	}
+	b.deduplicateSamplesDuringMerge()
 	headerData, timestampsData, valuesData := b.MarshalData(bsw.timestampsBlockOffset, bsw.valuesBlockOffset)
 	usePrevTimestamps := len(bsw.prevTimestampsData) > 0 && bytes.Equal(timestampsData, bsw.prevTimestampsData)
 	if usePrevTimestamps {

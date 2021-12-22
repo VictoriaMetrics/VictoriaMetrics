@@ -9,7 +9,7 @@ const StepConfigurator: FC = () => {
   const {customStep} = useGraphState();
   const graphDispatch = useGraphDispatch();
   const [error, setError] = useState(false);
-  const {time: {period: {step}, duration}} = useAppState();
+  const {time: {period: {step}}} = useAppState();
 
   const onChangeStep = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = +e.target.value;
@@ -27,10 +27,6 @@ const StepConfigurator: FC = () => {
     setError(false);
     graphDispatch({type: "TOGGLE_CUSTOM_STEP"});
   };
-
-  useEffect(() => {
-    if (customStep.enable) onChangeEnableStep();
-  }, [duration]);
 
   useEffect(() => {
     if (!customStep.enable) graphDispatch({type: "SET_CUSTOM_STEP", payload: step || 1});

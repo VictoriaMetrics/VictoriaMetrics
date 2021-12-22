@@ -254,7 +254,7 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
-		logger.Panicf("BUG: unexected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
+		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
@@ -295,6 +295,17 @@ again:
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
 	if statusCode == 409 || statusCode == 400 {
+		body, err := ioutil.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		l := logger.WithThrottler("remoteWriteRejected", 5*time.Second)
+		if err != nil {
+			l.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; "+
+				"failed to read response body: %s",
+				len(block), c.sanitizedURL, statusCode, err)
+		} else {
+			l.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; response body: %s",
+				len(block), c.sanitizedURL, statusCode, string(body))
+		}
 		// Just drop block on 409 and 400 status codes like Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149

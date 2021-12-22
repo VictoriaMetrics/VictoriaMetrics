@@ -3,6 +3,7 @@ import {getMaxFromArray, getMinFromArray} from "../math";
 import {roundTimeSeconds} from "../time";
 import {AxisRange} from "../../state/graph/reducer";
 import {formatTicks} from "./helpers";
+import {TimeParams} from "../../types";
 
 export const getAxes = (series: Series[]): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
   const axis = {scale: a, show: true, font: "10px Arial", values: formatTicks};
@@ -11,11 +12,11 @@ export const getAxes = (series: Series[]): Axis[] => Array.from(new Set(series.m
   return axis;
 });
 
-export const getTimeSeries = (times: number[]): number[] => {
+export const getTimeSeries = (times: number[], defaultStep: number, period: TimeParams): number[] => {
   const allTimes = Array.from(new Set(times)).sort((a, b) => a - b);
-  const step = getMinFromArray(allTimes.map((t, i) => allTimes[i + 1] - t));
+  const length = Math.ceil((period.end - period.start)/defaultStep);
   const startTime = allTimes[0] || 0;
-  return new Array(allTimes.length).fill(startTime).map((d, i) => roundTimeSeconds(d + (step * i)));
+  return new Array(length*2).fill(startTime).map((d, i) => roundTimeSeconds(d + (defaultStep * i)));
 };
 
 export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {
@@ -24,7 +25,7 @@ export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange =
     const numbers = values[key];
     const min = getMinFromArray(numbers);
     const max = getMaxFromArray(numbers);
-    result[key] = [min - (min * 0.05), max + (max * 0.05)];
+    result[key] = min && max ? [min - (min * 0.25), max + (max * 0.25)] : [-1, 1];
   }
   return result;
 };

@@ -16,7 +16,7 @@ const HomeLayout: FC = () => {
   const {isLoading, liveData, graphData, error} = useFetchQuery();
 
   return (
-    <>
+    <Box id="homeLayout">
       <AppBar position="static">
         <Toolbar>
           <Box display="flex">
@@ -78,7 +78,7 @@ const HomeLayout: FC = () => {
           </Box>}
         </Box>
       </Box>
-    </>
+    </Box>
   );
 };
 

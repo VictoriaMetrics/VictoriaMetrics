@@ -20,7 +20,7 @@ export interface QueryConfiguratorProps {
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
 
-  const {serverUrl, query, queryHistory, time: {duration}, queryControls: {autocomplete}} = useAppState();
+  const {serverUrl, query, queryHistory, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
   const [expanded, setExpanded] = useState(true);
   const queryContainer = useRef<HTMLDivElement>(null);
@@ -123,7 +123,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
             </Box>}
           </Grid>
           <Grid item xs>
-            <TimeSelector setDuration={onSetDuration} duration={duration}/>
+            <TimeSelector setDuration={onSetDuration}/>
           </Grid>
           <Grid item xs={12} pt={1}>
             <AdditionalSettings/>

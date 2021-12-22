@@ -181,6 +181,12 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 	s.flockF = flockF
 
+	// Check whether restore process finished successfully
+	restoreLockF := path + "/restore-in-progress"
+	if fs.IsPathExist(restoreLockF) {
+		return nil, fmt.Errorf("restore lock file exists, incomplete vmrestore run. Run vmrestore again or remove lock file %q", restoreLockF)
+	}
+
 	// Pre-create snapshots directory if it is missing.
 	snapshotsPath := path + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
@@ -1228,7 +1234,50 @@ func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []
 
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
 func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	return s.searchGraphitePaths(tr, nil, query, maxPaths, deadline)
+}
+
+// replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
+func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
+	var dst []byte
+	for {
+		n := bytes.IndexByte(b, '(')
+		if n < 0 {
+			if len(dst) == 0 {
+				// Fast path - b doesn't contain the openining brace.
+				return b
+			}
+			dst = append(dst, b...)
+			return dst
+		}
+		dst = append(dst, b[:n]...)
+		b = b[n+1:]
+		n = bytes.IndexByte(b, ')')
+		if n < 0 {
+			dst = append(dst, '(')
+			dst = append(dst, b...)
+			return dst
+		}
+		x := b[:n]
+		b = b[n+1:]
+		if string(x) == ".*" {
+			dst = append(dst, '*')
+			continue
+		}
+		dst = append(dst, '{')
+		for len(x) > 0 {
+			n = bytes.IndexByte(x, '|')
+			if n < 0 {
+				dst = append(dst, x...)
+				break
+			}
+			dst = append(dst, x[:n]...)
+			x = x[n+1:]
+			dst = append(dst, ',')
+		}
+		dst = append(dst, '}')
+	}
 }
 
 func (s *Storage) searchGraphitePaths(tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
@@ -1765,7 +1814,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
-		logger.Warnf("warn occurred during rows addition: %s", firstWarn)
+		logger.WithThrottler("storageAddRows", 5*time.Second).Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
@@ -1800,6 +1849,8 @@ func (s *Storage) isSeriesCardinalityExceeded(metricID uint64, metricNameRaw []b
 func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
+		// Do not use logger.WithThrottler() here, since this will result in increased CPU load
+		// because of getUserReadableMetricName() calls per each logSkippedSeries call.
 		logger.Warnf("skip series %s because %s=%d reached", getUserReadableMetricName(metricNameRaw), flagName, flagValue)
 	default:
 	}

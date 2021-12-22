@@ -1,0 +1,29 @@
+[Unit]
+Description=VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
+# https://docs.victoriametrics.com
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+WorkingDirectory=/var/lib/victoria-metrics-data
+StartLimitBurst=5
+StartLimitInterval=0
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=-/etc/victoriametrics/single/victoriametrics.conf
+ExecStart=/usr/bin/victoria-metrics-prod $ARGS
+ExecStop=/bin/kill -s SIGTERM $MAINPID
+ExecReload=/bin/kill -HUP $MAINPID
+# See docs https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#tuning
+ProtectSystem=full
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=vmsingle
+
+[Install]
+WantedBy=multi-user.target

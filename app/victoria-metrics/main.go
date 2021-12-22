@@ -25,7 +25,7 @@ import (
 var (
 	httpListenAddr    = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
-		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
+		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
 		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
 )
@@ -51,7 +51,7 @@ func main() {
 
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
-	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
+	storage.SetDedupInterval(*minScrapeInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()

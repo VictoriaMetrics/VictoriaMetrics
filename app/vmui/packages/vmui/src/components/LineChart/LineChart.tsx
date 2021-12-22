@@ -11,29 +11,28 @@ import {limitsDurations} from "../../utils/time";
 import throttle from "lodash.throttle";
 import "uplot/dist/uPlot.min.css";
 import "./tooltip.css";
-import {AxisRange} from "../../state/graph/reducer";
+import useResize from "../../hooks/useResize";
 
 export interface LineChartProps {
     metrics: MetricResult[];
     data: uPlotData;
     series: uPlotSeries[];
-    limits: AxisRange;
 }
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
-const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => {
+const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const dispatch = useAppDispatch();
   const {time: {period}} = useAppState();
   const {yaxis} = useGraphState();
-  const containerRef = useRef<HTMLDivElement>(null);
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
+  const layoutSize = useResize(document.getElementById("homeLayout"));
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
-  const tooltipIdx = {seriesIdx: 1, dataIdx: 0};
+  const tooltipIdx: {seriesIdx: number | null, dataIdx: number | undefined} = {seriesIdx: null, dataIdx: undefined};
   const tooltipOffset = {left: 0, top: 0};
 
   const setScale = ({min, max}: { min: number, max: number }): void => {
@@ -73,22 +72,22 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
   const setCursor = (u: uPlot) => {
     if (tooltipIdx.dataIdx === u.cursor.idx) return;
     tooltipIdx.dataIdx = u.cursor.idx || 0;
-    if (tooltipIdx.seriesIdx && tooltipIdx.dataIdx) {
+    if (tooltipIdx.seriesIdx !== null && tooltipIdx.dataIdx !== undefined) {
       setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset});
     }
   };
 
   const seriesFocus = (u: uPlot, sidx: (number | null)) => {
     if (tooltipIdx.seriesIdx === sidx) return;
-    tooltipIdx.seriesIdx = sidx || 0;
-    sidx && tooltipIdx.dataIdx
+    tooltipIdx.seriesIdx = sidx;
+    sidx && tooltipIdx.dataIdx !== undefined
       ? setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset})
       : tooltip.style.display = "none";
   };
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
-    return min && max ? [min - (min * 0.05), max + (max * 0.05)] : limits[axis];
+    return min && max ? [min - (min * 0.25), max + (max * 0.25)] : [-1, 1];
   };
 
   const getScales = (): Scales => {
@@ -104,7 +103,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
     series,
     axes: getAxes(series),
     scales: {...getScales()},
-    width: containerRef.current ? containerRef.current.offsetWidth : 400,
+    width: layoutSize.width ? layoutSize.width - 64 : 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
   };
 
@@ -135,13 +134,13 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], limits}) => 
     setUPlotInst(u);
     setXRange({min: period.start, max: period.end});
     return u.destroy;
-  }, [uPlotRef.current, series]);
+  }, [uPlotRef.current, series, layoutSize]);
 
   useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
-  return <div ref={containerRef} style={{pointerEvents: isPanning ? "none" : "auto", height: "500px"}}>
+  return <div style={{pointerEvents: isPanning ? "none" : "auto", height: "500px"}}>
     <div ref={uPlotRef}/>
   </div>;
 };

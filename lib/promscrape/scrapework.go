@@ -126,13 +126,14 @@ func (sw *ScrapeWork) canSwitchToStreamParseMode() bool {
 
 // key returns unique identifier for the given sw.
 //
-// it can be used for comparing for equality for two ScrapeWork objects.
+// It can be used for comparing for equality for two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
-	// Do not take into account OriginalLabels.
-	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
+	// Do not take into account OriginalLabels, since they can be changed with relabeling.
+	// Take into account JobNameOriginal in order to capture the case when the original job_name is changed via relabeling.
+	key := fmt.Sprintf("JobNameOriginal=%s, ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
 		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d",
-		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
+		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
 		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
 		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit)
