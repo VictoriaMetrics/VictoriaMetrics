@@ -662,7 +662,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
 2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
