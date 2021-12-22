@@ -212,7 +212,7 @@ func createRestoreLock(dstDir string) error {
 	lockF := path.Join(dstDir, "restore-in-progress")
 	f, err := os.Create(lockF)
 	if err != nil {
-		return fmt.Errorf("cannot create restore lock file at: %q, err: %w", lockF, err)
+		return fmt.Errorf("cannot create restore lock file %q: %w", lockF, err)
 	}
 	return f.Close()
 }
@@ -220,7 +220,7 @@ func createRestoreLock(dstDir string) error {
 func removeLockFile(dstDir string) error {
 	lockF := path.Join(dstDir, "restore-in-progress")
 	if err := os.Remove(lockF); err != nil {
-		return fmt.Errorf("cannote remove restore lock file at: %q, err: %w", lockF, err)
+		return fmt.Errorf("cannote remove restore lock file %q: %w", lockF, err)
 	}
 	return nil
 }

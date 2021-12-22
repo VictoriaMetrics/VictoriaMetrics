@@ -192,11 +192,11 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 			continue
 		}
 		if fi.Mode()&os.ModeSymlink != os.ModeSymlink {
-			// Skip plain files.
-			if name == "flock.lock" {
-				hasFlock = true
+			if name == "flock.lock" || name == "restore-in-progress" {
+				hasIgnoredFile = true
 				continue
 			}
+			// Skip plain files.
 			dirEntries++
 			continue
 		}
@@ -248,14 +248,15 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	if dirEntries > 0 {
 		return false, nil
 	}
-	if hasFlock {
-		// root dir contains additional entries, so root lock won't be removed
+	if hasIgnoredFile {
+		// the dir contains only files, which must be ignored. Remove them together with the directory.
 		flockFilepath := dir + "/flock.lock"
 		if err := os.Remove(flockFilepath); err != nil {
-			return false, fmt.Errorf("cannot remove %q: %s", flockFilepath, err)
+			return false, fmt.Errorf("cannot remove %q: %w", flockFilepath, err)
 		}
 	}
-	if err := os.Remove(dir); err != nil {
+	// Use os.RemoveAll() instead of os.Remove(), since the dir may contain ignored files such as flock.lock and restore-in-progress
+	if err := os.RemoveAll(dir); err != nil {
 		return false, fmt.Errorf("cannot remove %q: %w", dir, err)
 	}
 	return true, nil
