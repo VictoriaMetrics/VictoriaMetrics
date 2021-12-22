@@ -47,15 +47,15 @@ func (r *Restore) Run() error {
 	if err := fs.MkdirAllIfNotExist(r.Dst.Dir); err != nil {
 		return fmt.Errorf("cannot create dir %q: %w", r.Dst.Dir, err)
 	}
-	if err := createRestoreLock(r.Dst.Dir); err != nil {
-		return err
-	}
 	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
 	if err != nil {
 		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %w", r.Dst.Dir, err)
 	}
 	defer fs.MustClose(flockF)
 
+	if err := createRestoreLock(r.Dst.Dir); err != nil {
+		return err
+	}
 	concurrency := r.Concurrency
 	src := r.Src
 	dst := r.Dst
@@ -208,8 +208,8 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func createRestoreLock(dst string) error {
-	lockF := path.Join(dst, "restore.lock")
+func createRestoreLock(dstDir string) error {
+	lockF := path.Join(dstDir, "restore-in-progress")
 	f, err := os.Create(lockF)
 	if err != nil {
 		return fmt.Errorf("cannot create restore lock file at: %q, err: %w", lockF, err)
@@ -217,8 +217,8 @@ func createRestoreLock(dst string) error {
 	return f.Close()
 }
 
-func removeLockFile(dst string) error {
-	lockF := path.Join(dst, "restore.lock")
+func removeLockFile(dstDir string) error {
+	lockF := path.Join(dstDir, "restore-in-progress")
 	if err := os.Remove(lockF); err != nil {
 		return fmt.Errorf("cannote remove restore lock file at: %q, err: %w", lockF, err)
 	}

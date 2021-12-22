@@ -72,7 +72,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 		if name == "." || name == ".." {
 			continue
 		}
-		if name == "flock.lock" || name == "restore.lock" {
+		if name == "flock.lock" || name == "restore-in-progress" {
 			// Do not take into account lock files, since they are used
 			// for preventing from concurrent access.
 			continue
@@ -173,6 +173,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		return false, fmt.Errorf("cannot read directory contents in %q: %w", dir, err)
 	}
 	dirEntries := 0
+	hasFlock := false
 	for _, fi := range fis {
 		name := fi.Name()
 		if name == "." || name == ".." {
@@ -192,6 +193,10 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		}
 		if fi.Mode()&os.ModeSymlink != os.ModeSymlink {
 			// Skip plain files.
+			if name == "flock.lock" {
+				hasFlock = true
+				continue
+			}
 			dirEntries++
 			continue
 		}
@@ -243,8 +248,13 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	if dirEntries > 0 {
 		return false, nil
 	}
-	logger.Infof("removing empty dir %q", dir)
-
+	if hasFlock {
+		// root dir contains additional entries, so root lock won't be removed
+		flockFilepath := dir + "/flock.lock"
+		if err := os.Remove(flockFilepath); err != nil {
+			return false, fmt.Errorf("cannot remove %q: %s", flockFilepath, err)
+		}
+	}
 	if err := os.Remove(dir); err != nil {
 		return false, fmt.Errorf("cannot remove %q: %w", dir, err)
 	}
