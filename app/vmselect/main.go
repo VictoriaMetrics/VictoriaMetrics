@@ -524,7 +524,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
 		queryExemplarsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":null}`)
+		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
 		return true
 	default:
 		return false
