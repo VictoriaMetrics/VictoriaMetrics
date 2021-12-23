@@ -10,6 +10,7 @@ sort: 15
 * FEATURE: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): store `restore-in-progress` file in `-dst` directory while `vmrestore` is running. This file is automatically deleted when `vmrestore` is successfully finished. This helps detecting incompletely restored data on VictoriaMetrics start. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1958).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that `vmagent` replicas scrape the same targets at different time offsets when [replication is enabled in vmagent clustering mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets). This guarantees that the [deduplication](https://docs.victoriametrics.com/#deduplication) consistently leaves samples from the same `vmagent` replica.
+* BUGFIX: return the proper response stub from `/api/v1/query_exemplars` handler, which is needed for Grafana v8+. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1999).
 
 
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)
