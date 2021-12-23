@@ -191,9 +191,12 @@ The following versions are open source and free:
 
 We provide commercial support for both versions. [Contact us](mailto:info@victoriametrics.com) for the pricing.
 
+The following commercial versions of VictoriaMetrics are available:
+* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc) (aka managed Prometheus).
+
 The following commercial versions of VictoriaMetrics are planned:
-* Managed cluster in the Cloud.
-* SaaS version.
+* Managed VictoriaMetrics at Google Cloud.
+* Cloud monitoring solution based on VictoriaMetrics.
 
 [Contact us](mailto:info@victoriametrics.com) for more information on our plans.
 
