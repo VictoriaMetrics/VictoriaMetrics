@@ -1,0 +1,17 @@
+name: check-rebased
+on:
+  pull_request:
+    types: [ synchronize, opened, reopened, edited ] # +edited (for triggering on PR base change)
+  push:
+    branches: [ main ]
+jobs:
+  hook:
+    name: Check whether current branch is based on its base branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo @ current branch
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1000 # Hopefully current branch is less than 1000 commits from main
+      - name: Run check-rebased.sh
+        run: .github/workflows/check-rebased.sh
