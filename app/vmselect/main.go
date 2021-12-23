@@ -423,7 +423,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
 		queryExemplarsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":null}`)
+		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
 		deleteRequests.Inc()
