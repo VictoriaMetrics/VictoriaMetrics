@@ -93,7 +93,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     query-editor-container-${oneLiner ? "one-line" : "multi-line"}
     ${error === ErrorTypes.validQuery ? "query-editor-container_error" : ""}`}>
     {/*Class one-line-scroll and other codemirror styles are declared in index.css*/}
-    <label className="query-editor-label">Query</label>
+    <label className="query-editor-label">Query {index + 1}</label>
     <div className="query-editor" ref={ref} onKeyUp={onKeyUp}/>
   </div>;
 };

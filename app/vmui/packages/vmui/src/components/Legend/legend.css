@@ -1,4 +1,5 @@
 .legendWrapper {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     grid-gap: 20px;
@@ -11,14 +12,20 @@
 }
 
 .legendGroupTitle {
-    display: flex;
+    display: grid;
+    grid-template-columns: 43px auto;
     align-items: center;
-    padding: 10px 0 5px;
+    padding: 10px;
     font-size: 11px;
 }
 
+.legendGroupQuery {
+    grid-column: 1/3;
+    opacity: 0.6;
+}
+
 .legendGroupLine {
-    margin: 0 10px;
+    margin-right: 10px;
 }
 
 .legendItem {
@@ -55,4 +62,27 @@
 .legendLabel {
     font-size: 11px;
     font-weight: normal;
+}
+
+.legendWrapperHotkey {
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+}
+
+.legendWrapperHotkey p {
+    margin-right: 20px;
+}
+
+.legendWrapperHotkey code {
+    display: inline;
+    max-width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #dedede;
+    background-color: #f2f2f2;
+    border-radius: 2px;
+    font-weight: 400;
+    font-size: 10px;
+    color: #0a0a0a;
+    word-wrap: break-word;
 }
