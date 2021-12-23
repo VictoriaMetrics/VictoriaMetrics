@@ -11,7 +11,7 @@ import {
 } from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
 import {getDefaultServer} from "../../utils/default-server-url";
-import {getQueryArray, getQueryStringValue} from "../../utils/query-string";
+import {breakLineToQuery, getQueryArray, getQueryStringValue} from "../../utils/query-string";
 import dayjs from "dayjs";
 
 export interface TimeState {
@@ -88,7 +88,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "SET_QUERY":
       return {
         ...state,
-        query: action.payload
+        query: action.payload.map(q => breakLineToQuery(q))
       };
     case "SET_QUERY_HISTORY":
       return {
