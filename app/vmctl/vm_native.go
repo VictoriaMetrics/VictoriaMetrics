@@ -7,12 +7,15 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/cheggaaa/pb/v3"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
 type vmNativeProcessor struct {
-	filter filter
+	filter    filter
+	rateLimit int64
 
 	dst *vmNativeClient
 	src *vmNativeClient
@@ -84,7 +87,12 @@ func (p *vmNativeProcessor) run() error {
 	bar := pb.ProgressBarTemplate(barTpl).Start64(0)
 	barReader := bar.NewProxyReader(exportReader)
 
-	_, err = io.Copy(pw, barReader)
+	w := io.Writer(pw)
+	if p.rateLimit > 0 {
+		rl := limiter.NewLimiter(p.rateLimit)
+		w = limiter.NewWriteLimiter(pw, rl)
+	}
+	_, err = io.Copy(w, barReader)
 	if err != nil {
 		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
 	}
