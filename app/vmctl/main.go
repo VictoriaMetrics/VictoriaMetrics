@@ -143,6 +143,7 @@ func main() {
 					}
 
 					p := vmNativeProcessor{
+						rateLimit: c.Int64(vmRateLimit),
 						filter: filter{
 							match:     c.String(vmNativeFilterMatch),
 							timeStart: c.String(vmNativeFilterTimeStart),
@@ -195,5 +196,6 @@ func initConfigVM(c *cli.Context) vm.Config {
 		SignificantFigures: c.Int(vmSignificantFigures),
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
+		RateLimit:          c.Int64(vmRateLimit),
 	}
 }
