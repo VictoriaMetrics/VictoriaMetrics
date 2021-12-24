@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	globalSilent = "s"
+	globalSilent  = "s"
+	globalVerbose = "verbose"
 )
 
 var (
@@ -16,6 +17,11 @@ var (
 			Name:  globalSilent,
 			Value: false,
 			Usage: "Whether to run in silent mode. If set to true no confirmation prompts will appear.",
+		},
+		&cli.BoolFlag{
+			Name:  globalVerbose,
+			Value: false,
+			Usage: "Whether to enable verbosity in logs output.",
 		},
 	}
 )
