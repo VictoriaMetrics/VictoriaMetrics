@@ -1,7 +1,8 @@
 import React, {FC, useEffect, useState} from "preact/compat";
 import {KeyboardEvent} from "react";
 import {ErrorTypes} from "../../../../types";
-import {Autocomplete, TextField} from "@mui/material";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import {queryToBreakLine} from "../../../../utils/query-string";
 
 export interface QueryEditorProps {

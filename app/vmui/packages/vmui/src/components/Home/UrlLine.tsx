@@ -1,5 +1,7 @@
 import React, {FC} from "preact/compat";
-import {Box, Button, Typography} from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import {useSnack} from "../../contexts/Snackbar";
 
 interface UrlLineProps {

@@ -1,6 +1,8 @@
 import React, {FC, useCallback, useEffect, useState} from "preact/compat";
 import {ChangeEvent} from "react";
-import {Box, FormControlLabel, TextField} from "@mui/material";
+import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import TextField from "@mui/material/TextField";
 import BasicSwitch from "../../../../theme/switch";
 import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 import {useAppState} from "../../../../state/common/StateContext";

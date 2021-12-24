@@ -1,7 +1,12 @@
 import SettingsIcon from "@mui/icons-material/Settings";
 import React, {FC, useState} from "preact/compat";
 import AxesLimitsConfigurator from "./AxesLimitsConfigurator";
-import {Box, Button, IconButton, Paper, Popover, Typography} from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Popover from "@mui/material/Popover";
+import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 import CloseIcon from "@mui/icons-material/Close";
 

@@ -1,6 +1,8 @@
 import React, {FC, useCallback, useMemo} from "preact/compat";
 import {ChangeEvent} from "react";
-import {Box, FormControlLabel, TextField} from "@mui/material";
+import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import TextField from "@mui/material/TextField";
 import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 import debounce from "lodash.debounce";
 import BasicSwitch from "../../../../theme/switch";

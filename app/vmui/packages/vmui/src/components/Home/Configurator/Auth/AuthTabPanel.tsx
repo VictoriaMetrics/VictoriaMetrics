@@ -1,5 +1,5 @@
 import React from "preact/compat";
-import {Box} from "@mui/material";
+import Box from "@mui/material/Box";
 
 interface TabPanelProps {
   index: number;

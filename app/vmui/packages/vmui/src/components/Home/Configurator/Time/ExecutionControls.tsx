@@ -1,5 +1,8 @@
 import React, {FC, useEffect, useState} from "preact/compat";
-import {Box, FormControlLabel, IconButton, Tooltip} from "@mui/material";
+import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import EqualizerIcon from "@mui/icons-material/Equalizer";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import CircularProgressWithLabel from "../../../common/CircularProgressWithLabel";

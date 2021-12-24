@@ -1,6 +1,9 @@
 import React, {FC, useEffect, useState} from "preact/compat";
 import {ChangeEvent, MouseEvent, KeyboardEvent} from "react";
-import {Box, Popover, TextField, Typography} from "@mui/material";
+import Box from "@mui/material/Box";
+import Popover from "@mui/material/Popover";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import {checkDurationLimit} from "../../../../utils/time";
 import {TimeDurationPopover} from "./TimeDurationPopover";
 import {InlineBtn} from "../../../common/InlineBtn";

@@ -1,5 +1,8 @@
 import React, {FC} from "preact/compat";
-import {Alert, Box, CircularProgress, Fade} from "@mui/material";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Fade from "@mui/material/Fade";
 import GraphView from "./Views/GraphView";
 import TableView from "./Views/TableView";
 import {useAppState} from "../../state/common/StateContext";

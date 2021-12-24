@@ -1,6 +1,6 @@
 import React, {FC} from "preact/compat";
 import {CSSProperties} from "@mui/styles";
-import {SvgIcon} from "@mui/material";
+import SvgIcon from "@mui/material/SvgIcon";
 
 interface LogoProps {
   style?: CSSProperties

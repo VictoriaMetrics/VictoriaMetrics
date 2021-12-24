@@ -5,7 +5,8 @@ import {StateProvider} from "./state/common/StateContext";
 import {AuthStateProvider} from "./state/auth/AuthStateContext";
 import {GraphStateProvider} from "./state/graph/GraphStateContext";
 import THEME from "./theme/theme";
-import {CssBaseline, ThemeProvider, StyledEngineProvider} from "@mui/material";
+import { ThemeProvider, StyledEngineProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import DayjsUtils from "@date-io/dayjs";
 

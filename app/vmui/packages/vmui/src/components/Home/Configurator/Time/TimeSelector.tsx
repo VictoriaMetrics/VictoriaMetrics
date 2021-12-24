@@ -1,5 +1,7 @@
 import React, {FC, useEffect, useState} from "preact/compat";
-import {Box, TextField, Typography} from "@mui/material";
+import Box from "@mui/material/Box";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import DateTimePicker from "@mui/lab/DateTimePicker";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {dateFromSeconds, formatDateForNativeInput} from "../../../../utils/time";
