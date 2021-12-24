@@ -1,7 +1,8 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView, keymap} from "@codemirror/view";
 import {defaultKeymap} from "@codemirror/commands";
-import React, {FC, useEffect, useRef, useState} from "react";
+import React, {FC, useEffect, useRef, useState} from "preact/compat";
+import {KeyboardEvent} from "react";
 import {PromQLExtension} from "codemirror-promql";
 import {basicSetup} from "@codemirror/basic-setup";
 import {QueryHistory} from "../../../../state/common/reducer";
@@ -76,7 +77,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }));
   }, [server, editorView, autocomplete, queryHistory]);
 
-  const onKeyUp = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+  const onKeyUp = (e: KeyboardEvent<HTMLDivElement>): void => {
     const {key, ctrlKey, metaKey} = e;
     const ctrlMetaKey = ctrlKey || metaKey;
     if (key === "Enter" && ctrlMetaKey) {

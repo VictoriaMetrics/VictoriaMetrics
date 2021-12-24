@@ -1,4 +1,4 @@
-import React, {FC, useMemo} from "react";
+import React, {FC, useMemo} from "preact/compat";
 import {InstantMetricResult} from "../../../api/types";
 import {InstantDataSeries} from "../../../types";
 import {Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow} from "@mui/material";

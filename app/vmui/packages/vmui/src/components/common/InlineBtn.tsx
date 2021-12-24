@@ -1,5 +1,5 @@
 import makeStyles from "@mui/styles/makeStyles";
-import React from "react";
+import React from "preact/compat";
 import {Link} from "@mui/material";
 
 const useStyles = makeStyles({

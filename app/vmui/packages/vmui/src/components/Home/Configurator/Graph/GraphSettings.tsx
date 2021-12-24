@@ -1,18 +1,15 @@
 import SettingsIcon from "@mui/icons-material/Settings";
-import React, {FC, useState, useRef} from "react";
+import React, {FC, useState} from "preact/compat";
 import AxesLimitsConfigurator from "./AxesLimitsConfigurator";
-import {Box, Button, IconButton, Paper, Typography} from "@mui/material";
-import Draggable from "react-draggable";
+import {Box, Button, IconButton, Paper, Popover, Typography} from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
 import CloseIcon from "@mui/icons-material/Close";
 
 const useStyles = makeStyles({
   popover: {
-    position: "absolute",
     display: "grid",
     gridGap: "16px",
     padding: "0 0 25px",
-    zIndex: 2,
   },
   popoverHeader: {
     display: "flex",
@@ -22,7 +19,6 @@ const useStyles = makeStyles({
     padding: "6px 6px 6px 12px",
     borderRadius: "4px 4px 0 0",
     color: "#FFF",
-    cursor: "move",
   },
   popoverBody: {
     display: "grid",
@@ -32,32 +28,39 @@ const useStyles = makeStyles({
 });
 
 const GraphSettings: FC = () => {
-  const [open, setOpen] = useState(false);
-  const draggableRef = useRef<HTMLDivElement>(null);
-  const position = { x: 173, y: 0 };
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const open = Boolean(anchorEl);
 
   const classes = useStyles();
 
   return <Box display="flex" px={2}>
-    <Button onClick={() => setOpen((old) => !old)} variant="outlined">
+    <Button variant="outlined" aria-describedby="settings-popover"
+      onClick={(e) => setAnchorEl(e.currentTarget)} >
       <SettingsIcon sx={{fontSize: 16, marginRight: "4px"}}/>
       <span style={{lineHeight: 1, paddingTop: "1px"}}>{open ? "Hide" : "Show"} graph settings</span>
     </Button>
-    {open && (
-      <Draggable nodeRef={draggableRef} defaultPosition={position} handle="#handle">
-        <Paper elevation={3} className={classes.popover} ref={draggableRef}>
-          <div id="handle" className={classes.popoverHeader}>
-            <Typography variant="body1"><b>Graph Settings</b></Typography>
-            <IconButton size="small" onClick={() => setOpen(false)}>
-              <CloseIcon style={{color: "white"}}/>
-            </IconButton>
-          </div>
-          <Box className={classes.popoverBody}>
-            <AxesLimitsConfigurator/>
-          </Box>
-        </Paper>
-      </Draggable>
-    )}
+    <Popover
+      id="settings-popover"
+      open={open}
+      anchorEl={anchorEl}
+      onClose={() => setAnchorEl(null)}
+      anchorOrigin={{
+        vertical: "top",
+        horizontal: anchorEl ? anchorEl.offsetWidth + 15 : 200
+      }}
+    >
+      <Paper elevation={3} className={classes.popover}>
+        <div id="handle" className={classes.popoverHeader}>
+          <Typography variant="body1"><b>Graph Settings</b></Typography>
+          <IconButton size="small" onClick={() => setAnchorEl(null)}>
+            <CloseIcon style={{color: "white"}}/>
+          </IconButton>
+        </div>
+        <Box className={classes.popoverBody}>
+          <AxesLimitsConfigurator/>
+        </Box>
+      </Paper>
+    </Popover>
   </Box>;
 };
 

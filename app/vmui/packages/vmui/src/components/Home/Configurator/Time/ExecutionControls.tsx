@@ -1,4 +1,4 @@
-import React, {FC, useEffect, useState} from "react";
+import React, {FC, useEffect, useState} from "preact/compat";
 import {Box, FormControlLabel, IconButton, Tooltip} from "@mui/material";
 import EqualizerIcon from "@mui/icons-material/Equalizer";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";

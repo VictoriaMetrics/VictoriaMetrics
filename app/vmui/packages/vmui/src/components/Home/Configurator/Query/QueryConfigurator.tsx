@@ -1,6 +1,6 @@
-import React, {FC, useEffect, useRef, useState} from "react";
+import React, {FC, useEffect, useRef, useState} from "preact/compat";
 import {
-  Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, Typography, Tooltip, Button
+  Accordion, AccordionDetails, AccordionSummary, Box, IconButton, Typography, Tooltip, Button, Portal
 } from "@mui/material";
 import QueryEditor from "./QueryEditor";
 import {TimeSelector} from "../Time/TimeSelector";
@@ -9,7 +9,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import AddIcon from "@mui/icons-material/Add";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
-import Portal from "@mui/material/Portal";
 import ServerConfigurator from "./ServerConfigurator";
 import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
@@ -110,8 +109,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
         </Box>
       </AccordionSummary>
       <AccordionDetails>
-        <Grid container columnSpacing={2}>
-          <Grid item xs={6} minWidth={400}>
+        <Box display="flex" flexWrap="wrap" gap={2}>
+          <Box flexGrow="2" minWidth="50%">
             <ServerConfigurator error={error}/>
             {/* for portal QueryEditor */}
             <div ref={queryContainer}/>
@@ -121,14 +120,14 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
                 <span style={{lineHeight: 1, paddingTop: "1px"}}>Query</span>
               </Button>
             </Box>}
-          </Grid>
-          <Grid item xs>
+          </Box>
+          <Box flexGrow="1">
             <TimeSelector setDuration={onSetDuration}/>
-          </Grid>
-          <Grid item xs={12} pt={1}>
+          </Box>
+          <Box flexBasis="100%" pt={1}>
             <AdditionalSettings/>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </AccordionDetails>
     </Accordion>
   </>;

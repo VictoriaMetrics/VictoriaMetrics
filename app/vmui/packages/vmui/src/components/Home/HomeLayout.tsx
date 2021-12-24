@@ -1,4 +1,4 @@
-import React, {FC} from "react";
+import React, {FC} from "preact/compat";
 import {Alert, Box, CircularProgress, Fade} from "@mui/material";
 import GraphView from "./Views/GraphView";
 import TableView from "./Views/TableView";

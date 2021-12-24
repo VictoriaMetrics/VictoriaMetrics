@@ -1,9 +1,7 @@
-import React, {FC} from "react";
-
+import React, {FC} from "preact/compat";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import CodeIcon from "@mui/icons-material/Code";
-
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import {useAppDispatch, useAppState} from "../../../state/common/StateContext";
 import withStyles from "@mui/styles/withStyles";

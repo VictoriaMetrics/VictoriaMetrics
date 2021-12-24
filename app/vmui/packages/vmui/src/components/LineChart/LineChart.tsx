@@ -1,4 +1,4 @@
-import React, {FC, useCallback, useEffect, useRef, useState} from "react";
+import React, {FC, useCallback, useEffect, useRef, useState} from "preact/compat";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale} from "uplot";
 import {useGraphState} from "../../state/graph/GraphStateContext";

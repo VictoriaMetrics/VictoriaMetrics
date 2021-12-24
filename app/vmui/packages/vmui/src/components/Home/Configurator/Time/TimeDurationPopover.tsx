@@ -1,4 +1,4 @@
-import React, {FC} from "react";
+import React, {FC} from "preact/compat";
 import {Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow} from "@mui/material";
 import {supportedDurations} from "../../../../utils/time";
 

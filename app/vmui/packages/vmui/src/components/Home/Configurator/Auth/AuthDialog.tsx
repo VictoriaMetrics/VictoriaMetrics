@@ -1,8 +1,6 @@
 /* eslint max-lines: ["error", {"max": 300}] */
 
-import React, {useState} from "react";
-import DialogTitle from "@mui/material/DialogTitle";
-import Dialog from "@mui/material/Dialog";
+import React, {useState} from "preact/compat";
 import {
   Box,
   Button,
@@ -20,6 +18,8 @@ import {
   Tabs,
   TextField,
   Typography,
+  DialogTitle,
+  Dialog
 } from "@mui/material";
 import createStyles from "@mui/styles/createStyles";
 import TabPanel from "./AuthTabPanel";
@@ -28,6 +28,7 @@ import LockIcon from "@mui/icons-material/Lock";
 import makeStyles from "@mui/styles/makeStyles";
 import {useAuthDispatch, useAuthState} from "../../../../state/auth/AuthStateContext";
 import {AUTH_METHOD, WithCheckbox} from "../../../../state/auth/reducer";
+import {ChangeEvent, ClipboardEvent} from "react";
 
 // TODO: make generic when creating second dialog
 export interface DialogProps {
@@ -76,7 +77,7 @@ export const AuthDialog: React.FC<DialogProps> = (props) => {
     setTabIndex(newValue);
   };
 
-  const handleBearerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBearerChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newVal = event.target.value;
     if (newVal.startsWith(BEARER_PREFIX)) {
       setBearerValue(newVal);
@@ -89,7 +90,7 @@ export const AuthDialog: React.FC<DialogProps> = (props) => {
     onClose();
   };
 
-  const onBearerPaste = (e: React.ClipboardEvent) => {
+  const onBearerPaste = (e: ClipboardEvent) => {
     // if you're pasting token word Bearer will be added automagically
     const newVal = e.clipboardData.getData("text/plain");
     if (newVal.startsWith(BEARER_PREFIX)) {

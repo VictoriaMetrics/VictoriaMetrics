@@ -1,4 +1,4 @@
-import React, {FC, useMemo} from "react";
+import React, {FC, useMemo} from "preact/compat";
 import {InstantMetricResult} from "../../../api/types";
 import {Box, Button} from "@mui/material";
 import {useSnack} from "../../../contexts/Snackbar";

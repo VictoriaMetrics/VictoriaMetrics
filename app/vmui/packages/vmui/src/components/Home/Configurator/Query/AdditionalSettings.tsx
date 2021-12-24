@@ -1,4 +1,4 @@
-import React, {FC} from "react";
+import React, {FC} from "preact/compat";
 import {Box, FormControlLabel} from "@mui/material";
 import {saveToStorage} from "../../../../utils/storage";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";

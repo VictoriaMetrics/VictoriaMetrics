@@ -1,4 +1,5 @@
-import React, {FC, useCallback, useEffect, useState} from "react";
+import React, {FC, useCallback, useEffect, useState} from "preact/compat";
+import {ChangeEvent} from "react";
 import {Box, FormControlLabel, TextField} from "@mui/material";
 import BasicSwitch from "../../../../theme/switch";
 import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
@@ -11,7 +12,7 @@ const StepConfigurator: FC = () => {
   const [error, setError] = useState(false);
   const {time: {period: {step}}} = useAppState();
 
-  const onChangeStep = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const onChangeStep = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = +e.target.value;
     if (value > 0) {
       graphDispatch({type: "SET_CUSTOM_STEP", payload: value});

@@ -1,4 +1,4 @@
-import React, {FC, useEffect, useState} from "react";
+import React, {FC, useEffect, useState} from "preact/compat";
 import {Box, TextField, Typography} from "@mui/material";
 import DateTimePicker from "@mui/lab/DateTimePicker";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
