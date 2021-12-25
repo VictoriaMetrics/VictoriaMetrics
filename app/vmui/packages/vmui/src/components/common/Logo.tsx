@@ -1,8 +1,9 @@
-import React, {FC} from "react";
-import {SvgIcon} from "@mui/material";
+import React, {FC} from "preact/compat";
+import {CSSProperties} from "@mui/styles";
+import SvgIcon from "@mui/material/SvgIcon";
 
 interface LogoProps {
-  style?: React.CSSProperties
+  style?: CSSProperties
 }
 
 const Logo: FC<LogoProps> = ({style}) => (

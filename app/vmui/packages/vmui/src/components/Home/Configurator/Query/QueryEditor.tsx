@@ -1,6 +1,8 @@
-import React, {FC, useEffect, useState} from "react";
+import React, {FC, useEffect, useState} from "preact/compat";
+import {KeyboardEvent} from "react";
 import {ErrorTypes} from "../../../../types";
-import {Autocomplete, TextField} from "@mui/material";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import {queryToBreakLine} from "../../../../utils/query-string";
 
 export interface QueryEditorProps {
@@ -33,11 +35,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
     setValue(queryToBreakLine(query));
   }, [query]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.ctrlKey || e.metaKey) setDownMetaKeys([...downMetaKeys, e.key]);
   };
 
-  const handleKeyUp = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+  const handleKeyUp = (e: KeyboardEvent<HTMLDivElement>): void => {
     const {key, ctrlKey, metaKey} = e;
     if (downMetaKeys.includes(key)) setDownMetaKeys(downMetaKeys.filter(k => k !== key));
     const ctrlMetaKey = ctrlKey || metaKey;

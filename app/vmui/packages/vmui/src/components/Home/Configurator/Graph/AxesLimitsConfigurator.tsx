@@ -1,5 +1,8 @@
-import React, {FC, useCallback, useMemo} from "react";
-import {Box, FormControlLabel, TextField} from "@mui/material";
+import React, {FC, useCallback, useMemo} from "preact/compat";
+import {ChangeEvent} from "react";
+import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import TextField from "@mui/material/TextField";
 import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 import debounce from "lodash.debounce";
 import BasicSwitch from "../../../../theme/switch";
@@ -12,7 +15,7 @@ const AxesLimitsConfigurator: FC = () => {
 
   const onChangeYaxisLimits = () => { graphDispatch({type: "TOGGLE_ENABLE_YAXIS_LIMITS"}); };
 
-  const onChangeLimit = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, axis: string, index: number) => {
+  const onChangeLimit = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, axis: string, index: number) => {
     const newLimits = yaxis.limits.range;
     newLimits[axis][index] = +e.target.value;
     if (newLimits[axis][0] === newLimits[axis][1] || newLimits[axis][0] > newLimits[axis][1]) return;

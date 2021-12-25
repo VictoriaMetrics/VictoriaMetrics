@@ -1,4 +1,4 @@
-import React from "react";
+import React from "preact/compat";
 import Box from "@mui/material/Box";
 
 interface TabPanelProps {

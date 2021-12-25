@@ -1,7 +1,13 @@
-import React, {FC, useEffect, useRef, useState} from "react";
-import {
-  Accordion, AccordionDetails, AccordionSummary, Box, Grid, IconButton, Typography, Tooltip, Button
-} from "@mui/material";
+import React, {FC, useEffect, useRef, useState} from "preact/compat";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
+import Button from "@mui/material/Button";
+import Portal from "@mui/material/Portal";
 import QueryEditor from "./QueryEditor";
 import {TimeSelector} from "../Time/TimeSelector";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
@@ -9,7 +15,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import AddIcon from "@mui/icons-material/Add";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
-import Portal from "@mui/material/Portal";
 import ServerConfigurator from "./ServerConfigurator";
 import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
@@ -109,8 +114,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
         </Box>
       </AccordionSummary>
       <AccordionDetails>
-        <Grid container columnSpacing={2}>
-          <Grid item xs={6} minWidth={400}>
+        <Box display="flex" flexWrap="wrap" gap={2}>
+          <Box flexGrow="2" minWidth="50%">
             <ServerConfigurator error={error}/>
             {/* for portal QueryEditor */}
             <div ref={queryContainer}/>
@@ -120,14 +125,14 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
                 <span style={{lineHeight: 1, paddingTop: "1px"}}>Query</span>
               </Button>
             </Box>}
-          </Grid>
-          <Grid item xs>
+          </Box>
+          <Box flexGrow="1">
             <TimeSelector setDuration={onSetDuration}/>
-          </Grid>
-          <Grid item xs={12} pt={1}>
+          </Box>
+          <Box flexBasis="100%" pt={1}>
             <AdditionalSettings/>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </AccordionDetails>
     </Accordion>
   </>;

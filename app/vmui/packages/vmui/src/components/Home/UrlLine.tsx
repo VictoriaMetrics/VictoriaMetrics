@@ -1,5 +1,7 @@
-import React, {FC} from "react";
-import {Box, Button, Grid, Typography} from "@mui/material";
+import React, {FC} from "preact/compat";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import {useSnack} from "../../contexts/Snackbar";
 
 interface UrlLineProps {
@@ -10,7 +12,7 @@ export const UrlLine: FC<UrlLineProps> = ({url}) => {
 
   const {showInfoMessage} = useSnack();
 
-  return <Grid item style={{backgroundColor: "#eee", width: "100%"}}>
+  return <Box style={{backgroundColor: "#eee", width: "100%"}}>
     <Box flexDirection="row" display="flex" justifyContent="space-between" alignItems="center">
       <Box pl={2} py={1} display="flex" style={{
         flex: 1,
@@ -38,5 +40,5 @@ export const UrlLine: FC<UrlLineProps> = ({url}) => {
         }}>Copy Query Url</Button>
       </Box>
     </Box>
-  </Grid>;
+  </Box>;
 };

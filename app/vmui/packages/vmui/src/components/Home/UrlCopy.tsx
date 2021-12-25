@@ -1,5 +1,7 @@
-import React, {FC} from "react";
-import {Box, IconButton, Tooltip} from "@mui/material";
+import React, {FC} from "preact/compat";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import {useSnack} from "../../contexts/Snackbar";
 

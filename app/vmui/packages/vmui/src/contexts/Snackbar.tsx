@@ -1,5 +1,6 @@
-import React, {createContext, FC, useContext, useEffect, useState} from "react";
-import {Alert, Snackbar} from "@mui/material";
+import React, {createContext, FC, useContext, useEffect, useState} from "preact/compat";
+import Alert from "@mui/material/Alert";
+import Snackbar from "@mui/material/Snackbar";
 
 export interface SnackModel {
   message?: string;

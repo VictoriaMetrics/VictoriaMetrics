@@ -1,6 +1,7 @@
-import React, {FC, useMemo} from "react";
+import React, {FC, useMemo} from "preact/compat";
 import {InstantMetricResult} from "../../../api/types";
-import {Box, Button} from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import {useSnack} from "../../../contexts/Snackbar";
 
 export interface JsonViewProps {

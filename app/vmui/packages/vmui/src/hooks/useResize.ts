@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "preact/compat";
 
 const useResize = (node: HTMLElement | null): {width: number, height: number} => {
   const [windowSize, setWindowSize] = useState({
