@@ -55,7 +55,7 @@ const THEME = createTheme({
     },
     MuiPaper: {
       styleOverrides: {
-        elevation3: {
+        root: {
           boxShadow: "rgba(0, 0, 0, 0.2) 0px 3px 8px;"
         },
       },
@@ -75,6 +75,13 @@ const THEME = createTheme({
         },
         sizeSmall: {
           borderRadius: "20%",
+        }
+      }
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          fontSize: "10px"
         }
       }
     }

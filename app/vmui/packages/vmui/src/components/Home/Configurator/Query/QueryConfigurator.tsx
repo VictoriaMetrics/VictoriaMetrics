@@ -26,7 +26,7 @@ export interface QueryConfiguratorProps {
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 
-  const {serverUrl, query, queryHistory, queryControls: {autocomplete}} = useAppState();
+  const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
   const [expanded, setExpanded] = useState(true);
   const queryContainer = useRef<HTMLDivElement>(null);
@@ -34,8 +34,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
-
-  const onSetDuration = (dur: string) => dispatch({type: "SET_DURATION", payload: dur});
 
   const updateHistory = () => {
     dispatch({
@@ -125,9 +123,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
                 <span style={{lineHeight: 1, paddingTop: "1px"}}>Query</span>
               </Button>
             </Box>}
-          </Box>
-          <Box flexGrow="1">
-            <TimeSelector setDuration={onSetDuration}/>
           </Box>
           <Box flexBasis="100%" pt={1}>
             <AdditionalSettings/>

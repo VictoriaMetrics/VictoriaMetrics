@@ -9,6 +9,7 @@ import {DisplayTypeSwitch} from "../Home/Configurator/DisplayTypeSwitch";
 import Logo from "../common/Logo";
 import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
+import {TimeSelector} from "../Home/Configurator/Time/TimeSelector";
 
 const useStyles = makeStyles({
   logo: {
@@ -60,10 +61,11 @@ const Header: FC = () => {
           create an issue
         </Link>
       </Box>
-      <Box ml={4} flexGrow={1}>
+      <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>
+        <TimeSelector/>
         <ExecutionControls/>
+        <DisplayTypeSwitch/>
       </Box>
-      <DisplayTypeSwitch/>
     </Toolbar>
   </AppBar>;
 };

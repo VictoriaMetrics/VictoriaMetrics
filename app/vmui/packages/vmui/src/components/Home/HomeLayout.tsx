@@ -31,7 +31,7 @@ const HomeLayout: FC = () => {
             <Box alignItems="center" justifyContent="center" flexDirection="column" display="flex"
               style={{
                 width: "100%",
-                maxWidth: "calc(100vw - 32px)",
+                maxWidth: "calc(100vw - 64px)",
                 position: "absolute",
                 height: "50%",
                 background: "linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,.7), rgba(255,255,255,0))"
