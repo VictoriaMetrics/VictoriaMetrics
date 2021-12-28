@@ -283,6 +283,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
 	offsetPrint := int64(time.Now().Unix())
+	// convert a number of days to seconds
 	offsetSecs := cfg.Offset * 24 * 60 * 60
 	if cfg.MsecsTime {
 		// 1000000 == Nanoseconds -> Milliseconds difference

@@ -87,6 +87,37 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	if len(chunks) != 3 {
 		return Retention{}, fmt.Errorf("invalid retention string: %q", retention)
 	}
+	queryLengthDuration, err := convertDuration(chunks[2])
+	if err != nil {
+		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %s", chunks[2], err)
+	}
+	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
+	queryLength := queryLengthDuration.Milliseconds()
+	if !msecTime {
+		queryLength = queryLength / 1000
+	}
+	queryRange := queryLength
+	// bump by the offset so we don't look at empty ranges any time offset > ttl
+	queryLength += offset
+
+
+	// first/second order aggregations for queries defined in chunk 0...
+	aggregates := strings.Split(chunks[0], "-")
+	if len(aggregates) != 3 {
+		return Retention{}, fmt.Errorf("invalid aggregation string: %q", chunks[0])
+	}
+
+	/*
+	aggTimeDuration, err := convertDuration(aggregates[1])
+	if err != nil {
+		return Retention{}, fmt.Errorf("invalid aggregation time duration string: %q: %s", aggregates[1], err)
+	}
+	aggTime := aggTimeDuration.Milliseconds()
+	if !msecTime {
+		aggTime = aggTime / 1000
+	}
+	*/
+
 	rowLengthDuration, err := convertDuration(chunks[1])
 	if err != nil {
 		return Retention{}, fmt.Errorf("invalid row length (first order) duration string: %q: %s", chunks[1], err)
@@ -96,27 +127,21 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	if !msecTime {
 		rowLength = rowLength / 1000
 	}
-	ttlDuration, err := convertDuration(chunks[2])
-	if err != nil {
-		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %s", chunks[2], err)
-	}
-	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
-	ttl := ttlDuration.Milliseconds()
-	if !msecTime {
-		ttl = ttl / 1000
-	}
-	// bump by the offset so we don't look at empty ranges any time offset > ttl
-	ttl += offset
+
+	/*
+		we'll look at 4x the row size for each query we perform
+		This is a strange function, but the logic works like this:
+		1. we discover the "number" of ranges we should split the time range into
+		   This is found with queryRange / (rowLength * 4), kind of a percentage query
+		2. we discover the actual size of each "chunk"
+		   This is second division step
+	*/
+	querySize := int64(queryRange / int64(queryRange / (rowLength * 4)))
 
 	var timeChunks []TimeRange
 	var i int64
-	for i = offset; i <= ttl; i = i + rowLength {
-		timeChunks = append(timeChunks, TimeRange{Start: i + rowLength, End: i})
-	}
-	// first/second order aggregations for queries defined in chunk 0...
-	aggregates := strings.Split(chunks[0], "-")
-	if len(aggregates) != 3 {
-		return Retention{}, fmt.Errorf("invalid aggregation string: %q", chunks[0])
+	for i = offset; i <= queryLength; i = i + querySize {
+		timeChunks = append(timeChunks, TimeRange{End: i + querySize, Start: i})
 	}
 
 	ret := Retention{FirstOrder: aggregates[0],
