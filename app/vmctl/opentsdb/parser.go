@@ -152,7 +152,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	var timeChunks []TimeRange
 	var i int64
 	for i = offset; i <= queryLength; i = i + querySize {
-		timeChunks = append(timeChunks, TimeRange{End: i + querySize, Start: i})
+		timeChunks = append(timeChunks, TimeRange{Start: i + querySize, End: i})
 	}
 
 	ret := Retention{FirstOrder: aggregates[0],

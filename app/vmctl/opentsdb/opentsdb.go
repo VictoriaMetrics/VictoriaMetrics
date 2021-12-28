@@ -195,7 +195,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		3. bad format of response body
 	*/
 	if resp.StatusCode != 200 {
-		log.Println(fmt.Sprintf("bad response code from OpenTSDB query %v...skipping", resp.StatusCode))
+		log.Println(fmt.Sprintf("bad response code from OpenTSDB query %v for %q...skipping", resp.StatusCode, q))
 		return Metric{}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
