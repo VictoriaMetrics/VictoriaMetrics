@@ -32,12 +32,13 @@ export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesA
   const label = `${legend.group}.${legend.label}`;
   const include = includesHideSeries(legend.label, legend.group, hideSeries);
   const labels = series.map(s => `${s.scale}.${s.label}`);
-  if (metaKey && include) {
+  if (metaKey) {
+    return include ? hideSeries.filter(l => l !== label) : [...hideSeries, label];
+  } else if (hideSeries.length) {
+    return include ? [...labels.filter(l => l !== label)] : [];
+  } else {
     return [...labels.filter(l => l !== label)];
-  } else if (metaKey && !include) {
-    return hideSeries.length >= series.length - 1 ? [] : [...labels.filter(l => l !== label)];
   }
-  return include ? hideSeries.filter(l => l !== label) : [...hideSeries, label];
 };
 
 export const includesHideSeries = (label: string, group: string | number, hideSeries: string[]): boolean => {
