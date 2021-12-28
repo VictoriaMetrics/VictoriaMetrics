@@ -107,7 +107,6 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 		return Retention{}, fmt.Errorf("invalid aggregation string: %q", chunks[0])
 	}
 
-	/*
 	aggTimeDuration, err := convertDuration(aggregates[1])
 	if err != nil {
 		return Retention{}, fmt.Errorf("invalid aggregation time duration string: %q: %s", aggregates[1], err)
@@ -116,7 +115,6 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	if !msecTime {
 		aggTime = aggTime / 1000
 	}
-	*/
 
 	rowLengthDuration, err := convertDuration(chunks[1])
 	if err != nil {
@@ -128,15 +126,25 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 		rowLength = rowLength / 1000
 	}
 
+	var querySize int64
 	/*
 		we'll look at 4x the row size for each query we perform
 		This is a strange function, but the logic works like this:
 		1. we discover the "number" of ranges we should split the time range into
-		   This is found with queryRange / (rowLength * 4), kind of a percentage query
+		   This is found with queryRange / (rowLength * 4)...kind of a percentage query
 		2. we discover the actual size of each "chunk"
 		   This is second division step
 	*/
-	querySize := int64(queryRange / int64(queryRange / (rowLength * 4)))
+	if rowLength > aggTime {
+		querySize = int64(queryRange / (queryRange / (rowLength * 4)))
+	/*
+		Unless the aggTime (how long a range of data we're requesting per individual point)
+		is greater than the row size. Then we'll need to use that to determine
+		how big each individual query should be
+	*/
+	} else {
+		querySize = int64(queryRange / (queryRange / (aggTime * 4)))
+	}
 
 	var timeChunks []TimeRange
 	var i int64
