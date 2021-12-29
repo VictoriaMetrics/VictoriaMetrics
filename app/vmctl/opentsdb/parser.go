@@ -135,18 +135,18 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 			We'll look at 2x the row size for each query we perform
 			This is a strange function, but the logic works like this:
 			1. we discover the "number" of ranges we should split the time range into
-			   This is found with queryRange / (rowLength * 2)...kind of a percentage query
+			   This is found with queryRange / (rowLength * 4)...kind of a percentage query
 			2. we discover the actual size of each "chunk"
 			   This is second division step
 		*/
-		querySize = int64(queryRange / (queryRange / (rowLength * 2)))
+		querySize = int64(queryRange / (queryRange / (rowLength * 4)))
 	} else {
 		/*
 			Unless the aggTime (how long a range of data we're requesting per individual point)
 			is greater than the row size. Then we'll need to use that to determine
 			how big each individual query should be
 		*/
-		querySize = int64(queryRange / (queryRange / (aggTime * 2)))
+		querySize = int64(queryRange / (queryRange / (aggTime * 4)))
 	}
 
 	var timeChunks []TimeRange

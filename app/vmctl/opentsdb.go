@@ -143,7 +143,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 func (op *otsdbProcessor) do(s queryObj) error {
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
-	data, err := op.oc.GetData(s.Series, s.Rt, start, end)
+	data, err := op.oc.GetData(s.Series, s.Rt, start, end, op.oc.MsecsTime)
 	if err != nil {
 		return fmt.Errorf("failed to collect data for %v in %v:%v :: %v", s.Series, s.Rt, s.Tr, err)
 	}

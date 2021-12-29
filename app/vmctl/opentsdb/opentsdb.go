@@ -46,6 +46,7 @@ type Client struct {
 	Filters    []string
 	Normalize  bool
 	HardTS     int64
+	MsecsTime  bool
 }
 
 // Config contains fields required
@@ -82,9 +83,9 @@ type MetaResults struct {
 // Meta A meta object about a metric
 // only contain the tags/etc. and no data
 type Meta struct {
-	//tsuid  string
 	Metric string            `json:"metric"`
 	Tags   map[string]string `json:"tags"`
+	//tsuid  string
 }
 
 // OtsdbMetric is a single series in OpenTSDB's returned format
@@ -152,7 +153,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 
 // GetData actually retrieves data for a series at a specified time range
 // e.g. /api/query?start=1&end=200&m=sum:1m-avg-none:system.load5{host=host1}
-func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (Metric, error) {
+func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, mSecs bool) (Metric, error) {
 	/*
 		First, build our tag string.
 		It's literally just key=value,key=value,...
@@ -272,7 +273,11 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 		then convert the timestamp back to something reasonable.
 	*/
 	for ts, val := range output[0].Dps {
-		data.Timestamps = append(data.Timestamps, ts)
+		if !mSecs {
+			data.Timestamps = append(data.Timestamps, ts*1000)
+		} else {
+			data.Timestamps = append(data.Timestamps, ts)
+		}
 		data.Values = append(data.Values, val)
 	}
 	return data, nil
@@ -319,6 +324,7 @@ func NewClient(cfg Config) (*Client, error) {
 		Filters:    cfg.Filters,
 		Normalize:  cfg.Normalize,
 		HardTS:     cfg.HardTS,
+		MsecsTime:  cfg.MsecsTime,
 	}
 	return client, nil
 }
