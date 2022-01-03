@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import {getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
+import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
 import {useAppState} from "../../../../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
 import {isValidHttpUrl} from "../../../../utils/url";
@@ -17,12 +17,14 @@ export const useFetchQuery = (): {
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
+  queryOptions: string[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, autoRefresh}} = useAppState();
 
   const {basicData, bearerData, authMethod} = useAuthState();
   const {customStep} = useGraphState();
 
+  const [queryOptions, setQueryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
@@ -83,6 +85,21 @@ export const useFetchQuery = (): {
     setIsLoading(false);
   };
 
+  const fetchOptions = async () => {
+    if (!serverUrl) return;
+    const url = getQueryOptions(serverUrl);
+
+    try {
+      const response = await fetch(url);
+      const resp = await response.json();
+      if (response.ok) {
+        setQueryOptions(resp.data);
+      }
+    } catch (e) {
+      if (e instanceof Error) setError(`${e.name}: ${e.message}`);
+    }
+  };
+
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
     if (!period) return;
@@ -104,26 +121,21 @@ export const useFetchQuery = (): {
   [serverUrl, period, displayType, customStep]);
 
   useEffect(() => {
+    fetchOptions();
+  }, [serverUrl]);
+
+  useEffect(() => {
     setPrevPeriod(undefined);
   }, [query]);
 
-  // TODO: this should depend on query as well, but need to decide when to do the request.
-  //       Doing it on each query change - looks to be a bad idea. Probably can be done on blur
+  // TODO: this should depend on query as well, but need to decide when to do the request. Doing it on each query change - looks to be a bad idea. Probably can be done on blur
   useEffect(() => {
     fetchData();
   }, [serverUrl, displayType, customStep]);
 
   useEffect(() => {
-    if (needUpdateData) {
-      fetchData();
-    }
+    if (needUpdateData) fetchData();
   }, [period]);
 
-  return {
-    fetchUrl,
-    isLoading,
-    graphData,
-    liveData,
-    error
-  };
+  return { fetchUrl, isLoading, graphData, liveData, error, queryOptions: queryOptions };
 };

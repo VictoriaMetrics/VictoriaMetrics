@@ -12,14 +12,14 @@ const HomeLayout: FC = () => {
 
   const {displayType, time: {period}} = useAppState();
 
-  const {isLoading, liveData, graphData, error} = useFetchQuery();
+  const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery();
 
   return (
     <Box id="homeLayout">
       <Header/>
       <Box p={4} display="grid" gridTemplateRows="auto 1fr" gap={"20px"} style={{minHeight: "calc(100vh - 64px)"}}>
         <Box>
-          <QueryConfigurator error={error}/>
+          <QueryConfigurator error={error} queryOptions={queryOptions}/>
         </Box>
         <Box height={"100%"}>
           {isLoading && <Fade in={isLoading} style={{
