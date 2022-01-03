@@ -4,6 +4,7 @@ import {ExecutionControls} from "../Home/Configurator/Time/ExecutionControls";
 import {DisplayTypeSwitch} from "../Home/Configurator/DisplayTypeSwitch";
 import Logo from "../common/Logo";
 import makeStyles from "@mui/styles/makeStyles";
+import {setQueryStringWithoutPageReload} from "../../utils/query-string";
 
 const useStyles = makeStyles({
   logo: {
@@ -11,7 +12,10 @@ const useStyles = makeStyles({
     display: "flex",
     alignItems: "center",
     color: "#fff",
-    transition: ".2s textDecoration",
+    cursor: "pointer",
+    "&:hover": {
+      textDecoration: "underline"
+    }
   },
   issueLink: {
     position: "absolute",
@@ -32,16 +36,21 @@ const Header: FC = () => {
 
   const classes = useStyles();
 
+  const onClickLogo = () => {
+    setQueryStringWithoutPageReload("");
+    window.location.reload();
+  };
+
   return <AppBar position="static">
     <Toolbar>
       <Box display="grid" alignItems="center" justifyContent="center">
-        <Link href="/" className={classes.logo}>
+        <Box onClick={onClickLogo} className={classes.logo}>
           <Logo style={{color: "inherit", marginRight: "6px"}}/>
           <Typography variant="h5">
             <span style={{fontWeight: "bolder"}}>VM</span>
             <span style={{fontWeight: "lighter"}}>UI</span>
           </Typography>
-        </Link>
+        </Box>
         <Link className={classes.issueLink} target="_blank"
           href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
           create an issue

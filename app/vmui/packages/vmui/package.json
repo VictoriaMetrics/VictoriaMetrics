@@ -8,7 +8,7 @@
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
     "@mui/icons-material": "^5.2.5",
-    "@mui/lab": "^5.0.0-alpha.61",
+    "@mui/lab": "^5.0.0-alpha.62",
     "@mui/material": "^5.2.4",
     "@mui/styles": "^5.2.3",
     "@testing-library/jest-dom": "^5.16.1",
@@ -18,7 +18,7 @@
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.get": "^4.4.6",
     "@types/lodash.throttle": "^4.1.6",
-    "@types/node": "^17.0.1",
+    "@types/node": "^17.0.6",
     "@types/numeral": "^2.0.2",
     "@types/qs": "^6.9.7",
     "@types/react": "^17.0.38",
@@ -66,11 +66,11 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.5",
-    "@typescript-eslint/eslint-plugin": "^5.8.0",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
+    "@typescript-eslint/eslint-plugin": "^5.8.1",
     "@typescript-eslint/parser": "^5.8.0",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.28.0",
-    "react-app-rewired": "^2.1.9"
+    "react-app-rewired": "^2.1.11"
   }
 }
