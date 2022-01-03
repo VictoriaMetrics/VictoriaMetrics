@@ -149,9 +149,11 @@ func NewImporter(cfg Config) (*Importer, error) {
 // ImportError is type of error generated
 // in case of unsuccessful import request
 type ImportError struct {
-	// The batch of timeseries that failed
+	// The batch of timeseries processed by importer at the moment
 	Batch []*TimeSeries
 	// The error that appeared during insert
+	// If err is nil - no error happened and Batch
+	// Is the latest delivered Batch.
 	Err error
 }
 
@@ -180,12 +182,13 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 	for {
 		select {
 		case <-im.close:
-			if err := im.Import(batch); err != nil {
-				im.errors <- &ImportError{
-					Batch: batch,
-					Err:   err,
-				}
+			exitErr := &ImportError{
+				Batch: batch,
 			}
+			if err := im.Import(batch); err != nil {
+				exitErr.Err = err
+			}
+			im.errors <- exitErr
 			return
 		case ts := <-im.input:
 			// init waitForBatch when first
