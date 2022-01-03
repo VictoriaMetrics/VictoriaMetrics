@@ -4,32 +4,17 @@ sort: 12
 
 # Quick Start
 
-1. If you run Ubuntu please run the `snap install victoriametrics` command to install and start VictoriaMetrics. Then read [these docs](https://snapcraft.io/victoriametrics).
-   Otherwise you can download the latest VictoriaMetrics release from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-   or [Docker hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
-   or [build it from sources](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-build-from-sources). 
+The following commands download the latest available [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics) and start it at port 8428, while storing the ingested data at `victoria-metrics-data` subdirectory under the current directory:
 
-2. This step isn't needed if you run VictoriaMetrics via `snap install victoriametrics` as described above.
-   Otherwise, please run the binary or Docker image with your desired command-line flags. You can look at `-help` to see descriptions of all available flags
-   and their default values. The default flag values should fit the majority of cases. The minimum required flags that must be configured are:
+```bash
+docker pull victoriametrics/victoria-metrics:latest
+docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:latest
+```
 
-   * `-storageDataPath` - the path to directory where VictoriaMetrics stores your data.
-   * `-retentionPeriod` - data retention.
+Open `http://localhost:8428` in web browser and read [these docs](https://docs.victoriametrics.com/#operation).
 
-   For example:
+VictoriaMetrics is also available in binaries (see [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)) and in source code (see [how to build VictoriaMetrics from sources](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-build-from-sources)).
 
-   `./victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics-data -retentionPeriod=3`
-
-   Check [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) to configure VictoriaMetrics as an OS service.
-   We recommended setting up [VictoriaMetrics monitoring](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring).
-
-3. Configure either [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus to write data to VictoriaMetrics.
-   We recommended using `vmagent` instead of Prometheus because it is more resource efficient. If you still prefer Prometheus
-   see [these instructions](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup)
-   for details on how it may be properly configured.
-
-4. To configure Grafana to query VictoriaMetrics instead of Prometheus
-   please see [these instructions](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup).
-
-
-There is also [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) and [SaaS playground](https://play.victoriametrics.com/signIn).
+There are also the following versions of VictoriaMetrics available:
+* [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) - horizontally scalable VictoriaMetrics, which scales to multiple nodes.
+* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc).
