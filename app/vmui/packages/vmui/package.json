@@ -78,6 +78,6 @@
     "@typescript-eslint/parser": "^5.8.0",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.28.0",
-    "react-app-rewired": "^2.1.9"
+    "react-app-rewired": "^2.1.11"
   }
 }
