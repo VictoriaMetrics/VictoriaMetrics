@@ -10,6 +10,7 @@ import Logo from "../common/Logo";
 import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
 import {TimeSelector} from "../Home/Configurator/Time/TimeSelector";
+import GlobalSettings from "../Home/Configurator/Settings/GlobalSettings";
 
 const useStyles = makeStyles({
   logo: {
@@ -46,7 +47,7 @@ const Header: FC = () => {
     window.location.reload();
   };
 
-  return <AppBar position="static">
+  return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
     <Toolbar>
       <Box display="grid" alignItems="center" justifyContent="center">
         <Box onClick={onClickLogo} className={classes.logo}>
@@ -64,7 +65,7 @@ const Header: FC = () => {
       <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>
         <TimeSelector/>
         <ExecutionControls/>
-        <DisplayTypeSwitch/>
+        <GlobalSettings/>
       </Box>
     </Toolbar>
   </AppBar>;

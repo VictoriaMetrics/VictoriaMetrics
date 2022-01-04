@@ -82,7 +82,6 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   return <>
     {(data.length > 0)
       ? <div>
-        <GraphSettings/>
         <LineChart data={dataChart} series={series} metrics={data}/>
         <Legend labels={legend} onChange={onChangeLegend}/>
       </div>

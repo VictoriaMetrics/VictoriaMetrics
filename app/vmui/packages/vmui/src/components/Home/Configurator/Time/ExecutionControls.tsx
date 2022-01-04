@@ -66,23 +66,22 @@ export const ExecutionControls: FC = () => {
   const open = Boolean(anchorEl);
 
   return <>
-    <Box>
-      <Tooltip title="Auto-refresh control">
-        <Button variant="contained" color="primary"
-          sx={{
-            minWidth: "110px",
-            color: "white",
-            border: "1px solid rgba(0, 0, 0, 0.2)",
-            justifyContent: "space-between",
-          }}
-          startIcon={<AutorenewIcon/>}
-          endIcon={<KeyboardArrowDownIcon sx={{transform: open ? "rotate(180deg)" : "none"}}/>}
-          onClick={(e) => setAnchorEl(e.currentTarget)}
-        >
-          {selectedDelay.title}
-        </Button>
-      </Tooltip>
-    </Box>
+    <Tooltip title="Auto-refresh control">
+      <Button variant="contained" color="primary"
+        sx={{
+          minWidth: "110px",
+          color: "white",
+          border: "1px solid rgba(0, 0, 0, 0.2)",
+          justifyContent: "space-between",
+          boxShadow: "none",
+        }}
+        startIcon={<AutorenewIcon/>}
+        endIcon={<KeyboardArrowDownIcon sx={{transform: open ? "rotate(180deg)" : "none"}}/>}
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+      >
+        {selectedDelay.title}
+      </Button>
+    </Tooltip>
     <Popper
       open={open}
       anchorEl={anchorEl}

@@ -49,16 +49,26 @@ const THEME = createTheme({
     MuiAccordion: {
       styleOverrides: {
         root: {
-          boxShadow: "rgba(0, 0, 0, 0.16) 0px 1px 4px;"
+          boxShadow: "rgba(0, 0, 0, 0.16) 0px 1px 4px"
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          boxShadow: "rgba(0, 0, 0, 0.2) 0px 3px 8px;"
+          boxShadow: "rgba(0, 0, 0, 0.2) 0px 3px 8px"
         },
       },
+    },
+    MuiButton: {
+      styleOverrides: {
+        contained: {
+          boxShadow: "rgba(17, 17, 26, 0.1) 0px 0px 16px",
+          "&:hover": {
+            boxShadow: "rgba(0, 0, 0, 0.1) 0px 4px 12px",
+          },
+        }
+      }
     },
     MuiIconButton: {
       defaultProps: {
@@ -82,6 +92,13 @@ const THEME = createTheme({
       styleOverrides: {
         tooltip: {
           fontSize: "10px"
+        }
+      }
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          boxShadow: "rgba(0, 0, 0, 0.08) 0px 4px 12px"
         }
       }
     }

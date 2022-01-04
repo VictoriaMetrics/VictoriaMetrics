@@ -71,16 +71,18 @@ export const TimeSelector: FC = () => {
   const open = Boolean(anchorEl);
 
   return <>
-    <Box>
-      <Tooltip title="Time range controls">
-        <Button variant="contained" color="primary"
-          sx={{color: "white", border: "1px solid rgba(0, 0, 0, 0.2)"}}
-          startIcon={<QueryBuilderIcon/>}
-          onClick={(e) => setAnchorEl(e.currentTarget)}>
-          {formatRange.start} - {formatRange.end}
-        </Button>
-      </Tooltip>
-    </Box>
+    <Tooltip title="Time range controls">
+      <Button variant="contained" color="primary"
+        sx={{
+          color: "white",
+          border: "1px solid rgba(0, 0, 0, 0.2)",
+          boxShadow: "none"
+        }}
+        startIcon={<QueryBuilderIcon/>}
+        onClick={(e) => setAnchorEl(e.currentTarget)}>
+        {formatRange.start} - {formatRange.end}
+      </Button>
+    </Tooltip>
     <Popper
       open={open}
       anchorEl={anchorEl}
@@ -116,11 +118,11 @@ export const TimeSelector: FC = () => {
                   PopperProps={{disablePortal: true}}/>
               </Box>
               <Box display="grid" gridTemplateColumns="auto 1fr" gap={1}>
-                <Button variant="contained" onClick={() => dispatch({type: "RUN_QUERY_TO_NOW"})}>
-                  switch to now
-                </Button>
                 <Button variant="outlined" onClick={() => setAnchorEl(null)}>
                   Cancel
+                </Button>
+                <Button variant="contained" onClick={() => dispatch({type: "RUN_QUERY_TO_NOW"})}>
+                  switch to now
                 </Button>
               </Box>
             </Box>
