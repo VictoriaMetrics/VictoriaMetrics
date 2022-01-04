@@ -12,6 +12,7 @@ sort: 15
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that `vmagent` replicas scrape the same targets at different time offsets when [replication is enabled in vmagent clustering mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets). This guarantees that the [deduplication](https://docs.victoriametrics.com/#deduplication) consistently leaves samples from the same `vmagent` replica.
 * BUGFIX: return the proper response stub from `/api/v1/query_exemplars` handler, which is needed for Grafana v8+. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1999).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix a few edge cases and improve migration speed for OpenTSDB importer. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2019).
 
 
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)
