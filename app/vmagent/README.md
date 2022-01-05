@@ -521,7 +521,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 ## Kafka integration
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
 
 * [Reading metrics from Kafka](#reading-metrics-from-kafka)
 * [Writing metrics to Kafka](#writing-metrics-to-kafka)
@@ -531,7 +531,7 @@ The enterprise version of vmagent is available for evaluation at [releases](http
 
 ### Reading metrics from Kafka
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
 
 * `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
 * `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
@@ -567,7 +567,7 @@ data_format = "influx"
 
 #### Command-line flags for Kafka consumer
 
-These command-line flags are available only in [enterprise](https://victoriametrics.com/enterprise.html) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+These command-line flags are available only in [enterprise](https://victoriametrics.com/products/enterprise/) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
 ```
   -kafka.consumer.topic array
@@ -600,7 +600,7 @@ These command-line flags are available only in [enterprise](https://victoriametr
 
 ### Writing metrics to Kafka
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
 
 Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id` sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
 

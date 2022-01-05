@@ -225,7 +225,7 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
 * URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
     - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)
     - `<suffix>` may have the following values:
-      - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html). This functionality is available in [Enterprise package](https://victoriametrics.com/enterprise.html).
+      - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html). This functionality is available in [Enterprise package](https://victoriametrics.com/products/enterprise/).
       - `metrics/find` - searches Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find).
       - `metrics/expand` - expands Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand).
       - `metrics/index.json` - returns all the metric names. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json).
@@ -410,7 +410,7 @@ Restoring from backup:
 
 ## Downsampling
 
-Downsampling is available in [enterprise version of VictoriaMetrics](https://victoriametrics.com/enterprise.html). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
+Downsampling is available in [enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
 
 
 ## Profiling
