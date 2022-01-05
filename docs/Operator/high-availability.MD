@@ -1,5 +1,5 @@
 ---
-sort: 8
+sort: 7
 ---
 
 # High Availability

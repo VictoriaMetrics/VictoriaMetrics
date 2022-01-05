@@ -1,5 +1,5 @@
 ---
-sort: 11
+sort: 10
 ---
 
 # VMAgent relabel

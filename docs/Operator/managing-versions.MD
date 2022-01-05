@@ -1,5 +1,5 @@
 ---
-sort: 9
+sort: 8
 ---
 
 # VMAlert, VMAgent, VMAlertmanager, VMSingle version

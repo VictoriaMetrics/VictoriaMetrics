@@ -1,5 +1,5 @@
 ---
-sort: 10
+sort: 9
 ---
 
 # Victoria Metrics Operator Quick Start
