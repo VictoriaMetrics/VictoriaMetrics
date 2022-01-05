@@ -62,4 +62,4 @@ There are the following channels for providing technical support for VictoriaMet
 * [Slack channel](https://slack.victoriametrics.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
-We also provide [Enterprise support](https://victoriametrics.com/enterprise.html).
+We also provide [Enterprise support](https://victoriametrics.com/products/enterprise/).
