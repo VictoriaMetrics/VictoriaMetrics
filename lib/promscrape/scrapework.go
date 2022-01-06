@@ -256,7 +256,7 @@ func (sw *scrapeWork) finalizeLastScrape() {
 	}
 }
 
-func (sw *scrapeWork) run(stopCh <-chan struct{}) {
+func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) {
 	var randSleep uint64
 	scrapeInterval := sw.Config.ScrapeInterval
 	scrapeAlignInterval := sw.Config.ScrapeAlignInterval
@@ -311,7 +311,13 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		case <-stopCh:
 			t := time.Now().UnixNano() / 1e6
 			lastScrape := sw.loadLastScrape()
-			sw.sendStaleSeries(lastScrape, "", t, true)
+			select {
+			case <-globalStopCh:
+				// Do not send staleness markers on graceful shutdown as Prometheus does.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079
+			default:
+				sw.sendStaleSeries(lastScrape, "", t, true)
+			}
 			if sw.seriesLimiter != nil {
 				job := sw.Config.Job()
 				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
