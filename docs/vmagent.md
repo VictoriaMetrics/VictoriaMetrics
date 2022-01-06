@@ -305,7 +305,6 @@ You can read more about relabeling in the following articles:
 * If the metric disappears from the list of scraped metrics, then stale marker is sent to this particular metric.
 * If the scrape target becomes temporarily unavailable, then stale markers are sent for all the metrics scraped from this target.
 * If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
-* Stale markers are sent for all the scraped metrics on graceful shutdown of `vmagent`.
 
 Prometheus staleness markers' tracking needs additional memory, since it must store the previous response body per each scrape target in order to compare it to the current response body. The memory usage may be reduced by passing `-promscrape.noStaleMarkers` command-line flag to `vmagent`. This disables staleness tracking. This also disables tracking the number of new time series per each scrape with the auto-generated `scrape_series_added` metric. See [these docs](https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series) for details.
 
