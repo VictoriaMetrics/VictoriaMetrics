@@ -48,7 +48,7 @@ export const setQueryStringValue = (newValue: Record<string, unknown>): void => 
         newQsValue.push(`g${i}.${queryKey}=${valueEncoded}`);
       }
     });
-    newQsValue.push(`g${i}.expr=${q}`);
+    newQsValue.push(`g${i}.expr=${breakLineToQuery(q)}`);
   });
 
   setQueryStringWithoutPageReload(newQsValue.join("&"));
@@ -69,3 +69,7 @@ export const getQueryArray = (): string[] => {
     return getQueryStringValue(`g${i}.expr`, "") as string;
   });
 };
+
+export const breakLineToQuery = (q: string): string => q.replace(/\n/g, "%20");
+
+export const queryToBreakLine = (q: string): string => q.replace(/%20/g, "\n");

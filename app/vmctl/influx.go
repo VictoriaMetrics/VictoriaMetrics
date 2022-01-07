@@ -30,7 +30,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 	}
 }
 
-func (ip *influxProcessor) run(silent bool) error {
+func (ip *influxProcessor) run(silent, verbose bool) error {
 	series, err := ip.ic.Explore()
 	if err != nil {
 		return fmt.Errorf("explore query failed: %s", err)
@@ -70,7 +70,7 @@ func (ip *influxProcessor) run(silent bool) error {
 		case infErr := <-errCh:
 			return fmt.Errorf("influx error: %s", infErr)
 		case vmErr := <-ip.im.Errors():
-			return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		case seriesCh <- s:
 		}
 	}
@@ -80,7 +80,9 @@ func (ip *influxProcessor) run(silent bool) error {
 	ip.im.Close()
 	// drain import errors channel
 	for vmErr := range ip.im.Errors() {
-		return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+		if vmErr.Err != nil {
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+		}
 	}
 	bar.Finish()
 	log.Println("Import finished!")

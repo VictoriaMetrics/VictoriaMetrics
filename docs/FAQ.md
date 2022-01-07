@@ -66,6 +66,20 @@ and send data to multiple remote storage systems, vmagent has the following addi
   - [Prometheus remote_write proxy](https://docs.victoriametrics.com/vmagent.html#prometheus-remote_write-proxy)
 
 
+## What is the difference between vmagent and Prometheus agent?
+
+Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose - to efficently scrape Prometheus-compatible targets at the edge. The have the following differences:
+
+- vmagent usually requires lower amounts of CPU, RAM and disk IO comparing to Prometheus agent.
+- Prometheus agent supports only pull-based data collection (e.g. it can scrape Prometheus-compatible targets), while vmagent supports both pull and push data collection - it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, CSV and JSON - see [these docs](https://docs.victoriametrics.com/vmagent.html#features).
+- vmagent can easily scale horizontally to multiple instances for scraping big number of targets - see [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+- vmagent supports [improved relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
+- vmagent can limit the number of scraped metrics per target. See [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
+- vmagent supports loading scrape configs from multiple files - see [these docs](https://docs.victoriametrics.com/vmagent.html#loading-scrape-configs-from-multiple-files).
+- vmagent supports data reading and data writing from/to Kafka - see [these docs](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
+- vmagent can read and update scrape configs from http and https urls, while Prometheus agent can read scrape configs only from local filesystem.
+
+
 ## Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 
 Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data
@@ -191,9 +205,12 @@ The following versions are open source and free:
 
 We provide commercial support for both versions. [Contact us](mailto:info@victoriametrics.com) for the pricing.
 
+The following commercial versions of VictoriaMetrics are available:
+* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc) (aka managed Prometheus).
+
 The following commercial versions of VictoriaMetrics are planned:
-* Managed cluster in the Cloud.
-* SaaS version.
+* Managed VictoriaMetrics at Google Cloud.
+* Cloud monitoring solution based on VictoriaMetrics.
 
 [Contact us](mailto:info@victoriametrics.com) for more information on our plans.
 

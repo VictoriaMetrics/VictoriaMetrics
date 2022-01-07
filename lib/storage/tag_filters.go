@@ -236,7 +236,7 @@ type tagFilter struct {
 	// contains the prefix for regexp filter if isRegexp==true.
 	regexpPrefix string
 
-	// Prefix always contains {nsPrefixTagToMetricIDs, key}.
+	// Prefix contains either {nsPrefixTagToMetricIDs, key} or {nsPrefixDateTagToMetricIDs, date, key}.
 	// Additionally it contains:
 	//  - value if !isRegexp.
 	//  - regexpPrefix if isRegexp.
@@ -374,6 +374,8 @@ func getCommonPrefix(ss []string) (string, []string) {
 }
 
 // Init initializes the tag filter for the given commonPrefix, key and value.
+//
+// commonPrefix must contain either {nsPrefixTagToMetricIDs} or {nsPrefixDateTagToMetricIDs, date}.
 //
 // If isNegaitve is true, then the tag filter matches all the values
 // except the given one.

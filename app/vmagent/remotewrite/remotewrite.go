@@ -390,6 +390,8 @@ var labelsHashBufPool bytesutil.ByteBufferPool
 func logSkippedSeries(labels []prompbmarshal.Label, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
+		// Do not use logger.WithThrottler() here, since this will increase CPU usage
+		// because every call to logSkippedSeries will result to a call to labelsToString.
 		logger.Warnf("skip series %s because %s=%d reached", labelsToString(labels), flagName, flagValue)
 	default:
 	}

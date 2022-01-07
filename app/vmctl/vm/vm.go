@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
@@ -47,6 +48,9 @@ type Config struct {
 	RoundDigits int
 	// ExtraLabels that will be added to all imported series. Must be in label=value format.
 	ExtraLabels []string
+	// RateLimit defines a data transfer speed in bytes per second.
+	// Is applied to each worker (see Concurrency) independently.
+	RateLimit int64
 }
 
 // Importer performs insertion of timeseries
@@ -62,6 +66,8 @@ type Importer struct {
 	close  chan struct{}
 	input  chan *TimeSeries
 	errors chan *ImportError
+
+	rl *limiter.Limiter
 
 	wg   sync.WaitGroup
 	once sync.Once
@@ -123,6 +129,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		compress:   cfg.Compress,
 		user:       cfg.User,
 		password:   cfg.Password,
+		rl:         limiter.NewLimiter(cfg.RateLimit),
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
@@ -149,9 +156,11 @@ func NewImporter(cfg Config) (*Importer, error) {
 // ImportError is type of error generated
 // in case of unsuccessful import request
 type ImportError struct {
-	// The batch of timeseries that failed
+	// The batch of timeseries processed by importer at the moment
 	Batch []*TimeSeries
 	// The error that appeared during insert
+	// If err is nil - no error happened and Batch
+	// Is the latest delivered Batch.
 	Err error
 }
 
@@ -180,12 +189,13 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 	for {
 		select {
 		case <-im.close:
-			if err := im.Import(batch); err != nil {
-				im.errors <- &ImportError{
-					Batch: batch,
-					Err:   err,
-				}
+			exitErr := &ImportError{
+				Batch: batch,
 			}
+			if err := im.Import(batch); err != nil {
+				exitErr.Err = err
+			}
+			im.errors <- exitErr
 			return
 		case ts := <-im.input:
 			// init waitForBatch when first
@@ -301,12 +311,13 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 
 	w := io.Writer(pw)
 	if im.compress {
-		zw, err := gzip.NewWriterLevel(pw, 1)
+		zw, err := gzip.NewWriterLevel(w, 1)
 		if err != nil {
 			return fmt.Errorf("unexpected error when creating gzip writer: %s", err)
 		}
 		w = zw
 	}
+	w = limiter.NewWriteLimiter(w, im.rl)
 	bw := bufio.NewWriterSize(w, 16*1024)
 
 	var totalSamples, totalBytes int
@@ -321,8 +332,8 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-	if im.compress {
-		err := w.(*gzip.Writer).Close()
+	if closer, ok := w.(io.Closer); ok {
+		err := closer.Close()
 		if err != nil {
 			return err
 		}

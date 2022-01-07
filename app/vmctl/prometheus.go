@@ -25,7 +25,7 @@ type prometheusProcessor struct {
 	cc int
 }
 
-func (pp *prometheusProcessor) run(silent bool) error {
+func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
@@ -66,7 +66,7 @@ func (pp *prometheusProcessor) run(silent bool) error {
 			return fmt.Errorf("prometheus error: %s", promErr)
 		case vmErr := <-pp.im.Errors():
 			close(blockReadersCh)
-			return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		case blockReadersCh <- br:
 		}
 	}
@@ -77,7 +77,9 @@ func (pp *prometheusProcessor) run(silent bool) error {
 	pp.im.Close()
 	// drain import errors channel
 	for vmErr := range pp.im.Errors() {
-		return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+		if vmErr.Err != nil {
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+		}
 	}
 	bar.Finish()
 	log.Println("Import finished!")

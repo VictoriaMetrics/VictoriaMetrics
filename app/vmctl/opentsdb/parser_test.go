@@ -8,7 +8,7 @@ func TestConvertRetention(t *testing.T) {
 	/*
 		2592000 seconds in 30 days
 		3600 in one hour
-		2592000 / 3600 = 720 individual query "ranges" should exist, plus one because time ranges can be weird
+		2592000 / 14400 = 180 individual query "ranges" should exist, plus one because time ranges can be weird
 		First order should == "sum"
 		Second order should == "avg"
 		AggTime should == "1m"
@@ -17,8 +17,8 @@ func TestConvertRetention(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error parsing valid retention string: %v", err)
 	}
-	if len(res.QueryRanges) != 721 {
-		t.Fatalf("Found %v query ranges. Should have found 720", len(res.QueryRanges))
+	if len(res.QueryRanges) != 181 {
+		t.Fatalf("Found %v query ranges. Should have found 181", len(res.QueryRanges))
 	}
 	if res.FirstOrder != "sum" {
 		t.Fatalf("Incorrect first order aggregation %q. Should have been 'sum'", res.FirstOrder)

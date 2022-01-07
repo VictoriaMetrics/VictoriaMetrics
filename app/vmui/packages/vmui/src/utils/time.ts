@@ -75,7 +75,7 @@ export const formatDateForNativeInput = (date: Date): string => dayjs(date).form
 
 export const getDateNowUTC = (): Date => new Date(dayjs().utc().format(dateIsoFormat));
 
-const getDurationFromMilliseconds = (ms: number): string => {
+export const getDurationFromMilliseconds = (ms: number): string => {
   const milliseconds = Math.floor(ms  % 1000);
   const seconds = Math.floor((ms / 1000) % 60);
   const minutes = Math.floor((ms / 1000 / 60) % 60);

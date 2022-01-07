@@ -15,12 +15,13 @@ import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
 
 export interface QueryConfiguratorProps {
-    error?: ErrorTypes | string;
+  error?: ErrorTypes | string;
+  queryOptions: string[]
 }
 
-const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
+const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 
-  const {serverUrl, query, queryHistory, time: {duration}, queryControls: {autocomplete}} = useAppState();
+  const {serverUrl, query, queryHistory, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
   const [expanded, setExpanded] = useState(true);
   const queryContainer = useRef<HTMLDivElement>(null);
@@ -91,10 +92,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
             {query.map((q, i) =>
               <Box key={i} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
                 mb={i === query.length - 1 ? 0 : 2}>
-                <QueryEditor server={serverUrl} query={query[i]} index={i} oneLiner={!expanded}
-                  autocomplete={autocomplete} queryHistory={queryHistory[i]} error={error}
-                  setHistoryIndex={setHistoryIndex} runQuery={onRunQuery}
-                  setQuery={onSetQuery}/>
+                <QueryEditor query={query[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
+                  error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
                 {i === 0 && <Tooltip title="Execute Query">
                   <IconButton onClick={onRunQuery}>
                     <PlayCircleOutlineIcon/>
@@ -123,7 +122,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error}) => {
             </Box>}
           </Grid>
           <Grid item xs>
-            <TimeSelector setDuration={onSetDuration} duration={duration}/>
+            <TimeSelector setDuration={onSetDuration}/>
           </Grid>
           <Grid item xs={12} pt={1}>
             <AdditionalSettings/>

@@ -256,7 +256,7 @@ func (sw *scrapeWork) finalizeLastScrape() {
 	}
 }
 
-func (sw *scrapeWork) run(stopCh <-chan struct{}) {
+func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) {
 	var randSleep uint64
 	scrapeInterval := sw.Config.ScrapeInterval
 	scrapeAlignInterval := sw.Config.ScrapeAlignInterval
@@ -270,7 +270,12 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		// scrape urls and labels.
 		// This also makes consistent scrape times across restarts
 		// for a target with the same ScrapeURL and labels.
-		key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
+		//
+		// Include clusterMemberNum to the key in order to guarantee that each member in vmagent cluster
+		// scrapes replicated targets at different time offsets. This guarantees that the deduplication consistently leaves samples
+		// received from the same vmagent replica.
+		// See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
+		key := fmt.Sprintf("ClusterMemberNum=%d, ScrapeURL=%s, Labels=%s", *clusterMemberNum, sw.Config.ScrapeURL, sw.Config.LabelsString())
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 64)))
 		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
@@ -306,7 +311,13 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		case <-stopCh:
 			t := time.Now().UnixNano() / 1e6
 			lastScrape := sw.loadLastScrape()
-			sw.sendStaleSeries(lastScrape, "", t, true)
+			select {
+			case <-globalStopCh:
+				// Do not send staleness markers on graceful shutdown as Prometheus does.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079
+			default:
+				sw.sendStaleSeries(lastScrape, "", t, true)
+			}
 			if sw.seriesLimiter != nil {
 				job := sw.Config.Job()
 				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,

@@ -305,7 +305,6 @@ You can read more about relabeling in the following articles:
 * If the metric disappears from the list of scraped metrics, then stale marker is sent to this particular metric.
 * If the scrape target becomes temporarily unavailable, then stale markers are sent for all the metrics scraped from this target.
 * If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
-* Stale markers are sent for all the scraped metrics on graceful shutdown of `vmagent`.
 
 Prometheus staleness markers' tracking needs additional memory, since it must store the previous response body per each scrape target in order to compare it to the current response body. The memory usage may be reduced by passing `-promscrape.noStaleMarkers` command-line flag to `vmagent`. This disables staleness tracking. This also disables tracking the number of new time series per each scrape with the auto-generated `scrape_series_added` metric. See [these docs](https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series) for details.
 
@@ -525,7 +524,7 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 ## Kafka integration
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
 
 * [Reading metrics from Kafka](#reading-metrics-from-kafka)
 * [Writing metrics to Kafka](#writing-metrics-to-kafka)
@@ -535,7 +534,7 @@ The enterprise version of vmagent is available for evaluation at [releases](http
 
 ### Reading metrics from Kafka
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
 
 * `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
 * `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
@@ -571,7 +570,7 @@ data_format = "influx"
 
 #### Command-line flags for Kafka consumer
 
-These command-line flags are available only in [enterprise](https://victoriametrics.com/enterprise.html) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+These command-line flags are available only in [enterprise](https://victoriametrics.com/products/enterprise/) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
 ```
   -kafka.consumer.topic array
@@ -604,7 +603,7 @@ These command-line flags are available only in [enterprise](https://victoriametr
 
 ### Writing metrics to Kafka
 
-[Enterprise version](https://victoriametrics.com/enterprise.html) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
 
 Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id` sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
 
@@ -633,7 +632,7 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
 2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -662,7 +661,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.16.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
 2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 
