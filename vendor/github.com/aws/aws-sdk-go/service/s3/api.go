@@ -579,11 +579,10 @@ func (c *S3) CreateBucketRequest(input *CreateBucketInput) (req *request.Request
 // the bucket ACL to specify the accounts or groups that should be granted specific
 // permissions on the bucket.
 //
-// If your CreateBucket request includes the BucketOwnerEnforced value for the
-// x-amz-object-ownership header, your request can either not specify an ACL
-// or specify bucket owner full control ACLs, such as the bucket-owner-full-control
-// canned ACL or an equivalent ACL expressed in the XML format. For more information,
-// see Controlling object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// If your CreateBucket request sets bucket owner enforced for S3 Object Ownership
+// and specifies a bucket ACL that provides access to an external Amazon Web
+// Services account, your request fails with a 400 error and returns the InvalidBucketAclWithObjectOwnership
+// error code. For more information, see Controlling object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide.
 //
 // There are two ways to grant the appropriate permissions using the request
@@ -10392,6 +10391,7 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 //
 // For more information about Amazon S3 Select, see Selecting Content from Objects
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/selecting-content-from-objects.html)
+// and SELECT Command (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html)
 // in the Amazon S3 User Guide.
 //
 // For more information about using SQL with Amazon S3 Select, see SQL Reference
@@ -22940,11 +22940,8 @@ type HeadObjectInput struct {
 	// object.
 	PartNumber *int64 `location:"querystring" locationName:"partNumber" type:"integer"`
 
-	// Downloads the specified range bytes of an object. For more information about
-	// the HTTP Range header, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-	// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35).
-	//
-	// Amazon S3 doesn't support retrieving multiple ranges of data per GET request.
+	// Because HeadObject returns only the metadata for an object, this parameter
+	// has no effect.
 	Range *string `location:"header" locationName:"Range" type:"string"`
 
 	// Confirms that the requester knows that they will be charged for the request.
@@ -36103,8 +36100,12 @@ func (s *SelectParameters) SetOutputSerialization(v *OutputSerialization) *Selec
 
 // Describes the default server-side encryption to apply to new objects in the
 // bucket. If a PUT Object request doesn't specify any server-side encryption,
-// this default encryption will be applied. For more information, see PUT Bucket
-// encryption (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html)
+// this default encryption will be applied. If you don't specify a customer
+// managed key at configuration, Amazon S3 automatically creates an Amazon Web
+// Services KMS key in your Amazon Web Services account the first time that
+// you add an object encrypted with SSE-KMS to a bucket. By default, Amazon
+// S3 uses this KMS key for SSE-KMS. For more information, see PUT Bucket encryption
+// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html)
 // in the Amazon S3 API Reference.
 type ServerSideEncryptionByDefault struct {
 	_ struct{} `type:"structure"`
@@ -36114,9 +36115,9 @@ type ServerSideEncryptionByDefault struct {
 	// and only if SSEAlgorithm is set to aws:kms.
 	//
 	// You can specify the key ID or the Amazon Resource Name (ARN) of the KMS key.
-	// However, if you are using encryption with cross-account operations, you must
-	// use a fully qualified KMS key ARN. For more information, see Using encryption
-	// for cross-account operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy).
+	// However, if you are using encryption with cross-account or Amazon Web Services
+	// service operations you must use a fully qualified KMS key ARN. For more information,
+	// see Using encryption for cross-account operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy).
 	//
 	// For example:
 	//
