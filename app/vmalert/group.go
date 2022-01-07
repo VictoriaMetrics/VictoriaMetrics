@@ -356,6 +356,7 @@ var (
 	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
 
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
+	remoteWriteTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 )
 
 func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Duration) error {
@@ -369,6 +370,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 
 	if len(tss) > 0 && e.rw != nil {
 		for _, ts := range tss {
+			remoteWriteTotal.Inc()
 			if err := e.rw.Push(ts); err != nil {
 				remoteWriteErrors.Inc()
 				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
