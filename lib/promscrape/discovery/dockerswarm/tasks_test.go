@@ -167,7 +167,7 @@ func Test_addTasksLabels(t *testing.T) {
 			},
 			want: [][]prompbmarshal.Label{
 				discoveryutils.GetSortedLabels(map[string]string{
-					"__address__":                                   "172.31.40.97:9100",
+					"__address__":                                   "172.31.40.97:6379",
 					"__meta_dockerswarm_node_address":               "172.31.40.97",
 					"__meta_dockerswarm_node_availability":          "active",
 					"__meta_dockerswarm_node_engine_version":        "19.03.11",
@@ -295,9 +295,10 @@ func Test_addTasksLabels(t *testing.T) {
 						}{
 							Ports: []portConfig{
 								{
-									Protocol:    "tcp",
-									Name:        "redis",
-									PublishMode: "ingress",
+									Protocol:      "tcp",
+									Name:          "redis",
+									PublishMode:   "ingress",
+									PublishedPort: 6379,
 								},
 							}, VirtualIPs: []struct {
 								NetworkID string
@@ -315,8 +316,7 @@ func Test_addTasksLabels(t *testing.T) {
 			},
 			want: [][]prompbmarshal.Label{
 				discoveryutils.GetSortedLabels(map[string]string{
-					"__address":                                     "10.10.15.15:0",
-					"__address__":                                   "172.31.40.97:9100",
+					"__address__":                                   "10.10.15.15:6379",
 					"__meta_dockerswarm_network_id":                 "qs0hog6ldlei9ct11pr3c77v1",
 					"__meta_dockerswarm_network_ingress":            "true",
 					"__meta_dockerswarm_network_internal":           "false",

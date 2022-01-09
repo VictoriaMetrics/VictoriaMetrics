@@ -94,6 +94,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []map[string]strin
 		}
 		addLabels(commonLabels, servicesLabels, "__meta_dockerswarm_service_id", task.ServiceID)
 		addLabels(commonLabels, nodesLabels, "__meta_dockerswarm_node_id", task.NodeID)
+		delete(commonLabels, "__address__")
 
 		for _, port := range task.Status.PortStatus.Ports {
 			if port.Protocol != "tcp" {
@@ -121,7 +122,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []map[string]strin
 						continue
 					}
 					m := map[string]string{
-						"__address": discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort),
+						"__address__": discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort),
 						"__meta_dockerswarm_task_port_publish_mode": ep.PublishMode,
 					}
 					for k, v := range commonLabels {
