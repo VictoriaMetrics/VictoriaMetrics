@@ -564,6 +564,15 @@ results such as `average`, `rate`, etc.
  If multiple labels needs to be added, set flag for each label, for example, `--vm-extra-label label1=value1 --vm-extra-label label2=value2`.
  If timeseries already have label, that must be added with `--vm-extra-label` flag, flag has priority and will override label value from timeseries.
 
+### Rate limiting
+
+Limiting the rate of data transfer could help to reduce pressure on disk or on destination database.
+The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
+
+Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent.html) 
+as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
+
+
 ## How to build
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.

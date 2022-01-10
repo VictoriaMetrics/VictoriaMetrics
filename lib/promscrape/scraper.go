@@ -52,23 +52,23 @@ func CheckConfig() error {
 //
 // Scraped data is passed to pushData.
 func Init(pushData func(wr *prompbmarshal.WriteRequest)) {
-	globalStopCh = make(chan struct{})
+	globalStopChan = make(chan struct{})
 	scraperWG.Add(1)
 	go func() {
 		defer scraperWG.Done()
-		runScraper(*promscrapeConfigFile, pushData, globalStopCh)
+		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
 	}()
 }
 
 // Stop stops Prometheus scraper.
 func Stop() {
-	close(globalStopCh)
+	close(globalStopChan)
 	scraperWG.Wait()
 }
 
 var (
-	globalStopCh chan struct{}
-	scraperWG    sync.WaitGroup
+	globalStopChan chan struct{}
+	scraperWG      sync.WaitGroup
 	// PendingScrapeConfigs - zero value means, that
 	// all scrapeConfigs are inited and ready for work.
 	PendingScrapeConfigs int32
@@ -108,7 +108,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	configData.Store(&marshaledData)
 	cfg.mustStart()
 
-	scs := newScrapeConfigs(pushData)
+	scs := newScrapeConfigs(pushData, globalStopCh)
 	scs.add("consul_sd_configs", *consul.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getConsulSDScrapeWork(swsPrev) })
 	scs.add("digitalocean_sd_configs", *digitalocean.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDigitalOceanDScrapeWork(swsPrev) })
 	scs.add("dns_sd_configs", *dns.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDNSSDScrapeWork(swsPrev) })
@@ -181,16 +181,18 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
 
 type scrapeConfigs struct {
-	pushData func(wr *prompbmarshal.WriteRequest)
-	wg       sync.WaitGroup
-	stopCh   chan struct{}
-	scfgs    []*scrapeConfig
+	pushData     func(wr *prompbmarshal.WriteRequest)
+	wg           sync.WaitGroup
+	stopCh       chan struct{}
+	globalStopCh <-chan struct{}
+	scfgs        []*scrapeConfig
 }
 
-func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest)) *scrapeConfigs {
+func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scrapeConfigs {
 	return &scrapeConfigs{
-		pushData: pushData,
-		stopCh:   make(chan struct{}),
+		pushData:     pushData,
+		stopCh:       make(chan struct{}),
+		globalStopCh: globalStopCh,
 	}
 }
 
@@ -209,7 +211,7 @@ func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrap
 	scs.wg.Add(1)
 	go func() {
 		defer scs.wg.Done()
-		scfg.run()
+		scfg.run(scs.globalStopCh)
 	}()
 	scs.scfgs = append(scs.scfgs, scfg)
 }
@@ -237,8 +239,8 @@ type scrapeConfig struct {
 	discoveryDuration *metrics.Histogram
 }
 
-func (scfg *scrapeConfig) run() {
-	sg := newScraperGroup(scfg.name, scfg.pushData)
+func (scfg *scrapeConfig) run(globalStopCh <-chan struct{}) {
+	sg := newScraperGroup(scfg.name, scfg.pushData, globalStopCh)
 	defer sg.stop()
 
 	var tickerCh <-chan time.Time
@@ -283,9 +285,11 @@ type scraperGroup struct {
 	activeScrapers  *metrics.Counter
 	scrapersStarted *metrics.Counter
 	scrapersStopped *metrics.Counter
+
+	globalStopCh <-chan struct{}
 }
 
-func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest)) *scraperGroup {
+func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scraperGroup {
 	sg := &scraperGroup{
 		name:     name,
 		m:        make(map[string]*scraper),
@@ -295,6 +299,8 @@ func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest))
 		activeScrapers:  metrics.NewCounter(fmt.Sprintf(`vm_promscrape_active_scrapers{type=%q}`, name)),
 		scrapersStarted: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_scrapers_started_total{type=%q}`, name)),
 		scrapersStopped: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_scrapers_stopped_total{type=%q}`, name)),
+
+		globalStopCh: globalStopCh,
 	}
 	metrics.NewGauge(fmt.Sprintf(`vm_promscrape_targets{type=%q, status="up"}`, name), func() float64 {
 		return float64(tsmGlobal.StatusByGroup(sg.name, true))
@@ -373,7 +379,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 				sg.wg.Done()
 				close(sc.stoppedCh)
 			}()
-			sc.sw.run(sc.stopCh)
+			sc.sw.run(sc.stopCh, sg.globalStopCh)
 			tsmGlobal.Unregister(sw)
 			sg.activeScrapers.Dec()
 			sg.scrapersStopped.Inc()

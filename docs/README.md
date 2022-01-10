@@ -19,7 +19,7 @@ Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-set
 
 Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. See [features available in enterprise package](https://victoriametrics.com/enterprise.html). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. See [features available in enterprise package](https://victoriametrics.com/products/enterprise/). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 
 ## Prominent features
@@ -56,7 +56,7 @@ VictoriaMetrics has the following prominent features:
   * [Native binary format](#how-to-import-data-in-native-format).
 * It supports metrics' relabeling. See [these docs](#relabeling) for details.
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
-* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/enterprise.html).
+* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/products/enterprise/).
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
@@ -570,7 +570,7 @@ VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series w
 
 ### Graphite Render API usage
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+[VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
@@ -1171,7 +1171,7 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ## Downsampling
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
+[VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
 
 * `-downsampling.period=30d:5m` instructs VictoriaMetrics to [deduplicate](#deduplication) samples older than 30 days with 5 minutes interval.
 

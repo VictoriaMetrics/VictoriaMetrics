@@ -35,7 +35,7 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int) *otsdb
 	}
 }
 
-func (op *otsdbProcessor) run(silent bool) error {
+func (op *otsdbProcessor) run(silent, verbose bool) error {
 	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
@@ -111,7 +111,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 					case otsdbErr := <-errCh:
 						return fmt.Errorf("opentsdb error: %s", otsdbErr)
 					case vmErr := <-op.im.Errors():
-						return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+						return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 					case seriesCh <- queryObj{
 						Tr: tr, StartTime: startTime,
 						Series: series, Rt: opentsdb.RetentionMeta{
@@ -133,7 +133,9 @@ func (op *otsdbProcessor) run(silent bool) error {
 	}
 	op.im.Close()
 	for vmErr := range op.im.Errors() {
-		return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+		if vmErr.Err != nil {
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+		}
 	}
 	log.Println("Import finished!")
 	log.Print(op.im.Stats())
@@ -143,7 +145,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 func (op *otsdbProcessor) do(s queryObj) error {
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
-	data, err := op.oc.GetData(s.Series, s.Rt, start, end)
+	data, err := op.oc.GetData(s.Series, s.Rt, start, end, op.oc.MsecsTime)
 	if err != nil {
 		return fmt.Errorf("failed to collect data for %v in %v:%v :: %v", s.Series, s.Rt, s.Tr, err)
 	}
