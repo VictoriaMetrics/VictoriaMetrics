@@ -26,7 +26,7 @@ export interface QueryConfiguratorProps {
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 
-  const {serverUrl, query, queryHistory, queryControls: {autocomplete}} = useAppState();
+  const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
   const [expanded, setExpanded] = useState(true);
   const queryContainer = useRef<HTMLDivElement>(null);
