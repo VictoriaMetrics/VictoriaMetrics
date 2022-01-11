@@ -7,7 +7,6 @@ import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateCo
 import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
 import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
-import GraphSettings from "../Configurator/Graph/GraphSettings";
 import {useAppState} from "../../../state/common/StateContext";
 
 export interface GraphViewProps {

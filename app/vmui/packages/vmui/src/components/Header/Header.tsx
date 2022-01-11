@@ -5,7 +5,6 @@ import Link from "@mui/material/Link";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import {ExecutionControls} from "../Home/Configurator/Time/ExecutionControls";
-import {DisplayTypeSwitch} from "../Home/Configurator/DisplayTypeSwitch";
 import Logo from "../common/Logo";
 import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
@@ -24,8 +23,6 @@ const useStyles = makeStyles({
     }
   },
   issueLink: {
-    position: "absolute",
-    bottom: "6px",
     textAlign: "center",
     fontSize: "10px",
     opacity: ".4",

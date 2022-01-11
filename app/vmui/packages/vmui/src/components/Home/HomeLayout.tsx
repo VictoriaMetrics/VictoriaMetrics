@@ -23,9 +23,7 @@ const HomeLayout: FC = () => {
     <Box id="homeLayout">
       <Header/>
       <Box p={4} display="grid" gridTemplateRows="auto 1fr" style={{minHeight: "calc(100vh - 64px)"}}>
-        <Box>
-          <QueryConfigurator error={error} queryOptions={queryOptions}/>
-        </Box>
+        <QueryConfigurator error={error} queryOptions={queryOptions}/>
         <Box height="100%">
           {isLoading && <Fade in={isLoading} style={{
             transitionDelay: isLoading ? "300ms" : "0ms",
@@ -42,8 +40,8 @@ const HomeLayout: FC = () => {
             </Box>
           </Fade>}
           {<Box height={"100%"} bgcolor={"#fff"}>
-            <Box display="grid" gridTemplateColumns="1fr auto" alignItems="center" borderBottom={1} mx={-4} px={4}
-              borderColor="divider">
+            <Box display="grid" gridTemplateColumns="1fr auto" alignItems="center" mx={-4} px={4} mb={2}
+              borderBottom={1} borderColor="divider">
               <DisplayTypeSwitch/>
               {displayType === "chart" &&  <GraphSettings/>}
             </Box>
@@ -51,8 +49,7 @@ const HomeLayout: FC = () => {
               style={{fontSize: "14px", whiteSpace: "pre-wrap", marginTop: "20px"}}>
               {error}
             </Alert>}
-            {graphData && period && (displayType === "chart") &&
-              <GraphView data={graphData}/>}
+            {graphData && period && (displayType === "chart") && <GraphView data={graphData}/>}
             {liveData && (displayType === "code") && <JsonView data={liveData}/>}
             {liveData && (displayType === "table") && <TableView data={liveData}/>}
           </Box>}

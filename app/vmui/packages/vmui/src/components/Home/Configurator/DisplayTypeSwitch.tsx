@@ -21,7 +21,6 @@ export const DisplayTypeSwitch: FC = () => {
   const dispatch = useAppDispatch();
 
   const handleChange = (event: SyntheticEvent, newValue: DisplayType) => {
-    console.log(newValue);
     dispatch({type: "SET_DISPLAY_TYPE", payload: newValue ?? displayType});
   };
 
@@ -35,7 +34,7 @@ export const DisplayTypeSwitch: FC = () => {
         icon={t.icon}
         iconPosition="start"
         label={t.label} value={t.value}
-        sx={{minHeight: "41px", borderRadius: "2px 2px 0 0"}}
+        sx={{minHeight: "41px"}}
       />)}
   </Tabs>;
 };

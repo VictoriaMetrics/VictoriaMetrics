@@ -1,5 +1,4 @@
 import React, {FC, useEffect, useState} from "preact/compat";
-import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import Button from "@mui/material/Button";
