@@ -1,5 +1,9 @@
-import React, {FC, useEffect, useState} from "react";
-import {Box, Popover, TextField, Typography} from "@mui/material";
+import React, {FC, useEffect, useState} from "preact/compat";
+import {ChangeEvent, MouseEvent, KeyboardEvent} from "react";
+import Box from "@mui/material/Box";
+import Popover from "@mui/material/Popover";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import {checkDurationLimit} from "../../../../utils/time";
 import {TimeDurationPopover} from "./TimeDurationPopover";
 import {InlineBtn} from "../../../common/InlineBtn";
@@ -17,11 +21,11 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({setDuration}) => {
   const [durationStringFocused, setFocused] = useState(false);
   const open = Boolean(anchorEl);
 
-  const handleDurationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDurationChange = (event: ChangeEvent<HTMLInputElement>) => {
     setDurationString(event.target.value);
   };
 
-  const handlePopoverOpen = (event: React.MouseEvent<Element, MouseEvent>) => {
+  const handlePopoverOpen = (event: MouseEvent<HTMLSpanElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -29,7 +33,7 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({setDuration}) => {
     setAnchorEl(null);
   };
 
-  const onKeyUp = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyUp = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter") return;
     const target = event.target as HTMLInputElement;
     target.blur();

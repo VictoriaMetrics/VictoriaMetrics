@@ -1,7 +1,7 @@
+import Box from "@mui/material/Box";
 import CircularProgress, {CircularProgressProps} from "@mui/material/CircularProgress";
-import {Box} from "@mui/material";
 import Typography from "@mui/material/Typography";
-import React, {FC} from "react";
+import React, {FC} from "preact/compat";
 
 const CircularProgressWithLabel: FC<CircularProgressProps & { label: number }> = (props) => {
   return (
