@@ -18,6 +18,11 @@ import (
 )
 
 func main() {
+	var (
+		err      error
+		importer *vm.Importer
+	)
+
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
@@ -53,7 +58,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
-					return otsdbProcessor.run(c.Bool(globalSilent))
+					return otsdbProcessor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -82,14 +87,14 @@ func main() {
 					}
 
 					vmCfg := initConfigVM(c)
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err = vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
 					processor := newInfluxProcessor(influxClient, importer,
 						c.Int(influxConcurrency), c.String(influxMeasurementFieldSeparator))
-					return processor.run(c.Bool(globalSilent))
+					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -100,7 +105,7 @@ func main() {
 					fmt.Println("Prometheus import mode")
 
 					vmCfg := initConfigVM(c)
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err = vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -123,7 +128,7 @@ func main() {
 						im: importer,
 						cc: c.Int(promConcurrency),
 					}
-					return pp.run(c.Bool(globalSilent))
+					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -138,6 +143,7 @@ func main() {
 					}
 
 					p := vmNativeProcessor{
+						rateLimit: c.Int64(vmRateLimit),
 						filter: filter{
 							match:     c.String(vmNativeFilterMatch),
 							timeStart: c.String(vmNativeFilterTimeStart),
@@ -166,12 +172,14 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
-		os.Exit(0)
+		if importer != nil {
+			importer.Close()
+		}
 	}()
 
-	err := app.Run(os.Args)
+	err = app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	log.Printf("Total time: %v", time.Since(start))
 }
@@ -188,5 +196,6 @@ func initConfigVM(c *cli.Context) vm.Config {
 		SignificantFigures: c.Int(vmSignificantFigures),
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
+		RateLimit:          c.Int64(vmRateLimit),
 	}
 }

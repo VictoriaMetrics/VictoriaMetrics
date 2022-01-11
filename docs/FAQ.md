@@ -66,6 +66,20 @@ and send data to multiple remote storage systems, vmagent has the following addi
   - [Prometheus remote_write proxy](https://docs.victoriametrics.com/vmagent.html#prometheus-remote_write-proxy)
 
 
+## What is the difference between vmagent and Prometheus agent?
+
+Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose - to efficently scrape Prometheus-compatible targets at the edge. The have the following differences:
+
+- vmagent usually requires lower amounts of CPU, RAM and disk IO comparing to Prometheus agent.
+- Prometheus agent supports only pull-based data collection (e.g. it can scrape Prometheus-compatible targets), while vmagent supports both pull and push data collection - it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, CSV and JSON - see [these docs](https://docs.victoriametrics.com/vmagent.html#features).
+- vmagent can easily scale horizontally to multiple instances for scraping big number of targets - see [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+- vmagent supports [improved relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
+- vmagent can limit the number of scraped metrics per target. See [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
+- vmagent supports loading scrape configs from multiple files - see [these docs](https://docs.victoriametrics.com/vmagent.html#loading-scrape-configs-from-multiple-files).
+- vmagent supports data reading and data writing from/to Kafka - see [these docs](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
+- vmagent can read and update scrape configs from http and https urls, while Prometheus agent can read scrape configs only from local filesystem.
+
+
 ## Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 
 Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data

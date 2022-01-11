@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	globalSilent = "s"
+	globalSilent  = "s"
+	globalVerbose = "verbose"
 )
 
 var (
@@ -16,6 +17,11 @@ var (
 			Name:  globalSilent,
 			Value: false,
 			Usage: "Whether to run in silent mode. If set to true no confirmation prompts will appear.",
+		},
+		&cli.BoolFlag{
+			Name:  globalVerbose,
+			Value: false,
+			Usage: "Whether to enable verbosity in logs output.",
 		},
 	}
 )
@@ -30,7 +36,10 @@ const (
 	vmBatchSize          = "vm-batch-size"
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
-	vmExtraLabel         = "vm-extra-label"
+
+	// also used in vm-native
+	vmExtraLabel = "vm-extra-label"
+	vmRateLimit  = "vm-rate-limit"
 )
 
 var (
@@ -94,6 +103,11 @@ var (
 			Value: nil,
 			Usage: "Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag" +
 				"will have priority. Flag can be set multiple times, to add few additional labels.",
+		},
+		&cli.Int64Flag{
+			Name: vmRateLimit,
+			Usage: "Optional data transfer rate limit in bytes per second.\n" +
+				"By default the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
 		},
 	}
 )
@@ -353,6 +367,11 @@ var (
 			Value: nil,
 			Usage: "Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag" +
 				"will have priority. Flag can be set multiple times, to add few additional labels.",
+		},
+		&cli.Int64Flag{
+			Name: vmRateLimit,
+			Usage: "Optional data transfer rate limit in bytes per second.\n" +
+				"By default the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
 		},
 	}
 )

@@ -2719,6 +2719,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 		// Use global search if date isn't set.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	}
+	prefix := kb.B
 	kb.B = append(kb.B, tf.prefix[len(commonPrefix):]...)
 	tfNew := *tf
 	tfNew.isNegative = false // isNegative for the original tf is handled by the caller.
@@ -2735,7 +2736,8 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 	// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1601
 	// See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395
 	maxLoopsCount -= loopsCount
-	if err := tfNew.Init(kb.B, tf.key, []byte(".+"), false, true); err != nil {
+	tfNew = tagFilter{}
+	if err := tfNew.Init(prefix, tf.key, []byte(".+"), false, true); err != nil {
 		logger.Panicf(`BUG: cannot init tag filter: {%q=~".+"}: %s`, tf.key, err)
 	}
 	m, lc, err := is.getMetricIDsForTagFilter(&tfNew, maxMetrics, maxLoopsCount)
