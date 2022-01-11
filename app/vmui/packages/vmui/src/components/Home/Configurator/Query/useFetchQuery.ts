@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "preact/compat";
 import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
 import {useAppState} from "../../../../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";

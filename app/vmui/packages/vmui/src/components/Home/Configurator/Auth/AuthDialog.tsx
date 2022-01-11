@@ -1,26 +1,24 @@
 /* eslint max-lines: ["error", {"max": 300}] */
 
-import React, {useState} from "react";
+import React, {useState} from "preact/compat";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormHelperText from "@mui/material/FormHelperText";
+import Input from "@mui/material/Input";
+import InputAdornment from "@mui/material/InputAdornment";
+import InputLabel from "@mui/material/InputLabel";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import DialogTitle from "@mui/material/DialogTitle";
 import Dialog from "@mui/material/Dialog";
-import {
-  Box,
-  Button,
-  Checkbox,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  FormControl,
-  FormControlLabel,
-  FormHelperText,
-  Input,
-  InputAdornment,
-  InputLabel,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
-} from "@mui/material";
 import createStyles from "@mui/styles/createStyles";
 import TabPanel from "./AuthTabPanel";
 import PersonIcon from "@mui/icons-material/Person";
@@ -28,6 +26,7 @@ import LockIcon from "@mui/icons-material/Lock";
 import makeStyles from "@mui/styles/makeStyles";
 import {useAuthDispatch, useAuthState} from "../../../../state/auth/AuthStateContext";
 import {AUTH_METHOD, WithCheckbox} from "../../../../state/auth/reducer";
+import {ChangeEvent, ClipboardEvent} from "react";
 
 // TODO: make generic when creating second dialog
 export interface DialogProps {
@@ -76,7 +75,7 @@ export const AuthDialog: React.FC<DialogProps> = (props) => {
     setTabIndex(newValue);
   };
 
-  const handleBearerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBearerChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newVal = event.target.value;
     if (newVal.startsWith(BEARER_PREFIX)) {
       setBearerValue(newVal);
@@ -89,7 +88,7 @@ export const AuthDialog: React.FC<DialogProps> = (props) => {
     onClose();
   };
 
-  const onBearerPaste = (e: React.ClipboardEvent) => {
+  const onBearerPaste = (e: ClipboardEvent) => {
     // if you're pasting token word Bearer will be added automagically
     const newVal = e.clipboardData.getData("text/plain");
     if (newVal.startsWith(BEARER_PREFIX)) {

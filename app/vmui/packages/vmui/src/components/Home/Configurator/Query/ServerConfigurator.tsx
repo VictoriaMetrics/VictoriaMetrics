@@ -1,5 +1,8 @@
-import React, {FC, useEffect, useState} from "react";
-import {Box, TextField, Tooltip, IconButton} from "@mui/material";
+import React, {FC, useEffect, useState} from "preact/compat";
+import Box from "@mui/material/Box";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
 import SecurityIcon from "@mui/icons-material/Security";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {AuthDialog} from "../Auth/AuthDialog";

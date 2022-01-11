@@ -1,5 +1,6 @@
-import React, {createContext, Dispatch, FC, useContext, useMemo, useReducer} from "react";
+import React, {createContext, FC, useContext, useMemo, useReducer} from "preact/compat";
 import {AuthAction, AuthState, initialPrepopulatedState, reducer} from "./reducer";
+import {Dispatch} from "react";
 
 type AuthStateContextType = { state: AuthState, dispatch: Dispatch<AuthAction> };
 

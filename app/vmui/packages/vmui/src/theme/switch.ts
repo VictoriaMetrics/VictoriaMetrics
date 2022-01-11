@@ -1,5 +1,5 @@
-import {styled} from "@mui/material/styles";
 import Switch from "@mui/material/Switch";
+import {styled} from "@mui/styles";
 
 const BasicSwitch = styled(Switch)(() => ({
   padding: 10,
