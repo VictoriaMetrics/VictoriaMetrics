@@ -3,7 +3,6 @@ import {KeyboardEvent} from "react";
 import {ErrorTypes} from "../../../../types";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-import {queryToBreakLine} from "../../../../utils/query-string";
 
 export interface QueryEditorProps {
   setHistoryIndex: (step: number, index: number) => void;
@@ -32,7 +31,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const [downMetaKeys, setDownMetaKeys] = useState<string[]>([]);
 
   useEffect(() => {
-    setValue(queryToBreakLine(query));
+    setValue(decodeURIComponent(query));
   }, [query]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
