@@ -22,7 +22,7 @@ require (
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
-	github.com/valyala/gozstd v1.14.2
+	github.com/valyala/gozstd v1.15.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.0.0-20220107192237-5cfca573fb4d
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
