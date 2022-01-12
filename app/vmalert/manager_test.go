@@ -40,7 +40,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 	m := &manager{
 		groups:         make(map[uint64]*Group),
 		querierBuilder: &fakeQuerier{},
-		notifiers:      []notifier.Notifier{&fakeNotifier{}},
+		notifiers:      func() []notifier.Notifier { return []notifier.Notifier{&fakeNotifier{}} },
 	}
 	paths := []string{
 		"config/testdata/dir/rules0-good.rules",
@@ -223,7 +223,7 @@ func TestManagerUpdate(t *testing.T) {
 			m := &manager{
 				groups:         make(map[uint64]*Group),
 				querierBuilder: &fakeQuerier{},
-				notifiers:      []notifier.Notifier{&fakeNotifier{}},
+				notifiers:      func() []notifier.Notifier { return []notifier.Notifier{&fakeNotifier{}} },
 			}
 
 			cfgInit := loadCfg(t, []string{tc.initPath}, true, true)
@@ -311,8 +311,10 @@ func TestManagerUpdateNegative(t *testing.T) {
 			m := &manager{
 				groups:         make(map[uint64]*Group),
 				querierBuilder: &fakeQuerier{},
-				notifiers:      tc.notifiers,
 				rw:             tc.rw,
+			}
+			if tc.notifiers != nil {
+				m.notifiers = func() []notifier.Notifier { return tc.notifiers }
 			}
 			err := m.update(context.Background(), []config.Group{tc.cfg}, false)
 			if err == nil {

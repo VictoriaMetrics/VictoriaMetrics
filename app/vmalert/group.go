@@ -222,7 +222,7 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
@@ -247,7 +247,7 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 	e := &executor{rw: rw}
-	for _, nt := range nts {
+	for _, nt := range nts() {
 		ent := eNotifier{
 			Notifier:         nt,
 			alertsSent:       getOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", nt.Addr())),

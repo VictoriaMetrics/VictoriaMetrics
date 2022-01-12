@@ -6,18 +6,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 // AlertManager represents integration provider with Prometheus alert manager
 // https://github.com/prometheus/alertmanager
 type AlertManager struct {
-	addr          string
-	alertURL      string
-	basicAuthUser string
-	basicAuthPass string
-	argFunc       AlertURLGenerator
-	client        *http.Client
+	addr    string
+	argFunc AlertURLGenerator
+	client  *http.Client
+	timeout time.Duration
+
+	authCfg *promauth.Config
 }
 
 // Addr returns address where alerts are sent.
@@ -28,14 +31,24 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc)
 
-	req, err := http.NewRequest("POST", am.alertURL, b)
+	req, err := http.NewRequest("POST", am.addr, b)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	if am.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, am.timeout)
+		defer cancel()
+	}
+
 	req = req.WithContext(ctx)
-	if am.basicAuthPass != "" {
-		req.SetBasicAuth(am.basicAuthUser, am.basicAuthPass)
+
+	if am.authCfg != nil {
+		if auth := am.authCfg.GetAuthHeader(); auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
 	}
 	resp, err := am.client.Do(req)
 	if err != nil {
@@ -47,9 +60,9 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 	if resp.StatusCode != http.StatusOK {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read response from %q: %w", am.alertURL, err)
+			return fmt.Errorf("failed to read response from %q: %w", am.addr, err)
 		}
-		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, am.alertURL, string(body))
+		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, am.addr, string(body))
 	}
 	return nil
 }
@@ -60,14 +73,30 @@ type AlertURLGenerator func(Alert) string
 const alertManagerPath = "/api/v2/alerts"
 
 // NewAlertManager is a constructor for AlertManager
-func NewAlertManager(alertManagerURL, user, pass string, fn AlertURLGenerator, c *http.Client) *AlertManager {
-	url := strings.TrimSuffix(alertManagerURL, "/") + alertManagerPath
-	return &AlertManager{
-		addr:          alertManagerURL,
-		alertURL:      url,
-		argFunc:       fn,
-		client:        c,
-		basicAuthUser: user,
-		basicAuthPass: pass,
+func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig, timeout time.Duration) (*AlertManager, error) {
+	tls := &promauth.TLSConfig{}
+	if authCfg.TLSConfig != nil {
+		tls = authCfg.TLSConfig
 	}
+	tr, err := utils.Transport(alertManagerURL, tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transport: %w", err)
+	}
+
+	ba := &promauth.BasicAuthConfig{}
+	if authCfg.BasicAuth != nil {
+		ba = authCfg.BasicAuth
+	}
+	aCfg, err := utils.AuthConfig(ba.Username, ba.Password.String(), ba.PasswordFile, authCfg.BearerToken.String(), authCfg.BearerTokenFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure auth: %w", err)
+	}
+
+	return &AlertManager{
+		addr:    alertManagerURL,
+		argFunc: fn,
+		authCfg: aCfg,
+		client:  &http.Client{Transport: tr},
+		timeout: timeout,
+	}, nil
 }

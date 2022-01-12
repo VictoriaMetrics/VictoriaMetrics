@@ -35,7 +35,10 @@ absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
 	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
-		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
+
+	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
 	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
@@ -254,8 +257,13 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 
 func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
-	if *rulesCheckInterval > 0 {
-		ticker := time.NewTicker(*rulesCheckInterval)
+	checkInterval := *configCheckInterval
+	if checkInterval == 0 && *rulesCheckInterval > 0 {
+		logger.Warnf("flag `rule.configCheckInterval` is deprecated - use `configCheckInterval` instead")
+		checkInterval = *rulesCheckInterval
+	}
+	if checkInterval > 0 {
+		ticker := time.NewTicker(checkInterval)
 		configCheckCh = ticker.C
 		defer ticker.Stop()
 	}
@@ -271,6 +279,12 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
 			configReloads.Inc()
 		case <-configCheckCh:
+		}
+		if err := notifier.Reload(); err != nil {
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
+			logger.Errorf("failed to reload notifier config: %s", err)
+			continue
 		}
 		newGroupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
 		if err != nil {

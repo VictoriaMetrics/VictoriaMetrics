@@ -43,7 +43,8 @@ To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
-aggregating alerts, and sending notifications.
+aggregating alerts, and sending notifications. Please note, notifier address also supports Consul Service Discovery via 
+[config file]()
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
@@ -689,8 +690,8 @@ The shortlist of configuration flags is the following:
     	absolute path to all .yaml files in root.
     	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
     	Supports an array of values separated by comma or specified via multiple flags.
-  -rule.configCheckInterval duration
-    	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -configCheckInterval duration
+    	Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -rule.maxResolveDuration duration
     	Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.validateExpressions
@@ -711,7 +712,7 @@ The shortlist of configuration flags is the following:
 `vmalert` supports "hot" config reload via the following methods:
 * send SIGHUP signal to `vmalert` process;
 * send GET request to `/-/reload` endpoint;
-* configure `-rule.configCheckInterval` flag for periodic reload
+* configure `-configCheckInterval` flag for periodic reload
 on config change.
 
 ### URL params
@@ -731,6 +732,88 @@ groups:
 Please note, `params` are used only for executing rules expressions (requests to `datasource.url`).
 If there would be a conflict between URL params set in `datasource.url` flag and params in group definition
 the latter will have higher priority.
+
+### Notifier configuration file
+
+Notifier also supports configuration vai file specified with flag `notifier.config`:
+```
+./bin/vmalert -rule=app/vmalert/config/testdata/rules.good.rules \
+		-datasource.url=http://localhost:8428 \
+		-notifier.config=app/vmalert/notifier/testdata/consul.good.yaml
+```
+
+The configuration file allows to configure static notifiers or discover notifiers via 
+[Consul](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config).
+For example:
+```
+static_configs: 
+  - targets:
+      - localhost:9093
+      - localhost:9095
+
+consul_sd_configs:
+  - server: localhost:8500
+    services:
+      - alertmanager
+```
+
+The list of configured or discovered Notifiers can be explored via [UI](#Web).
+
+The configuration file [specification](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go)
+is the following:
+```
+# Per-target Notifier timeout when pushing alerts.
+[ timeout: <duration> | default = 10s ]
+
+# Prefix for the HTTP path alerts are pushed to.
+[ path_prefix: <path> | default = / ]
+
+# Configures the protocol scheme used for requests.
+[ scheme: <scheme> | default = http ]
+
+# Sets the `Authorization` header on every request with the
+# configured username and password.
+# password and password_file are mutually exclusive.
+basic_auth:
+  [ username: <string> ]
+  [ password: <secret> ]
+  [ password_file: <string> ]
+
+# Optional `Authorization` header configuration.
+authorization:
+  # Sets the authentication type.
+  [ type: <string> | default: Bearer ]
+  # Sets the credentials. It is mutually exclusive with
+  # `credentials_file`.
+  [ credentials: <secret> ]
+  # Sets the credentials to the credentials read from the configured file.
+  # It is mutually exclusive with `credentials`.
+  [ credentials_file: <filename> ]
+
+# Configures the scrape request's TLS settings.
+# see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+tls_config:
+  [ <tls_config> ]
+
+# List of labeled statically configured Notifiers.
+static_configs:
+  targets:
+    [ - '<host>' ]
+
+# List of Consul service discovery configurations.
+# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+consul_sd_configs:
+  [ - <consul_sd_config> ... ]
+
+# List of relabel configurations.
+# Supports the same relabeling features as the rest of VictoriaMetrics components.
+# See https://docs.victoriametrics.com/vmagent.html#relabeling
+relabel_configs:
+  [ - <relabel_config> ... ]
+
+```
+
+The configuration file can be [hot-reloaded](#hot-config-reload).
 
 
 ## Contributing
