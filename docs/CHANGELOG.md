@@ -10,8 +10,8 @@ sort: 15
   * It can contain arbitrary expression. For example, `foo @ (end() - 1h)` would return `foo` value at `end - 1 hour` timestamp on the selected time range `[start ... end]`. Another example: `foo @ now() - 10m` would return `foo` value 10 minutes ago from the current time.
   * It can be put everywhere in the query. For example, `sum(foo) @ start()` would calculate `sum(foo)` at `start` timestamp on the selected time range `[start ... end]`.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for Kubernetes service discovery in the current namespace in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/9881). For example, the following config limits pod discovery to the namespace where vmagent runs:
-  ```
-scrape_configs:
+  ```yml
+  scrape_configs:
   - job_name: 'kubernetes-pods'
     kubernetes_sd_configs:
     - role: pod
