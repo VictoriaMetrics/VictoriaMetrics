@@ -316,6 +316,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// Do not send staleness markers on graceful shutdown as Prometheus does.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079
 			default:
+				// Send staleness markers when the given target disappears.
 				sw.sendStaleSeries(lastScrape, "", t, true)
 			}
 			if sw.seriesLimiter != nil {
@@ -450,7 +451,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	}
 	sw.finalizeLastScrape()
 	if !mustSwitchToStreamParse {
-		// Return wc to the pool only if its size is smaller than -promscrape.minResponseSizeForStreamParse
+		// Return body to the pool only if its size is smaller than -promscrape.minResponseSizeForStreamParse
 		// This should reduce memory usage when scraping targets which return big responses.
 		leveledbytebufferpool.Put(body)
 	}
@@ -710,9 +711,12 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		for i := range samples {
 			samples[i].Value = decimal.StaleNaN
 		}
+		staleSamplesCreated.Add(len(samples))
 	}
 	sw.pushData(&wc.writeRequest)
 }
+
+var staleSamplesCreated = metrics.NewCounter(`promscrape_stale_samples_created_total`)
 
 func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
