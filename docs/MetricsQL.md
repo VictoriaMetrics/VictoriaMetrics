@@ -311,6 +311,10 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `share_le_over_time(series_selector[d], le)` returns share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are smaller or equal to `le`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Useful for calculating SLI and SLO. Example: `share_le_over_time(memory_usage_bytes[24h], 100*1024*1024)` returns the share of time series values for the last 24 hours when memory usage was below or equal to 100MB. See also [share_gt_over_time](#share_gt_over_time).
 
+#### stale_samples_over_time
+
+`stale_samples_over_time(series_selector[d])` calculates the number of [staleness markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) on the given lookbehind window `d` per each time series matching the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups.
+
 #### stddev_over_time
 
 `stddev_over_time(series_selector[d])` calculates standard deviation over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. This function is supported by PromQL. See also [stdvar_over_time](#stdvar_over_time).
