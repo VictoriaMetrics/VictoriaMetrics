@@ -84,3 +84,23 @@ func IsRollupFunc(funcName string) bool {
 	s := strings.ToLower(funcName)
 	return rollupFuncs[s]
 }
+
+// GetRollupArgIdx returns the argument index for the given fe, which accepts the rollup argument.
+//
+// -1 is returned if fe isn't a rollup function.
+func GetRollupArgIdx(fe *FuncExpr) int {
+	funcName := fe.Name
+	funcName = strings.ToLower(funcName)
+	if !rollupFuncs[funcName] {
+		return -1
+	}
+	switch funcName {
+	case "quantile_over_time", "aggr_over_time",
+		"hoeffding_bound_lower", "hoeffding_bound_upper":
+		return 1
+	case "quantiles_over_time":
+		return len(fe.Args) - 1
+	default:
+		return 0
+	}
+}

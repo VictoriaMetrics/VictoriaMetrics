@@ -104,6 +104,9 @@ func mustParseWithArgExpr(s string) *withArgExpr {
 func removeParensExpr(e Expr) Expr {
 	if re, ok := e.(*RollupExpr); ok {
 		re.Expr = removeParensExpr(re.Expr)
+		if re.At != nil {
+			re.At = removeParensExpr(re.At)
+		}
 		return re
 	}
 	if be, ok := e.(*BinaryOpExpr); ok {
@@ -415,11 +418,15 @@ func (p *parser) parseSingleExpr() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.lex.Token != "[" && !isOffset(p.lex.Token) {
+	if !isRollupStartToken(p.lex.Token) {
 		// There is no rollup expression.
 		return e, nil
 	}
 	return p.parseRollupExpr(e)
+}
+
+func isRollupStartToken(token string) bool {
+	return token == "[" || token == "@" || isOffset(token)
 }
 
 func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
@@ -1268,6 +1275,20 @@ func (p *parser) parseWindowAndStep() (*DurationExpr, *DurationExpr, bool, error
 	return window, step, inheritStep, nil
 }
 
+func (p *parser) parseAtExpr() (Expr, error) {
+	if p.lex.Token != "@" {
+		return nil, fmt.Errorf(`unexpected token %q; want "@"`, p.lex.Token)
+	}
+	if err := p.lex.Next(); err != nil {
+		return nil, err
+	}
+	e, err := p.parseSingleExprWithoutRollupSuffix()
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse `@` expresion: %w", err)
+	}
+	return e, nil
+}
+
 func (p *parser) parseOffset() (*DurationExpr, error) {
 	if !isOffset(p.lex.Token) {
 		return nil, fmt.Errorf(`offset: unexpected token %q; want "offset"`, p.lex.Token)
@@ -1374,11 +1395,11 @@ func (p *parser) parseIdentExpr() (Expr, error) {
 			return p.parseAggrFuncExpr()
 		}
 		return p.parseFuncExpr()
-	case "{", "[", ")", ",":
+	case "{", "[", ")", ",", "@":
 		p.lex.Prev()
 		return p.parseMetricExpr()
 	default:
-		return nil, fmt.Errorf(`identExpr: unexpected token %q; want "(", "{", "[", ")", ","`, p.lex.Token)
+		return nil, fmt.Errorf(`identExpr: unexpected token %q; want "(", "{", "[", ")", "," or "@"`, p.lex.Token)
 	}
 }
 
@@ -1417,15 +1438,34 @@ func (p *parser) parseRollupExpr(arg Expr) (Expr, error) {
 		re.Window = window
 		re.Step = step
 		re.InheritStep = inheritStep
-		if !isOffset(p.lex.Token) {
+		if !isOffset(p.lex.Token) && p.lex.Token != "@" {
 			return &re, nil
 		}
 	}
-	offset, err := p.parseOffset()
-	if err != nil {
-		return nil, err
+	if p.lex.Token == "@" {
+		at, err := p.parseAtExpr()
+		if err != nil {
+			return nil, err
+		}
+		re.At = at
 	}
-	re.Offset = offset
+	if isOffset(p.lex.Token) {
+		offset, err := p.parseOffset()
+		if err != nil {
+			return nil, err
+		}
+		re.Offset = offset
+	}
+	if p.lex.Token == "@" {
+		if re.At != nil {
+			return nil, fmt.Errorf("duplicate `@` token")
+		}
+		at, err := p.parseAtExpr()
+		if err != nil {
+			return nil, err
+		}
+		re.At = at
+	}
 	return &re, nil
 }
 
@@ -1677,6 +1717,12 @@ type RollupExpr struct {
 	// If set to true, then `foo[1h:]` would print the same
 	// instead of `foo[1h]`.
 	InheritStep bool
+
+	// At contains an optional expression after `@` modifier.
+	//
+	// For example, `foo @ end()` or `bar[5m] @ 12345`
+	// See https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier
+	At Expr
 }
 
 // ForSubquery returns true if re represents subquery.
@@ -1719,6 +1765,17 @@ func (re *RollupExpr) AppendString(dst []byte) []byte {
 	if re.Offset != nil {
 		dst = append(dst, " offset "...)
 		dst = re.Offset.AppendString(dst)
+	}
+	if re.At != nil {
+		dst = append(dst, " @ "...)
+		_, needAtParens := re.At.(*BinaryOpExpr)
+		if needAtParens {
+			dst = append(dst, '(')
+		}
+		dst = re.At.AppendString(dst)
+		if needAtParens {
+			dst = append(dst, ')')
+		}
 	}
 	return dst
 }
