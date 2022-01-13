@@ -910,9 +910,11 @@ func mulNoOverflow(a, b int64) int64 {
 }
 
 func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]float64, []int64) {
-	if *noStaleMarkers || funcName == "default_rollup" {
+	if *noStaleMarkers || funcName == "default_rollup" || funcName == "stale_samples_over_time" {
 		// Do not drop Prometheus staleness marks (aka stale NaNs) for default_rollup() function,
 		// since it uses them for Prometheus-style staleness detection.
+		// Do not drop staleness marks for stale_samples_over_time() function, since it needs
+		// to calculate the number of staleness markers.
 		return values, timestamps
 	}
 	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.

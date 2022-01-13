@@ -513,6 +513,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("sum2_over_time", 37951)
 	f("geomean_over_time", 39.33466603189148)
 	f("count_over_time", 12)
+	f("stale_samples_over_time", 0)
 	f("stddev_over_time", 30.752935722554287)
 	f("stdvar_over_time", 945.7430555555555)
 	f("first_over_time", 123)
