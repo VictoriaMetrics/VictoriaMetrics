@@ -85,7 +85,7 @@ EOF
 ```
 
 
-## Inline example:
+## Inline example
 
 ```yaml
 cat <<EOF | kubectl apply -f -
