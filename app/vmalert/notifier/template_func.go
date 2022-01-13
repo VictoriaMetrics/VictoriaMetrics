@@ -27,6 +27,7 @@ import (
 	textTpl "text/template"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 // metric is private copy of datasource.Metric,
@@ -100,6 +101,15 @@ func InitTemplateFunc(externalURL *url.URL) {
 				return hostPort
 			}
 			return host
+		},
+
+		// parseDuration parses a duration string such as "1h" into the number of seconds it represents
+		"parseDuration": func(d string) (float64, error) {
+			ms, err := metricsql.DurationValue(d, 0)
+			if err != nil {
+				return 0, err
+			}
+			return float64(ms) / 1000, nil
 		},
 
 		/* Numbers */
