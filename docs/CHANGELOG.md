@@ -18,6 +18,7 @@ scrape_configs:
       namespaces:
         own_namespace: true
   ```
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `__meta_kubernetes_node_provider_id` label for discovered Kubernetes nodes in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/9603).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): log error message when remote storage returns 400 or 409 http errors. This should simplify detection and debugging of this case. See [this issue](vmagent_remotewrite_packets_dropped_total).
 * FEATURE: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): store `restore-in-progress` file in `-dst` directory while `vmrestore` is running. This file is automatically deleted when `vmrestore` is successfully finished. This helps detecting incompletely restored data on VictoriaMetrics start. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1958).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): print the last sample timestamp when the data migration is interrupted either by user or by error. This helps continuing the data migration from the interruption moment. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1236).
