@@ -974,6 +974,50 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("time() @ 1h", func(t *testing.T) {
+		t.Parallel()
+		q := `time() @ 1h`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3600, 3600, 3600, 3600, 3600, 3600},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time() @ start()", func(t *testing.T) {
+		t.Parallel()
+		q := `time() @ start()`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1000, 1000, 1000, 1000, 1000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time() @ end()", func(t *testing.T) {
+		t.Parallel()
+		q := `time() @ end()`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2000, 2000, 2000, 2000, 2000, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time() @ (end()-10m)", func(t *testing.T) {
+		t.Parallel()
+		q := `time() @ (end()-10m)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1400, 1400, 1400, 1400, 1400, 1400},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("rand()", func(t *testing.T) {
 		t.Parallel()
 		q := `round(rand()/2)`

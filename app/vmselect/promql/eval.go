@@ -391,7 +391,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 	if nrf == nil {
 		return nil, nil
 	}
-	rollupArgIdx := getRollupArgIdx(fe)
+	rollupArgIdx := metricsql.GetRollupArgIdx(fe)
 	if rollupArgIdx >= len(fe.Args) {
 		// Incorrect number of args for rollup func.
 		return nil, nil
@@ -431,7 +431,7 @@ func evalExprs(ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
 
 func evalRollupFuncArgs(ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, *metricsql.RollupExpr, error) {
 	var re *metricsql.RollupExpr
-	rollupArgIdx := getRollupArgIdx(fe)
+	rollupArgIdx := metricsql.GetRollupArgIdx(fe)
 	if len(fe.Args) <= rollupArgIdx {
 		return nil, nil, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx+1, fe.Name, len(fe.Args), fe.AppendString(nil))
 	}
@@ -480,6 +480,39 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 }
 
 func evalRollupFunc(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	if re.At == nil {
+		return evalRollupFuncWithoutAt(ec, funcName, rf, expr, re, iafc)
+	}
+	tssAt, err := evalExpr(ec, re.At)
+	if err != nil {
+		return nil, fmt.Errorf("cannot evaluate `@` modifier: %w", err)
+	}
+	if len(tssAt) != 1 {
+		return nil, fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt))
+	}
+	atTimestamp := int64(tssAt[0].Values[0] * 1000)
+	ecNew := newEvalConfig(ec)
+	ecNew.Start = atTimestamp
+	ecNew.End = atTimestamp
+	tss, err := evalRollupFuncWithoutAt(ecNew, funcName, rf, expr, re, iafc)
+	if err != nil {
+		return nil, err
+	}
+	// expand tssAtTimestamp to the original time range.
+	timestamps := ec.getSharedTimestamps()
+	for _, ts := range tss {
+		v := ts.Values[0]
+		values := make([]float64, len(timestamps))
+		for i := range timestamps {
+			values[i] = v
+		}
+		ts.Timestamps = timestamps
+		ts.Values = values
+	}
+	return tss, nil
+}
+
+func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64

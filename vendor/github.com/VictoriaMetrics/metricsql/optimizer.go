@@ -70,6 +70,11 @@ func optimizeBinaryOpArgs(be *BinaryOpExpr) *BinaryOpExpr {
 }
 
 func getMetricExprForOptimization(e Expr) *MetricExpr {
+	re, ok := e.(*RollupExpr)
+	if ok {
+		// Try optimizing the inner expression in RollupExpr.
+		return getMetricExprForOptimization(re.Expr)
+	}
 	me, ok := e.(*MetricExpr)
 	if ok {
 		// Ordinary metric expression, i.e. `foo{bar="baz"}`
@@ -95,17 +100,12 @@ func getMetricExprForOptimization(e Expr) *MetricExpr {
 		return nil
 	}
 	if IsRollupFunc(fe.Name) {
-		for _, arg := range fe.Args {
-			re, ok := arg.(*RollupExpr)
-			if !ok {
-				continue
-			}
-			if me, ok := re.Expr.(*MetricExpr); ok {
-				// rollup_func(foo{bar="baz"}[d])
-				return me
-			}
+		argIdx := GetRollupArgIdx(fe)
+		if argIdx >= len(fe.Args) {
+			return nil
 		}
-		return nil
+		arg := fe.Args[argIdx]
+		return getMetricExprForOptimization(arg)
 	}
 	if IsTransformFunc(fe.Name) {
 		switch strings.ToLower(fe.Name) {

@@ -244,22 +244,6 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	return aggrFuncNames, nil
 }
 
-func getRollupArgIdx(fe *metricsql.FuncExpr) int {
-	funcName := strings.ToLower(fe.Name)
-	if rollupFuncs[funcName] == nil {
-		logger.Panicf("BUG: getRollupArgIdx is called for non-rollup func %q", fe.Name)
-	}
-	switch funcName {
-	case "quantile_over_time", "aggr_over_time",
-		"hoeffding_bound_lower", "hoeffding_bound_upper":
-		return 1
-	case "quantiles_over_time":
-		return len(fe.Args) - 1
-	default:
-		return 0
-	}
-}
-
 func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(values []float64, timestamps []int64) {}
