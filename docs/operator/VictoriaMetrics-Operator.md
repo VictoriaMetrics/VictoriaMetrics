@@ -67,16 +67,6 @@ Error from server (Invalid): error when creating "release/crds/crd.yaml": Custom
 ```
   upgrade to the latest release version. There is a bug with kubernetes objects at the early releases.
 
-## Community and contributions
-
-Feel free asking any questions regarding VictoriaMetrics:
-
-* [slack](http://slack.victoriametrics.com/)
-* [reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [telegram-en](https://t.me/VictoriaMetrics_en)
-* [telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
-
 
 ## Development
 
