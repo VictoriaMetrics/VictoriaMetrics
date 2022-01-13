@@ -43,7 +43,8 @@ func (sdc *SDConfig) role() string {
 
 // Namespaces represents namespaces for SDConfig
 type Namespaces struct {
-	Names []string `yaml:"names"`
+	OwnNamespace bool     `yaml:"own_namespace"`
+	Names        []string `yaml:"names"`
 }
 
 // Selector represents kubernetes selector.
@@ -71,7 +72,7 @@ func (sdc *SDConfig) GetScrapeWorkObjects() ([]interface{}, error) {
 
 // MustStart initializes sdc before its usage.
 //
-// swcFunc is used for constructing such objects.
+// swcFunc is used for constructing ScrapeWork objects from the given metadata.
 func (sdc *SDConfig) MustStart(baseDir string, swcFunc ScrapeWorkConstructorFunc) {
 	cfg, err := newAPIConfig(sdc, baseDir, swcFunc)
 	if err != nil {
