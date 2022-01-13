@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -61,6 +62,7 @@ var tmplFunc textTpl.FuncMap
 
 // InitTemplateFunc initiates template helper functions
 func InitTemplateFunc(externalURL *url.URL) {
+	// See https://prometheus.io/docs/prometheus/latest/configuration/template_reference/
 	tmplFunc = textTpl.FuncMap{
 		/* Strings */
 
@@ -90,6 +92,15 @@ func InitTemplateFunc(externalURL *url.URL) {
 		// toLower returns s with all Unicode letters mapped to their lower case.
 		// alias for https://golang.org/pkg/strings/#ToLower
 		"toLower": strings.ToLower,
+
+		// stripPort splits string into host and port, then returns only host.
+		"stripPort": func(hostPort string) string {
+			host, _, err := net.SplitHostPort(hostPort)
+			if err != nil {
+				return hostPort
+			}
+			return host
+		},
 
 		/* Numbers */
 
