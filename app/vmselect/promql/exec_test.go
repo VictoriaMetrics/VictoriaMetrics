@@ -2096,6 +2096,7 @@ func TestExecSuccess(t *testing.T) {
 			label_set(time()*3, "foo", "x"),
 		), "foo"))`
 		r := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{3000, 3600, 4200, 4800, 5400, 6000},
 			Timestamps: timestampsExpected,
 		}
