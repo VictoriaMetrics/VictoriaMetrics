@@ -87,7 +87,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	// in order to properly handle offset and timestamps unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
 	"timestamp":           newRollupFuncOneArg(rollupTlast),
-	"timestamp_with_name": newRollupFuncOneArg(rollupTlast), // + rollupFuncsKeepMetricGroup
+	"timestamp_with_name": newRollupFuncOneArg(rollupTlast), // + rollupFuncsKeepMetricName
 	"tlast_over_time":     newRollupFuncOneArg(rollupTlast),
 	"tmax_over_time":      newRollupFuncOneArg(rollupTmax),
 	"tmin_over_time":      newRollupFuncOneArg(rollupTmin),
@@ -177,7 +177,7 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 
 // These functions don't change physical meaning of input time series,
 // so they don't drop metric name
-var rollupFuncsKeepMetricGroup = map[string]bool{
+var rollupFuncsKeepMetricName = map[string]bool{
 	"avg_over_time":         true,
 	"default_rollup":        true,
 	"first_over_time":       true,
@@ -428,7 +428,7 @@ type timeseriesMap struct {
 	m      map[string]*timeseries
 }
 
-func newTimeseriesMap(funcName string, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
+func newTimeseriesMap(funcName string, keepMetricNames bool, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
 	funcName = strings.ToLower(funcName)
 	switch funcName {
 	case "histogram_over_time", "quantiles_over_time":
@@ -442,7 +442,7 @@ func newTimeseriesMap(funcName string, sharedTimestamps []int64, mnSrc *storage.
 	}
 	var origin timeseries
 	origin.MetricName.CopyFrom(mnSrc)
-	if !rollupFuncsKeepMetricGroup[funcName] {
+	if !keepMetricNames && !rollupFuncsKeepMetricName[funcName] {
 		origin.MetricName.ResetMetricGroup()
 	}
 	origin.Timestamps = sharedTimestamps
