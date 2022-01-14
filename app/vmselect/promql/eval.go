@@ -515,7 +515,7 @@ func evalRollupFunc(ec *EvalConfig, funcName string, rf rollupFunc, expr metrics
 	if err != nil {
 		return nil, err
 	}
-	// expand tssAtTimestamp to the original time range.
+	// expand single-point tss to the original time range.
 	timestamps := ec.getSharedTimestamps()
 	for _, ts := range tss {
 		v := ts.Values[0]
@@ -617,11 +617,12 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 	}
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	var tssLock sync.Mutex
+	keepMetricNames := getKeepMetricNames(expr)
 	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64) ([]float64, []int64) {
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
 		preFunc(values, timestamps)
 		for _, rc := range rcs {
-			if tsm := newTimeseriesMap(funcName, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
+			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
 				rc.DoTimeseriesMap(tsm, values, timestamps)
 				tssLock.Lock()
 				tss = tsm.AppendTimeseriesTo(tss)
@@ -629,7 +630,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 				continue
 			}
 			var ts timeseries
-			doRollupForTimeseries(funcName, rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps)
+			doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps)
 			tssLock.Lock()
 			tss = append(tss, &ts)
 			tssLock.Unlock()
@@ -637,6 +638,13 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 		return values, timestamps
 	})
 	return tss, nil
+}
+
+func getKeepMetricNames(expr metricsql.Expr) bool {
+	if fe, ok := expr.(*metricsql.FuncExpr); ok {
+		return fe.KeepMetricNames
+	}
+	return false
 }
 
 func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, timestamps []int64) ([]float64, []int64)) {
@@ -789,11 +797,12 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, funcName string, rf rollupFunc
 	defer rml.Put(uint64(rollupMemorySize))
 
 	// Evaluate rollup
+	keepMetricNames := getKeepMetricNames(expr)
 	var tss []*timeseries
 	if iafc != nil {
-		tss, err = evalRollupWithIncrementalAggregate(funcName, iafc, rss, rcs, preFunc, sharedTimestamps)
+		tss, err = evalRollupWithIncrementalAggregate(funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
 	} else {
-		tss, err = evalRollupNoIncrementalAggregate(funcName, rss, rcs, preFunc, sharedTimestamps)
+		tss, err = evalRollupNoIncrementalAggregate(funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
 	}
 	if err != nil {
 		return nil, err
@@ -817,7 +826,7 @@ func getRollupMemoryLimiter() *memoryLimiter {
 	return &rollupMemoryLimiter
 }
 
-func evalRollupWithIncrementalAggregate(funcName string, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupWithIncrementalAggregate(funcName string, keepMetricNames bool, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
@@ -825,7 +834,7 @@ func evalRollupWithIncrementalAggregate(funcName string, iafc *incrementalAggrFu
 		ts := getTimeseries()
 		defer putTimeseries(ts)
 		for _, rc := range rcs {
-			if tsm := newTimeseriesMap(funcName, sharedTimestamps, &rs.MetricName); tsm != nil {
+			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
 				rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
 				for _, ts := range tsm.m {
 					iafc.updateTimeseries(ts, workerID)
@@ -833,7 +842,7 @@ func evalRollupWithIncrementalAggregate(funcName string, iafc *incrementalAggrFu
 				continue
 			}
 			ts.Reset()
-			doRollupForTimeseries(funcName, rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
+			doRollupForTimeseries(funcName, keepMetricNames, rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
 			iafc.updateTimeseries(ts, workerID)
 
 			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be re-used.
@@ -849,7 +858,7 @@ func evalRollupWithIncrementalAggregate(funcName string, iafc *incrementalAggrFu
 	return tss, nil
 }
 
-func evalRollupNoIncrementalAggregate(funcName string, rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupNoIncrementalAggregate(funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
@@ -857,7 +866,7 @@ func evalRollupNoIncrementalAggregate(funcName string, rss *netstorage.Results, 
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
-			if tsm := newTimeseriesMap(funcName, sharedTimestamps, &rs.MetricName); tsm != nil {
+			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
 				rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
 				tssLock.Lock()
 				tss = tsm.AppendTimeseriesTo(tss)
@@ -865,7 +874,7 @@ func evalRollupNoIncrementalAggregate(funcName string, rss *netstorage.Results, 
 				continue
 			}
 			var ts timeseries
-			doRollupForTimeseries(funcName, rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
+			doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
 			tssLock.Lock()
 			tss = append(tss, &ts)
 			tssLock.Unlock()
@@ -878,13 +887,13 @@ func evalRollupNoIncrementalAggregate(funcName string, rss *netstorage.Results, 
 	return tss, nil
 }
 
-func doRollupForTimeseries(funcName string, rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName, valuesSrc []float64, timestampsSrc []int64,
-	sharedTimestamps []int64) {
+func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName,
+	valuesSrc []float64, timestampsSrc []int64, sharedTimestamps []int64) {
 	tsDst.MetricName.CopyFrom(mnSrc)
 	if len(rc.TagValue) > 0 {
 		tsDst.MetricName.AddTag("rollup", rc.TagValue)
 	}
-	if !rollupFuncsKeepMetricGroup[funcName] {
+	if !keepMetricNames && !rollupFuncsKeepMetricName[funcName] {
 		tsDst.MetricName.ResetMetricGroup()
 	}
 	tsDst.Values = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)

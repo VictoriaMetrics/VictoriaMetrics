@@ -147,6 +147,9 @@ func removeParensExpr(e Expr) Expr {
 func simplifyConstants(e Expr) Expr {
 	if re, ok := e.(*RollupExpr); ok {
 		re.Expr = simplifyConstants(re.Expr)
+		if re.At != nil {
+			re.At = simplifyConstants(re.At)
+		}
 		return re
 	}
 	if ae, ok := e.(*AggrFuncExpr); ok {
@@ -666,17 +669,12 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 				return se, nil
 			}
 		}
-		be := &BinaryOpExpr{
-			Op:            t.Op,
-			Bool:          t.Bool,
-			GroupModifier: t.GroupModifier,
-			JoinModifier:  t.JoinModifier,
-			Left:          left,
-			Right:         right,
-		}
+		be := *t
+		be.Left = left
+		be.Right = right
 		be.GroupModifier.Args = groupModifierArgs
 		be.JoinModifier.Args = joinModifierArgs
-		pe := parensExpr{be}
+		pe := parensExpr{&be}
 		return &pe, nil
 	case *FuncExpr:
 		args, err := expandWithArgs(was, t.Args)
@@ -685,11 +683,9 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		}
 		wa := getWithArgExpr(was, t.Name)
 		if wa == nil {
-			fe := &FuncExpr{
-				Name: t.Name,
-				Args: args,
-			}
-			return fe, nil
+			fe := *t
+			fe.Args = args
+			return &fe, nil
 		}
 		return expandWithExprExt(was, wa, args)
 	case *AggrFuncExpr:
@@ -701,14 +697,10 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		ae := &AggrFuncExpr{
-			Name:     t.Name,
-			Args:     args,
-			Modifier: t.Modifier,
-			Limit:    t.Limit,
-		}
+		ae := *t
+		ae.Args = args
 		ae.Modifier.Args = modifierArgs
-		return ae, nil
+		return &ae, nil
 	case *parensExpr:
 		exprs, err := expandWithArgs(was, *t)
 		if err != nil {
@@ -759,6 +751,13 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		}
 		re := *t
 		re.Expr = eNew
+		if t.At != nil {
+			atNew, err := expandWithExpr(was, t.At)
+			if err != nil {
+				return nil, err
+			}
+			re.At = atNew
+		}
 		return &re, nil
 	case *withExpr:
 		wasNew := make([]*withArgExpr, 0, len(was)+len(t.Was))
@@ -1017,7 +1016,18 @@ func (p *parser) parseFuncExpr() (*FuncExpr, error) {
 		return nil, err
 	}
 	fe.Args = args
+	if isKeepMetricNames(p.lex.Token) {
+		fe.KeepMetricNames = true
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+	}
 	return &fe, nil
+}
+
+func isKeepMetricNames(token string) bool {
+	token = strings.ToLower(token)
+	return token == "keep_metric_names"
 }
 
 func (p *parser) parseModifierExpr(me *ModifierExpr) error {
@@ -1602,12 +1612,18 @@ type FuncExpr struct {
 
 	// Args contains function args.
 	Args []Expr
+
+	// If KeepMetricNames is set to true, then the function should keep metric names.
+	KeepMetricNames bool
 }
 
 // AppendString appends string representation of fe to dst and returns the result.
 func (fe *FuncExpr) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, fe.Name)
 	dst = appendStringArgListExpr(dst, fe.Args)
+	if fe.KeepMetricNames {
+		dst = append(dst, " keep_metric_names"...)
+	}
 	return dst
 }
 
