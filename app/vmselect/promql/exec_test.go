@@ -1019,6 +1019,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("time() @ end() offset 10m", func(t *testing.T) {
+		t.Parallel()
+		q := `time() @ end() offset 10m`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1400, 1400, 1400, 1400, 1400, 1400},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time() @ (end()-10m)", func(t *testing.T) {
 		t.Parallel()
 		q := `time() @ (end()-10m)`
@@ -6219,18 +6230,42 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`rate(time())`, func(t *testing.T) {
 		t.Parallel()
-		q := `rate(alias(time(), "foo"))`
+		q := `rate(label_set(alias(time(), "foo"), "x", "y"))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},
 			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
 		}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`rate(time()) keep_metric_names`, func(t *testing.T) {
 		t.Parallel()
-		q := `rate(alias(time(), "foo")) keep_metric_names`
+		q := `rate(label_set(alias(time(), "foo"), "x", "y")) keep_metric_names`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foo")
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum(rate(time()) keep_metric_names) by (__name__)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(rate(label_set(alias(time(), "foo"), "x", "y")) keep_metric_names) by (__name__)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},

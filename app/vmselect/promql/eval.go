@@ -479,6 +479,9 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 	return &reNew
 }
 
+// expr may contain:
+// - rollupFunc(m) if iafc is nil
+// - aggrFunc(rollupFunc(m)) if iafc isn't nil
 func evalRollupFunc(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	if re.At == nil {
 		return evalRollupFuncWithoutAt(ec, funcName, rf, expr, re, iafc)
@@ -622,6 +625,15 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 }
 
 func getKeepMetricNames(expr metricsql.Expr) bool {
+	if ae, ok := expr.(*metricsql.AggrFuncExpr); ok {
+		// Extract rollupFunc(...) from aggrFunc(rollupFunc(...)).
+		// This case is possible when optimized aggrFunc calculations are used
+		// such as `sum(rate(...))`
+		if len(ae.Args) != 1 {
+			return false
+		}
+		expr = ae.Args[0]
+	}
 	if fe, ok := expr.(*metricsql.FuncExpr); ok {
 		return fe.KeepMetricNames
 	}
