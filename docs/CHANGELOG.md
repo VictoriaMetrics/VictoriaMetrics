@@ -6,15 +6,37 @@ sort: 15
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add support for `@` modifier, which is enabled by default in Prometheus starting from [Prometheus v2.33.0](https://github.com/prometheus/prometheus/pull/10121). See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1348). VictoriaMetrics extends `@` modifier with the following additional features:
+  * It can contain arbitrary expression. For example, `foo @ (end() - 1h)` would return `foo` value at `end - 1 hour` timestamp on the selected time range `[start ... end]`. Another example: `foo @ now() - 10m` would return `foo` value 10 minutes ago from the current time.
+  * It can be put everywhere in the query. For example, `sum(foo) @ start()` would calculate `sum(foo)` at `start` timestamp on the selected time range `[start ... end]`.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add support for optional `keep_metric_names` modifier, which can be applied to all the [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) and [transform functions](https://docs.victoriametrics.com/MetricsQL.html#transform-functions). This modifier prevents from deleting metric names from function results. For example, `rate({__name__=~"foo|bar"}[5m]) keep_metric_names` leaves `foo` and `bar` metric names in `rate()` results. This feature provides an additional workaround for [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/949).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for Kubernetes service discovery in the current namespace in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/9881). For example, the following config limits pod discovery to the namespace where vmagent runs:
+
+```yaml
+  scrape_configs:
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+    - role: pod
+      namespaces:
+        own_namespace: true
+```
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `__meta_kubernetes_node_provider_id` label for discovered Kubernetes nodes in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/9603).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): log error message when remote storage returns 400 or 409 http errors. This should simplify detection and debugging of this case. See [this issue](vmagent_remotewrite_packets_dropped_total).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `promscrape_stale_samples_created_total` metric for monitoring the total number of created stale samples when scraping Prometheus targets. See [these docs](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) for the information on when stale samples (aka staleness markers) can be created.
 * FEATURE: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): store `restore-in-progress` file in `-dst` directory while `vmrestore` is running. This file is automatically deleted when `vmrestore` is successfully finished. This helps detecting incompletely restored data on VictoriaMetrics start. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1958).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): print the last sample timestamp when the data migration is interrupted either by user or by error. This helps continuing the data migration from the interruption moment. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1236).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): expose `vmalert_remotewrite_total` metric at `/metrics` page. This makes possible calculating SLOs for error rate during writing recording rules and alert state to `-remoteWrite.url` with the query `vmalert_remotewrite_errors_total / vmalert_remotewrite_total`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2040). Thanks to @afoninsky .
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `stripPort` template function in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/10002).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `parseDuration` template function in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/8817).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `stale_samples_over_time(m[d])` function for calculating the number of [staleness marks](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) for time series `m` over the duration `d`. This function may be useful for detecting flapping metrics at scrape targets, which periodically disappear and then appear again.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that `vmagent` replicas scrape the same targets at different time offsets when [replication is enabled in vmagent clustering mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets). This guarantees that the [deduplication](https://docs.victoriametrics.com/#deduplication) consistently leaves samples from the same `vmagent` replica.
 * BUGFIX: return the proper response stub from `/api/v1/query_exemplars` handler, which is needed for Grafana v8+. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1999).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix a few edge cases and improve migration speed for OpenTSDB importer. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2019).
 * BUGFIX: fix possible data race when searching for time series matching `{key=~"value|"}` filter over time range covering multipe days. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2032). Thanks to @waldoweng for the provided fix.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not send staleness markers on graceful shutdown. This follows Prometheus behavior. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly set `__address__` label in `dockerswarm_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2038). Thanks to @ashtuchkin for the fix.
 
 
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)

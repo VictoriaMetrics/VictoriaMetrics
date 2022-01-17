@@ -1,4 +1,4 @@
-import {useMemo} from "react";
+import {useMemo} from "preact/compat";
 import {MetricBase} from "../api/types";
 
 export type MetricCategory = {

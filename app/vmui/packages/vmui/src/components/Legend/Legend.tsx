@@ -1,4 +1,4 @@
-import React, {FC, useMemo} from "react";
+import React, {FC, useMemo} from "preact/compat";
 import {hexToRGB} from "../../utils/color";
 import {useAppState} from "../../state/common/StateContext";
 import {LegendItem} from "../../utils/uplot/types";

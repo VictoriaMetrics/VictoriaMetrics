@@ -63,6 +63,15 @@ type apiWatcher struct {
 
 func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc ScrapeWorkConstructorFunc) *apiWatcher {
 	namespaces := sdc.Namespaces.Names
+	if len(namespaces) == 0 {
+		if sdc.Namespaces.OwnNamespace {
+			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				logger.Fatalf("cannot determine namespace for the current pod according to `own_namespace: true` option in kubernetes_sd_config: %s", err)
+			}
+			namespaces = []string{string(namespace)}
+		}
+	}
 	selectors := sdc.Selectors
 	proxyURL := sdc.ProxyURL.URL()
 	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, proxyURL)

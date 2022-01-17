@@ -1,5 +1,9 @@
-import React, {FC} from "react";
-import {AppBar, Box, Link, Toolbar, Typography} from "@mui/material";
+import React, {FC} from "preact/compat";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
 import {ExecutionControls} from "../Home/Configurator/Time/ExecutionControls";
 import {DisplayTypeSwitch} from "../Home/Configurator/DisplayTypeSwitch";
 import Logo from "../common/Logo";
