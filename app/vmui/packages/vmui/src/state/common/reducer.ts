@@ -59,7 +59,7 @@ const query = getQueryArray();
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
-  displayType: getQueryStringValue("tab", "chart") as DisplayType,
+  displayType: getQueryStringValue("g0.tab", "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
   queryHistory: query.map(q => ({index: 0, values: [q]})),
   time: {

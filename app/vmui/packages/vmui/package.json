@@ -7,8 +7,8 @@
     "@date-io/dayjs": "^2.11.0",
     "@emotion/styled": "^11.6.0",
     "@mui/icons-material": "^5.2.5",
-    "@mui/lab": "^5.0.0-alpha.63",
-    "@mui/material": "^5.2.7",
+    "@mui/lab": "^5.0.0-alpha.64",
+    "@mui/material": "^5.2.8",
     "@mui/styles": "^5.2.3",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/react": "^12.1.2",
@@ -29,7 +29,7 @@
     "lodash.throttle": "^4.1.1",
     "numeral": "^2.0.6",
     "preact": "^10.6.4",
-    "qs": "^6.10.2",
+    "qs": "^6.10.3",
     "typescript": "~4.5.4",
     "uplot": "^1.6.18",
     "web-vitals": "^2.1.3"
@@ -62,8 +62,8 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
-    "@typescript-eslint/eslint-plugin": "^5.9.0",
-    "@typescript-eslint/parser": "^5.9.0",
+    "@typescript-eslint/eslint-plugin": "^5.9.1",
+    "@typescript-eslint/parser": "^5.9.1",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.28.0",
     "react-app-rewired": "^2.1.11"
