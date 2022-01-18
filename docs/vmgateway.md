@@ -40,6 +40,7 @@ jwt token must be in following format:
          "team": "dev",
          "project": "mobile"
       },
+      "extra_filters": ["{env~=\"prod|dev\",team!=\"test\"}"],
       "mode": 1
   }
 }
@@ -48,7 +49,8 @@ Where:
 - `exp` - required, expire time in unix_timestamp. If the token expires then `vmgateway` rejects the request.
 - `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenand_id": {}}`
 - `tenant_id` - optional, for cluster mode, routes requests to the corresponding tenant.
-- `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics.
+- `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics. Multiple filters are added with `and` operation. If defined, `extra_label` from original request removed.
+- `extra_filters` - optional, [series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) added to the select query requests. Multiple selectors are added with `or` operation. If defined, `extra_filter` from original request removed.
 - `mode` - optional, access mode for api - read, write, or full. Supported values: 0 - full (default value), 1 - read, 2 - write.
 
 ## QuickStart
