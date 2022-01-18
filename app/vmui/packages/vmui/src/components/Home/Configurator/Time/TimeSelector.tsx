@@ -1,40 +1,32 @@
-import React, {FC, useEffect, useState} from "preact/compat";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import DateTimePicker from "@mui/lab/DateTimePicker";
+import React, {FC, useEffect, useState, useMemo} from "preact/compat";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {dateFromSeconds, formatDateForNativeInput} from "../../../../utils/time";
-import {InlineBtn} from "../../../common/InlineBtn";
 import makeStyles from "@mui/styles/makeStyles";
 import TimeDurationSelector from "./TimeDurationSelector";
 import dayjs from "dayjs";
+import QueryBuilderIcon from "@mui/icons-material/QueryBuilder";
+import Box from "@mui/material/Box";
+import TextField from "@mui/material/TextField";
+import DateTimePicker from "@mui/lab/DateTimePicker";
+import Button from "@mui/material/Button";
+import Popper from "@mui/material/Popper";
+import Paper from "@mui/material/Paper";
+import Divider from "@mui/material/Divider";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Tooltip from "@mui/material/Tooltip";
 
-interface TimeSelectorProps {
-  setDuration: (str: string) => void;
-}
+const formatDate = "YYYY-MM-DD HH:mm:ss";
 
 const useStyles = makeStyles({
   container: {
     display: "grid",
-    gridTemplateColumns: "200px 1fr",
-    gridGap: "20px",
-    height: "100%",
+    gridTemplateColumns: "200px auto 200px",
+    gridGap: "10px",
     padding: "20px",
-    borderRadius: "4px",
-    borderColor: "#b9b9b9",
-    borderStyle: "solid",
-    borderWidth: "1px"
   },
   timeControls: {
     display: "grid",
-    gridTemplateColumns: "1fr",
-    gridTemplateRows: "auto 1fr",
-    gridGap: "16px 0",
-  },
-  datePickers: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, 200px)",
+    gridTemplateRows: "auto 1fr auto",
     gridGap: "16px 0",
   },
   datePickerItem: {
@@ -42,7 +34,7 @@ const useStyles = makeStyles({
   },
 });
 
-export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
+export const TimeSelector: FC = () => {
 
   const classes = useStyles();
 
@@ -60,46 +52,88 @@ export const TimeSelector: FC<TimeSelectorProps> = ({setDuration}) => {
     setFrom(formatDateForNativeInput(dateFromSeconds(start)));
   }, [start]);
 
-  return <Box className={classes.container}>
-    {/*setup duration*/}
-    <Box>
-      <TimeDurationSelector setDuration={setDuration}/>
-    </Box>
-    {/*setup end time*/}
-    <Box className={classes.timeControls}>
-      <Box className={classes.datePickers}>
-        <Box className={classes.datePickerItem}>
-          <DateTimePicker
-            label="From"
-            ampm={false}
-            value={from}
-            onChange={date => dispatch({type: "SET_FROM", payload: date as unknown as Date})}
-            onError={console.log}
-            inputFormat="DD/MM/YYYY HH:mm:ss"
-            mask="__/__/____ __:__:__"
-            renderInput={(params) => <TextField {...params} variant="standard"/>}
-            maxDate={dayjs(until)}
-          />
-        </Box>
-        <Box className={classes.datePickerItem}>
-          <DateTimePicker
-            label="Until"
-            ampm={false}
-            value={until}
-            onChange={date => dispatch({type: "SET_UNTIL", payload: date as unknown as Date})}
-            onError={console.log}
-            inputFormat="DD/MM/YYYY HH:mm:ss"
-            mask="__/__/____ __:__:__"
-            renderInput={(params) => <TextField {...params} variant="standard"/>}
-          />
-        </Box>
-      </Box>
-      <Box>
-        <Typography variant="body2">
-          Will be changed to current time for auto-refresh mode.&nbsp;
-          <InlineBtn handler={() => dispatch({type: "RUN_QUERY_TO_NOW"})} text="Switch to now"/>
-        </Typography>
-      </Box>
-    </Box>
-  </Box>;
+  const setDuration = (dur: string, from: Date) => {
+    dispatch({type: "SET_UNTIL", payload: from});
+    setAnchorEl(null);
+    dispatch({type: "SET_DURATION", payload: dur});
+  };
+
+  const formatRange = useMemo(() => {
+    const startFormat = dayjs(dateFromSeconds(start)).format(formatDate);
+    const endFormat = dayjs(dateFromSeconds(end)).format(formatDate);
+    return {
+      start: startFormat,
+      end: endFormat
+    };
+  }, [start, end]);
+
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const open = Boolean(anchorEl);
+
+  return <>
+    <Tooltip title="Time range controls">
+      <Button variant="contained" color="primary"
+        sx={{
+          color: "white",
+          border: "1px solid rgba(0, 0, 0, 0.2)",
+          boxShadow: "none"
+        }}
+        startIcon={<QueryBuilderIcon/>}
+        onClick={(e) => setAnchorEl(e.currentTarget)}>
+        {formatRange.start} - {formatRange.end}
+      </Button>
+    </Tooltip>
+    <Popper
+      open={open}
+      anchorEl={anchorEl}
+      placement="bottom-end"
+      modifiers={[{name: "offset", options: {offset: [0, 6]}}]}>
+      <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
+        <Paper elevation={3}>
+          <Box className={classes.container}>
+            <Box className={classes.timeControls}>
+              <Box className={classes.datePickerItem}>
+                <DateTimePicker
+                  label="From"
+                  ampm={false}
+                  value={from}
+                  onChange={date => dispatch({type: "SET_FROM", payload: date as unknown as Date})}
+                  onError={console.log}
+                  inputFormat={formatDate}
+                  mask="____-__-__ __:__:__"
+                  renderInput={(params) => <TextField {...params} variant="standard"/>}
+                  maxDate={dayjs(until)}
+                  PopperProps={{disablePortal: true}}/>
+              </Box>
+              <Box className={classes.datePickerItem}>
+                <DateTimePicker
+                  label="To"
+                  ampm={false}
+                  value={until}
+                  onChange={date => dispatch({type: "SET_UNTIL", payload: date as unknown as Date})}
+                  onError={console.log}
+                  inputFormat={formatDate}
+                  mask="____-__-__ __:__:__"
+                  renderInput={(params) => <TextField {...params} variant="standard"/>}
+                  PopperProps={{disablePortal: true}}/>
+              </Box>
+              <Box display="grid" gridTemplateColumns="auto 1fr" gap={1}>
+                <Button variant="outlined" onClick={() => setAnchorEl(null)}>
+                  Cancel
+                </Button>
+                <Button variant="contained" onClick={() => dispatch({type: "RUN_QUERY_TO_NOW"})}>
+                  switch to now
+                </Button>
+              </Box>
+            </Box>
+            {/*setup duration*/}
+            <Divider orientation="vertical" flexItem />
+            <Box>
+              <TimeDurationSelector setDuration={setDuration}/>
+            </Box>
+          </Box>
+        </Paper>
+      </ClickAwayListener>
+    </Popper>
+  </>;
 };

@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	textTpl "text/template"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 // metric is private copy of datasource.Metric,
@@ -61,6 +63,7 @@ var tmplFunc textTpl.FuncMap
 
 // InitTemplateFunc initiates template helper functions
 func InitTemplateFunc(externalURL *url.URL) {
+	// See https://prometheus.io/docs/prometheus/latest/configuration/template_reference/
 	tmplFunc = textTpl.FuncMap{
 		/* Strings */
 
@@ -90,6 +93,24 @@ func InitTemplateFunc(externalURL *url.URL) {
 		// toLower returns s with all Unicode letters mapped to their lower case.
 		// alias for https://golang.org/pkg/strings/#ToLower
 		"toLower": strings.ToLower,
+
+		// stripPort splits string into host and port, then returns only host.
+		"stripPort": func(hostPort string) string {
+			host, _, err := net.SplitHostPort(hostPort)
+			if err != nil {
+				return hostPort
+			}
+			return host
+		},
+
+		// parseDuration parses a duration string such as "1h" into the number of seconds it represents
+		"parseDuration": func(d string) (float64, error) {
+			ms, err := metricsql.DurationValue(d, 0)
+			if err != nil {
+				return 0, err
+			}
+			return float64(ms) / 1000, nil
+		},
 
 		/* Numbers */
 

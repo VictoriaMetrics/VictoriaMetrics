@@ -83,7 +83,7 @@ again:
 		}
 		lex.sTail = s[n+1:]
 		goto again
-	case '{', '}', '[', ']', '(', ')', ',':
+	case '{', '}', '[', ']', '(', ')', ',', '@':
 		token = s[:1]
 		goto tokenFoundLabel
 	}

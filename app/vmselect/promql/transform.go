@@ -120,7 +120,7 @@ var transformFuncs = map[string]transformFunc{
 
 // These functions don't change physical meaning of input time series,
 // so they don't drop metric name
-var transformFuncsKeepMetricGroup = map[string]bool{
+var transformFuncsKeepMetricName = map[string]bool{
 	"ceil":               true,
 	"clamp":              true,
 	"clamp_max":          true,
@@ -172,9 +172,12 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 
 func doTransformValues(arg []*timeseries, tf func(values []float64), fe *metricsql.FuncExpr) ([]*timeseries, error) {
 	name := strings.ToLower(fe.Name)
-	keepMetricGroup := transformFuncsKeepMetricGroup[name]
+	keepMetricNames := fe.KeepMetricNames
+	if transformFuncsKeepMetricName[name] {
+		keepMetricNames = true
+	}
 	for _, ts := range arg {
-		if !keepMetricGroup {
+		if !keepMetricNames {
 			ts.MetricName.ResetMetricGroup()
 		}
 		tf(ts.Values)

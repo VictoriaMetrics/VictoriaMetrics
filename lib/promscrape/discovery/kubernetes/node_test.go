@@ -67,7 +67,8 @@ func TestParseNodeListSuccess(t *testing.T) {
         "podCIDR": "10.244.0.0/24",
         "podCIDRs": [
           "10.244.0.0/24"
-        ]
+        ],
+	"providerID": "aws:///foo-bar/baz"
       },
       "status": {
         "capacity": {
@@ -243,9 +244,10 @@ func TestParseNodeListSuccess(t *testing.T) {
 	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
-			"instance":                    "m01",
-			"__address__":                 "172.17.0.2:10250",
-			"__meta_kubernetes_node_name": "m01",
+			"instance":                           "m01",
+			"__address__":                        "172.17.0.2:10250",
+			"__meta_kubernetes_node_name":        "m01",
+			"__meta_kubernetes_node_provider_id": "aws:///foo-bar/baz",
 
 			"__meta_kubernetes_node_label_beta_kubernetes_io_arch":        "amd64",
 			"__meta_kubernetes_node_label_beta_kubernetes_io_os":          "linux",
