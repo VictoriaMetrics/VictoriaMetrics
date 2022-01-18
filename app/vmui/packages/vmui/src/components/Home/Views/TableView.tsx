@@ -1,7 +1,6 @@
 import React, {FC, useMemo} from "preact/compat";
 import {InstantMetricResult} from "../../../api/types";
 import {InstantDataSeries} from "../../../types";
-import Paper from "@mui/material/Paper";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -37,7 +36,7 @@ const TableView: FC<GraphViewProps> = ({data}) => {
   return (
     <>
       {(rows.length > 0)
-        ? <TableContainer component={Paper}>
+        ? <TableContainer>
           <Table aria-label="simple table">
             <TableHead>
               <TableRow>
@@ -48,7 +47,7 @@ const TableView: FC<GraphViewProps> = ({data}) => {
             </TableHead>
             <TableBody>
               {rows.map((row, index) => (
-                <TableRow key={index}>
+                <TableRow key={index} hover>
                   {row.metadata.map((rowMeta, index2) => {
                     const prevRowValue = rows[index - 1] && rows[index - 1].metadata[index2];
                     return (

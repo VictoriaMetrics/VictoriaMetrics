@@ -5,10 +5,11 @@ import Link from "@mui/material/Link";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import {ExecutionControls} from "../Home/Configurator/Time/ExecutionControls";
-import {DisplayTypeSwitch} from "../Home/Configurator/DisplayTypeSwitch";
 import Logo from "../common/Logo";
 import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
+import {TimeSelector} from "../Home/Configurator/Time/TimeSelector";
+import GlobalSettings from "../Home/Configurator/Settings/GlobalSettings";
 
 const useStyles = makeStyles({
   logo: {
@@ -22,8 +23,6 @@ const useStyles = makeStyles({
     }
   },
   issueLink: {
-    position: "absolute",
-    bottom: "6px",
     textAlign: "center",
     fontSize: "10px",
     opacity: ".4",
@@ -45,7 +44,7 @@ const Header: FC = () => {
     window.location.reload();
   };
 
-  return <AppBar position="static">
+  return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
     <Toolbar>
       <Box display="grid" alignItems="center" justifyContent="center">
         <Box onClick={onClickLogo} className={classes.logo}>
@@ -60,10 +59,11 @@ const Header: FC = () => {
           create an issue
         </Link>
       </Box>
-      <Box ml={4} flexGrow={1}>
+      <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>
+        <TimeSelector/>
         <ExecutionControls/>
+        <GlobalSettings/>
       </Box>
-      <DisplayTypeSwitch/>
     </Toolbar>
   </AppBar>;
 };
