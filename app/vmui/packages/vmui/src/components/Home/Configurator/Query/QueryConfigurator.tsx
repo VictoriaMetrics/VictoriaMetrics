@@ -1,21 +1,12 @@
-import React, {FC, useEffect, useRef, useState} from "preact/compat";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
+import React, {FC, useEffect, useRef} from "preact/compat";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
-import Button from "@mui/material/Button";
-import Portal from "@mui/material/Portal";
 import QueryEditor from "./QueryEditor";
-import {TimeSelector} from "../Time/TimeSelector";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
-import AddIcon from "@mui/icons-material/Add";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
-import ServerConfigurator from "./ServerConfigurator";
 import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
 
@@ -28,14 +19,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
 
   const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
   const dispatch = useAppDispatch();
-  const [expanded, setExpanded] = useState(true);
-  const queryContainer = useRef<HTMLDivElement>(null);
   const queryRef = useRef(query);
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
-
-  const onSetDuration = (dur: string) => dispatch({type: "SET_DURATION", payload: dur});
 
   const updateHistory = () => {
     dispatch({
@@ -80,62 +67,34 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
       payload: {value: {values, index: newIndexHistory}, queryNumber: indexQuery}
     });
   };
-
-  return <>
-    <Accordion expanded={expanded} onChange={() => setExpanded(prev => !prev)}>
-      <AccordionSummary
-        expandIcon={<IconButton><ExpandMoreIcon/></IconButton>}
-        aria-controls="panel1a-content"
-        id="panel1a-header"
-        sx={{alignItems: "flex-start", padding: "15px"}}
-      >
-        <Box mr={2}>
-          <Typography variant="h6" component="h2">Query Configuration</Typography>
-        </Box>
-        <Box flexGrow={1} onClick={e => e.stopPropagation()} onFocusCapture={e => e.stopPropagation()}>
-          <Portal disablePortal={!expanded} container={queryContainer.current}>
-            {query.map((q, i) =>
-              <Box key={i} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%"
-                mb={i === query.length - 1 ? 0 : 2}>
-                <QueryEditor query={query[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
-                  error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
-                {i === 0 && <Tooltip title="Execute Query">
-                  <IconButton onClick={onRunQuery}>
-                    <PlayCircleOutlineIcon/>
-                  </IconButton>
-                </Tooltip>}
-                {i > 0 && <Tooltip title="Remove Query">
-                  <IconButton onClick={() => onRemoveQuery(i)}>
-                    <HighlightOffIcon/>
-                  </IconButton>
-                </Tooltip>}
-              </Box>)}
-          </Portal>
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Box display="flex" flexWrap="wrap" gap={2}>
-          <Box flexGrow="2" minWidth="50%">
-            <ServerConfigurator error={error}/>
-            {/* for portal QueryEditor */}
-            <div ref={queryContainer}/>
-            {query.length < 2 && <Box display="inline-block" minHeight="40px" mt={2}>
-              <Button onClick={onAddQuery} variant="outlined">
-                <AddIcon sx={{fontSize: 16, marginRight: "4px"}}/>
-                <span style={{lineHeight: 1, paddingTop: "1px"}}>Query</span>
-              </Button>
-            </Box>}
-          </Box>
-          <Box flexGrow="1">
-            <TimeSelector setDuration={onSetDuration}/>
-          </Box>
-          <Box flexBasis="100%" pt={1}>
-            <AdditionalSettings/>
-          </Box>
-        </Box>
-      </AccordionDetails>
-    </Accordion>
-  </>;
+  return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
+    <Box>
+      {query.map((q, i) =>
+        <Box key={i} display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="100%"
+          mb={i === query.length - 1 ? 0 : 2.5}>
+          <QueryEditor query={query[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
+            error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
+          {i === 0 && <Tooltip title="Execute Query">
+            <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
+              <PlayCircleOutlineIcon/>
+            </IconButton>
+          </Tooltip>}
+          {query.length < 2 && <Tooltip title="Add Query">
+            <IconButton onClick={onAddQuery} sx={{height: "49px", width: "49px"}}>
+              <AddCircleOutlineIcon/>
+            </IconButton>
+          </Tooltip>}
+          {i > 0 && <Tooltip title="Remove Query">
+            <IconButton onClick={() => onRemoveQuery(i)} sx={{height: "49px", width: "49px"}}>
+              <HighlightOffIcon/>
+            </IconButton>
+          </Tooltip>}
+        </Box>)}
+    </Box>
+    <Box mt={3}>
+      <AdditionalSettings/>
+    </Box>
+  </Box>;
 };
 
 export default QueryConfigurator;
