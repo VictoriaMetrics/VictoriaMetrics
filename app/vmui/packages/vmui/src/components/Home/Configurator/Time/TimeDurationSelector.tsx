@@ -27,7 +27,7 @@ const durationOptions: DurationOption[] = [
   {duration: "7d", title: "Last 7 days"},
   {duration: "30d", title: "Last 30 days"},
   {duration: "90d", title: "Last 90 days"},
-  {duration: "6m", title: "Last 6 months"},
+  {duration: "180d", title: "Last 180 days"},
   {duration: "1y", title: "Last 1 year"},
   {duration: "1d", from: () => dayjs().subtract(1, "day").endOf("day").toDate(), title: "Yesterday"},
   {duration: "1d", from: () => dayjs().endOf("day").toDate(), title: "Today"},
