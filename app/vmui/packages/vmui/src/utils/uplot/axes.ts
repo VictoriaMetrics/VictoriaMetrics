@@ -20,9 +20,11 @@ export const getTimeSeries = (times: number[], defaultStep: number, period: Time
 };
 
 export const getMinMaxBuffer = (min: number, max: number): [number, number] => {
-  const minCorrect = min || -1;
-  const maxCorrect = max || 1;
-  return [minCorrect - (Math.abs(minCorrect) * 0.25), maxCorrect + (Math.abs(maxCorrect) * 0.25)];
+  const minCorrect = isNaN(min) ? -1 : min;
+  const maxCorrect = isNaN(max) ? 1 : max;
+  const valueRange = Math.abs(maxCorrect - minCorrect) || Math.abs(minCorrect) || 1;
+  const padding = 0.02*valueRange;
+  return [minCorrect - padding, maxCorrect + padding];
 };
 
 export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {
