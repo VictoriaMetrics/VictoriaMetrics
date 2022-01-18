@@ -19,13 +19,19 @@ export const getTimeSeries = (times: number[], defaultStep: number, period: Time
   return new Array(length*2).fill(startTime).map((d, i) => roundTimeSeconds(d + (defaultStep * i)));
 };
 
+export const getMinMaxBuffer = (min: number, max: number): [number, number] => {
+  const minCorrect = min || -1;
+  const maxCorrect = max || 1;
+  return [minCorrect - (Math.abs(minCorrect) * 0.25), maxCorrect + (Math.abs(maxCorrect) * 0.25)];
+};
+
 export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {
   const result: AxisRange = {};
   for (const key in values) {
     const numbers = values[key];
     const min = getMinFromArray(numbers);
     const max = getMaxFromArray(numbers);
-    result[key] = min && max ? [min - (min * 0.25), max + (max * 0.25)] : [-1, 1];
+    result[key] = getMinMaxBuffer(min, max);
   }
   return result;
 };

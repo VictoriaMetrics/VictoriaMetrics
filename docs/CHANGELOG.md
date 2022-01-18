@@ -30,6 +30,8 @@ sort: 15
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `stripPort` template function in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/10002).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `parseDuration` template function in the same way as [Prometheus does](https://github.com/prometheus/prometheus/pull/8817).
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `stale_samples_over_time(m[d])` function for calculating the number of [staleness marks](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) for time series `m` over the duration `d`. This function may be useful for detecting flapping metrics at scrape targets, which periodically disappear and then appear again.
+* FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): add support for `extra_filters` option. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1863).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve UX according to [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1960). Thanks to @Loori-R .
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that `vmagent` replicas scrape the same targets at different time offsets when [replication is enabled in vmagent clustering mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets). This guarantees that the [deduplication](https://docs.victoriametrics.com/#deduplication) consistently leaves samples from the same `vmagent` replica.
 * BUGFIX: return the proper response stub from `/api/v1/query_exemplars` handler, which is needed for Grafana v8+. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1999).
@@ -37,6 +39,8 @@ sort: 15
 * BUGFIX: fix possible data race when searching for time series matching `{key=~"value|"}` filter over time range covering multipe days. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2032). Thanks to @waldoweng for the provided fix.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not send staleness markers on graceful shutdown. This follows Prometheus behavior. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly set `__address__` label in `dockerswarm_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2038). Thanks to @ashtuchkin for the fix.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix incorrect calculations for graph limits on y axis. This could result in incorrect graph rendering in some cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2037).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix handling for multi-line queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2039).
 
 
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)

@@ -11,7 +11,7 @@ import {
 } from "../../utils/time";
 import {getFromStorage} from "../../utils/storage";
 import {getDefaultServer} from "../../utils/default-server-url";
-import {breakLineToQuery, getQueryArray, getQueryStringValue} from "../../utils/query-string";
+import {getQueryArray, getQueryStringValue} from "../../utils/query-string";
 import dayjs from "dayjs";
 
 export interface TimeState {
@@ -59,7 +59,7 @@ const query = getQueryArray();
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
-  displayType: getQueryStringValue("tab", "chart") as DisplayType,
+  displayType: getQueryStringValue("g0.tab", "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
   queryHistory: query.map(q => ({index: 0, values: [q]})),
   time: {
@@ -88,7 +88,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "SET_QUERY":
       return {
         ...state,
-        query: action.payload.map(q => breakLineToQuery(q))
+        query: action.payload.map(q => q)
       };
     case "SET_QUERY_HISTORY":
       return {

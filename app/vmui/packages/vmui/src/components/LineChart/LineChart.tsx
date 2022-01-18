@@ -4,7 +4,7 @@ import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlo
 import {useGraphState} from "../../state/graph/GraphStateContext";
 import {defaultOptions} from "../../utils/uplot/helpers";
 import {dragChart} from "../../utils/uplot/events";
-import {getAxes} from "../../utils/uplot/axes";
+import {getAxes, getMinMaxBuffer} from "../../utils/uplot/axes";
 import {setTooltip} from "../../utils/uplot/tooltip";
 import {MetricResult} from "../../api/types";
 import {limitsDurations} from "../../utils/time";
@@ -87,7 +87,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
-    return min && max ? [min - (min * 0.25), max + (max * 0.25)] : [-1, 1];
+    return getMinMaxBuffer(min, max);
   };
 
   const getScales = (): Scales => {

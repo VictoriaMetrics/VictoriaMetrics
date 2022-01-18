@@ -1,103 +1,47 @@
-import React, {FC, useEffect, useState} from "preact/compat";
-import {ChangeEvent, MouseEvent, KeyboardEvent} from "react";
-import Box from "@mui/material/Box";
-import Popover from "@mui/material/Popover";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import {checkDurationLimit} from "../../../../utils/time";
-import {TimeDurationPopover} from "./TimeDurationPopover";
-import {InlineBtn} from "../../../common/InlineBtn";
-import {useAppState} from "../../../../state/common/StateContext";
+import React, {FC} from "preact/compat";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import dayjs from "dayjs";
 
 interface TimeDurationSelector {
-  setDuration: (str: string) => void;
+  setDuration: (str: string, from: Date) => void;
 }
 
+interface DurationOption {
+  duration: string,
+  title?: string,
+  from?: () => Date,
+}
+
+const durationOptions: DurationOption[] = [
+  {duration: "5m", title: "Last 5 minutes"},
+  {duration: "15m", title: "Last 15 minutes"},
+  {duration: "30m", title: "Last 30 minutes"},
+  {duration: "1h", title: "Last 1 hour"},
+  {duration: "3h", title: "Last 3 hours"},
+  {duration: "6h", title: "Last 6 hours"},
+  {duration: "12h", title: "Last 12 hours"},
+  {duration: "24h", title: "Last 24 hours"},
+  {duration: "2d", title: "Last 2 days"},
+  {duration: "7d", title: "Last 7 days"},
+  {duration: "30d", title: "Last 30 days"},
+  {duration: "90d", title: "Last 90 days"},
+  {duration: "6m", title: "Last 6 months"},
+  {duration: "1y", title: "Last 1 year"},
+  {duration: "1d", from: () => dayjs().subtract(1, "day").endOf("day").toDate(), title: "Yesterday"},
+  {duration: "1d", from: () => dayjs().endOf("day").toDate(), title: "Today"},
+];
+
 const TimeDurationSelector: FC<TimeDurationSelector> = ({setDuration}) => {
-  const {time: {duration}} = useAppState();
+  // setDurationString("5m"))
 
-  const [anchorEl, setAnchorEl] = React.useState<Element | null>(null);
-  const [durationString, setDurationString] = useState<string>(duration);
-  const [durationStringFocused, setFocused] = useState(false);
-  const open = Boolean(anchorEl);
-
-  const handleDurationChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setDurationString(event.target.value);
-  };
-
-  const handlePopoverOpen = (event: MouseEvent<HTMLSpanElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handlePopoverClose = () => {
-    setAnchorEl(null);
-  };
-
-  const onKeyUp = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter") return;
-    const target = event.target as HTMLInputElement;
-    target.blur();
-    setDurationString(target.value);
-  };
-
-  useEffect(() => {
-    setDurationString(duration);
-  }, [duration]);
-
-  useEffect(() => {
-    if (!durationStringFocused) {
-      const value = checkDurationLimit(durationString);
-      setDurationString(value);
-      setDuration(value);
-    }
-  }, [durationString, durationStringFocused]);
-
-  return <>
-    <Box>
-      <TextField label="Duration" value={durationString} onChange={handleDurationChange}
-        variant="standard"
-        fullWidth={true}
-        onKeyUp={onKeyUp}
-        onBlur={() => {
-          setFocused(false);
-        }}
-        onFocus={() => {
-          setFocused(true);
-        }}
-      />
-    </Box>
-    <Box mt={2}>
-      <Typography variant="body2">
-        <span aria-owns={open ? "mouse-over-popover" : undefined}
-          aria-haspopup="true"
-          style={{cursor: "pointer"}}
-          onMouseEnter={handlePopoverOpen}
-          onMouseLeave={handlePopoverClose}>
-            Possible options:&nbsp;
-        </span>
-        <Popover
-          open={open}
-          anchorEl={anchorEl}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "left",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "left",
-          }}
-          style={{pointerEvents: "none"}} // important
-          onClose={handlePopoverClose}
-          disableRestoreFocus
-        >
-          <TimeDurationPopover/>
-        </Popover>
-        <InlineBtn handler={() => setDurationString("5m")} text="5m"/>,&nbsp;
-        <InlineBtn handler={() => setDurationString("1h")} text="1h"/>,&nbsp;
-        <InlineBtn handler={() => setDurationString("1h 30m")} text="1h 30m"/>
-      </Typography>
-    </Box>
-  </>;
+  return <List style={{maxHeight: "168px", overflow: "auto", paddingRight: "15px"}}>
+    {durationOptions.map(d =>
+      <ListItem key={d.duration} button onClick={() => setDuration(d.duration, d.from ? d.from() : new Date())}>
+        <ListItemText primary={d.title || d.duration}/>
+      </ListItem>)}
+  </List>;
 };
 
 export default TimeDurationSelector;
