@@ -80,7 +80,7 @@ export const useFetchQuery = (): {
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(throttle(fetchData, 1000), []);
+  const throttledFetchData = useCallback(throttle(fetchData, 300), []);
 
   const fetchOptions = async () => {
     if (!serverUrl) return;
