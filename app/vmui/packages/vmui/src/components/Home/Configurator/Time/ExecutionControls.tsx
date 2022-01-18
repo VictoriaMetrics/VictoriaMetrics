@@ -1,92 +1,100 @@
 import React, {FC, useEffect, useState} from "preact/compat";
-import Box from "@mui/material/Box";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import EqualizerIcon from "@mui/icons-material/Equalizer";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
-import CircularProgressWithLabel from "../../../common/CircularProgressWithLabel";
-import makeStyles from "@mui/styles/makeStyles";
-import BasicSwitch from "../../../../theme/switch";
+import Button from "@mui/material/Button";
+import Popper from "@mui/material/Popper";
+import Paper from "@mui/material/Paper";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
 
-const useStyles = makeStyles({
-  colorizing: {
-    color: "white"
-  }
-});
+interface AutoRefreshOption {
+  seconds: number
+  title: string
+}
+
+const delayOptions: AutoRefreshOption[] = [
+  {seconds: 0, title: "Off"},
+  {seconds: 1, title: "1s"},
+  {seconds: 2, title: "2s"},
+  {seconds: 5, title: "5s"},
+  {seconds: 10, title: "10s"},
+  {seconds: 30, title: "30s"},
+  {seconds: 60, title: "1m"},
+  {seconds: 300, title: "5m"},
+  {seconds: 900, title: "15m"},
+  {seconds: 1800, title: "30m"},
+  {seconds: 3600, title: "1h"},
+  {seconds: 7200, title: "2h"}
+];
 
 export const ExecutionControls: FC = () => {
-  const classes = useStyles();
 
   const dispatch = useAppDispatch();
   const {queryControls: {autoRefresh}} = useAppState();
 
-  const [delay, setDelay] = useState<(1|2|5)>(5);
-  const [lastUpdate, setLastUpdate] = useState<number|undefined>();
-  const [progress, setProgress] = React.useState(100);
+  const [selectedDelay, setSelectedDelay] = useState<AutoRefreshOption>(delayOptions[0]);
 
-  const handleChange = () => {
-    dispatch({type: "TOGGLE_AUTOREFRESH"});
+  const handleChange = (d: AutoRefreshOption) => {
+    if ((autoRefresh && !d.seconds) || (!autoRefresh && d.seconds)) {
+      dispatch({type: "TOGGLE_AUTOREFRESH"});
+    }
+    setSelectedDelay(d);
+    setAnchorEl(null);
   };
 
   useEffect(() => {
+    const delay = selectedDelay.seconds;
     let timer: number;
     if (autoRefresh) {
-      setLastUpdate(new Date().valueOf());
       timer = setInterval(() => {
-        setLastUpdate(new Date().valueOf());
         dispatch({type: "RUN_QUERY_TO_NOW"});
       }, delay * 1000) as unknown as number;
+    } else {
+      setSelectedDelay(delayOptions[0]);
     }
     return () => {
       timer && clearInterval(timer);
     };
-  }, [delay, autoRefresh]);
+  }, [selectedDelay, autoRefresh]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (autoRefresh && lastUpdate) {
-        const delta = (new Date().valueOf() - lastUpdate) / 1000; //s
-        const nextValue = Math.floor(delta / delay * 100);
-        setProgress(nextValue);
-      }
-    }, 16);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [autoRefresh, lastUpdate, delay]);
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const open = Boolean(anchorEl);
 
-  const iterateDelays = () => {
-    setDelay(prev => {
-      switch (prev) {
-        case 1:
-          return 2;
-        case 2:
-          return 5;
-        case 5:
-          return 1;
-        default:
-          return 5;
-      }
-    });
-  };
-
-  return <Box display="flex" alignItems="center">
-    {<FormControlLabel
-      control={<BasicSwitch className={classes.colorizing} checked={autoRefresh} onChange={handleChange} />}
-      label="Auto-refresh"
-    />}
-
-    {autoRefresh && <>
-      <CircularProgressWithLabel className={classes.colorizing} label={delay} value={progress}
-        onClick={() => {iterateDelays();}} />
-      <Tooltip title="Change delay refresh">
-        <Box ml={1}>
-          <IconButton onClick={() => {iterateDelays();}}>
-            <EqualizerIcon style={{color: "white"}} />
-          </IconButton>
-        </Box>
-      </Tooltip>
-    </>}
-  </Box>;
+  return <>
+    <Tooltip title="Auto-refresh control">
+      <Button variant="contained" color="primary"
+        sx={{
+          minWidth: "110px",
+          color: "white",
+          border: "1px solid rgba(0, 0, 0, 0.2)",
+          justifyContent: "space-between",
+          boxShadow: "none",
+        }}
+        startIcon={<AutorenewIcon/>}
+        endIcon={<KeyboardArrowDownIcon sx={{transform: open ? "rotate(180deg)" : "none"}}/>}
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+      >
+        {selectedDelay.title}
+      </Button>
+    </Tooltip>
+    <Popper
+      open={open}
+      anchorEl={anchorEl}
+      placement="bottom-end"
+      modifiers={[{name: "offset", options: {offset: [0, 6]}}]}>
+      <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
+        <Paper elevation={3}>
+          <List style={{minWidth: "110px",maxHeight: "208px", overflow: "auto", padding: "20px 0"}}>
+            {delayOptions.map(d =>
+              <ListItem key={d.seconds} button onClick={() => handleChange(d)}>
+                <ListItemText primary={d.title}/>
+              </ListItem>)}
+          </List>
+        </Paper>
+      </ClickAwayListener></Popper>
+  </>;
 };
