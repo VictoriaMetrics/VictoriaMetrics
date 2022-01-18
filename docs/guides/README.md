@@ -4,8 +4,8 @@ sort: 21
 
 # Guides
 
-1. [K8s monitoring via VM Single](k8s-monitoring-via-vm-single.md)
-2. [K8s monitoring via VM Cluster](k8s-monitoring-via-vm-cluster.md)
-3. [HA monitoring setup in K8s via VM Cluster](k8s-ha-monitoring-via-vm-cluster.md)
-4. [Getting started with VM Operator](getting-started-with-vm-operator.md)
-5. [Multi Retention Setup within VictoriaMetrics Cluster](guide-vmcluster-multiple-retention-setup.md)
+1. [K8s monitoring via VM Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single.html)
+2. [K8s monitoring via VM Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html)
+3. [HA monitoring setup in K8s via VM Cluster](https://docs.victoriametrics.com/guides/k8s-ha-monitoring-via-vm-cluster.html)
+4. [Getting started with VM Operator](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html)
+5. [Multi Retention Setup within VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html)
