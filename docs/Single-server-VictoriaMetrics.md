@@ -1148,16 +1148,21 @@ write data to the same VictoriaMetrics instance. These vmagent or Prometheus ins
 
 Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
 that the data will be stored for 3 months and then deleted.
-Data is split in per-month subdirectories inside `<-storageDataPath>/data/small` and `<-storageDataPath>/data/big` folders.
-Directories for months outside the configured retention are deleted on the first day of new month.
+Data is split in per-month partitions inside `<-storageDataPath>/data/small` and `<-storageDataPath>/data/big` folders.
+Data partitions outside the configured retention are deleted on the first day of new month.
+
+Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
+Data parts outside of the configured retention are eventually deleted during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+
 In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
 For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
-It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to lower
-value than before then data outside the configured period will be eventually deleted.
 
 VictoriaMetrics supports retention smaller than 1 month. For example, `-retentionPeriod=5d` would set data retention for 5 days.
-Older data is eventually deleted during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+Please note, time range covered by data part is not limited by retention period unit. Hence, data part may contain data
+for multiple days and will be deleted only when fully outside of the configured retention.
 
+It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to lower
+value than before then data outside the configured period will be eventually deleted.
 
 ## Multiple retentions
 
