@@ -153,7 +153,7 @@ The main differences between Cortex and VictoriaMetrics:
 - Thanos re-uses Prometheus source code, while VictoriaMetrics is written from scratch.
 - VictoriaMetrics accepts data via the [standard remote_write API for Prometheus](https://prometheus.io/docs/practices/remote_write/),
   while Thanos uses a non-standard [sidecar](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md) which must run alongside each Prometheus instance.
-- The Thanos sidecar requires disabling data compaction in Prometheus, which may hurt Prometheus performance and increase RAM usage. See [these docs](https://thanos.io/components/sidecar.md/) for more details.
+- The Thanos sidecar requires disabling data compaction in Prometheus, which may hurt Prometheus performance and increase RAM usage. See [these docs](https://thanos.io/tip/components/sidecar.md/) for more details.
 - Thanos stores data in object storage (Amazon S3 or Google GCS), while VictoriaMetrics stores data in block storage
   ([GCP persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs), Amazon EBS or bare metal HDD).
   While object storage is usually less expensive, block storage provides much lower latencies and higher throughput.
