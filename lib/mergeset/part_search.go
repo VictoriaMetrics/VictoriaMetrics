@@ -5,6 +5,7 @@ import (
 	"io"
 	"sort"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -25,9 +26,6 @@ type partSearch struct {
 	// The remaining block headers to scan in the current metaindexRow.
 	bhs []blockHeader
 
-	idxbCache *indexBlockCache
-	ibCache   *inmemoryBlockCache
-
 	// err contains the last error.
 	err error
 
@@ -45,8 +43,6 @@ func (ps *partSearch) reset() {
 	ps.p = nil
 	ps.mrs = nil
 	ps.bhs = nil
-	ps.idxbCache = nil
-	ps.ibCache = nil
 	ps.err = nil
 
 	ps.indexBuf = ps.indexBuf[:0]
@@ -65,8 +61,6 @@ func (ps *partSearch) Init(p *part) {
 	ps.reset()
 
 	ps.p = p
-	ps.idxbCache = p.idxbCache
-	ps.ibCache = p.ibCache
 }
 
 // Seek seeks for the first item greater or equal to k in ps.
@@ -261,16 +255,20 @@ func (ps *partSearch) nextBHS() error {
 	}
 	mr := &ps.mrs[0]
 	ps.mrs = ps.mrs[1:]
-	idxbKey := mr.indexBlockOffset
-	idxb := ps.idxbCache.Get(idxbKey)
-	if idxb == nil {
-		var err error
-		idxb, err = ps.readIndexBlock(mr)
+	idxbKey := blockcache.Key{
+		Part:   ps.p,
+		Offset: mr.indexBlockOffset,
+	}
+	b := idxbCache.GetBlock(idxbKey)
+	if b == nil {
+		idxb, err := ps.readIndexBlock(mr)
 		if err != nil {
 			return fmt.Errorf("cannot read index block: %w", err)
 		}
-		ps.idxbCache.Put(idxbKey, idxb)
+		b = idxb
+		idxbCache.PutBlock(idxbKey, b)
 	}
+	idxb := b.(*indexBlock)
 	ps.bhs = idxb.bhs
 	return nil
 }
@@ -293,17 +291,20 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 }
 
 func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) {
-	var ibKey inmemoryBlockCacheKey
-	ibKey.Init(bh)
-	ib := ps.ibCache.Get(ibKey)
-	if ib != nil {
-		return ib, nil
+	ibKey := blockcache.Key{
+		Part:   ps.p,
+		Offset: bh.itemsBlockOffset,
 	}
-	ib, err := ps.readInmemoryBlock(bh)
-	if err != nil {
-		return nil, err
+	b := ibCache.GetBlock(ibKey)
+	if b == nil {
+		ib, err := ps.readInmemoryBlock(bh)
+		if err != nil {
+			return nil, err
+		}
+		b = ib
+		ibCache.PutBlock(ibKey, b)
 	}
-	ps.ibCache.Put(ibKey, ib)
+	ib := b.(*inmemoryBlock)
 	return ib, nil
 }
 

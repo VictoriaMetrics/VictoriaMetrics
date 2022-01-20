@@ -25,16 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
-// These are global counters for cache requests and misses for parts
-// which were already merged into another parts.
-var (
-	historicalBigIndexBlocksCacheRequests uint64
-	historicalBigIndexBlocksCacheMisses   uint64
-
-	historicalSmallIndexBlocksCacheRequests uint64
-	historicalSmallIndexBlocksCacheMisses   uint64
-)
-
 func maxSmallPartSize() uint64 {
 	// Small parts are cached in the OS page cache,
 	// so limit their size by the remaining free RAM.
@@ -306,17 +296,11 @@ func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs
 type partitionMetrics struct {
 	PendingRows uint64
 
-	BigIndexBlocksCacheSize         uint64
-	BigIndexBlocksCacheSizeBytes    uint64
-	BigIndexBlocksCacheSizeMaxBytes uint64
-	BigIndexBlocksCacheRequests     uint64
-	BigIndexBlocksCacheMisses       uint64
-
-	SmallIndexBlocksCacheSize         uint64
-	SmallIndexBlocksCacheSizeBytes    uint64
-	SmallIndexBlocksCacheSizeMaxBytes uint64
-	SmallIndexBlocksCacheRequests     uint64
-	SmallIndexBlocksCacheMisses       uint64
+	IndexBlocksCacheSize         uint64
+	IndexBlocksCacheSizeBytes    uint64
+	IndexBlocksCacheSizeMaxBytes uint64
+	IndexBlocksCacheRequests     uint64
+	IndexBlocksCacheMisses       uint64
 
 	BigSizeBytes   uint64
 	SmallSizeBytes uint64
@@ -362,11 +346,6 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	for _, pw := range pt.bigParts {
 		p := pw.p
 
-		m.BigIndexBlocksCacheSize += p.ibCache.Len()
-		m.BigIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
-		m.BigIndexBlocksCacheSizeMaxBytes += p.ibCache.SizeMaxBytes()
-		m.BigIndexBlocksCacheRequests += p.ibCache.Requests()
-		m.BigIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.BigRowsCount += p.ph.RowsCount
 		m.BigBlocksCount += p.ph.BlocksCount
 		m.BigSizeBytes += p.size
@@ -376,11 +355,6 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	for _, pw := range pt.smallParts {
 		p := pw.p
 
-		m.SmallIndexBlocksCacheSize += p.ibCache.Len()
-		m.SmallIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
-		m.SmallIndexBlocksCacheSizeMaxBytes += p.ibCache.SizeMaxBytes()
-		m.SmallIndexBlocksCacheRequests += p.ibCache.Requests()
-		m.SmallIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.SmallRowsCount += p.ph.RowsCount
 		m.SmallBlocksCount += p.ph.BlocksCount
 		m.SmallSizeBytes += p.size
@@ -392,11 +366,11 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	pt.partsLock.Unlock()
 
-	m.BigIndexBlocksCacheRequests = atomic.LoadUint64(&historicalBigIndexBlocksCacheRequests)
-	m.BigIndexBlocksCacheMisses = atomic.LoadUint64(&historicalBigIndexBlocksCacheMisses)
-
-	m.SmallIndexBlocksCacheRequests = atomic.LoadUint64(&historicalSmallIndexBlocksCacheRequests)
-	m.SmallIndexBlocksCacheMisses = atomic.LoadUint64(&historicalSmallIndexBlocksCacheMisses)
+	m.IndexBlocksCacheSize = uint64(ibCache.Len())
+	m.IndexBlocksCacheSizeBytes = uint64(ibCache.SizeBytes())
+	m.IndexBlocksCacheSizeMaxBytes = uint64(ibCache.SizeMaxBytes())
+	m.IndexBlocksCacheRequests = ibCache.Requests()
+	m.IndexBlocksCacheMisses = ibCache.Misses()
 
 	m.ActiveBigMerges += atomic.LoadUint64(&pt.activeBigMerges)
 	m.ActiveSmallMerges += atomic.LoadUint64(&pt.activeSmallMerges)
@@ -1310,15 +1284,6 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool, isBig 
 		if !partsToRemove[pw] {
 			dst = append(dst, pw)
 			continue
-		}
-		requests := pw.p.ibCache.Requests()
-		misses := pw.p.ibCache.Misses()
-		if isBig {
-			atomic.AddUint64(&historicalBigIndexBlocksCacheRequests, requests)
-			atomic.AddUint64(&historicalBigIndexBlocksCacheMisses, misses)
-		} else {
-			atomic.AddUint64(&historicalSmallIndexBlocksCacheRequests, requests)
-			atomic.AddUint64(&historicalSmallIndexBlocksCacheMisses, misses)
 		}
 		removedParts++
 	}
