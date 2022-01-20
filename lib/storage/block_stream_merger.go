@@ -88,12 +88,14 @@ func (bsm *blockStreamMerger) nextBlock() error {
 	}
 
 	if err := bsrMin.Error(); err != nil {
+		bsm.Block = nil
 		return err
 	}
 
 	heap.Pop(&bsm.bsrHeap)
 
 	if len(bsm.bsrHeap) == 0 {
+		bsm.Block = nil
 		return io.EOF
 	}
 
