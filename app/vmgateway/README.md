@@ -207,7 +207,7 @@ The shortlist of configuration flags include the following:
   -envflag.prefix string
         Prefix for environment variables if -envflag.enable is set
   -eula
-        By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+        By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
   -fs.disableMmap
         Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches as they cannot read data files larger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
