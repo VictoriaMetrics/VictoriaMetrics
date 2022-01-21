@@ -1787,6 +1787,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 				// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
 				r.TSID = prevTSID
+				if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
+					// Skip the row, since the limit on the number of unique series has been exceeded.
+					j--
+					continue
+				}
 				continue
 			}
 			slowInsertsCount++
@@ -1800,14 +1805,14 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				j--
 				continue
 			}
+			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
+			prevTSID = r.TSID
+			prevMetricNameRaw = mr.MetricNameRaw
 			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip the row, since the limit on the number of unique series has been exceeded.
 				j--
 				continue
 			}
-			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
-			prevTSID = r.TSID
-			prevMetricNameRaw = mr.MetricNameRaw
 		}
 		idb.putIndexSearch(is)
 		putPendingMetricRows(pmrs)
