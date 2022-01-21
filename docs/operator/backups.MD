@@ -2,7 +2,9 @@
 sort: 5
 ---
 
-# vmbackupmanager
+# Backups
+
+## vmbackupmanager
 
 ## vmbackupmanager is proprietary software. 
 
