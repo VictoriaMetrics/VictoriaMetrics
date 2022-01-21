@@ -17,7 +17,7 @@ var ibCache = blockcache.NewCache(getMaxInmemoryBlocksCacheSize)
 
 func getMaxIndexBlocksCacheSize() int {
 	maxIndexBlockCacheSizeOnce.Do(func() {
-		maxIndexBlockCacheSize = memory.Allowed() / 10
+		maxIndexBlockCacheSize = int(0.2 * float64(memory.Allowed()))
 	})
 	return maxIndexBlockCacheSize
 }
@@ -29,7 +29,7 @@ var (
 
 func getMaxInmemoryBlocksCacheSize() int {
 	maxInmemoryBlockCacheSizeOnce.Do(func() {
-		maxInmemoryBlockCacheSize = memory.Allowed() / 4
+		maxInmemoryBlockCacheSize = int(0.3 * float64(memory.Allowed()))
 	})
 	return maxInmemoryBlockCacheSize
 }
