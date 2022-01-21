@@ -30,18 +30,6 @@ With CRD (Custom Resource Definition) you can define application configuration a
 
 VictoriaMetrics provides [helm charts](https://github.com/VictoriaMetrics/helm-charts). Operator makes the same, simplifies it and provides advanced features.
 
-## Documentation
-
-- quick start [doc](quick-start.html)
-- high availability [doc](high-availability.html)
-- relabeling configuration [doc](relabeling.html)
-- managing crd objects versions [doc](managing-versions.html)
-- design and description of implementation [design](design.html)
-- operator objects description [doc](api.html)
-- backups [docs](backups.html)
-- security [doc](security.html)
-- resource validation [doc](resources-validation.html)
-
 
 ## Configuration
 
