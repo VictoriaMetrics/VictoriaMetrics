@@ -34,7 +34,7 @@
     grid-gap: 6px;
     align-items: start;
     justify-content: start;
-    padding: 5px 10px;
+    padding: 7px 50px 7px 10px;
     background-color: #FFF;
     cursor: pointer;
     transition: 0.2s ease;
@@ -56,12 +56,25 @@
     border-style: solid;
     box-sizing: border-box;
     transition: 0.2s ease;
-    margin: 3px 0;
 }
 
 .legendLabel {
     font-size: 11px;
+    line-height: 12px;
     font-weight: normal;
+}
+
+.legendFreeFields {
+    padding: 3px;
+    cursor: pointer;
+}
+
+.legendFreeFields:hover {
+    text-decoration: underline;
+}
+
+.legendFreeFields:not(:last-child):after {
+    content: ",";
 }
 
 .legendWrapperHotkey {
