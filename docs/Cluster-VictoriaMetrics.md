@@ -491,7 +491,7 @@ Below is the output for `/path/to/vminsert -help`:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -614,7 +614,7 @@ Below is the output for `/path/to/vmselect -help`:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteTrimTimestamp duration
@@ -742,7 +742,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
   -finalMergeDelay duration
     	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -forceFlushAuthKey string

@@ -654,11 +654,8 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_entries{type="storage/next_day_metric_ids"}`, func() float64 {
 		return float64(m().NextDayMetricIDCacheSize)
 	})
-	metrics.NewGauge(`vm_cache_entries{type="storage/bigIndexBlocks"}`, func() float64 {
-		return float64(tm().BigIndexBlocksCacheSize)
-	})
-	metrics.NewGauge(`vm_cache_entries{type="storage/smallIndexBlocks"}`, func() float64 {
-		return float64(tm().SmallIndexBlocksCacheSize)
+	metrics.NewGauge(`vm_cache_entries{type="storage/indexBlocks"}`, func() float64 {
+		return float64(tm().IndexBlocksCacheSize)
 	})
 	metrics.NewGauge(`vm_cache_entries{type="indexdb/dataBlocks"}`, func() float64 {
 		return float64(idbm().DataBlocksCacheSize)
@@ -685,11 +682,8 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheSizeBytes)
 	})
-	metrics.NewGauge(`vm_cache_size_bytes{type="storage/bigIndexBlocks"}`, func() float64 {
-		return float64(tm().BigIndexBlocksCacheSizeBytes)
-	})
-	metrics.NewGauge(`vm_cache_size_bytes{type="storage/smallIndexBlocks"}`, func() float64 {
-		return float64(tm().SmallIndexBlocksCacheSizeBytes)
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/indexBlocks"}`, func() float64 {
+		return float64(tm().IndexBlocksCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/dataBlocks"}`, func() float64 {
 		return float64(idbm().DataBlocksCacheSizeBytes)
@@ -722,11 +716,8 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheSizeMaxBytes)
 	})
-	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/bigIndexBlocks"}`, func() float64 {
-		return float64(tm().BigIndexBlocksCacheSizeMaxBytes)
-	})
-	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/smallIndexBlocks"}`, func() float64 {
-		return float64(tm().SmallIndexBlocksCacheSizeMaxBytes)
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/indexBlocks"}`, func() float64 {
+		return float64(tm().IndexBlocksCacheSizeMaxBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/dataBlocks"}`, func() float64 {
 		return float64(idbm().DataBlocksCacheSizeMaxBytes)
@@ -747,11 +738,8 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheRequests)
 	})
-	metrics.NewGauge(`vm_cache_requests_total{type="storage/bigIndexBlocks"}`, func() float64 {
-		return float64(tm().BigIndexBlocksCacheRequests)
-	})
-	metrics.NewGauge(`vm_cache_requests_total{type="storage/smallIndexBlocks"}`, func() float64 {
-		return float64(tm().SmallIndexBlocksCacheRequests)
+	metrics.NewGauge(`vm_cache_requests_total{type="storage/indexBlocks"}`, func() float64 {
+		return float64(tm().IndexBlocksCacheRequests)
 	})
 	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/dataBlocks"}`, func() float64 {
 		return float64(idbm().DataBlocksCacheRequests)
@@ -775,11 +763,8 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheMisses)
 	})
-	metrics.NewGauge(`vm_cache_misses_total{type="storage/bigIndexBlocks"}`, func() float64 {
-		return float64(tm().BigIndexBlocksCacheMisses)
-	})
-	metrics.NewGauge(`vm_cache_misses_total{type="storage/smallIndexBlocks"}`, func() float64 {
-		return float64(tm().SmallIndexBlocksCacheMisses)
+	metrics.NewGauge(`vm_cache_misses_total{type="storage/indexBlocks"}`, func() float64 {
+		return float64(tm().IndexBlocksCacheMisses)
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/dataBlocks"}`, func() float64 {
 		return float64(idbm().DataBlocksCacheMisses)

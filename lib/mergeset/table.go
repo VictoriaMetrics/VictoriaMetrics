@@ -22,16 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
-// These are global counters for cache requests and misses for parts
-// which were already merged into another parts.
-var (
-	historicalDataBlockCacheRequests uint64
-	historicalDataBlockCacheMisses   uint64
-
-	historicalIndexBlockCacheRequests uint64
-	historicalIndexBlockCacheMisses   uint64
-)
-
 // maxParts is the maximum number of parts in the table.
 //
 // This number may be reached when the insertion pace outreaches merger pace.
@@ -443,27 +433,21 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.ItemsCount += p.ph.itemsCount
 		m.SizeBytes += p.size
 
-		m.DataBlocksCacheSize += p.ibCache.Len()
-		m.DataBlocksCacheSizeBytes += p.ibCache.SizeBytes()
-		m.DataBlocksCacheSizeMaxBytes += p.ibCache.SizeMaxBytes()
-		m.DataBlocksCacheRequests += p.ibCache.Requests()
-		m.DataBlocksCacheMisses += p.ibCache.Misses()
-
-		m.IndexBlocksCacheSize += p.idxbCache.Len()
-		m.IndexBlocksCacheSizeBytes += p.idxbCache.SizeBytes()
-		m.IndexBlocksCacheSizeMaxBytes += p.idxbCache.SizeMaxBytes()
-		m.IndexBlocksCacheRequests += p.idxbCache.Requests()
-		m.IndexBlocksCacheMisses += p.idxbCache.Misses()
-
 		m.PartsRefCount += atomic.LoadUint64(&pw.refCount)
 	}
 	tb.partsLock.Unlock()
 
-	m.DataBlocksCacheRequests = atomic.LoadUint64(&historicalDataBlockCacheRequests)
-	m.DataBlocksCacheMisses = atomic.LoadUint64(&historicalDataBlockCacheMisses)
+	m.DataBlocksCacheSize = uint64(ibCache.Len())
+	m.DataBlocksCacheSizeBytes = uint64(ibCache.SizeBytes())
+	m.DataBlocksCacheSizeMaxBytes = uint64(ibCache.SizeMaxBytes())
+	m.DataBlocksCacheRequests = ibCache.Requests()
+	m.DataBlocksCacheMisses = ibCache.Misses()
 
-	m.IndexBlocksCacheRequests = atomic.LoadUint64(&historicalIndexBlockCacheRequests)
-	m.IndexBlocksCacheMisses = atomic.LoadUint64(&historicalIndexBlockCacheMisses)
+	m.IndexBlocksCacheSize = uint64(idxbCache.Len())
+	m.IndexBlocksCacheSizeBytes = uint64(idxbCache.SizeBytes())
+	m.IndexBlocksCacheSizeMaxBytes = uint64(idxbCache.SizeMaxBytes())
+	m.IndexBlocksCacheRequests = idxbCache.Requests()
+	m.IndexBlocksCacheMisses = idxbCache.Misses()
 }
 
 // AddItems adds the given items to the tb.
@@ -1466,10 +1450,6 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 			dst = append(dst, pw)
 			continue
 		}
-		atomic.AddUint64(&historicalDataBlockCacheRequests, pw.p.ibCache.Requests())
-		atomic.AddUint64(&historicalDataBlockCacheMisses, pw.p.ibCache.Misses())
-		atomic.AddUint64(&historicalIndexBlockCacheRequests, pw.p.idxbCache.Requests())
-		atomic.AddUint64(&historicalIndexBlockCacheMisses, pw.p.idxbCache.Misses())
 		removedParts++
 	}
 	return dst, removedParts
