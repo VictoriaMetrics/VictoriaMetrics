@@ -1,9 +1,10 @@
-import React, {FC, useMemo} from "preact/compat";
+import React, {FC, useMemo, useState} from "preact/compat";
 import {hexToRGB} from "../../utils/color";
 import {useAppState} from "../../state/common/StateContext";
 import {LegendItem} from "../../utils/uplot/types";
 import "./legend.css";
 import {getDashLine} from "../../utils/uplot/helpers";
+import Tooltip from "@mui/material/Tooltip";
 
 export interface LegendProps {
   labels: LegendItem[];
@@ -13,9 +14,17 @@ export interface LegendProps {
 const Legend: FC<LegendProps> = ({labels, onChange}) => {
   const {query} = useAppState();
 
+  const [copiedValue, setCopiedValue] = useState("");
+
   const groups = useMemo(() => {
     return Array.from(new Set(labels.map(l => l.group)));
   }, [labels]);
+
+  const handleClickFreeField = async (val: string, id: string) => {
+    await navigator.clipboard.writeText(val);
+    setCopiedValue(id);
+    setTimeout(() => setCopiedValue(""), 2000);
+  };
 
   return <>
     <div className="legendWrapper">
@@ -39,7 +48,25 @@ const Legend: FC<LegendProps> = ({labels, onChange}) => {
                   borderColor: legendItem.color,
                   backgroundColor: `rgba(${hexToRGB(legendItem.color)}, 0.1)`
                 }}/>
-              <div className="legendLabel">{legendItem.label}</div>
+              <div className="legendLabel">
+                {legendItem.freeFormFields.__name__ || `Query ${legendItem.group} result`}
+                {!!Object.keys(legendItem.freeFormFields).length && <>
+                  &#160;&#123;
+                  {Object.keys(legendItem.freeFormFields).filter(f => f !== "__name__").map((f) => {
+                    const freeField = `${f}="${legendItem.freeFormFields[f]}"`;
+                    const fieldId = `${legendItem.group}.${legendItem.label}.${freeField}`;
+                    return <Tooltip arrow key={f} open={copiedValue === fieldId} title={"Copied!"}>
+                      <span className="legendFreeFields" onClick={(e) => {
+                        e.stopPropagation();
+                        handleClickFreeField(freeField, fieldId);
+                      }}>
+                        {f}: {legendItem.freeFormFields[f]}
+                      </span>
+                    </Tooltip>;
+                  })}
+                  &#125;
+                </>}
+              </div>
             </div>
           )}
         </div>
