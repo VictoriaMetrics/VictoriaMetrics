@@ -9,6 +9,7 @@ sort: 15
 * BUGFIX: return proper results from `highestMax()` function at [Graphite render API](https://docs.victoriametrics.com/#graphite-render-api-usage). Previously it was incorrectly returning timeseries with min peaks instead of max peaks.
 * BUGFIX: properly limit indexdb cache sizes. Previously they could exceed values set via `-memory.allowedPercent` and/or `-memory.allowedBytes` when `indexdb` contained many data parts. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a bug, which could break time range picker when editing `From` or `To` input fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2080).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a bug, which could break switching between `graph`, `json` and `table` views. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2084).
 
 
 ## [v1.72.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.72.0)
