@@ -10,6 +10,7 @@ export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series => 
   return {
     label,
     dash: getDashLine(d.group),
+    class: JSON.stringify(d.metric),
     width: 1.4,
     stroke: getColorLine(d.group, label),
     show: !includesHideSeries(label, d.group, hideSeries),
@@ -25,7 +26,8 @@ export const getLegendItem = (s: Series, group: number): LegendItem => ({
   group,
   label: s.label || "",
   color: s.stroke as string,
-  checked: s.show || false
+  checked: s.show || false,
+  freeFormFields: JSON.parse(s.class || "{}"),
 });
 
 export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesArgs): string[] => {
