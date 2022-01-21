@@ -17,4 +17,3 @@ sort: 22
 11. [CRD Validation](resources-validation.html)
 12. [Security](security.html)
 13. [Auto Generated vars for package config](vars.html)
-14. [CONTRIBUTING](CONTRIBUTING.html)

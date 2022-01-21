@@ -2,7 +2,7 @@
 sort: 9
 ---
 
-# Victoria Metrics Operator Quick Start
+#  Quick start
 
 Operator serves to make running VictoriaMetrics applications on top of Kubernetes as easy as possible while preserving Kubernetes-native configuration options.
 

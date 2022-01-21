@@ -2,7 +2,9 @@
 sort: 10
 ---
 
-# VMAgent relabel
+# Relabeling
+
+## VMAgent relabel
 
 
 `VMAgent` supports global relabeling for all metrics and per remoteWrite target relabel config. 

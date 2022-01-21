@@ -2,7 +2,10 @@
 sort: 8
 ---
 
-# VMAlert, VMAgent, VMAlertmanager, VMSingle version
+
+# Managing application versions
+
+## VMAlert, VMAgent, VMAlertmanager, VMSingle version
 
 
 for those objects you can specify following settings at `spec.Image`
