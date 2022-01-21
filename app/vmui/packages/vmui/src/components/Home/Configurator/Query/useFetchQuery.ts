@@ -3,11 +3,11 @@ import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../../../../api/qu
 import {useAppState} from "../../../../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
 import {isValidHttpUrl} from "../../../../utils/url";
-import {useAuthState} from "../../../../state/auth/AuthStateContext";
 import {ErrorTypes} from "../../../../types";
 import {useGraphState} from "../../../../state/graph/GraphStateContext";
 import {getAppModeEnable, getAppModeParams} from "../../../../utils/app-mode";
 import throttle from "lodash.throttle";
+import {DisplayType} from "../DisplayTypeSwitch";
 
 const appModeEnable = getAppModeEnable();
 const {serverURL: appServerUrl} = getAppModeParams();
@@ -22,7 +22,6 @@ export const useFetchQuery = (): {
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
 
-  const {basicData, bearerData, authMethod} = useAuthState();
   const {customStep} = useGraphState();
 
   const [queryOptions, setQueryOptions] = useState([]);
@@ -39,22 +38,14 @@ export const useFetchQuery = (): {
     }
   }, [error]);
 
-  const fetchData = async (fetchUrl: string[] | undefined) => {
+  const fetchData = async (fetchUrl: string[] | undefined, fetchQueue: AbortController[], displayType: DisplayType) => {
     if (!fetchUrl?.length) return;
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     setIsLoading(true);
 
-    const headers = new Headers();
-    if (authMethod === "BASIC_AUTH") {
-      headers.set("Authorization", "Basic " + btoa(`${basicData?.login || ""}:${basicData?.password || ""}`));
-    }
-    if (authMethod === "BEARER_AUTH") {
-      headers.set("Authorization", bearerData?.token || "");
-    }
-
     try {
-      const responses = await Promise.all(fetchUrl.map(url => fetch(url, {headers, signal: controller.signal})));
+      const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
       const tempData = [];
       let counter = 1;
       for await (const response of responses) {
@@ -83,8 +74,9 @@ export const useFetchQuery = (): {
   const throttledFetchData = useCallback(throttle(fetchData, 300), []);
 
   const fetchOptions = async () => {
-    if (!serverUrl) return;
-    const url = getQueryOptions(serverUrl);
+    const server = appModeEnable ? appServerUrl : serverUrl;
+    if (!server) return;
+    const url = getQueryOptions(server);
 
     try {
       const response = await fetch(url);
@@ -121,7 +113,7 @@ export const useFetchQuery = (): {
 
   // TODO: this should depend on query as well, but need to decide when to do the request. Doing it on each query change - looks to be a bad idea. Probably can be done on blur
   useEffect(() => {
-    throttledFetchData(fetchUrl);
+    throttledFetchData(fetchUrl, fetchQueue, displayType);
   }, [fetchUrl]);
 
   useEffect(() => {
