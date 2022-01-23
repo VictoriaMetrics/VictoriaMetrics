@@ -24,8 +24,6 @@ func WithThrottler(name string, throttle time.Duration) *LogThrottler {
 	}
 
 	lt = newLogThrottler(throttle)
-	lt.warnF = Warnf
-	lt.errorF = Errorf
 	logThrottlerRegistry[name] = lt
 	return lt
 }
@@ -35,9 +33,6 @@ func WithThrottler(name string, throttle time.Duration) *LogThrottler {
 // LogThrottler must be created via WithThrottler() call.
 type LogThrottler struct {
 	ch chan struct{}
-
-	warnF  func(format string, args ...interface{})
-	errorF func(format string, args ...interface{})
 }
 
 func newLogThrottler(throttle time.Duration) *LogThrottler {
@@ -57,7 +52,7 @@ func newLogThrottler(throttle time.Duration) *LogThrottler {
 func (lt *LogThrottler) Errorf(format string, args ...interface{}) {
 	select {
 	case lt.ch <- struct{}{}:
-		lt.errorF(format, args...)
+		ErrorfSkipframes(1, format, args...)
 	default:
 	}
 }
@@ -66,7 +61,7 @@ func (lt *LogThrottler) Errorf(format string, args ...interface{}) {
 func (lt *LogThrottler) Warnf(format string, args ...interface{}) {
 	select {
 	case lt.ch <- struct{}{}:
-		lt.warnF(format, args...)
+		WarnfSkipframes(1, format, args...)
 	default:
 	}
 }
