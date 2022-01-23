@@ -97,7 +97,7 @@ export const TimeSelector: FC = () => {
                   label="From"
                   ampm={false}
                   value={from}
-                  onChange={date => dispatch({type: "SET_FROM", payload: date as unknown as Date})}
+                  onChange={date => date && dispatch({type: "SET_FROM", payload: date as unknown as Date})}
                   onError={console.log}
                   inputFormat={formatDate}
                   mask="____-__-__ __:__:__"
@@ -110,7 +110,7 @@ export const TimeSelector: FC = () => {
                   label="To"
                   ampm={false}
                   value={until}
-                  onChange={date => dispatch({type: "SET_UNTIL", payload: date as unknown as Date})}
+                  onChange={date => date && dispatch({type: "SET_UNTIL", payload: date as unknown as Date})}
                   onError={console.log}
                   inputFormat={formatDate}
                   mask="____-__-__ __:__:__"

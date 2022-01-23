@@ -175,7 +175,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
 		indexFile.MustClose()
-		return fmt.Errorf("cannot unmarshal metaindex rows from inmemoryPart: %w", err)
+		return fmt.Errorf("cannot unmarshal metaindex rows from file part %q: %w", metaindexPath, err)
 	}
 
 	bsr.path = path
@@ -213,16 +213,19 @@ func (bsr *blockStreamReader) NextBlock() bool {
 	if bsr.err != nil {
 		return false
 	}
-
+	tsidPrev := bsr.Block.bh.TSID
 	bsr.Block.Reset()
-
 	err := bsr.readBlock()
 	if err == nil {
-		if bsr.Block.bh.RowsCount > 0 {
-			return true
+		if bsr.Block.bh.TSID.Less(&tsidPrev) {
+			bsr.err = fmt.Errorf("possible data corruption: the next TSID=%v is smaller than the previous TSID=%v", &bsr.Block.bh.TSID, &tsidPrev)
+			return false
 		}
-		bsr.err = fmt.Errorf("invalid block read with zero rows; block=%+v", &bsr.Block)
-		return false
+		if bsr.Block.bh.RowsCount == 0 {
+			bsr.err = fmt.Errorf("invalid block read with zero rows; block=%+v", &bsr.Block)
+			return false
+		}
+		return true
 	}
 	if err == io.EOF {
 		bsr.err = io.EOF

@@ -36,4 +36,5 @@ export interface LegendItem {
     label: string;
     color: string;
     checked: boolean;
+    freeFormFields: {[key: string]: string};
 }
