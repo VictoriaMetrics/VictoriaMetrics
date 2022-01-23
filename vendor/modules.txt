@@ -5,10 +5,10 @@ cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
-# cloud.google.com/go/compute v1.0.0
+# cloud.google.com/go/compute v1.1.0
 ## explicit; go 1.11
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/iam v0.1.0
+# cloud.google.com/go/iam v0.1.1
 ## explicit; go 1.11
 cloud.google.com/go/iam
 # cloud.google.com/go/storage v1.18.2
@@ -33,7 +33,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit; go 1.12
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.42.35
+# github.com/aws/aws-sdk-go v1.42.39
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -126,8 +126,8 @@ github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.4
 ## explicit
 github.com/golang/snappy
-# github.com/google/go-cmp v0.5.6
-## explicit; go 1.8
+# github.com/google/go-cmp v0.5.7
+## explicit; go 1.11
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -175,7 +175,7 @@ github.com/oklog/ulid
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.11.0
+# github.com/prometheus/client_golang v1.12.0
 ## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
@@ -264,7 +264,7 @@ go.opencensus.io/trace/tracestate
 go.uber.org/atomic
 # go.uber.org/goleak v1.1.11-0.20210813005559-691160354723
 ## explicit; go 1.13
-# golang.org/x/net v0.0.0-20220114011407-0dd24b26b47d
+# golang.org/x/net v0.0.0-20220121210141-e204ce36a2ba
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -337,7 +337,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220114231437-d2e6a121cae0
+# google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5
 ## explicit; go 1.11
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
