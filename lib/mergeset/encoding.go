@@ -378,12 +378,12 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 		return fmt.Errorf("unexpected tail left unmarshaling %d lens; tail size=%d; contents=%X", itemsCount, len(tail), tail)
 	}
 	lens[0] = uint64(len(firstItem) - len(commonPrefix))
-	dataLen := uint64(len(commonPrefix) * int(itemsCount))
-	dataLen += lens[0]
+	dataLen := len(commonPrefix) * int(itemsCount)
+	dataLen += int(lens[0])
 	for i, xLen := range is.A {
 		itemLen := xLen ^ lens[i]
 		lens[i+1] = itemLen
-		dataLen += itemLen
+		dataLen += int(itemLen)
 	}
 
 	// Unmarshal items data.
@@ -391,7 +391,10 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	if err != nil {
 		return fmt.Errorf("cannot decompress lensData: %w", err)
 	}
-	data := bytesutil.Resize(ib.data, maxInmemoryBlockSize)
+	// Resize ib.data to dataLen instead of maxInmemoryBlockSize,
+	// since the data isn't going to be resized after unmarshaling.
+	// This may save memory for caching the unmarshaled block.
+	data := bytesutil.Resize(ib.data, dataLen)
 	if n := int(itemsCount) - cap(ib.items); n > 0 {
 		ib.items = append(ib.items[:cap(ib.items)], make([]Item, n)...)
 	}
@@ -417,12 +420,12 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 		if prefixLen > uint64(len(prevItem)) {
 			return fmt.Errorf("prefixLen cannot exceed %d; got %d", len(prevItem), prefixLen)
 		}
-		dataLen := len(data)
+		dataStart := len(data)
 		data = append(data, commonPrefix...)
 		data = append(data, prevItem[:prefixLen]...)
 		data = append(data, b[:suffixLen]...)
 		items[i] = Item{
-			Start: uint32(dataLen),
+			Start: uint32(dataStart),
 			End:   uint32(len(data)),
 		}
 		b = b[suffixLen:]
@@ -431,7 +434,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	if len(b) > 0 {
 		return fmt.Errorf("unexpected tail left after itemsData with len %d: %q", len(b), b)
 	}
-	if uint64(len(data)) != dataLen {
+	if len(data) != dataLen {
 		return fmt.Errorf("unexpected data len; got %d; want %d", len(data), dataLen)
 	}
 	ib.data = data
