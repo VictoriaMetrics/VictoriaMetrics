@@ -84,7 +84,7 @@ func ParseStream(req *http.Request, callback func(block *Block) error) error {
 			wg.Wait()
 			return fmt.Errorf("too big metricName size; got %d; shouldn't exceed %d", bufSize, 1024*1024)
 		}
-		uw.metricNameBuf = bytesutil.Resize(uw.metricNameBuf, int(bufSize))
+		uw.metricNameBuf = bytesutil.ResizeNoCopy(uw.metricNameBuf, int(bufSize))
 		if _, err := io.ReadFull(br, uw.metricNameBuf); err != nil {
 			readErrors.Inc()
 			wg.Wait()
@@ -105,7 +105,7 @@ func ParseStream(req *http.Request, callback func(block *Block) error) error {
 			wg.Wait()
 			return fmt.Errorf("too big native block size; got %d; shouldn't exceed %d", bufSize, 1024*1024)
 		}
-		uw.blockBuf = bytesutil.Resize(uw.blockBuf, int(bufSize))
+		uw.blockBuf = bytesutil.ResizeNoCopy(uw.blockBuf, int(bufSize))
 		if _, err := io.ReadFull(br, uw.blockBuf); err != nil {
 			readErrors.Inc()
 			wg.Wait()

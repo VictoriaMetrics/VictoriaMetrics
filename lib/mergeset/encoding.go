@@ -119,7 +119,7 @@ func (ib *inmemoryBlock) Add(x []byte) bool {
 	}
 	if cap(data) < maxInmemoryBlockSize {
 		dataLen := len(data)
-		data = bytesutil.Resize(data, maxInmemoryBlockSize)[:dataLen]
+		data = bytesutil.ResizeWithCopy(data, maxInmemoryBlockSize)[:dataLen]
 	}
 	dataLen := len(data)
 	data = append(data, x...)
@@ -141,7 +141,7 @@ func (ib *inmemoryBlock) sort() {
 	data := ib.data
 	items := ib.items
 	bb := bbPool.Get()
-	b := bytesutil.Resize(bb.B, len(data))
+	b := bytesutil.ResizeNoCopy(bb.B, len(data))
 	b = b[:0]
 	for i, it := range items {
 		bLen := len(b)
@@ -394,7 +394,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// Resize ib.data to dataLen instead of maxInmemoryBlockSize,
 	// since the data isn't going to be resized after unmarshaling.
 	// This may save memory for caching the unmarshaled block.
-	data := bytesutil.Resize(ib.data, dataLen)
+	data := bytesutil.ResizeNoCopy(ib.data, dataLen)
 	if n := int(itemsCount) - cap(ib.items); n > 0 {
 		ib.items = append(ib.items[:cap(ib.items)], make([]Item, n)...)
 	}
@@ -492,7 +492,7 @@ func (ib *inmemoryBlock) unmarshalDataPlain(sb *storageBlock, firstItem []byte, 
 	// Unmarshal items data.
 	data := ib.data
 	items := ib.items
-	data = bytesutil.Resize(data, len(firstItem)+len(sb.itemsData)+len(commonPrefix)*int(itemsCount))
+	data = bytesutil.ResizeNoCopy(data, len(firstItem)+len(sb.itemsData)+len(commonPrefix)*int(itemsCount))
 	data = append(data[:0], firstItem...)
 	items = append(items[:0], Item{
 		Start: 0,

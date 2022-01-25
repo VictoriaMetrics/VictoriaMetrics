@@ -53,7 +53,7 @@ func (bb *ByteBuffer) MustReadAt(p []byte, offset int64) {
 func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	b := bb.B
 	bLen := len(b)
-	b = Resize(b, 4*1024)
+	b = ResizeWithCopy(b, 4*1024)
 	b = b[:cap(b)]
 	offset := bLen
 	for {
