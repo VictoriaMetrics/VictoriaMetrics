@@ -499,7 +499,7 @@ func (q *queue) readBlock(dst []byte) ([]byte, error) {
 again:
 	// Read block len.
 	header := headerBufPool.Get()
-	header.B = bytesutil.Resize(header.B, 8)
+	header.B = bytesutil.ResizeNoCopy(header.B, 8)
 	err := q.readFull(header.B)
 	blockLen := encoding.UnmarshalUint64(header.B)
 	headerBufPool.Put(header)
@@ -520,7 +520,7 @@ again:
 
 	// Read block contents.
 	dstLen := len(dst)
-	dst = bytesutil.Resize(dst, dstLen+int(blockLen))
+	dst = bytesutil.ResizeWithCopy(dst, dstLen+int(blockLen))
 	if err := q.readFull(dst[dstLen:]); err != nil {
 		logger.Errorf("skipping corrupted %q, since contents with size %d bytes cannot be read from it: %s", q.readerPath, blockLen, err)
 		if err := q.skipBrokenChunkFile(); err != nil {

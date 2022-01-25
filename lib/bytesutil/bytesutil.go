@@ -5,12 +5,29 @@ import (
 	"unsafe"
 )
 
-// Resize resizes b to n bytes and returns b (which may be newly allocated).
-func Resize(b []byte, n int) []byte {
-	if nn := n - cap(b); nn > 0 {
-		b = append(b[:cap(b)], make([]byte, nn)...)
+// ResizeWithCopy resizes b to n bytes and returns the resized buffer (which may be newly allocated).
+//
+// If newly allocated buffer is returned then b contents is copied to it.
+func ResizeWithCopy(b []byte, n int) []byte {
+	if n <= cap(b) {
+		return b[:n]
 	}
-	return b[:n]
+	// Allocate the exact number of bytes instead of using `b = append(b[:cap(b)], make([]byte, nn)...)`,
+	// since `append()` may allocate more than the requested bytes for additional capacity.
+	// Using make() instead of append() should save RAM when the resized slice is cached somewhere.
+	bNew := make([]byte, n)
+	copy(bNew, b)
+	return bNew
+}
+
+// ResizeNoCopy resizes b to n bytes and returns the resized buffer (which may be newly allocated).
+//
+// If newly allocated buffer is returned then b contents isn't copied to it.
+func ResizeNoCopy(b []byte, n int) []byte {
+	if n <= cap(b) {
+		return b[:n]
+	}
+	return make([]byte, n)
 }
 
 // ToUnsafeString converts b to string without memory allocations.

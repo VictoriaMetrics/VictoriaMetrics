@@ -377,8 +377,7 @@ func (mn *MetricName) Marshal(dst []byte) []byte {
 		tag := &mn.Tags[i]
 		requiredSize += len(tag.Key) + len(tag.Value) + 2
 	}
-	dst = bytesutil.Resize(dst, requiredSize)
-	dst = dst[:dstLen]
+	dst = bytesutil.ResizeWithCopy(dst, requiredSize)[:dstLen]
 
 	dst = encoding.MarshalUint32(dst, mn.AccountID)
 	dst = encoding.MarshalUint32(dst, mn.ProjectID)
@@ -439,8 +438,7 @@ func (mn *MetricName) MarshalNoAccountIDProjectID(dst []byte) []byte {
 		tag := &mn.Tags[i]
 		requiredSize += len(tag.Key) + len(tag.Value) + 2
 	}
-	dst = bytesutil.Resize(dst, requiredSize)
-	dst = dst[:dstLen]
+	dst = bytesutil.ResizeWithCopy(dst, requiredSize)[:dstLen]
 
 	dst = marshalTagValue(dst, mn.MetricGroup)
 	tags := mn.Tags
@@ -546,7 +544,7 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 		dstSize += len(label.Value)
 		dstSize += 4
 	}
-	dst = bytesutil.Resize(dst, dstSize)[:dstLen]
+	dst = bytesutil.ResizeWithCopy(dst, dstSize)[:dstLen]
 
 	// Marshal labels to dst.
 	dst = encoding.MarshalUint32(dst, accountID)

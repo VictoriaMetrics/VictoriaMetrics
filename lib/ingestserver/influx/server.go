@@ -135,7 +135,7 @@ func (s *Server) serveUDP(insertHandler func(r io.Reader) error) {
 		go func() {
 			defer wg.Done()
 			var bb bytesutil.ByteBuffer
-			bb.B = bytesutil.Resize(bb.B, 64*1024)
+			bb.B = bytesutil.ResizeNoCopy(bb.B, 64*1024)
 			for {
 				bb.Reset()
 				bb.B = bb.B[:cap(bb.B)]

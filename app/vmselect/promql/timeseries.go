@@ -98,7 +98,7 @@ func marshalTimeseriesFast(dst []byte, tss []*timeseries, maxSize int, step int6
 
 	// Allocate the buffer for the marshaled tss before its' marshaling.
 	// This should reduce memory fragmentation and memory usage.
-	dst = bytesutil.Resize(dst, size)
+	dst = bytesutil.ResizeNoCopy(dst, size)
 	dst = marshalFastTimestamps(dst[:0], tss[0].Timestamps)
 	for _, ts := range tss {
 		dst = ts.marshalFastNoTimestamps(dst)

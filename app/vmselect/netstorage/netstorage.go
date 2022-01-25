@@ -2537,7 +2537,7 @@ func sendAccountIDProjectID(bc *handshake.BufferedConn, accountID, projectID uin
 }
 
 func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, error) {
-	buf = bytesutil.Resize(buf, 8)
+	buf = bytesutil.ResizeNoCopy(buf, 8)
 	if n, err := io.ReadFull(bc, buf); err != nil {
 		return buf, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
 	}
@@ -2545,7 +2545,7 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 	if dataSize > uint64(maxDataSize) {
 		return buf, fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
 	}
-	buf = bytesutil.Resize(buf, int(dataSize))
+	buf = bytesutil.ResizeNoCopy(buf, int(dataSize))
 	if dataSize == 0 {
 		return buf, nil
 	}
