@@ -211,13 +211,13 @@ func (bsr *blockStreamReader) Next() bool {
 	bsr.bh = &bsr.bhs[bsr.bhIdx]
 	bsr.bhIdx++
 
-	bsr.sb.itemsData = bytesutil.Resize(bsr.sb.itemsData, int(bsr.bh.itemsBlockSize))
+	bsr.sb.itemsData = bytesutil.ResizeNoCopy(bsr.sb.itemsData, int(bsr.bh.itemsBlockSize))
 	if err := fs.ReadFullData(bsr.itemsReader, bsr.sb.itemsData); err != nil {
 		bsr.err = fmt.Errorf("cannot read compressed items block with size %d: %w", bsr.bh.itemsBlockSize, err)
 		return false
 	}
 
-	bsr.sb.lensData = bytesutil.Resize(bsr.sb.lensData, int(bsr.bh.lensBlockSize))
+	bsr.sb.lensData = bytesutil.ResizeNoCopy(bsr.sb.lensData, int(bsr.bh.lensBlockSize))
 	if err := fs.ReadFullData(bsr.lensReader, bsr.sb.lensData); err != nil {
 		bsr.err = fmt.Errorf("cannot read compressed lens block with size %d: %w", bsr.bh.lensBlockSize, err)
 		return false
@@ -260,7 +260,7 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	bsr.mrIdx++
 
 	// Read compressed index block.
-	bsr.packedBuf = bytesutil.Resize(bsr.packedBuf, int(mr.indexBlockSize))
+	bsr.packedBuf = bytesutil.ResizeNoCopy(bsr.packedBuf, int(mr.indexBlockSize))
 	if err := fs.ReadFullData(bsr.indexReader, bsr.packedBuf); err != nil {
 		return fmt.Errorf("cannot read compressed index block with size %d: %w", mr.indexBlockSize, err)
 	}

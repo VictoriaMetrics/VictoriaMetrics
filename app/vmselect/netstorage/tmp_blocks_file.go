@@ -149,7 +149,7 @@ func (tbf *tmpBlocksFile) MustReadBlockRefAt(partRef storage.PartRef, addr tmpBl
 	} else {
 		bb := tmpBufPool.Get()
 		defer tmpBufPool.Put(bb)
-		bb.B = bytesutil.Resize(bb.B, addr.size)
+		bb.B = bytesutil.ResizeNoCopy(bb.B, addr.size)
 		tbf.r.MustReadAt(bb.B, int64(addr.offset))
 		buf = bb.B
 	}

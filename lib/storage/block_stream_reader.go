@@ -303,7 +303,7 @@ func (bsr *blockStreamReader) readBlock() error {
 	if usePrevTimestamps {
 		bsr.Block.timestampsData = append(bsr.Block.timestampsData[:0], bsr.prevTimestampsData...)
 	} else {
-		bsr.Block.timestampsData = bytesutil.Resize(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
+		bsr.Block.timestampsData = bytesutil.ResizeNoCopy(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
 		if err := fs.ReadFullData(bsr.timestampsReader, bsr.Block.timestampsData); err != nil {
 			return fmt.Errorf("cannot read timestamps block at offset %d: %w", bsr.timestampsBlockOffset, err)
 		}
@@ -312,7 +312,7 @@ func (bsr *blockStreamReader) readBlock() error {
 	}
 
 	// Read values data.
-	bsr.Block.valuesData = bytesutil.Resize(bsr.Block.valuesData, int(bsr.Block.bh.ValuesBlockSize))
+	bsr.Block.valuesData = bytesutil.ResizeNoCopy(bsr.Block.valuesData, int(bsr.Block.bh.ValuesBlockSize))
 	if err := fs.ReadFullData(bsr.valuesReader, bsr.Block.valuesData); err != nil {
 		return fmt.Errorf("cannot read values block at offset %d: %w", bsr.valuesBlockOffset, err)
 	}
@@ -347,7 +347,7 @@ func (bsr *blockStreamReader) readIndexBlock() error {
 	}
 
 	// Read index block.
-	bsr.compressedIndexData = bytesutil.Resize(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
+	bsr.compressedIndexData = bytesutil.ResizeNoCopy(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
 	if err := fs.ReadFullData(bsr.indexReader, bsr.compressedIndexData); err != nil {
 		return fmt.Errorf("cannot read index block from index data at offset %d: %w", bsr.indexBlockOffset, err)
 	}

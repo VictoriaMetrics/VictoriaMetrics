@@ -75,10 +75,10 @@ func (br *BlockRef) MustReadBlock(dst *Block, fetchData bool) {
 		return
 	}
 
-	dst.timestampsData = bytesutil.Resize(dst.timestampsData[:0], int(br.bh.TimestampsBlockSize))
+	dst.timestampsData = bytesutil.ResizeNoCopy(dst.timestampsData, int(br.bh.TimestampsBlockSize))
 	br.p.timestampsFile.MustReadAt(dst.timestampsData, int64(br.bh.TimestampsBlockOffset))
 
-	dst.valuesData = bytesutil.Resize(dst.valuesData[:0], int(br.bh.ValuesBlockSize))
+	dst.valuesData = bytesutil.ResizeNoCopy(dst.valuesData, int(br.bh.ValuesBlockSize))
 	br.p.valuesFile.MustReadAt(dst.valuesData, int64(br.bh.ValuesBlockOffset))
 }
 
