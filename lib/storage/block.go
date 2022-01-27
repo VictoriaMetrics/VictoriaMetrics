@@ -148,7 +148,7 @@ func (b *Block) tooBig() bool {
 }
 
 func (b *Block) deduplicateSamplesDuringMerge() {
-	if !isDedupEnabled() {
+	if !isDedupEnabled() && !isDedupMetricPointEnabled() {
 		// Deduplication is disabled
 		return
 	}
@@ -162,12 +162,13 @@ func (b *Block) deduplicateSamplesDuringMerge() {
 		return
 	}
 	dedupInterval := GetDedupInterval()
-	if dedupInterval <= 0 {
+	dedupMetricPointInterval := GetDedupMetricPointInterval()
+	if dedupInterval <= 0 && dedupMetricPointInterval <= 0 {
 		// Deduplication is disabled.
 		return
 	}
 	srcValues := b.values[b.nextIdx:]
-	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues, dedupInterval)
+	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues, dedupInterval, dedupMetricPointInterval)
 	dedups := len(srcTimestamps) - len(timestamps)
 	atomic.AddUint64(&dedupsDuringMerge, uint64(dedups))
 	b.timestamps = b.timestamps[:b.nextIdx+len(timestamps)]

@@ -37,7 +37,8 @@ var (
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
+	minMetricPointInterval = flag.Duration("dedup.minMetricPointInterval", 0, "metrics 2 point data interval within the minMetricPointInterval, ignore 2th point")
+	minScrapeInterval      = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
@@ -71,6 +72,7 @@ func main() {
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
 	storage.SetDedupInterval(*minScrapeInterval)
+	storage.SetMetricPointInterval(*minMetricPointInterval)
 	if len(*storageNodes) == 0 {
 		logger.Fatalf("missing -storageNode arg")
 	}

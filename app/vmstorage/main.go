@@ -35,9 +35,10 @@ var (
 	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
 		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
 		"Zero value disables final merge")
-	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
-	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
-	minScrapeInterval     = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
+	bigMergeConcurrency    = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
+	smallMergeConcurrency  = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
+	minMetricPointInterval = flag.Duration("dedup.minMetricPointInterval", 0, "metrics 2 point data interval within the minMetricPointInterval, ignore 2th point")
+	minScrapeInterval      = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the first sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
@@ -58,6 +59,7 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	storage.SetMetricPointInterval(*minMetricPointInterval)
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
