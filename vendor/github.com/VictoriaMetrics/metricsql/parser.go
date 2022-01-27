@@ -1836,7 +1836,7 @@ func (lf *LabelFilter) AppendString(dst []byte) []byte {
 // MetricExpr represents MetricsQL metric with optional filters, i.e. `foo{...}`.
 type MetricExpr struct {
 	// LabelFilters contains a list of label filters from curly braces.
-	// Metric name if present must be the first.
+	// Filter or metric name must be the first if present.
 	LabelFilters []LabelFilter
 
 	// labelFilters must be expanded to LabelFilters by expandWithExpr.
@@ -1884,6 +1884,9 @@ func (me *MetricExpr) hasNonEmptyMetricGroup() bool {
 	if len(me.LabelFilters) == 0 {
 		return false
 	}
-	lf := &me.LabelFilters[0]
+	return me.LabelFilters[0].isMetricNameFilter()
+}
+
+func (lf *LabelFilter) isMetricNameFilter() bool {
 	return lf.Label == "__name__" && !lf.IsNegative && !lf.IsRegexp
 }
