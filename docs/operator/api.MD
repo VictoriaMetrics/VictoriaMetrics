@@ -713,10 +713,10 @@ VmAgentStatus defines the observed state of VmAgent
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAlert cluster (their labels match the selector). | int32 | true |
-| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | true |
-| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | true |
-| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | true |
+| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAgent cluster (their labels match the selector). | int32 | true |
+| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAgent cluster that have the desired version spec. | int32 | true |
+| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAgent cluster. | int32 | true |
+| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAgent cluster. | int32 | true |
 
 [Back to TOC](#table-of-contents)
 
