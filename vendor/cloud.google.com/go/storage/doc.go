@@ -19,14 +19,8 @@ Google Cloud Storage stores data in named objects, which are grouped into bucket
 More information about Google Cloud Storage is available at
 https://cloud.google.com/storage/docs.
 
-See https://godoc.org/cloud.google.com/go for authentication, timeouts,
+See https://pkg.go.dev/cloud.google.com/go for authentication, timeouts,
 connection pooling and similar aspects of this package.
-
-All of the methods of this package use exponential backoff to retry calls that fail
-with certain errors, as described in
-https://cloud.google.com/storage/docs/exponential-backoff. Retrying continues
-indefinitely unless the controlling context is canceled or the client is closed. See
-context.WithTimeout and context.WithCancel.
 
 
 Creating a Client
@@ -246,12 +240,52 @@ as the documentation of GenerateSignedPostPolicyV4.
 
 Errors
 
-Errors returned by this client are often of the type [`googleapi.Error`](https://godoc.org/google.golang.org/api/googleapi#Error).
-These errors can be introspected for more information by using `errors.As` with the richer `googleapi.Error` type. For example:
+Errors returned by this client are often of the type googleapi.Error.
+These errors can be introspected for more information by using errors.As
+with the richer googleapi.Error type. For example:
 
 	var e *googleapi.Error
 	if ok := errors.As(err, &e); ok {
 		  if e.Code == 409 { ... }
+	}
+
+See https://pkg.go.dev/google.golang.org/api/googleapi#Error for more information.
+
+Retrying failed requests
+
+Methods in this package may retry calls that fail with transient errors.
+Retrying continues indefinitely unless the controlling context is canceled, the
+client is closed, or a non-transient error is received. To stop retries from
+continuing, use context timeouts or cancellation.
+
+The retry strategy in this library follows best practices for Cloud Storage. By
+default, operations are retried only if they are idempotent, and exponential
+backoff with jitter is employed. In addition, errors are only retried if they
+are defined as transient by the service. See
+https://cloud.google.com/storage/docs/retry-strategy for more information.
+
+Users can configure non-default retry behavior for a single library call (using
+BucketHandle.Retryer and ObjectHandle.Retryer) or for all calls made by a
+client (using Client.SetRetry). For example:
+
+	o := client.Bucket(bucket).Object(object).Retryer(
+		// Use WithBackoff to change the timing of the exponential backoff.
+		storage.WithBackoff(gax.Backoff{
+			Initial:    2 * time.Second,
+		}),
+		// Use WithPolicy to configure the idempotency policy. RetryAlways will
+		// retry the operation even if it is non-idempotent.
+		storage.WithPolicy(storage.RetryAlways),
+	)
+
+	// Use a context timeout to set an overall deadline on the call, including all
+	// potential retries.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Delete an object using the specified strategy and timeout.
+	if err := o.Delete(ctx); err != nil {
+		// Handle err.
 	}
 */
 package storage // import "cloud.google.com/go/storage"
