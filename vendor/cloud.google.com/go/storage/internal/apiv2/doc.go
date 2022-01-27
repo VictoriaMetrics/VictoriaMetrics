@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,22 @@
 //
 // The following is an example of making an API call with the newly created client.
 //
+//  ctx := context.Background()
+//  c, err := storage.NewClient(ctx)
+//  if err != nil {
+//  	// TODO: Handle error.
+//  }
+//  defer c.Close()
+//
+//  req := &storagepb.DeleteBucketRequest{
+//  	// TODO: Fill request struct fields.
+//  	// See https://pkg.go.dev/google.golang.org/genproto/googleapis/storage/v2#DeleteBucketRequest.
+//  }
+//  err = c.DeleteBucket(ctx, req)
+//  if err != nil {
+//  	// TODO: Handle error.
+//  }
+//
 // Use of Context
 //
 // The ctx passed to NewClient is used for authentication requests and
@@ -68,7 +84,7 @@ import (
 type clientHookParams struct{}
 type clientHook func(context.Context, clientHookParams) ([]option.ClientOption, error)
 
-const versionClient = "20211015"
+const versionClient = "20220114"
 
 func insertMetadata(ctx context.Context, mds ...metadata.MD) context.Context {
 	out, _ := metadata.FromOutgoingContext(ctx)
