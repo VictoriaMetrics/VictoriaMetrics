@@ -356,3 +356,7 @@ There could be a slight difference in stored values for time series. Due to diff
 
 The query engine may behave differently for some functions. Please see [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e).
 
+
+## If downsampling and deduplication are enabled how will this work?
+
+[Deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
