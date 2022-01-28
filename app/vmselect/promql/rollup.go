@@ -18,6 +18,9 @@ var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The 
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
+var removeUnnecessaryMetricPoint = flag.Bool("removeUnnecessaryMetricPoint", false, "when metrics point redundant data appears remove"+
+	"out scrape interval metrics point")
+
 var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":        newRollupFuncOneArg(rollupAbsent),
 	"aggr_over_time":          newRollupFuncTwoArgs(rollupFake),
@@ -482,7 +485,34 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 //
 // Do cannot be called from concurrent goroutines.
 func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) []float64 {
+	//remove out scrape interval metrics point
+	if *removeUnnecessaryMetricPoint {
+		//get metrics scrape interval
+		scrapeInterval := getScrapeInterval(timestamps) - 100
+
+		if len(timestamps) > 2 && len(values) > 2 {
+			timestamps, values = deduplicateMetricPointInternal(timestamps, values, scrapeInterval)
+		}
+	}
+
 	return rc.doInternal(dstValues, nil, values, timestamps)
+}
+
+//remove out scrape interval metrics point
+func deduplicateMetricPointInternal(srcTimestamps []int64, srcValues []float64, dedupMetricPointInterval int64) ([]int64, []float64) {
+	tsPre := srcTimestamps[0]
+	dstTimestamps := srcTimestamps[:1]
+	dstValues := srcValues[:1]
+	for i := 1; i < len(srcTimestamps); i++ {
+		ts := srcTimestamps[i]
+		if ts-tsPre < dedupMetricPointInterval {
+			continue
+		}
+		dstTimestamps = append(dstTimestamps, ts)
+		dstValues = append(dstValues, srcValues[i])
+		tsPre = ts
+	}
+	return dstTimestamps, dstValues
 }
 
 // DoTimeseriesMap calculates rollups for the given timestamps and values and puts them to tsm.
