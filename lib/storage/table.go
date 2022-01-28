@@ -362,6 +362,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.getDeletedMetricIDs, tb.retentionMsecs)
 		if err != nil {
 			// Return only the first error, since it has no sense in returning all errors.
+			tb.ptwsLock.Unlock()
 			return fmt.Errorf("errors while adding rows to table %q: %w", tb.path, err)
 		}
 		pt.AddRows(missingRows[i : i+1])
