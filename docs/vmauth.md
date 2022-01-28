@@ -128,6 +128,8 @@ This may be useful for passing secrets to the config.
 
 ## Security
 
+It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
+
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
 
 ```
