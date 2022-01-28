@@ -92,22 +92,18 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	}
 
 	// Initialize the psHeap.
-	var errors []error
 	pts.psHeap = pts.psHeap[:0]
 	for i := range pts.psPool {
 		ps := &pts.psPool[i]
 		if !ps.NextBlock() {
 			if err := ps.Error(); err != nil {
-				errors = append(errors, err)
+				// Return only the first error, since it has no sense in returning all errors.
+				pts.err = fmt.Errorf("cannot initialize partition search: %w", err)
+				return
 			}
 			continue
 		}
 		pts.psHeap = append(pts.psHeap, ps)
-	}
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		pts.err = fmt.Errorf("cannot initialize partition search: %w", errors[0])
-		return
 	}
 	if len(pts.psHeap) == 0 {
 		pts.err = io.EOF

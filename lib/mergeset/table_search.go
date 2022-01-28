@@ -89,23 +89,19 @@ func (ts *TableSearch) Seek(k []byte) {
 	ts.err = nil
 
 	// Initialize the psHeap.
-	var errors []error
 	ts.psHeap = ts.psHeap[:0]
 	for i := range ts.psPool {
 		ps := &ts.psPool[i]
 		ps.Seek(k)
 		if !ps.NextItem() {
 			if err := ps.Error(); err != nil {
-				errors = append(errors, err)
+				// Return only the first error, since it has no sense in returning all errors.
+				ts.err = fmt.Errorf("cannot seek %q: %w", k, err)
+				return
 			}
 			continue
 		}
 		ts.psHeap = append(ts.psHeap, ps)
-	}
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		ts.err = fmt.Errorf("cannot seek %q: %w", k, errors[0])
-		return
 	}
 	if len(ts.psHeap) == 0 {
 		ts.err = io.EOF
