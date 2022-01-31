@@ -5,12 +5,16 @@ import {LegendItem} from "./types";
 import {getColorLine, getDashLine} from "./helpers";
 import {HideSeriesArgs} from "./types";
 
-export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series => {
+interface SeriesItem extends Series {
+  freeFormFields: {[key: string]: string};
+}
+
+export const getSeriesItem = (d: MetricResult, hideSeries: string[]): SeriesItem => {
   const label = getNameForMetric(d);
   return {
     label,
     dash: getDashLine(d.group),
-    class: JSON.stringify(d.metric),
+    freeFormFields: d.metric,
     width: 1.4,
     stroke: getColorLine(d.group, label),
     show: !includesHideSeries(label, d.group, hideSeries),
@@ -22,12 +26,12 @@ export const getSeriesItem = (d: MetricResult, hideSeries: string[]): Series => 
   };
 };
 
-export const getLegendItem = (s: Series, group: number): LegendItem => ({
+export const getLegendItem = (s: SeriesItem, group: number): LegendItem => ({
   group,
   label: s.label || "",
   color: s.stroke as string,
   checked: s.show || false,
-  freeFormFields: JSON.parse(s.class || "{}"),
+  freeFormFields: s.freeFormFields,
 });
 
 export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesArgs): string[] => {
