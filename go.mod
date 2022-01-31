@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.38.0
-	github.com/aws/aws-sdk-go v1.42.42
+	github.com/aws/aws-sdk-go v1.42.44
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/golang/snappy v0.0.4
@@ -25,10 +25,10 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.15.1
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20220127074510-2fabfed7e28f
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
-	google.golang.org/api v0.65.0
+	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27
+	google.golang.org/api v0.66.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -54,7 +54,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.12.0 // indirect
+	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
