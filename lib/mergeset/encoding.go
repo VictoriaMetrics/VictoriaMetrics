@@ -117,9 +117,10 @@ func (ib *inmemoryBlock) Add(x []byte) bool {
 	if len(x)+len(data) > maxInmemoryBlockSize {
 		return false
 	}
-	if cap(data) < maxInmemoryBlockSize {
-		dataLen := len(data)
-		data = bytesutil.ResizeWithCopyNoOverallocate(data, maxInmemoryBlockSize)[:dataLen]
+	if cap(data) == 0 {
+		// Pre-allocate data and items in order to reduce memory allocations
+		data = make([]byte, 0, maxInmemoryBlockSize)
+		ib.items = make([]Item, 0, 512)
 	}
 	dataLen := len(data)
 	data = append(data, x...)
