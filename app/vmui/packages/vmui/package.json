@@ -28,7 +28,7 @@
     "lodash.get": "^4.4.2",
     "lodash.throttle": "^4.1.1",
     "numeral": "^2.0.6",
-    "preact": "^10.6.4",
+    "preact": "^10.6.5",
     "qs": "^6.10.3",
     "typescript": "~4.5.5",
     "uplot": "^1.6.18",
