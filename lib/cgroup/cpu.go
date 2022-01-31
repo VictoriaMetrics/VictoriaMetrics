@@ -7,33 +7,40 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // AvailableCPUs returns the number of available CPU cores for the app.
+//
+// The number is rounded to the next integer value if fractional number of CPU cores are available.
 func AvailableCPUs() int {
 	return runtime.GOMAXPROCS(-1)
 }
 
 func init() {
-	updateGOMAXPROCSToCPUQuota()
+	cpuCoresAvailable := getCPUQuota()
+	updateGOMAXPROCSToCPUQuota(cpuCoresAvailable)
+	metrics.NewGauge(`process_cpu_cores_available`, func() float64 {
+		return cpuCoresAvailable
+	})
 }
 
-// updateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cgroup CPU quota if GOMAXPROCS isn't set in environment var.
-func updateGOMAXPROCSToCPUQuota() {
+// updateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cpuCoresAvailable if GOMAXPROCS isn't set in environment var.
+func updateGOMAXPROCSToCPUQuota(cpuCoresAvailable float64) {
 	if v := os.Getenv("GOMAXPROCS"); v != "" {
 		// Do not override explicitly set GOMAXPROCS.
 		return
 	}
-	q := getCPUQuota()
-	if q <= 0 {
-		// Do not change GOMAXPROCS
+	if cpuCoresAvailable <= 0 {
+		// Do not change GOMAXPROCS if cpuCoresAvailable is incorrectly set.
 		return
 	}
-	gomaxprocs := int(q + 0.5)
+	gomaxprocs := int(cpuCoresAvailable + 0.5)
 	numCPU := runtime.NumCPU()
 	if gomaxprocs > numCPU {
 		// There is no sense in setting more GOMAXPROCS than the number of available CPU cores.
-		return
+		gomaxprocs = numCPU
 	}
 	if gomaxprocs <= 0 {
 		gomaxprocs = 1
