@@ -93,7 +93,7 @@ func nearestDelta(next, prev int64, precisionBits, prevTrailingZeros uint8) (int
 		// There is no need in handling special case origin = -1<<63.
 	}
 
-	originBits := 64 - uint8(bits.LeadingZeros64(uint64(origin)))
+	originBits := uint8(bits.Len64(uint64(origin)))
 	if originBits <= precisionBits {
 		// Cannot zero trailing bits for the given precisionBits.
 		return d, decIfNonZero(prevTrailingZeros)
@@ -136,7 +136,7 @@ func getTrailingZeros(v int64, precisionBits uint8) uint8 {
 		v = -v
 		// There is no need in special case handling for v = -1<<63
 	}
-	vBits := 64 - uint8(bits.LeadingZeros64(uint64(v)))
+	vBits := uint8(bits.Len64(uint64(v)))
 	if vBits <= precisionBits {
 		return 0
 	}
