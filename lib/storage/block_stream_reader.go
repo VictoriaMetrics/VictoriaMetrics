@@ -18,6 +18,11 @@ type blockStreamReader struct {
 	// Currently active block.
 	Block Block
 
+	// Contains TSID for the previous block.
+	// This field is needed for checking that TSIDs
+	// increase over time when reading blocks.
+	tsidPrev TSID
+
 	// Filesystem path to the stream reader.
 	//
 	// Is empty for inmemory stream readers.
@@ -213,12 +218,12 @@ func (bsr *blockStreamReader) NextBlock() bool {
 	if bsr.err != nil {
 		return false
 	}
-	tsidPrev := bsr.Block.bh.TSID
+	bsr.tsidPrev = bsr.Block.bh.TSID
 	bsr.Block.Reset()
 	err := bsr.readBlock()
 	if err == nil {
-		if bsr.Block.bh.TSID.Less(&tsidPrev) {
-			bsr.err = fmt.Errorf("possible data corruption: the next TSID=%v is smaller than the previous TSID=%v", &bsr.Block.bh.TSID, &tsidPrev)
+		if bsr.Block.bh.TSID.Less(&bsr.tsidPrev) {
+			bsr.err = fmt.Errorf("possible data corruption: the next TSID=%v is smaller than the previous TSID=%v", &bsr.Block.bh.TSID, &bsr.tsidPrev)
 			return false
 		}
 		if bsr.Block.bh.RowsCount == 0 {
