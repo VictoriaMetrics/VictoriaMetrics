@@ -40,7 +40,7 @@ func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error)
 func ReadLinesBlockExt(r io.Reader, dstBuf, tailBuf []byte, maxLineLen int) ([]byte, []byte, error) {
 	startTime := time.Now()
 	if cap(dstBuf) < defaultBlockSize {
-		dstBuf = bytesutil.ResizeNoCopy(dstBuf, defaultBlockSize)
+		dstBuf = bytesutil.ResizeNoCopyNoOverallocate(dstBuf, defaultBlockSize)
 	}
 	dstBuf = append(dstBuf[:0], tailBuf...)
 	tailBuf = tailBuf[:0]
@@ -79,7 +79,7 @@ again:
 		if cap(dstBuf) < 2*len(dstBuf) {
 			// Increase dsbBuf capacity, so more data could be read into it.
 			dstBufLen := len(dstBuf)
-			dstBuf = bytesutil.ResizeWithCopy(dstBuf, 2*cap(dstBuf))
+			dstBuf = bytesutil.ResizeWithCopyNoOverallocate(dstBuf, 2*cap(dstBuf))
 			dstBuf = dstBuf[:dstBufLen]
 		}
 		goto again

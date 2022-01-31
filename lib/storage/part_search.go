@@ -211,7 +211,7 @@ func skipSmallMetaindexRows(metaindex []metaindexRow, tsid *TSID) []metaindexRow
 }
 
 func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
-	ps.compressedIndexBuf = bytesutil.ResizeNoCopy(ps.compressedIndexBuf, int(mr.IndexBlockSize))
+	ps.compressedIndexBuf = bytesutil.ResizeNoCopyMayOverallocate(ps.compressedIndexBuf, int(mr.IndexBlockSize))
 	ps.p.indexFile.MustReadAt(ps.compressedIndexBuf, int64(mr.IndexBlockOffset))
 
 	var err error
