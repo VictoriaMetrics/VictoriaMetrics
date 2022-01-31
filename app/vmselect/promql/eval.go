@@ -283,7 +283,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		}
 		var err error
 		var tssLeft, tssRight []*timeseries
-		switch be.Op {
+		switch strings.ToLower(be.Op) {
 		case "and", "if":
 			// Fetch right-side series at first, since the left side of `and` and `if` operator
 			// usually contains lower number of time series. This should produce more specific label filters
