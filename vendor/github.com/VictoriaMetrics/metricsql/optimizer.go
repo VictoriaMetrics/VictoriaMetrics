@@ -1,6 +1,7 @@
 package metricsql
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -13,26 +14,64 @@ import (
 //   according to https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization
 //   I.e. such query is converted to `foo{filters1, filters2} op bar{filters1, filters2}`
 func Optimize(e Expr) Expr {
-	switch t := e.(type) {
-	case *RollupExpr:
-		t.Expr = Optimize(t.Expr)
-		t.At = Optimize(t.At)
-	case *FuncExpr:
-		optimizeFuncArgs(t.Args)
-	case *AggrFuncExpr:
-		optimizeFuncArgs(t.Args)
-	case *BinaryOpExpr:
-		t.Left = Optimize(t.Left)
-		t.Right = Optimize(t.Right)
-		lfs := getCommonLabelFilters(t)
-		pushdownLabelFilters(t, lfs)
+	if !canOptimize(e) {
+		return e
 	}
-	return e
+	eCopy := Clone(e)
+	optimizeInplace(eCopy)
+	return eCopy
 }
 
-func optimizeFuncArgs(args []Expr) {
-	for i := range args {
-		args[i] = Optimize(args[i])
+func canOptimize(e Expr) bool {
+	switch t := e.(type) {
+	case *RollupExpr:
+		return canOptimize(t.Expr) || canOptimize(t.At)
+	case *FuncExpr:
+		for _, arg := range t.Args {
+			if canOptimize(arg) {
+				return true
+			}
+		}
+	case *AggrFuncExpr:
+		for _, arg := range t.Args {
+			if canOptimize(arg) {
+				return true
+			}
+		}
+	case *BinaryOpExpr:
+		return true
+	}
+	return false
+}
+
+// Clone clones the given expression e and returns the cloned copy.
+func Clone(e Expr) Expr {
+	s := e.AppendString(nil)
+	eCopy, err := Parse(string(s))
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot parse the expression %q: %w", s, err))
+	}
+	return eCopy
+}
+
+func optimizeInplace(e Expr) {
+	switch t := e.(type) {
+	case *RollupExpr:
+		optimizeInplace(t.Expr)
+		optimizeInplace(t.At)
+	case *FuncExpr:
+		for _, arg := range t.Args {
+			optimizeInplace(arg)
+		}
+	case *AggrFuncExpr:
+		for _, arg := range t.Args {
+			optimizeInplace(arg)
+		}
+	case *BinaryOpExpr:
+		optimizeInplace(t.Left)
+		optimizeInplace(t.Right)
+		lfs := getCommonLabelFilters(t)
+		pushdownBinaryOpFiltersInplace(t, lfs)
 	}
 }
 
@@ -54,7 +93,7 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 			return nil
 		}
 		lfs := getCommonLabelFilters(arg)
-		return filterLabelFiltersByAggrModifier(lfs, t)
+		return trimFiltersByAggrModifier(lfs, t)
 	case *BinaryOpExpr:
 		if !canOptimizeBinaryOp(t) {
 			return nil
@@ -62,13 +101,13 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 		lfsLeft := getCommonLabelFilters(t.Left)
 		lfsRight := getCommonLabelFilters(t.Right)
 		lfs := unionLabelFilters(lfsLeft, lfsRight)
-		return filterLabelFiltersByGroupModifier(lfs, t)
+		return TrimFiltersByGroupModifier(lfs, t)
 	default:
 		return nil
 	}
 }
 
-func filterLabelFiltersByAggrModifier(lfs []LabelFilter, afe *AggrFuncExpr) []LabelFilter {
+func trimFiltersByAggrModifier(lfs []LabelFilter, afe *AggrFuncExpr) []LabelFilter {
 	switch strings.ToLower(afe.Modifier.Op) {
 	case "by":
 		return filterLabelFiltersOn(lfs, afe.Modifier.Args)
@@ -79,7 +118,13 @@ func filterLabelFiltersByAggrModifier(lfs []LabelFilter, afe *AggrFuncExpr) []La
 	}
 }
 
-func filterLabelFiltersByGroupModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilter {
+// TrimFiltersByGroupModifier trims lfs by the specified be.GroupModifier.Op (e.g. on() or ignoring()).
+//
+// The following cases are possible:
+// - It returns lfs as is if be doesn't contain any group modifier
+// - It returns only filters specified in on()
+// - It drops filters specified inside ignoring()
+func TrimFiltersByGroupModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilter {
 	switch strings.ToLower(be.GroupModifier.Op) {
 	case "on":
 		return filterLabelFiltersOn(lfs, be.GroupModifier.Args)
@@ -100,7 +145,24 @@ func getLabelFiltersWithoutMetricName(lfs []LabelFilter) []LabelFilter {
 	return lfsNew
 }
 
-func pushdownLabelFilters(e Expr, lfs []LabelFilter) {
+// PushdownBinaryOpFilters pushes down the given commonFilters to e if possible.
+//
+// e must be a part of binary operation - either left or right.
+//
+// For example, if e contains `foo + sum(bar)` and commonFilters={x="y"},
+// then the returned expression will contain `foo{x="y"} + sum(bar)`.
+// The `{x="y"}` cannot be pusehd down to `sum(bar)`, since this may change binary operation results.
+func PushdownBinaryOpFilters(e Expr, commonFilters []LabelFilter) Expr {
+	if len(commonFilters) == 0 {
+		// Fast path - nothing to push down.
+		return e
+	}
+	eCopy := Clone(e)
+	pushdownBinaryOpFiltersInplace(eCopy, commonFilters)
+	return eCopy
+}
+
+func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 	if len(lfs) == 0 {
 		return
 	}
@@ -109,23 +171,23 @@ func pushdownLabelFilters(e Expr, lfs []LabelFilter) {
 		t.LabelFilters = unionLabelFilters(t.LabelFilters, lfs)
 		sortLabelFilters(t.LabelFilters)
 	case *RollupExpr:
-		pushdownLabelFilters(t.Expr, lfs)
+		pushdownBinaryOpFiltersInplace(t.Expr, lfs)
 	case *FuncExpr:
 		arg := getFuncArgForOptimization(t.Name, t.Args)
 		if arg != nil {
-			pushdownLabelFilters(arg, lfs)
+			pushdownBinaryOpFiltersInplace(arg, lfs)
 		}
 	case *AggrFuncExpr:
-		lfs = filterLabelFiltersByAggrModifier(lfs, t)
+		lfs = trimFiltersByAggrModifier(lfs, t)
 		arg := getFuncArgForOptimization(t.Name, t.Args)
 		if arg != nil {
-			pushdownLabelFilters(arg, lfs)
+			pushdownBinaryOpFiltersInplace(arg, lfs)
 		}
 	case *BinaryOpExpr:
 		if canOptimizeBinaryOp(t) {
-			lfs = filterLabelFiltersByGroupModifier(lfs, t)
-			pushdownLabelFilters(t.Left, lfs)
-			pushdownLabelFilters(t.Right, lfs)
+			lfs = TrimFiltersByGroupModifier(lfs, t)
+			pushdownBinaryOpFiltersInplace(t.Left, lfs)
+			pushdownBinaryOpFiltersInplace(t.Right, lfs)
 		}
 	}
 }
