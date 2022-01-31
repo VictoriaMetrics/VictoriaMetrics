@@ -302,6 +302,7 @@ LimitNOFILE=1048576
 LimitNPROC=1048576
 LimitCORE=infinity
 WorkingDirectory=/var/lib/vmagent-remotewrite-data
+ReadWritePaths=/var/lib/vmagent-remotewrite-data
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=vmagent
@@ -331,17 +332,22 @@ cat <<END >/etc/victoriametrics/vmagent/vmagent.conf
 # /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 #
 # Then send Influx data to http://vmagent-host:8429. See these https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf for more details.
-ARGS="-promscrape.config=/etc/victoriametrics/vmagent/scrape.yml -remoteWrite.url=http://127.0.0.1:8428/api/v1/write -remoteWrite.tmpDataPath=/var/lib/vmagent-remotewrite-data -promscrape.suppressScrapeErrors -influxTrimTimestamp=1s -remoteWrite.urlRelabelConfig='/etc/victoriametrics/vmagent/telegraf.yml'"
+ARGS="-promscrape.config=/etc/victoriametrics/vmagent/scrape.yml -remoteWrite.url=http://127.0.0.1:8428/api/v1/write -remoteWrite.tmpDataPath=/var/lib/vmagent-remotewrite-data -promscrape.suppressScrapeErrors -influxTrimTimestamp=1s -remoteWrite.urlRelabelConfig=/etc/victoriametrics/vmagent/telegraf.yml"
 END
 
 cat <<END >/etc/victoriametrics/vmagent/scrape.yml
 # Scrape config example
 #
+global:
+  scrape_interval: 10s
+
 scrape_configs:
-  - job_name: self_scrape
-    scrape_interval: 10s
+  - job_name: 'vmagent'
     static_configs:
-      - targets: ['127.0.0.1:8428'] 
+      - targets: ['127.0.0.1:8429']
+  - job_name: 'victoriametrics'
+    static_configs:
+      - targets: ['127.0.0.1:8428']
 END
 
 # Start VictoriaMetrics
