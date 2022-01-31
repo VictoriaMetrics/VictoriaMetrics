@@ -19,24 +19,26 @@ func AvailableCPUs() int {
 }
 
 func init() {
-	cpuCoresAvailable := getCPUQuota()
-	updateGOMAXPROCSToCPUQuota(cpuCoresAvailable)
+	cpuQuota := getCPUQuota()
+	if cpuQuota > 0 {
+		updateGOMAXPROCSToCPUQuota(cpuQuota)
+	}
+	cpuCoresAvailable := cpuQuota
+	if cpuCoresAvailable <= 0 {
+		cpuCoresAvailable = float64(runtime.NumCPU())
+	}
 	metrics.NewGauge(`process_cpu_cores_available`, func() float64 {
 		return cpuCoresAvailable
 	})
 }
 
-// updateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cpuCoresAvailable if GOMAXPROCS isn't set in environment var.
-func updateGOMAXPROCSToCPUQuota(cpuCoresAvailable float64) {
+// updateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cpuQuota if GOMAXPROCS isn't set in environment var.
+func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 	if v := os.Getenv("GOMAXPROCS"); v != "" {
 		// Do not override explicitly set GOMAXPROCS.
 		return
 	}
-	if cpuCoresAvailable <= 0 {
-		// Do not change GOMAXPROCS if cpuCoresAvailable is incorrectly set.
-		return
-	}
-	gomaxprocs := int(cpuCoresAvailable + 0.5)
+	gomaxprocs := int(cpuQuota + 0.5)
 	numCPU := runtime.NumCPU()
 	if gomaxprocs > numCPU {
 		// There is no sense in setting more GOMAXPROCS than the number of available CPU cores.
