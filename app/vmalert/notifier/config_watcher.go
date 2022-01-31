@@ -87,10 +87,24 @@ func (cw *configWatcher) reload(path string) error {
 	return cw.start()
 }
 
+const (
+	addRetryBackoff = time.Millisecond * 100
+	addRetryCount   = 2
+)
+
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn getLabels) error {
-	targets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
-	for _, err := range errors {
-		return fmt.Errorf("failed to init notifier for %q: %s", typeK, err)
+	var targets []Target
+	var errors []error
+	var count int
+	for { // retry addRetryCount times if first discovery attempts gave no results
+		targets, errors = targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
+		for _, err := range errors {
+			return fmt.Errorf("failed to init notifier for %q: %s", typeK, err)
+		}
+		if len(targets) > 0 || count >= addRetryCount {
+			break
+		}
+		time.Sleep(addRetryBackoff)
 	}
 
 	cw.targetsMu.Lock()
