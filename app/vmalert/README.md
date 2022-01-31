@@ -704,6 +704,14 @@ The shortlist of configuration flags is the following:
     	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
   -tlsKeyFile string
     	Path to file with TLS key. Used only if -tls is set
+  -promscrape.consul.waitTime duration
+        Wait time used by Consul service discovery. Default value is used if not set
+  -promscrape.consulSDCheckInterval duration
+        Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+  -promscrape.discovery.concurrency int
+        The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
+  -promscrape.discovery.concurrentWaitTime duration
+        The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -version
     	Show VictoriaMetrics version
 ```
