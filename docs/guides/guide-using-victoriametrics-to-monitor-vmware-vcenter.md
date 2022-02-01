@@ -192,7 +192,9 @@ scrape_configs:
       - victoriametrics-host:8428
 ```
 
-This script will download and install the latest version of VictoriaMetrics Single on Ubuntu 20.04:
+> If you don't have pre-installed VictoriaMetrics and vmagen` you can install it with the next commands:
+
+* this script will download and install the latest version of VictoriaMetrics Single on Ubuntu 20.04:
 
 ```bash
 #!/bin/bash
@@ -222,11 +224,16 @@ cat <<END >/etc/systemd/system/vmsingle.service
 Description=VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 # https://docs.victoriametrics.com
 After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
 [Service]
 Type=simple
 User=victoriametrics
 Group=victoriametrics
 WorkingDirectory=/var/lib/victoria-metrics-data
+ReadWritePaths=/var/lib/victoria-metrics-data
 StartLimitBurst=5
 StartLimitInterval=0
 Restart=on-failure
@@ -243,8 +250,6 @@ LimitCORE=infinity
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=vmsingle
-[Install]
-WantedBy=multi-user.target
 END
 
 cat <<END >/etc/victoriametrics/single/victoriametrics.conf
@@ -256,7 +261,7 @@ systemctl enable vmsingle.service
 systemctl restart vmsingle.service
 ```
 
-This script will download and install the latest version of vmagent:
+* this script will download and install the latest version of vmagent on Ubuntu 20.04:
 
 ```bash
 #!/bin/bash
@@ -281,9 +286,12 @@ chown root:root /usr/bin/vmagent-prod
 
 cat <<END >/etc/systemd/system/vmagent.service
 [Unit]
-Description=vmagent is a tiny but mighty agent which helps you collect metrics from various sources and store them in VictoriaMetrics or any other Prometheus-compatible storage systems that support the remote_write protocol.
+Description=vmagent is a tiny agent which helps you collect metrics from various sources and store them in VictoriaMetrics.
 # https://docs.victoriametrics.com/vmagent.html
 After=network.target
+
+[Install]
+WantedBy=multi-user.target
 
 [Service]
 Type=simple
@@ -313,9 +321,6 @@ ProtectSystem=strict
 ProtectControlGroups=true
 ProtectKernelModules=true
 ProtectKernelTunables=yes
-
-[Install]
-WantedBy=multi-user.target
 END
 
 cat <<END >/etc/victoriametrics/vmagent/vmagent.conf
@@ -339,15 +344,16 @@ cat <<END >/etc/victoriametrics/vmagent/scrape.yml
 # Scrape config example
 #
 global:
-  scrape_interval: 10s
+  scrape_interval: 60s
+  scrape_timeout: 30s
 
 scrape_configs:
-  - job_name: 'vmagent'
+  - job_name: vmagent
     static_configs:
-      - targets: ['127.0.0.1:8429']
-  - job_name: 'victoriametrics'
+    - targets: ['127.0.0.1:8429']
+  - job_name: victoria-metrics
     static_configs:
-      - targets: ['127.0.0.1:8428']
+    - targets: ['127.0.0.1:8428']
 END
 
 # Start VictoriaMetrics
