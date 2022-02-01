@@ -49,6 +49,9 @@ type Config struct {
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
+
+	// stores already parsed RelabelConfigs object
+	parsedRelabelConfigs *promrelabel.ParsedConfigs
 }
 
 // StaticConfig contains list of static targets in the following form:
@@ -70,6 +73,12 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if cfg.Timeout.Duration() == 0 {
 		cfg.Timeout = utils.NewPromDuration(time.Second * 10)
 	}
+	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs, false)
+	if err != nil {
+		return fmt.Errorf("failed to parse relabeling config: %w", err)
+	}
+	cfg.parsedRelabelConfigs = rCfg
+
 	b, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal configuration for checksum: %w", err)
@@ -107,11 +116,7 @@ func parseConfig(path string) (*Config, error) {
 
 func parseLabels(target string, metaLabels map[string]string, cfg *Config) (string, []prompbmarshal.Label, error) {
 	labels := mergeLabels(target, metaLabels, cfg)
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs, false)
-	if err != nil {
-		return "", nil, fmt.Errorf("cannot parse `relabel_configs` for target %q: %w", target, err)
-	}
-	labels = relabelConfigs.Apply(labels, 0, false)
+	labels = cfg.parsedRelabelConfigs.Apply(labels, 0, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
