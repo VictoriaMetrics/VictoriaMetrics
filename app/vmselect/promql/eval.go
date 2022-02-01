@@ -352,9 +352,15 @@ func execBinaryOpArgs(ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *
 	if err != nil {
 		return nil, nil, err
 	}
-	lfs := getCommonLabelFilters(tssFirst)
-	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
-	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
+	switch strings.ToLower(be.Op) {
+	case "or":
+		// Do not pushdown common label filters from tssFirst for `or` operation, since this can filter out the needed time series from tssSecond.
+		// See https://prometheus.io/docs/prometheus/latest/querying/operators/#logical-set-binary-operators for details.
+	default:
+		lfs := getCommonLabelFilters(tssFirst)
+		lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
+		exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
+	}
 	tssSecond, err := evalExpr(ec, exprSecond)
 	if err != nil {
 		return nil, nil, err
