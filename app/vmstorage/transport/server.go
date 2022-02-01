@@ -321,7 +321,7 @@ func (ctx *vmselectRequestCtx) readTimeRange() (storage.TimeRange, error) {
 }
 
 func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
-	ctx.sizeBuf = bytesutil.ResizeNoCopy(ctx.sizeBuf, 4)
+	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 4)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
 		if err == io.EOF {
 			return 0, err
@@ -333,7 +333,7 @@ func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
 }
 
 func (ctx *vmselectRequestCtx) readUint64() (uint64, error) {
-	ctx.sizeBuf = bytesutil.ResizeNoCopy(ctx.sizeBuf, 8)
+	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
 		if err == io.EOF {
 			return 0, err
@@ -371,7 +371,7 @@ func (ctx *vmselectRequestCtx) readSearchQuery() error {
 }
 
 func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
-	ctx.sizeBuf = bytesutil.ResizeNoCopy(ctx.sizeBuf, 8)
+	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
 		if err == io.EOF {
 			return err
@@ -382,7 +382,7 @@ func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 	if dataSize > uint64(maxDataSize) {
 		return fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
 	}
-	ctx.dataBuf = bytesutil.ResizeNoCopy(ctx.dataBuf, int(dataSize))
+	ctx.dataBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.dataBuf, int(dataSize))
 	if dataSize == 0 {
 		return nil
 	}
@@ -393,7 +393,7 @@ func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 }
 
 func (ctx *vmselectRequestCtx) readBool() (bool, error) {
-	ctx.dataBuf = bytesutil.ResizeNoCopy(ctx.dataBuf, 1)
+	ctx.dataBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.dataBuf, 1)
 	if _, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
 		if err == io.EOF {
 			return false, err
@@ -405,7 +405,7 @@ func (ctx *vmselectRequestCtx) readBool() (bool, error) {
 }
 
 func (ctx *vmselectRequestCtx) readByte() (byte, error) {
-	ctx.dataBuf = bytesutil.ResizeNoCopy(ctx.dataBuf, 1)
+	ctx.dataBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.dataBuf, 1)
 	if _, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
 		if err == io.EOF {
 			return 0, err

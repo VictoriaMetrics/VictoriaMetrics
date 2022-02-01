@@ -438,7 +438,7 @@ func (mn *MetricName) MarshalNoAccountIDProjectID(dst []byte) []byte {
 		tag := &mn.Tags[i]
 		requiredSize += len(tag.Key) + len(tag.Value) + 2
 	}
-	dst = bytesutil.ResizeWithCopy(dst, requiredSize)[:dstLen]
+	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, requiredSize)[:dstLen]
 
 	dst = marshalTagValue(dst, mn.MetricGroup)
 	tags := mn.Tags

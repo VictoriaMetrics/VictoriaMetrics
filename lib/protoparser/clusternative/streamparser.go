@@ -65,7 +65,7 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) ([]byte, error) {
 	sizeBuf := auxBufPool.Get()
 	defer auxBufPool.Put(sizeBuf)
-	sizeBuf.B = bytesutil.ResizeNoCopy(sizeBuf.B, 8)
+	sizeBuf.B = bytesutil.ResizeNoCopyMayOverallocate(sizeBuf.B, 8)
 	if _, err := io.ReadFull(bc, sizeBuf.B); err != nil {
 		if err != io.EOF {
 			readErrors.Inc()
@@ -79,7 +79,7 @@ func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) (
 		return dst, fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSize)
 	}
 	dstLen := len(dst)
-	dst = bytesutil.ResizeWithCopy(dst, dstLen+int(packetSize))
+	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstLen+int(packetSize))
 	if n, err := io.ReadFull(bc, dst[dstLen:]); err != nil {
 		readErrors.Inc()
 		return dst, fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
