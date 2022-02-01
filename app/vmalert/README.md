@@ -44,7 +44,7 @@ To start using `vmalert` you will need the following things:
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
 aggregating alerts, and sending notifications. Please note, notifier address also supports Consul Service Discovery via 
-[config file]()
+[config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
