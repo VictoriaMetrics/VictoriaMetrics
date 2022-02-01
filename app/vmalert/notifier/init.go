@@ -51,8 +51,11 @@ var staticNotifiersFn func() []Notifier
 //   * configuration via file. Supports live reloads and service discovery.
 // Init returns an error if both mods are used.
 func Init(gen AlertURLGenerator) (func() []Notifier, error) {
+	if *configPath == "" && len(*addrs) == 0 {
+		return nil, nil
+	}
 	if *configPath != "" && len(*addrs) > 0 {
-		return nil, fmt.Errorf("either -notifier.config or -notifier.url must be specified")
+		return nil, fmt.Errorf("only one of -notifier.config or -notifier.url flags must be specified")
 	}
 
 	if len(*addrs) > 0 {
