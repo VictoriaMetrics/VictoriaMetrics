@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	configPath = flag.String("notifier.config", "", "Path to configuration file for notifiers")
+	configPath                    = flag.String("notifier.config", "", "Path to configuration file for notifiers")
+	suppressDuplicateTargetErrors = flag.Bool("notifier.suppressDuplicateTargetErrors", false, "Whether to suppress 'duplicate target' errors during discovery")
 
 	addrs             = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
 	basicAuthUsername = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")

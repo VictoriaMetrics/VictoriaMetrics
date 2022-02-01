@@ -156,7 +156,12 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 
 		// check for duplicates
 		if _, ok := duplicates[u]; ok {
-			errors = append(errors, fmt.Errorf("duplicated url %q detected", u))
+			if !*suppressDuplicateTargetErrors {
+				logger.Errorf("skipping duplicate target with identical address %q; "+
+					"make sure service discovery and relabeling is set up properly; "+
+					"original labels: %s; resulting labels: %s",
+					u, labels, processedLabels)
+			}
 			continue
 		}
 		duplicates[u] = struct{}{}
