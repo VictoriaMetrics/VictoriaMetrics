@@ -95,13 +95,58 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 		lfs := getCommonLabelFilters(arg)
 		return trimFiltersByAggrModifier(lfs, t)
 	case *BinaryOpExpr:
-		if !canOptimizeBinaryOp(t) {
-			return nil
-		}
 		lfsLeft := getCommonLabelFilters(t.Left)
 		lfsRight := getCommonLabelFilters(t.Right)
-		lfs := unionLabelFilters(lfsLeft, lfsRight)
-		return TrimFiltersByGroupModifier(lfs, t)
+		var lfs []LabelFilter
+		switch strings.ToLower(t.Op) {
+		case "or":
+			// {fCommon, f1} or {fCommon, f2} -> {fCommon}
+			// {fCommon, f1} or on() {fCommon, f2} -> {}
+			// {fCommon, f1} or on(fCommon) {fCommon, f2} -> {fCommon}
+			// {fCommon, f1} or on(f1) {fCommon, f2} -> {}
+			// {fCommon, f1} or on(f2) {fCommon, f2} -> {}
+			// {fCommon, f1} or on(f3) {fCommon, f2} -> {}
+			lfs = intersectLabelFilters(lfsLeft, lfsRight)
+			return TrimFiltersByGroupModifier(lfs, t)
+		case "unless":
+			// {f1} unless {f2} -> {f1}
+			// {f1} unless on() {f2} -> {}
+			// {f1} unless on(f1) {f2} -> {f1}
+			// {f1} unless on(f2) {f2} -> {}
+			// {f1} unless on(f1, f2) {f2} -> {f1}
+			// {f1} unless on(f3) {f2} -> {}
+			return TrimFiltersByGroupModifier(lfsLeft, t)
+		default:
+			switch strings.ToLower(t.JoinModifier.Op) {
+			case "group_left":
+				// {f1} * group_left() {f2} -> {f1, f2}
+				// {f1} * on() group_left() {f2} -> {f1}
+				// {f1} * on(f1) group_left() {f2} -> {f1}
+				// {f1} * on(f2) group_left() {f2} -> {f1, f2}
+				// {f1} * on(f1, f2) group_left() {f2} -> {f1, f2}
+				// {f1} * on(f3) group_left() {f2} -> {f1}
+				lfsRight = TrimFiltersByGroupModifier(lfsRight, t)
+				return unionLabelFilters(lfsLeft, lfsRight)
+			case "group_right":
+				// {f1} * group_right() {f2} -> {f1, f2}
+				// {f1} * on() group_right() {f2} -> {f2}
+				// {f1} * on(f1) group_right() {f2} -> {f1, f2}
+				// {f1} * on(f2) group_right() {f2} -> {f2}
+				// {f1} * on(f1, f2) group_right() {f2} -> {f1, f2}
+				// {f1} * on(f3) group_right() {f2} -> {f2}
+				lfsLeft = TrimFiltersByGroupModifier(lfsLeft, t)
+				return unionLabelFilters(lfsLeft, lfsRight)
+			default:
+				// {f1} * {f2} -> {f1, f2}
+				// {f1} * on() {f2} -> {}
+				// {f1} * on(f1) {f2} -> {f1}
+				// {f1} * on(f2) {f2} -> {f2}
+				// {f1} * on(f1, f2) {f2} -> {f2}
+				// {f1} * on(f3} {f2} -> {}
+				lfs = unionLabelFilters(lfsLeft, lfsRight)
+				return TrimFiltersByGroupModifier(lfs, t)
+			}
+		}
 	default:
 		return nil
 	}
@@ -184,12 +229,26 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 			pushdownBinaryOpFiltersInplace(arg, lfs)
 		}
 	case *BinaryOpExpr:
-		if canOptimizeBinaryOp(t) {
-			lfs = TrimFiltersByGroupModifier(lfs, t)
-			pushdownBinaryOpFiltersInplace(t.Left, lfs)
-			pushdownBinaryOpFiltersInplace(t.Right, lfs)
+		lfs = TrimFiltersByGroupModifier(lfs, t)
+		pushdownBinaryOpFiltersInplace(t.Left, lfs)
+		pushdownBinaryOpFiltersInplace(t.Right, lfs)
+	}
+}
+
+func intersectLabelFilters(lfsA, lfsB []LabelFilter) []LabelFilter {
+	if len(lfsA) == 0 || len(lfsB) == 0 {
+		return nil
+	}
+	m := getLabelFiltersMap(lfsA)
+	var b []byte
+	var lfs []LabelFilter
+	for _, lf := range lfsB {
+		b = lf.AppendString(b[:0])
+		if _, ok := m[string(b)]; ok {
+			lfs = append(lfs, lf)
 		}
 	}
+	return lfs
 }
 
 func unionLabelFilters(lfsA, lfsB []LabelFilter) []LabelFilter {
@@ -199,12 +258,8 @@ func unionLabelFilters(lfsA, lfsB []LabelFilter) []LabelFilter {
 	if len(lfsB) == 0 {
 		return lfsA
 	}
-	m := make(map[string]struct{}, len(lfsA))
+	m := getLabelFiltersMap(lfsA)
 	var b []byte
-	for _, lf := range lfsA {
-		b = lf.AppendString(b[:0])
-		m[string(b)] = struct{}{}
-	}
 	lfs := append([]LabelFilter{}, lfsA...)
 	for _, lf := range lfsB {
 		b = lf.AppendString(b[:0])
@@ -213,6 +268,16 @@ func unionLabelFilters(lfsA, lfsB []LabelFilter) []LabelFilter {
 		}
 	}
 	return lfs
+}
+
+func getLabelFiltersMap(lfs []LabelFilter) map[string]struct{} {
+	m := make(map[string]struct{}, len(lfs))
+	var b []byte
+	for _, lf := range lfs {
+		b = lf.AppendString(b[:0])
+		m[string(b)] = struct{}{}
+	}
+	return m
 }
 
 func sortLabelFilters(lfs []LabelFilter) {
@@ -261,17 +326,6 @@ func filterLabelFiltersIgnoring(lfs []LabelFilter, args []string) []LabelFilter 
 		}
 	}
 	return lfsNew
-}
-
-func canOptimizeBinaryOp(be *BinaryOpExpr) bool {
-	switch be.Op {
-	case "+", "-", "*", "/", "%", "^",
-		"==", "!=", ">", "<", ">=", "<=",
-		"and", "if", "ifnot", "default":
-		return true
-	default:
-		return false
-	}
 }
 
 func getFuncArgForOptimization(funcName string, args []Expr) Expr {
@@ -332,7 +386,7 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 		return -1
 	}
 	switch funcName {
-	case "", "absent", "scalar", "union":
+	case "", "absent", "scalar", "union", "vector":
 		return -1
 	case "end", "now", "pi", "ru", "start", "step", "time":
 		return -1
