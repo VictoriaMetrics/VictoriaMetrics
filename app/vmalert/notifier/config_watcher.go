@@ -183,7 +183,7 @@ type getLabels func() ([]map[string]string, error)
 
 func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
-		cw.targetsMu.Lock()
+		var targets []Target
 		for _, cfg := range cw.cfg.StaticConfigs {
 			for _, target := range cfg.Targets {
 				address, labels, err := parseLabels(target, nil, cw.cfg)
@@ -194,12 +194,14 @@ func (cw *configWatcher) start() error {
 				if err != nil {
 					return fmt.Errorf("failed to init alertmanager for addr %q: %s", address, err)
 				}
-				cw.targets[TargetStatic] = append(cw.targets[TargetStatic], Target{
+				targets = append(targets, Target{
 					Notifier: notifier,
 					Labels:   labels,
 				})
 			}
 		}
+		cw.targetsMu.Lock()
+		cw.targets[TargetStatic] = targets
 		cw.targetsMu.Unlock()
 	}
 
