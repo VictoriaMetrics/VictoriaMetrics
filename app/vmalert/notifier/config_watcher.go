@@ -153,9 +153,10 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 			errors = append(errors, err)
 			continue
 		}
-
-		// check for duplicates
-		if _, ok := duplicates[u]; ok {
+		if len(u) == 0 {
+			continue
+		}
+		if _, ok := duplicates[u]; ok { // check for duplicates
 			if !*suppressDuplicateTargetErrors {
 				logger.Errorf("skipping duplicate target with identical address %q; "+
 					"make sure service discovery and relabeling is set up properly; "+
