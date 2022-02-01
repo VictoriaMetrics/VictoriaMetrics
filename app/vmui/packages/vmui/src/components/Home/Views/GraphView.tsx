@@ -3,20 +3,23 @@ import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import Legend from "../../Legend/Legend";
-import {useGraphDispatch, useGraphState} from "../../../state/graph/GraphStateContext";
 import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
 import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
-import {useAppState} from "../../../state/common/StateContext";
+import {TimeParams} from "../../../types";
+import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
 
 export interface GraphViewProps {
   data?: MetricResult[];
+  period: TimeParams;
+  customStep: CustomStep;
+  query: string[];
+  yaxis: YaxisState;
+  setYaxisLimits: (val: AxisRange) => void
+  setPeriod: ({from, to}: {from: Date, to: Date}) => void
 }
 
-const GraphView: FC<GraphViewProps> = ({data = []}) => {
-  const graphDispatch = useGraphDispatch();
-  const {time: {period}} = useAppState();
-  const { customStep } = useGraphState();
+const GraphView: FC<GraphViewProps> = ({data = [], period, customStep, query, yaxis, setYaxisLimits, setPeriod}) => {
   const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
@@ -26,7 +29,7 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
     const limits = getLimitsYAxis(values);
-    graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
+    setYaxisLimits(limits);
   };
 
   const onChangeLegend = (legend: LegendItem, metaKey: boolean) => {
@@ -81,8 +84,8 @@ const GraphView: FC<GraphViewProps> = ({data = []}) => {
   return <>
     {(data.length > 0)
       ? <div>
-        <LineChart data={dataChart} series={series} metrics={data}/>
-        <Legend labels={legend} onChange={onChangeLegend}/>
+        <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} setPeriod={setPeriod}/>
+        <Legend labels={legend} query={query} onChange={onChangeLegend}/>
       </div>
       : <div style={{textAlign: "center"}}>No data to show</div>}
   </>;

@@ -5,17 +5,31 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Fade from "@mui/material/Fade";
 import GraphView from "./Views/GraphView";
 import TableView from "./Views/TableView";
-import {useAppState} from "../../state/common/StateContext";
+import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import QueryConfigurator from "./Configurator/Query/QueryConfigurator";
 import {useFetchQuery} from "./Configurator/Query/useFetchQuery";
 import JsonView from "./Views/JsonView";
 import Header from "../Header/Header";
 import {DisplayTypeSwitch} from "./Configurator/DisplayTypeSwitch";
 import GraphSettings from "./Configurator/Graph/GraphSettings";
+import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
+import {AxisRange} from "../../state/graph/reducer";
 
 const HomeLayout: FC = () => {
 
-  const {displayType, time: {period}} = useAppState();
+  const {displayType, time: {period}, query} = useAppState();
+  const { customStep, yaxis } = useGraphState();
+
+  const dispatch = useAppDispatch();
+  const graphDispatch = useGraphDispatch();
+
+  const setYaxisLimits = (limits: AxisRange) => {
+    graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
+  };
+
+  const setPeriod = ({from, to}: {from: Date, to: Date}) => {
+    dispatch({type: "SET_PERIOD", payload: {from, to}});
+  };
 
   const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery();
 
@@ -49,7 +63,8 @@ const HomeLayout: FC = () => {
               style={{fontSize: "14px", whiteSpace: "pre-wrap", marginTop: "20px"}}>
               {error}
             </Alert>}
-            {graphData && period && (displayType === "chart") && <GraphView data={graphData}/>}
+            {graphData && period && (displayType === "chart") &&
+              <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis} setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>}
             {liveData && (displayType === "code") && <JsonView data={liveData}/>}
             {liveData && (displayType === "table") && <TableView data={liveData}/>}
           </Box>}

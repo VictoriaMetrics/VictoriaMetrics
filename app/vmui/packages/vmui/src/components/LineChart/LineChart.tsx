@@ -1,7 +1,5 @@
 import React, {FC, useCallback, useEffect, useRef, useState} from "preact/compat";
-import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale} from "uplot";
-import {useGraphState} from "../../state/graph/GraphStateContext";
 import {defaultOptions} from "../../utils/uplot/helpers";
 import {dragChart} from "../../utils/uplot/events";
 import {getAxes, getMinMaxBuffer} from "../../utils/uplot/axes";
@@ -12,18 +10,20 @@ import throttle from "lodash.throttle";
 import "uplot/dist/uPlot.min.css";
 import "./tooltip.css";
 import useResize from "../../hooks/useResize";
+import {TimeParams} from "../../types";
+import {YaxisState} from "../../state/graph/reducer";
 
 export interface LineChartProps {
-    metrics: MetricResult[];
-    data: uPlotData;
-    series: uPlotSeries[];
+  metrics: MetricResult[];
+  data: uPlotData;
+  period: TimeParams;
+  yaxis: YaxisState;
+  series: uPlotSeries[];
+  setPeriod: ({from, to}: {from: Date, to: Date}) => void;
 }
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
-const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
-  const dispatch = useAppDispatch();
-  const {time: {period}} = useAppState();
-  const {yaxis} = useGraphState();
+const LineChart: FC<LineChartProps> = ({data, series, metrics = [], period, yaxis, setPeriod}) => {
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
@@ -36,7 +36,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   const tooltipOffset = {left: 0, top: 0};
 
   const setScale = ({min, max}: { min: number, max: number }): void => {
-    dispatch({type: "SET_PERIOD", payload: {from: new Date(min * 1000), to: new Date(max * 1000)}});
+    setPeriod({from: new Date(min * 1000), to: new Date(max * 1000)});
   };
   const throttledSetScale = useCallback(throttle(setScale, 500), []);
   const setPlotScale = ({u, min, max}: { u: uPlot, min: number, max: number }) => {

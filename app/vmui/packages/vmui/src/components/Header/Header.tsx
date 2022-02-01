@@ -1,4 +1,4 @@
-import React, {FC} from "preact/compat";
+import React, {FC, useState} from "preact/compat";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
@@ -10,6 +10,10 @@ import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
 import {TimeSelector} from "../Home/Configurator/Time/TimeSelector";
 import GlobalSettings from "../Home/Configurator/Settings/GlobalSettings";
+import {useLocation, useNavigate} from "react-router-dom";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import router from "../../router/index";
 
 const useStyles = makeStyles({
   logo: {
@@ -32,16 +36,38 @@ const useStyles = makeStyles({
     "&:hover": {
       opacity: ".8",
     }
+  },
+  menuLink: {
+    display: "block",
+    padding: "16px 8px",
+    color: "white",
+    fontSize: "11px",
+    textDecoration: "none",
+    cursor: "pointer",
+    textTransform: "uppercase",
+    borderRadius: "4px",
+    transition: ".2s background",
+    "&:hover": {
+      boxShadow: "rgba(0, 0, 0, 0.15) 0px 2px 8px"
+    }
   }
 });
 
 const Header: FC = () => {
 
   const classes = useStyles();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [activeMenu, setActiveMenu] = useState(location.pathname);
 
   const onClickLogo = () => {
     setQueryStringWithoutPageReload("");
     window.location.reload();
+  };
+
+  const navigateHandler = (pathname: string) => {
+    navigate({pathname, search: location.search});
   };
 
   return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
@@ -58,6 +84,13 @@ const Header: FC = () => {
           href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
           create an issue
         </Link>
+      </Box>
+      <Box sx={{ml: 8}}>
+        <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
+          onChange={(e, val) => setActiveMenu(val)}>
+          <Tab label="Custom panel" value={router.home} onClick={() => navigateHandler(router.home)}/>
+          <Tab label="Predefined panels" value={router.dashboards} onClick={() => navigateHandler(router.dashboards)}/>
+        </Tabs>
       </Box>
       <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>
         <TimeSelector/>

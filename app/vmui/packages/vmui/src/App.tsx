@@ -1,4 +1,5 @@
 import React, {FC} from "preact/compat";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {SnackbarProvider} from "./contexts/Snackbar";
 import HomeLayout from "./components/Home/HomeLayout";
 import {StateProvider} from "./state/common/StateContext";
@@ -9,6 +10,8 @@ import { ThemeProvider, StyledEngineProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import DayjsUtils from "@date-io/dayjs";
+import PredefinedLayout from "./components/PredefinedPanels/PredefinedLayout";
+import router from "./router/index";
 
 
 const App: FC = () => {
@@ -22,7 +25,12 @@ const App: FC = () => {
             <AuthStateProvider> {/* Auth related info - optionally persisted to Local Storage */}
               <GraphStateProvider> {/* Graph settings */}
                 <SnackbarProvider> {/* Display various snackbars */}
-                  <HomeLayout/>
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path={router.home} element={<HomeLayout/>}/>
+                      <Route path={router.dashboards} element={<PredefinedLayout/>}/>
+                    </Routes>
+                  </BrowserRouter>
                 </SnackbarProvider>
               </GraphStateProvider>
             </AuthStateProvider>
