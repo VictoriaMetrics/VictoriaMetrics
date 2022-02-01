@@ -80,10 +80,7 @@ func (cw *configWatcher) reload(path string) error {
 	cw.syncCh = make(chan struct{})
 	cw.cfg = cfg
 
-	cw.targetsMu.Lock()
-	cw.targets = make(map[TargetType][]Target)
-	cw.targetsMu.Unlock()
-
+	cw.resetTargets()
 	return cw.start()
 }
 
@@ -107,9 +104,7 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 		time.Sleep(addRetryBackoff)
 	}
 
-	cw.targetsMu.Lock()
-	cw.targets[typeK] = targets
-	cw.targetsMu.Unlock()
+	cw.setTargets(typeK, targets)
 
 	cw.wg.Add(1)
 	go func() {
@@ -128,10 +123,7 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 			for _, err := range errors {
 				logger.Errorf("failed to init notifier for %q: %s", typeK, err)
 			}
-
-			cw.targetsMu.Lock()
-			cw.targets[typeK] = updateTargets
-			cw.targetsMu.Unlock()
+			cw.setTargets(typeK, updateTargets)
 		}
 	}()
 	return nil
@@ -142,7 +134,6 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 	if err != nil {
 		return nil, []error{fmt.Errorf("failed to get labels: %s", err)}
 	}
-
 	var targets []Target
 	var errors []error
 	duplicates := make(map[string]struct{})
@@ -201,9 +192,7 @@ func (cw *configWatcher) start() error {
 				})
 			}
 		}
-		cw.targetsMu.Lock()
-		cw.targets[TargetStatic] = targets
-		cw.targetsMu.Unlock()
+		cw.setTargets(TargetStatic, targets)
 	}
 
 	if len(cw.cfg.ConsulSDConfigs) > 0 {
@@ -224,4 +213,32 @@ func (cw *configWatcher) start() error {
 		}
 	}
 	return nil
+}
+
+func (cw *configWatcher) resetTargets() {
+	cw.targetsMu.Lock()
+	for _, targets := range cw.targets {
+		for _, t := range targets {
+			t.Close()
+		}
+	}
+	cw.targets = make(map[TargetType][]Target)
+	cw.targetsMu.Unlock()
+}
+
+func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
+	cw.targetsMu.Lock()
+	newT := make(map[string]Target)
+	for _, t := range targets {
+		newT[t.Addr()] = t
+	}
+	oldT := cw.targets[key]
+
+	for _, ot := range oldT {
+		if _, ok := newT[ot.Addr()]; !ok {
+			ot.Notifier.Close()
+		}
+	}
+	cw.targets[key] = targets
+	cw.targetsMu.Unlock()
 }

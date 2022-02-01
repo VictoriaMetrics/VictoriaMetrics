@@ -12,9 +12,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // AlertingRule is basic alert entity
@@ -50,10 +50,10 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors  *gauge
-	pending *gauge
-	active  *gauge
-	samples *gauge
+	errors  *utils.Gauge
+	pending *utils.Gauge
+	active  *utils.Gauge
+	samples *utils.Gauge
 }
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
@@ -78,7 +78,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
-	ar.metrics.pending = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
+	ar.metrics.pending = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
 			ar.mu.RLock()
 			defer ar.mu.RUnlock()
@@ -90,7 +90,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.active = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
+	ar.metrics.active = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
 		func() float64 {
 			ar.mu.RLock()
 			defer ar.mu.RUnlock()
@@ -102,7 +102,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_error{%s}`, labels),
+	ar.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_error{%s}`, labels),
 		func() float64 {
 			ar.mu.RLock()
 			defer ar.mu.RUnlock()
@@ -111,7 +111,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return 1
 		})
-	ar.metrics.samples = getOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
+	ar.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			ar.mu.RLock()
 			defer ar.mu.RUnlock()
@@ -122,10 +122,10 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 
 // Close unregisters rule metrics
 func (ar *AlertingRule) Close() {
-	metrics.UnregisterMetric(ar.metrics.active.name)
-	metrics.UnregisterMetric(ar.metrics.pending.name)
-	metrics.UnregisterMetric(ar.metrics.errors.name)
-	metrics.UnregisterMetric(ar.metrics.samples.name)
+	ar.metrics.active.Unregister()
+	ar.metrics.pending.Unregister()
+	ar.metrics.errors.Unregister()
+	ar.metrics.samples.Unregister()
 }
 
 // String implements Stringer interface
@@ -153,7 +153,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range series {
-		// set additional labels to identify group and rule name
+		// set additional labels to identify group and rule Name
 		if ar.Name != "" {
 			s.SetLabel(alertNameLabel, ar.Name)
 		}

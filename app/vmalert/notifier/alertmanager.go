@@ -21,6 +21,26 @@ type AlertManager struct {
 	timeout time.Duration
 
 	authCfg *promauth.Config
+
+	metrics *metrics
+}
+
+type metrics struct {
+	alertsSent       *utils.Counter
+	alertsSendErrors *utils.Counter
+}
+
+func newMetrics(addr string) *metrics {
+	return &metrics{
+		alertsSent:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsSendErrors: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+	}
+}
+
+// Close is a destructor method for AlertManager
+func (am *AlertManager) Close() {
+	am.metrics.alertsSent.Unregister()
+	am.metrics.alertsSendErrors.Unregister()
 }
 
 // Addr returns address where alerts are sent.
@@ -28,6 +48,15 @@ func (am AlertManager) Addr() string { return am.addr }
 
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
+	am.metrics.alertsSent.Add(len(alerts))
+	err := am.send(ctx, alerts)
+	if err != nil {
+		am.metrics.alertsSendErrors.Add(len(alerts))
+	}
+	return err
+}
+
+func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc)
 
@@ -98,5 +127,6 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		authCfg: aCfg,
 		client:  &http.Client{Transport: tr},
 		timeout: timeout,
+		metrics: newMetrics(alertManagerURL),
 	}, nil
 }

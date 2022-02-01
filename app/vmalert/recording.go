@@ -10,8 +10,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // RecordingRule is a Rule that supposed
@@ -43,8 +43,8 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *gauge
-	samples *gauge
+	errors  *utils.Gauge
+	samples *utils.Gauge
 }
 
 // String implements Stringer interface
@@ -75,7 +75,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
-	rr.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
+	rr.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
 		func() float64 {
 			rr.mu.RLock()
 			defer rr.mu.RUnlock()
@@ -84,7 +84,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 			}
 			return 1
 		})
-	rr.metrics.samples = getOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			rr.mu.RLock()
 			defer rr.mu.RUnlock()
@@ -95,8 +95,8 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 
 // Close unregisters rule metrics
 func (rr *RecordingRule) Close() {
-	metrics.UnregisterMetric(rr.metrics.errors.name)
-	metrics.UnregisterMetric(rr.metrics.samples.name)
+	rr.metrics.errors.Unregister()
+	rr.metrics.samples.Unregister()
 }
 
 // ExecRange executes recording rule on the given time range similarly to Exec.

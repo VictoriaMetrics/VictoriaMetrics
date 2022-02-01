@@ -10,4 +10,6 @@ type Notifier interface {
 	Send(ctx context.Context, alerts []Alert) error
 	// Addr returns address where alerts are sent.
 	Addr() string
+	// Close is a destructor for the Notifier
+	Close()
 }
