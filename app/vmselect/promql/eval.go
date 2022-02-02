@@ -382,12 +382,18 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 			continue
 		}
 		values = getUniqueValues(values)
+		if len(values) > 10000 {
+			// Skip the filter on the given tag, since it needs to enumerate too many unique values.
+			// This may slow down the search for matching time series.
+			continue
+		}
 		lf := metricsql.LabelFilter{
 			Label: key,
 		}
 		if len(values) == 1 {
 			lf.Value = values[0]
 		} else {
+			sort.Strings(values)
 			lf.Value = joinRegexpValues(values)
 			lf.IsRegexp = true
 		}
@@ -408,7 +414,6 @@ func getUniqueValues(a []string) []string {
 			m[s] = struct{}{}
 		}
 	}
-	sort.Strings(results)
 	return results
 }
 
