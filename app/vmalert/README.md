@@ -746,7 +746,7 @@ the latter will have higher priority.
 
 ### Notifier configuration file
 
-Notifier also supports configuration vai file specified with flag `notifier.config`:
+Notifier also supports configuration via file specified with flag `notifier.config`:
 ```
 ./bin/vmalert -rule=app/vmalert/config/testdata/rules.good.rules \
 		-datasource.url=http://localhost:8428 \
