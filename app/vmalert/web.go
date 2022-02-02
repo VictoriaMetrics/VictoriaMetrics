@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -33,9 +34,10 @@ func initLinks() {
 		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: pathPrefix},
+		{Name: "vmalert", Url: path.Join(pathPrefix, "/")},
 		{Name: "Groups", Url: path.Join(pathPrefix, "groups")},
 		{Name: "Alerts", Url: path.Join(pathPrefix, "alerts")},
+		{Name: "Notifiers", Url: path.Join(pathPrefix, "notifiers")},
 		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
 	}
 }
@@ -61,6 +63,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/groups":
 		WriteListGroups(w, rh.groups())
+		return true
+	case "/notifiers":
+		WriteListTargets(w, notifier.GetTargets())
 		return true
 	case "/api/v1/groups":
 		data, err := rh.listGroups()

@@ -18,6 +18,11 @@ type blockStreamReader struct {
 	// Currently active block.
 	Block Block
 
+	// Contains TSID for the previous block.
+	// This field is needed for checking that TSIDs
+	// increase over time when reading blocks.
+	tsidPrev TSID
+
 	// Filesystem path to the stream reader.
 	//
 	// Is empty for inmemory stream readers.
@@ -213,12 +218,12 @@ func (bsr *blockStreamReader) NextBlock() bool {
 	if bsr.err != nil {
 		return false
 	}
-	tsidPrev := bsr.Block.bh.TSID
+	bsr.tsidPrev = bsr.Block.bh.TSID
 	bsr.Block.Reset()
 	err := bsr.readBlock()
 	if err == nil {
-		if bsr.Block.bh.TSID.Less(&tsidPrev) {
-			bsr.err = fmt.Errorf("possible data corruption: the next TSID=%v is smaller than the previous TSID=%v", &bsr.Block.bh.TSID, &tsidPrev)
+		if bsr.Block.bh.TSID.Less(&bsr.tsidPrev) {
+			bsr.err = fmt.Errorf("possible data corruption: the next TSID=%v is smaller than the previous TSID=%v", &bsr.Block.bh.TSID, &bsr.tsidPrev)
 			return false
 		}
 		if bsr.Block.bh.RowsCount == 0 {
@@ -303,7 +308,7 @@ func (bsr *blockStreamReader) readBlock() error {
 	if usePrevTimestamps {
 		bsr.Block.timestampsData = append(bsr.Block.timestampsData[:0], bsr.prevTimestampsData...)
 	} else {
-		bsr.Block.timestampsData = bytesutil.ResizeNoCopy(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
+		bsr.Block.timestampsData = bytesutil.ResizeNoCopyMayOverallocate(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
 		if err := fs.ReadFullData(bsr.timestampsReader, bsr.Block.timestampsData); err != nil {
 			return fmt.Errorf("cannot read timestamps block at offset %d: %w", bsr.timestampsBlockOffset, err)
 		}
@@ -312,7 +317,7 @@ func (bsr *blockStreamReader) readBlock() error {
 	}
 
 	// Read values data.
-	bsr.Block.valuesData = bytesutil.ResizeNoCopy(bsr.Block.valuesData, int(bsr.Block.bh.ValuesBlockSize))
+	bsr.Block.valuesData = bytesutil.ResizeNoCopyMayOverallocate(bsr.Block.valuesData, int(bsr.Block.bh.ValuesBlockSize))
 	if err := fs.ReadFullData(bsr.valuesReader, bsr.Block.valuesData); err != nil {
 		return fmt.Errorf("cannot read values block at offset %d: %w", bsr.valuesBlockOffset, err)
 	}
@@ -347,7 +352,7 @@ func (bsr *blockStreamReader) readIndexBlock() error {
 	}
 
 	// Read index block.
-	bsr.compressedIndexData = bytesutil.ResizeNoCopy(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
+	bsr.compressedIndexData = bytesutil.ResizeNoCopyMayOverallocate(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
 	if err := fs.ReadFullData(bsr.indexReader, bsr.compressedIndexData); err != nil {
 		return fmt.Errorf("cannot read index block from index data at offset %d: %w", bsr.indexBlockOffset, err)
 	}

@@ -338,7 +338,6 @@ func (tb *table) AddRows(rows []rawRow) error {
 	// Do this under tb.ptwsLock.
 	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
 	tb.ptwsLock.Lock()
-	var errors []error
 	for i := range missingRows {
 		r := &missingRows[i]
 
@@ -362,18 +361,15 @@ func (tb *table) AddRows(rows []rawRow) error {
 
 		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.getDeletedMetricIDs, tb.retentionMsecs)
 		if err != nil {
-			errors = append(errors, err)
-			continue
+			// Return only the first error, since it has no sense in returning all errors.
+			tb.ptwsLock.Unlock()
+			return fmt.Errorf("errors while adding rows to table %q: %w", tb.path, err)
 		}
 		pt.AddRows(missingRows[i : i+1])
 		tb.addPartitionNolock(pt)
 	}
 	tb.ptwsLock.Unlock()
 
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		return fmt.Errorf("errors while adding rows to table %q: %w", tb.path, errors[0])
-	}
 	return nil
 }
 

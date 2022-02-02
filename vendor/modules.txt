@@ -11,7 +11,7 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v0.1.1
 ## explicit; go 1.11
 cloud.google.com/go/iam
-# cloud.google.com/go/storage v1.18.2
+# cloud.google.com/go/storage v1.19.0
 ## explicit; go 1.11
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal/apiv2
@@ -26,14 +26,14 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.18.1
 ## explicit; go 1.12
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.37.0
+# github.com/VictoriaMetrics/metricsql v0.40.0
 ## explicit; go 1.13
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit; go 1.12
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.42.39
+# github.com/aws/aws-sdk-go v1.42.44
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -146,7 +146,7 @@ github.com/influxdata/influxdb/pkg/escape
 # github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
-# github.com/klauspost/compress v1.14.1
+# github.com/klauspost/compress v1.14.2
 ## explicit; go 1.15
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -175,7 +175,7 @@ github.com/oklog/ulid
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.12.0
+# github.com/prometheus/client_golang v1.12.1
 ## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
@@ -264,7 +264,7 @@ go.opencensus.io/trace/tracestate
 go.uber.org/atomic
 # go.uber.org/goleak v1.1.11-0.20210813005559-691160354723
 ## explicit; go 1.13
-# golang.org/x/net v0.0.0-20220121210141-e204ce36a2ba
+# golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -289,7 +289,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
+# golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -304,7 +304,7 @@ golang.org/x/text/unicode/norm
 ## explicit; go 1.11
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.65.0
+# google.golang.org/api v0.66.0
 ## explicit; go 1.11
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -337,7 +337,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5
+# google.golang.org/genproto v0.0.0-20220126215142-9970aeb2e350
 ## explicit; go 1.11
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
@@ -347,7 +347,7 @@ google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/googleapis/storage/v2
 google.golang.org/genproto/googleapis/type/date
 google.golang.org/genproto/googleapis/type/expr
-# google.golang.org/grpc v1.43.0
+# google.golang.org/grpc v1.44.0
 ## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes

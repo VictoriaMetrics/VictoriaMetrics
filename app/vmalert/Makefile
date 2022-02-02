@@ -70,6 +70,13 @@ run-vmalert: vmalert
 		-evaluationInterval=3s \
 		-rule.configCheckInterval=10s
 
+run-vmalert-sd: vmalert
+	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \
+		-datasource.url=http://localhost:8428 \
+		-remoteWrite.url=http://localhost:8428 \
+		-notifier.config=app/vmalert/notifier/testdata/consul.good.yaml \
+		-configCheckInterval=10s
+
 replay-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules-replay-good.rules \
 		-datasource.url=http://localhost:8428 \

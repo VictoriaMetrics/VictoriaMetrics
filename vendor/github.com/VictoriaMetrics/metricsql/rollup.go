@@ -90,8 +90,7 @@ func IsRollupFunc(funcName string) bool {
 //
 // -1 is returned if fe isn't a rollup function.
 func GetRollupArgIdx(fe *FuncExpr) int {
-	funcName := fe.Name
-	funcName = strings.ToLower(funcName)
+	funcName := strings.ToLower(fe.Name)
 	if !rollupFuncs[funcName] {
 		return -1
 	}

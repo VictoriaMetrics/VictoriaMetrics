@@ -1,0 +1,13 @@
+consul_sd_configs:
+  - server: localhost:8500
+    scheme: http
+    services:
+      - alertmanager
+  - server: localhost:8500
+    services:
+      - consul
+relabel_configs:
+  - source_labels: [__meta_consul_tags]
+    regex: .*,__scheme__=([^,]+),.*
+    replacement: '${1}'
+    target_label: __scheme__

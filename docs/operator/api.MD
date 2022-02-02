@@ -713,10 +713,10 @@ VmAgentStatus defines the observed state of VmAgent
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAlert cluster (their labels match the selector). | int32 | true |
-| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | true |
-| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | true |
-| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | true |
+| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAgent cluster (their labels match the selector). | int32 | true |
+| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAgent cluster that have the desired version spec. | int32 | true |
+| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAgent cluster. | int32 | true |
+| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAgent cluster. | int32 | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -751,8 +751,8 @@ EmbeddedHPA embeds HorizontalPodAutoScaler spec v2. https://kubernetes.io/docs/r
 | ----- | ----------- | ------ | -------- |
 | minReplicas |  | *int32 | false |
 | maxReplicas |  | int32 | false |
-| metrics |  | []v2beta2.MetricSpec | false |
-| behaviour |  | *v2beta2.HorizontalPodAutoscalerBehavior | false |
+| metrics |  | [][v2beta2.MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#metricspec-v2beta2-autoscaling) | false |
+| behaviour |  | *[v2beta2.HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#horizontalpodautoscalerbehavior-v2beta2-autoscaling) | false |
 
 [Back to TOC](#table-of-contents)
 

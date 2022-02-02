@@ -3,15 +3,15 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 go 1.17
 
 require (
-	cloud.google.com/go/storage v1.18.2
+	cloud.google.com/go/storage v1.19.0
 	github.com/VictoriaMetrics/fastcache v1.8.0
 
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.1
-	github.com/VictoriaMetrics/metricsql v0.37.0
-	github.com/aws/aws-sdk-go v1.42.39
+	github.com/VictoriaMetrics/metricsql v0.40.0
+	github.com/aws/aws-sdk-go v1.42.44
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
@@ -19,7 +19,7 @@ require (
 	github.com/go-kit/kit v0.12.0
 	github.com/golang/snappy v0.0.4
 	github.com/influxdata/influxdb v1.9.5
-	github.com/klauspost/compress v1.14.1
+	github.com/klauspost/compress v1.14.2
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/oklog/ulid v1.3.1
@@ -31,10 +31,10 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.15.1
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20220121210141-e204ce36a2ba
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
-	google.golang.org/api v0.65.0
+	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27
+	google.golang.org/api v0.66.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -54,7 +54,7 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.12.0 // indirect
+	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
@@ -68,8 +68,8 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5 // indirect
-	google.golang.org/grpc v1.43.0 // indirect
+	google.golang.org/genproto v0.0.0-20220126215142-9970aeb2e350 // indirect
+	google.golang.org/grpc v1.44.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

@@ -44,6 +44,7 @@ type BucketHandle struct {
 	defaultObjectACL ACLHandle
 	conds            *BucketConditions
 	userProject      string // project for Requester Pays buckets
+	retry            *retryConfig
 }
 
 // Bucket returns a BucketHandle, which provides operations on the named bucket.
@@ -54,18 +55,22 @@ type BucketHandle struct {
 // found at:
 //   https://cloud.google.com/storage/docs/bucket-naming
 func (c *Client) Bucket(name string) *BucketHandle {
+	retry := c.retry.clone()
 	return &BucketHandle{
 		c:    c,
 		name: name,
 		acl: ACLHandle{
 			c:      c,
 			bucket: name,
+			retry:  retry,
 		},
 		defaultObjectACL: ACLHandle{
 			c:         c,
 			bucket:    name,
 			isDefault: true,
+			retry:     retry,
 		},
+		retry: retry,
 	}
 }
 
@@ -95,7 +100,7 @@ func (b *BucketHandle) Create(ctx context.Context, projectID string, attrs *Buck
 	if attrs != nil && attrs.PredefinedDefaultObjectACL != "" {
 		req.PredefinedDefaultObjectAcl(attrs.PredefinedDefaultObjectACL)
 	}
-	return runWithRetry(ctx, func() error { _, err := req.Context(ctx).Do(); return err })
+	return run(ctx, func() error { _, err := req.Context(ctx).Do(); return err }, b.retry, true)
 }
 
 // Delete deletes the Bucket.
@@ -107,7 +112,8 @@ func (b *BucketHandle) Delete(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	return runWithRetry(ctx, func() error { return req.Context(ctx).Do() })
+
+	return run(ctx, func() error { return req.Context(ctx).Do() }, b.retry, true)
 }
 
 func (b *BucketHandle) newDeleteCall() (*raw.BucketsDeleteCall, error) {
@@ -144,6 +150,7 @@ func (b *BucketHandle) DefaultObjectACL() *ACLHandle {
 // for valid object names can be found at:
 //   https://cloud.google.com/storage/docs/naming-objects
 func (b *BucketHandle) Object(name string) *ObjectHandle {
+	retry := b.retry.clone()
 	return &ObjectHandle{
 		c:      b.c,
 		bucket: b.name,
@@ -153,9 +160,11 @@ func (b *BucketHandle) Object(name string) *ObjectHandle {
 			bucket:      b.name,
 			object:      name,
 			userProject: b.userProject,
+			retry:       retry,
 		},
 		gen:         -1,
 		userProject: b.userProject,
+		retry:       retry,
 	}
 }
 
@@ -169,10 +178,10 @@ func (b *BucketHandle) Attrs(ctx context.Context) (attrs *BucketAttrs, err error
 		return nil, err
 	}
 	var resp *raw.Bucket
-	err = runWithRetry(ctx, func() error {
+	err = run(ctx, func() error {
 		resp, err = req.Context(ctx).Do()
 		return err
-	})
+	}, b.retry, true)
 	var e *googleapi.Error
 	if ok := xerrors.As(err, &e); ok && e.Code == http.StatusNotFound {
 		return nil, ErrBucketNotExist
@@ -210,12 +219,20 @@ func (b *BucketHandle) Update(ctx context.Context, uattrs BucketAttrsToUpdate) (
 	if uattrs.PredefinedDefaultObjectACL != "" {
 		req.PredefinedDefaultObjectAcl(uattrs.PredefinedDefaultObjectACL)
 	}
-	// TODO(jba): retry iff metagen is set?
-	rb, err := req.Context(ctx).Do()
-	if err != nil {
+
+	isIdempotent := b.conds != nil && b.conds.MetagenerationMatch != 0
+
+	var rawBucket *raw.Bucket
+	call := func() error {
+		rb, err := req.Context(ctx).Do()
+		rawBucket = rb
+		return err
+	}
+
+	if err := run(ctx, call, b.retry, isIdempotent); err != nil {
 		return nil, err
 	}
-	return newBucket(rb)
+	return newBucket(rawBucket)
 }
 
 func (b *BucketHandle) newPatchCall(uattrs *BucketAttrsToUpdate) (*raw.BucketsPatchCall, error) {
@@ -282,8 +299,54 @@ func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string,
 	return SignedURL(b.name, object, newopts)
 }
 
-// TODO: Add a similar wrapper for GenerateSignedPostPolicyV4 allowing users to
-// omit PrivateKey/SignBytes
+// GenerateSignedPostPolicyV4 generates a PostPolicyV4 value from bucket, object and opts.
+// The generated URL and fields will then allow an unauthenticated client to perform multipart uploads.
+//
+// This method only requires the Expires field in the specified PostPolicyV4Options
+// to be non-nil. If not provided, it attempts to fill the GoogleAccessID and PrivateKey
+// from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+// If you are authenticating with a custom HTTP client, Service Account based
+// auto-detection will be hindered.
+//
+// If no private key is found, it attempts to use the GoogleAccessID to sign the URL.
+// This requires the IAM Service Account Credentials API to be enabled
+// (https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview)
+// and iam.serviceAccounts.signBlob permissions on the GoogleAccessID service account.
+// If you do not want these fields set for you, you may pass them in through opts or use
+// GenerateSignedPostPolicyV4(bucket, name string, opts *PostPolicyV4Options) instead.
+func (b *BucketHandle) GenerateSignedPostPolicyV4(object string, opts *PostPolicyV4Options) (*PostPolicyV4, error) {
+	if opts.GoogleAccessID != "" && (opts.SignRawBytes != nil || opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
+		return GenerateSignedPostPolicyV4(b.name, object, opts)
+	}
+	// Make a copy of opts so we don't modify the pointer parameter.
+	newopts := opts.clone()
+
+	if newopts.GoogleAccessID == "" {
+		id, err := b.detectDefaultGoogleAccessID()
+		if err != nil {
+			return nil, err
+		}
+		newopts.GoogleAccessID = id
+	}
+	if newopts.SignBytes == nil && newopts.SignRawBytes == nil && len(newopts.PrivateKey) == 0 {
+		if b.c.creds != nil && len(b.c.creds.JSON) > 0 {
+			var sa struct {
+				PrivateKey string `json:"private_key"`
+			}
+			err := json.Unmarshal(b.c.creds.JSON, &sa)
+			if err == nil && sa.PrivateKey != "" {
+				newopts.PrivateKey = []byte(sa.PrivateKey)
+			}
+		}
+
+		// Don't error out if we can't unmarshal the private key from the client,
+		// fallback to the default sign function for the service account.
+		if len(newopts.PrivateKey) == 0 {
+			newopts.SignRawBytes = b.defaultSignBytesFunc(newopts.GoogleAccessID)
+		}
+	}
+	return GenerateSignedPostPolicyV4(b.name, object, newopts)
+}
 
 func (b *BucketHandle) detectDefaultGoogleAccessID() (string, error) {
 	returnErr := errors.New("no credentials found on client and not on GCE (Google Compute Engine)")
@@ -461,6 +524,12 @@ type BucketAttrs struct {
 	// The project number of the project the bucket belongs to.
 	// This field is read-only.
 	ProjectNumber uint64
+
+	// RPO configures the Recovery Point Objective (RPO) policy of the bucket.
+	// Set to RPOAsyncTurbo to turn on Turbo Replication for a bucket.
+	// See https://cloud.google.com/storage/docs/managing-turbo-replication for
+	// more information.
+	RPO RPO
 }
 
 // BucketPolicyOnly is an alias for UniformBucketLevelAccess.
@@ -728,6 +797,7 @@ func newBucket(b *raw.Bucket) (*BucketAttrs, error) {
 		Etag:                     b.Etag,
 		LocationType:             b.LocationType,
 		ProjectNumber:            b.ProjectNumber,
+		RPO:                      toRPO(b),
 	}, nil
 }
 
@@ -780,6 +850,7 @@ func (b *BucketAttrs) toRawBucket() *raw.Bucket {
 		Logging:          b.Logging.toRawBucketLogging(),
 		Website:          b.Website.toRawBucketWebsite(),
 		IamConfiguration: bktIAM,
+		Rpo:              b.RPO.String(),
 	}
 }
 
@@ -888,6 +959,12 @@ type BucketAttrsToUpdate struct {
 	// If not empty, applies a predefined set of default object access controls.
 	// See https://cloud.google.com/storage/docs/json_api/v1/buckets/patch.
 	PredefinedDefaultObjectACL string
+
+	// RPO configures the Recovery Point Objective (RPO) policy of the bucket.
+	// Set to RPOAsyncTurbo to turn on Turbo Replication for a bucket.
+	// See https://cloud.google.com/storage/docs/managing-turbo-replication for
+	// more information.
+	RPO RPO
 
 	setLabels    map[string]string
 	deleteLabels map[string]bool
@@ -1001,7 +1078,10 @@ func (ua *BucketAttrsToUpdate) toRawBucket() *raw.Bucket {
 		rb.DefaultObjectAcl = nil
 		rb.ForceSendFields = append(rb.ForceSendFields, "DefaultObjectAcl")
 	}
+
 	rb.StorageClass = ua.StorageClass
+	rb.Rpo = ua.RPO.String()
+
 	if ua.setLabels != nil || ua.deleteLabels != nil {
 		rb.Labels = map[string]string{}
 		for k, v := range ua.setLabels {
@@ -1081,10 +1161,10 @@ func (b *BucketHandle) LockRetentionPolicy(ctx context.Context) error {
 		metageneration = b.conds.MetagenerationMatch
 	}
 	req := b.c.raw.Buckets.LockRetentionPolicy(b.name, metageneration)
-	return runWithRetry(ctx, func() error {
+	return run(ctx, func() error {
 		_, err := req.Context(ctx).Do()
 		return err
-	})
+	}, b.retry, true)
 }
 
 // applyBucketConds modifies the provided call using the conditions in conds.
@@ -1347,6 +1427,20 @@ func toPublicAccessPrevention(b *raw.BucketIamConfiguration) PublicAccessPrevent
 	}
 }
 
+func toRPO(b *raw.Bucket) RPO {
+	if b == nil {
+		return RPOUnknown
+	}
+	switch b.Rpo {
+	case rpoDefault:
+		return RPODefault
+	case rpoAsyncTurbo:
+		return RPOAsyncTurbo
+	default:
+		return RPOUnknown
+	}
+}
+
 // Objects returns an iterator over the objects in the bucket that match the
 // Query q. If q is nil, no filtering is done. Objects will be iterated over
 // lexicographically by name.
@@ -1365,6 +1459,33 @@ func (b *BucketHandle) Objects(ctx context.Context, q *Query) *ObjectIterator {
 		it.query = *q
 	}
 	return it
+}
+
+// Retryer returns a bucket handle that is configured with custom retry
+// behavior as specified by the options that are passed to it. All operations
+// on the new handle will use the customized retry configuration.
+// Retry options set on a object handle will take precedence over options set on
+// the bucket handle.
+// These retry options will merge with the client's retry configuration (if set)
+// for the returned handle. Options passed into this method will take precedence
+// over retry options on the client. Note that you must explicitly pass in each
+// option you want to override.
+func (b *BucketHandle) Retryer(opts ...RetryOption) *BucketHandle {
+	b2 := *b
+	var retry *retryConfig
+	if b.retry != nil {
+		// merge the options with the existing retry
+		retry = b.retry
+	} else {
+		retry = &retryConfig{}
+	}
+	for _, opt := range opts {
+		opt.apply(retry)
+	}
+	b2.retry = retry
+	b2.acl.retry = retry
+	b2.defaultObjectACL.retry = retry
+	return &b2
 }
 
 // An ObjectIterator is an iterator over ObjectAttrs.
@@ -1434,10 +1555,10 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	}
 	var resp *raw.Objects
 	var err error
-	err = runWithRetry(it.ctx, func() error {
+	err = run(it.ctx, func() error {
 		resp, err = req.Context(it.ctx).Do()
 		return err
-	})
+	}, it.bucket.retry, true)
 	if err != nil {
 		var e *googleapi.Error
 		if ok := xerrors.As(err, &e); ok && e.Code == http.StatusNotFound {
@@ -1518,10 +1639,10 @@ func (it *BucketIterator) fetch(pageSize int, pageToken string) (token string, e
 		req.MaxResults(int64(pageSize))
 	}
 	var resp *raw.Buckets
-	err = runWithRetry(it.ctx, func() error {
+	err = run(it.ctx, func() error {
 		resp, err = req.Context(it.ctx).Do()
 		return err
-	})
+	}, it.client.retry, true)
 	if err != nil {
 		return "", err
 	}
@@ -1533,4 +1654,40 @@ func (it *BucketIterator) fetch(pageSize int, pageToken string) (token string, e
 		it.buckets = append(it.buckets, b)
 	}
 	return resp.NextPageToken, nil
+}
+
+// RPO (Recovery Point Objective) configures the turbo replication feature. See
+// https://cloud.google.com/storage/docs/managing-turbo-replication for more information.
+type RPO int
+
+const (
+	// RPOUnknown is a zero value. It may be returned from bucket.Attrs() if RPO
+	// is not present in the bucket metadata, that is, the bucket is not dual-region.
+	// This value is also used if the RPO field is not set in a call to GCS.
+	RPOUnknown RPO = iota
+
+	// RPODefault represents default replication. It is used to reset RPO on an
+	// existing bucket  that has this field set to RPOAsyncTurbo. Otherwise it
+	// is equivalent to RPOUnknown, and is always ignored. This value is valid
+	// for dual- or multi-region buckets.
+	RPODefault
+
+	// RPOAsyncTurbo represents turbo replication and is used to enable Turbo
+	// Replication on a bucket. This value is only valid for dual-region buckets.
+	RPOAsyncTurbo
+
+	rpoUnknown    string = ""
+	rpoDefault           = "DEFAULT"
+	rpoAsyncTurbo        = "ASYNC_TURBO"
+)
+
+func (rpo RPO) String() string {
+	switch rpo {
+	case RPODefault:
+		return rpoDefault
+	case RPOAsyncTurbo:
+		return rpoAsyncTurbo
+	default:
+		return rpoUnknown
+	}
 }

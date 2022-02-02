@@ -118,7 +118,7 @@ The VictoriaMetrics Operator introduces additional resources in Kubernetes to de
 
 ## VMSingle
 
-[VMSingle](https://github.com/VictoriaMetrics/VictoriaMetrics/) represents database for storing metrics, for all possible config options check api [doc](/Operator/api.MD#VMSingle):
+[VMSingle](https://github.com/VictoriaMetrics/VictoriaMetrics/) represents database for storing metrics, for all possible config options check api [doc](https://docs.victoriametrics.com/operator/api.html#vmsingle):
  
 ```yaml
 cat <<EOF | kubectl apply -f -
@@ -273,7 +273,7 @@ Or you can use default rbac account, that will be created for `VMAgent` by opera
  kubectl apply -f release/examples/vmagent_rbac.yaml
 ```
 
-Modify `VMAgent` config parameters at `release/examples/vmagent.yaml` and apply it, config options [doc](/docs/api.MD#VMAgent)
+Modify `VMAgent` config parameters at `release/examples/vmagent.yaml` and apply it, config options [doc](https://docs.victoriametrics.com/operator/api.html#vmagent)
 
 Example:
 
@@ -354,7 +354,7 @@ stringData:
 EOF
 ```
 
-Then add `Alertmanager` object, other config options at [doc](/docs/api.MD#Alertmanager)
+Then add `Alertmanager` object, other config options at [doc](https://docs.victoriametrics.com/operator/api.html#alertmanager)
 you have to set configSecret with name of secret, that we created before - `alertmanager-config`.
 ```yaml
 cat << EOF | kubectl apply -f -
@@ -452,7 +452,7 @@ EOF
 ## VMAlert
 
 [VMAlert](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmalert) - executes a list of given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) rules against configured address. It
-has few required config options - `datasource` and `notifier` are required, for other config parameters check [doc](/Operator/api.MD#VMAlert).
+has few required config options - `datasource` and `notifier` are required, for other config parameters check [doc](https://docs.victoriametrics.com/operator/api.html#vmalert).
 
 ```yaml
 cat << EOF | kubectl apply -f -
@@ -478,7 +478,7 @@ EOF
  by corresponding `Service` and it's `Endpoint`s.
  It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc).
 
-Let's make some demo, you have to deploy [VMAgent](#VMAgent) and [VMSingle](#VMSingle) from previous step with match any selectors:
+Let's make some demo, you have to deploy [VMAgent](#vmagent) and [VMSingle](#vmsingle) from previous step with match any selectors:
 
 ```yaml
 cat <<EOF | kubectl apply -f -
@@ -714,7 +714,7 @@ kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent --tail 100
 It generates `VMAlert` config with ruleset defined at `VMRule` spec.
 
 Lets create `VMAlert` with selector for `VMRule` with label project=devops.
-  You also need datasource from previous step [VMSingle](#VMSingle) and [VMAgent](#VMAgent) connected to it.
+  You also need datasource from previous step [VMSingle](#vmsingle) and [VMAgent](#vmagent) connected to it.
 
 ```yaml
 cat << EOF | kubectl apply -f -
@@ -1100,7 +1100,7 @@ static_configs: added targets: 2, removed targets: 0; total targets: 2
 
 [VMAuth](https://docs.victoriametrics.com/vmauth.html) allows protecting application with authentication and route traffic by rules.
 
-api docs [link](/Operator/api.MD#VMAuthSpec)
+api docs [link](https://docs.victoriametrics.com/operator/api.html#vmauthspec)
 
  First create `VMAuth` configuration:
 ```yaml
@@ -1141,7 +1141,7 @@ users:
 
 ## VMUser 
 
-  `VMUser` configures `VMAuth`. api doc [link](/Operator/api.MD#VMUserSpec)
+  `VMUser` configures `VMAuth`. api doc [link](https://docs.victoriametrics.com/operator/api.html#vmuserspec)
 
   There are two authentication mechanisms: `bearerToken` and `basicAuth` with `username` and `password`. Only one of them can be used with `VMUser` at one time.
 If you need to provide access with different mechanisms for single endpoint, create multiple `VMUsers`.

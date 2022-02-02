@@ -1,5 +1,37 @@
 # Changes
 
+## [1.19.0](https://www.github.com/googleapis/google-cloud-go/compare/storage/v1.18.2...storage/v1.19.0) (2022-01-25)
+
+
+### Features
+
+* **storage:** add fully configurable and idempotency-aware retry strategy ([#5384](https://www.github.com/googleapis/google-cloud-go/issues/5384), [#5185](https://www.github.com/googleapis/google-cloud-go/issues/5185), [#5170](https://www.github.com/googleapis/google-cloud-go/issues/5170), [#5223](https://www.github.com/googleapis/google-cloud-go/issues/5223), [#5221](https://www.github.com/googleapis/google-cloud-go/issues/5221), [#5193](https://www.github.com/googleapis/google-cloud-go/issues/5193), [#5159](https://www.github.com/googleapis/google-cloud-go/issues/5159), [#5165](https://www.github.com/googleapis/google-cloud-go/issues/5165), [#5166](https://www.github.com/googleapis/google-cloud-go/issues/5166), [#5210](https://www.github.com/googleapis/google-cloud-go/issues/5210), [#5172](https://www.github.com/googleapis/google-cloud-go/issues/5172), [#5314](https://www.github.com/googleapis/google-cloud-go/issues/5314))
+  * This release contains changes to fully align this library's retry strategy
+    with best practices as described in the
+    Cloud Storage [docs](https://cloud.google.com/storage/docs/retry-strategy).
+  * The library will now retry only idempotent operations by default. This means
+    that for certain operations, including object upload, compose, rewrite,
+    update, and delete, requests will not be retried by default unless
+    [idempotency conditions](https://cloud.google.com/storage/docs/retry-strategy#idempotency)
+    for the request have been met.
+  * The library now has methods to configure aspects of retry policy for
+    API calls, including which errors are retried, the timing of the
+    exponential backoff, and how idempotency is taken into account.
+  * If you wish to re-enable retries for a non-idempotent request, use the
+    [RetryAlways](https://pkg.go.dev/cloud.google.com/go/storage@main#RetryAlways)
+    policy.
+  * For full details on how to configure retries, see the
+    [package docs](https://pkg.go.dev/cloud.google.com/go/storage@main#hdr-Retrying_failed_requests)
+    and the
+    [Cloud Storage docs](https://cloud.google.com/storage/docs/retry-strategy)
+* **storage:** GenerateSignedPostPolicyV4 can use existing creds to authenticate ([#5105](https://www.github.com/googleapis/google-cloud-go/issues/5105)) ([46489f4](https://www.github.com/googleapis/google-cloud-go/commit/46489f4c8a634068a3e7cf2fd5e5ca11b555c0a8))
+* **storage:** post policy can be signed with a fn that takes raw bytes ([#5079](https://www.github.com/googleapis/google-cloud-go/issues/5079)) ([25d1278](https://www.github.com/googleapis/google-cloud-go/commit/25d1278cab539fbfdd8563ed6b297e30d3fe555c))
+* **storage:** add rpo (turbo replication) support ([#5003](https://www.github.com/googleapis/google-cloud-go/issues/5003)) ([3bd5995](https://www.github.com/googleapis/google-cloud-go/commit/3bd59958e0c06d2655b67fcb5410668db3c52af0))
+
+### Bug Fixes
+
+* **storage:** fix nil check in gRPC Reader ([#5376](https://www.github.com/googleapis/google-cloud-go/issues/5376)) ([5e7d722](https://www.github.com/googleapis/google-cloud-go/commit/5e7d722d18a62b28ba98169b3bdbb49401377264))
+
 ### [1.18.2](https://www.github.com/googleapis/google-cloud-go/compare/storage/v1.18.1...storage/v1.18.2) (2021-10-18)
 
 

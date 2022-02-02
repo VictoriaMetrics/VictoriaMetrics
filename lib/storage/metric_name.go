@@ -376,7 +376,7 @@ func (mn *MetricName) Marshal(dst []byte) []byte {
 		tag := &mn.Tags[i]
 		requiredSize += len(tag.Key) + len(tag.Value) + 2
 	}
-	dst = bytesutil.ResizeWithCopy(dst, requiredSize)[:dstLen]
+	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, requiredSize)[:dstLen]
 
 	// Marshal MetricGroup
 	dst = marshalTagValue(dst, mn.MetricGroup)
@@ -483,7 +483,7 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 		dstSize += len(label.Value)
 		dstSize += 4
 	}
-	dst = bytesutil.ResizeWithCopy(dst, dstSize)[:dstLen]
+	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstSize)[:dstLen]
 
 	// Marshal labels to dst.
 	for i := range labels {
