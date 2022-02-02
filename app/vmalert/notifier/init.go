@@ -3,6 +3,7 @@ package notifier
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -93,6 +94,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 				Password: promauth.NewSecret(basicAuthPassword.GetOptionalArg(i)),
 			},
 		}
+		addr = strings.TrimSuffix(addr, "/")
 		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, time.Minute)
 		if err != nil {
 			return nil, err
