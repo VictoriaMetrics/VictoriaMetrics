@@ -588,6 +588,9 @@ The shortlist of configuration flags is the following:
   -notifier.basicAuth.password array
     	Optional basic auth password for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.basicAuth.passwordFile array
+        Optional path to basic auth password file for -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.username array
     	Optional basic auth username for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
