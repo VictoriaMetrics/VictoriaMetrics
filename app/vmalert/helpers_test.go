@@ -63,6 +63,7 @@ type fakeNotifier struct {
 	alerts []notifier.Alert
 }
 
+func (*fakeNotifier) Close()       {}
 func (*fakeNotifier) Addr() string { return "" }
 func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
 	fn.Lock()
