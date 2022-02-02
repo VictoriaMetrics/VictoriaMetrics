@@ -751,8 +751,8 @@ EmbeddedHPA embeds HorizontalPodAutoScaler spec v2. https://kubernetes.io/docs/r
 | ----- | ----------- | ------ | -------- |
 | minReplicas |  | *int32 | false |
 | maxReplicas |  | int32 | false |
-| metrics |  | []v2beta2.MetricSpec | false |
-| behaviour |  | *v2beta2.HorizontalPodAutoscalerBehavior | false |
+| metrics |  | [][v2beta2.MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#metricspec-v2beta2-autoscaling) | false |
+| behaviour |  | *[v2beta2.HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#horizontalpodautoscalerbehavior-v2beta2-autoscaling) | false |
 
 [Back to TOC](#table-of-contents)
 
