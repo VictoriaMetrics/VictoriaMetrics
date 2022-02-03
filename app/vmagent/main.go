@@ -262,6 +262,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
 		return true
+	case "/target_response":
+		promscrapeTargetResponseRequests.Inc()
+		if err := promscrape.WriteTargetResponse(w, r); err != nil {
+			promscrapeTargetResponseErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "/config":
 		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
 			err := &httpserver.ErrorWithStatusCode{
@@ -442,6 +450,9 @@ var (
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeTargetResponseRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/target_response"}`)
+	promscrapeTargetResponseErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/target_response"}`)
 
 	promscrapeConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
 
