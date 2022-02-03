@@ -1,5 +1,8 @@
-{% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-%}
+{% import (
+	"time"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+) %}
 
 {% stripspace %}
 
@@ -9,18 +12,17 @@
 job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
 {% newline %}
 {% for _, ts := range js.targetsStatus %}
-    {% code
-     labels :=  promLabelsString(ts.labels)
-     ol := promLabelsString(ts.originalLabels)
-    %}
-{%s= "\t" %}state={% if ts.up %}up{% else %}down{% endif %},{% space %}
-    endpoint={%s= ts.endpoint %},{% space %}
-    labels={%s= labels %}
-    {% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %},{% space %}
-    last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,{% space %}
-    scrape_duration={%f.3 ts.scrapeDuration.Seconds() %}s,{% space %}
+{%s= "\t" %}
+    state={% if ts.up %}up{% else %}down{% endif %},{% space %}
+    endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
+    labels={%s= promLabelsString(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %},{% space %}
+    {% if showOriginLabels %}originalLabels={%s= promLabelsString(ts.sw.Config.OriginalLabels) %},{% space %}{% endif %}
+    scrapes_total={%d ts.scrapesTotal %},{% space %}
+    scrapes_failed={%d ts.scrapesFailed %},{% space %}
+    last_scrape={%f.3 ts.getDurationFromLastScrape().Seconds() %}s ago,{% space %}
+    scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
     samples_scraped={%d ts.samplesScraped %},{% space %}
-    error={%q= ts.errMsg %}
+    error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
     {% newline %}
 {% endfor %}
 {% endfor %}
@@ -65,33 +67,47 @@ job={%q= jobName %} (0/0 up)
           <tr>
             <th scope="col">Endpoint</th>
             <th scope="col">State</th>
-            <th scope="col">Labels</th>
-            <th scope="col">Last Scrape</th>
-            <th scope="col">Scrape Duration</th>
-            <th scope="col">Samples Scraped</th>
-            <th scope="col">Error</th>
+            <th scope="col" title="scrape target labels">Labels</th>
+            <th scope="col" title="total scrapes">Scrapes</th>
+            <th scope="col" title="total scrape errors">Errors</th>
+            <th scope="col" title="the time of the last scrape">Last Scrape</th>
+            <th scope="col" title="the duration of the last scrape">Duration</th>
+            <th scope="col" title="the number of metrics scraped during the last scrape">Samples</th>
+            <th scope="col" title="error from the last scrape (if any)">Last error</th>
           </tr>
         </thead>
         <tbody>
-          {% for j, ts := range js.targetsStatus %}
+          {% for _, ts := range js.targetsStatus %}
+            {% code
+              endpoint := ts.sw.Config.ScrapeURL
+              targetID := getTargetID(ts.sw)
+              lastScrapeTime := ts.getDurationFromLastScrape()
+            %}
             {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
             <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert"{% endif %}>
-              <td><a href="{%s ts.endpoint %}">{%s ts.endpoint %}</a> (
-                <a href="target_response?id={%s ts.targetID %}" target="_blank">fetch response</a>
+              <td><a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
+                <a href="target_response?id={%s targetID %}" target="_blank" title="click to fetch target response on behalf of the scraper">response</a>
               )</td>
               <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
               <td>
-                <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('original_labels_{%d i %}_{%d j %}').style.display='block'">show original labels</button>{% space %}
-                {%= formatLabel(ts.labels) %}
-                <div style="display:none" id="original_labels_{%d i %}_{%d j %}">
-                  <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('original_labels_{%d i %}_{%d j %}').style.display='none'">hide original labels</button>{% space %}
-                  {%= formatLabel(ts.originalLabels) %}
+		<div title="click to show original labels" onclick="document.getElementById('original_labels_{%s targetID %}').style.display='block'">
+                  {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
+                </div>
+                <div style="display:none" id="original_labels_{%s targetID %}">
+                  {%= formatLabel(ts.sw.Config.OriginalLabels) %}
                 </div>
               </td>
-              <td>{%f.3 ts.lastScrapeTime.Seconds() %}s ago</td>
-              <td>{%f.3 ts.scrapeDuration.Seconds() %}s</td>
+              <td>{%d ts.scrapesTotal %}</td>
+              <td>{%d ts.scrapesFailed %}</td>
+              <td>
+                {% if lastScrapeTime < 365*24*time.Hour %}
+                  {%f.3 lastScrapeTime.Seconds() %}s ago
+                {% else %}
+                  none
+                {% endif %}
+              <td>{%d int(ts.scrapeDuration) %}ms</td>
               <td>{%d ts.samplesScraped %}</td>
-              <td>{%s ts.errMsg %}</td>
+              <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>

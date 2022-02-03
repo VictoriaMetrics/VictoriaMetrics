@@ -126,6 +126,10 @@ func (tsm *targetStatusMap) Update(sw *scrapeWork, group string, up bool, scrape
 	ts.scrapeTime = scrapeTime
 	ts.scrapeDuration = scrapeDuration
 	ts.samplesScraped = samplesScraped
+	ts.scrapesTotal++
+	if !up {
+		ts.scrapesFailed++
+	}
 	ts.err = err
 	tsm.mu.Unlock()
 }
@@ -227,6 +231,8 @@ type targetStatus struct {
 	scrapeTime     int64
 	scrapeDuration int64
 	samplesScraped int
+	scrapesTotal   int
+	scrapesFailed  int
 	err            error
 }
 
@@ -305,23 +311,11 @@ var droppedTargetsMap = &droppedTargets{
 	m: make(map[string]droppedTarget),
 }
 
-type jobTargetStatus struct {
-	up             bool
-	endpoint       string
-	targetID       string
-	labels         []prompbmarshal.Label
-	originalLabels []prompbmarshal.Label
-	lastScrapeTime time.Duration
-	scrapeDuration time.Duration
-	samplesScraped int
-	errMsg         string
-}
-
 type jobTargetsStatuses struct {
 	job           string
 	upCount       int
 	targetsTotal  int
-	targetsStatus []jobTargetStatus
+	targetsStatus []targetStatus
 }
 
 func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []string) {
@@ -340,28 +334,12 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 			return statuses[i].sw.Config.ScrapeURL < statuses[j].sw.Config.ScrapeURL
 		})
 		ups := 0
-		var targetsStatuses []jobTargetStatus
+		var targetsStatuses []targetStatus
 		for _, ts := range statuses {
 			if ts.up {
 				ups++
 			}
-		}
-		for _, st := range statuses {
-			errMsg := ""
-			if st.err != nil {
-				errMsg = st.err.Error()
-			}
-			targetsStatuses = append(targetsStatuses, jobTargetStatus{
-				up:             st.up,
-				endpoint:       st.sw.Config.ScrapeURL,
-				targetID:       getTargetID(st.sw),
-				labels:         promrelabel.FinalizeLabels(nil, st.sw.Config.Labels),
-				originalLabels: st.sw.Config.OriginalLabels,
-				lastScrapeTime: st.getDurationFromLastScrape(),
-				scrapeDuration: time.Duration(st.scrapeDuration) * time.Millisecond,
-				samplesScraped: st.samplesScraped,
-				errMsg:         errMsg,
-			})
+			targetsStatuses = append(targetsStatuses, ts)
 		}
 		jts = append(jts, jobTargetsStatuses{
 			job:           job,
