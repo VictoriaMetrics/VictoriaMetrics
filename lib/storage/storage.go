@@ -61,6 +61,8 @@ type Storage struct {
 	cachePath      string
 	retentionMsecs int64
 
+	rotationDelayMsecs int64
+
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
@@ -140,7 +142,7 @@ type Storage struct {
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
+func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int, indexdbRotationDelay int64) (*Storage, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
@@ -152,11 +154,11 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 		retentionMsecs = maxRetentionMsecs
 	}
 	s := &Storage{
-		path:           path,
-		cachePath:      path + "/cache",
-		retentionMsecs: retentionMsecs,
-
-		stop: make(chan struct{}),
+		path:               path,
+		cachePath:          path + "/cache",
+		retentionMsecs:     retentionMsecs,
+		rotationDelayMsecs: indexdbRotationDelay,
+		stop:               make(chan struct{}),
 	}
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
@@ -630,7 +632,7 @@ func (s *Storage) startRetentionWatcher() {
 
 func (s *Storage) retentionWatcher() {
 	for {
-		d := nextRetentionDuration(s.retentionMsecs)
+		d := nextRetentionDuration(s.retentionMsecs, s.rotationDelayMsecs)
 		select {
 		case <-s.stop:
 			return
@@ -1002,7 +1004,7 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, info, name string) {
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
 var saveCacheLock sync.Mutex
 
-func nextRetentionDuration(retentionMsecs int64) time.Duration {
+func nextRetentionDuration(retentionMsecs, rotationDelayMsecs int64) time.Duration {
 	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
 	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
 	t := time.Now().UnixNano() / 1e6
@@ -1010,7 +1012,7 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 	// Schedule the deadline to +4 hours from the next retention period start.
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
-	deadline += 4 * 3600 * 1000
+	deadline += 4*3600*1000 + rotationDelayMsecs
 	return time.Duration(deadline-t) * time.Millisecond
 }
 

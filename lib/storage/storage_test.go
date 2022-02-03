@@ -358,7 +358,7 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 
 func TestNextRetentionDuration(t *testing.T) {
 	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
-		d := nextRetentionDuration(int64(retentionMonths * msecsPerMonth))
+		d := nextRetentionDuration(int64(retentionMonths*msecsPerMonth), 0)
 		if d <= 0 {
 			currTime := time.Now().UTC()
 			nextTime := time.Now().UTC().Add(d)
@@ -367,10 +367,23 @@ func TestNextRetentionDuration(t *testing.T) {
 	}
 }
 
+func TestNextRetentionDurationDelayhed(t *testing.T) {
+	retentionMonths := float64(msecsPerMonth)
+	d := nextRetentionDuration(int64(retentionMonths), 0)
+	dDelayed := nextRetentionDuration(int64(retentionMonths), 3600*1000)
+
+	if dDelayed.Hours()-d.Hours() != 1 {
+		currTime := time.Now().UTC()
+		nextTime := time.Now().UTC().Add(d)
+		t.Fatalf("unexpected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
+	}
+
+}
+
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
 	for i := 0; i < 10; i++ {
-		s, err := OpenStorage(path, -1, 1e5, 1e6)
+		s, err := OpenStorage(path, -1, 1e5, 1e6, 0)
 		if err != nil {
 			t.Fatalf("cannot open storage: %s", err)
 		}
@@ -383,13 +396,13 @@ func TestStorageOpenClose(t *testing.T) {
 
 func TestStorageOpenMultipleTimes(t *testing.T) {
 	path := "TestStorageOpenMultipleTimes"
-	s1, err := OpenStorage(path, -1, 0, 0)
+	s1, err := OpenStorage(path, -1, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage the first time: %s", err)
 	}
 
 	for i := 0; i < 10; i++ {
-		s2, err := OpenStorage(path, -1, 0, 0)
+		s2, err := OpenStorage(path, -1, 0, 0, 0)
 		if err == nil {
 			s2.MustClose()
 			t.Fatalf("expecting non-nil error when opening already opened storage")
@@ -404,7 +417,7 @@ func TestStorageOpenMultipleTimes(t *testing.T) {
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
 	retentionMsecs := int64(60 * msecsPerMonth)
-	s, err := OpenStorage(path, retentionMsecs, 0, 0)
+	s, err := OpenStorage(path, retentionMsecs, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -414,7 +427,7 @@ func TestStorageRandTimestamps(t *testing.T) {
 				t.Fatal(err)
 			}
 			s.MustClose()
-			s, err = OpenStorage(path, retentionMsecs, 0, 0)
+			s, err = OpenStorage(path, retentionMsecs, 0, 0, 0)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -497,7 +510,7 @@ func testStorageRandTimestamps(s *Storage) error {
 
 func TestStorageDeleteMetrics(t *testing.T) {
 	path := "TestStorageDeleteMetrics"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -520,7 +533,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s, err = OpenStorage(path, 0, 0, 0)
+			s, err = OpenStorage(path, 0, 0, 0, 0)
 			if err != nil {
 				t.Fatalf("cannot open storage after closing on iteration %d: %s", i, err)
 			}
@@ -716,7 +729,7 @@ func checkTagKeys(tks []string, tksExpected map[string]bool) error {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -731,7 +744,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -877,7 +890,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 
 func TestStorageAddRowsSerial(t *testing.T) {
 	path := "TestStorageAddRowsSerial"
-	s, err := OpenStorage(path, 0, 1e5, 1e5)
+	s, err := OpenStorage(path, 0, 1e5, 1e5, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -892,7 +905,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
-	s, err := OpenStorage(path, 0, 1e5, 1e5)
+	s, err := OpenStorage(path, 0, 1e5, 1e5, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -972,7 +985,7 @@ func testStorageAddRows(s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := s.path + "/snapshots/" + snapshotName
-	s1, err := OpenStorage(snapshotPath, 0, 0, 0)
+	s1, err := OpenStorage(snapshotPath, 0, 0, 0, 0)
 	if err != nil {
 		return fmt.Errorf("cannot open storage from snapshot: %w", err)
 	}
@@ -1019,7 +1032,7 @@ func testStorageAddRows(s *Storage) error {
 
 func TestStorageRotateIndexDB(t *testing.T) {
 	path := "TestStorageRotateIndexDB"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}

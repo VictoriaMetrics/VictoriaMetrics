@@ -48,6 +48,8 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+	indexdbRotationDelay  = flag.Duration("indexdbRotationDelay", 0, "Duration to wait to perform monthly index rotation"+
+		"This is useful for high churn cluster to perform rotation of one vmstorage server after another to avoid having them all overloaded at once")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -89,7 +91,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
-	strg, err := storage.OpenStorage(*DataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
+	strg, err := storage.OpenStorage(*DataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries, indexdbRotationDelay.Milliseconds())
 	if err != nil {
 		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *DataPath, retentionPeriod, err)
 	}
