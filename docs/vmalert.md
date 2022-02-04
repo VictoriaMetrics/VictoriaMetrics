@@ -345,7 +345,7 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
-Example shows how to build a topology where `vmalert` will process data from one cluster
+The following example shows how to build a topology where `vmalert` will process data from one cluster
 and write results into another. Such clusters may be called as "hot" (low retention,
 high-speed disks, used for operative monitoring) and "cold" (long term retention,
 slower/cheaper disks, low resolution data). With help of `vmalert`, user can setup
@@ -364,6 +364,8 @@ or reducing resolution) and push results to "cold" cluster.
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
+
+See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
 
 
 ### Web
