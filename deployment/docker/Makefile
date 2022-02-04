@@ -91,7 +91,12 @@ run-via-docker: package-via-docker
 
 app-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
-	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH) ' \
+	$(MAKE) app-via-docker
+
+app-via-docker-goarch-arm64:
+	APP_SUFFIX='-$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=$(GOARCH) --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	$(MAKE) app-via-docker
 
 app-via-docker-windows-goarch:
@@ -115,7 +120,11 @@ app-via-docker-arm:
 	GOARCH=arm $(MAKE) app-via-docker-goarch-nocgo
 
 app-via-docker-arm64:
+ifeq ($(APP_NAME),vmagent)
 	GOARCH=arm64 $(MAKE) app-via-docker-goarch-nocgo
+else
+	CGO_ENABLED=1 $(MAKE) app-via-docker-goarch-arm64
+endif
 
 app-via-docker-ppc64le:
 	GOARCH=ppc64le $(MAKE) app-via-docker-goarch-nocgo
@@ -129,6 +138,11 @@ app-via-docker-windows-amd64:
 package-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
 	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
+	$(MAKE) package-via-docker
+
+package-via-docker-goarch-arm64:
+	APP_SUFFIX='-$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=$(GOARCH) --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	$(MAKE) package-via-docker
 
 package-via-docker-goarch-cgo:
@@ -147,7 +161,12 @@ package-via-docker-arm:
 	GOARCH=arm $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-arm64:
+ifeq ($(APP_NAME),vmagent)
 	GOARCH=arm64 $(MAKE) package-via-docker-goarch-nocgo
+else
+	GOARCH=arm64 $(MAKE) package-via-docker-goarch-arm64
+endif
+
 
 package-via-docker-ppc64le:
 	GOARCH=ppc64le $(MAKE) package-via-docker-goarch-nocgo
