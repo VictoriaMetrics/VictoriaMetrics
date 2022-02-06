@@ -59,12 +59,10 @@ const HomeLayout: FC = () => {
               <DisplayTypeSwitch/>
               {displayType === "chart" &&  <GraphSettings/>}
             </Box>
-            {error && <Alert color="error" severity="error"
-              style={{fontSize: "14px", whiteSpace: "pre-wrap", marginTop: "20px"}}>
-              {error}
-            </Alert>}
+            {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
             {graphData && period && (displayType === "chart") &&
-              <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis} setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>}
+              <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
+                setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>}
             {liveData && (displayType === "code") && <JsonView data={liveData}/>}
             {liveData && (displayType === "table") && <TableView data={liveData}/>}
           </Box>}

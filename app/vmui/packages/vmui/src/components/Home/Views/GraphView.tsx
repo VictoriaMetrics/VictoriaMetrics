@@ -8,6 +8,7 @@ import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
 import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
+import Alert from "@mui/material/Alert";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -15,11 +16,23 @@ export interface GraphViewProps {
   customStep: CustomStep;
   query: string[];
   yaxis: YaxisState;
+  unit?: string;
+  hideLegend?: boolean;
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({from, to}: {from: Date, to: Date}) => void
 }
 
-const GraphView: FC<GraphViewProps> = ({data = [], period, customStep, query, yaxis, setYaxisLimits, setPeriod}) => {
+const GraphView: FC<GraphViewProps> = ({
+  data = [],
+  period,
+  customStep,
+  query,
+  yaxis,
+  unit,
+  hideLegend,
+  setYaxisLimits,
+  setPeriod
+}) => {
   const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
@@ -84,10 +97,10 @@ const GraphView: FC<GraphViewProps> = ({data = [], period, customStep, query, ya
   return <>
     {(data.length > 0)
       ? <div>
-        <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} setPeriod={setPeriod}/>
-        <Legend labels={legend} query={query} onChange={onChangeLegend}/>
+        <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit} setPeriod={setPeriod}/>
+        {!hideLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
       </div>
-      : <div style={{textAlign: "center"}}>No data to show</div>}
+      : <Alert color="warning" severity="warning" sx={{mt: 2}}>No data to show</Alert>}
   </>;
 };
 
