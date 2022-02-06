@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	xxhash "github.com/cespare/xxhash/v2"
-	jump "github.com/lithammer/go-jump-consistent-hash"
 )
 
 // InsertCtx is a generic context for inserting data.
@@ -162,9 +161,6 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	}
 
 	buf := ctx.labelsBuf[:0]
-	if hashSeed != 0 {
-		buf = append(buf, hashSeed)
-	}
 	buf = encoding.MarshalUint32(buf, at.AccountID)
 	buf = encoding.MarshalUint32(buf, at.ProjectID)
 	for i := range labels {
@@ -175,7 +171,8 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
 
-	idx := int(jump.Hash(h, int32(len(storageNodes))))
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
+	idx := nodesHash.getNodeIdx(h, nil)
 	return idx
 }
 

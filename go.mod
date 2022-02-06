@@ -17,7 +17,6 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/influxdata/influxdb v1.9.5
 	github.com/klauspost/compress v1.14.2
-	github.com/lithammer/go-jump-consistent-hash v1.0.2
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fastjson v1.6.3
