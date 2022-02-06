@@ -17,9 +17,7 @@ const PredefinedLayout: FC = () => {
 
   return <Box id="homeLayout">
     <Header/>
-    {!dashboardSettings && <Alert color="info" severity="info" sx={{fontSize: "14px", m: 4}}>
-      Predefined panels not found
-    </Alert>}
+    {!dashboardSettings && <Alert color="info" severity="info" sx={{m: 4}}>Predefined panels not found</Alert>}
     {dashboardSettings && dashboardSettings.map((d, i) =>
       <Box key={d.filename}>
         <PredefinedDashboard index={i} name={d.name} panels={d.panels} filename={d.filename}/>

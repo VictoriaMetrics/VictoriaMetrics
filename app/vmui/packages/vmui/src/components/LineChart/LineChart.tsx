@@ -19,11 +19,13 @@ export interface LineChartProps {
   period: TimeParams;
   yaxis: YaxisState;
   series: uPlotSeries[];
+  unit?: string;
   setPeriod: ({from, to}: {from: Date, to: Date}) => void;
 }
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
-const LineChart: FC<LineChartProps> = ({data, series, metrics = [], period, yaxis, setPeriod}) => {
+const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
+  period, yaxis, unit, setPeriod}) => {
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
@@ -101,7 +103,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [], period, yaxi
   const options: uPlotOptions = {
     ...defaultOptions,
     series,
-    axes: getAxes(series),
+    axes: getAxes(series, unit),
     scales: {...getScales()},
     width: layoutSize.width ? layoutSize.width - 64 : 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],

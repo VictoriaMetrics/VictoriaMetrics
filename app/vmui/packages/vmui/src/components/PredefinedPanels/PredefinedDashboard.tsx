@@ -14,8 +14,13 @@ export interface PredefinedDashboardProps extends DashboardSettings {
 
 const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, name, panels}) => {
 
-  return <Accordion defaultExpanded={!index}>
-    <AccordionSummary sx={{px: 3}} expandIcon={<ExpandMoreIcon />}>
+  return <Accordion TransitionProps={{ unmountOnExit: true }} defaultExpanded={!index}>
+    <AccordionSummary
+      sx={{px: 3}}
+      aria-controls={`panel${index}-content`}
+      id={`panel${index}-header`}
+      expandIcon={<ExpandMoreIcon />}
+    >
       <Box display="flex" alignItems="center">
         {name && <Typography variant="subtitle1" fontWeight="bold" sx={{mr: 2}}>{name}</Typography>}
         <Typography variant="body2" fontStyle="italic">({panels.length} panels)</Typography>
@@ -23,7 +28,13 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, name, panels}
     </AccordionSummary>
     <AccordionDetails sx={{display: "grid", gridGap: "10px"}}>
       {panels.map((p, i) =>
-        <PredefinedPanels key={i} title={p.title} description={p.description} unit={p.unit} expr={p.expr}/>)}
+        <PredefinedPanels key={i}
+          title={p.title}
+          description={p.description}
+          unit={p.unit}
+          expr={p.expr}
+          hideLegend={p.hideLegend}/>
+      )}
     </AccordionDetails>
   </Accordion>;
 };
