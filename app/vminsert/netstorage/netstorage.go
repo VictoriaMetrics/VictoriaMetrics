@@ -29,7 +29,8 @@ var (
 	replicationFactor     = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
-	disableRerouting = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate")
+	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -dropSamplesOnOverload")
+	dropSamplesOnOverload = flag.Bool("dropSamplesOnOverload", false, "Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -57,6 +58,11 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 		// Fast path - the buffer is successfully sent to sn.
 		return nil
 	}
+	if *dropSamplesOnOverload {
+		sn.rowsDroppedOnOverload.Add(rows)
+		logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second).Warnf("some rows dropped, because -dropSamplesOnOverload is set and the current vmstorage node cannot accept new rows now. See vm_rpc_rows_dropped_on_overload_total metric at /metrics page")
+		return nil
+	}
 	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
 	if err := sn.rerouteBufToOtherStorageNodes(buf, rows); err != nil {
 		return fmt.Errorf("error when re-routing rows from %s: %w", sn.dialer.Addr(), err)
@@ -65,6 +71,7 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 }
 
 func (sn *storageNode) rerouteBufToOtherStorageNodes(buf []byte, rows int) error {
+	reroutesTotal.Inc()
 	sn.brLock.Lock()
 again:
 	select {
@@ -422,6 +429,9 @@ type storageNode struct {
 	// The number of rows sent to vmstorage node.
 	rowsSent *metrics.Counter
 
+	// The number of rows dropped on overload if -dropSamplesOnOverload is set.
+	rowsDroppedOnOverload *metrics.Counter
+
 	// The number of rows rerouted from the given vmstorage node
 	// to healthy nodes when the given node was unhealthy.
 	rowsReroutedFromHere *metrics.Counter
@@ -462,14 +472,15 @@ func InitStorageNodes(addrs []string, hashSeed uint64) {
 		sn := &storageNode{
 			dialer: netutil.NewTCPDialer("vminsert", addr),
 
-			dialErrors:           metrics.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q}`, addr)),
-			handshakeErrors:      metrics.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q}`, addr)),
-			connectionErrors:     metrics.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q}`, addr)),
-			rowsPushed:           metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q}`, addr)),
-			rowsSent:             metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
-			rowsReroutedFromHere: metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
-			rowsReroutedToHere:   metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
-			sendDurationSeconds:  metrics.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
+			dialErrors:            metrics.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q}`, addr)),
+			handshakeErrors:       metrics.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q}`, addr)),
+			connectionErrors:      metrics.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q}`, addr)),
+			rowsPushed:            metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q}`, addr)),
+			rowsSent:              metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
+			rowsDroppedOnOverload: metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q}`, addr)),
+			rowsReroutedFromHere:  metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
+			rowsReroutedToHere:    metrics.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
+			sendDurationSeconds:   metrics.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = metrics.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
