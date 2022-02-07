@@ -132,7 +132,7 @@ func writeMessage(c net.Conn, msg string) error {
 			return fmt.Errorf("cannot flush %q to server: %w", msg, err)
 		}
 	}
-	if err := c.SetWriteDeadline(zeroTime); err != nil {
+	if err := c.SetWriteDeadline(time.Time{}); err != nil {
 		return fmt.Errorf("cannot reset write deadline: %w", err)
 	}
 	return nil
@@ -161,10 +161,8 @@ func readData(c net.Conn, dataLen int) ([]byte, error) {
 	if n, err := io.ReadFull(c, data); err != nil {
 		return nil, fmt.Errorf("cannot read message with size %d: %w; read only %d bytes", dataLen, err, n)
 	}
-	if err := c.SetReadDeadline(zeroTime); err != nil {
+	if err := c.SetReadDeadline(time.Time{}); err != nil {
 		return nil, fmt.Errorf("cannot reset read deadline: %w", err)
 	}
 	return data, nil
 }
-
-var zeroTime time.Time

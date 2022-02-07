@@ -462,8 +462,6 @@ func (ctx *vmselectRequestCtx) writeUint64(n uint64) error {
 
 const maxRPCNameSize = 128
 
-var zeroTime time.Time
-
 func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	// Read rpcName
 	// Do not set deadline on reading rpcName, since it may take a
@@ -482,7 +480,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot set read deadline for reading request args: %w", err)
 	}
 	defer func() {
-		_ = ctx.bc.SetReadDeadline(zeroTime)
+		_ = ctx.bc.SetReadDeadline(time.Time{})
 	}()
 
 	// Read the timeout for request execution.
