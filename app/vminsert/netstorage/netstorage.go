@@ -60,7 +60,7 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	}
 	if *dropSamplesOnOverload {
 		sn.rowsDroppedOnOverload.Add(rows)
-		logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second).Warnf("some rows dropped, because -dropSamplesOnOverload is set and the current vmstorage node cannot accept new rows now. See vm_rpc_rows_dropped_on_overload_total metric at /metrics page")
+		logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second).Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
 		return nil
 	}
 	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
