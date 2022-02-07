@@ -1144,11 +1144,40 @@ write data to the same VictoriaMetrics instance. These vmagent or Prometheus ins
 `external_labels` section in their configs, so they write data to the same time series.
 
 
+## Storage
+
+VictoriaMetrics stores time series data in [MergeTree](https://en.wikipedia.org/wiki/Log-structured_merge-tree)-like 
+data structures. On insert, VictoriaMetrics accumulates up to 1s of data and dumps it on disk to
+`<-storageDataPath>/data/small/YYYY_MM/` subdirectory forming a `part` with the following 
+name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`. Each part consists of two "columns":
+values and timestamps. These are sorted and compressed raw time series values. Additionally, part contains
+index files for searching for specific series in the values and timestamps files.
+
+`Parts` are periodically merged into the bigger parts. The resulting `part` is constructed 
+under `tmp` subdirectory. When the resulting `part` is complete, it is atomically moved from the `tmp` 
+to its own subdirectory, while the source parts are atomically removed. The end result is that the source 
+parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/big/YYYY_MM/`. 
+
+The `merge` process is usually named compaction, because the resulting `part` size is usually smaller than 
+the sum of the source `parts`. There are following benefits of doing the merge process:
+* it improves query performance, since lower number of `parts` are inspected with each query;
+* it reduces the number of data files, since each `part`contains fixed number of files; 
+* better compression rate, since merging re-orders data when forming the new part.
+
+Newly added `parts` either appear in the storage or fail to appear. 
+Storage never contains partially created parts. The same applies to merge process — `parts` are either fully 
+merged into a new `part` or fail to merge. There are no partially merged `parts` in MergeTree. 
+The same applies to the merge — old `parts` are atomically swapped with the new part when it is ready.
+`Part` contents in MergeTree never change. Parts are immutable. They may be only deleted after the merge 
+to a bigger `part`.
+
+See also [how to work with snapshots](#how-to-work-with-snapshots).
+
 ## Retention
 
 Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
 that the data will be stored for 3 months and then deleted.
-Data is split in per-month partitions inside `<-storageDataPath>/data/small` and `<-storageDataPath>/data/big` folders.
+Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 Data partitions outside the configured retention are deleted on the first day of new month.
 
 Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
