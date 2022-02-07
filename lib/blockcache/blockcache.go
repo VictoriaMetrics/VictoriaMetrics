@@ -92,7 +92,7 @@ func (c *Cache) updateSizeBytes(n int) {
 
 // cleaner periodically cleans least recently used entries in c.
 func (c *Cache) cleaner() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(57 * time.Second)
 	defer ticker.Stop()
 	perKeyMissesTicker := time.NewTicker(2 * time.Minute)
 	defer perKeyMissesTicker.Stop()
@@ -113,9 +113,9 @@ func (c *Cache) cleanByTimeout() {
 	c.mu.Lock()
 	for _, pes := range c.m {
 		for offset, e := range pes {
-			// Delete items accessed more than two minutes ago.
+			// Delete items accessed more than five minutes ago.
 			// This time should be enough for repeated queries.
-			if currentTime-atomic.LoadUint64(&e.lastAccessTime) > 2*60 {
+			if currentTime-atomic.LoadUint64(&e.lastAccessTime) > 5*60 {
 				c.updateSizeBytes(-e.block.SizeBytes())
 				delete(pes, offset)
 				// do not delete the entry from c.perKeyMisses, since it is removed by Cache.cleaner later.
