@@ -11,7 +11,7 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v0.1.1
 ## explicit; go 1.11
 cloud.google.com/go/iam
-# cloud.google.com/go/storage v1.19.0
+# cloud.google.com/go/storage v1.20.0
 ## explicit; go 1.11
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal/apiv2
@@ -337,7 +337,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220126215142-9970aeb2e350
+# google.golang.org/genproto v0.0.0-20220201184016-50beb8ab5c44
 ## explicit; go 1.11
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
