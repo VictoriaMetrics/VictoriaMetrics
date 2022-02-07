@@ -15,7 +15,11 @@ import (
 func NewTCPDialer(name, addr string) *TCPDialer {
 	d := &TCPDialer{
 		d: &net.Dialer{
-			Timeout:   time.Second,
+			// The timeout for establishing a TCP connection.
+			// 5 seconds should be enough for the majority of cases.
+			Timeout: 5 * time.Second,
+
+			// How frequently to send keep-alive packets over established TCP connections.
 			KeepAlive: time.Second,
 		},
 
