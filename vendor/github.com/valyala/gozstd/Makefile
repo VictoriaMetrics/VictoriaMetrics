@@ -5,12 +5,11 @@ GOOS_GOARCH_NATIVE := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 LIBZSTD_NAME := libzstd_$(GOOS_GOARCH).a
 ZSTD_VERSION ?= v1.5.1
 MUSL_BUILDER_IMAGE=golang:1.17.6-alpine
-BUILDER_IMAGE := local/builder_musl:2.0.0-$(shell echo $(MUSL_BUILDER_IMAGE) | tr : _)
+BUILDER_IMAGE := local/builder_musl:2.0.0-$(shell echo $(MUSL_BUILDER_IMAGE) | tr : _)-1
 
-.PHONY: libzstd.a
+.PHONY: libzstd.a $(LIBZSTD_NAME)
 
 libzstd.a: $(LIBZSTD_NAME)
-
 $(LIBZSTD_NAME):
 ifeq ($(GOOS_GOARCH),$(GOOS_GOARCH_NATIVE))
 	cd zstd/lib && ZSTD_LEGACY_SUPPORT=0 MOREFLAGS=$(MOREFLAGS) $(MAKE) clean libzstd.a
@@ -27,6 +26,10 @@ endif
 ifeq ($(GOOS_GOARCH),linux_musl_amd64)
 	cd zstd/lib && ZSTD_LEGACY_SUPPORT=0 MOREFLAGS=$(MOREFLAGS) $(MAKE) clean libzstd.a
 	mv zstd/lib/libzstd.a libzstd_linux_musl_amd64.a
+endif
+ifeq ($(GOOS_GOARCH),linux_musl_arm64)
+	cd zstd/lib && ZSTD_LEGACY_SUPPORT=0 MOREFLAGS=$(MOREFLAGS) $(MAKE) clean libzstd.a
+	mv zstd/lib/libzstd.a libzstd_linux_musl_arm64.a
 endif
 endif
 
@@ -45,6 +48,15 @@ package-musl: package-builder
 		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
 		sh -c "GOOS=linux_musl make clean libzstd.a"
+	docker run --rm \
+		--user $(shell id -u):$(shell id -g) \
+		--mount type=bind,src="$(shell pwd)",dst=/zstd \
+		--env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc \
+		-w /zstd \
+		$(DOCKER_OPTS) \
+		$(BUILDER_IMAGE) \
+		sh -c "GOARCH=arm64 GOOS=linux_musl make clean libzstd.a"
+
 
 clean:
 	rm -f $(LIBZSTD_NAME)
