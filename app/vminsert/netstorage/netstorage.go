@@ -674,7 +674,7 @@ func getNotReadyStorageNodeIdxsBlocking(dst []int, snExtra *storageNode) []int {
 func getNotReadyStorageNodeIdxs(dst []int, snExtra *storageNode) []int {
 	dst = dst[:0]
 	for i, sn := range storageNodes {
-		if sn == snExtra && !sn.isReady() {
+		if sn == snExtra || !sn.isReady() {
 			dst = append(dst, i)
 		}
 	}
