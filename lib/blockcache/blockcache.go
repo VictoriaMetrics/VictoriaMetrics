@@ -199,7 +199,10 @@ end:
 // Len returns the number of blocks in the cache c.
 func (c *Cache) Len() int {
 	c.mu.RLock()
-	n := len(c.m)
+	n := 0
+	for _, m := range c.m {
+		n += len(m)
+	}
 	c.mu.RUnlock()
 	return n
 }
