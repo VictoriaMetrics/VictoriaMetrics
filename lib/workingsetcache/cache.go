@@ -36,6 +36,9 @@ type Cache struct {
 	// After the process of switching, this flag will be set to whole.
 	mode uint32
 
+	// The maxBytes value passed to New() or to Load().
+	maxBytes int
+
 	// mu serializes access to curr, prev and mode
 	// in expirationWatcher and cacheSizeWatcher.
 	mu sync.Mutex
@@ -57,9 +60,9 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 		// The cache couldn't be loaded with maxBytes size.
 		// This may mean that the cache is split into curr and prev caches.
 		// Try loading it again with maxBytes / 2 size.
-		curr := fastcache.New(maxBytes / 2)
-		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
-		c := newCacheInternal(curr, prev, split)
+		curr := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
+		prev := fastcache.New(maxBytes / 2)
+		c := newCacheInternal(curr, prev, split, maxBytes)
 		c.runWatchers(expireDuration)
 		return c
 	}
@@ -68,7 +71,7 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 	// Set its' mode to `whole`.
 	// There is no need in runWatchers call.
 	prev := fastcache.New(1024)
-	return newCacheInternal(curr, prev, whole)
+	return newCacheInternal(curr, prev, whole, maxBytes)
 }
 
 // New creates new cache with the given maxBytes capacity and the given expireDuration
@@ -78,13 +81,14 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 func New(maxBytes int, expireDuration time.Duration) *Cache {
 	curr := fastcache.New(maxBytes / 2)
 	prev := fastcache.New(1024)
-	c := newCacheInternal(curr, prev, split)
+	c := newCacheInternal(curr, prev, split, maxBytes)
 	c.runWatchers(expireDuration)
 	return c
 }
 
-func newCacheInternal(curr, prev *fastcache.Cache, mode int) *Cache {
+func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int) *Cache {
 	var c Cache
+	c.maxBytes = maxBytes
 	c.curr.Store(curr)
 	c.prev.Store(prev)
 	c.stopCh = make(chan struct{})
@@ -129,7 +133,10 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		var cs fastcache.Stats
 		curr.UpdateStats(&cs)
 		c.prev.Store(curr)
-		curr = fastcache.New(int(cs.MaxBytesSize))
+		// Use c.maxBytes/2 instead of cs.MaxBytesSize for creating new cache,
+		// since cs.MaxBytesSize may not match c.maxBytes/2, so the created cache
+		// couldn't be loaded from file with c.maxBytes/2 limit after saving with cs.MaxBytesSize size.
+		curr = fastcache.New(c.maxBytes / 2)
 		c.curr.Store(curr)
 		c.mu.Unlock()
 	}
@@ -173,7 +180,9 @@ func (c *Cache) cacheSizeWatcher() {
 	prev.Reset()
 	curr := c.curr.Load().(*fastcache.Cache)
 	c.prev.Store(curr)
-	c.curr.Store(fastcache.New(int(maxBytesSize * 2)))
+	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
+	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
+	c.curr.Store(fastcache.New(c.maxBytes))
 	c.mu.Unlock()
 
 	for {
