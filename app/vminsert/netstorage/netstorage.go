@@ -71,7 +71,6 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 }
 
 func (sn *storageNode) rerouteBufToOtherStorageNodes(buf []byte, rows int) error {
-	reroutesTotal.Inc()
 	sn.brLock.Lock()
 again:
 	select {
@@ -534,6 +533,7 @@ func Stop() {
 //
 // The function blocks until src is fully re-routed.
 func rerouteRowsToReadyStorageNodes(snSource *storageNode, src []byte) (int, error) {
+	reroutesTotal.Inc()
 	rowsProcessed := 0
 	var idxsExclude, idxsExcludeNew []int
 	idxsExclude = getNotReadyStorageNodeIdxsBlocking(idxsExclude[:0], nil)
@@ -569,6 +569,7 @@ func rerouteRowsToReadyStorageNodes(snSource *storageNode, src []byte) (int, err
 			}
 			continue
 		}
+	again:
 		if sn.trySendBuf(rowBuf, 1) {
 			rowsProcessed++
 			if sn != snSource {
@@ -578,7 +579,7 @@ func rerouteRowsToReadyStorageNodes(snSource *storageNode, src []byte) (int, err
 			continue
 		}
 		// If the re-routing is enabled, then try sending the row to another storage node.
-		idxsExcludeNew = getNotReadyStorageNodeIdxsBlocking(idxsExcludeNew[:0], sn)
+		idxsExcludeNew = getNotReadyStorageNodeIdxs(idxsExcludeNew[:0], sn)
 		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
 		snNew := storageNodes[idx]
 		if snNew.trySendBuf(rowBuf, 1) {
@@ -589,15 +590,10 @@ func rerouteRowsToReadyStorageNodes(snSource *storageNode, src []byte) (int, err
 			}
 			continue
 		}
-		// Fall back to sending the row to sn in order to minimize re-routing.
-		if !sn.sendBufMayBlock(rowBuf) {
-			return rowsProcessed, fmt.Errorf("graceful shutdown started")
-		}
-		rowsProcessed++
-		if sn != snSource {
-			snSource.rowsReroutedFromHere.Inc()
-			sn.rowsReroutedToHere.Inc()
-		}
+		// The row cannot be sent to both snSource and the re-routed sn without blocking.
+		// Sleep for a while and try sending the row to snSource again.
+		time.Sleep(100 * time.Millisecond)
+		goto again
 	}
 	return rowsProcessed, nil
 }
@@ -610,9 +606,10 @@ func rerouteRowsToFreeStorageNodes(snSource *storageNode, src []byte) (int, erro
 	if *disableRerouting {
 		logger.Panicf("BUG: disableRerouting must be disabled when calling rerouteRowsToFreeStorageNodes")
 	}
+	reroutesTotal.Inc()
 	rowsProcessed := 0
 	var idxsExclude []int
-	idxsExclude = getNotReadyStorageNodeIdxsBlocking(idxsExclude[:0], snSource)
+	idxsExclude = getNotReadyStorageNodeIdxs(idxsExclude[:0], snSource)
 	var mr storage.MetricRow
 	for len(src) > 0 {
 		tail, err := mr.UnmarshalX(src)
@@ -625,6 +622,7 @@ func rerouteRowsToFreeStorageNodes(snSource *storageNode, src []byte) (int, erro
 		h := xxhash.Sum64(mr.MetricNameRaw)
 		mr.ResetX()
 		// Try sending the row to snSource in order to minimize re-routing.
+	again:
 		if snSource.trySendBuf(rowBuf, 1) {
 			rowsProcessed++
 			continue
@@ -638,7 +636,7 @@ func rerouteRowsToFreeStorageNodes(snSource *storageNode, src []byte) (int, erro
 				break
 			}
 			// re-generate idxsExclude list, since sn must be put there.
-			idxsExclude = getNotReadyStorageNodeIdxsBlocking(idxsExclude[:0], snSource)
+			idxsExclude = getNotReadyStorageNodeIdxs(idxsExclude[:0], snSource)
 		}
 		if sn.trySendBuf(rowBuf, 1) {
 			rowsProcessed++
@@ -646,11 +644,10 @@ func rerouteRowsToFreeStorageNodes(snSource *storageNode, src []byte) (int, erro
 			sn.rowsReroutedToHere.Inc()
 			continue
 		}
-		// Fall back sending the row to snSource in order to minimize re-routing.
-		if !snSource.sendBufMayBlock(rowBuf) {
-			return rowsProcessed, fmt.Errorf("graceful shutdown started")
-		}
-		rowsProcessed++
+		// The row cannot be sent to both snSource and the re-routed sn without blocking.
+		// Sleep for a while and try sending the row to snSource again.
+		time.Sleep(100 * time.Millisecond)
+		goto again
 	}
 	return rowsProcessed, nil
 }
