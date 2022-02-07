@@ -38,7 +38,8 @@ const (
 	AF_KEY                                      = 0xf
 	AF_LLC                                      = 0x1a
 	AF_LOCAL                                    = 0x1
-	AF_MAX                                      = 0x2d
+	AF_MAX                                      = 0x2e
+	AF_MCTP                                     = 0x2d
 	AF_MPLS                                     = 0x1c
 	AF_NETBEUI                                  = 0xd
 	AF_NETLINK                                  = 0x10
