@@ -1,3 +1,4 @@
+//go:build appengine || windows
 // +build appengine windows
 
 package fastcache
