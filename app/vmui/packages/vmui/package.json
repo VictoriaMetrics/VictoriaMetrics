@@ -7,7 +7,7 @@
     "@date-io/dayjs": "^2.11.0",
     "@emotion/styled": "^11.6.0",
     "@mui/icons-material": "^5.3.1",
-    "@mui/lab": "^5.0.0-alpha.66",
+    "@mui/lab": "^5.0.0-alpha.67",
     "@mui/material": "^5.3.1",
     "@mui/styles": "^5.3.0",
     "@testing-library/jest-dom": "^5.16.1",
