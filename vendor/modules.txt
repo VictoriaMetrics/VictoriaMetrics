@@ -138,8 +138,8 @@ github.com/google/go-cmp/cmp/internal/value
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
-# github.com/influxdata/influxdb v1.9.5
-## explicit; go 1.15
+# github.com/influxdata/influxdb v1.9.6
+## explicit; go 1.17
 github.com/influxdata/influxdb/client/v2
 github.com/influxdata/influxdb/models
 github.com/influxdata/influxdb/pkg/escape
