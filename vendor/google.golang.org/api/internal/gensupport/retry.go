@@ -20,8 +20,8 @@ type Backoff interface {
 
 // These are declared as global variables so that tests can overwrite them.
 var (
-	// Per-chunk deadline for resumable uploads.
-	retryDeadline = 32 * time.Second
+	// Default per-chunk deadline for resumable uploads.
+	defaultRetryDeadline = 32 * time.Second
 	// Default backoff timer.
 	backoff = func() Backoff {
 		return &gax.Backoff{Initial: 100 * time.Millisecond}

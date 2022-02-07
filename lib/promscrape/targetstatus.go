@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -21,6 +22,24 @@ var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maxi
 	"Note that the increased number of tracked dropped targets may result in increased memory usage")
 
 var tsmGlobal = newTargetStatusMap()
+
+// WriteTargetResponse serves requests to /target_response?id=<id>
+//
+// It fetches response for the given target id and returns it.
+func WriteTargetResponse(w http.ResponseWriter, r *http.Request) error {
+	targetID := r.FormValue("id")
+	sw := tsmGlobal.getScrapeWorkByTargetID(targetID)
+	if sw == nil {
+		return fmt.Errorf("cannot find target for id=%s", targetID)
+	}
+	data, err := sw.getTargetResponse()
+	if err != nil {
+		return fmt.Errorf("cannot fetch response from id=%s: %w", targetID, err)
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, err = w.Write(data)
+	return err
+}
 
 // WriteHumanReadableTargetsStatus writes human-readable status for all the scrape targets to w according to r.
 func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
@@ -57,19 +76,19 @@ func WriteAPIV1Targets(w io.Writer, state string) {
 
 type targetStatusMap struct {
 	mu       sync.Mutex
-	m        map[*ScrapeWork]*targetStatus
+	m        map[*scrapeWork]*targetStatus
 	jobNames []string
 }
 
 func newTargetStatusMap() *targetStatusMap {
 	return &targetStatusMap{
-		m: make(map[*ScrapeWork]*targetStatus),
+		m: make(map[*scrapeWork]*targetStatus),
 	}
 }
 
 func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Lock()
-	tsm.m = make(map[*ScrapeWork]*targetStatus)
+	tsm.m = make(map[*scrapeWork]*targetStatus)
 	tsm.mu.Unlock()
 }
 
@@ -79,7 +98,7 @@ func (tsm *targetStatusMap) registerJobNames(jobNames []string) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Register(sw *ScrapeWork) {
+func (tsm *targetStatusMap) Register(sw *scrapeWork) {
 	tsm.mu.Lock()
 	tsm.m[sw] = &targetStatus{
 		sw: sw,
@@ -87,13 +106,13 @@ func (tsm *targetStatusMap) Register(sw *ScrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
+func (tsm *targetStatusMap) Unregister(sw *scrapeWork) {
 	tsm.mu.Lock()
 	delete(tsm.m, sw)
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
+func (tsm *targetStatusMap) Update(sw *scrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
 	tsm.mu.Lock()
 	ts := tsm.m[sw]
 	if ts == nil {
@@ -107,8 +126,27 @@ func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrape
 	ts.scrapeTime = scrapeTime
 	ts.scrapeDuration = scrapeDuration
 	ts.samplesScraped = samplesScraped
+	ts.scrapesTotal++
+	if !up {
+		ts.scrapesFailed++
+	}
 	ts.err = err
 	tsm.mu.Unlock()
+}
+
+func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork {
+	tsm.mu.Lock()
+	defer tsm.mu.Unlock()
+	for sw := range tsm.m {
+		if getTargetID(sw) == targetID {
+			return sw
+		}
+	}
+	return nil
+}
+
+func getTargetID(sw *scrapeWork) string {
+	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(sw)))
 }
 
 // StatusByGroup returns the number of targets with status==up
@@ -134,7 +172,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 	}
 	kss := make([]keyStatus, 0, len(tsm.m))
 	for sw, st := range tsm.m {
-		key := promLabelsString(sw.OriginalLabels)
+		key := promLabelsString(sw.Config.OriginalLabels)
 		kss = append(kss, keyStatus{
 			key: key,
 			st:  *st,
@@ -149,12 +187,12 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 	for i, ks := range kss {
 		st := ks.st
 		fmt.Fprintf(w, `{"discoveredLabels":`)
-		writeLabelsJSON(w, st.sw.OriginalLabels)
+		writeLabelsJSON(w, st.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
-		labelsFinalized := promrelabel.FinalizeLabels(nil, st.sw.Labels)
+		labelsFinalized := promrelabel.FinalizeLabels(nil, st.sw.Config.Labels)
 		writeLabelsJSON(w, labelsFinalized)
-		fmt.Fprintf(w, `,"scrapePool":%q`, st.sw.Job())
-		fmt.Fprintf(w, `,"scrapeUrl":%q`, st.sw.ScrapeURL)
+		fmt.Fprintf(w, `,"scrapePool":%q`, st.sw.Config.Job())
+		fmt.Fprintf(w, `,"scrapeUrl":%q`, st.sw.Config.ScrapeURL)
 		errMsg := ""
 		if st.err != nil {
 			errMsg = st.err.Error()
@@ -187,12 +225,14 @@ func writeLabelsJSON(w io.Writer, labels []prompbmarshal.Label) {
 }
 
 type targetStatus struct {
-	sw             *ScrapeWork
+	sw             *scrapeWork
 	up             bool
 	scrapeGroup    string
 	scrapeTime     int64
 	scrapeDuration int64
 	samplesScraped int
+	scrapesTotal   int
+	scrapesFailed  int
 	err            error
 }
 
@@ -271,29 +311,18 @@ var droppedTargetsMap = &droppedTargets{
 	m: make(map[string]droppedTarget),
 }
 
-type jobTargetStatus struct {
-	up             bool
-	endpoint       string
-	labels         []prompbmarshal.Label
-	originalLabels []prompbmarshal.Label
-	lastScrapeTime time.Duration
-	scrapeDuration time.Duration
-	samplesScraped int
-	errMsg         string
-}
-
 type jobTargetsStatuses struct {
 	job           string
 	upCount       int
 	targetsTotal  int
-	targetsStatus []jobTargetStatus
+	targetsStatus []targetStatus
 }
 
 func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []string) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
-		job := st.sw.jobNameOriginal
+		job := st.sw.Config.jobNameOriginal
 		byJob[job] = append(byJob[job], *st)
 	}
 	jobNames := append([]string{}, tsm.jobNames...)
@@ -302,30 +331,15 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 	var jts []jobTargetsStatuses
 	for job, statuses := range byJob {
 		sort.Slice(statuses, func(i, j int) bool {
-			return statuses[i].sw.ScrapeURL < statuses[j].sw.ScrapeURL
+			return statuses[i].sw.Config.ScrapeURL < statuses[j].sw.Config.ScrapeURL
 		})
 		ups := 0
-		var targetsStatuses []jobTargetStatus
+		var targetsStatuses []targetStatus
 		for _, ts := range statuses {
 			if ts.up {
 				ups++
 			}
-		}
-		for _, st := range statuses {
-			errMsg := ""
-			if st.err != nil {
-				errMsg = st.err.Error()
-			}
-			targetsStatuses = append(targetsStatuses, jobTargetStatus{
-				up:             st.up,
-				endpoint:       st.sw.ScrapeURL,
-				labels:         promrelabel.FinalizeLabels(nil, st.sw.Labels),
-				originalLabels: st.sw.OriginalLabels,
-				lastScrapeTime: st.getDurationFromLastScrape(),
-				scrapeDuration: time.Duration(st.scrapeDuration) * time.Millisecond,
-				samplesScraped: st.samplesScraped,
-				errMsg:         errMsg,
-			})
+			targetsStatuses = append(targetsStatuses, ts)
 		}
 		jts = append(jts, jobTargetsStatuses{
 			job:           job,

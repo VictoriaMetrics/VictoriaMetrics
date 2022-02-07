@@ -5,53 +5,53 @@
 package promscrape
 
 //line lib/promscrape/targets_response.qtpl:1
-import "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"time"
+)
 
-//line lib/promscrape/targets_response.qtpl:6
+//line lib/promscrape/targets_response.qtpl:9
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line lib/promscrape/targets_response.qtpl:6
+//line lib/promscrape/targets_response.qtpl:9
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line lib/promscrape/targets_response.qtpl:6
+//line lib/promscrape/targets_response.qtpl:9
 func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels bool) {
-//line lib/promscrape/targets_response.qtpl:8
+//line lib/promscrape/targets_response.qtpl:11
 	for _, js := range jts {
-//line lib/promscrape/targets_response.qtpl:8
+//line lib/promscrape/targets_response.qtpl:11
 		qw422016.N().S(`job=`)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().Q(js.job)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().S(`(`)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().D(js.upCount)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().S(`/`)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().D(js.targetsTotal)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:9
+//line lib/promscrape/targets_response.qtpl:12
 		qw422016.N().S(`up)`)
-//line lib/promscrape/targets_response.qtpl:10
+//line lib/promscrape/targets_response.qtpl:13
 		qw422016.N().S(`
 `)
-//line lib/promscrape/targets_response.qtpl:11
+//line lib/promscrape/targets_response.qtpl:14
 		for _, ts := range js.targetsStatus {
-//line lib/promscrape/targets_response.qtpl:13
-			labels := promLabelsString(ts.labels)
-			ol := promLabelsString(ts.originalLabels)
-
-//line lib/promscrape/targets_response.qtpl:16
+//line lib/promscrape/targets_response.qtpl:15
 			qw422016.N().S("\t")
-//line lib/promscrape/targets_response.qtpl:16
+//line lib/promscrape/targets_response.qtpl:15
 			qw422016.N().S(`state=`)
 //line lib/promscrape/targets_response.qtpl:16
 			if ts.up {
@@ -70,7 +70,7 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets_response.qtpl:16
 			qw422016.N().S(`endpoint=`)
 //line lib/promscrape/targets_response.qtpl:17
-			qw422016.N().S(ts.endpoint)
+			qw422016.N().S(ts.sw.Config.ScrapeURL)
 //line lib/promscrape/targets_response.qtpl:17
 			qw422016.N().S(`,`)
 //line lib/promscrape/targets_response.qtpl:17
@@ -78,354 +78,389 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets_response.qtpl:17
 			qw422016.N().S(`labels=`)
 //line lib/promscrape/targets_response.qtpl:18
-			qw422016.N().S(labels)
+			qw422016.N().S(promLabelsString(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)))
+//line lib/promscrape/targets_response.qtpl:18
+			qw422016.N().S(`,`)
+//line lib/promscrape/targets_response.qtpl:18
+			qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:19
 			if showOriginLabels {
 //line lib/promscrape/targets_response.qtpl:19
-				qw422016.N().S(`, originalLabels=`)
+				qw422016.N().S(`originalLabels=`)
 //line lib/promscrape/targets_response.qtpl:19
-				qw422016.N().S(ol)
+				qw422016.N().S(promLabelsString(ts.sw.Config.OriginalLabels))
+//line lib/promscrape/targets_response.qtpl:19
+				qw422016.N().S(`,`)
+//line lib/promscrape/targets_response.qtpl:19
+				qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:19
 			}
 //line lib/promscrape/targets_response.qtpl:19
+			qw422016.N().S(`scrapes_total=`)
+//line lib/promscrape/targets_response.qtpl:20
+			qw422016.N().D(ts.scrapesTotal)
+//line lib/promscrape/targets_response.qtpl:20
 			qw422016.N().S(`,`)
-//line lib/promscrape/targets_response.qtpl:19
+//line lib/promscrape/targets_response.qtpl:20
 			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:19
+//line lib/promscrape/targets_response.qtpl:20
+			qw422016.N().S(`scrapes_failed=`)
+//line lib/promscrape/targets_response.qtpl:21
+			qw422016.N().D(ts.scrapesFailed)
+//line lib/promscrape/targets_response.qtpl:21
+			qw422016.N().S(`,`)
+//line lib/promscrape/targets_response.qtpl:21
+			qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:21
 			qw422016.N().S(`last_scrape=`)
-//line lib/promscrape/targets_response.qtpl:20
-			qw422016.N().FPrec(ts.lastScrapeTime.Seconds(), 3)
-//line lib/promscrape/targets_response.qtpl:20
+//line lib/promscrape/targets_response.qtpl:22
+			qw422016.N().FPrec(ts.getDurationFromLastScrape().Seconds(), 3)
+//line lib/promscrape/targets_response.qtpl:22
 			qw422016.N().S(`s ago,`)
-//line lib/promscrape/targets_response.qtpl:20
+//line lib/promscrape/targets_response.qtpl:22
 			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:20
+//line lib/promscrape/targets_response.qtpl:22
 			qw422016.N().S(`scrape_duration=`)
-//line lib/promscrape/targets_response.qtpl:21
-			qw422016.N().FPrec(ts.scrapeDuration.Seconds(), 3)
-//line lib/promscrape/targets_response.qtpl:21
-			qw422016.N().S(`s,`)
-//line lib/promscrape/targets_response.qtpl:21
-			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:21
-			qw422016.N().S(`samples_scraped=`)
-//line lib/promscrape/targets_response.qtpl:22
-			qw422016.N().D(ts.samplesScraped)
-//line lib/promscrape/targets_response.qtpl:22
-			qw422016.N().S(`,`)
-//line lib/promscrape/targets_response.qtpl:22
-			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:22
-			qw422016.N().S(`error=`)
 //line lib/promscrape/targets_response.qtpl:23
-			qw422016.N().Q(ts.errMsg)
+			qw422016.N().D(int(ts.scrapeDuration))
+//line lib/promscrape/targets_response.qtpl:23
+			qw422016.N().S(`ms,`)
+//line lib/promscrape/targets_response.qtpl:23
+			qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:23
+			qw422016.N().S(`samples_scraped=`)
 //line lib/promscrape/targets_response.qtpl:24
+			qw422016.N().D(ts.samplesScraped)
+//line lib/promscrape/targets_response.qtpl:24
+			qw422016.N().S(`,`)
+//line lib/promscrape/targets_response.qtpl:24
+			qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:24
+			qw422016.N().S(`error=`)
+//line lib/promscrape/targets_response.qtpl:25
+			if ts.err != nil {
+//line lib/promscrape/targets_response.qtpl:25
+				qw422016.N().S(ts.err.Error())
+//line lib/promscrape/targets_response.qtpl:25
+			}
+//line lib/promscrape/targets_response.qtpl:26
 			qw422016.N().S(`
 `)
-//line lib/promscrape/targets_response.qtpl:25
+//line lib/promscrape/targets_response.qtpl:27
 		}
-//line lib/promscrape/targets_response.qtpl:26
+//line lib/promscrape/targets_response.qtpl:28
 	}
-//line lib/promscrape/targets_response.qtpl:28
-	for _, jobName := range emptyJobs {
-//line lib/promscrape/targets_response.qtpl:28
-		qw422016.N().S(`job=`)
-//line lib/promscrape/targets_response.qtpl:29
-		qw422016.N().Q(jobName)
-//line lib/promscrape/targets_response.qtpl:29
-		qw422016.N().S(`(0/0 up)`)
 //line lib/promscrape/targets_response.qtpl:30
+	for _, jobName := range emptyJobs {
+//line lib/promscrape/targets_response.qtpl:30
+		qw422016.N().S(`job=`)
+//line lib/promscrape/targets_response.qtpl:31
+		qw422016.N().Q(jobName)
+//line lib/promscrape/targets_response.qtpl:31
+		qw422016.N().S(`(0/0 up)`)
+//line lib/promscrape/targets_response.qtpl:32
 		qw422016.N().S(`
 `)
-//line lib/promscrape/targets_response.qtpl:31
-	}
 //line lib/promscrape/targets_response.qtpl:33
+	}
+//line lib/promscrape/targets_response.qtpl:35
 }
 
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 func WriteTargetsResponsePlain(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels bool) {
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	StreamTargetsResponsePlain(qw422016, jts, emptyJobs, showOriginLabels)
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 }
 
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels bool) string {
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	WriteTargetsResponsePlain(qb422016, jts, emptyJobs, showOriginLabels)
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	qs422016 := string(qb422016.B)
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 	return qs422016
-//line lib/promscrape/targets_response.qtpl:33
+//line lib/promscrape/targets_response.qtpl:35
 }
 
-//line lib/promscrape/targets_response.qtpl:35
+//line lib/promscrape/targets_response.qtpl:37
 func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) {
-//line lib/promscrape/targets_response.qtpl:35
+//line lib/promscrape/targets_response.qtpl:37
 	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"><title>Scrape targets</title></head><body class="m-3"><h1>Scrape targets</h1><div><button type="button" class="btn`)
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 	qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 	if !onlyUnhealthy {
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 		qw422016.N().S(`btn-primary`)
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 	} else {
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 		qw422016.N().S(`btn-secondary`)
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 	}
-//line lib/promscrape/targets_response.qtpl:47
+//line lib/promscrape/targets_response.qtpl:49
 	qw422016.N().S(`" onclick="location.href='targets'">All</button><button type="button" class="btn`)
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 	qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 	if onlyUnhealthy {
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 		qw422016.N().S(`btn-primary`)
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 	} else {
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 		qw422016.N().S(`btn-secondary`)
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 	}
-//line lib/promscrape/targets_response.qtpl:50
+//line lib/promscrape/targets_response.qtpl:52
 	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button></div>`)
-//line lib/promscrape/targets_response.qtpl:54
+//line lib/promscrape/targets_response.qtpl:56
 	for i, js := range jts {
-//line lib/promscrape/targets_response.qtpl:55
+//line lib/promscrape/targets_response.qtpl:57
 		if onlyUnhealthy && js.upCount == js.targetsTotal {
-//line lib/promscrape/targets_response.qtpl:55
+//line lib/promscrape/targets_response.qtpl:57
 			continue
-//line lib/promscrape/targets_response.qtpl:55
+//line lib/promscrape/targets_response.qtpl:57
 		}
-//line lib/promscrape/targets_response.qtpl:55
+//line lib/promscrape/targets_response.qtpl:57
 		qw422016.N().S(`<div><h4>`)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.E().S(js.job)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(`(`)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().D(js.upCount)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(`/`)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().D(js.targetsTotal)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:58
+//line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(`up)<button type="button" class="btn btn-primary" onclick="document.getElementById('table-`)
-//line lib/promscrape/targets_response.qtpl:59
+//line lib/promscrape/targets_response.qtpl:61
 		qw422016.N().D(i)
-//line lib/promscrape/targets_response.qtpl:59
+//line lib/promscrape/targets_response.qtpl:61
 		qw422016.N().S(`').style.display='none'">collapse</button><button type="button" class="btn btn-secondary" onclick="document.getElementById('table-`)
-//line lib/promscrape/targets_response.qtpl:60
+//line lib/promscrape/targets_response.qtpl:62
 		qw422016.N().D(i)
-//line lib/promscrape/targets_response.qtpl:60
+//line lib/promscrape/targets_response.qtpl:62
 		qw422016.N().S(`').style.display='block'">expand</button></h4><div id="table-`)
-//line lib/promscrape/targets_response.qtpl:62
+//line lib/promscrape/targets_response.qtpl:64
 		qw422016.N().D(i)
-//line lib/promscrape/targets_response.qtpl:62
-		qw422016.N().S(`"><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col">Labels</th><th scope="col">Last Scrape</th><th scope="col">Scrape Duration</th><th scope="col">Samples Scraped</th><th scope="col">Error</th></tr></thead><tbody>`)
-//line lib/promscrape/targets_response.qtpl:76
-		for j, ts := range js.targetsStatus {
-//line lib/promscrape/targets_response.qtpl:77
+//line lib/promscrape/targets_response.qtpl:64
+		qw422016.N().S(`"><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col" title="scrape target labels">Labels</th><th scope="col" title="total scrapes">Scrapes</th><th scope="col" title="total scrape errors">Errors</th><th scope="col" title="the time of the last scrape">Last Scrape</th><th scope="col" title="the duration of the last scrape">Duration</th><th scope="col" title="the number of metrics scraped during the last scrape">Samples</th><th scope="col" title="error from the last scrape (if any)">Last error</th></tr></thead><tbody>`)
+//line lib/promscrape/targets_response.qtpl:80
+		for _, ts := range js.targetsStatus {
+//line lib/promscrape/targets_response.qtpl:82
+			endpoint := ts.sw.Config.ScrapeURL
+			targetID := getTargetID(ts.sw)
+			lastScrapeTime := ts.getDurationFromLastScrape()
+
+//line lib/promscrape/targets_response.qtpl:86
 			if onlyUnhealthy && ts.up {
-//line lib/promscrape/targets_response.qtpl:77
+//line lib/promscrape/targets_response.qtpl:86
 				continue
-//line lib/promscrape/targets_response.qtpl:77
+//line lib/promscrape/targets_response.qtpl:86
 			}
-//line lib/promscrape/targets_response.qtpl:77
+//line lib/promscrape/targets_response.qtpl:86
 			qw422016.N().S(`<tr`)
-//line lib/promscrape/targets_response.qtpl:78
+//line lib/promscrape/targets_response.qtpl:87
 			if !ts.up {
-//line lib/promscrape/targets_response.qtpl:78
+//line lib/promscrape/targets_response.qtpl:87
 				qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:78
+//line lib/promscrape/targets_response.qtpl:87
 				qw422016.N().S(`class="alert alert-danger" role="alert"`)
-//line lib/promscrape/targets_response.qtpl:78
+//line lib/promscrape/targets_response.qtpl:87
 			}
-//line lib/promscrape/targets_response.qtpl:78
+//line lib/promscrape/targets_response.qtpl:87
 			qw422016.N().S(`><td><a href="`)
-//line lib/promscrape/targets_response.qtpl:79
-			qw422016.E().S(ts.endpoint)
-//line lib/promscrape/targets_response.qtpl:79
-			qw422016.N().S(`">`)
-//line lib/promscrape/targets_response.qtpl:79
-			qw422016.E().S(ts.endpoint)
-//line lib/promscrape/targets_response.qtpl:79
-			qw422016.N().S(`</a><br></td><td>`)
-//line lib/promscrape/targets_response.qtpl:80
+//line lib/promscrape/targets_response.qtpl:88
+			qw422016.E().S(endpoint)
+//line lib/promscrape/targets_response.qtpl:88
+			qw422016.N().S(`" target="_blank">`)
+//line lib/promscrape/targets_response.qtpl:88
+			qw422016.E().S(endpoint)
+//line lib/promscrape/targets_response.qtpl:88
+			qw422016.N().S(`</a> (<a href="target_response?id=`)
+//line lib/promscrape/targets_response.qtpl:89
+			qw422016.E().S(targetID)
+//line lib/promscrape/targets_response.qtpl:89
+			qw422016.N().S(`" target="_blank" title="click to fetch target response on behalf of the scraper">response</a>)</td><td>`)
+//line lib/promscrape/targets_response.qtpl:91
 			if ts.up {
-//line lib/promscrape/targets_response.qtpl:80
+//line lib/promscrape/targets_response.qtpl:91
 				qw422016.N().S(`UP`)
-//line lib/promscrape/targets_response.qtpl:80
+//line lib/promscrape/targets_response.qtpl:91
 			} else {
-//line lib/promscrape/targets_response.qtpl:80
+//line lib/promscrape/targets_response.qtpl:91
 				qw422016.N().S(`DOWN`)
-//line lib/promscrape/targets_response.qtpl:80
+//line lib/promscrape/targets_response.qtpl:91
 			}
-//line lib/promscrape/targets_response.qtpl:80
-			qw422016.N().S(`</td><td><button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('original_labels_`)
-//line lib/promscrape/targets_response.qtpl:82
-			qw422016.N().D(i)
-//line lib/promscrape/targets_response.qtpl:82
-			qw422016.N().S(`_`)
-//line lib/promscrape/targets_response.qtpl:82
-			qw422016.N().D(j)
-//line lib/promscrape/targets_response.qtpl:82
-			qw422016.N().S(`').style.display='block'">show original labels</button>`)
-//line lib/promscrape/targets_response.qtpl:82
-			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:83
-			streamformatLabel(qw422016, ts.labels)
-//line lib/promscrape/targets_response.qtpl:83
-			qw422016.N().S(`<div style="display:none" id="original_labels_`)
-//line lib/promscrape/targets_response.qtpl:84
-			qw422016.N().D(i)
-//line lib/promscrape/targets_response.qtpl:84
-			qw422016.N().S(`_`)
-//line lib/promscrape/targets_response.qtpl:84
-			qw422016.N().D(j)
-//line lib/promscrape/targets_response.qtpl:84
-			qw422016.N().S(`"><button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('original_labels_`)
-//line lib/promscrape/targets_response.qtpl:85
-			qw422016.N().D(i)
-//line lib/promscrape/targets_response.qtpl:85
-			qw422016.N().S(`_`)
-//line lib/promscrape/targets_response.qtpl:85
-			qw422016.N().D(j)
-//line lib/promscrape/targets_response.qtpl:85
-			qw422016.N().S(`').style.display='none'">hide original labels</button>`)
-//line lib/promscrape/targets_response.qtpl:85
-			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:86
-			streamformatLabel(qw422016, ts.originalLabels)
-//line lib/promscrape/targets_response.qtpl:86
+//line lib/promscrape/targets_response.qtpl:91
+			qw422016.N().S(`</td><td><div title="click to show original labels" onclick="document.getElementById('original_labels_`)
+//line lib/promscrape/targets_response.qtpl:93
+			qw422016.E().S(targetID)
+//line lib/promscrape/targets_response.qtpl:93
+			qw422016.N().S(`').style.display='block'">`)
+//line lib/promscrape/targets_response.qtpl:94
+			streamformatLabel(qw422016, promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels))
+//line lib/promscrape/targets_response.qtpl:94
+			qw422016.N().S(`</div><div style="display:none" id="original_labels_`)
+//line lib/promscrape/targets_response.qtpl:96
+			qw422016.E().S(targetID)
+//line lib/promscrape/targets_response.qtpl:96
+			qw422016.N().S(`">`)
+//line lib/promscrape/targets_response.qtpl:97
+			streamformatLabel(qw422016, ts.sw.Config.OriginalLabels)
+//line lib/promscrape/targets_response.qtpl:97
 			qw422016.N().S(`</div></td><td>`)
-//line lib/promscrape/targets_response.qtpl:89
-			qw422016.N().FPrec(ts.lastScrapeTime.Seconds(), 3)
-//line lib/promscrape/targets_response.qtpl:89
-			qw422016.N().S(`s ago</td><td>`)
-//line lib/promscrape/targets_response.qtpl:90
-			qw422016.N().FPrec(ts.scrapeDuration.Seconds(), 3)
-//line lib/promscrape/targets_response.qtpl:90
-			qw422016.N().S(`s</td><td>`)
-//line lib/promscrape/targets_response.qtpl:91
-			qw422016.N().D(ts.samplesScraped)
-//line lib/promscrape/targets_response.qtpl:91
+//line lib/promscrape/targets_response.qtpl:100
+			qw422016.N().D(ts.scrapesTotal)
+//line lib/promscrape/targets_response.qtpl:100
 			qw422016.N().S(`</td><td>`)
-//line lib/promscrape/targets_response.qtpl:92
-			qw422016.E().S(ts.errMsg)
-//line lib/promscrape/targets_response.qtpl:92
+//line lib/promscrape/targets_response.qtpl:101
+			qw422016.N().D(ts.scrapesFailed)
+//line lib/promscrape/targets_response.qtpl:101
+			qw422016.N().S(`</td><td>`)
+//line lib/promscrape/targets_response.qtpl:103
+			if lastScrapeTime < 365*24*time.Hour {
+//line lib/promscrape/targets_response.qtpl:104
+				qw422016.N().FPrec(lastScrapeTime.Seconds(), 3)
+//line lib/promscrape/targets_response.qtpl:104
+				qw422016.N().S(`s ago`)
+//line lib/promscrape/targets_response.qtpl:105
+			} else {
+//line lib/promscrape/targets_response.qtpl:105
+				qw422016.N().S(`none`)
+//line lib/promscrape/targets_response.qtpl:107
+			}
+//line lib/promscrape/targets_response.qtpl:107
+			qw422016.N().S(`<td>`)
+//line lib/promscrape/targets_response.qtpl:108
+			qw422016.N().D(int(ts.scrapeDuration))
+//line lib/promscrape/targets_response.qtpl:108
+			qw422016.N().S(`ms</td><td>`)
+//line lib/promscrape/targets_response.qtpl:109
+			qw422016.N().D(ts.samplesScraped)
+//line lib/promscrape/targets_response.qtpl:109
+			qw422016.N().S(`</td><td>`)
+//line lib/promscrape/targets_response.qtpl:110
+			if ts.err != nil {
+//line lib/promscrape/targets_response.qtpl:110
+				qw422016.E().S(ts.err.Error())
+//line lib/promscrape/targets_response.qtpl:110
+			}
+//line lib/promscrape/targets_response.qtpl:110
 			qw422016.N().S(`</td></tr>`)
-//line lib/promscrape/targets_response.qtpl:94
+//line lib/promscrape/targets_response.qtpl:112
 		}
-//line lib/promscrape/targets_response.qtpl:94
+//line lib/promscrape/targets_response.qtpl:112
 		qw422016.N().S(`</tbody></table></div></div>`)
-//line lib/promscrape/targets_response.qtpl:99
+//line lib/promscrape/targets_response.qtpl:117
 	}
-//line lib/promscrape/targets_response.qtpl:101
+//line lib/promscrape/targets_response.qtpl:119
 	for _, jobName := range emptyJobs {
-//line lib/promscrape/targets_response.qtpl:101
+//line lib/promscrape/targets_response.qtpl:119
 		qw422016.N().S(`<div><h4><a>`)
-//line lib/promscrape/targets_response.qtpl:104
+//line lib/promscrape/targets_response.qtpl:122
 		qw422016.E().S(jobName)
-//line lib/promscrape/targets_response.qtpl:104
+//line lib/promscrape/targets_response.qtpl:122
 		qw422016.N().S(`(0/0 up)</a></h4><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col">Labels</th><th scope="col">Last Scrape</th><th scope="col">Scrape Duration</th><th scope="col">Samples Scraped</th><th scope="col">Error</th></tr></thead></table></div>`)
-//line lib/promscrape/targets_response.qtpl:120
+//line lib/promscrape/targets_response.qtpl:138
 	}
-//line lib/promscrape/targets_response.qtpl:120
+//line lib/promscrape/targets_response.qtpl:138
 	qw422016.N().S(`</body></html>`)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 }
 
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 func WriteTargetsResponseHTML(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) {
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	StreamTargetsResponseHTML(qw422016, jts, emptyJobs, onlyUnhealthy)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 }
 
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) string {
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	WriteTargetsResponseHTML(qb422016, jts, emptyJobs, onlyUnhealthy)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	qs422016 := string(qb422016.B)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 	return qs422016
-//line lib/promscrape/targets_response.qtpl:123
+//line lib/promscrape/targets_response.qtpl:141
 }
 
-//line lib/promscrape/targets_response.qtpl:125
+//line lib/promscrape/targets_response.qtpl:143
 func streamformatLabel(qw422016 *qt422016.Writer, labels []prompbmarshal.Label) {
-//line lib/promscrape/targets_response.qtpl:125
+//line lib/promscrape/targets_response.qtpl:143
 	qw422016.N().S(`{`)
-//line lib/promscrape/targets_response.qtpl:127
+//line lib/promscrape/targets_response.qtpl:145
 	for i, label := range labels {
-//line lib/promscrape/targets_response.qtpl:128
+//line lib/promscrape/targets_response.qtpl:146
 		qw422016.E().S(label.Name)
-//line lib/promscrape/targets_response.qtpl:128
+//line lib/promscrape/targets_response.qtpl:146
 		qw422016.N().S(`=`)
-//line lib/promscrape/targets_response.qtpl:128
+//line lib/promscrape/targets_response.qtpl:146
 		qw422016.E().Q(label.Value)
-//line lib/promscrape/targets_response.qtpl:129
+//line lib/promscrape/targets_response.qtpl:147
 		if i+1 < len(labels) {
-//line lib/promscrape/targets_response.qtpl:129
+//line lib/promscrape/targets_response.qtpl:147
 			qw422016.N().S(`,`)
-//line lib/promscrape/targets_response.qtpl:129
+//line lib/promscrape/targets_response.qtpl:147
 			qw422016.N().S(` `)
-//line lib/promscrape/targets_response.qtpl:129
+//line lib/promscrape/targets_response.qtpl:147
 		}
-//line lib/promscrape/targets_response.qtpl:130
+//line lib/promscrape/targets_response.qtpl:148
 	}
-//line lib/promscrape/targets_response.qtpl:130
+//line lib/promscrape/targets_response.qtpl:148
 	qw422016.N().S(`}`)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 }
 
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 func writeformatLabel(qq422016 qtio422016.Writer, labels []prompbmarshal.Label) {
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	streamformatLabel(qw422016, labels)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 }
 
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 func formatLabel(labels []prompbmarshal.Label) string {
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	writeformatLabel(qb422016, labels)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	qs422016 := string(qb422016.B)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 	return qs422016
-//line lib/promscrape/targets_response.qtpl:132
+//line lib/promscrape/targets_response.qtpl:150
 }
