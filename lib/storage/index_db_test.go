@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
+	"github.com/VictoriaMetrics/fastcache"
 )
 
 func TestReverseBytes(t *testing.T) {
@@ -457,15 +459,15 @@ func TestMarshalUnmarshalTSIDs(t *testing.T) {
 func TestIndexDBOpenClose(t *testing.T) {
 	s := newTestStorage()
 	defer stopTestStorage(s)
-
+	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", s)
+		db, err := openIndexDB(tableName, s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
 		db.MustClose()
 	}
-	if err := os.RemoveAll("test-index-db"); err != nil {
+	if err := os.RemoveAll(tableName); err != nil {
 		t.Fatalf("cannot remove indexDB: %s", err)
 	}
 }
@@ -477,7 +479,7 @@ func TestIndexDB(t *testing.T) {
 		s := newTestStorage()
 		defer stopTestStorage(s)
 
-		dbName := "test-index-db-serial"
+		dbName := nextIndexDBTableName()
 		db, err := openIndexDB(dbName, s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
@@ -527,7 +529,7 @@ func TestIndexDB(t *testing.T) {
 		s := newTestStorage()
 		defer stopTestStorage(s)
 
-		dbName := "test-index-db-concurrent"
+		dbName := nextIndexDBTableName()
 		db, err := openIndexDB(dbName, s)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
@@ -1485,11 +1487,143 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 }
 
+func TestIndexRepopulateAfterRotation(t *testing.T) {
+	path := "TestIndexRepopulateAfterRotation"
+	s, err := OpenStorage(path, 0, 1e5, 1e5)
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+	s.retentionMsecs = msecsPerMonth
+	defer func() {
+		s.MustClose()
+		if err := os.RemoveAll(path); err != nil {
+			t.Fatalf("cannot remove %q: %s", path, err)
+		}
+	}()
+
+	db := s.idb()
+	if db.generation == 0 {
+		t.Fatalf("expected indexDB generation to be not 0")
+	}
+
+	const metricRowsN = 1000
+	// use min-max timestamps of 1month range to create smaller number of partitions
+	timeMin, timeMax := time.Now().Add(-730*time.Hour), time.Now()
+	mrs := testGenerateMetricRows(metricRowsN, timeMin.UnixMilli(), timeMax.UnixMilli())
+	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+		t.Fatalf("unexpected error when adding mrs: %s", err)
+	}
+	s.DebugFlush()
+
+	// verify the storage contains rows.
+	var m Metrics
+	s.UpdateMetrics(&m)
+	if m.TableMetrics.SmallRowsCount < uint64(metricRowsN) {
+		t.Fatalf("expecting at least %d rows in the table; got %d", metricRowsN, m.TableMetrics.SmallRowsCount)
+	}
+
+	// check new series were registered in indexDB
+	added := atomic.LoadUint64(&db.newTimeseriesCreated)
+	if added != metricRowsN {
+		t.Fatalf("expected indexDB to contain %d rows; got %d", metricRowsN, added)
+	}
+
+	// check new series were added to cache
+	var cs fastcache.Stats
+	s.tsidCache.UpdateStats(&cs)
+	if cs.EntriesCount != added {
+		t.Fatalf("expected tsidCache to contain %d rows; got %d", added, cs.EntriesCount)
+	}
+
+	// check if cache entries do belong to current indexDB generation
+	var genTSID generationTSID
+	for _, mr := range mrs {
+		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
+		if genTSID.generation != db.generation {
+			t.Fatalf("expected all entries in tsidCache to have the same indexDB generation: %d;"+
+				"got %d", db.generation, genTSID.generation)
+		}
+	}
+
+	// force index rotation
+	s.mustRotateIndexDB()
+
+	// check tsidCache wasn't reset after the rotation
+	var cs2 fastcache.Stats
+	s.tsidCache.UpdateStats(&cs2)
+	if cs.EntriesCount != added {
+		t.Fatalf("expected tsidCache after rotation to contain %d rows; got %d", added, cs2.EntriesCount)
+	}
+
+	dbNew := s.idb()
+	if dbNew.generation == 0 {
+		t.Fatalf("expected new indexDB generation to be not 0")
+	}
+	if dbNew.generation == db.generation {
+		t.Fatalf("expected new indexDB generation %d to be different from prev indexDB", dbNew.generation)
+	}
+
+	reInsertAndCheckIndexFn := func(expEntries, allowedError int) {
+		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+			t.Fatalf("unexpected error when adding mrs: %s", err)
+		}
+		s.DebugFlush()
+
+		entriesByGeneration := make(map[uint64]int)
+		for _, mr := range mrs {
+			s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
+			entriesByGeneration[genTSID.generation]++
+		}
+
+		idb := s.idb()
+		got := entriesByGeneration[idb.generation]
+		max, min := expEntries+allowedError, expEntries-allowedError
+		if min < 0 {
+			min = 0
+		}
+		if got < min || got > max {
+			t.Fatalf("expected idb %d to have entries count between %d and %d; got %d",
+				idb.generation, min, max, got)
+		}
+	}
+
+	// re-insert the same rows with expectations that TSIDs are served
+	// from the cache without re-populating the new index,
+	// because nextRotationMsecs is set to s.retentionMsecs (like rotation just happened)
+	s.getNextRotationDuration = func() time.Duration {
+		return time.Duration(s.retentionMsecs) * time.Millisecond
+	}
+	reInsertAndCheckIndexFn(0, 0)
+
+	retentionThresholdMins := int(s.retentionShareThresholdMsecs / 1000 / 60)
+	step := retentionThresholdMins / 10
+	for i := 0; i <= retentionThresholdMins; i += +step {
+		// override getNextRotationDuration func to emulate how next rotation
+		// event becomes closer and closer
+		nextRotation := time.Minute * time.Duration(i)
+		s.getNextRotationDuration = func() time.Duration {
+			return time.Duration(s.retentionMsecs-nextRotation.Milliseconds()) * time.Millisecond
+		}
+
+		// re-insert the same rows expecting that cache will be slowly
+		// re-populated with each iteration
+		expEntries := int(metricRowsN * float64(i) / float64(retentionThresholdMins))
+		reInsertAndCheckIndexFn(expEntries, 50)
+	}
+
+	// check tsidCache is fully re-populated
+	var cs3 fastcache.Stats
+	s.tsidCache.UpdateStats(&cs3)
+	if cs.EntriesCount != metricRowsN {
+		t.Fatalf("expected tsidCache to contain %d rows; got %d", metricRowsN, cs3.EntriesCount)
+	}
+}
+
 func TestSearchTSIDWithTimeRange(t *testing.T) {
 	s := newTestStorage()
 	defer stopTestStorage(s)
 
-	dbName := "test-index-db-ts-range"
+	dbName := nextIndexDBTableName()
 	db, err := openIndexDB(dbName, s)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)

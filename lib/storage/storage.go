@@ -32,8 +32,9 @@ import (
 )
 
 const (
-	msecsPerMonth     = 31 * 24 * 3600 * 1000
-	maxRetentionMsecs = 100 * 12 * msecsPerMonth
+	msecsPerMonth                = 31 * 24 * 3600 * 1000
+	maxRetentionMsecs            = 100 * 12 * msecsPerMonth
+	retentionShareThresholdMsecs = 3600 * 1000
 )
 
 // Storage represents TSDB storage.
@@ -60,6 +61,13 @@ type Storage struct {
 	path           string
 	cachePath      string
 	retentionMsecs int64
+
+	// retentionShareThresholdMsecs defines the time interval after index rotation,
+	// at which the new index will be gradually populated with missing entries.
+	// The bigger the interval, the slower re-population will happen.
+	retentionShareThresholdMsecs int64
+	// getNextRotationDuration is used in tests
+	getNextRotationDuration func() time.Duration
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -152,12 +160,13 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 		retentionMsecs = maxRetentionMsecs
 	}
 	s := &Storage{
-		path:           path,
-		cachePath:      path + "/cache",
-		retentionMsecs: retentionMsecs,
-
-		stop: make(chan struct{}),
+		path:                         path,
+		cachePath:                    path + "/cache",
+		retentionMsecs:               retentionMsecs,
+		retentionShareThresholdMsecs: int64(retentionShareThresholdMsecs),
+		stop:                         make(chan struct{}),
 	}
+	s.getNextRotationDuration = func() time.Duration { return nextRetentionDuration(s.retentionMsecs) }
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
 	}
@@ -711,8 +720,8 @@ func (s *Storage) mustRotateIndexDB() {
 	// Persist changes on the file system.
 	fs.MustSyncPath(s.path)
 
-	// Flush tsidCache, so idbNew can be populated with fresh data.
-	s.resetAndSaveTSIDCache()
+	// Do not flush tsidCache to avoid read/write path slowdown
+	// and slowly re-populate new idb with entries from the cace
 
 	// Flush dateMetricIDCache, so idbNew can be populated with fresh data.
 	s.dateMetricIDCache.Reset()
@@ -1627,17 +1636,32 @@ var (
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	var (
-		tsid       TSID
 		metricName []byte
 	)
+
+	var genTSID generationTSID
 	mn := GetMetricName()
 	defer PutMetricName(mn)
+	nextRetentionMsecs := s.getNextRotationDuration().Milliseconds()
+
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
 	for i := range mrs {
 		mr := &mrs[i]
-		if s.getTSIDFromCache(&tsid, mr.MetricNameRaw) {
+		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			if genTSID.generation != idb.generation {
+				// the found entry is from the previous cache generation
+				// so making an attempt to re-populate the current generation with this entry
+				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mn, mr.MetricNameRaw, nextRetentionMsecs)
+				if err != nil {
+					return fmt.Errorf("cannot create indexes: %w", err)
+				}
+				if created {
+					genTSID.generation = idb.generation
+					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+				}
+			}
 			// Fast path - mr.MetricNameRaw has been already registered.
 			continue
 		}
@@ -1648,14 +1672,14 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		}
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
+		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName); err != nil {
 			return fmt.Errorf("cannot register the metric because cannot create TSID for metricName %q: %w", metricName, err)
 		}
-		s.putTSIDToCache(&tsid, mr.MetricNameRaw)
+		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
 
 		// Register the metric in per-day inverted index.
 		date := uint64(mr.Timestamp) / msecPerDay
-		metricID := tsid.MetricID
+		metricID := genTSID.TSID.MetricID
 		if s.dateMetricIDCache.Has(date, metricID) {
 			// Fast path: the metric has been already registered in per-day inverted index
 			continue
@@ -1680,6 +1704,25 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	return nil
 }
 
+// getRetentionShare returns a value between 0 and math.MaxUint32
+// based on how close the nextRetentionMsecs is to retentionMsecs.
+// The less time left to the next retentionMsecs, the higher is the share.
+// thresholdMsecs defines the range between retentionMsecs and nextRetentionMsecs
+// after which returned result will always be at the max value.
+func getRetentionShare(retentionMsecs, nextRetentionMsecs, thresholdMsecs int64) uint32 {
+	if nextRetentionMsecs > retentionMsecs {
+		return 0
+	}
+	if thresholdMsecs == 0 || thresholdMsecs > retentionMsecs {
+		thresholdMsecs = retentionMsecs
+	}
+	share := float64(retentionMsecs-nextRetentionMsecs) / float64(thresholdMsecs)
+	if share > 1 {
+		share = 1
+	}
+	return uint32(float64(math.MaxUint32) * share)
+}
+
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
 	idb := s.idb()
 	j := 0
@@ -1690,6 +1733,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	)
 	var pmrs *pendingMetricRows
 	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+
+	var genTSID generationTSID
+	mn := GetMetricName()
+	defer PutMetricName(mn)
+	nextRetentionMsecs := s.getNextRotationDuration().Milliseconds()
+
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
 	for i := range mrs {
@@ -1734,7 +1783,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = prevTSID
 			continue
 		}
-		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
+		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			r.TSID = genTSID.TSID
 			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip the row, since the limit on the number of unique series has been exceeded.
 				j--
@@ -1746,6 +1796,19 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// See Storage.DeleteMetrics code for details.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
+
+			if genTSID.generation != idb.generation {
+				// the found entry is from the previous cache generation
+				// so making an attempt to re-populate the current generation with this entry
+				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mn, mr.MetricNameRaw, nextRetentionMsecs)
+				if err != nil {
+					return fmt.Errorf("cannot create indexes: %w", err)
+				}
+				if created {
+					genTSID.generation = idb.generation
+					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+				}
+			}
 			continue
 		}
 
@@ -1805,7 +1868,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				j--
 				continue
 			}
-			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
+			genTSID.generation = idb.generation
+			genTSID.TSID = r.TSID
+			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
@@ -2342,13 +2407,13 @@ type hourMetricIDs struct {
 	isFull bool
 }
 
-func (s *Storage) getTSIDFromCache(dst *TSID, metricName []byte) bool {
+func (s *Storage) getTSIDFromCache(dst *generationTSID, metricName []byte) bool {
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))[:]
 	buf = s.tsidCache.Get(buf[:0], metricName)
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
-func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
+func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
