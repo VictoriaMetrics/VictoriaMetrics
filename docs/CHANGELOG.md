@@ -4,6 +4,14 @@ sort: 15
 
 # CHANGELOG
 
+The following tip changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
+* [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-build-from-sources)
+* [How to build cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#building-from-sources)
+* [How to build vmagent](https://docs.victoriametrics.com/vmagent.html#how-to-build-from-sources)
+* [How to build vmalert](https://docs.victoriametrics.com/vmalert.html#how-to-build-from-sources)
+* [How to build vmauth](https://docs.victoriametrics.com/vmauth.html#how-to-build-from-sources)
+* [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
+
 ## tip
 
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add `-dropSamplesOnOverload` command-line flag for `vminsert`. If this flag is set, then `vminsert` drops incoming data if the destination `vmstorage` is temporarily unavailable or cannot keep up with the ingestion rate. The number of dropped rows can be [monitored](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring) via `vm_rpc_rows_dropped_on_overload_total` metric at `vminsert`.
