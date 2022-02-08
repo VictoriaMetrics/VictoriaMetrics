@@ -498,6 +498,10 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 ```
+  -clusterMode
+    	If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+  -configCheckInterval duration
+    	Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
     	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
@@ -530,8 +534,12 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+  -defaultTenant.graphite string
+    	Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+  -defaultTenant.prometheus string
+    	Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
   -disableAlertgroupLabel
-    	Whether to disable adding group's name as label to generated alerts and time series.
+    	Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
@@ -540,13 +548,15 @@ The shortlist of configuration flags is the following:
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -evaluationInterval duration
     	How often to evaluate the rules (default 1m0s)
   -external.alert.source string
     	External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
     	eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
   -external.label array
-    	Optional label in the form 'name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
+    	Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
     	Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
     	External URL is used as alert's source for sent alerts to the notifier
@@ -595,11 +605,15 @@ The shortlist of configuration flags is the following:
     	Optional basic auth password for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.passwordFile array
-        Optional path to basic auth password file for -notifier.url
-        Supports an array of values separated by comma or specified via multiple flags.
+    	Optional path to basic auth password file for -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.username array
     	Optional basic auth username for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.config string
+    	Path to configuration file for notifiers
+  -notifier.suppressDuplicateTargetErrors
+    	Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
     	Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -620,6 +634,14 @@ The shortlist of configuration flags is the following:
     	Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
     	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -promscrape.consul.waitTime duration
+    	Wait time used by Consul service discovery. Default value is used if not set
+  -promscrape.consulSDCheckInterval duration
+    	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+  -promscrape.discovery.concurrency int
+    	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
+  -promscrape.discovery.concurrentWaitTime duration
+    	The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -remoteRead.basicAuth.password string
     	Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.passwordFile string
@@ -699,8 +721,8 @@ The shortlist of configuration flags is the following:
     	absolute path to all .yaml files in root.
     	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
     	Supports an array of values separated by comma or specified via multiple flags.
-  -configCheckInterval duration
-    	Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -rule.configCheckInterval duration
+    	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
     	Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.validateExpressions
@@ -713,14 +735,6 @@ The shortlist of configuration flags is the following:
     	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
   -tlsKeyFile string
     	Path to file with TLS key. Used only if -tls is set
-  -promscrape.consul.waitTime duration
-        Wait time used by Consul service discovery. Default value is used if not set
-  -promscrape.consulSDCheckInterval duration
-        Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
-  -promscrape.discovery.concurrency int
-        The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
-  -promscrape.discovery.concurrentWaitTime duration
-        The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -version
     	Show VictoriaMetrics version
 ```
