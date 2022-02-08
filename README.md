@@ -1140,15 +1140,49 @@ write data to the same VictoriaMetrics instance. These vmagent or Prometheus ins
 `external_labels` section in their configs, so they write data to the same time series.
 
 
+## Storage
+
+VictoriaMetrics stores time series data in [MergeTree](https://en.wikipedia.org/wiki/Log-structured_merge-tree)-like 
+data structures. On insert, VictoriaMetrics accumulates up to 1s of data and dumps it on disk to
+`<-storageDataPath>/data/small/YYYY_MM/` subdirectory forming a `part` with the following 
+name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`. Each part consists of two "columns":
+values and timestamps. These are sorted and compressed raw time series values. Additionally, part contains
+index files for searching for specific series in the values and timestamps files.
+
+`Parts` are periodically merged into the bigger parts. The resulting `part` is constructed 
+under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` subdirectory. When the resulting `part` is complete, it is atomically moved from the `tmp` 
+to its own subdirectory, while the source parts are atomically removed. The end result is that the source 
+parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/{small,big}/YYYY_MM/` directory.
+Information about merging process is available in [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) 
+and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Grafana dashboards. 
+See more details in [monitoring docs](#monitoring).
+
+The `merge` process is usually named "compaction", because the resulting `part` size is usually smaller than 
+the sum of the source `parts`. There are following benefits of doing the merge process:
+* it improves query performance, since lower number of `parts` are inspected with each query;
+* it reduces the number of data files, since each `part`contains fixed number of files; 
+* better compression rate for the resulting part.
+
+Newly added `parts` either appear in the storage or fail to appear. 
+Storage never contains partially created parts. The same applies to merge process — `parts` are either fully 
+merged into a new `part` or fail to merge. There are no partially merged `parts` in MergeTree. 
+`Part` contents in MergeTree never change. Parts are immutable. They may be only deleted after the merge 
+to a bigger `part` or when the `part` contents goes outside the configured `-retentionPeriod`.
+
+See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
+
+See also [how to work with snapshots](#how-to-work-with-snapshots).
+
 ## Retention
 
 Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
 that the data will be stored for 3 months and then deleted.
-Data is split in per-month partitions inside `<-storageDataPath>/data/small` and `<-storageDataPath>/data/big` folders.
+Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 Data partitions outside the configured retention are deleted on the first day of new month.
 
 Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
-Data parts outside of the configured retention are eventually deleted during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+Data parts outside of the configured retention are eventually deleted during 
+[background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
 For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
