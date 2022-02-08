@@ -1150,25 +1150,26 @@ values and timestamps. These are sorted and compressed raw time series values. A
 index files for searching for specific series in the values and timestamps files.
 
 `Parts` are periodically merged into the bigger parts. The resulting `part` is constructed 
-under `tmp` subdirectory. When the resulting `part` is complete, it is atomically moved from the `tmp` 
+under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` subdirectory. When the resulting `part` is complete, it is atomically moved from the `tmp` 
 to its own subdirectory, while the source parts are atomically removed. The end result is that the source 
-parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/big/YYYY_MM/`.
+parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/{small,big}/YYYY_MM/` directory.
 Information about merging process is available in [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) 
 and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Grafana dashboards. 
-See more details in [monitoring](#Monitoring). 
+See more details in [monitoring docs](#monitoring).
 
-The `merge` process is usually named compaction, because the resulting `part` size is usually smaller than 
+The `merge` process is usually named "compaction", because the resulting `part` size is usually smaller than 
 the sum of the source `parts`. There are following benefits of doing the merge process:
 * it improves query performance, since lower number of `parts` are inspected with each query;
 * it reduces the number of data files, since each `part`contains fixed number of files; 
-* better compression rate, since merging re-orders data when forming the new part.
+* better compression rate for the resulting part.
 
 Newly added `parts` either appear in the storage or fail to appear. 
 Storage never contains partially created parts. The same applies to merge process — `parts` are either fully 
 merged into a new `part` or fail to merge. There are no partially merged `parts` in MergeTree. 
-The same applies to the merge — old `parts` are atomically swapped with the new part when it is ready.
 `Part` contents in MergeTree never change. Parts are immutable. They may be only deleted after the merge 
-to a bigger `part`.
+to a bigger `part` or when the `part` contents goes outside the configured `-retentionPeriod`.
+
+See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
 
 See also [how to work with snapshots](#how-to-work-with-snapshots).
 
