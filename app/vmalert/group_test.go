@@ -212,7 +212,7 @@ func TestGroupStart(t *testing.T) {
 	fs.add(m1)
 	fs.add(m2)
 	go func() {
-		g.start(context.Background(), []notifier.Notifier{fn}, nil)
+		g.start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil)
 		close(finished)
 	}()
 

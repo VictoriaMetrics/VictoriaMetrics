@@ -285,10 +285,10 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		var tssLeft, tssRight []*timeseries
 		switch strings.ToLower(be.Op) {
 		case "and", "if":
-			// Fetch right-side series at first, since the left side of `and` and `if` operator
-			// usually contains lower number of time series. This should produce more specific label filters
-			// for the left side of the query. This, in turn, should reduce the time to select series
-			// for the left side of the query.
+			// Fetch right-side series at first, since it usually contains
+			// lower number of time series for `and` and `if` operator.
+			// This should produce more specific label filters for the left side of the query.
+			// This, in turn, should reduce the time to select series for the left side of the query.
 			tssRight, tssLeft, err = execBinaryOpArgs(ec, be.Right, be.Left, be)
 		default:
 			tssLeft, tssRight, err = execBinaryOpArgs(ec, be.Left, be.Right, be)
@@ -382,12 +382,18 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 			continue
 		}
 		values = getUniqueValues(values)
+		if len(values) > 10000 {
+			// Skip the filter on the given tag, since it needs to enumerate too many unique values.
+			// This may slow down the search for matching time series.
+			continue
+		}
 		lf := metricsql.LabelFilter{
 			Label: key,
 		}
 		if len(values) == 1 {
 			lf.Value = values[0]
 		} else {
+			sort.Strings(values)
 			lf.Value = joinRegexpValues(values)
 			lf.IsRegexp = true
 		}
@@ -408,7 +414,6 @@ func getUniqueValues(a []string) []string {
 			m[s] = struct{}{}
 		}
 	}
-	sort.Strings(results)
 	return results
 }
 

@@ -41,15 +41,15 @@ type Group struct {
 }
 
 type groupMetrics struct {
-	iterationTotal    *counter
-	iterationDuration *summary
+	iterationTotal    *utils.Counter
+	iterationDuration *utils.Summary
 }
 
 func newGroupMetrics(name, file string) *groupMetrics {
 	m := &groupMetrics{}
 	labels := fmt.Sprintf(`group=%q, file=%q`, name, file)
-	m.iterationTotal = getOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
-	m.iterationDuration = getOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	m.iterationTotal = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	m.iterationDuration = utils.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	return m
 }
 
@@ -122,7 +122,7 @@ func (g *Group) newRule(qb datasource.QuerierBuilder, rule config.Rule) Rule {
 }
 
 // ID return unique group ID that consists of
-// rules file and group name
+// rules file and group Name
 func (g *Group) ID() uint64 {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -213,8 +213,8 @@ func (g *Group) close() {
 	close(g.doneCh)
 	<-g.finishedCh
 
-	metrics.UnregisterMetric(g.metrics.iterationDuration.name)
-	metrics.UnregisterMetric(g.metrics.iterationTotal.name)
+	g.metrics.iterationDuration.Unregister()
+	g.metrics.iterationTotal.Unregister()
 	for _, rule := range g.Rules {
 		rule.Close()
 	}
@@ -222,7 +222,7 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
@@ -246,16 +246,7 @@ func (g *Group) start(ctx context.Context, nts []notifier.Notifier, rw *remotewr
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{rw: rw}
-	for _, nt := range nts {
-		ent := eNotifier{
-			Notifier:         nt,
-			alertsSent:       getOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", nt.Addr())),
-			alertsSendErrors: getOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", nt.Addr())),
-		}
-		e.notifiers = append(e.notifiers, ent)
-	}
-
+	e := &executor{rw: rw, notifiers: nts}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -310,14 +301,8 @@ func getResolveDuration(groupInterval time.Duration) time.Duration {
 }
 
 type executor struct {
-	notifiers []eNotifier
+	notifiers func() []notifier.Notifier
 	rw        *remotewrite.Client
-}
-
-type eNotifier struct {
-	notifier.Notifier
-	alertsSent       *counter
-	alertsSendErrors *counter
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, resolveDuration time.Duration) chan error {
@@ -400,11 +385,9 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 	}
 
 	errGr := new(utils.ErrGroup)
-	for _, nt := range e.notifiers {
-		nt.alertsSent.Add(len(alerts))
+	for _, nt := range e.notifiers() {
 		if err := nt.Send(ctx, alerts); err != nil {
-			nt.alertsSendErrors.Inc()
-			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %w", rule, err))
+			errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
 		}
 	}
 	return errGr.Err()

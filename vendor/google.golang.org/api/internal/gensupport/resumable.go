@@ -34,6 +34,10 @@ type ResumableUpload struct {
 
 	// Retry optionally configures retries for requests made against the upload.
 	Retry *RetryConfig
+
+	// ChunkRetryDeadline configures the per-chunk deadline after which no further
+	// retries should happen.
+	ChunkRetryDeadline time.Duration
 }
 
 // Progress returns the number of bytes uploaded at this point.
@@ -155,6 +159,14 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 	}
 	// Configure retryable error criteria.
 	errorFunc := rx.Retry.errorFunc()
+
+	// Configure per-chunk retry deadline.
+	var retryDeadline time.Duration
+	if rx.ChunkRetryDeadline != 0 {
+		retryDeadline = rx.ChunkRetryDeadline
+	} else {
+		retryDeadline = defaultRetryDeadline
+	}
 
 	// Send all chunks.
 	for {

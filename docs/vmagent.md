@@ -712,13 +712,15 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	The maximum size in bytes of a single DataDog POST request to /api/v1/series
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -dryRun
-    	Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
+    	Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -764,6 +766,32 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
     	Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -insert.maxQueueDuration duration
     	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
+  -kafka.consumer.topic array
+    	Kafka topic names for data consumption.
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.basicAuth.password array
+    	Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.basicAuth.username array
+    	Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.brokers array
+    	List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.defaultFormat string
+    	Expected data format in the topic if -kafka.consumer.topic.format is skipped. (default "promremotewrite")
+  -kafka.consumer.topic.format array
+    	data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.groupID array
+    	Defines group.id for topic
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.isGzipped array
+    	Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.
+    	Supports array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.options array
+    	Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -814,7 +842,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.config.dryRun
     	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
-    	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
+    	Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields (default true)
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -promscrape.consul.waitTime duration

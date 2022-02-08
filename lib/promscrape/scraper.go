@@ -373,14 +373,14 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 		sg.activeScrapers.Inc()
 		sg.scrapersStarted.Inc()
 		sg.wg.Add(1)
-		tsmGlobal.Register(sw)
+		tsmGlobal.Register(&sc.sw)
 		go func(sw *ScrapeWork) {
 			defer func() {
 				sg.wg.Done()
 				close(sc.stoppedCh)
 			}()
 			sc.sw.run(sc.stopCh, sg.globalStopCh)
-			tsmGlobal.Unregister(sw)
+			tsmGlobal.Unregister(&sc.sw)
 			sg.activeScrapers.Dec()
 			sg.scrapersStopped.Inc()
 		}(sw)

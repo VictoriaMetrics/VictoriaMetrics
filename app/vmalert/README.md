@@ -43,7 +43,8 @@ To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
-aggregating alerts, and sending notifications.
+aggregating alerts, and sending notifications. Please note, notifier address also supports Consul Service Discovery via 
+[config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
@@ -340,7 +341,7 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
-Example shows how to build a topology where `vmalert` will process data from one cluster
+The following example shows how to build a topology where `vmalert` will process data from one cluster
 and write results into another. Such clusters may be called as "hot" (low retention,
 high-speed disks, used for operative monitoring) and "cold" (long term retention,
 slower/cheaper disks, low resolution data). With help of `vmalert`, user can setup
@@ -359,6 +360,8 @@ or reducing resolution) and push results to "cold" cluster.
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
+
+See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
 
 
 ### Web
@@ -491,6 +494,10 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 ```
+  -clusterMode
+    	If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+  -configCheckInterval duration
+    	Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
     	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
@@ -523,8 +530,12 @@ The shortlist of configuration flags is the following:
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+  -defaultTenant.graphite string
+    	Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+  -defaultTenant.prometheus string
+    	Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
   -disableAlertgroupLabel
-    	Whether to disable adding group's name as label to generated alerts and time series.
+    	Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
@@ -533,13 +544,15 @@ The shortlist of configuration flags is the following:
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -evaluationInterval duration
     	How often to evaluate the rules (default 1m0s)
   -external.alert.source string
     	External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
     	eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
   -external.label array
-    	Optional label in the form 'name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
+    	Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
     	Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
     	External URL is used as alert's source for sent alerts to the notifier
@@ -587,9 +600,16 @@ The shortlist of configuration flags is the following:
   -notifier.basicAuth.password array
     	Optional basic auth password for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.basicAuth.passwordFile array
+    	Optional path to basic auth password file for -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.username array
     	Optional basic auth username for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.config string
+    	Path to configuration file for notifiers
+  -notifier.suppressDuplicateTargetErrors
+    	Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
     	Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -610,6 +630,14 @@ The shortlist of configuration flags is the following:
     	Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
     	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -promscrape.consul.waitTime duration
+    	Wait time used by Consul service discovery. Default value is used if not set
+  -promscrape.consulSDCheckInterval duration
+    	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+  -promscrape.discovery.concurrency int
+    	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
+  -promscrape.discovery.concurrentWaitTime duration
+    	The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -remoteRead.basicAuth.password string
     	Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.passwordFile string
@@ -690,7 +718,7 @@ The shortlist of configuration flags is the following:
     	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
     	Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration
-    	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+    	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
     	Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.validateExpressions
@@ -711,7 +739,7 @@ The shortlist of configuration flags is the following:
 `vmalert` supports "hot" config reload via the following methods:
 * send SIGHUP signal to `vmalert` process;
 * send GET request to `/-/reload` endpoint;
-* configure `-rule.configCheckInterval` flag for periodic reload
+* configure `-configCheckInterval` flag for periodic reload
 on config change.
 
 ### URL params
@@ -731,6 +759,88 @@ groups:
 Please note, `params` are used only for executing rules expressions (requests to `datasource.url`).
 If there would be a conflict between URL params set in `datasource.url` flag and params in group definition
 the latter will have higher priority.
+
+### Notifier configuration file
+
+Notifier also supports configuration via file specified with flag `notifier.config`:
+```
+./bin/vmalert -rule=app/vmalert/config/testdata/rules.good.rules \
+		-datasource.url=http://localhost:8428 \
+		-notifier.config=app/vmalert/notifier/testdata/consul.good.yaml
+```
+
+The configuration file allows to configure static notifiers or discover notifiers via 
+[Consul](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config).
+For example:
+```
+static_configs: 
+  - targets:
+      - localhost:9093
+      - localhost:9095
+
+consul_sd_configs:
+  - server: localhost:8500
+    services:
+      - alertmanager
+```
+
+The list of configured or discovered Notifiers can be explored via [UI](#Web).
+
+The configuration file [specification](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go)
+is the following:
+```
+# Per-target Notifier timeout when pushing alerts.
+[ timeout: <duration> | default = 10s ]
+
+# Prefix for the HTTP path alerts are pushed to.
+[ path_prefix: <path> | default = / ]
+
+# Configures the protocol scheme used for requests.
+[ scheme: <scheme> | default = http ]
+
+# Sets the `Authorization` header on every request with the
+# configured username and password.
+# password and password_file are mutually exclusive.
+basic_auth:
+  [ username: <string> ]
+  [ password: <secret> ]
+  [ password_file: <string> ]
+
+# Optional `Authorization` header configuration.
+authorization:
+  # Sets the authentication type.
+  [ type: <string> | default: Bearer ]
+  # Sets the credentials. It is mutually exclusive with
+  # `credentials_file`.
+  [ credentials: <secret> ]
+  # Sets the credentials to the credentials read from the configured file.
+  # It is mutually exclusive with `credentials`.
+  [ credentials_file: <filename> ]
+
+# Configures the scrape request's TLS settings.
+# see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+tls_config:
+  [ <tls_config> ]
+
+# List of labeled statically configured Notifiers.
+static_configs:
+  targets:
+    [ - '<host>' ]
+
+# List of Consul service discovery configurations.
+# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+consul_sd_configs:
+  [ - <consul_sd_config> ... ]
+
+# List of relabel configurations.
+# Supports the same relabeling features as the rest of VictoriaMetrics components.
+# See https://docs.victoriametrics.com/vmagent.html#relabeling
+relabel_configs:
+  [ - <relabel_config> ... ]
+
+```
+
+The configuration file can be [hot-reloaded](#hot-config-reload).
 
 
 ## Contributing

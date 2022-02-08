@@ -199,6 +199,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
+	case "/prometheus/target_response", "/target_response":
+		promscrapeTargetResponseRequests.Inc()
+		if err := promscrape.WriteTargetResponse(w, r); err != nil {
+			promscrapeTargetResponseErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "/prometheus/config", "/config":
 		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
 			err := &httpserver.ErrorWithStatusCode{
@@ -265,6 +273,9 @@ var (
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeTargetResponseRequests = metrics.NewCounter(`vm_http_requests_total{path="/target_response"}`)
+	promscrapeTargetResponseErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/target_response"}`)
 
 	promscrapeConfigRequests = metrics.NewCounter(`vm_http_requests_total{path="/config"}`)
 

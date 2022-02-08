@@ -35,7 +35,10 @@ absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
 	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
-		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
+
+	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
 	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
@@ -47,14 +50,14 @@ Rule files may contain %{ENV_VAR} placeholders, which are substituted by the cor
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
 eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
-	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'name=value' to add to all generated recording rules and alerts. "+
+	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup.")
 
-	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's name as label to generated alerts and time series.")
+	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The `-rule` flag must be specified.")
 )
@@ -192,7 +195,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		}
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
-			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
+			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `Name=value`; got %q", s)
 		}
 		manager.labels[s[:n]] = s[n+1:]
 	}
@@ -254,8 +257,13 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 
 func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
-	if *rulesCheckInterval > 0 {
-		ticker := time.NewTicker(*rulesCheckInterval)
+	checkInterval := *configCheckInterval
+	if checkInterval == 0 && *rulesCheckInterval > 0 {
+		logger.Warnf("flag `rule.configCheckInterval` is deprecated - use `configCheckInterval` instead")
+		checkInterval = *rulesCheckInterval
+	}
+	if checkInterval > 0 {
+		ticker := time.NewTicker(checkInterval)
 		configCheckCh = ticker.C
 		defer ticker.Stop()
 	}
@@ -271,6 +279,12 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
 			configReloads.Inc()
 		case <-configCheckCh:
+		}
+		if err := notifier.Reload(); err != nil {
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
+			logger.Errorf("failed to reload notifier config: %s", err)
+			continue
 		}
 		newGroupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
 		if err != nil {

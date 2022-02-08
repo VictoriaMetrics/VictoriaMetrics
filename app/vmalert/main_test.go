@@ -100,7 +100,7 @@ groups:
 		querierBuilder: &fakeQuerier{},
 		groups:         make(map[uint64]*Group),
 		labels:         map[string]string{},
-		notifiers:      []notifier.Notifier{&fakeNotifier{}},
+		notifiers:      func() []notifier.Notifier { return []notifier.Notifier{&fakeNotifier{}} },
 		rw:             &remotewrite.Client{},
 	}
 
