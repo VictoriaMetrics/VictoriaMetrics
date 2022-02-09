@@ -111,7 +111,7 @@ func (c *Cache) cleaner() {
 func (c *Cache) cleanByTimeout() {
 	// Delete items accessed more than five minutes ago.
 	// This time should be enough for repeated queries.
-	lastAccessTime := fasttime.UnixTimestamp()-5*60
+	lastAccessTime := fasttime.UnixTimestamp() - 5*60
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
