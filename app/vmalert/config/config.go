@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 )
 
 // Group contains list of Rules grouped into
@@ -24,10 +25,10 @@ import (
 type Group struct {
 	Type        datasource.Type `yaml:"type,omitempty"`
 	File        string
-	Name        string             `yaml:"name"`
-	Interval    utils.PromDuration `yaml:"interval"`
-	Rules       []Rule             `yaml:"rules"`
-	Concurrency int                `yaml:"concurrency"`
+	Name        string                  `yaml:"name"`
+	Interval    promscrape.PromDuration `yaml:"interval"`
+	Rules       []Rule                  `yaml:"rules"`
+	Concurrency int                     `yaml:"concurrency"`
 	// ExtraFilterLabels is a list label filters applied to every rule
 	// request withing a group. Is compatible only with VM datasources.
 	// See https://docs.victoriametrics.com#prometheus-querying-api-enhancements
@@ -126,12 +127,12 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 // recording rule or alerting rule.
 type Rule struct {
 	ID          uint64
-	Record      string             `yaml:"record,omitempty"`
-	Alert       string             `yaml:"alert,omitempty"`
-	Expr        string             `yaml:"expr"`
-	For         utils.PromDuration `yaml:"for"`
-	Labels      map[string]string  `yaml:"labels,omitempty"`
-	Annotations map[string]string  `yaml:"annotations,omitempty"`
+	Record      string                  `yaml:"record,omitempty"`
+	Alert       string                  `yaml:"alert,omitempty"`
+	Expr        string                  `yaml:"expr"`
+	For         promscrape.PromDuration `yaml:"for"`
+	Labels      map[string]string       `yaml:"labels,omitempty"`
+	Annotations map[string]string       `yaml:"annotations,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`

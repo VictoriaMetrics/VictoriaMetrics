@@ -106,8 +106,8 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval time.Duration     `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout,omitempty"`
+	ScrapeInterval PromDuration      `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  PromDuration      `yaml:"scrape_timeout,omitempty"`
 	ExternalLabels map[string]string `yaml:"external_labels,omitempty"`
 }
 
@@ -116,8 +116,8 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       time.Duration               `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout,omitempty"`
+	ScrapeInterval       PromDuration                `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        PromDuration                `yaml:"scrape_timeout,omitempty"`
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
@@ -704,16 +704,16 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
 	}
-	scrapeInterval := sc.ScrapeInterval
+	scrapeInterval := sc.ScrapeInterval.Duration()
 	if scrapeInterval <= 0 {
-		scrapeInterval = globalCfg.ScrapeInterval
+		scrapeInterval = globalCfg.ScrapeInterval.Duration()
 		if scrapeInterval <= 0 {
 			scrapeInterval = defaultScrapeInterval
 		}
 	}
-	scrapeTimeout := sc.ScrapeTimeout
+	scrapeTimeout := sc.ScrapeTimeout.Duration()
 	if scrapeTimeout <= 0 {
-		scrapeTimeout = globalCfg.ScrapeTimeout
+		scrapeTimeout = globalCfg.ScrapeTimeout.Duration()
 		if scrapeTimeout <= 0 {
 			scrapeTimeout = defaultScrapeTimeout
 		}
