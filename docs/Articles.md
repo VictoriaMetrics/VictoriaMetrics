@@ -8,6 +8,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [Announcing Asserts](https://www.asserts.ai/blog/announcing-asserts/)
 * [Choosing a Time Series Database for High Cardinality Aggregations](https://abiosgaming.com/press/high-cardinality-aggregations/)
 * [Scaling to trillions of metric data points](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2)
 * [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
