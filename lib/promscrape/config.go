@@ -150,8 +150,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval time.Duration              `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        time.Duration              `yaml:"scrape_offset,omitempty"`
+	ScrapeAlignInterval PromDuration               `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        PromDuration               `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -787,8 +787,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
-		scrapeAlignInterval:  sc.ScrapeAlignInterval,
-		scrapeOffset:         sc.ScrapeOffset,
+		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
+		scrapeOffset:         sc.ScrapeOffset.Duration(),
 		seriesLimit:          sc.SeriesLimit,
 	}
 	return swc, nil
@@ -1056,7 +1056,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Read __scrape_interval__ and __scrape_timeout__ from labels.
 	scrapeInterval := swc.scrapeInterval
 	if s := promrelabel.GetLabelValueByName(labels, "__scrape_interval__"); len(s) > 0 {
-		d, err := time.ParseDuration(s)
+		d, err := ParsePromDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
 		}
@@ -1064,7 +1064,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 	scrapeTimeout := swc.scrapeTimeout
 	if s := promrelabel.GetLabelValueByName(labels, "__scrape_timeout__"); len(s) > 0 {
-		d, err := time.ParseDuration(s)
+		d, err := ParsePromDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
 		}

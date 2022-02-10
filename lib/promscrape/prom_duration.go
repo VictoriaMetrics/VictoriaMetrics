@@ -41,3 +41,12 @@ func (pd *PromDuration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 func (pd *PromDuration) Duration() time.Duration {
 	return time.Duration(pd.milliseconds) * time.Millisecond
 }
+
+// ParsePromDuration parses duration string in Prometheus format
+func ParsePromDuration(s string) (time.Duration, error) {
+	ms, err := metricsql.DurationValue(s, 0)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(ms) * time.Millisecond, nil
+}

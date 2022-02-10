@@ -1654,14 +1654,18 @@ global:
 scrape_configs:
 - job_name: foo
   scrape_interval: 1w
+  scrape_align_interval: 1d
+  scrape_offset: 2d
   static_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  time.Hour * 24 * 7,
-			ScrapeTimeout:   time.Hour * 24,
-			HonorTimestamps: true,
+			ScrapeURL:           "http://foo.bar:1234/metrics",
+			ScrapeInterval:      time.Hour * 24 * 7,
+			ScrapeTimeout:       time.Hour * 24,
+			ScrapeAlignInterval: time.Hour * 24,
+			ScrapeOffset:        time.Hour * 24 * 2,
+			HonorTimestamps:     true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
