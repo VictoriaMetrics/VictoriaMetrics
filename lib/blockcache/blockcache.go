@@ -4,9 +4,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	xxhash "github.com/cespare/xxhash/v2"
 )
 
 // Cache caches Block entries.
@@ -14,13 +16,25 @@ import (
 // Call NewCache() for creating new Cache.
 type Cache struct {
 	shards []*cache
+
+	cleanerMustStopCh chan struct{}
+	cleanerStoppedCh  chan struct{}
 }
 
 // NewCache creates new cache.
 //
 // Cache size in bytes is limited by the value returned by getMaxSizeBytes() callback.
+// Call MustStop() in order to free up resources occupied by Cache.
 func NewCache(getMaxSizeBytes func() int) *Cache {
+	cpusCount := cgroup.AvailableCPUs()
 	shardsCount := cgroup.AvailableCPUs()
+	// Increase the number of shards with the increased number of available CPU cores.
+	// This should reduce contention on per-shard mutexes.
+	multiplier := cpusCount
+	if multiplier > 16 {
+		multiplier = 16
+	}
+	shardsCount *= multiplier
 	shards := make([]*cache, shardsCount)
 	getMaxShardBytes := func() int {
 		n := getMaxSizeBytes()
@@ -29,9 +43,19 @@ func NewCache(getMaxSizeBytes func() int) *Cache {
 	for i := range shards {
 		shards[i] = newCache(getMaxShardBytes)
 	}
-	return &Cache{
-		shards: shards,
+	c := &Cache{
+		shards:            shards,
+		cleanerMustStopCh: make(chan struct{}),
+		cleanerStoppedCh:  make(chan struct{}),
 	}
+	go c.cleaner()
+	return c
+}
+
+// MustStop frees up resources occupied by c.
+func (c *Cache) MustStop() {
+	close(c.cleanerMustStopCh)
+	<-c.cleanerStoppedCh
 }
 
 // RemoveBlocksForPart removes all the blocks for the given part from the cache.
@@ -43,16 +67,22 @@ func (c *Cache) RemoveBlocksForPart(p interface{}) {
 
 // GetBlock returns a block for the given key k from c.
 func (c *Cache) GetBlock(k Key) Block {
-	h := fastHashUint64(k.Offset)
-	idx := h % uint64(len(c.shards))
+	idx := uint64(0)
+	if len(c.shards) > 1 {
+		h := k.hashUint64()
+		idx = h % uint64(len(c.shards))
+	}
 	shard := c.shards[idx]
 	return shard.GetBlock(k)
 }
 
 // PutBlock puts the given block b under the given key k into c.
 func (c *Cache) PutBlock(k Key, b Block) {
-	h := fastHashUint64(k.Offset)
-	idx := h % uint64(len(c.shards))
+	idx := uint64(0)
+	if len(c.shards) > 1 {
+		h := k.hashUint64()
+		idx = h % uint64(len(c.shards))
+	}
 	shard := c.shards[idx]
 	shard.PutBlock(k, b)
 }
@@ -102,11 +132,34 @@ func (c *Cache) Misses() uint64 {
 	return n
 }
 
-func fastHashUint64(x uint64) uint64 {
-	x ^= x >> 12 // a
-	x ^= x << 25 // b
-	x ^= x >> 27 // c
-	return x * 2685821657736338717
+func (c *Cache) cleaner() {
+	ticker := time.NewTicker(57 * time.Second)
+	defer ticker.Stop()
+	perKeyMissesTicker := time.NewTicker(7 * time.Minute)
+	defer perKeyMissesTicker.Stop()
+	for {
+		select {
+		case <-c.cleanerMustStopCh:
+			close(c.cleanerStoppedCh)
+			return
+		case <-ticker.C:
+			c.cleanByTimeout()
+		case <-perKeyMissesTicker.C:
+			c.cleanPerKeyMisses()
+		}
+	}
+}
+
+func (c *Cache) cleanByTimeout() {
+	for _, shard := range c.shards {
+		shard.cleanByTimeout()
+	}
+}
+
+func (c *Cache) cleanPerKeyMisses() {
+	for _, shard := range c.shards {
+		shard.cleanPerKeyMisses()
+	}
 }
 
 type cache struct {
@@ -143,6 +196,11 @@ type Key struct {
 	Offset uint64
 }
 
+func (k *Key) hashUint64() uint64 {
+	buf := (*[unsafe.Sizeof(*k)]byte)(unsafe.Pointer(k))
+	return xxhash.Sum64(buf[:])
+}
+
 // Block is an item, which may be cached in the Cache.
 type Block interface {
 	// SizeBytes must return the approximate size of the given block in bytes
@@ -164,7 +222,6 @@ func newCache(getMaxSizeBytes func() int) *cache {
 	c.getMaxSizeBytes = getMaxSizeBytes
 	c.m = make(map[interface{}]map[uint64]*cacheEntry)
 	c.perKeyMisses = make(map[Key]int)
-	go c.cleaner()
 	return &c
 }
 
@@ -184,21 +241,10 @@ func (c *cache) updateSizeBytes(n int) {
 	atomic.AddInt64(&c.sizeBytes, int64(n))
 }
 
-func (c *cache) cleaner() {
-	ticker := time.NewTicker(57 * time.Second)
-	defer ticker.Stop()
-	perKeyMissesTicker := time.NewTicker(2 * time.Minute)
-	defer perKeyMissesTicker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			c.cleanByTimeout()
-		case <-perKeyMissesTicker.C:
-			c.mu.Lock()
-			c.perKeyMisses = make(map[Key]int, len(c.perKeyMisses))
-			c.mu.Unlock()
-		}
-	}
+func (c *cache) cleanPerKeyMisses() {
+	c.mu.Lock()
+	c.perKeyMisses = make(map[Key]int, len(c.perKeyMisses))
+	c.mu.Unlock()
 }
 
 func (c *cache) cleanByTimeout() {
