@@ -17,7 +17,7 @@ curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series
 ```
 
 Additional information:
- https://docs.victoriametrics.com/?highlight=delete%20api#how-to-delete-time-series 
+* https://docs.victoriametrics.com/?highlight=delete%20api#how-to-delete-time-series 
 
 
 
@@ -36,8 +36,8 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv?format=__n
 ```
 
 Additional information: 
- https://docs.victoriametrics.com/#how-to-export-csv-data 
- https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format 
+* https://docs.victoriametrics.com/#how-to-export-csv-data 
+* https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format 
 
 If run from docker, <vminsert> address can be found via: “docker ps” command
 The assigned port might be different
