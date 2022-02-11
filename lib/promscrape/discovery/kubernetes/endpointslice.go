@@ -101,12 +101,17 @@ func getEndpointSliceLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, addr s
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}
+	// always add pod targetRef, even if epp port doesn't match container port.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134
+	if _, ok := podPortsSeen[p]; !ok {
+		podPortsSeen[p] = []int{}
+	}
 	p.appendCommonLabels(m)
 	for _, c := range p.Spec.Containers {
 		for _, cp := range c.Ports {
 			if cp.ContainerPort == epp.Port {
-				p.appendContainerLabels(m, c, &cp)
 				podPortsSeen[p] = append(podPortsSeen[p], cp.ContainerPort)
+				p.appendContainerLabels(m, c, &cp)
 				break
 			}
 		}
@@ -117,7 +122,6 @@ func getEndpointSliceLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, addr s
 
 // //getEndpointSliceLabels builds labels for given EndpointSlice
 func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp EndpointPort) map[string]string {
-
 	addr = discoveryutils.JoinHostPort(addr, epp.Port)
 	m := map[string]string{
 		"__address__":                                               addr,

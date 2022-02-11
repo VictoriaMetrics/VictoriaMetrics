@@ -38,6 +38,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix possible UI freeze after querying `node_uname_info` time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2115).
 * BUGFIX: show the original location of the warning or error message when logging throttled messages. Previously the location inside `lib/logger/throttler.go` was shown. This could increase the complexity of debugging.
 * BUGFIX: vmalert: fix links at web UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2167).
+* BUGFIX: vmagent: properly discover pods without exposed ports for the given service for `role: endpoints` and `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134).
 
 
 ## [v1.72.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.72.0)
