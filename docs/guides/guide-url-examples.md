@@ -255,7 +255,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date
 Additional information:
 
 VictoriaMetrics_AccountID=42 - tag that indicated tennant ID.
-[Source code] (https://github.com/VictoriaMetrics/VictoriaMetrics/blob/a3eafd2e7fc75776dfc19d3c68c85589454d9dce/app/vminsert/opentsdb/request_handler.go#L47)
+[Source code](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/a3eafd2e7fc75776dfc19d3c68c85589454d9dce/app/vminsert/opentsdb/request_handler.go#L47)
 https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
 
 
