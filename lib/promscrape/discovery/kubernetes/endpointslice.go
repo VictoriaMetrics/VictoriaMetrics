@@ -98,6 +98,8 @@ func getEndpointSliceLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, addr s
 	if svc != nil {
 		svc.appendCommonLabels(m)
 	}
+	// See https://github.com/prometheus/prometheus/issues/10284
+	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}
