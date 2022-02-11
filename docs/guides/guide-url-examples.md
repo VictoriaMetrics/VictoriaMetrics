@@ -58,7 +58,7 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/native?match=v
 ```
 
 More information:
-https://docs.victoriametrics.com/?highlight=echo#how-to-export-data-in-native-format
+* https://docs.victoriametrics.com/?highlight=echo#how-to-export-data-in-native-format
 
 
 
@@ -79,8 +79,8 @@ curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1
 ```
 
 Additional information: 
-https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
-https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data 
+* https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
+* https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data 
 
 
 
@@ -135,7 +135,7 @@ echo '
 ```
 
 Additional information:
-https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-datadog-agent 
+* https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-datadog-agent 
 
 
 
@@ -154,9 +154,9 @@ curl -G 'http://0.0.0.0:8481/select/0/graphite/metrics/find?query=vm_http_reques
 ```
  
 Additional information:
-https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
-https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd 
-https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=url%20format#url-format
+* https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
+* https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd 
+* https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=url%20format#url-format
 
 
 
@@ -175,7 +175,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 ```
  
 Additional information:
-https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf 
+* https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf 
 
 
 
@@ -195,7 +195,7 @@ curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/promethe
 ```
  
 Additional information:
-https://docs.victoriametrics.com/?highlight=echo#how-to-import-time-series-data
+* https://docs.victoriametrics.com/?highlight=echo#how-to-import-time-series-data
 
 
 
@@ -232,8 +232,8 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 ```
  
 Additional information:
-http://opentsdb.net/docs/build/html/api_http/put.html
-https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents
+* http://opentsdb.net/docs/build/html/api_http/put.html
+* https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents
 
 
 
@@ -255,8 +255,8 @@ echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date
 Additional information:
 
 VictoriaMetrics_AccountID=42 - tag that indicated tennant ID.
-[Source code](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/a3eafd2e7fc75776dfc19d3c68c85589454d9dce/app/vminsert/opentsdb/request_handler.go#L47)
-https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+* https://github.com/VictoriaMetrics/VictoriaMetrics/blob/a3eafd2e7fc75776dfc19d3c68c85589454d9dce/app/vminsert/opentsdb/request_handler.go#L47
+* https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
 
 
 
