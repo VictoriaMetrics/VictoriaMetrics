@@ -461,7 +461,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	defer stopTestStorage(s)
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB(tableName, s)
+		db, err := openIndexDB(tableName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -480,7 +480,7 @@ func TestIndexDB(t *testing.T) {
 		defer stopTestStorage(s)
 
 		dbName := nextIndexDBTableName()
-		db, err := openIndexDB(dbName, s)
+		db, err := openIndexDB(dbName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -510,7 +510,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, s)
+		db, err = openIndexDB(dbName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -530,7 +530,7 @@ func TestIndexDB(t *testing.T) {
 		defer stopTestStorage(s)
 
 		dbName := nextIndexDBTableName()
-		db, err := openIndexDB(dbName, s)
+		db, err := openIndexDB(dbName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -1487,7 +1487,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 }
 
-func TestIndexRepopulateAfterRotation(t *testing.T) {
+func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	path := "TestIndexRepopulateAfterRotation"
 	s, err := OpenStorage(path, 0, 1e5, 1e5)
 	if err != nil {
@@ -1531,8 +1531,8 @@ func TestIndexRepopulateAfterRotation(t *testing.T) {
 	// check new series were added to cache
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
-	if cs.EntriesCount != added {
-		t.Fatalf("expected tsidCache to contain %d rows; got %d", added, cs.EntriesCount)
+	if cs.EntriesCount != metricRowsN {
+		t.Fatalf("expected tsidCache to contain %d rows; got %d", metricRowsN, cs.EntriesCount)
 	}
 
 	// check if cache entries do belong to current indexDB generation
@@ -1544,6 +1544,7 @@ func TestIndexRepopulateAfterRotation(t *testing.T) {
 				"got %d", db.generation, genTSID.generation)
 		}
 	}
+	prevGeneration := db.generation
 
 	// force index rotation
 	s.mustRotateIndexDB()
@@ -1551,71 +1552,39 @@ func TestIndexRepopulateAfterRotation(t *testing.T) {
 	// check tsidCache wasn't reset after the rotation
 	var cs2 fastcache.Stats
 	s.tsidCache.UpdateStats(&cs2)
-	if cs.EntriesCount != added {
-		t.Fatalf("expected tsidCache after rotation to contain %d rows; got %d", added, cs2.EntriesCount)
+	if cs.EntriesCount != metricRowsN {
+		t.Fatalf("expected tsidCache after rotation to contain %d rows; got %d", metricRowsN, cs2.EntriesCount)
 	}
-
 	dbNew := s.idb()
 	if dbNew.generation == 0 {
 		t.Fatalf("expected new indexDB generation to be not 0")
 	}
-	if dbNew.generation == db.generation {
+	if dbNew.generation == prevGeneration {
 		t.Fatalf("expected new indexDB generation %d to be different from prev indexDB", dbNew.generation)
 	}
 
-	reInsertAndCheckIndexFn := func(expEntries, allowedError int) {
-		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			t.Fatalf("unexpected error when adding mrs: %s", err)
-		}
-		s.DebugFlush()
-
-		entriesByGeneration := make(map[uint64]int)
-		for _, mr := range mrs {
-			s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
-			entriesByGeneration[genTSID.generation]++
-		}
-
-		idb := s.idb()
-		got := entriesByGeneration[idb.generation]
-		max, min := expEntries+allowedError, expEntries-allowedError
-		if min < 0 {
-			min = 0
-		}
-		if got < min || got > max {
-			t.Fatalf("expected idb %d to have entries count between %d and %d; got %d",
-				idb.generation, min, max, got)
-		}
+	// Re-insert rows again and verify that entries belong prevGeneration and dbNew.generation,
+	// while the majority of entries remain at prevGeneration.
+	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+		t.Fatalf("unexpected error when adding mrs: %s", err)
 	}
-
-	// re-insert the same rows with expectations that TSIDs are served
-	// from the cache without re-populating the new index,
-	// because nextRotationMsecs is set to s.retentionMsecs (like rotation just happened)
-	s.getNextRotationDuration = func() time.Duration {
-		return time.Duration(s.retentionMsecs) * time.Millisecond
+	s.DebugFlush()
+	entriesByGeneration := make(map[uint64]int)
+	for _, mr := range mrs {
+		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
+		entriesByGeneration[genTSID.generation]++
 	}
-	reInsertAndCheckIndexFn(0, 0)
-
-	retentionThresholdMins := int(s.retentionShareThresholdMsecs / 1000 / 60)
-	step := retentionThresholdMins / 10
-	for i := 0; i <= retentionThresholdMins; i += +step {
-		// override getNextRotationDuration func to emulate how next rotation
-		// event becomes closer and closer
-		nextRotation := time.Minute * time.Duration(i)
-		s.getNextRotationDuration = func() time.Duration {
-			return time.Duration(s.retentionMsecs-nextRotation.Milliseconds()) * time.Millisecond
-		}
-
-		// re-insert the same rows expecting that cache will be slowly
-		// re-populated with each iteration
-		expEntries := int(metricRowsN * float64(i) / float64(retentionThresholdMins))
-		reInsertAndCheckIndexFn(expEntries, 50)
+	if len(entriesByGeneration) > 2 {
+		t.Fatalf("expecting two generations; got %d", entriesByGeneration)
 	}
-
-	// check tsidCache is fully re-populated
-	var cs3 fastcache.Stats
-	s.tsidCache.UpdateStats(&cs3)
-	if cs.EntriesCount != metricRowsN {
-		t.Fatalf("expected tsidCache to contain %d rows; got %d", metricRowsN, cs3.EntriesCount)
+	prevEntries := entriesByGeneration[prevGeneration]
+	currEntries := entriesByGeneration[dbNew.generation]
+	totalEntries := prevEntries + currEntries
+	if totalEntries != metricRowsN {
+		t.Fatalf("unexpected number of entries in tsid cache; got %d; want %d", totalEntries, metricRowsN)
+	}
+	if float64(currEntries)/float64(totalEntries) > 0.1 {
+		t.Fatalf("too big share of entries in the new generation; currEntries=%d, prevEntries=%d", currEntries, prevEntries)
 	}
 }
 
@@ -1624,7 +1593,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	defer stopTestStorage(s)
 
 	dbName := nextIndexDBTableName()
-	db, err := openIndexDB(dbName, s)
+	db, err := openIndexDB(dbName, s, 0)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)
 	}

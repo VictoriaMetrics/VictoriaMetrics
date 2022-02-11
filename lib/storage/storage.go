@@ -32,9 +32,8 @@ import (
 )
 
 const (
-	msecsPerMonth                = 31 * 24 * 3600 * 1000
-	maxRetentionMsecs            = 100 * 12 * msecsPerMonth
-	retentionShareThresholdMsecs = 3600 * 1000
+	msecsPerMonth     = 31 * 24 * 3600 * 1000
+	maxRetentionMsecs = 100 * 12 * msecsPerMonth
 )
 
 // Storage represents TSDB storage.
@@ -61,13 +60,6 @@ type Storage struct {
 	path           string
 	cachePath      string
 	retentionMsecs int64
-
-	// retentionShareThresholdMsecs defines the time interval after index rotation,
-	// at which the new index will be gradually populated with missing entries.
-	// The bigger the interval, the slower re-population will happen.
-	retentionShareThresholdMsecs int64
-	// getNextRotationDuration is used in tests
-	getNextRotationDuration func() time.Duration
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -160,13 +152,11 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 		retentionMsecs = maxRetentionMsecs
 	}
 	s := &Storage{
-		path:                         path,
-		cachePath:                    path + "/cache",
-		retentionMsecs:               retentionMsecs,
-		retentionShareThresholdMsecs: int64(retentionShareThresholdMsecs),
-		stop:                         make(chan struct{}),
+		path:           path,
+		cachePath:      path + "/cache",
+		retentionMsecs: retentionMsecs,
+		stop:           make(chan struct{}),
 	}
-	s.getNextRotationDuration = func() time.Duration { return nextRetentionDuration(s.retentionMsecs) }
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
 	}
@@ -701,7 +691,8 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s)
+	rotationTimestamp := fasttime.UnixTimestamp()
+	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -721,7 +712,8 @@ func (s *Storage) mustRotateIndexDB() {
 	fs.MustSyncPath(s.path)
 
 	// Do not flush tsidCache to avoid read/write path slowdown
-	// and slowly re-populate new idb with entries from the cace
+	// and slowly re-populate new idb with entries from the cache via maybeCreateIndexes().
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 
 	// Flush dateMetricIDCache, so idbNew can be populated with fresh data.
 	s.dateMetricIDCache.Reset()
@@ -1642,7 +1634,6 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	var genTSID generationTSID
 	mn := GetMetricName()
 	defer PutMetricName(mn)
-	nextRetentionMsecs := s.getNextRotationDuration().Milliseconds()
 
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
@@ -1651,11 +1642,12 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		mr := &mrs[i]
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			if genTSID.generation != idb.generation {
-				// the found entry is from the previous cache generation
-				// so making an attempt to re-populate the current generation with this entry
-				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mn, mr.MetricNameRaw, nextRetentionMsecs)
+				// The found entry is from the previous cache generation
+				// so attempt to re-populate the current generation with this entry.
+				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
+				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw)
 				if err != nil {
-					return fmt.Errorf("cannot create indexes: %w", err)
+					return fmt.Errorf("cannot create indexes in the current indexdb: %w", err)
 				}
 				if created {
 					genTSID.generation = idb.generation
@@ -1704,25 +1696,6 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	return nil
 }
 
-// getRetentionShare returns a value between 0 and math.MaxUint32
-// based on how close the nextRetentionMsecs is to retentionMsecs.
-// The less time left to the next retentionMsecs, the higher is the share.
-// thresholdMsecs defines the range between retentionMsecs and nextRetentionMsecs
-// after which returned result will always be at the max value.
-func getRetentionShare(retentionMsecs, nextRetentionMsecs, thresholdMsecs int64) uint32 {
-	if nextRetentionMsecs > retentionMsecs {
-		return 0
-	}
-	if thresholdMsecs == 0 || thresholdMsecs > retentionMsecs {
-		thresholdMsecs = retentionMsecs
-	}
-	share := float64(retentionMsecs-nextRetentionMsecs) / float64(thresholdMsecs)
-	if share > 1 {
-		share = 1
-	}
-	return uint32(float64(math.MaxUint32) * share)
-}
-
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
 	idb := s.idb()
 	j := 0
@@ -1737,7 +1710,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var genTSID generationTSID
 	mn := GetMetricName()
 	defer PutMetricName(mn)
-	nextRetentionMsecs := s.getNextRotationDuration().Milliseconds()
 
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
@@ -1798,11 +1770,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			prevMetricNameRaw = mr.MetricNameRaw
 
 			if genTSID.generation != idb.generation {
-				// the found entry is from the previous cache generation
-				// so making an attempt to re-populate the current generation with this entry
-				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mn, mr.MetricNameRaw, nextRetentionMsecs)
+				// The found entry is from the previous cache generation
+				// so attempt to re-populate the current generation with this entry.
+				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
+				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw)
 				if err != nil {
-					return fmt.Errorf("cannot create indexes: %w", err)
+					return fmt.Errorf("cannot create indexes in the current indexdb: %w", err)
 				}
 				if created {
 					genTSID.generation = idb.generation
@@ -2477,12 +2450,12 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, s)
+	curr, err = openIndexDB(currPath, s, 0)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, s)
+	prev, err = openIndexDB(prevPath, s, 0)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)

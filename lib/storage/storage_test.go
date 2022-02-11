@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"reflect"
@@ -1071,37 +1070,6 @@ func TestStorageRotateIndexDB(t *testing.T) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
-}
-
-func TestGetRetentionShare(t *testing.T) {
-	f := func(got, exp uint32) {
-		t.Helper()
-		if got != exp {
-			t.Fatalf("expected to get %d; got %d", exp, got)
-		}
-	}
-	// the max share
-	f(getRetentionShare(1000, 900, 100), ^uint32(0))
-	// the min share
-	month := time.Hour * 24 * 30
-	f(getRetentionShare(month.Milliseconds(), month.Milliseconds()-1, 0), 1)
-	// 50% of the share
-	f(getRetentionShare(month.Milliseconds(), month.Milliseconds()/2, 0), math.MaxUint32/2)
-	// 50% of the share with threshold
-	f(getRetentionShare(month.Milliseconds(), month.Milliseconds()-3600*1000, time.Hour.Milliseconds()*2), math.MaxUint32/2)
-	// 10% of the share
-	exp := float64(math.MaxUint32) * 0.1
-	f(getRetentionShare(1000, 990, 100), uint32(exp))
-	// 90% of the share
-	exp = float64(math.MaxUint32) * 0.9
-	f(getRetentionShare(1000, 910, 100), uint32(exp))
-	// 10% of the share for omitted threshold
-	exp = float64(math.MaxUint32) * 0.1
-	f(getRetentionShare(1000, 900, 0), uint32(exp))
-	// corner case for nextRetentionMsecs>retentionMsecs
-	f(getRetentionShare(1000, 2000, 100), 0)
-	// corner case for nextRetentionMsecs>retentionMsecs with omitted threshold
-	f(getRetentionShare(1000, 2000, 0), 0)
 }
 
 func testStorageAddMetrics(s *Storage, workerNum int) error {

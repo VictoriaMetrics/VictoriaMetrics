@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -88,6 +87,9 @@ type indexDB struct {
 	// and is used for syncing items from different indexDBs
 	generation uint64
 
+	// The unix timestamp in seconds for the indexDB rotation.
+	rotationTimestamp uint64
+
 	name string
 	tb   *mergeset.Table
 
@@ -107,18 +109,22 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
-// openIndexDB opens index db from the given path with the given caches.
-// the last segment of the path should contain unique hex value which
+// openIndexDB opens index db from the given path.
+//
+// The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-func openIndexDB(path string, s *Storage) (*indexDB, error) {
+//
+// The rotationTimestamp must be set to the current unix timestamp when ipenIndexDB
+// is called when creating new indexdb during indexdb rotation.
+func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, error) {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
 
 	name := filepath.Base(path)
-	gen, err := hex2int(name)
+	gen, err := strconv.ParseUint(name, 16, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse index name %q; expected hex but got: %s", err, name)
+		return nil, fmt.Errorf("failed to parse indexdb path %q: %w", path, err)
 	}
 
 	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows)
@@ -130,21 +136,17 @@ func openIndexDB(path string, s *Storage) (*indexDB, error) {
 	mem := memory.Allowed()
 
 	db := &indexDB{
-		refCount:   1,
-		generation: gen,
-		tb:         tb,
-		name:       name,
+		refCount:          1,
+		generation:        gen,
+		rotationTimestamp: rotationTimestamp,
+		tb:                tb,
+		name:              name,
 
 		tagFiltersCache:            workingsetcache.New(mem/32, time.Hour),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
 	}
 	return db, nil
-}
-
-func hex2int(hexStr string) (uint64, error) {
-	stripped := strings.Replace(hexStr, "0x", "", -1)
-	return strconv.ParseUint(stripped, 16, 64)
 }
 
 const noDeadline = 1<<64 - 1
@@ -362,17 +364,21 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	db.s.metricNameCache.Set(key[:], metricName)
 }
 
-// maybeCreateIndexes adds passed TSID to the current index DB
-// with some probability based on nextRetentionMsecs and storage.retentionMsecs.
+// maybeCreateIndexes probabilistically creates indexes for the given (tsid, metricNameRaw) at db.
+//
+// The probability increases from 0 to 100% during the first hour since db rotation.
+//
 // It returns true if new index entry was created, and false if it was skipped.
-func (db *indexDB) maybeCreateIndexes(tsid *TSID, mn *MetricName, metricNameRaw []byte, nextRetentionMsecs int64) (bool, error) {
-	// get hash from metric name, so the same metrics will get consistent
-	// result for multiple calls.
-	h := uint32(xxhash.Sum64(metricNameRaw))
-	share := getRetentionShare(db.s.retentionMsecs, nextRetentionMsecs, db.s.retentionShareThresholdMsecs)
-	if h > share {
+func (db *indexDB) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte) (bool, error) {
+	h := xxhash.Sum64(metricNameRaw)
+	p := float64(uint32(h)) / (1 << 32)
+	pMin := float64(fasttime.UnixTimestamp()-db.rotationTimestamp) / 3600
+	if p > pMin {
+		// Fast path: there is no need creating indexes for metricNameRaw yet.
 		return false, nil
 	}
+	// Slow path: create indexes for (tsid, metricNameRaw) at db.
+	mn := GetMetricName()
 	if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
 		return false, fmt.Errorf("cannot unmarshal metricNameRaw %q: %w", metricNameRaw, err)
 	}
@@ -380,6 +386,7 @@ func (db *indexDB) maybeCreateIndexes(tsid *TSID, mn *MetricName, metricNameRaw 
 	if err := db.createIndexes(tsid, mn); err != nil {
 		return false, err
 	}
+	PutMetricName(mn)
 	atomic.AddUint64(&db.timeseriesRepopulated, 1)
 	return true, nil
 }
@@ -555,7 +562,8 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	// There is no need in invalidating tag cache, since it is invalidated
 	// on db.tb flush via invalidateTagFiltersCache flushCallback passed to OpenTable.
 
-	if created { // update metric only if TSID wasn't found in ext indexDB
+	if created {
+		// Increase the newTimeseriesCreated counter only if tsid wasn't found in indexDB
 		atomic.AddUint64(&db.newTimeseriesCreated, 1)
 		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())
@@ -573,10 +581,9 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
-// getOrCreateTSID looks for existing TSID in extDB
-// or creates a new TSID if nothing was found.
-// Returns true if TSID was created
-// or false if TSID was in extDB
+// getOrCreateTSID looks for existing TSID for the given metricName in db.extDB or creates a new TSID if nothing was found.
+//
+// Returns true if TSID was created or false if TSID was in extDB
 func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName) (bool, error) {
 	// Search the TSID in the external storage.
 	// This is usually the db from the previous period.
@@ -592,10 +599,8 @@ func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName)
 			return false, fmt.Errorf("external search failed: %w", err)
 		}
 	}
-
 	// The TSID wasn't found in the external storage.
 	// Generate it locally.
-
 	generateTSID(dst, mn)
 	return true, nil
 }
