@@ -2,7 +2,6 @@
 
 
 
-
 # /api/v1/admin/tsdb/delete_series
 
 **Delete time series**
@@ -13,9 +12,9 @@ Single:
 Cluster:
 `curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'`
 
-
 Additional information:
 https://docs.victoriametrics.com/?highlight=delete%20api#how-to-delete-time-series 
+
 
 
 # /api/v1/export/csv
@@ -41,12 +40,10 @@ The assigned port might be different
 **Exporting in native format**
 
 Single:
- 
 `curl -G 'http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=vm_http_request_errors_total' > filename.txt`
  
 Cluster:
 `curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/native?match=vm_http_request_errors_total' > filename.txt`
-
 
 More information:
 https://docs.victoriametrics.com/?highlight=echo#how-to-export-data-in-native-format
@@ -71,17 +68,12 @@ https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-impor
 
 
 
-
-
-
-
 # /datadog/api/v1/series
 
 **Sends data from DataDog agent to VM**
  
 Single:
-
-echo '
+`echo '
 {
   "series": [
     {
@@ -99,12 +91,10 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series
+' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series`
 
 
- 
 Cluster:
-
 `echo '
 {
   "series": [
@@ -126,7 +116,6 @@ Cluster:
 ' | curl -X POST --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'`
 
 Additional information:
-
 https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-datadog-agent 
 
 
@@ -135,14 +124,9 @@ https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-datadog-a
 
 **Searches Graphite metrics**
 
- 
 Single:
+`curl -G 'http://localhost:8428/graphite/metrics/find?query=vm_http_request_errors_total'`
 
-curl -G 'http://localhost:8428/graphite/metrics/find?query=vm_http_request_errors_total'
-
-
-
- 
 Cluster:
 `curl -G 'http://0.0.0.0:8481/select/0/graphite/metrics/find?query=vm_http_request_errors_total'`
 
@@ -153,18 +137,12 @@ https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=url%20fo
 
 
 
-
-
-
-
-
 # /influx/write
 
 **Writes data with InfluxDB line protocol to local VictoriaMetrics**
 
- 
 Single:
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
+`curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'`
 
 Cluster:
 `curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<vminsert>:8480/insert/0/influx/write'`
@@ -179,14 +157,11 @@ https://docs.victoriametrics.com/?highlight=post#how-to-send-data-from-influxdb-
 
 **Importing data obtained via api/v1/export at vmselect**
 
- 
 Single:
 `curl --data-binary "@import.txt" -X POST 'http://destination-victoriametrics:8428/api/v1/import'`
 
- 
 Cluster:
 `curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/prometheus/api/v1/import'`
-
 
 Additional information:
 https://docs.victoriametrics.com/?highlight=echo#how-to-import-time-series-data
@@ -201,35 +176,26 @@ Turned off by default.
 Enable OpenTSDB receiver in VictoriaMetrics by setting -opentsdbListenAddr command line flag.
 *If run from docker, '-opentsdbListenAddr' port should be exposed*
 
- 
 Single:
-echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
-
-
+`echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242`
 
 Cluster:
 `echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2 VictoriaMetrics_AccountID=0" | nc -N http://<vminsert> 4242`
 
-
-
+ 
 
 **Enable HTTP server for OpenTSDB /api/put requests by setting -opentsdbHTTPListenAddr**
  
 Single:
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
-
+`curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put`
 
 Cluster:
 `curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]'
  'http://<vminsert>:8480/insert/42/opentsdb/api/put'
 
-
-
 Additional information:
 http://opentsdb.net/docs/build/html/api_http/put.html
 https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents
-
-
 
 
 
@@ -241,7 +207,6 @@ Single:
 `echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" |
  nc -N localhost 2003`
 
- 
 Cluster:
 `echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date +%s`" | nc -N http://<vminsert> 2003`
 
