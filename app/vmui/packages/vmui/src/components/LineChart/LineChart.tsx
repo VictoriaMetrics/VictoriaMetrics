@@ -125,7 +125,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
         uPlotInst.setData(data);
         break;
     }
-    uPlotInst.redraw();
+    if (!isPanning) uPlotInst.redraw();
   };
 
   useEffect(() => setXRange({min: period.start, max: period.end}), [period]);

@@ -1,18 +1,23 @@
 import {useEffect, useMemo, useCallback, useState} from "preact/compat";
-import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
-import {useAppState} from "../../../../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
-import {isValidHttpUrl} from "../../../../utils/url";
-import {ErrorTypes} from "../../../../types";
-import {useGraphState} from "../../../../state/graph/GraphStateContext";
-import {getAppModeEnable, getAppModeParams} from "../../../../utils/app-mode";
+import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../api/query-range";
+import {useAppState} from "../state/common/StateContext";
+import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
+import {isValidHttpUrl} from "../utils/url";
+import {ErrorTypes} from "../types";
+import {useGraphState} from "../state/graph/GraphStateContext";
+import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import throttle from "lodash.throttle";
-import {DisplayType} from "../DisplayTypeSwitch";
+import {DisplayType} from "../components/Home/Configurator/DisplayTypeSwitch";
+
+interface FetchQueryParams {
+  predefinedQuery?: string[]
+  visible: boolean
+}
 
 const appModeEnable = getAppModeEnable();
 const {serverURL: appServerUrl} = getAppModeParams();
 
-export const useFetchQuery = (): {
+export const useFetchQuery = ({predefinedQuery, visible}: FetchQueryParams): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -67,11 +72,10 @@ export const useFetchQuery = (): {
         setError(`${e.name}: ${e.message}`);
       }
     }
-
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(throttle(fetchData, 300), []);
+  const throttledFetchData = useCallback(throttle(fetchData, 1000), []);
 
   const fetchOptions = async () => {
     const server = appModeEnable ? appServerUrl : serverUrl;
@@ -91,14 +95,15 @@ export const useFetchQuery = (): {
 
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
+    const expr = predefinedQuery ?? query;
     if (!period) return;
     if (!server) {
       setError(ErrorTypes.emptyServer);
-    } else if (query.every(q => !q.trim())) {
+    } else if (expr.every(q => !q.trim())) {
       setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(server)) {
       if (customStep.enable) period.step = customStep.value;
-      return query.filter(q => q.trim()).map(q => displayType === "chart"
+      return expr.filter(q => q.trim()).map(q => displayType === "chart"
         ? getQueryRangeUrl(server, q, period, nocache)
         : getQueryUrl(server, q, period));
     } else {
@@ -111,10 +116,10 @@ export const useFetchQuery = (): {
     fetchOptions();
   }, [serverUrl]);
 
-  // TODO: this should depend on query as well, but need to decide when to do the request. Doing it on each query change - looks to be a bad idea. Probably can be done on blur
   useEffect(() => {
+    if (!visible) return;
     throttledFetchData(fetchUrl, fetchQueue, displayType);
-  }, [fetchUrl]);
+  }, [fetchUrl, visible]);
 
   useEffect(() => {
     const fetchPast = fetchQueue.slice(0, -1);

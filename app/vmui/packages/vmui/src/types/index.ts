@@ -43,8 +43,13 @@ export interface PanelSettings {
   hideLegend?: boolean;
 }
 
+export interface DashboardRow {
+  title?: string;
+  panels: PanelSettings[];
+}
+
 export interface DashboardSettings {
-  name?: string;
+  title?: string;
   filename: string;
-  panels: PanelSettings[]
+  rows: DashboardRow[]
 }

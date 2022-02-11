@@ -1,20 +1,16 @@
-import React, {FC, useEffect, useState} from "preact/compat";
+import React, {FC, useEffect, useRef, useState} from "preact/compat";
 import Box from "@mui/material/Box";
 import {PanelSettings} from "../../types";
 import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import Typography from "@mui/material/Typography";
-import {MetricBase, MetricResult} from "../../api/types";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
 import {AxisRange} from "../../state/graph/reducer";
-import {getAppModeEnable, getAppModeParams} from "../../utils/app-mode";
-import {getQueryRangeUrl} from "../../api/query-range";
 import GraphView from "../Home/Views/GraphView";
 import Alert from "@mui/material/Alert";
-
-const appModeEnable = getAppModeEnable();
-const {serverURL: appServerUrl} = getAppModeParams();
+import {useFetchQuery} from "../../hooks/useFetchQuery";
+import Spinner from "../common/Spinner";
 
 const PredefinedPanels: FC<PanelSettings> = ({
   title,
@@ -24,10 +20,12 @@ const PredefinedPanels: FC<PanelSettings> = ({
   hideLegend
 }) => {
 
-  const [graphData, setGraphData] = useState<MetricResult[]>();
-  const [error, setError] = useState<string>();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(true);
 
-  const {serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
+  const {isLoading, graphData, error} = useFetchQuery({predefinedQuery: expr, visible});
+
+  const {time: {period}} = useAppState();
   const {customStep, yaxis} = useGraphState();
 
   const dispatch = useAppDispatch();
@@ -41,48 +39,26 @@ const PredefinedPanels: FC<PanelSettings> = ({
     dispatch({type: "SET_PERIOD", payload: {from, to}});
   };
 
-  const fetchData = async () => {
-    console.log("fetchData", title);
-    const server = appModeEnable ? appServerUrl : serverUrl;
-    const urls = expr.map(q => getQueryRangeUrl(server, q, period, nocache));
-
-    try {
-      const tempData = [];
-      let counter = 1;
-      const responses = await Promise.all(urls.map(url => fetch(url)));
-
-      for await (const response of responses) {
-        const resp = await response.json();
-        if (response.ok) {
-          tempData.push(...resp.data.result.map((d: MetricBase) => {
-            d.group = counter;
-            return d;
-          }));
-          counter++;
-        } else {
-          setError(`${resp.errorType}\r\n${resp?.error}`);
-        }
-      }
-
-      setGraphData(tempData);
-    } catch (e) {
-      if (e instanceof Error && e.name !== "AbortError") setError(`${e.name}: ${e.message}`);
-    }
-  };
-
   useEffect(() => {
-    // TODO add throttled fetch and check effect with yaxis
-    fetchData();
-  }, [period, expr]); // [period, expr, yaxis]
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => setVisible(entry.isIntersecting));
+    }, { threshold: 0.1 });
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => {
+      if (containerRef.current) observer.unobserve(containerRef.current);
+    };
+  }, []);
 
-  return <Box p={1} border="1px solid" borderRadius="2px" borderColor="divider">
-    <Box display="grid" gridTemplateColumns="18px 1fr" alignItems="center" justifyContent="space-between">
+  return <Box border="1px solid" borderRadius="2px" borderColor="divider" ref={containerRef}>
+    <Box px={2} py={2} display="grid" gridTemplateColumns="18px 1fr" alignItems="center" justifyContent="space-between"
+      borderBottom={"1px solid"} borderColor={"divider"}>
       {description && <Tooltip title={description} arrow><InfoIcon color="info"/></Tooltip>}
-      {title && <Typography variant="subtitle1" gridColumn={2} textAlign={"center"} width={"100%"}>
+      {title && <Typography variant="subtitle1" gridColumn={2} textAlign={"center"} width={"100%"} fontWeight={500}>
         {title}
       </Typography>}
     </Box>
-    <Box>
+    <Box px={2} pb={2}>
+      {isLoading && <Spinner isLoading={true} height={"500px"}/>}
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
       {graphData && <GraphView
         data={graphData}

@@ -89,7 +89,7 @@ const Header: FC = () => {
         <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
           onChange={(e, val) => setActiveMenu(val)}>
           <Tab label="Custom panel" value={router.home} onClick={() => navigateHandler(router.home)}/>
-          <Tab label="Predefined panels" value={router.dashboards} onClick={() => navigateHandler(router.dashboards)}/>
+          <Tab label="Dashboards" value={router.dashboards} onClick={() => navigateHandler(router.dashboards)}/>
         </Tabs>
       </Box>
       <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>

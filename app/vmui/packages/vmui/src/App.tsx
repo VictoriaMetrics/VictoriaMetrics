@@ -1,7 +1,6 @@
 import React, {FC} from "preact/compat";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {SnackbarProvider} from "./contexts/Snackbar";
-import HomeLayout from "./components/Home/HomeLayout";
 import {StateProvider} from "./state/common/StateContext";
 import {AuthStateProvider} from "./state/auth/AuthStateContext";
 import {GraphStateProvider} from "./state/graph/GraphStateContext";
@@ -10,9 +9,10 @@ import { ThemeProvider, StyledEngineProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import DayjsUtils from "@date-io/dayjs";
-import PredefinedLayout from "./components/PredefinedPanels/PredefinedLayout";
 import router from "./router/index";
 
+import HomeLayout from "./components/Home/HomeLayout";
+import DashboardsLayout from "./components/PredefinedPanels/DashboardsLayout";
 
 const App: FC = () => {
 
@@ -28,7 +28,7 @@ const App: FC = () => {
                   <BrowserRouter>
                     <Routes>
                       <Route path={router.home} element={<HomeLayout/>}/>
-                      <Route path={router.dashboards} element={<PredefinedLayout/>}/>
+                      <Route path={router.dashboards} element={<DashboardsLayout/>}/>
                     </Routes>
                   </BrowserRouter>
                 </SnackbarProvider>

@@ -1,5 +1,5 @@
 import React, {FC} from "preact/compat";
-import {DashboardSettings} from "../../types";
+import {DashboardRow} from "../../types";
 import Box from "@mui/material/Box";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -8,21 +8,21 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import PredefinedPanels from "./PredefinedPanels";
 
-export interface PredefinedDashboardProps extends DashboardSettings {
+export interface PredefinedDashboardProps extends DashboardRow {
   index: number;
 }
 
-const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, name, panels}) => {
+const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels}) => {
 
-  return <Accordion TransitionProps={{ unmountOnExit: true }} defaultExpanded={!index}>
+  return <Accordion defaultExpanded={!index} sx={{boxShadow: "none"}}>
     <AccordionSummary
-      sx={{px: 3}}
+      sx={{px: 3, bgcolor: "rgba(227, 242, 253, 0.6)"}}
       aria-controls={`panel${index}-content`}
       id={`panel${index}-header`}
       expandIcon={<ExpandMoreIcon />}
     >
-      <Box display="flex" alignItems="center">
-        {name && <Typography variant="subtitle1" fontWeight="bold" sx={{mr: 2}}>{name}</Typography>}
+      <Box display="flex" alignItems="center" width={"100%"}>
+        {title && <Typography variant="h6" fontWeight="bold" sx={{mr: 2}}>{title}</Typography>}
         <Typography variant="body2" fontStyle="italic">({panels.length} panels)</Typography>
       </Box>
     </AccordionSummary>
