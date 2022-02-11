@@ -12,7 +12,7 @@ or any other Prometheus-compatible storage systems that support the `remote_writ
 While VictoriaMetrics provides an efficient solution to store and observe metrics, our users needed something fast
 and RAM friendly to scrape metrics from Prometheus-compatible exporters into VictoriaMetrics.
 Also, we found that our user's infrastructure are like snowflakes in that no two are alike. Therefore we decided to add more flexibility
-to `vmagent` such as the ability to push metrics instead of pulling them. We did our best and will continue to improve vmagent.
+to `vmagent` such as the ability to push metrics additionally to pulling them. We did our best and will continue to improve `vmagent`.
 
 
 ## Features
@@ -46,7 +46,7 @@ to `vmagent` such as the ability to push metrics instead of pulling them. We did
 Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
 and configure the following flags to the `vmagent` binary in order to start scraping Prometheus targets:
 
-* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`). The path can point either to local file or to http url.
+* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`). The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` additional command-line flag, so `vmagent` will ignore unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
 * `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified multiple times to replicate data concurrently to an arbitrary number of remote storage systems.
 
 Example command line:
@@ -235,6 +235,19 @@ Every referred file can contain arbitrary number of [supported scrape configs](#
 ```
 
 `vmagent` dynamically reloads these files on `SIGHUP` signal or on the request to `http://vmagent:8429/-/reload`.
+
+
+## Unsupported Prometheus config sections
+
+`vmagent` doesn't support the following sections in Prometheus config file passed to `-promscrape.config` command-line flag:
+
+* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via push protocols such as InfluxDB, Graphite, OpenTSDB, DataDog, etc. In this case the `-promscrape.config` file isn't needed. See [these docs](#features) for details.
+* `remote_read`. This section isn't supported at all.
+* `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/vmalert.html).
+
+The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
+
+Additionally `vmagent` doesn't support `refresh_interval` option at service discovery sections. This option is substituted with `-promscrape.*CheckInterval` command-line options, which are specific per each service discovery type. See [the full list of command-line flags for vmagent](#advanced-usage).
 
 
 ## Adding labels to metrics
