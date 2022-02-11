@@ -14,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // Config contains list of supported configuration settings
@@ -38,7 +38,7 @@ type Config struct {
 	RelabelConfigs []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 
 	// The timeout used when sending alerts.
-	Timeout promscrape.PromDuration `yaml:"timeout,omitempty"`
+	Timeout promutils.Duration `yaml:"timeout,omitempty"`
 
 	// Checksum stores the hash of yaml definition for the config.
 	// May be used to detect any changes to the config file.
@@ -71,7 +71,7 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		cfg.Scheme = "http"
 	}
 	if cfg.Timeout.Duration() == 0 {
-		cfg.Timeout = promscrape.NewPromDuration(time.Second * 10)
+		cfg.Timeout = promutils.NewDuration(time.Second * 10)
 	}
 	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs, false)
 	if err != nil {

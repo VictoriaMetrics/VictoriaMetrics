@@ -1,4 +1,4 @@
-package promscrape
+package promutils
 
 import (
 	"time"
@@ -6,25 +6,25 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-// PromDuration is Prometheus duration.
-type PromDuration struct {
+// Duration is duration, which must be used in Prometheus-compatible yaml configs.
+type Duration struct {
 	milliseconds int64
 }
 
-// NewPromDuration returns PromDuration for given d.
-func NewPromDuration(d time.Duration) PromDuration {
-	return PromDuration{
+// NewDuration returns Duration for given d.
+func NewDuration(d time.Duration) Duration {
+	return Duration{
 		milliseconds: d.Milliseconds(),
 	}
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
-func (pd PromDuration) MarshalYAML() (interface{}, error) {
+func (pd Duration) MarshalYAML() (interface{}, error) {
 	return pd.Duration().String(), nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
-func (pd *PromDuration) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (pd *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err
@@ -38,12 +38,12 @@ func (pd *PromDuration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Duration returns duration for pd.
-func (pd *PromDuration) Duration() time.Duration {
+func (pd *Duration) Duration() time.Duration {
 	return time.Duration(pd.milliseconds) * time.Millisecond
 }
 
-// ParsePromDuration parses duration string in Prometheus format
-func ParsePromDuration(s string) (time.Duration, error) {
+// ParseDuration parses duration string in Prometheus format
+func ParseDuration(s string) (time.Duration, error) {
 	ms, err := metricsql.DurationValue(s, 0)
 	if err != nil {
 		return 0, err
