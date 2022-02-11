@@ -27,7 +27,7 @@ import (
 	textTpl "text/template"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/metricsql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // metric is private copy of datasource.Metric,
@@ -104,12 +104,12 @@ func InitTemplateFunc(externalURL *url.URL) {
 		},
 
 		// parseDuration parses a duration string such as "1h" into the number of seconds it represents
-		"parseDuration": func(d string) (float64, error) {
-			ms, err := metricsql.DurationValue(d, 0)
+		"parseDuration": func(s string) (float64, error) {
+			d, err := promutils.ParseDuration(s)
 			if err != nil {
 				return 0, err
 			}
-			return float64(ms) / 1000, nil
+			return d.Seconds(), nil
 		},
 
 		/* Numbers */
