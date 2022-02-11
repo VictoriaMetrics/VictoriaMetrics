@@ -162,7 +162,7 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 	}
 	if isRegexp && string(value) == ".*" {
 		if !isNegative {
-			// Skip tag filter matching anything, since it equal to no filter.
+			// Skip tag filter matching anything, since it equals to no filter.
 			return nil
 		}
 
