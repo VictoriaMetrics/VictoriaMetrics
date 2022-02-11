@@ -166,8 +166,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 		path:           path,
 		cachePath:      path + "/cache",
 		retentionMsecs: retentionMsecs,
-
-		stop: make(chan struct{}),
+		stop:           make(chan struct{}),
 	}
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
@@ -707,7 +706,8 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s)
+	rotationTimestamp := fasttime.UnixTimestamp()
+	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -726,8 +726,9 @@ func (s *Storage) mustRotateIndexDB() {
 	// Persist changes on the file system.
 	fs.MustSyncPath(s.path)
 
-	// Flush tsidCache, so idbNew can be populated with fresh data.
-	s.resetAndSaveTSIDCache()
+	// Do not flush tsidCache to avoid read/write path slowdown
+	// and slowly re-populate new idb with entries from the cache via maybeCreateIndexes().
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 
 	// Flush dateMetricIDCache, so idbNew can be populated with fresh data.
 	s.dateMetricIDCache.Reset()
@@ -1738,17 +1739,32 @@ var (
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	var (
-		tsid       TSID
 		metricName []byte
 	)
+
+	var genTSID generationTSID
 	mn := GetMetricName()
 	defer PutMetricName(mn)
+
 	idb := s.idb()
 	is := idb.getIndexSearch(0, 0, noDeadline)
 	defer idb.putIndexSearch(is)
 	for i := range mrs {
 		mr := &mrs[i]
-		if s.getTSIDFromCache(&tsid, mr.MetricNameRaw) {
+		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			if genTSID.generation != idb.generation {
+				// The found entry is from the previous cache generation
+				// so attempt to re-populate the current generation with this entry.
+				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
+				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw)
+				if err != nil {
+					return fmt.Errorf("cannot create indexes in the current indexdb: %w", err)
+				}
+				if created {
+					genTSID.generation = idb.generation
+					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+				}
+			}
 			// Fast path - mr.MetricNameRaw has been already registered.
 			continue
 		}
@@ -1759,14 +1775,14 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		}
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
+		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName); err != nil {
 			return fmt.Errorf("cannot register the metric because cannot create TSID for metricName %q: %w", metricName, err)
 		}
-		s.putTSIDToCache(&tsid, mr.MetricNameRaw)
+		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
 
 		// Register the metric in per-day inverted index.
 		date := uint64(mr.Timestamp) / msecPerDay
-		metricID := tsid.MetricID
+		metricID := genTSID.TSID.MetricID
 		if s.dateMetricIDCache.Has(date, metricID) {
 			// Fast path: the metric has been already registered in per-day inverted index
 			continue
@@ -1806,6 +1822,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	)
 	var pmrs *pendingMetricRows
 	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+
+	var genTSID generationTSID
+
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
 	for i := range mrs {
@@ -1850,7 +1869,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = prevTSID
 			continue
 		}
-		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
+		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			r.TSID = genTSID.TSID
 			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip the row, since the limit on the number of unique series has been exceeded.
 				j--
@@ -1862,6 +1882,20 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// See Storage.DeleteMetrics code for details.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
+
+			if genTSID.generation != idb.generation {
+				// The found entry is from the previous cache generation
+				// so attempt to re-populate the current generation with this entry.
+				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
+				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw)
+				if err != nil {
+					return fmt.Errorf("cannot create indexes in the current indexdb: %w", err)
+				}
+				if created {
+					genTSID.generation = idb.generation
+					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+				}
+			}
 			continue
 		}
 
@@ -1921,7 +1955,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				j--
 				continue
 			}
-			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
+			genTSID.generation = idb.generation
+			genTSID.TSID = r.TSID
+			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
@@ -2500,13 +2536,20 @@ type hourMetricIDs struct {
 	isFull   bool
 }
 
-func (s *Storage) getTSIDFromCache(dst *TSID, metricName []byte) bool {
+type generationTSID struct {
+	TSID TSID
+
+	// generation stores the indexdb.generation value to identify to which indexdb belongs this TSID
+	generation uint64
+}
+
+func (s *Storage) getTSIDFromCache(dst *generationTSID, metricName []byte) bool {
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))[:]
 	buf = s.tsidCache.Get(buf[:0], metricName)
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
-func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
+func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
@@ -2570,12 +2613,12 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, s)
+	curr, err = openIndexDB(currPath, s, 0)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, s)
+	prev, err = openIndexDB(prevPath, s, 0)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
