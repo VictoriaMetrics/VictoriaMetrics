@@ -1,19 +1,18 @@
 import React, {FC} from "preact/compat";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Fade from "@mui/material/Fade";
 import GraphView from "./Views/GraphView";
 import TableView from "./Views/TableView";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
 import QueryConfigurator from "./Configurator/Query/QueryConfigurator";
-import {useFetchQuery} from "./Configurator/Query/useFetchQuery";
+import {useFetchQuery} from "../../hooks/useFetchQuery";
 import JsonView from "./Views/JsonView";
 import Header from "../Header/Header";
 import {DisplayTypeSwitch} from "./Configurator/DisplayTypeSwitch";
 import GraphSettings from "./Configurator/Graph/GraphSettings";
 import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
 import {AxisRange} from "../../state/graph/reducer";
+import Spinner from "../common/Spinner";
 
 const HomeLayout: FC = () => {
 
@@ -31,7 +30,7 @@ const HomeLayout: FC = () => {
     dispatch({type: "SET_PERIOD", payload: {from, to}});
   };
 
-  const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery();
+  const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery({visible: true});
 
   return (
     <Box id="homeLayout">
@@ -39,20 +38,7 @@ const HomeLayout: FC = () => {
       <Box p={4} display="grid" gridTemplateRows="auto 1fr" style={{minHeight: "calc(100vh - 64px)"}}>
         <QueryConfigurator error={error} queryOptions={queryOptions}/>
         <Box height="100%">
-          {isLoading && <Fade in={isLoading} style={{
-            transitionDelay: isLoading ? "300ms" : "0ms",
-          }}>
-            <Box alignItems="center" justifyContent="center" flexDirection="column" display="flex"
-              style={{
-                width: "100%",
-                maxWidth: "calc(100vw - 64px)",
-                position: "absolute",
-                height: "50%",
-                background: "linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,.7), rgba(255,255,255,0))"
-              }}>
-              <CircularProgress/>
-            </Box>
-          </Fade>}
+          {isLoading && <Spinner isLoading={isLoading} height={"500px"}/>}
           {<Box height={"100%"} bgcolor={"#fff"}>
             <Box display="grid" gridTemplateColumns="1fr auto" alignItems="center" mx={-4} px={4} mb={2}
               borderBottom={1} borderColor="divider">
