@@ -37,9 +37,8 @@ import (
 )
 
 var (
-	strictParse = flag.Bool("promscrape.config.strictParse", false, "Whether to allow only supported fields in -promscrape.config . "+
-		"By default unsupported fields are silently skipped")
-	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
+	strictParse = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
+	dryRun      = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
@@ -335,7 +334,9 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	data = envtemplate.Replace(data)
 	var err error
 	if *strictParse {
-		err = yaml.UnmarshalStrict(data, dst)
+		if err = yaml.UnmarshalStrict(data, dst); err != nil {
+			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
+		}
 	} else {
 		err = yaml.Unmarshal(data, dst)
 	}

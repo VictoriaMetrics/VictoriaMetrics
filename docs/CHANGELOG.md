@@ -4,6 +4,14 @@ sort: 15
 
 # CHANGELOG
 
+The following tip changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
+* [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-build-from-sources)
+* [How to build cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#building-from-sources)
+* [How to build vmagent](https://docs.victoriametrics.com/vmagent.html#how-to-build-from-sources)
+* [How to build vmalert](https://docs.victoriametrics.com/vmalert.html#how-to-build-from-sources)
+* [How to build vmauth](https://docs.victoriametrics.com/vmauth.html#how-to-build-from-sources)
+* [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
+
 ## tip
 
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add `-dropSamplesOnOverload` command-line flag for `vminsert`. If this flag is set, then `vminsert` drops incoming data if the destination `vmstorage` is temporarily unavailable or cannot keep up with the ingestion rate. The number of dropped rows can be [monitored](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring) via `vm_rpc_rows_dropped_on_overload_total` metric at `vminsert`.
@@ -14,12 +22,15 @@ sort: 15
   * Multi-level binary operations. For example, `foo{a="b"} + bar{x="y"} + baz{z="q"}` is now optimized to `foo{a="b",x="y",z="q"} + bar{a="b",x="y",z="q"} + baz{a="b",x="y",z="q"}`
   * Aggregate functions. For example, `sum(foo{a="b"}) by (c) + bar{c="d"}` is now optimized to `sum(foo{a="b",c="d"}) by (c) + bar{c="d"}`
 * FEATURE [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): optimize joining with `*_info` labels. For example: `kube_pod_created{namespace="prod"} * on (uid) group_left(node) kube_pod_info` now automatically adds the needed filters on `uid` label to `kube_pod_info` before selecting series for the right side of `*` operation. This may save CPU, RAM and disk IO resources. See [this article](https://www.robustperception.io/exposing-the-software-version-to-prometheus) for details on `*_info` labels. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1827).
+* FEATURE: all: improve performance for arm64 builds of VictoriaMetrics components by up to 15%. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2102).
 * FEATURE: all: expose `process_cpu_cores_available` metric, which shows the number of CPU cores available to the app. The number can be fractional if the corresponding cgroup limit is set to a fractional value. This metric is useful for alerting on CPU saturation. For example, the following query alerts when the app uses more than 90% of CPU during the last 5 minutes: `rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available > 0.9` . See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2107).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add ability to configure notifiers (e.g. alertmanager) via a file in the way similar to Prometheus. See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file), [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2127).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for Consul service discovery for notifiers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1947).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for specifying Basic Auth password for notifiers via a file. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1567).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): provide the ability to fetch target responses on behalf of `vmagent` by clicking the `response` link for the needed target at `/targets` page. This feature may be useful for debugging responses from targets located in isolated environments.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): show the total number of scrapes and the total number of scrape errors per target at `/targets` page. This information may be useful when debugging unreliable scrape targets.
+* FEATURE: vmagent and single-node VictoriaMetrics: disallow unknown fields at `-promscrape.config` file. Previously unknown fields were allowed. This could lead to long-living silent config errors. The previous behaviour can be returned by passing `-promscrape.config.strictParse=false` command-line flag.
+* FEATURE: add `__meta_kubernetes_endpointslice_label*` and `__meta_kubernetes_endpointslice_annotation*` labels for `role: endpointslice` targets in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) to be consistent with other `role` values. See [this issue](https://github.com/prometheus/prometheus/issues/10284).
 
 * BUGFIX: return proper results from `highestMax()` function at [Graphite render API](https://docs.victoriametrics.com/#graphite-render-api-usage). Previously it was incorrectly returning timeseries with min peaks instead of max peaks.
 * BUGFIX: properly limit indexdb cache sizes. Previously they could exceed values set via `-memory.allowedPercent` and/or `-memory.allowedBytes` when `indexdb` contained many data parts. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007).
@@ -27,6 +38,8 @@ sort: 15
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a bug, which could break switching between `graph`, `json` and `table` views. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2084).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix possible UI freeze after querying `node_uname_info` time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2115).
 * BUGFIX: show the original location of the warning or error message when logging throttled messages. Previously the location inside `lib/logger/throttler.go` was shown. This could increase the complexity of debugging.
+* BUGFIX: vmalert: fix links at web UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2167).
+* BUGFIX: vmagent: properly discover pods without exposed ports for the given service for `role: endpoints` and `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134).
 
 
 ## [v1.72.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.72.0)
