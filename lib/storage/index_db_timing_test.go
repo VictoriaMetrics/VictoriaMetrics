@@ -206,7 +206,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	b.Run(`i=~".*"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "i", ".*", false, true)
-		benchSearch(b, tfs, 5e6)
+		benchSearch(b, tfs, 0)
 	})
 	b.Run(`i=~".+"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
