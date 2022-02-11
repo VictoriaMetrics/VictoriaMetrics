@@ -169,8 +169,8 @@ func getEndpointLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, eps *Endpoi
 		return m
 	}
 	p.appendCommonLabels(m)
-	// always add pod targetRef, event if epp port doesn't match container port
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134
+	// always add pod targetRef, even if epp port doesn't match container port
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134
 	if _, ok := podPortsSeen[p]; !ok {
 		podPortsSeen[p] = []int{}
 	}
