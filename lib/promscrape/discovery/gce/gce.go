@@ -54,6 +54,11 @@ func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// MarshalYAML implements yaml.Marshaler
+func (z ZoneYAML) MarshalYAML() (interface{}, error) {
+	return z.zones, nil
+}
+
 // GetLabels returns gce labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc)
