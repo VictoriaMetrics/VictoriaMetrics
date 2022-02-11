@@ -168,13 +168,13 @@ func TestGetEndpointLabels(t *testing.T) {
 			}
 			var gw groupWatcher
 			gw.m = map[string]*urlWatcher{
-				"pod": &urlWatcher{
+				"pod": {
 					role: "pod",
 					objectsByKey: map[string]object{
 						"default/test-pod": &pod,
 					},
 				},
-				"service": &urlWatcher{
+				"service": {
 					role: "service",
 					objectsByKey: map[string]object{
 						"default/test-eps": &svc,
@@ -224,7 +224,7 @@ func TestGetEndpointLabels(t *testing.T) {
 	})
 
 	f("1 port from endpoint and 1 from pod", testArgs{
-		containerPorts: map[string][]ContainerPort{"metrics": []ContainerPort{{
+		containerPorts: map[string][]ContainerPort{"metrics": {{
 			Name:          "http-metrics",
 			ContainerPort: 8428,
 		}}},
@@ -276,7 +276,7 @@ func TestGetEndpointLabels(t *testing.T) {
 	})
 
 	f("1 port from endpoint", testArgs{
-		containerPorts: map[string][]ContainerPort{"metrics": []ContainerPort{{
+		containerPorts: map[string][]ContainerPort{"metrics": {{
 			Name:          "web",
 			ContainerPort: 8428,
 		}}},
