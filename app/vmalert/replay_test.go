@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 type fakeReplayQuerier struct {
@@ -83,7 +83,7 @@ func TestReplay(t *testing.T) {
 			to:    "2021-01-01T15:02:30.000Z",
 			maxDP: 60,
 			cfg: []config.Group{
-				{Interval: utils.NewPromDuration(time.Minute), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
+				{Interval: promutils.NewDuration(time.Minute), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 			},
 			qb: &fakeReplayQuerier{
 				registry: map[string]map[string]struct{}{

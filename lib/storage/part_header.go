@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/metricsql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // partHeader represents part header.
@@ -140,11 +140,11 @@ func (ph *partHeader) readMinDedupInterval(partPath string) error {
 		}
 		return fmt.Errorf("cannot read %q: %w", filePath, err)
 	}
-	dedupInterval, err := metricsql.DurationValue(string(data), 0)
+	dedupInterval, err := promutils.ParseDuration(string(data))
 	if err != nil {
 		return fmt.Errorf("cannot parse minimum dedup interval %q at %q: %w", data, filePath, err)
 	}
-	ph.MinDedupInterval = dedupInterval
+	ph.MinDedupInterval = dedupInterval.Milliseconds()
 	return nil
 }
 

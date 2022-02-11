@@ -25,6 +25,9 @@ var (
 
 func initLinks() {
 	pathPrefix := httpserver.GetPathPrefix()
+	if pathPrefix == "" {
+		pathPrefix = "/"
+	}
 	apiLinks = [][2]string{
 		{path.Join(pathPrefix, "api/v1/groups"), "list all loaded groups and rules"},
 		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
@@ -51,6 +54,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		initLinks()
 	})
 
+	pathPrefix := httpserver.GetPathPrefix()
+	if pathPrefix == "" {
+		pathPrefix = "/"
+	}
+
 	switch r.URL.Path {
 	case "/":
 		if r.Method != "GET" {
@@ -59,7 +67,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteWelcome(w)
 		return true
 	case "/alerts":
-		WriteListAlerts(w, rh.groupAlerts())
+		WriteListAlerts(w, pathPrefix, rh.groupAlerts())
 		return true
 	case "/groups":
 		WriteListGroups(w, rh.groups())
@@ -113,7 +121,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		// <groupID>/<alertID>/status
-		WriteAlert(w, alert)
+		WriteAlert(w, pathPrefix, alert)
 		return true
 	}
 }
