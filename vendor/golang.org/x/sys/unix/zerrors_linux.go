@@ -1268,6 +1268,9 @@ const (
 	IP_XFRM_POLICY                              = 0x11
 	ISOFS_SUPER_MAGIC                           = 0x9660
 	ISTRIP                                      = 0x20
+	ITIMER_PROF                                 = 0x2
+	ITIMER_REAL                                 = 0x0
+	ITIMER_VIRTUAL                              = 0x1
 	IUTF8                                       = 0x4000
 	IXANY                                       = 0x800
 	JFFS2_SUPER_MAGIC                           = 0x72b6
