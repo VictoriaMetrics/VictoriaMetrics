@@ -50,16 +50,6 @@ type TSID struct {
 	MetricID uint64
 }
 
-// generationTSID is a wrapped for TSID
-// with adding a generation field.
-// This struct is used in tsidCache.
-type generationTSID struct {
-	TSID TSID
-	// generation stores the indexdb.generation value
-	// to identify to which indexdb belongs this TSID
-	generation uint64
-}
-
 // marshaledTSIDSize is the size of marshaled TSID.
 var marshaledTSIDSize = func() int {
 	var t TSID

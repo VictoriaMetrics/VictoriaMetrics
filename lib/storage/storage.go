@@ -1708,8 +1708,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
 
 	var genTSID generationTSID
-	mn := GetMetricName()
-	defer PutMetricName(mn)
 
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
@@ -2378,6 +2376,13 @@ type hourMetricIDs struct {
 	m      *uint64set.Set
 	hour   uint64
 	isFull bool
+}
+
+type generationTSID struct {
+	TSID TSID
+
+	// generation stores the indexdb.generation value to identify to which indexdb belongs this TSID
+	generation uint64
 }
 
 func (s *Storage) getTSIDFromCache(dst *generationTSID, metricName []byte) bool {
