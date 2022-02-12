@@ -378,12 +378,13 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 //
 // It returns true if new index entry was created, and false if it was skipped.
 func (db *indexDB) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte) (bool, error) {
-	h := xxhash.Sum64(metricNameRaw)
-	p := float64(uint32(h)) / (1 << 32)
 	pMin := float64(fasttime.UnixTimestamp()-db.rotationTimestamp) / 3600
-	if p > pMin {
-		// Fast path: there is no need creating indexes for metricNameRaw yet.
-		return false, nil
+	if pMin < 1 {
+		p := float64(uint32(fastHashUint64(tsid.MetricID))) / (1 << 32)
+		if p > pMin {
+			// Fast path: there is no need creating indexes for metricNameRaw yet.
+			return false, nil
+		}
 	}
 	// Slow path: create indexes for (tsid, metricNameRaw) at db.
 	mn := GetMetricName()
