@@ -1983,7 +1983,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
 	hmPrevDate := hmPrev.hour / 24
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
-	todayShare16bit := uint64((float64(fasttime.UnixTimestamp()%(3600*24)) / (3600 * 24)) * (1 << 16))
+	ts := fasttime.UnixTimestamp()
+	// Start pre-populating the next per-day inverted index during the last hour of the current day.
+	// pMin linearly increases from 0 to 1 during the last hour of the day.
+	pMin := (float64(ts%(3600*24)) / 3600) - 23
 	type pendingDateMetricID struct {
 		date     uint64
 		metricID uint64
@@ -2012,18 +2015,20 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				// Fast path: the metricID is in the current hour cache.
 				// This means the metricID has been already added to per-day inverted index.
 
-				// Gradually pre-populate per-day inverted index for the next day
-				// during the current day.
+				// Gradually pre-populate per-day inverted index for the next day during the last hour of the current day.
 				// This should reduce CPU usage spike and slowdown at the beginning of the next day
 				// when entries for all the active time series must be added to the index.
 				// This should address https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430 .
-				if todayShare16bit > (metricID&(1<<16-1)) && !nextDayMetricIDs.Has(metricID) {
-					pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-						date:     date + 1,
-						metricID: metricID,
-						mr:       mrs[i],
-					})
-					pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
+				if pMin > 0 {
+					p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
+					if p < pMin && !nextDayMetricIDs.Has(metricID) {
+						pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
+							date:     date + 1,
+							metricID: metricID,
+							mr:       mrs[i],
+						})
+						pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
+					}
 				}
 				continue
 			}
@@ -2115,6 +2120,13 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.
 	s.dateMetricIDCache.Store(dateMetricIDsForCache)
 	return firstError
+}
+
+func fastHashUint64(x uint64) uint64 {
+	x ^= x >> 12 // a
+	x ^= x << 25 // b
+	x ^= x >> 27 // c
+	return x * 2685821657736338717
 }
 
 // dateMetricIDCache is fast cache for holding (date, metricID) entries.
