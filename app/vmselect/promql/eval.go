@@ -633,6 +633,9 @@ func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, exp
 	if err != nil {
 		return nil, err
 	}
+	if funcName == "absent_over_time" {
+		rvs = aggregateAbsentOverTime(ec, re.Expr, rvs)
+	}
 	if offset != 0 && len(rvs) > 0 {
 		// Make a copy of timestamps, since they may be used in other values.
 		srcTimestamps := rvs[0].Timestamps
@@ -645,6 +648,27 @@ func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, exp
 		}
 	}
 	return rvs, nil
+}
+
+// aggregateAbsentOverTime collapses tss to a single time series with 1 and nan values.
+//
+// Values for returned series are set to nan if at least a single tss series contains nan at that point.
+// This means that tss contains a series with non-empty results at that point.
+// This follows Prometheus logic - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2130
+func aggregateAbsentOverTime(ec *EvalConfig, expr metricsql.Expr, tss []*timeseries) []*timeseries {
+	rvs := getAbsentTimeseries(ec, expr)
+	if len(tss) == 0 {
+		return rvs
+	}
+	for i := range tss[0].Values {
+		for _, ts := range tss {
+			if math.IsNaN(ts.Values[i]) {
+				rvs[0].Values[i] = nan
+				break
+			}
+		}
+	}
+	return rvs
 }
 
 func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
@@ -669,10 +693,6 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 		return nil, err
 	}
 	if len(tssSQ) == 0 {
-		if funcName == "absent_over_time" {
-			tss := evalNumber(ec, 1)
-			return tss, nil
-		}
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
@@ -822,14 +842,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, funcName string, rf rollupFunc
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()
-		var tss []*timeseries
-		if funcName == "absent_over_time" {
-			tss = getAbsentTimeseries(ec, me)
-		}
-		// Add missing points until ec.End.
-		// Do not cache the result, since missing points
-		// may be backfilled in the future.
-		tss = mergeTimeseries(tssCached, tss, start, ec)
+		tss := mergeTimeseries(tssCached, nil, start, ec)
 		return tss, nil
 	}
 
