@@ -150,7 +150,7 @@ curl -G 'http://localhost:8428/graphite/metrics/find?query=vm_http_request_error
  
 Cluster:
 ```bash
-curl -G 'http://0.0.0.0:8481/select/0/graphite/metrics/find?query=vm_http_request_errors_total'
+curl -G 'http://<vmselect>:8481/select/0/graphite/metrics/find?query=vm_http_request_errors_total'
 ```
  
 Additional information:
