@@ -12,12 +12,13 @@ import {DisplayType} from "../components/Home/Configurator/DisplayTypeSwitch";
 interface FetchQueryParams {
   predefinedQuery?: string[]
   visible: boolean
+  display?: DisplayType
 }
 
 const appModeEnable = getAppModeEnable();
 const {serverURL: appServerUrl} = getAppModeParams();
 
-export const useFetchQuery = ({predefinedQuery, visible}: FetchQueryParams): {
+export const useFetchQuery = ({predefinedQuery, visible, display}: FetchQueryParams): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -96,6 +97,7 @@ export const useFetchQuery = ({predefinedQuery, visible}: FetchQueryParams): {
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
     const expr = predefinedQuery ?? query;
+    const displayChart = (display || displayType) === "chart";
     if (!period) return;
     if (!server) {
       setError(ErrorTypes.emptyServer);
@@ -103,7 +105,7 @@ export const useFetchQuery = ({predefinedQuery, visible}: FetchQueryParams): {
       setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(server)) {
       if (customStep.enable) period.step = customStep.value;
-      return expr.filter(q => q.trim()).map(q => displayType === "chart"
+      return expr.filter(q => q.trim()).map(q => displayChart
         ? getQueryRangeUrl(server, q, period, nocache)
         : getQueryUrl(server, q, period));
     } else {
@@ -118,7 +120,7 @@ export const useFetchQuery = ({predefinedQuery, visible}: FetchQueryParams): {
 
   useEffect(() => {
     if (!visible) return;
-    throttledFetchData(fetchUrl, fetchQueue, displayType);
+    throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
   }, [fetchUrl, visible]);
 
   useEffect(() => {

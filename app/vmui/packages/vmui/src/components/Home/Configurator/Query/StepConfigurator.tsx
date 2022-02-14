@@ -15,6 +15,7 @@ const StepConfigurator: FC = () => {
   const {time: {period: {step}}} = useAppState();
 
   const onChangeStep = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (!customStep.enable) return;
     const value = +e.target.value;
     if (value > 0) {
       graphDispatch({type: "SET_CUSTOM_STEP", payload: value});
@@ -40,13 +41,16 @@ const StepConfigurator: FC = () => {
       control={<BasicSwitch checked={customStep.enable} onChange={onChangeEnableStep}/>}
       label="Override step value"
     />
-    {customStep.enable &&
-      <TextField label="Step value" type="number" size="small" variant="outlined"
-        defaultValue={customStep.value}
-        error={error}
-        helperText={error ? "step is out of allowed range" : " "}
-        onChange={debouncedOnChangeStep}/>
-    }
+    <TextField
+      label="Step value"
+      type="number"
+      size="small"
+      variant="outlined"
+      defaultValue={customStep.value}
+      disabled={!customStep.enable}
+      error={error}
+      helperText={error ? "step is out of allowed range" : " "}
+      onChange={debouncedOnChangeStep}/>
   </Box>;
 };
 

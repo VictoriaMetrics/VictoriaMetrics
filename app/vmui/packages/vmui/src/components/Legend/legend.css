@@ -1,14 +1,13 @@
 .legendWrapper {
     position: relative;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    grid-gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
     margin-top: 20px;
     cursor: default;
 }
 
 .legendGroup {
-    margin-bottom: 24px;
+    margin: 0 12px 24px 0;
 }
 
 .legendGroupTitle {
@@ -29,7 +28,7 @@
 }
 
 .legendItem {
-    display: inline-grid;
+    display: grid;
     grid-template-columns: auto auto;
     grid-gap: 6px;
     align-items: start;
