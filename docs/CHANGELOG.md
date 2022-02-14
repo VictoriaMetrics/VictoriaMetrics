@@ -14,6 +14,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.73.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.0)
+
+Released at 14-02-2022
+
 * FEATURE: publish VictoriaMetrics binaries for MacOS amd64 and MacOS arm64 (aka MacBook M1) at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1896) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1851).
 * FEATURE: reduce CPU and disk IO usage during `indexdb` rotation once per `-retentionPeriod`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401).
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add `-dropSamplesOnOverload` command-line flag for `vminsert`. If this flag is set, then `vminsert` drops incoming data if the destination `vmstorage` is temporarily unavailable or cannot keep up with the ingestion rate. The number of dropped rows can be [monitored](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring) via `vm_rpc_rows_dropped_on_overload_total` metric at `vminsert`.
