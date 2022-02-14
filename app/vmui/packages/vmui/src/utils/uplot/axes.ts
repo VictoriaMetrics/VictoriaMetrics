@@ -1,6 +1,6 @@
 import {Axis, Series} from "uplot";
 import {getMaxFromArray, getMinFromArray} from "../math";
-import {roundTimeSeconds} from "../time";
+import {roundToMilliseconds} from "../time";
 import {AxisRange} from "../../state/graph/reducer";
 import {formatTicks} from "./helpers";
 import {TimeParams} from "../../types";
@@ -12,19 +12,37 @@ export const getAxes = (series: Series[]): Axis[] => Array.from(new Set(series.m
   return axis;
 });
 
-export const getTimeSeries = (times: number[], defaultStep: number, period: TimeParams): number[] => {
+export const getTimeSeries = (times: number[], step: number, period: TimeParams): number[] => {
   const allTimes = Array.from(new Set(times)).sort((a, b) => a - b);
-  const length = Math.ceil((period.end - period.start)/defaultStep);
-  const startTime = allTimes[0] || 0;
-  return new Array(length*2).fill(startTime).map((d, i) => roundTimeSeconds(d + (defaultStep * i)));
+  let t = period.start;
+  const tEnd = roundToMilliseconds(period.end + step);
+  let j = 0;
+  const results: number[] = [];
+  while (t <= tEnd) {
+    while (j < allTimes.length && allTimes[j] <= t) {
+      t = allTimes[j];
+      j++;
+      results.push(t);
+    }
+    t = roundToMilliseconds(t + step);
+    if (j >= allTimes.length || allTimes[j] > t) {
+      results.push(t);
+    }
+  }
+  while (results.length < 2) {
+    results.push(t);
+    t = roundToMilliseconds(t + step);
+  }
+  return results;
 };
 
-export const getMinMaxBuffer = (min: number, max: number): [number, number] => {
-  const minCorrect = isNaN(min) ? -1 : min;
-  const maxCorrect = isNaN(max) ? 1 : max;
-  const valueRange = Math.abs(maxCorrect - minCorrect) || Math.abs(minCorrect) || 1;
+export const getMinMaxBuffer = (min: number | null, max: number | null): [number, number] => {
+  if (min == null || max == null) {
+    return [-1, 1];
+  }
+  const valueRange = Math.abs(max - min) || Math.abs(min) || 1;
   const padding = 0.02*valueRange;
-  return [minCorrect - padding, maxCorrect + padding];
+  return [min - padding, max + padding];
 };
 
 export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {

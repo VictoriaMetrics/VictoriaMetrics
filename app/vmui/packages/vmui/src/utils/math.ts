@@ -1,17 +1,23 @@
-export const getMaxFromArray = (arr: number[]): number => {
-  let len = arr.length;
+export const getMaxFromArray = (a: number[]) => {
+  let len = a.length;
   let max = -Infinity;
   while (len--) {
-    if (arr[len] > max) max = arr[len];
+    const v = a[len];
+    if (Number.isFinite(v) && v > max) {
+      max = v;
+    }
   }
-  return max;
+  return Number.isFinite(max) ? max : null;
 };
 
-export const getMinFromArray = (arr: number[]): number => {
-  let len = arr.length;
+export const getMinFromArray = (a: number[]) => {
+  let len = a.length;
   let min = Infinity;
   while (len--) {
-    if (arr[len] < min) min = arr[len];
+    const v = a[len];
+    if (Number.isFinite(v) && v < min) {
+      min = v;
+    }
   }
-  return min;
+  return Number.isFinite(min) ? min : null;
 };
