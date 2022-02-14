@@ -27,6 +27,15 @@ vmalert-ppc64le-prod:
 vmalert-386-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-386
 
+vmalert-darwin-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-amd64
+
+vmalert-darwin-arm64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-arm64
+
+vmalert-windows-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
+
 package-vmalert:
 	APP_NAME=vmalert $(MAKE) package-via-docker
 
@@ -109,6 +118,3 @@ vmalert-pure:
 
 vmalert-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmalert $(MAKE) app-local-windows-with-goarch
-
-vmalert-windows-amd64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
