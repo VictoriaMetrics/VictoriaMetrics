@@ -48,7 +48,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = []}) => {
   };
 
   const onReadyChart = (u: uPlot) => {
-    const factor = 0.85;
+    const factor = 0.9;
     tooltipOffset.left = parseFloat(u.over.style.left);
     tooltipOffset.top = parseFloat(u.over.style.top);
     u.root.querySelector(".u-wrap")?.appendChild(tooltip);
