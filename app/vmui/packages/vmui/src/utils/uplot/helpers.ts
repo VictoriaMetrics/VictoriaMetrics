@@ -1,5 +1,4 @@
 import uPlot from "uplot";
-import numeral from "numeral";
 import {getColorFromString} from "../color";
 
 export const defaultOptions = {
@@ -29,8 +28,14 @@ export const defaultOptions = {
   },
 };
 
-export const formatTicks = (u: uPlot, ticks: number[]): (string | number)[] => {
-  return ticks.map(n => n > 1000 ? numeral(n).format("0.0a") : n);
+export const formatTicks = (u: uPlot, ticks: number[]): string[] => {
+  return ticks.map(v => {
+    const n = Math.abs(v);
+    if (n > 1e-3 && n < 1e4) {
+      return v.toString();
+    }
+    return v.toExponential(1);
+  });
 };
 
 export const getColorLine = (scale: number, label: string): string => getColorFromString(`${scale}${label}`);

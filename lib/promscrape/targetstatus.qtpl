@@ -42,15 +42,35 @@ job={%q= jobName %} (0/0 up)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <title>Scrape targets</title>
+    <script>
+function collapse_all() {
+  for (var i = 0; i < {%d len(jts) %}; i++) {
+    var id = "table-" + i;
+    document.getElementById(id).style.display = 'none';
+  }
+}
+function expand_all() {
+  for (var i = 0; i < {%d len(jts) %}; i++) {
+    var id = "table-" + i;
+    document.getElementById(id).style.display = 'block';
+  }
+}
+    </script>
 </head>
 <body class="m-3">
   <h1>Scrape targets</h1>
-  <div>
+  <div style="padding: 3px">
     <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
         All
     </button>
     <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
         Unhealthy
+    </button>
+    <button type="button" class="btn btn-primary" onclick="collapse_all()">
+        Collapse all
+    </button>
+    <button type="button" class="btn btn-secondary" onclick="expand_all()">
+        Expand all
     </button>
   </div>
   {% for i, js := range jts %}

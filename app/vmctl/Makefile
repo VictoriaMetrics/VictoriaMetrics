@@ -27,6 +27,15 @@ vmctl-ppc64le-prod:
 vmctl-386-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-386
 
+vmctl-darwin-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
+
+vmctl-darwin-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-arm64
+
+vmctl-windows-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
+
 package-vmctl:
 	APP_NAME=vmctl $(MAKE) package-via-docker
 
@@ -75,5 +84,3 @@ vmctl-pure:
 vmctl-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmctl $(MAKE) app-local-windows-with-goarch
 
-vmctl-windows-amd64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64

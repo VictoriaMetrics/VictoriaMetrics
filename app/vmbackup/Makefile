@@ -27,6 +27,12 @@ vmbackup-ppc64le-prod:
 vmbackup-386-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-386
 
+vmbackup-darwin-amd64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-amd64
+
+vmbackup-darwin-arm64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-arm64
+
 package-vmbackup:
 	APP_NAME=vmbackup $(MAKE) package-via-docker
 

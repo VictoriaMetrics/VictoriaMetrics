@@ -4,8 +4,8 @@ DOCKER_NAMESPACE := victoriametrics
 
 ROOT_IMAGE ?= alpine:3.15.0
 CERTS_IMAGE := alpine:3.15.0
-GO_BUILDER_IMAGE := golang:1.17.6-alpine
-BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)
+GO_BUILDER_IMAGE := golang:1.17.7-alpine
+BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
 package-base:
@@ -94,6 +94,22 @@ app-via-docker-goarch:
 	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
 	$(MAKE) app-via-docker
 
+app-via-docker-darwin-amd64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-darwin-arm64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-goos-goarch:
+	APP_SUFFIX='-$(GOOS)-$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=$(GOOS) --env GOARCH=$(GOARCH)' \
+	$(MAKE) app-via-docker
+
+app-via-docker-goarch-arm64:
+	APP_SUFFIX='-arm64' \
+	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=arm64 --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
+	$(MAKE) app-via-docker
+
 app-via-docker-windows-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
 	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=$(GOARCH)' \
@@ -115,7 +131,11 @@ app-via-docker-arm:
 	GOARCH=arm $(MAKE) app-via-docker-goarch-nocgo
 
 app-via-docker-arm64:
+ifeq ($(APP_NAME),vmagent)
 	GOARCH=arm64 $(MAKE) app-via-docker-goarch-nocgo
+else
+	$(MAKE) app-via-docker-goarch-arm64
+endif
 
 app-via-docker-ppc64le:
 	GOARCH=ppc64le $(MAKE) app-via-docker-goarch-nocgo
@@ -129,6 +149,11 @@ app-via-docker-windows-amd64:
 package-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
 	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
+	$(MAKE) package-via-docker
+
+package-via-docker-goarch-arm64:
+	APP_SUFFIX='-arm64' \
+	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=arm64 --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	$(MAKE) package-via-docker
 
 package-via-docker-goarch-cgo:
@@ -147,7 +172,12 @@ package-via-docker-arm:
 	GOARCH=arm $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-arm64:
+ifeq ($(APP_NAME),vmagent)
 	GOARCH=arm64 $(MAKE) package-via-docker-goarch-nocgo
+else
+	$(MAKE) package-via-docker-goarch-arm64
+endif
+
 
 package-via-docker-ppc64le:
 	GOARCH=ppc64le $(MAKE) package-via-docker-goarch-nocgo
@@ -156,4 +186,4 @@ package-via-docker-386:
 	GOARCH=386 $(MAKE) package-via-docker-goarch-nocgo
 
 remove-docker-images:
-	docker image ls --format '{{.Repository}}\t{{.ID}}' | grep $(DOCKER_NAMESPACE)/ | grep -v /builder | awk '{print $$2}' | xargs docker image rm -f
+	docker image ls --format '{{.Repository}}\t{{.ID}}' | grep $(DOCKER_NAMESPACE)/ | awk '{print $$2}' | xargs docker image rm -f

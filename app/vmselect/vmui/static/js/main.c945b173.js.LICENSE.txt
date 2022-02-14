@@ -1,11 +1,3 @@
-/*! @preserve
- * numeral.js
- * version : 2.0.6
- * author : Adam Draper
- * license : MIT
- * http://adamwdraper.github.com/Numeral-js/
- */
-
 /**
  * A better abstraction over CSS.
  *
@@ -14,7 +6,7 @@
  * @license MIT
  */
 
-/** @license MUI v5.3.0
+/** @license MUI v5.4.1
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.

@@ -31,8 +31,8 @@ import (
 
 var (
 	tlsEnable   = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set")
-	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower")
-	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set")
+	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
+	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
@@ -97,14 +97,30 @@ func Serve(addr string, rh RequestHandler) {
 	ln := net.Listener(lnTmp)
 
 	if *tlsEnable {
-		cert, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
+		var certLock sync.Mutex
+		var certDeadline uint64
+		var cert *tls.Certificate
+		c, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
+		cert = &c
 		cfg := &tls.Config{
-			Certificates:             []tls.Certificate{cert},
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
+			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				certLock.Lock()
+				defer certLock.Unlock()
+				if fasttime.UnixTimestamp() > certDeadline {
+					c, err = tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
+					if err != nil {
+						return nil, fmt.Errorf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %w", *tlsCertFile, *tlsKeyFile, err)
+					}
+					certDeadline = fasttime.UnixTimestamp() + 1
+					cert = &c
+				}
+				return cert, nil
+			},
 		}
 		ln = tls.NewListener(ln, cfg)
 	}

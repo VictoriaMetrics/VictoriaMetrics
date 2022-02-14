@@ -27,6 +27,12 @@ vmrestore-ppc64le-prod:
 vmrestore-386-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-386
 
+vmrestore-darwin-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-amd64
+
+vmrestore-darwin-arm64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-arm64
+
 package-vmrestore:
 	APP_NAME=vmrestore $(MAKE) package-via-docker
 

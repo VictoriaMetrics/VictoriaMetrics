@@ -867,19 +867,37 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`absent_over_time(scalar(multi-timeseries))`, func(t *testing.T) {
+	t.Run(`absent_over_time(non-nan)`, func(t *testing.T) {
 		t.Parallel()
 		q := `
-		absent_over_time(label_set(scalar(1 or label_set(2, "xx", "foo")), "yy", "foo"))`
+		absent_over_time(time())`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`absent_over_time(nan)`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		absent_over_time((time() < 1500)[300s:])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Values:     []float64{nan, nan, nan, nan, 1, 1},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("yy"),
-			Value: []byte("foo"),
-		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`absent_over_time(multi-ts)`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		absent_over_time((
+			alias((time() < 1400)[200s:], "one"),
+			alias((time() > 1600)[200s:], "two"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1, nan, nan},
+			Timestamps: timestampsExpected,
+		}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})

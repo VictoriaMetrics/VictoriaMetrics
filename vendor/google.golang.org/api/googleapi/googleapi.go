@@ -141,6 +141,7 @@ func CheckResponse(res *http.Response) error {
 				jerr.Error.Code = res.StatusCode
 			}
 			jerr.Error.Body = string(slurp)
+			jerr.Error.Header = res.Header
 			return jerr.Error
 		}
 	}

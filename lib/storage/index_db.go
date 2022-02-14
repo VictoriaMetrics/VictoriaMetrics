@@ -8,6 +8,7 @@ import (
 	"io"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -59,6 +60,9 @@ type indexDB struct {
 	// The counter for newly created time series. It can be used for determining time series churn rate.
 	newTimeseriesCreated uint64
 
+	// The counter for time series which were re-populated from previous indexDB after the rotation.
+	timeseriesRepopulated uint64
+
 	// The number of missing MetricID -> TSID entries.
 	// High rate for this value means corrupted indexDB.
 	missingTSIDsForMetricID uint64
@@ -79,6 +83,13 @@ type indexDB struct {
 
 	mustDrop uint64
 
+	// generation identifies the index generation ID
+	// and is used for syncing items from different indexDBs
+	generation uint64
+
+	// The unix timestamp in seconds for the indexDB rotation.
+	rotationTimestamp uint64
+
 	name string
 	tb   *mergeset.Table
 
@@ -98,10 +109,22 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
-// openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, s *Storage) (*indexDB, error) {
+// openIndexDB opens index db from the given path.
+//
+// The last segment of the path should contain unique hex value which
+// will be then used as indexDB.generation
+//
+// The rotationTimestamp must be set to the current unix timestamp when ipenIndexDB
+// is called when creating new indexdb during indexdb rotation.
+func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, error) {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
+	}
+
+	name := filepath.Base(path)
+	gen, err := strconv.ParseUint(name, 16, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse indexdb path %q: %w", path, err)
 	}
 
 	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows)
@@ -109,15 +132,15 @@ func openIndexDB(path string, s *Storage) (*indexDB, error) {
 		return nil, fmt.Errorf("cannot open indexDB %q: %w", path, err)
 	}
 
-	name := filepath.Base(path)
-
 	// Do not persist tagFiltersCache in files, since it is very volatile.
 	mem := memory.Allowed()
 
 	db := &indexDB{
-		refCount: 1,
-		tb:       tb,
-		name:     name,
+		refCount:          1,
+		generation:        gen,
+		rotationTimestamp: rotationTimestamp,
+		tb:                tb,
+		name:              name,
 
 		tagFiltersCache:            workingsetcache.New(mem/32, time.Hour),
 		s:                          s,
@@ -141,6 +164,7 @@ type IndexDBMetrics struct {
 	IndexDBRefCount uint64
 
 	NewTimeseriesCreated    uint64
+	TimeseriesRepopulated   uint64
 	MissingTSIDsForMetricID uint64
 
 	RecentHourMetricIDsSearchCalls uint64
@@ -182,6 +206,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.IndexDBRefCount += atomic.LoadUint64(&db.refCount)
 	m.NewTimeseriesCreated += atomic.LoadUint64(&db.newTimeseriesCreated)
+	m.TimeseriesRepopulated += atomic.LoadUint64(&db.timeseriesRepopulated)
 	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
 
 	m.DateRangeSearchCalls += atomic.LoadUint64(&db.dateRangeSearchCalls)
@@ -337,6 +362,34 @@ func (db *indexDB) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
 func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
 	db.s.metricNameCache.Set(key[:], metricName)
+}
+
+// maybeCreateIndexes probabilistically creates indexes for the given (tsid, metricNameRaw) at db.
+//
+// The probability increases from 0 to 100% during the first hour since db rotation.
+//
+// It returns true if new index entry was created, and false if it was skipped.
+func (db *indexDB) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte) (bool, error) {
+	pMin := float64(fasttime.UnixTimestamp()-db.rotationTimestamp) / 3600
+	if pMin < 1 {
+		p := float64(uint32(fastHashUint64(tsid.MetricID))) / (1 << 32)
+		if p > pMin {
+			// Fast path: there is no need creating indexes for metricNameRaw yet.
+			return false, nil
+		}
+	}
+	// Slow path: create indexes for (tsid, metricNameRaw) at db.
+	mn := GetMetricName()
+	if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
+		return false, fmt.Errorf("cannot unmarshal metricNameRaw %q: %w", metricNameRaw, err)
+	}
+	mn.sortTags()
+	if err := db.createIndexes(tsid, mn); err != nil {
+		return false, err
+	}
+	PutMetricName(mn)
+	atomic.AddUint64(&db.timeseriesRepopulated, 1)
+	return true, nil
 }
 
 func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {
@@ -499,7 +552,8 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
 	}
 
-	if err := db.generateTSID(dst, metricName, mn); err != nil {
+	created, err := db.getOrCreateTSID(dst, metricName, mn)
+	if err != nil {
 		return fmt.Errorf("cannot generate TSID: %w", err)
 	}
 	if err := db.createIndexes(dst, mn); err != nil {
@@ -508,9 +562,13 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 
 	// There is no need in invalidating tag cache, since it is invalidated
 	// on db.tb flush via invalidateTagFiltersCache flushCallback passed to OpenTable.
-	atomic.AddUint64(&db.newTimeseriesCreated, 1)
-	if logNewSeries {
-		logger.Infof("new series created: %s", mn.String())
+
+	if created {
+		// Increase the newTimeseriesCreated counter only if tsid wasn't found in indexDB
+		atomic.AddUint64(&db.newTimeseriesCreated, 1)
+		if logNewSeries {
+			logger.Infof("new series created: %s", mn.String())
+		}
 	}
 	return nil
 }
@@ -524,7 +582,10 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
-func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) error {
+// getOrCreateTSID looks for existing TSID for the given metricName in db.extDB or creates a new TSID if nothing was found.
+//
+// Returns true if TSID was created or false if TSID was in extDB
+func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName) (bool, error) {
 	// Search the TSID in the external storage.
 	// This is usually the db from the previous period.
 	var err error
@@ -533,15 +594,19 @@ func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) er
 	}) {
 		if err == nil {
 			// The TSID has been found in the external storage.
-			return nil
+			return false, nil
 		}
 		if err != io.EOF {
-			return fmt.Errorf("external search failed: %w", err)
+			return false, fmt.Errorf("external search failed: %w", err)
 		}
 	}
-
 	// The TSID wasn't found in the external storage.
 	// Generate it locally.
+	generateTSID(dst, mn)
+	return true, nil
+}
+
+func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricGroupID = xxhash.Sum64(mn.MetricGroup)
 	if len(mn.Tags) > 0 {
 		dst.JobID = uint32(xxhash.Sum64(mn.Tags[0].Value))
@@ -550,7 +615,6 @@ func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) er
 		dst.InstanceID = uint32(xxhash.Sum64(mn.Tags[1].Value))
 	}
 	dst.MetricID = generateUniqueMetricID()
-	return nil
 }
 
 func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {

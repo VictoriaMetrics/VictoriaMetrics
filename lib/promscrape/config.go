@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
 	xxhash "github.com/cespare/xxhash/v2"
@@ -37,9 +38,8 @@ import (
 )
 
 var (
-	strictParse = flag.Bool("promscrape.config.strictParse", false, "Whether to allow only supported fields in -promscrape.config . "+
-		"By default unsupported fields are silently skipped")
-	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
+	strictParse = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
+	dryRun      = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
@@ -106,9 +106,9 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval time.Duration     `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels map[string]string `yaml:"external_labels,omitempty"`
+	ScrapeInterval promutils.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels map[string]string  `yaml:"external_labels,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -116,8 +116,8 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       time.Duration               `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout,omitempty"`
+	ScrapeInterval       promutils.Duration          `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        promutils.Duration          `yaml:"scrape_timeout,omitempty"`
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
@@ -150,8 +150,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval time.Duration              `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        time.Duration              `yaml:"scrape_offset,omitempty"`
+	ScrapeAlignInterval promutils.Duration         `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        promutils.Duration         `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -335,7 +335,9 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	data = envtemplate.Replace(data)
 	var err error
 	if *strictParse {
-		err = yaml.UnmarshalStrict(data, dst)
+		if err = yaml.UnmarshalStrict(data, dst); err != nil {
+			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
+		}
 	} else {
 		err = yaml.Unmarshal(data, dst)
 	}
@@ -704,16 +706,16 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
 	}
-	scrapeInterval := sc.ScrapeInterval
+	scrapeInterval := sc.ScrapeInterval.Duration()
 	if scrapeInterval <= 0 {
-		scrapeInterval = globalCfg.ScrapeInterval
+		scrapeInterval = globalCfg.ScrapeInterval.Duration()
 		if scrapeInterval <= 0 {
 			scrapeInterval = defaultScrapeInterval
 		}
 	}
-	scrapeTimeout := sc.ScrapeTimeout
+	scrapeTimeout := sc.ScrapeTimeout.Duration()
 	if scrapeTimeout <= 0 {
-		scrapeTimeout = globalCfg.ScrapeTimeout
+		scrapeTimeout = globalCfg.ScrapeTimeout.Duration()
 		if scrapeTimeout <= 0 {
 			scrapeTimeout = defaultScrapeTimeout
 		}
@@ -787,8 +789,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
-		scrapeAlignInterval:  sc.ScrapeAlignInterval,
-		scrapeOffset:         sc.ScrapeOffset,
+		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
+		scrapeOffset:         sc.ScrapeOffset.Duration(),
 		seriesLimit:          sc.SeriesLimit,
 	}
 	return swc, nil
@@ -1056,7 +1058,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Read __scrape_interval__ and __scrape_timeout__ from labels.
 	scrapeInterval := swc.scrapeInterval
 	if s := promrelabel.GetLabelValueByName(labels, "__scrape_interval__"); len(s) > 0 {
-		d, err := time.ParseDuration(s)
+		d, err := promutils.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
 		}
@@ -1064,7 +1066,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 	scrapeTimeout := swc.scrapeTimeout
 	if s := promrelabel.GetLabelValueByName(labels, "__scrape_timeout__"); len(s) > 0 {
-		d, err := time.ParseDuration(s)
+		d, err := promutils.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
 		}

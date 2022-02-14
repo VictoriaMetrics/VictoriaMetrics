@@ -3,6 +3,7 @@
 {% import (
     "time"
     "sort"
+    "path"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -120,7 +121,7 @@
 {% endfunc %}
 
 
-{% func ListAlerts(groupAlerts []GroupAlerts) %}
+{% func ListAlerts(pathPrefix string, groupAlerts []GroupAlerts) %}
     {%= tpl.Header("Alerts", navItems) %}
     {% if len(groupAlerts) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
@@ -185,7 +186,7 @@
                                 </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
-                                    <a href="/{%s g.ID %}/{%s ar.ID %}/status">Details</a>
+                                    <a href="{%s path.Join(pathPrefix, g.ID, ar.ID, "status") %}">Details</a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -262,7 +263,7 @@
 
 {% endfunc %}
 
-{% func Alert(alert *APIAlert) %}
+{% func Alert(pathPrefix string, alert *APIAlert) %}
     {%= tpl.Header("", navItems) %}
     {%code
         var labelKeys []string
@@ -329,7 +330,7 @@
           Group
         </div>
         <div class="col">
-           <a target="_blank" href="/groups#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
+           <a target="_blank" href="{%s path.Join(pathPrefix,"groups") %}#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
         </div>
       </div>
     </div>

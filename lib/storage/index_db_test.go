@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
+	"github.com/VictoriaMetrics/fastcache"
 )
 
 func TestReverseBytes(t *testing.T) {
@@ -457,15 +459,15 @@ func TestMarshalUnmarshalTSIDs(t *testing.T) {
 func TestIndexDBOpenClose(t *testing.T) {
 	s := newTestStorage()
 	defer stopTestStorage(s)
-
+	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", s)
+		db, err := openIndexDB(tableName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
 		db.MustClose()
 	}
-	if err := os.RemoveAll("test-index-db"); err != nil {
+	if err := os.RemoveAll(tableName); err != nil {
 		t.Fatalf("cannot remove indexDB: %s", err)
 	}
 }
@@ -477,8 +479,8 @@ func TestIndexDB(t *testing.T) {
 		s := newTestStorage()
 		defer stopTestStorage(s)
 
-		dbName := "test-index-db-serial"
-		db, err := openIndexDB(dbName, s)
+		dbName := nextIndexDBTableName()
+		db, err := openIndexDB(dbName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -508,7 +510,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, s)
+		db, err = openIndexDB(dbName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -527,8 +529,8 @@ func TestIndexDB(t *testing.T) {
 		s := newTestStorage()
 		defer stopTestStorage(s)
 
-		dbName := "test-index-db-concurrent"
-		db, err := openIndexDB(dbName, s)
+		dbName := nextIndexDBTableName()
+		db, err := openIndexDB(dbName, s, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -1485,12 +1487,113 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 }
 
+func TestIndexDBRepopulateAfterRotation(t *testing.T) {
+	path := "TestIndexRepopulateAfterRotation"
+	s, err := OpenStorage(path, 0, 1e5, 1e5)
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+	s.retentionMsecs = msecsPerMonth
+	defer func() {
+		s.MustClose()
+		if err := os.RemoveAll(path); err != nil {
+			t.Fatalf("cannot remove %q: %s", path, err)
+		}
+	}()
+
+	db := s.idb()
+	if db.generation == 0 {
+		t.Fatalf("expected indexDB generation to be not 0")
+	}
+
+	const metricRowsN = 1000
+	// use min-max timestamps of 1month range to create smaller number of partitions
+	timeMin, timeMax := time.Now().Add(-730*time.Hour), time.Now()
+	mrs := testGenerateMetricRows(metricRowsN, timeMin.UnixMilli(), timeMax.UnixMilli())
+	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+		t.Fatalf("unexpected error when adding mrs: %s", err)
+	}
+	s.DebugFlush()
+
+	// verify the storage contains rows.
+	var m Metrics
+	s.UpdateMetrics(&m)
+	if m.TableMetrics.SmallRowsCount < uint64(metricRowsN) {
+		t.Fatalf("expecting at least %d rows in the table; got %d", metricRowsN, m.TableMetrics.SmallRowsCount)
+	}
+
+	// check new series were registered in indexDB
+	added := atomic.LoadUint64(&db.newTimeseriesCreated)
+	if added != metricRowsN {
+		t.Fatalf("expected indexDB to contain %d rows; got %d", metricRowsN, added)
+	}
+
+	// check new series were added to cache
+	var cs fastcache.Stats
+	s.tsidCache.UpdateStats(&cs)
+	if cs.EntriesCount != metricRowsN {
+		t.Fatalf("expected tsidCache to contain %d rows; got %d", metricRowsN, cs.EntriesCount)
+	}
+
+	// check if cache entries do belong to current indexDB generation
+	var genTSID generationTSID
+	for _, mr := range mrs {
+		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
+		if genTSID.generation != db.generation {
+			t.Fatalf("expected all entries in tsidCache to have the same indexDB generation: %d;"+
+				"got %d", db.generation, genTSID.generation)
+		}
+	}
+	prevGeneration := db.generation
+
+	// force index rotation
+	s.mustRotateIndexDB()
+
+	// check tsidCache wasn't reset after the rotation
+	var cs2 fastcache.Stats
+	s.tsidCache.UpdateStats(&cs2)
+	if cs.EntriesCount != metricRowsN {
+		t.Fatalf("expected tsidCache after rotation to contain %d rows; got %d", metricRowsN, cs2.EntriesCount)
+	}
+	dbNew := s.idb()
+	if dbNew.generation == 0 {
+		t.Fatalf("expected new indexDB generation to be not 0")
+	}
+	if dbNew.generation == prevGeneration {
+		t.Fatalf("expected new indexDB generation %d to be different from prev indexDB", dbNew.generation)
+	}
+
+	// Re-insert rows again and verify that entries belong prevGeneration and dbNew.generation,
+	// while the majority of entries remain at prevGeneration.
+	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+		t.Fatalf("unexpected error when adding mrs: %s", err)
+	}
+	s.DebugFlush()
+	entriesByGeneration := make(map[uint64]int)
+	for _, mr := range mrs {
+		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
+		entriesByGeneration[genTSID.generation]++
+	}
+	if len(entriesByGeneration) > 2 {
+		t.Fatalf("expecting two generations; got %d", entriesByGeneration)
+	}
+	prevEntries := entriesByGeneration[prevGeneration]
+	currEntries := entriesByGeneration[dbNew.generation]
+	totalEntries := prevEntries + currEntries
+	if totalEntries != metricRowsN {
+		t.Fatalf("unexpected number of entries in tsid cache; got %d; want %d", totalEntries, metricRowsN)
+	}
+	if float64(currEntries)/float64(totalEntries) > 0.1 {
+		t.Fatalf("too big share of entries in the new generation; currEntries=%d, prevEntries=%d", currEntries, prevEntries)
+	}
+}
+
 func TestSearchTSIDWithTimeRange(t *testing.T) {
 	s := newTestStorage()
 	defer stopTestStorage(s)
 
-	dbName := "test-index-db-ts-range"
-	db, err := openIndexDB(dbName, s)
+	dbName := nextIndexDBTableName()
+	db, err := openIndexDB(dbName, s, 0)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)
 	}
