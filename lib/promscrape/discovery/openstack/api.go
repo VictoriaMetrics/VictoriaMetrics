@@ -33,7 +33,7 @@ type apiConfig struct {
 	// tokenLock guards creds refresh
 	tokenLock sync.Mutex
 	creds     *apiCredentials
-	// authTokenReq contins request body for apiCredentials
+	// authTokenReq contains request body for apiCredentials
 	authTokenReq []byte
 	// keystone endpoint
 	endpoint   *url.URL
