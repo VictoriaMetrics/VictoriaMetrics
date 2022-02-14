@@ -71,3 +71,9 @@ vmrestore-local-with-goarch:
 
 vmrestore-pure:
 	APP_NAME=vmrestore $(MAKE) app-local-pure
+
+vmrestore-darwin-amd64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=vmrestore $(MAKE) app-via-docker-goarch-goos
+
+vmrestore-darwin-arm64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=vmrestore $(MAKE) app-via-docker-goarch-goos

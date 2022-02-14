@@ -77,3 +77,9 @@ vmctl-windows-amd64:
 
 vmctl-windows-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
+
+vmctl-darwin-amd64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=vmctl $(MAKE) app-via-docker-goarch-goos
+
+vmctl-darwin-arm64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=vmctl $(MAKE) app-via-docker-goarch-goos

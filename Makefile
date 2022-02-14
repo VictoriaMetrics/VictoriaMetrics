@@ -100,7 +100,9 @@ release: \
 release-victoria-metrics: \
 	release-victoria-metrics-amd64 \
 	release-victoria-metrics-arm \
-	release-victoria-metrics-arm64
+	release-victoria-metrics-arm64 \
+	release-victoria-metrics-darwin-amd64 \
+	release-victoria-metrics-darwin-arm64
 
 release-victoria-metrics-amd64:
 	GOARCH=amd64 $(MAKE) release-victoria-metrics-generic
@@ -110,6 +112,12 @@ release-victoria-metrics-arm:
 
 release-victoria-metrics-arm64:
 	GOARCH=arm64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-darwin-amd64:
+	GOARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-darwin-arm64:
+	GOARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
 	cd bin && \
@@ -123,7 +131,9 @@ release-vmutils: \
 	release-vmutils-amd64 \
 	release-vmutils-arm64 \
 	release-vmutils-arm \
-	release-vmutils-windows-amd64
+	release-vmutils-windows-amd64 \
+	release-vmutils-darwin-amd64  \
+	release-vmutils-darwin-arm64
 
 release-vmutils-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-generic
@@ -136,6 +146,12 @@ release-vmutils-arm:
 
 release-vmutils-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
+
+release-vmutils-darwin-amd64:
+	GOARCH=darwin-amd64 $(MAKE) release-vmutils-generic
+
+release-vmutils-darwin-arm64:
+	GOARCH=darwin-arm64 $(MAKE) release-vmutils-generic
 
 release-vmutils-generic: \
 	vmagent-$(GOARCH)-prod \

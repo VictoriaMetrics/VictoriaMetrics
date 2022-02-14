@@ -76,6 +76,12 @@ victoria-metrics-386:
 victoria-metrics-pure:
 	APP_NAME=victoria-metrics $(MAKE) app-local-pure
 
+victoria-metrics-darwin-amd64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=victoria-metrics $(MAKE) app-via-docker-goarch-goos
+
+victoria-metrics-darwin-arm64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=victoria-metrics $(MAKE) app-via-docker-goarch-goos
+
 ### Packaging as DEB - amd64
 victoria-metrics-package-deb: victoria-metrics-prod
 	./package/package_deb.sh amd64

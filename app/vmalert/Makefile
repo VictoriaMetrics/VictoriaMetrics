@@ -112,3 +112,9 @@ vmalert-windows-amd64:
 
 vmalert-windows-amd64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
+
+vmalert-darwin-amd64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=vmalert $(MAKE) app-via-docker-goarch-goos
+
+vmalert-darwin-arm64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=vmalert $(MAKE) app-via-docker-goarch-goos

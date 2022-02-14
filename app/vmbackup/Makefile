@@ -71,3 +71,9 @@ vmbackup-local-with-goarch:
 
 vmbackup-pure:
 	APP_NAME=vmbackup $(MAKE) app-local-pure
+
+vmbackup-darwin-amd64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=vmbackup $(MAKE) app-via-docker-goarch-goos
+
+vmbackup-darwin-arm64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=vmbackup $(MAKE) app-via-docker-goarch-goos

@@ -84,3 +84,9 @@ vmagent-windows-amd64:
 
 vmagent-windows-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64
+
+vmagent-darwin-amd64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=vmagent $(MAKE) app-via-docker-goarch-goos
+
+vmagent-darwin-arm64-prod:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=vmagent $(MAKE) app-via-docker-goarch-goos
