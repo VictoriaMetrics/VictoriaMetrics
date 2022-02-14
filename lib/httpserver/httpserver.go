@@ -97,14 +97,30 @@ func Serve(addr string, rh RequestHandler) {
 	ln := net.Listener(lnTmp)
 
 	if *tlsEnable {
-		cert, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
+		var certLock sync.Mutex
+		var certDeadline uint64
+		var cert *tls.Certificate
+		c, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
+		cert = &c
 		cfg := &tls.Config{
-			Certificates:             []tls.Certificate{cert},
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
+			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				certLock.Lock()
+				defer certLock.Unlock()
+				if fasttime.UnixTimestamp() > certDeadline {
+					c, err = tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
+					if err != nil {
+						return nil, fmt.Errorf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
+					}
+					certDeadline = fasttime.UnixTimestamp() + 1
+					cert = &c
+				}
+				return cert, nil
+			},
 		}
 		ln = tls.NewListener(ln, cfg)
 	}
