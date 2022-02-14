@@ -215,7 +215,7 @@ func (sc *ScrapeConfig) mustStop() {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config
 type FileSDConfig struct {
 	Files []string `yaml:"files"`
-	// `refresh_interval` is ignored. See `-prometheus.fileSDCheckInterval`
+	// `refresh_interval` is ignored. See `-promscrape.fileSDCheckInterval`
 }
 
 // StaticConfig represents essential parts for `static_config` section of Prometheus config.
