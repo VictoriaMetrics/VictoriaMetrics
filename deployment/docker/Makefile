@@ -94,6 +94,17 @@ app-via-docker-goarch:
 	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
 	$(MAKE) app-via-docker
 
+app-via-docker-darwin-amd64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-darwin-arm64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-goos-goarch:
+	APP_SUFFIX='-$(GOOS)-$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=$(GOOS) --env GOARCH=$(GOARCH)' \
+	$(MAKE) app-via-docker
+
 app-via-docker-goarch-arm64:
 	APP_SUFFIX='-arm64' \
 	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=arm64 --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
