@@ -114,7 +114,7 @@ release-victoria-metrics-arm64:
 	OSARCH=arm64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-amd64:
-	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
+	OSARCH=darwin-amd64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-arm64:
 	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
