@@ -105,77 +105,77 @@ release-victoria-metrics: \
 	release-victoria-metrics-darwin-arm64
 
 release-victoria-metrics-amd64:
-	GOARCH=amd64 $(MAKE) release-victoria-metrics-generic
+	OSARCH=amd64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-arm:
-	GOARCH=arm $(MAKE) release-victoria-metrics-generic
+	OSARCH=arm $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-arm64:
-	GOARCH=arm64 $(MAKE) release-victoria-metrics-generic
+	OSARCH=arm64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-amd64:
-	GOARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
+	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-arm64:
-	GOARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
+	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
 
-release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
+release-victoria-metrics-generic: victoria-metrics-$(OSARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOARCH)||" -czf victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
-			victoria-metrics-$(GOARCH)-prod \
-		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
-			victoria-metrics-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
+		tar --transform="flags=r;s|-$(OSARCH)||" -czf victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
+			victoria-metrics-$(OSARCH)-prod \
+		&& sha256sum victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
+			victoria-metrics-$(OSARCH)-prod \
+			| sed s/-$(OSARCH)-prod/-prod/ > victoria-metrics-$(OSARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
 	release-vmutils-amd64 \
 	release-vmutils-arm64 \
 	release-vmutils-arm \
-	release-vmutils-windows-amd64 \
 	release-vmutils-darwin-amd64  \
-	release-vmutils-darwin-arm64
+	release-vmutils-darwin-arm64 \
+	release-vmutils-windows-amd64
 
 release-vmutils-amd64:
-	GOARCH=amd64 $(MAKE) release-vmutils-generic
+	OSARCH=amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-arm64:
-	GOARCH=arm64 $(MAKE) release-vmutils-generic
+	OSARCH=arm64 $(MAKE) release-vmutils-generic
 
 release-vmutils-arm:
-	GOARCH=arm $(MAKE) release-vmutils-generic
+	OSARCH=arm $(MAKE) release-vmutils-generic
+
+release-vmutils-darwin-amd64:
+	OSARCH=darwin-amd64 $(MAKE) release-vmutils-generic
+
+release-vmutils-darwin-arm64:
+	OSARCH=darwin-arm64 $(MAKE) release-vmutils-generic
 
 release-vmutils-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
 
-release-vmutils-darwin-amd64:
-	GOARCH=darwin-amd64 $(MAKE) release-vmutils-generic
-
-release-vmutils-darwin-arm64:
-	GOARCH=darwin-arm64 $(MAKE) release-vmutils-generic
-
 release-vmutils-generic: \
-	vmagent-$(GOARCH)-prod \
-	vmalert-$(GOARCH)-prod \
-	vmauth-$(GOARCH)-prod \
-	vmbackup-$(GOARCH)-prod \
-	vmrestore-$(GOARCH)-prod \
-	vmctl-$(GOARCH)-prod
+	vmagent-$(OSARCH)-prod \
+	vmalert-$(OSARCH)-prod \
+	vmauth-$(OSARCH)-prod \
+	vmbackup-$(OSARCH)-prod \
+	vmrestore-$(OSARCH)-prod \
+	vmctl-$(OSARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOARCH)||" -czf vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vmagent-$(GOARCH)-prod \
-			vmalert-$(GOARCH)-prod \
-			vmauth-$(GOARCH)-prod \
-			vmbackup-$(GOARCH)-prod \
-			vmrestore-$(GOARCH)-prod \
-			vmctl-$(GOARCH)-prod \
-		&& sha256sum vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vmagent-$(GOARCH)-prod \
-			vmalert-$(GOARCH)-prod \
-			vmauth-$(GOARCH)-prod \
-			vmbackup-$(GOARCH)-prod \
-			vmrestore-$(GOARCH)-prod \
-			vmctl-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)-prod/-prod/ > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
+		tar --transform="flags=r;s|-$(OSARCH)||" -czf vmutils-$(OSARCH)-$(PKG_TAG).tar.gz \
+			vmagent-$(OSARCH)-prod \
+			vmalert-$(OSARCH)-prod \
+			vmauth-$(OSARCH)-prod \
+			vmbackup-$(OSARCH)-prod \
+			vmrestore-$(OSARCH)-prod \
+			vmctl-$(OSARCH)-prod \
+		&& sha256sum vmutils-$(OSARCH)-$(PKG_TAG).tar.gz \
+			vmagent-$(OSARCH)-prod \
+			vmalert-$(OSARCH)-prod \
+			vmauth-$(OSARCH)-prod \
+			vmbackup-$(OSARCH)-prod \
+			vmrestore-$(OSARCH)-prod \
+			vmctl-$(OSARCH)-prod \
+			| sed s/-$(OSARCH)-prod/-prod/ > vmutils-$(OSARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils-windows-generic: \
 	vmagent-windows-$(GOARCH)-prod \

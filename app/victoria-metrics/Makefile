@@ -27,6 +27,12 @@ victoria-metrics-ppc64le-prod:
 victoria-metrics-386-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-386
 
+victoria-metrics-darwin-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-amd64
+
+victoria-metrics-darwin-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-arm64
+
 package-victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker
 
@@ -75,12 +81,6 @@ victoria-metrics-386:
 
 victoria-metrics-pure:
 	APP_NAME=victoria-metrics $(MAKE) app-local-pure
-
-victoria-metrics-darwin-amd64-prod:
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 APP_NAME=victoria-metrics $(MAKE) app-via-docker-goarch-goos
-
-victoria-metrics-darwin-arm64-prod:
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 APP_NAME=victoria-metrics $(MAKE) app-via-docker-goarch-goos
 
 ### Packaging as DEB - amd64
 victoria-metrics-package-deb: victoria-metrics-prod
