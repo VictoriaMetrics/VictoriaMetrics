@@ -114,7 +114,7 @@ func Serve(addr string, rh RequestHandler) {
 				if fasttime.UnixTimestamp() > certDeadline {
 					c, err = tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
 					if err != nil {
-						return nil, fmt.Errorf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
+						return nil, fmt.Errorf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %w", *tlsCertFile, *tlsKeyFile, err)
 					}
 					certDeadline = fasttime.UnixTimestamp() + 1
 					cert = &c
