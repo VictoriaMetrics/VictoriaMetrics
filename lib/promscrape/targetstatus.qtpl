@@ -54,10 +54,10 @@ function collapse_all() {
 }
 function expand_all() {
   for (var i = 0; i < {%d len(jts) %}; i++) {
-        let el = document.getElementById("table-" + i);
-        if (!el) {
-            continue;
-        }
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+      continue;
+    }
     el.style.display = 'block';
   }
 }
