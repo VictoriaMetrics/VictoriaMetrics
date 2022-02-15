@@ -45,14 +45,20 @@ job={%q= jobName %} (0/0 up)
     <script>
 function collapse_all() {
   for (var i = 0; i < {%d len(jts) %}; i++) {
-    var id = "table-" + i;
-    document.getElementById(id).style.display = 'none';
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+        continue;
+    }
+    el.style.display = 'none';
   }
 }
 function expand_all() {
   for (var i = 0; i < {%d len(jts) %}; i++) {
-    var id = "table-" + i;
-    document.getElementById(id).style.display = 'block';
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+      continue;
+    }
+    el.style.display = 'block';
   }
 }
     </script>
