@@ -6,7 +6,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.3.2"
+      "version": "8.3.5"
     },
     {
       "type": "panel",
@@ -63,7 +63,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1639980687827,
+  "iteration": 1644908591152,
   "links": [
     {
       "icon": "doc",
@@ -151,7 +151,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"up\"})",
@@ -215,7 +215,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"down\"})",
@@ -282,7 +282,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "targets": [
         {
           "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
@@ -341,7 +341,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "targets": [
         {
           "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
@@ -487,7 +487,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -583,7 +583,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -687,7 +687,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -785,7 +785,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -906,7 +906,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -999,7 +999,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1098,7 +1098,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1196,7 +1196,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1295,7 +1295,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "8.3.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -3613,6 +3613,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the CPU usage per vmagent instance. \nIf you think that usage is abnormal or unexpected pls file an issue and attach CPU profile if possible.",
@@ -3628,7 +3629,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 45
           },
           "hiddenSeries": false,
           "id": 35,
@@ -3658,21 +3659,47 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [],
+          "seriesOverrides": [
+            {
+              "$$hashKey": "object:77",
+              "alias": "/Limit.*/",
+              "color": "#F2495C"
+            }
+          ],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": false,
               "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": false,
+              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "Limit ({{instance}})",
+              "refId": "B"
             }
           ],
           "thresholds": [],
@@ -3727,7 +3754,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 45
           },
           "hiddenSeries": false,
           "id": 37,
@@ -3757,7 +3784,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3834,7 +3861,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 53
           },
           "hiddenSeries": false,
           "id": 81,
@@ -3858,7 +3885,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3943,7 +3970,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 53
           },
           "hiddenSeries": false,
           "id": 7,
@@ -3967,7 +3994,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4045,7 +4072,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 61
           },
           "hiddenSeries": false,
           "id": 83,
@@ -4069,7 +4096,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4153,7 +4180,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 61
           },
           "hiddenSeries": false,
           "id": 39,
@@ -4177,7 +4204,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4247,7 +4274,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 69
           },
           "hiddenSeries": false,
           "id": 43,
@@ -4271,7 +4298,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4339,7 +4366,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 69
           },
           "hiddenSeries": false,
           "id": 41,
@@ -4363,7 +4390,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4418,7 +4445,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 33,
+  "schemaVersion": 34,
   "style": "dark",
   "tags": [
     "vmagent",
@@ -4428,9 +4455,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "dbaas-test-t3-medium-inst",
-          "value": "dbaas-test-t3-medium-inst"
+          "selected": false,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
