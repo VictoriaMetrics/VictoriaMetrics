@@ -70,7 +70,13 @@ type AlertTplData struct {
 	Expr   string
 }
 
-const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}{{ $expr := .Expr }}`
+var tplHeaders = []string{
+	"{{ $value := .Value }}",
+	"{{ $labels := .Labels }}",
+	"{{ $expr := .Expr }}",
+	"{{ $externalLabels := .ExternalLabels }}",
+	"{{ $externalURL := .ExternalURL }}",
+}
 
 // ExecTemplate executes the Alert template for given
 // map of annotations.
@@ -100,13 +106,15 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, funcs
 	var buf bytes.Buffer
 	eg := new(utils.ErrGroup)
 	r := make(map[string]string, len(annotations))
+	tData := tplData{data, externalLabels, externalURL}
+	header := strings.Join(tplHeaders, "")
 	for key, text := range annotations {
 		buf.Reset()
 		builder.Reset()
-		builder.Grow(len(tplHeader) + len(text))
-		builder.WriteString(tplHeader)
+		builder.Grow(len(header) + len(text))
+		builder.WriteString(header)
 		builder.WriteString(text)
-		if err := templateAnnotation(&buf, builder.String(), data, funcs); err != nil {
+		if err := templateAnnotation(&buf, builder.String(), tData, funcs); err != nil {
 			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
@@ -116,7 +124,13 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, funcs
 	return r, eg.Err()
 }
 
-func templateAnnotation(dst io.Writer, text string, data AlertTplData, funcs template.FuncMap) error {
+type tplData struct {
+	AlertTplData
+	ExternalLabels map[string]string
+	ExternalURL    string
+}
+
+func templateAnnotation(dst io.Writer, text string, data tplData, funcs template.FuncMap) error {
 	t := template.New("").Funcs(funcs).Option("missingkey=zero")
 	tpl, err := t.Parse(text)
 	if err != nil {
