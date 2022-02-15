@@ -94,8 +94,8 @@ and writing data to VictoriaMetrics.
 VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL query language](MetricsQL) based on PromQL. The simplicity is twofold:
 - It is simpler to configure and operate. There is no need for configuring [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md),
   fighting the [gossip protocol](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md)
-  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/production/cassandra/),
-  [DynamoDB](https://cortexmetrics.io/docs/production/aws/) or [Memcached](https://cortexmetrics.io/docs/production/caching/).
+  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/chunks-storage/running-chunks-storage-with-cassandra/),
+  [DynamoDB](https://cortexmetrics.io/docs/chunks-storage/aws-tips/) or [Memcached](https://cortexmetrics.io/docs/chunks-storage/caching/).
 - VictoriaMetrics has a simpler architecture. This means fewer bugs and more useful features in the long run compared to competing TSDBs.
 
 See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
