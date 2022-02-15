@@ -38,13 +38,14 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const wrapperEl = useRef<HTMLUListElement>(null);
 
   const openAutocomplete = useMemo(() => {
-    return !(!autocomplete || downMetaKeys.length || query.length < 2 || !focusField);
+    const words = query.split(/_|\.|\s+|=|\{/).length;
+    return !(!autocomplete || downMetaKeys.length || query.length < 2 || words > 1 || !focusField);
   }, [query, downMetaKeys, autocomplete, focusField]);
 
   const actualOptions = useMemo(() => {
     if (!openAutocomplete) return [];
     try {
-      const regexp = new RegExp(String(query), "i");
+      const regexp = new RegExp(String(`(^|_|\\.)${query}`), "i");
       return queryOptions.filter((item) => regexp.test(item) && item !== query);
     } catch (e) {
       return [];
@@ -86,7 +87,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     if (target?.scrollIntoView) target.scrollIntoView({block: "center"});
   }, [focusOption]);
 
-  return <Box ref={autocompleteAnchorEl}>
+  return <Box ref={autocompleteAnchorEl} sx={{position: "relative", zIndex: focusField ? 2 : 1}}>
     <TextField
       defaultValue={query}
       fullWidth
@@ -94,16 +95,25 @@ const QueryEditor: FC<QueryEditorProps> = ({
       multiline
       error={!!error}
       onFocus={() => setFocusField(true)}
-      onBlur={() => setFocusField(false)}
+      onBlur={(e) => {
+        const autocompleteItem = e.relatedTarget?.id || "";
+        const itemIndex = actualOptions.indexOf(autocompleteItem.replace("$autocomplete$", ""));
+        if (itemIndex !== -1) {
+          setQuery(actualOptions[itemIndex], index);
+          e.target.focus();
+        } else {
+          setFocusField(false);
+        }
+      }}
       onKeyUp={handleKeyUp}
       onKeyDown={handleKeyDown}
       onChange={(e) => setQuery(e.target.value, index)}
     />
-    <Popper open={openAutocomplete} anchorEl={autocompleteAnchorEl.current} placement="bottom-start">
+    <Popper open={openAutocomplete} anchorEl={autocompleteAnchorEl.current} placement="bottom-start" disablePortal>
       <Paper elevation={3} sx={{ maxHeight: 300, overflow: "auto" }}>
         <MenuList ref={wrapperEl} dense>
           {actualOptions.map((item, i) =>
-            <MenuItem key={item} sx={{bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})`}}>
+            <MenuItem id={`$autocomplete$${item}`} key={item} sx={{bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})`}}>
               {item}
             </MenuItem>)}
         </MenuList>
