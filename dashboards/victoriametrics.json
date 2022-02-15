@@ -57,7 +57,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1644907807949,
+  "iteration": 1644936419482,
   "links": [
     {
       "icon": "doc",
@@ -2456,7 +2456,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 32
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2479,7 +2479,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2559,7 +2559,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 32
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2583,7 +2583,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2641,7 +2641,7 @@
           "datasource": {
             "uid": "$ds"
           },
-          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>50%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
+          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -2654,7 +2654,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 40
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2678,7 +2678,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2697,7 +2697,17 @@
               "refId": "A"
             }
           ],
-          "thresholds": [],
+          "thresholds": [
+            {
+              "$$hashKey": "object:60",
+              "colorMode": "critical",
+              "fill": true,
+              "line": true,
+              "op": "gt",
+              "value": 0.1,
+              "yaxis": "left"
+            }
+          ],
           "timeRegions": [],
           "title": "Slow inserts ($instance)",
           "tooltip": {
@@ -2751,7 +2761,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 40
           },
           "hiddenSeries": false,
           "id": 74,
@@ -2773,7 +2783,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2848,7 +2858,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 49
           },
           "hiddenSeries": false,
           "id": 88,
@@ -2870,7 +2880,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2882,7 +2892,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_VICTORIAMETRICS}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "sum(vm_merge_need_free_disk_space{job=~\"$job\", instance=~\"$instance\"}) by(type)",
@@ -2934,7 +2944,7 @@
           "dashes": false,
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS}"
+            "uid": "$ds"
           },
           "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
           "fill": 0,
@@ -2943,7 +2953,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 49
           },
           "hiddenSeries": false,
           "id": 90,
@@ -2963,7 +2973,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2975,7 +2985,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_VICTORIAMETRICS}"
+                "uid": "$ds"
               },
               "exemplar": true,
               "expr": "vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} / vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}",
