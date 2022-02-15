@@ -43,6 +43,16 @@ groups:
           description: "Too high memory usage may result into multiple issues such as OOMs or degraded performance.
            Consider to either increase available memory or decrease the load on the process."
 
+      - alert: TooHighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 90% of CPU is used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          description: "Too high CPU usage may be a sign of insufficient resources and make process unstable.
+               Consider to either increase available CPU resources or decrease the load on the process."
+
   # Alerts group for VM cluster assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/11176 is installed.
   # Please, update the `dashboard` annotation according to your setup.
