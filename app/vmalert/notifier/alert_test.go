@@ -1,12 +1,24 @@
 package notifier
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 )
 
 func TestAlert_ExecTemplate(t *testing.T) {
+	extLabels := make(map[string]string, 0)
+	const (
+		extCluster = "prod"
+		extDC      = "east"
+		extURL     = "https://foo.bar"
+	)
+	extLabels["cluster"] = extCluster
+	extLabels["dc"] = extDC
+	_, err := Init(nil, extLabels, extURL)
+	checkErr(t, err)
+
 	testCases := []struct {
 		name        string
 		alert       *Alert
@@ -72,6 +84,26 @@ func TestAlert_ExecTemplate(t *testing.T) {
 			expTpl: map[string]string{
 				"summary": "1",
 				"desc":    "bar 1;garply 2;",
+			},
+		},
+		{
+			name: "external",
+			alert: &Alert{
+				Value: 1e4,
+				Labels: map[string]string{
+					"job":      "staging",
+					"instance": "localhost",
+				},
+			},
+			annotations: map[string]string{
+				"url":         "{{ $externalURL }}",
+				"summary":     "Issues with {{$labels.instance}} (dc-{{$externalLabels.dc}}) for job {{$labels.job}}",
+				"description": "It is {{ $value }} connections for {{$labels.instance}} (cluster-{{$externalLabels.cluster}})",
+			},
+			expTpl: map[string]string{
+				"url":         extURL,
+				"summary":     fmt.Sprintf("Issues with localhost (dc-%s) for job staging", extDC),
+				"description": fmt.Sprintf("It is 10000 connections for localhost (cluster-%s)", extCluster),
 			},
 		},
 	}
