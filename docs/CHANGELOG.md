@@ -14,6 +14,12 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.73.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.0)
+
+Released at 14-02-2022
+
+* FEATURE: publish VictoriaMetrics binaries for MacOS amd64 and MacOS arm64 (aka MacBook M1) at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1896) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1851).
 * FEATURE: reduce CPU and disk IO usage during `indexdb` rotation once per `-retentionPeriod`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401).
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add `-dropSamplesOnOverload` command-line flag for `vminsert`. If this flag is set, then `vminsert` drops incoming data if the destination `vmstorage` is temporarily unavailable or cannot keep up with the ingestion rate. The number of dropped rows can be [monitored](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring) via `vm_rpc_rows_dropped_on_overload_total` metric at `vminsert`.
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve re-routing logic, so it re-routes incoming data more evenly if some of `vmstorage` nodes are temporarily unavailable and/or accept data at slower rate than other `vmstorage` nodes. Also significantly reduce possible re-routing storm when `vminsert` runs with `-disableRerouting=false` command-line flag. This should help the following issues: [one](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1337), [two](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1165), [three](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1054), [four](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/791), [five](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1544).
@@ -34,6 +40,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: vmagent: add `__meta_kubernetes_endpointslice_label*` and `__meta_kubernetes_endpointslice_annotation*` labels for `role: endpointslice` targets in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) to be consistent with other `role` values. See [this issue](https://github.com/prometheus/prometheus/issues/10284).
 * FEATURE: vmagent: add `collapse all` and `expand all` buttons to `http://vmagent:8429/targets` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2021).
 * FEATURE: vmagent: support Prometheus-like durations in `-promscrape.config`. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817#issuecomment-1033384766).
+* FEATURE: automatically re-read `-tlsCertFile` and `-tlsKeyFile` files, so their contents can be updated without the need to restart VictoriaMetrics apps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2171).
 
 * BUGFIX: calculate [absent_over_time()](https://docs.victoriametrics.com/MetricsQL.html#absent_over_time) in the same way as Prometheus does. Previously it could return multiple time series instead of at most one time series like Prometheus does. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2130).
 * BUGFIX: return proper results from `highestMax()` function at [Graphite render API](https://docs.victoriametrics.com/#graphite-render-api-usage). Previously it was incorrectly returning timeseries with min peaks instead of max peaks.
@@ -45,6 +52,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: vmalert: fix links at web UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2167).
 * BUGFIX: vmagent: properly discover pods without exposed ports for the given service for `role: endpoints` and `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134).
 * BUGFIX: vmagent: properly display `zone` contents for `gce_sd_configs` section at `http://vmagent:8429/config` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2179). Thanks to @artifactori for the bugfix.
+* BUGFIX: vmagent: properly handle `all_tenants: true` config option at `openstack_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2182).
 
 
 ## [v1.72.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.72.0)

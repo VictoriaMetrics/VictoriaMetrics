@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
@@ -110,12 +111,9 @@ func (cfg *apiConfig) getServers() ([]server, error) {
 	}
 	computeURL := *creds.computeURL
 	computeURL.Path = path.Join(computeURL.Path, "servers", "detail")
-	// by default, query fetches data from all tenants
-	if !cfg.allTenants {
-		q := computeURL.Query()
-		q.Set("all_tenants", "false")
-		computeURL.RawQuery = q.Encode()
-	}
+	q := computeURL.Query()
+	q.Set("all_tenants", strconv.FormatBool(cfg.allTenants))
+	computeURL.RawQuery = q.Encode()
 	nextLink := computeURL.String()
 	var servers []server
 	for {

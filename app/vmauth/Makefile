@@ -27,6 +27,15 @@ vmauth-ppc64le-prod:
 vmauth-386-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-386
 
+vmauth-darwin-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
+
+vmauth-darwin-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-arm64
+
+vmauth-windows-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
+
 package-vmauth:
 	APP_NAME=vmauth $(MAKE) package-via-docker
 
@@ -80,6 +89,3 @@ vmauth-pure:
 
 vmauth-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmauth $(MAKE) app-local-windows-with-goarch
-
-vmauth-windows-amd64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
