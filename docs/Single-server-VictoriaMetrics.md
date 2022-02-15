@@ -1782,7 +1782,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.eurekaSDCheckInterval duration
     	Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
   -promscrape.fileSDCheckInterval duration
-    	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
+    	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 5m0s)
   -promscrape.gceSDCheckInterval duration
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
   -promscrape.httpSDCheckInterval duration
@@ -1904,9 +1904,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```

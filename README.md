@@ -586,9 +586,9 @@ Below is the output for `/path/to/vminsert -help`:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```
@@ -712,9 +712,9 @@ Below is the output for `/path/to/vmselect -help`:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```
@@ -815,9 +815,9 @@ Below is the output for `/path/to/vmstorage -help`:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
   -vminsertAddr string
