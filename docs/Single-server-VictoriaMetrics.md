@@ -278,6 +278,8 @@ VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/age
 
 Run DataDog agent with `DD_DD_URL=http://victoriametrics-host:8428/datadog` environment variable in order to write data to VictoriaMetrics at `victoriametrics-host` host. Another option is to set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
 
+VictoriaMetrics doesn't check `DD_API_KEY` param, so it can be set to arbitrary value.
+
 Example on how to send data to VictoriaMetrics via DataDog "submit metrics" API from command line:
 
 ```bash
