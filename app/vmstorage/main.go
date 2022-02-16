@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/metrics"
@@ -48,6 +49,12 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+
+	cacheSizeTSIDBytes           = flagutil.NewBytes("storage.cacheSizeTSIDBytes", 0, "Overrides TSID cache maximum size in bytes. It is used for storing MetricName->TSID relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeMetricIDBytes       = flagutil.NewBytes("storage.cacheSizeMetricIDBytes", 0, "Overrides MetricID cache maximum size in bytes. It is used for storing MetricID->TSID relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeMetricNameBytes     = flagutil.NewBytes("storage.cacheSizeMetricNameBytes", 0, "Overrides MetricName cache maximum size in bytes. It is used for storing MetricID->MetricName relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexBlocksBytes    = flagutil.NewBytes("storage.cacheSizeIndexBlocksBytes", 0, "Overrides IndexBlocks cache maximum size in bytes. It is used for storing unpacked blocks from indexdb. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeInmemoryBlocksBytes = flagutil.NewBytes("storage.cacheSizeInmemoryBlocksBytes", 0, "Overrides InmemoryBlocks cache maximum size in bytes. It is used for storing unpacked data blocks from storage. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -85,6 +92,11 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
+	storage.SetTSIDCacheSize(cacheSizeTSIDBytes.N)
+	storage.SetMetricNameCacheSize(cacheSizeMetricNameBytes.N)
+	storage.SetMetricIDCacheSize(cacheSizeMetricIDBytes.N)
+	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexBlocksBytes.N)
+	mergeset.SetInmemoryBlocksCacheSize(cacheSizeInmemoryBlocksBytes.N)
 
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
