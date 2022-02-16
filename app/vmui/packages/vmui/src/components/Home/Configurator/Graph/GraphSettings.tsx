@@ -10,6 +10,7 @@ import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 import CloseIcon from "@mui/icons-material/Close";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import {AxisRange, YaxisState} from "../../../../state/graph/reducer";
 
 const useStyles = makeStyles({
   popover: {
@@ -35,7 +36,13 @@ const useStyles = makeStyles({
 
 const title = "Axes Settings";
 
-const GraphSettings: FC = () => {
+interface GraphSettingsProps {
+  yaxis: YaxisState,
+  setYaxisLimits: (limits: AxisRange) => void,
+  toggleEnableLimits: () => void
+}
+
+const GraphSettings: FC<GraphSettingsProps> = ({yaxis, setYaxisLimits, toggleEnableLimits}) => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const open = Boolean(anchorEl);
 
@@ -61,7 +68,11 @@ const GraphSettings: FC = () => {
             </IconButton>
           </div>
           <Box className={classes.popoverBody}>
-            <AxesLimitsConfigurator/>
+            <AxesLimitsConfigurator
+              yaxis={yaxis}
+              setYaxisLimits={setYaxisLimits}
+              toggleEnableLimits={toggleEnableLimits}
+            />
           </Box>
         </Paper>
       </ClickAwayListener>

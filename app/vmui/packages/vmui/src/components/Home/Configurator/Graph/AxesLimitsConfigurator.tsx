@@ -3,29 +3,31 @@ import {ChangeEvent} from "react";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import TextField from "@mui/material/TextField";
-import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 import debounce from "lodash.debounce";
 import BasicSwitch from "../../../../theme/switch";
+import {AxisRange, YaxisState} from "../../../../state/graph/reducer";
 
-const AxesLimitsConfigurator: FC = () => {
+interface AxesLimitsConfiguratorProps {
+  yaxis: YaxisState,
+  setYaxisLimits: (limits: AxisRange) => void,
+  toggleEnableLimits: () => void
+}
 
-  const { yaxis } = useGraphState();
-  const graphDispatch = useGraphDispatch();
+const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({yaxis, setYaxisLimits, toggleEnableLimits}) => {
+
   const axes = useMemo(() => Object.keys(yaxis.limits.range), [yaxis.limits.range]);
-
-  const onChangeYaxisLimits = () => { graphDispatch({type: "TOGGLE_ENABLE_YAXIS_LIMITS"}); };
 
   const onChangeLimit = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, axis: string, index: number) => {
     const newLimits = yaxis.limits.range;
     newLimits[axis][index] = +e.target.value;
     if (newLimits[axis][0] === newLimits[axis][1] || newLimits[axis][0] > newLimits[axis][1]) return;
-    graphDispatch({type: "SET_YAXIS_LIMITS", payload: newLimits});
+    setYaxisLimits(newLimits);
   };
   const debouncedOnChangeLimit = useCallback(debounce(onChangeLimit, 500), [yaxis.limits.range]);
 
   return <Box display="grid" alignItems="center" gap={2}>
     <FormControlLabel
-      control={<BasicSwitch checked={yaxis.limits.enable} onChange={onChangeYaxisLimits}/>}
+      control={<BasicSwitch checked={yaxis.limits.enable} onChange={toggleEnableLimits}/>}
       label="Fix the limits for y-axis"
     />
     <Box display="grid" alignItems="center" gap={2}>

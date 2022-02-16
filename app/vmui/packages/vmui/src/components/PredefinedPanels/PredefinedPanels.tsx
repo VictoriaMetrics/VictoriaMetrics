@@ -5,8 +5,7 @@ import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import Typography from "@mui/material/Typography";
 import {useAppDispatch, useAppState} from "../../state/common/StateContext";
-import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
-import {AxisRange} from "../../state/graph/reducer";
+import {AxisRange, YaxisState} from "../../state/graph/reducer";
 import GraphView from "../Home/Views/GraphView";
 import Alert from "@mui/material/Alert";
 import {useFetchQuery} from "../../hooks/useFetchQuery";
@@ -24,14 +23,19 @@ const PredefinedPanels: FC<PanelSettings> = ({
 }) => {
 
   const {time: {period}} = useAppState();
-  const {yaxis} = useGraphState();
 
   const dispatch = useAppDispatch();
-  const graphDispatch = useGraphDispatch();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
   const [customStep, setCustomStep] = useState<CustomStep>({enable: false, value: period.step || 1});
+  const [yaxis, setYaxis] = useState<YaxisState>({
+    limits: {
+      enable: false,
+      range: {"1": [0, 0]}
+    }
+  });
+
 
   const {isLoading, graphData, error} = useFetchQuery({
     predefinedQuery: expr,
@@ -41,7 +45,15 @@ const PredefinedPanels: FC<PanelSettings> = ({
   });
 
   const setYaxisLimits = (limits: AxisRange) => {
-    graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
+    const tempYaxis = {...yaxis};
+    tempYaxis.limits.range = limits;
+    setYaxis(tempYaxis);
+  };
+
+  const toggleEnableLimits = () => {
+    const tempYaxis = {...yaxis};
+    tempYaxis.limits.enable = !tempYaxis.limits.enable;
+    setYaxis(tempYaxis);
   };
 
   const setPeriod = ({from, to}: {from: Date, to: Date}) => {
@@ -85,7 +97,7 @@ const PredefinedPanels: FC<PanelSettings> = ({
           toggleEnableStep={() => {
             setCustomStep({...customStep, enable: !customStep.enable});
           }}/>
-        <GraphSettings/>
+        <GraphSettings yaxis={yaxis} setYaxisLimits={setYaxisLimits} toggleEnableLimits={toggleEnableLimits}/>
       </Box>
     </Box>
     <Box px={2} pb={2}>

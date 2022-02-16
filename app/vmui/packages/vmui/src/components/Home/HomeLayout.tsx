@@ -26,6 +26,10 @@ const HomeLayout: FC = () => {
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
   };
 
+  const toggleEnableLimits = () => {
+    graphDispatch({type: "TOGGLE_ENABLE_YAXIS_LIMITS"});
+  };
+
   const setPeriod = ({from, to}: {from: Date, to: Date}) => {
     dispatch({type: "SET_PERIOD", payload: {from, to}});
   };
@@ -46,7 +50,11 @@ const HomeLayout: FC = () => {
             <Box display="grid" gridTemplateColumns="1fr auto" alignItems="center" mx={-4} px={4} mb={2}
               borderBottom={1} borderColor="divider">
               <DisplayTypeSwitch/>
-              {displayType === "chart" &&  <GraphSettings/>}
+              {displayType === "chart" && <GraphSettings
+                yaxis={yaxis}
+                setYaxisLimits={setYaxisLimits}
+                toggleEnableLimits={toggleEnableLimits}
+              />}
             </Box>
             {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
             {graphData && period && (displayType === "chart") &&
