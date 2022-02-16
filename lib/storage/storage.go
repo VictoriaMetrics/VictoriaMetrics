@@ -740,6 +740,9 @@ func (s *Storage) mustRotateIndexDB() {
 }
 
 func (s *Storage) resetAndSaveTSIDCache() {
+	// Reset cache and then store the reset cache on disk in order to prevent
+	// from inconsistent behaviour after possible unclean shutdown.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
 	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
 }
