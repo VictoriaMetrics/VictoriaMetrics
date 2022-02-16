@@ -788,7 +788,12 @@ func (is *indexSearch) searchTagKeysOnDate(tks map[string]struct{}, date uint64,
 		// Just increment it in order to jump to the next tag key.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 		kb.B = encoding.MarshalUint64(kb.B, date)
-		kb.B = marshalTagValue(kb.B, key)
+		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+			// skip composite tag entries
+			kb.B = append(kb.B, compositeTagKeyPrefix)
+		} else {
+			kb.B = marshalTagValue(kb.B, key)
+		}
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -863,7 +868,12 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-		kb.B = marshalTagValue(kb.B, key)
+		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+			// skip composite tag entries
+			kb.B = append(kb.B, compositeTagKeyPrefix)
+		} else {
+			kb.B = marshalTagValue(kb.B, key)
+		}
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -972,7 +982,8 @@ func (is *indexSearch) searchTagValuesOnDate(tvs map[string]struct{}, tagKey []b
 			continue
 		}
 
-		skipTag := isArtificialTagKey(mp.Tag.Key)
+		key := mp.Tag.Key
+		skipTag := isArtificialTagKey(key)
 		if !skipTag {
 			tvs[string(mp.Tag.Value)] = struct{}{}
 			if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
@@ -987,7 +998,12 @@ func (is *indexSearch) searchTagValuesOnDate(tvs map[string]struct{}, tagKey []b
 		// Just increment it in order to jump to the next tag value.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 		kb.B = encoding.MarshalUint64(kb.B, date)
-		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+			// skip composite tag entries
+			kb.B = append(kb.B, compositeTagKeyPrefix)
+		} else {
+			kb.B = marshalTagValue(kb.B, key)
+		}
 		if !skipTag {
 			kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		}
@@ -1060,7 +1076,8 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 			continue
 		}
 
-		skipTag := isArtificialTagKey(mp.Tag.Key)
+		key := mp.Tag.Key
+		skipTag := isArtificialTagKey(key)
 		if !skipTag {
 			tvs[string(mp.Tag.Value)] = struct{}{}
 			if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
@@ -1074,7 +1091,12 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag value.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+			// skip composite tag entries
+			kb.B = append(kb.B, compositeTagKeyPrefix)
+		} else {
+			kb.B = marshalTagValue(kb.B, key)
+		}
 		if !skipTag {
 			kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		}
