@@ -13,6 +13,7 @@ import {useFetchQuery} from "../../hooks/useFetchQuery";
 import Spinner from "../common/Spinner";
 import StepConfigurator from "../Home/Configurator/Query/StepConfigurator";
 import GraphSettings from "../Home/Configurator/Graph/GraphSettings";
+import {CustomStep} from "../../state/graph/reducer";
 
 const PredefinedPanels: FC<PanelSettings> = ({
   title,
@@ -22,16 +23,22 @@ const PredefinedPanels: FC<PanelSettings> = ({
   hideLegend
 }) => {
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(true);
-
-  const {isLoading, graphData, error} = useFetchQuery({predefinedQuery: expr, visible, display: "chart"});
-
   const {time: {period}} = useAppState();
-  const {customStep, yaxis} = useGraphState();
+  const {yaxis} = useGraphState();
 
   const dispatch = useAppDispatch();
   const graphDispatch = useGraphDispatch();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(true);
+  const [customStep, setCustomStep] = useState<CustomStep>({enable: false, value: period.step || 1});
+
+  const {isLoading, graphData, error} = useFetchQuery({
+    predefinedQuery: expr,
+    display: "chart",
+    visible,
+    customStep,
+  });
 
   const setYaxisLimits = (limits: AxisRange) => {
     graphDispatch({type: "SET_YAXIS_LIMITS", payload: limits});
@@ -71,7 +78,13 @@ const PredefinedPanels: FC<PanelSettings> = ({
         {title || ""}
       </Typography>
       <Box display={"grid"} gridTemplateColumns={"repeat(2, auto)"} gap={2} alignItems={"center"}>
-        <StepConfigurator/>
+        <StepConfigurator defaultStep={period.step} customStepEnable={customStep.enable}
+          setStep={(value) => {
+            setCustomStep({...customStep, value: value});
+          }}
+          toggleEnableStep={() => {
+            setCustomStep({...customStep, enable: !customStep.enable});
+          }}/>
         <GraphSettings/>
       </Box>
     </Box>

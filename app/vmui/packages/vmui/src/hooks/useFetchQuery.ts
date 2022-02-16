@@ -4,21 +4,22 @@ import {useAppState} from "../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
-import {useGraphState} from "../state/graph/GraphStateContext";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import throttle from "lodash.throttle";
 import {DisplayType} from "../components/Home/Configurator/DisplayTypeSwitch";
+import {CustomStep} from "../state/graph/reducer";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
   visible: boolean
-  display?: DisplayType
+  display?: DisplayType,
+  customStep: CustomStep,
 }
 
 const appModeEnable = getAppModeEnable();
 const {serverURL: appServerUrl} = getAppModeParams();
 
-export const useFetchQuery = ({predefinedQuery, visible, display}: FetchQueryParams): {
+export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: FetchQueryParams): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -27,8 +28,6 @@ export const useFetchQuery = ({predefinedQuery, visible, display}: FetchQueryPar
   queryOptions: string[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
-
-  const {customStep} = useGraphState();
 
   const [queryOptions, setQueryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,10 +103,11 @@ export const useFetchQuery = ({predefinedQuery, visible, display}: FetchQueryPar
     } else if (expr.every(q => !q.trim())) {
       setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(server)) {
-      if (customStep.enable) period.step = customStep.value;
+      const updatedPeriod = {...period};
+      if (customStep.enable) updatedPeriod.step = customStep.value;
       return expr.filter(q => q.trim()).map(q => displayChart
-        ? getQueryRangeUrl(server, q, period, nocache)
-        : getQueryUrl(server, q, period));
+        ? getQueryRangeUrl(server, q, updatedPeriod, nocache)
+        : getQueryUrl(server, q, updatedPeriod));
     } else {
       setError(ErrorTypes.validServer);
     }

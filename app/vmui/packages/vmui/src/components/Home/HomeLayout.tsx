@@ -30,7 +30,10 @@ const HomeLayout: FC = () => {
     dispatch({type: "SET_PERIOD", payload: {from, to}});
   };
 
-  const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery({visible: true});
+  const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery({
+    visible: true,
+    customStep
+  });
 
   return (
     <Box id="homeLayout">

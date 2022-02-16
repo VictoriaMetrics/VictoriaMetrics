@@ -1,44 +1,47 @@
-import React, {FC, useCallback, useEffect, useState} from "preact/compat";
+import React, {FC, useEffect, useState} from "preact/compat";
 import {ChangeEvent} from "react";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import TextField from "@mui/material/TextField";
 import BasicSwitch from "../../../../theme/switch";
-import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
-import {useAppState} from "../../../../state/common/StateContext";
-import debounce from "lodash.debounce";
 
-const StepConfigurator: FC = () => {
-  const {customStep} = useGraphState();
-  const graphDispatch = useGraphDispatch();
+interface StepConfiguratorProps {
+  defaultStep?: number,
+  customStepEnable: boolean,
+  setStep: (step: number) => void,
+  toggleEnableStep: () => void
+}
+
+const StepConfigurator: FC<StepConfiguratorProps> = ({
+  defaultStep, customStepEnable, setStep, toggleEnableStep
+}) => {
+
+  const [customStep, setCustomStep] = useState(defaultStep);
   const [error, setError] = useState(false);
-  const {time: {period: {step}}} = useAppState();
+
+  useEffect(() => {
+    setStep(customStep || 1);
+  }, [customStep]);
 
   const onChangeStep = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!customStep.enable) return;
+    if (!customStepEnable) return;
     const value = +e.target.value;
     if (value > 0) {
-      graphDispatch({type: "SET_CUSTOM_STEP", payload: value});
+      setCustomStep(value);
       setError(false);
     } else {
       setError(true);
     }
   };
 
-  const debouncedOnChangeStep = useCallback(debounce(onChangeStep, 500), [customStep.value]);
-
   const onChangeEnableStep = () => {
     setError(false);
-    graphDispatch({type: "TOGGLE_CUSTOM_STEP"});
+    toggleEnableStep();
   };
-
-  useEffect(() => {
-    if (!customStep.enable) graphDispatch({type: "SET_CUSTOM_STEP", payload: step || 1});
-  }, [step]);
 
   return <Box display="grid" gridTemplateColumns="auto 120px" alignItems="center">
     <FormControlLabel
-      control={<BasicSwitch checked={customStep.enable} onChange={onChangeEnableStep}/>}
+      control={<BasicSwitch checked={customStepEnable} onChange={onChangeEnableStep}/>}
       label="Override step value"
     />
     <TextField
@@ -46,11 +49,11 @@ const StepConfigurator: FC = () => {
       type="number"
       size="small"
       variant="outlined"
-      defaultValue={customStep.value}
-      disabled={!customStep.enable}
+      value={customStep}
+      disabled={!customStepEnable}
       error={error}
       helperText={error ? "step is out of allowed range" : " "}
-      onChange={debouncedOnChangeStep}/>
+      onChange={onChangeStep}/>
   </Box>;
 };
 
