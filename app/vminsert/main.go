@@ -237,6 +237,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "influx/write", "influx/api/v2/write":
 		influxWriteRequests.Inc()
+		addInfluxResponseHeaders(w)
 		if err := influx.InsertHandlerForHTTP(at, r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -246,6 +247,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "influx/query":
 		influxQueryRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutils.WriteDatabaseNames(w)
 		return true
 	case "datadog/api/v1/series":
@@ -282,6 +284,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// This is not our link
 		return false
 	}
+}
+
+func addInfluxResponseHeaders(w http.ResponseWriter) {
+	// This is needed for some clients, which expect InfluxDB version header.
+	// See, for example, https://github.com/ntop/ntopng/issues/5449#issuecomment-1005347597
+	w.Header().Set("X-Influxdb-Version", "1.8.0")
 }
 
 var (
