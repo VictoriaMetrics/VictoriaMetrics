@@ -997,6 +997,7 @@ func (is *indexSearch) searchTagValuesOnDate(tvs map[string]struct{}, tagKey []b
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 		kb.B = encoding.MarshalUint64(kb.B, date)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -1080,6 +1081,7 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 		// Just increment it in order to jump to the next tag value.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
