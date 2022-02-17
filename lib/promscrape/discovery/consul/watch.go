@@ -82,6 +82,7 @@ func (cw *consulWatcher) mustStop() {
 }
 
 func (cw *consulWatcher) updateServices(serviceNames []string) {
+	initWg := &sync.WaitGroup{}
 	// Start watchers for new services.
 	for _, serviceName := range serviceNames {
 		cw.servicesLock.Lock()
@@ -99,16 +100,17 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 		cw.wg.Add(1)
 		serviceWatchersCreated.Inc()
 
-		initCh := make(chan struct{})
+		initWg.Add(1)
 		go func() {
 			serviceWatchersCount.Inc()
-			sw.watchForServiceNodesUpdates(cw, initCh)
+			sw.watchForServiceNodesUpdates(cw, initWg)
 			serviceWatchersCount.Dec()
 			cw.wg.Done()
 		}()
-		// wait for initialization to complete
-		<-initCh
 	}
+
+	// wait for initialization to complete
+	initWg.Wait()
 
 	// Stop watchers for removed services.
 	cw.servicesLock.Lock()
@@ -217,7 +219,7 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 // watchForServiceNodesUpdates watches for Consul serviceNode changes for the given serviceName.
 // watchForServiceNodesUpdates closes the initCh once the initialization is complete
 // and first discovery iteration is done.
-func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initCh chan struct{}) {
+func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG *sync.WaitGroup) {
 	clientAddr := cw.client.Addr()
 	index := int64(0)
 	path := "/v1/health/service/" + sw.serviceName + cw.serviceNodesQueryArgs
@@ -246,7 +248,7 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initCh 
 
 	f()
 	// send signal that initialization is complete
-	close(initCh)
+	initWG.Done()
 
 	checkInterval := getCheckInterval()
 	ticker := time.NewTicker(checkInterval / 2)
