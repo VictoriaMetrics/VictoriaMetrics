@@ -421,18 +421,25 @@ All the cluster components provide the following handlers for [profiling](https:
 * `http://vmselect:8481/debug/pprof/heap` for memory profile and `http://vmselect:8481/debug/pprof/profile` for CPU profile
 * `http://vmstorage:8482/debug/pprof/heap` for memory profile and `http://vmstorage:8482/debug/pprof/profile` for CPU profile
 
-Example command for collecting cpu profile from `vmstorage`:
+Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -s http://vmstorage:8482/debug/pprof/profile > cpu.pprof
 ```
 
-Example command for collecting memory profile from `vminsert`:
+</div>
+
+Example command for collecting memory profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://vminsert:8480/debug/pprof/heap > mem.pprof
+curl -s http://vminsert:8482/debug/pprof/heap > mem.pprof
 ```
 
+</div>
 
 ## Community and contributions
 
