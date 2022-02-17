@@ -981,32 +981,22 @@ func (is *indexSearch) searchTagValuesOnDate(tvs map[string]struct{}, tagKey []b
 		if mp.IsDeletedTag(dmis) {
 			continue
 		}
-
-		key := mp.Tag.Key
-		skipTag := isArtificialTagKey(key)
-		if !skipTag {
-			tvs[string(mp.Tag.Value)] = struct{}{}
-			if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
-				// There is no need in searching for the next tag value,
-				// since it is likely it is located in the next row,
-				// because the current row contains incomplete metricIDs set.
-				continue
-			}
+		if string(mp.Tag.Key) != string(tagKey) {
+			break
+		}
+		tvs[string(mp.Tag.Value)] = struct{}{}
+		if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
+			// There is no need in searching for the next tag value,
+			// since it is likely it is located in the next row,
+			// because the current row contains incomplete metricIDs set.
+			continue
 		}
 		// Search for the next tag value.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag value.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 		kb.B = encoding.MarshalUint64(kb.B, date)
-		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
-			// skip composite tag entries
-			kb.B = append(kb.B, compositeTagKeyPrefix)
-		} else {
-			kb.B = marshalTagValue(kb.B, key)
-		}
-		if !skipTag {
-			kb.B = marshalTagValue(kb.B, mp.Tag.Value)
-		}
+		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -1075,31 +1065,21 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 		if mp.IsDeletedTag(dmis) {
 			continue
 		}
-
-		key := mp.Tag.Key
-		skipTag := isArtificialTagKey(key)
-		if !skipTag {
-			tvs[string(mp.Tag.Value)] = struct{}{}
-			if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
-				// There is no need in searching for the next tag value,
-				// since it is likely it is located in the next row,
-				// because the current row contains incomplete metricIDs set.
-				continue
-			}
+		if string(mp.Tag.Key) != string(tagKey) {
+			break
+		}
+		tvs[string(mp.Tag.Value)] = struct{}{}
+		if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
+			// There is no need in searching for the next tag value,
+			// since it is likely it is located in the next row,
+			// because the current row contains incomplete metricIDs set.
+			continue
 		}
 		// Search for the next tag value.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag value.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
-			// skip composite tag entries
-			kb.B = append(kb.B, compositeTagKeyPrefix)
-		} else {
-			kb.B = marshalTagValue(kb.B, key)
-		}
-		if !skipTag {
-			kb.B = marshalTagValue(kb.B, mp.Tag.Value)
-		}
+		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
