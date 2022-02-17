@@ -57,7 +57,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1644936419482,
+  "iteration": 1645085513510,
   "links": [
     {
       "icon": "doc",
@@ -1015,7 +1015,7 @@
       "datasource": {
         "uid": "$ds"
       },
-      "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
+      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -1031,12 +1031,12 @@
         "y": 14
       },
       "hiddenSeries": false,
-      "id": 33,
+      "id": 35,
       "legend": {
         "alignAsTable": true,
         "avg": true,
         "current": true,
-        "max": true,
+        "max": false,
         "min": false,
         "show": true,
         "sort": "current",
@@ -1047,7 +1047,7 @@
       "lines": true,
       "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
+      "nullPointMode": "null as zero",
       "options": {
         "alertThreshold": true
       },
@@ -1056,39 +1056,27 @@
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
-      "seriesOverrides": [
-        {
-          "alias": "max allowed",
-          "color": "#C4162A"
-        }
-      ],
+      "seriesOverrides": [],
       "spaceLength": 10,
       "stack": false,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "exemplar": false,
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by (path) > 0",
           "format": "time_series",
-          "hide": false,
+          "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "size",
+          "legendFormat": "{{path}}",
           "refId": "A"
-        },
-        {
-          "expr": "max(vm_allowed_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
-          "format": "time_series",
-          "hide": false,
-          "intervalFactor": 1,
-          "legendFormat": "max allowed",
-          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeRegions": [],
-      "title": "Cache size ($instance)",
+      "title": "Requests error rate ($instance)",
       "tooltip": {
         "shared": true,
-        "sort": 0,
+        "sort": 2,
         "value_type": "individual"
       },
       "type": "graph",
@@ -1099,7 +1087,7 @@
       },
       "yaxes": [
         {
-          "format": "bytes",
+          "format": "short",
           "logBase": 1,
           "min": "0",
           "show": true
@@ -1208,6 +1196,7 @@
       },
       "yaxes": [
         {
+          "$$hashKey": "object:425",
           "decimals": 0,
           "format": "short",
           "logBase": 1,
@@ -1215,103 +1204,8 @@
           "show": true
         },
         {
+          "$$hashKey": "object:426",
           "decimals": 0,
-          "format": "short",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "uid": "$ds"
-      },
-      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
-      "fieldConfig": {
-        "defaults": {
-          "links": []
-        },
-        "overrides": []
-      },
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 22
-      },
-      "hiddenSeries": false,
-      "id": 35,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "max": false,
-        "min": false,
-        "show": true,
-        "sort": "current",
-        "sortDesc": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null as zero",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.3.5",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by (path) > 0",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{path}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "Requests error rate ($instance)",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        },
-        {
           "format": "short",
           "logBase": 1,
           "min": "0",
@@ -1324,6 +1218,234 @@
     },
     {
       "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 92,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 31
+          },
+          "hiddenSeries": false,
+          "id": 94,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.5",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "$$hashKey": "object:85",
+              "alias": "max allowed",
+              "color": "#F2495C",
+              "fill": 0,
+              "stack": false
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(type)",
+              "interval": "",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": false,
+              "expr": "sum(vm_allowed_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "max allowed",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Cache size ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:111",
+              "format": "bytes",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:112",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Cache hit ratio shows cache efficiency. The higher is hit rate the better.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 39
+          },
+          "hiddenSeries": false,
+          "id": 95,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.5",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "$$hashKey": "object:85",
+              "alias": "max allowed",
+              "color": "#F2495C",
+              "fill": 0,
+              "stack": false
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "1 - (\n sum(rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) /\n sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type)\n)",
+              "interval": "",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Cache hit ratio ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:111",
+              "format": "percentunit",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:112",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        }
+      ],
+      "title": "Caches",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
       "datasource": {
         "uid": "$ds"
       },
@@ -1331,7 +1453,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 31
       },
       "id": 14,
       "panels": [
@@ -2431,7 +2553,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 32
       },
       "id": 71,
       "panels": [
@@ -2456,7 +2578,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 33
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2559,7 +2681,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 32
+            "y": 33
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2654,7 +2776,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 41
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2761,7 +2883,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 41
           },
           "hiddenSeries": false,
           "id": 74,
@@ -2858,7 +2980,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 50
           },
           "hiddenSeries": false,
           "id": 88,
@@ -2953,7 +3075,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 50
           },
           "hiddenSeries": false,
           "id": 90,
@@ -3039,7 +3161,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 33
       },
       "id": 46,
       "panels": [
