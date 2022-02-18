@@ -426,7 +426,7 @@ Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` w
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://vmstorage:8482/debug/pprof/profile > cpu.pprof
+curl http://vmstorage:8482/debug/pprof/profile > cpu.pprof
 ```
 
 </div>
