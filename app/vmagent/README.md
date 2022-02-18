@@ -690,7 +690,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
 </div>
@@ -700,7 +700,7 @@ curl -s http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
 </div>

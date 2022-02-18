@@ -431,12 +431,12 @@ curl -s http://vmstorage:8482/debug/pprof/profile > cpu.pprof
 
 </div>
 
-Example command for collecting memory profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
+Example command for collecting memory profile from `vminsert` (replace `0.0.0.0` with `vminsert` hostname if needed):
 
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://vminsert:8482/debug/pprof/heap > mem.pprof
+curl http://vminsert:8480/debug/pprof/heap > mem.pprof
 ```
 
 </div>

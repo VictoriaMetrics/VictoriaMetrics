@@ -193,7 +193,7 @@ ROOT_IMAGE=scratch make package-vmauth
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 ```
 
 </div>
@@ -203,7 +203,7 @@ curl -s http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
 
 </div>
