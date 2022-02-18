@@ -1519,7 +1519,7 @@ curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
 ```
 
 </div>
