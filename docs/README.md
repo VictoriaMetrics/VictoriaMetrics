@@ -1505,7 +1505,7 @@ VictoriaMetrics provides handlers for collecting the following [Go profiles](htt
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 ```
 
 </div>
