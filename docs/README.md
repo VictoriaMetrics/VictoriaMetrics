@@ -332,7 +332,7 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line.
+  unless `db` tag exists in the InfluxDB line. The `db` label name can be overriden via `-influxDBLabel` command-line flag.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -1521,17 +1521,25 @@ for running ingestion benchmarks based on node_exporter metrics.
 
 VictoriaMetrics provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
-* Memory profile. It can be collected with the following command:
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<victoria-metrics-host>:8428/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 ```
 
-* CPU profile. It can be collected with the following command:
+</div>
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
 ```
+
+</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
