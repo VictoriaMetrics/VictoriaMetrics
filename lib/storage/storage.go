@@ -201,9 +201,10 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 
 	// Load caches.
+	mem := memory.Allowed()
 	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", getTSIDCacheSize())
-	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", getMetricIDCacheSize())
-	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", getMetricNameCacheSize())
+	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", mem/16)
+	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
@@ -270,40 +271,18 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	return s, nil
 }
 
-var (
-	cacheSizeOverrideTSIDBytes       int
-	cacheSizeOverrideMetricIDBytes   int
-	cacheSizeOverrideMetricNameBytes int
-)
+var maxTSIDCacheSize int
 
-// SetTSIDCacheSize overrides the default size of the TSID cache
-func SetTSIDCacheSize(size int) { cacheSizeOverrideTSIDBytes = size }
-
-// SetMetricIDCacheSize overrides the default size of MetricID cache
-func SetMetricIDCacheSize(size int) { cacheSizeOverrideMetricIDBytes = size }
-
-// SetMetricNameCacheSize overrides the default size of MetricName cache
-func SetMetricNameCacheSize(size int) { cacheSizeOverrideMetricNameBytes = size }
+// SetTSIDCacheSize overrides the default size of storage/tsid cahce
+func SetTSIDCacheSize(size int) {
+	maxTSIDCacheSize = size
+}
 
 func getTSIDCacheSize() int {
-	if cacheSizeOverrideTSIDBytes < 1 {
-		return int(float64(memory.Allowed()) * 0.35)
+	if maxTSIDCacheSize <= 0 {
+		return int(float64(memory.Allowed()) * 0.37)
 	}
-	return cacheSizeOverrideTSIDBytes
-}
-
-func getMetricIDCacheSize() int {
-	if cacheSizeOverrideMetricIDBytes < 1 {
-		return memory.Allowed() / 16
-	}
-	return cacheSizeOverrideMetricIDBytes
-}
-
-func getMetricNameCacheSize() int {
-	if cacheSizeOverrideMetricNameBytes < 1 {
-		return memory.Allowed() / 10
-	}
-	return cacheSizeOverrideMetricNameBytes
+	return maxTSIDCacheSize
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {

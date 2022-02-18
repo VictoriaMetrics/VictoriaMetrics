@@ -1434,23 +1434,27 @@ VictoriaMetrics uses various internal caches. These caches are stored to `<-stor
 
 ## Cache tuning
 
-VictoriaMetrics maintains various caches for better ingestion and read performance.
-Metrics for each type of cache are exported in Prometheus format at `/metrics` page.
-See how to collect and visualize these metrics in [monitoring](#monitoring) section.
+VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
+The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
+- `vm_cache_size_bytes` - the actual cache size
+- `vm_cache_size_max_bytes` - cache size limit
+- `vm_cache_requests_total` - the number of requests to the cache
+- `vm_cache_misses_total` - the number of cache misses
+- `vm_cache_entries` - the number of entries in the cache
 
-Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) 
+Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
 and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
-contain a row `Caches` with cache metrics visualized. The panels will show the current
+contain `Caches` section with cache metrics visualized. The panels show the current
 memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
 then cache efficiency is already very high and does not need any tuning.
-The panel `Cache usage %` in `Troubleshooting` section will show the percentage of used cache size 
+The panel `Cache usage %` in `Troubleshooting` section shows the percentage of used cache size
 from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
 
 Please note, default cache sizes were carefully adjusted accordingly to the most
 practical scenarios and workloads. Change the defaults only if you understand the implications.
 
-To override the default values see the flags with `-storage.cacheSize` prefix. 
-See the full description of flags at [List of command-line flags](#list-of-command-line-flags) section. 
+To override the default values see command-line flags with `-storage.cacheSize` prefix.
+See the full description of flags [here](#list-of-command-line-flags).
 
 
 ## Data migration
@@ -1923,21 +1927,15 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	authKey, which must be passed in query string to /snapshot* pages
   -sortLabels
     	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
-  -storage.cacheSizeIndexBlocksBytes size
-        Overrides IndexBlocks cache maximum size in bytes. It is used for storing unpacked blocks from indexdb. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
-        Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
-  -storage.cacheSizeInmemoryBlocksBytes size
-        Overrides InmemoryBlocks cache maximum size in bytes. It is used for storing unpacked data blocks from storage. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
-        Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
-  -storage.cacheSizeMetricIDBytes size
-        Overrides MetricID cache maximum size in bytes. It is used for storing MetricID->TSID relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
-        Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
-  -storage.cacheSizeMetricNameBytes size
-        Overrides MetricName cache maximum size in bytes. It is used for storing MetricID->MetricName relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
-        Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
-  -storage.cacheSizeTSIDBytes size
-        Overrides TSID cache maximum size in bytes. It is used for storing MetricName->TSID relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
-        Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBDataBlocks size
+    	Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBIndexBlocks size
+    	Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeStorageTSID size
+    	Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.maxDailySeries int
     	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int

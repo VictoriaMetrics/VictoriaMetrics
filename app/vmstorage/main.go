@@ -50,11 +50,9 @@ var (
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 
-	cacheSizeTSIDBytes           = flagutil.NewBytes("storage.cacheSizeTSIDBytes", 0, "Overrides TSID cache maximum size in bytes. It is used for storing MetricName->TSID relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeMetricIDBytes       = flagutil.NewBytes("storage.cacheSizeMetricIDBytes", 0, "Overrides MetricID cache maximum size in bytes. It is used for storing MetricID->TSID relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeMetricNameBytes     = flagutil.NewBytes("storage.cacheSizeMetricNameBytes", 0, "Overrides MetricName cache maximum size in bytes. It is used for storing MetricID->MetricName relation. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeIndexBlocksBytes    = flagutil.NewBytes("storage.cacheSizeIndexBlocksBytes", 0, "Overrides IndexBlocks cache maximum size in bytes. It is used for storing unpacked blocks from indexdb. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeInmemoryBlocksBytes = flagutil.NewBytes("storage.cacheSizeInmemoryBlocksBytes", 0, "Overrides InmemoryBlocks cache maximum size in bytes. It is used for storing unpacked data blocks from storage. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeStorageTSID        = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBDataBlocks  = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -92,11 +90,9 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
-	storage.SetTSIDCacheSize(cacheSizeTSIDBytes.N)
-	storage.SetMetricNameCacheSize(cacheSizeMetricNameBytes.N)
-	storage.SetMetricIDCacheSize(cacheSizeMetricIDBytes.N)
-	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexBlocksBytes.N)
-	mergeset.SetInmemoryBlocksCacheSize(cacheSizeInmemoryBlocksBytes.N)
+	storage.SetTSIDCacheSize(cacheSizeStorageTSID.N)
+	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
+	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
 
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
