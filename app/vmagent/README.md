@@ -685,17 +685,25 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `vmagent` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
-* Memory profile can be collected with the following command:
+* Memory profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<vmagent-host>:8429/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
-* CPU profile can be collected with the following command:
+</div>
+
+* CPU profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<vmagent-host>:8429/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
+
+</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
