@@ -1431,22 +1431,26 @@ VictoriaMetrics uses various internal caches. These caches are stored to `<-stor
 ## Cache tuning
 
 VictoriaMetrics maintains various caches for better ingestion and read performance.
-Metrics for each type of cache are exported in Prometheus format at `/metrics` page.
-See how to collect and visualize these metrics in [monitoring](#monitoring) section.
+The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
+- `vm_cache_size_bytes` - the actual cache size
+- `vm_cache_size_max_bytes` - cache size limit
+- `vm_cache_requests_total` - the number of requests to the cache
+- `vm_cache_misses_total` - the number of cache misses
+- `vm_cache_entries` - the number of entries in the cache
 
 Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) 
 and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
-contain a row `Caches` with cache metrics visualized. The panels will show the current
+contain `Caches` section with cache metrics visualized. The panels show the current
 memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
 then cache efficiency is already very high and does not need any tuning.
-The panel `Cache usage %` in `Troubleshooting` section will show the percentage of used cache size 
+The panel `Cache usage %` in `Troubleshooting` section shows the percentage of used cache size 
 from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
 
 Please note, default cache sizes were carefully adjusted accordingly to the most
 practical scenarios and workloads. Change the defaults only if you understand the implications.
 
-To override the default values see the flags with `-storage.cacheSize` prefix. 
-See the full description of flags at [List of command-line flags](#list-of-command-line-flags) section. 
+To override the default values see command-line flags with `-storage.cacheSize` prefix.
+See the full description of flags [here](#list-of-command-line-flags).
 
 
 ## Data migration
