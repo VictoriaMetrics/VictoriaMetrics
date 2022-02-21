@@ -73,35 +73,18 @@ func (cw *configWatcher) reload(path string) error {
 	}
 
 	// stop existing discovery
-	close(cw.syncCh)
-	cw.wg.Wait()
+	cw.mustStop()
 
 	// re-start cw with new config
 	cw.syncCh = make(chan struct{})
 	cw.cfg = cfg
-
-	cw.resetTargets()
 	return cw.start()
 }
 
-const (
-	addRetryBackoff = time.Millisecond * 100
-	addRetryCount   = 2
-)
-
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn getLabels) error {
-	var targets []Target
-	var errors []error
-	var count int
-	for { // retry addRetryCount times if first discovery attempts gave no results
-		targets, errors = targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
-		for _, err := range errors {
-			return fmt.Errorf("failed to init notifier for %q: %s", typeK, err)
-		}
-		if len(targets) > 0 || count >= addRetryCount {
-			break
-		}
-		time.Sleep(addRetryBackoff)
+	targets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
+	for _, err := range errors {
+		return fmt.Errorf("failed to init notifier for %q: %s", typeK, err)
 	}
 
 	cw.setTargets(typeK, targets)
@@ -215,7 +198,10 @@ func (cw *configWatcher) start() error {
 	return nil
 }
 
-func (cw *configWatcher) resetTargets() {
+func (cw *configWatcher) mustStop() {
+	close(cw.syncCh)
+	cw.wg.Wait()
+
 	cw.targetsMu.Lock()
 	for _, targets := range cw.targets {
 		for _, t := range targets {
@@ -224,6 +210,11 @@ func (cw *configWatcher) resetTargets() {
 	}
 	cw.targets = make(map[TargetType][]Target)
 	cw.targetsMu.Unlock()
+
+	for i := range cw.cfg.ConsulSDConfigs {
+		cw.cfg.ConsulSDConfigs[i].MustStop()
+	}
+	cw.cfg = nil
 }
 
 func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
