@@ -685,17 +685,25 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `vmagent` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
-* Memory profile can be collected with the following command:
+* Memory profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<vmagent-host>:8429/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
-* CPU profile can be collected with the following command:
+</div>
+
+* CPU profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<vmagent-host>:8429/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
+
+</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
@@ -763,6 +771,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -influx.maxLineSize size
     	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxDBLabel string
+    	Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
     	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
   -influxMeasurementFieldSeparator string
