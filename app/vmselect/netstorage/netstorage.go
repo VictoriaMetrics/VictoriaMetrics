@@ -1514,29 +1514,38 @@ func startStorageNodesRequest(denyPartialResponse bool, f func(idx int, sn *stor
 }
 
 func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) error) error {
-	var errors []error
 	for i := 0; i < len(storageNodes); i++ {
 		result := <-snr.resultsCh
 		if err := f(result); err != nil {
-			errors = append(errors, err)
-			continue
+			// Immediately return the error to the caller without waiting for responses from other vmstorage nodes -
+			// they will be processed in brackground.
+			return err
 		}
-	}
-	if len(errors) > 0 {
-		return errors[0]
 	}
 	return nil
 }
 
 func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
-	var errors []error
+	var errsPartial []error
 	resultsCollected := 0
 	for i := 0; i < len(storageNodes); i++ {
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
 		if err := f(result); err != nil {
-			errors = append(errors, err)
+			if snr.denyPartialResponse {
+				// Immediately return the error to the caller if partial responses are denied.
+				// There is no need to wait for responses from other vmstorage nodes - they will be processed in background.
+				return false, err
+			}
+			var er *errRemote
+			if errors.As(err, &er) {
+				// Immediately return the error reported by vmstorage to the caller,
+				// since such errors usually mean misconfiguration at vmstorage.
+				// The misconfiguration must be known by the caller, so it is fixed ASAP.
+				return false, err
+			}
+			errsPartial = append(errsPartial, err)
 			continue
 		}
 		resultsCollected++
@@ -1550,26 +1559,21 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			return false, nil
 		}
 	}
-	isPartial := false
-	if len(errors) > 0 {
-		if len(errors) == len(storageNodes) {
-			// All the vmstorage nodes returned error.
-			// Return only the first error, since it has no sense in returning all errors.
-			return false, errors[0]
-		}
-
-		// Return partial results.
-		// This allows gracefully degrade vmselect in the case
-		// if a part of storageNodes are temporarily unavailable.
-		// Do not return the error, since it may spam logs on busy vmselect
-		// serving high amounts of requests.
-		partialResultsCounter.Inc()
-		if snr.denyPartialResponse {
-			return true, errors[0]
-		}
-		isPartial = true
+	if len(errsPartial) == 0 {
+		return false, nil
 	}
-	return isPartial, nil
+	if len(errsPartial) == len(storageNodes) {
+		// All the vmstorage nodes returned error.
+		// Return only the first error, since it has no sense in returning all errors.
+		return false, errsPartial[0]
+	}
+	// Return partial results.
+	// This allows gracefully degrade vmselect in the case
+	// if a part of storageNodes are temporarily unavailable.
+	// Do not return the error, since it may spam logs on busy vmselect
+	// serving high amounts of requests.
+	partialResultsCounter.Inc()
+	return true, nil
 }
 
 type storageNode struct {
@@ -1925,7 +1929,10 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 			// since it may be broken.
 			_ = bc.Close()
 		}
-		return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout %s: %w", rpcName, remoteAddr, deadline.String(), err)
+		if deadline.Exceeded() {
+			return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout %s: %w", rpcName, remoteAddr, deadline.String(), err)
+		}
+		return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q: %w", rpcName, remoteAddr, err)
 	}
 	// Return the connection back to the pool, assuming it is healthy.
 	sn.connPool.Put(bc)
