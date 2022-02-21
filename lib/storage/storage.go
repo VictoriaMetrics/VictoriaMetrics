@@ -202,7 +202,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", int(float64(mem)*0.35))
+	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", getTSIDCacheSize())
 	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", mem/16)
 	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
@@ -269,6 +269,20 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.startFreeDiskSpaceWatcher()
 
 	return s, nil
+}
+
+var maxTSIDCacheSize int
+
+// SetTSIDCacheSize overrides the default size of storage/tsid cahce
+func SetTSIDCacheSize(size int) {
+	maxTSIDCacheSize = size
+}
+
+func getTSIDCacheSize() int {
+	if maxTSIDCacheSize <= 0 {
+		return int(float64(memory.Allowed()) * 0.37)
+	}
+	return maxTSIDCacheSize
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
@@ -725,6 +739,9 @@ func (s *Storage) mustRotateIndexDB() {
 }
 
 func (s *Storage) resetAndSaveTSIDCache() {
+	// Reset cache and then store the reset cache on disk in order to prevent
+	// from inconsistent behaviour after possible unclean shutdown.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
 	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
 }

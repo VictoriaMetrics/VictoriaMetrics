@@ -779,19 +779,21 @@ func (is *indexSearch) searchTagKeysOnDate(tks map[string]struct{}, date uint64,
 			continue
 		}
 		key := mp.Tag.Key
-		if isArtificialTagKey(key) {
-			// Skip artificially created tag key.
-			continue
+		if !isArtificialTagKey(key) {
+			tks[string(key)] = struct{}{}
 		}
-		// Store tag key.
-		tks[string(key)] = struct{}{}
 
 		// Search for the next tag key.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 		kb.B = encoding.MarshalUint64(kb.B, date)
-		kb.B = marshalTagValue(kb.B, key)
+		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+			// skip composite tag entries
+			kb.B = append(kb.B, compositeTagKeyPrefix)
+		} else {
+			kb.B = marshalTagValue(kb.B, key)
+		}
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -858,18 +860,20 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 			continue
 		}
 		key := mp.Tag.Key
-		if isArtificialTagKey(key) {
-			// Skip artificailly created tag keys.
-			continue
+		if !isArtificialTagKey(key) {
+			tks[string(key)] = struct{}{}
 		}
-		// Store tag key.
-		tks[string(key)] = struct{}{}
 
 		// Search for the next tag key.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-		kb.B = marshalTagValue(kb.B, key)
+		if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+			// skip composite tag entries
+			kb.B = append(kb.B, compositeTagKeyPrefix)
+		} else {
+			kb.B = marshalTagValue(kb.B, key)
+		}
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -977,10 +981,10 @@ func (is *indexSearch) searchTagValuesOnDate(tvs map[string]struct{}, tagKey []b
 		if mp.IsDeletedTag(dmis) {
 			continue
 		}
-
-		// Store tag value
+		if string(mp.Tag.Key) != string(tagKey) {
+			break
+		}
 		tvs[string(mp.Tag.Value)] = struct{}{}
-
 		if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
 			// There is no need in searching for the next tag value,
 			// since it is likely it is located in the next row,
@@ -1062,10 +1066,10 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 		if mp.IsDeletedTag(dmis) {
 			continue
 		}
-
-		// Store tag value
+		if string(mp.Tag.Key) != string(tagKey) {
+			break
+		}
 		tvs[string(mp.Tag.Value)] = struct{}{}
-
 		if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
 			// There is no need in searching for the next tag value,
 			// since it is likely it is located in the next row,

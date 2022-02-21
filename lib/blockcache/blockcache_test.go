@@ -4,10 +4,17 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 func TestCache(t *testing.T) {
-	const sizeMaxBytes = 1024 * 1024
+	sizeMaxBytes := 64 * 1024
+	// Multiply sizeMaxBytes by the square of available CPU cores
+	// in order to get proper distribution of sizes between cache shards.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2204
+	cpus := cgroup.AvailableCPUs()
+	sizeMaxBytes *= cpus * cpus
 	getMaxSize := func() int {
 		return sizeMaxBytes
 	}

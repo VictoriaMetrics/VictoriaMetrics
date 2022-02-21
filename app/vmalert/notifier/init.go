@@ -46,13 +46,29 @@ func Reload() error {
 
 var staticNotifiersFn func() []Notifier
 
+var (
+	// externalLabels is a global variable for holding external labels configured via flags
+	// It is supposed to be inited via Init function only.
+	externalLabels map[string]string
+	// externalURL is a global variable for holding external URL value configured via flag
+	// It is supposed to be inited via Init function only.
+	externalURL string
+)
+
 // Init returns a function for retrieving actual list of Notifier objects.
 // Init works in two mods:
 //   * configuration via flags (for backward compatibility). Is always static
 //     and don't support live reloads.
 //   * configuration via file. Supports live reloads and service discovery.
 // Init returns an error if both mods are used.
-func Init(gen AlertURLGenerator) (func() []Notifier, error) {
+func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (func() []Notifier, error) {
+	if externalLabels != nil || externalURL != "" {
+		return nil, fmt.Errorf("BUG: notifier.Init was called multiple times")
+	}
+
+	externalURL = extURL
+	externalLabels = extLabels
+
 	if *configPath == "" && len(*addrs) == 0 {
 		return nil, nil
 	}
