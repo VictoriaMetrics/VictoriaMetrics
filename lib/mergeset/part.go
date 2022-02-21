@@ -42,7 +42,7 @@ func SetDataBlocksCacheSize(size int) {
 func getMaxInmemoryBlocksCacheSize() int {
 	maxInmemoryBlockCacheSizeOnce.Do(func() {
 		if maxInmemoryBlockCacheSize <= 0 {
-			maxIndexBlockCacheSize = int(0.25 * float64(memory.Allowed()))
+			maxInmemoryBlockCacheSize = int(0.25 * float64(memory.Allowed()))
 		}
 	})
 	return maxInmemoryBlockCacheSize
