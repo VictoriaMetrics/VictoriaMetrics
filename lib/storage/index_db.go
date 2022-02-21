@@ -1423,6 +1423,14 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 		}
 		if isArtificialTagKey(tmp) {
 			// Skip artificially created tag keys.
+			kb.B = append(kb.B[:0], prefix...)
+			if len(tmp) > 0 && tmp[0] == compositeTagKeyPrefix {
+				kb.B = append(kb.B, compositeTagKeyPrefix)
+			} else {
+				kb.B = marshalTagValue(kb.B, tmp)
+			}
+			kb.B[len(kb.B)-1]++
+			ts.Seek(kb.B)
 			continue
 		}
 		if len(tmp) == 0 {
