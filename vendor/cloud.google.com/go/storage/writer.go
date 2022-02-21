@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/golang/protobuf/proto"
@@ -76,6 +77,23 @@ type Writer struct {
 	// ChunkSize must be set before the first Write call.
 	ChunkSize int
 
+	// ChunkRetryDeadline sets a per-chunk retry deadline for multi-chunk
+	// resumable uploads.
+	//
+	// For uploads of larger files, the Writer will attempt to retry if the
+	// request to upload a particular chunk fails with a transient error.
+	// If a single chunk has been attempting to upload for longer than this
+	// deadline and the request fails, it will no longer be retried, and the error
+	// will be returned to the caller. This is only applicable for files which are
+	// large enough to require a multi-chunk resumable upload. The default value
+	// is 32s. Users may want to pick a longer deadline if they are using larger
+	// values for ChunkSize or if they expect to have a slow or unreliable
+	// internet connection.
+	//
+	// To set a deadline on the entire upload, use context timeout or
+	// cancellation.
+	ChunkRetryDeadline time.Duration
+
 	// ProgressFunc can be used to monitor the progress of a large write.
 	// operation. If ProgressFunc is not nil and writing requires multiple
 	// calls to the underlying service (see
@@ -126,6 +144,9 @@ func (w *Writer) open() error {
 	}
 	if c := attrs.ContentType; c != "" {
 		mediaOpts = append(mediaOpts, googleapi.ContentType(c))
+	}
+	if w.ChunkRetryDeadline != 0 {
+		mediaOpts = append(mediaOpts, googleapi.ChunkRetryDeadline(w.ChunkRetryDeadline))
 	}
 
 	go func() {

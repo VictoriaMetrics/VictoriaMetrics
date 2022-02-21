@@ -10535,7 +10535,7 @@ type SelectObjectContentEventStream struct {
 // (e.g. http.Response.Body), that will be closed when the stream Close method
 // is called.
 //
-//   es := NewSelectObjectContentEventStream(func(o *SelectObjectContentEventStream{
+//   es := NewSelectObjectContentEventStream(func(o *SelectObjectContentEventStream){
 //       es.Reader = myMockStreamReader
 //       es.StreamCloser = myMockStreamCloser
 //   })
