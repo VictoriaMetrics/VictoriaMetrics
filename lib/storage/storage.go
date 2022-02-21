@@ -213,7 +213,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", int(float64(mem)*0.35))
+	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", getTSIDCacheSize())
 	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", mem/16)
 	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
@@ -284,6 +284,20 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 // RetentionMsecs returns retentionMsecs for s.
 func (s *Storage) RetentionMsecs() int64 {
 	return s.retentionMsecs
+}
+
+var maxTSIDCacheSize int
+
+// SetTSIDCacheSize overrides the default size of storage/tsid cahce
+func SetTSIDCacheSize(size int) {
+	maxTSIDCacheSize = size
+}
+
+func getTSIDCacheSize() int {
+	if maxTSIDCacheSize <= 0 {
+		return int(float64(memory.Allowed()) * 0.37)
+	}
+	return maxTSIDCacheSize
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {

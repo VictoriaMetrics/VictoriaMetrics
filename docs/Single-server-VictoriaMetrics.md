@@ -1432,6 +1432,31 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
 
+## Cache tuning
+
+VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
+The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
+- `vm_cache_size_bytes` - the actual cache size
+- `vm_cache_size_max_bytes` - cache size limit
+- `vm_cache_requests_total` - the number of requests to the cache
+- `vm_cache_misses_total` - the number of cache misses
+- `vm_cache_entries` - the number of entries in the cache
+
+Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
+and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
+contain `Caches` section with cache metrics visualized. The panels show the current
+memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
+then cache efficiency is already very high and does not need any tuning.
+The panel `Cache usage %` in `Troubleshooting` section shows the percentage of used cache size
+from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
+
+Please note, default cache sizes were carefully adjusted accordingly to the most
+practical scenarios and workloads. Change the defaults only if you understand the implications.
+
+To override the default values see command-line flags with `-storage.cacheSize` prefix.
+See the full description of flags [here](#list-of-command-line-flags).
+
+
 ## Data migration
 
 Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
@@ -1902,6 +1927,15 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	authKey, which must be passed in query string to /snapshot* pages
   -sortLabels
     	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -storage.cacheSizeIndexDBDataBlocks size
+    	Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBIndexBlocks size
+    	Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeStorageTSID size
+    	Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.maxDailySeries int
     	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
