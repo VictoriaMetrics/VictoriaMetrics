@@ -11,9 +11,10 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v0.1.1
 ## explicit; go 1.11
 cloud.google.com/go/iam
-# cloud.google.com/go/storage v1.20.0
-## explicit; go 1.11
+# cloud.google.com/go/storage v1.21.0
+## explicit; go 1.15
 cloud.google.com/go/storage
+cloud.google.com/go/storage/internal
 cloud.google.com/go/storage/internal/apiv2
 # github.com/VictoriaMetrics/fastcache v1.9.0
 ## explicit; go 1.13
@@ -304,8 +305,8 @@ golang.org/x/text/unicode/norm
 ## explicit; go 1.11
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.68.0
-## explicit; go 1.11
+# google.golang.org/api v0.69.0
+## explicit; go 1.15
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
 google.golang.org/api/iamcredentials/v1
@@ -337,7 +338,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220211171837-173942840c17
+# google.golang.org/genproto v0.0.0-20220216160803-4663080d8bc8
 ## explicit; go 1.15
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
