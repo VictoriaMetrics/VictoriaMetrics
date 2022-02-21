@@ -73,14 +73,11 @@ func (cw *configWatcher) reload(path string) error {
 	}
 
 	// stop existing discovery
-	close(cw.syncCh)
-	cw.wg.Wait()
+	cw.mustStop()
 
 	// re-start cw with new config
 	cw.syncCh = make(chan struct{})
 	cw.cfg = cfg
-
-	cw.resetTargets()
 	return cw.start()
 }
 
@@ -201,7 +198,10 @@ func (cw *configWatcher) start() error {
 	return nil
 }
 
-func (cw *configWatcher) resetTargets() {
+func (cw *configWatcher) mustStop() {
+	close(cw.syncCh)
+	cw.wg.Wait()
+
 	cw.targetsMu.Lock()
 	for _, targets := range cw.targets {
 		for _, t := range targets {
@@ -210,6 +210,11 @@ func (cw *configWatcher) resetTargets() {
 	}
 	cw.targets = make(map[TargetType][]Target)
 	cw.targetsMu.Unlock()
+
+	for i := range cw.cfg.ConsulSDConfigs {
+		cw.cfg.ConsulSDConfigs[i].MustStop()
+	}
+	cw.cfg = nil
 }
 
 func (cw *configWatcher) setTargets(key TargetType, targets []Target) {

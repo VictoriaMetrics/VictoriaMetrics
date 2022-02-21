@@ -42,7 +42,7 @@ type serviceWatcher struct {
 	stopCh       chan struct{}
 }
 
-// newConsulWatcher creates new watcher and start background service discovery for Consul.
+// newConsulWatcher creates new watcher and starts background service discovery for Consul.
 func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, namespace string) *consulWatcher {
 	baseQueryArgs := "?dc=" + url.QueryEscape(datacenter)
 	if sdc.AllowStale {
@@ -82,10 +82,10 @@ func (cw *consulWatcher) mustStop() {
 }
 
 func (cw *consulWatcher) updateServices(serviceNames []string) {
-	initWg := &sync.WaitGroup{}
+	var initWG sync.WaitGroup
 	// Start watchers for new services.
+	cw.servicesLock.Lock()
 	for _, serviceName := range serviceNames {
-		cw.servicesLock.Lock()
 		if _, ok := cw.services[serviceName]; ok {
 			// The watcher for serviceName already exists.
 			continue
@@ -95,25 +95,18 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 			stopCh:      make(chan struct{}),
 		}
 		cw.services[serviceName] = sw
-		cw.servicesLock.Unlock()
-
 		cw.wg.Add(1)
 		serviceWatchersCreated.Inc()
-
-		initWg.Add(1)
+		initWG.Add(1)
 		go func() {
 			serviceWatchersCount.Inc()
-			sw.watchForServiceNodesUpdates(cw, initWg)
+			sw.watchForServiceNodesUpdates(cw, &initWG)
 			serviceWatchersCount.Dec()
 			cw.wg.Done()
 		}()
 	}
 
-	// wait for initialization to complete
-	initWg.Wait()
-
 	// Stop watchers for removed services.
-	cw.servicesLock.Lock()
 	newServiceNamesMap := make(map[string]struct{}, len(serviceNames))
 	for _, serviceName := range serviceNames {
 		newServiceNamesMap[serviceName] = struct{}{}
@@ -130,11 +123,14 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 		// if it is blocked in Consul API request.
 	}
 	cw.servicesLock.Unlock()
+
+	// Wait for initialization to complete.
+	initWG.Wait()
 }
 
 // watchForServicesUpdates watches for new services and updates it in cw.
-// watchForServicesUpdates closes the initCh once the initialization is complete
-// and first discovery iteration is done.
+//
+// watchForServicesUpdates closes the initCh once the initialization is complete and first discovery iteration is done.
 func (cw *consulWatcher) watchForServicesUpdates(initCh chan struct{}) {
 	index := int64(0)
 	clientAddr := cw.client.Addr()
@@ -217,8 +213,8 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 }
 
 // watchForServiceNodesUpdates watches for Consul serviceNode changes for the given serviceName.
-// watchForServiceNodesUpdates closes the initCh once the initialization is complete
-// and first discovery iteration is done.
+//
+// watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
 func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG *sync.WaitGroup) {
 	clientAddr := cw.client.Addr()
 	index := int64(0)
@@ -247,13 +243,12 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 	}
 
 	f()
-	// send signal that initialization is complete
+	// Notify caller that initialization is complete
 	initWG.Done()
 
 	checkInterval := getCheckInterval()
 	ticker := time.NewTicker(checkInterval / 2)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ticker.C:
