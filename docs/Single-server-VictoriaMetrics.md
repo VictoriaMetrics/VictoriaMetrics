@@ -1717,6 +1717,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -influx.maxLineSize size
     	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxDBLabel string
+    	Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
     	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
   -influxMeasurementFieldSeparator string
