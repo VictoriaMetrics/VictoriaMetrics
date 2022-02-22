@@ -13,13 +13,15 @@ import Spinner from "../common/Spinner";
 import StepConfigurator from "../Home/Configurator/Query/StepConfigurator";
 import GraphSettings from "../Home/Configurator/Graph/GraphSettings";
 import {CustomStep} from "../../state/graph/reducer";
+import {marked} from "marked";
+import "./dashboard.css";
 
 const PredefinedPanels: FC<PanelSettings> = ({
   title,
   description,
   unit,
   expr,
-  hideLegend
+  showLegend
 }) => {
 
   const {time: {period}} = useAppState();
@@ -73,17 +75,23 @@ const PredefinedPanels: FC<PanelSettings> = ({
   return <Box border="1px solid" borderRadius="2px" borderColor="divider" ref={containerRef}>
     <Box px={2} py={1} display="grid" gap={1} gridTemplateColumns="18px 1fr auto"
       alignItems="center" justifyContent="space-between" borderBottom={"1px solid"} borderColor={"divider"}>
-      <Tooltip arrow
-        title={<Box sx={{p: 1}}>
-          {description && <Box mb={2}>
-            <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Description:</Typography>
-            {description}
-          </Box>}
-          <Box>
-            <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Queries:</Typography>
+      <Tooltip arrow componentsProps={{
+        tooltip: {
+          sx: {maxWidth: "100%"}
+        }
+      }}
+      title={<Box sx={{p: 1}}>
+        {description && <Box mb={2}>
+          <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Description:</Typography>
+          <div className="panelDescription" dangerouslySetInnerHTML={{__html: marked.parse(description)}}/>
+        </Box>}
+        <Box>
+          <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Queries:</Typography>
+          <div>
             {expr.map((e, i) => <Box key={`${i}_${e}`} mb={0.5}>{e}</Box>)}
-          </Box>
-        </Box>}>
+          </div>
+        </Box>
+      </Box>}>
         <InfoIcon color="info"/>
       </Tooltip>
       <Typography variant="subtitle1" gridColumn={2} textAlign={"left"} width={"100%"} fontWeight={500}>
@@ -110,7 +118,7 @@ const PredefinedPanels: FC<PanelSettings> = ({
         query={expr}
         yaxis={yaxis}
         unit={unit}
-        hideLegend={hideLegend}
+        showLegend={showLegend}
         setYaxisLimits={setYaxisLimits}
         setPeriod={setPeriod}/>
       }
