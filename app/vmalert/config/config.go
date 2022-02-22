@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // Group contains list of Rules grouped into
@@ -25,7 +26,7 @@ type Group struct {
 	Type        datasource.Type `yaml:"type,omitempty"`
 	File        string
 	Name        string             `yaml:"name"`
-	Interval    utils.PromDuration `yaml:"interval"`
+	Interval    promutils.Duration `yaml:"interval"`
 	Rules       []Rule             `yaml:"rules"`
 	Concurrency int                `yaml:"concurrency"`
 	// ExtraFilterLabels is a list label filters applied to every rule
@@ -129,7 +130,7 @@ type Rule struct {
 	Record      string             `yaml:"record,omitempty"`
 	Alert       string             `yaml:"alert,omitempty"`
 	Expr        string             `yaml:"expr"`
-	For         utils.PromDuration `yaml:"for"`
+	For         promutils.Duration `yaml:"for"`
 	Labels      map[string]string  `yaml:"labels,omitempty"`
 	Annotations map[string]string  `yaml:"annotations,omitempty"`
 

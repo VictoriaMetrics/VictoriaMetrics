@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/metrics"
@@ -48,6 +49,10 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries")
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+
+	cacheSizeStorageTSID        = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBDataBlocks  = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -85,6 +90,9 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
+	storage.SetTSIDCacheSize(cacheSizeStorageTSID.N)
+	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
+	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
 
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
@@ -462,6 +470,9 @@ func registerStorageMetrics() {
 
 	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
 		return float64(idbm().NewTimeseriesCreated)
+	})
+	metrics.NewGauge(`vm_timeseries_repopulated_total`, func() float64 {
+		return float64(idbm().TimeseriesRepopulated)
 	})
 	metrics.NewGauge(`vm_missing_tsids_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingTSIDsForMetricID)

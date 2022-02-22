@@ -148,6 +148,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/write", "/influx/api/v2/write", "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
+		addInfluxResponseHeaders(w)
 		if err := influx.InsertHandlerForHTTP(r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -157,6 +158,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutils.WriteDatabaseNames(w)
 		return true
 	case "/datadog/api/v1/series":
@@ -199,6 +201,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
+	case "/prometheus/target_response", "/target_response":
+		promscrapeTargetResponseRequests.Inc()
+		if err := promscrape.WriteTargetResponse(w, r); err != nil {
+			promscrapeTargetResponseErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "/prometheus/config", "/config":
 		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
 			err := &httpserver.ErrorWithStatusCode{
@@ -233,6 +243,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+func addInfluxResponseHeaders(w http.ResponseWriter) {
+	// This is needed for some clients, which expect InfluxDB version header.
+	// See, for example, https://github.com/ntop/ntopng/issues/5449#issuecomment-1005347597
+	w.Header().Set("X-Influxdb-Version", "1.8.0")
+}
+
 var (
 	requestDuration = metrics.NewHistogram(`vminsert_request_duration_seconds`)
 
@@ -265,6 +281,9 @@ var (
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeTargetResponseRequests = metrics.NewCounter(`vm_http_requests_total{path="/target_response"}`)
+	promscrapeTargetResponseErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/target_response"}`)
 
 	promscrapeConfigRequests = metrics.NewCounter(`vm_http_requests_total{path="/config"}`)
 

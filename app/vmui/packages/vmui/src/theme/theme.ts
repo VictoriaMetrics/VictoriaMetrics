@@ -28,7 +28,8 @@ const THEME = createTheme({
         root: {
           fontSize: "12px",
           letterSpacing: "normal",
-          lineHeight: "1"
+          lineHeight: "1",
+          zIndex: 0
         }
       }
     },

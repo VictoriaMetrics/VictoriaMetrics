@@ -31,21 +31,23 @@ const QueryEditor: FC<QueryEditorProps> = ({
   queryOptions
 }) => {
 
-  const [downMetaKeys, setDownMetaKeys] = useState<string[]>([]);
   const [focusField, setFocusField] = useState(false);
   const [focusOption, setFocusOption] = useState(-1);
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
   const wrapperEl = useRef<HTMLUListElement>(null);
 
   const openAutocomplete = useMemo(() => {
-    return !(!autocomplete || downMetaKeys.length || query.length < 2 || !focusField);
-  }, [query, downMetaKeys, autocomplete, focusField]);
+    const words = (query.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
+    return !(!autocomplete || query.length < 2 || words > 1 || !focusField);
+  }, [query, autocomplete, focusField]);
 
   const actualOptions = useMemo(() => {
+    setFocusOption(0);
     if (!openAutocomplete) return [];
     try {
       const regexp = new RegExp(String(query), "i");
-      return queryOptions.filter((item) => regexp.test(item) && item !== query);
+      const options = queryOptions.filter((item) => regexp.test(item) && (item !== query));
+      return options.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
     } catch (e) {
       return [];
     }
@@ -53,30 +55,37 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const {key, ctrlKey, metaKey, shiftKey} = e;
-    if (ctrlKey || metaKey) setDownMetaKeys([...downMetaKeys, e.key]);
-    if (key === "ArrowUp" && openAutocomplete && actualOptions.length) {
-      e.preventDefault();
-      setFocusOption((prev) => prev === 0 ? 0 : prev - 1);
-    } else if (key === "ArrowDown" && openAutocomplete && actualOptions.length) {
-      e.preventDefault();
-      setFocusOption((prev) => prev >= actualOptions.length - 1 ? actualOptions.length - 1 : prev + 1);
-    } else if (key === "Enter" && openAutocomplete && actualOptions.length && !shiftKey) {
-      e.preventDefault();
-      setQuery(actualOptions[focusOption], index);
-    }
-    return true;
-  };
 
-  const handleKeyUp = (e: KeyboardEvent<HTMLDivElement>) => {
-    const {key, ctrlKey, metaKey} = e;
-    if (downMetaKeys.includes(key)) setDownMetaKeys(downMetaKeys.filter(k => k !== key));
     const ctrlMetaKey = ctrlKey || metaKey;
-    if (key === "Enter" && ctrlMetaKey) {
-      runQuery();
-    } else if (key === "ArrowUp" && ctrlMetaKey) {
+    const arrowUp = key === "ArrowUp";
+    const arrowDown = key === "ArrowDown";
+    const enter = key === "Enter";
+
+    const hasAutocomplete = openAutocomplete && actualOptions.length;
+
+    if ((arrowUp || arrowDown || enter) && (hasAutocomplete || ctrlMetaKey)) {
+      e.preventDefault();
+    }
+
+    // ArrowUp
+    if (arrowUp && hasAutocomplete && !ctrlMetaKey) {
+      setFocusOption((prev) => prev === 0 ? 0 : prev - 1);
+    } else if (arrowUp && ctrlMetaKey) {
       setHistoryIndex(-1, index);
-    } else if (key === "ArrowDown" && ctrlMetaKey) {
+    }
+
+    // ArrowDown
+    if (arrowDown && hasAutocomplete && !ctrlMetaKey) {
+      setFocusOption((prev) => prev >= actualOptions.length - 1 ? actualOptions.length - 1 : prev + 1);
+    } else if (arrowDown && ctrlMetaKey) {
       setHistoryIndex(1, index);
+    }
+
+    // Enter
+    if (enter && hasAutocomplete && !shiftKey && !ctrlMetaKey) {
+      setQuery(actualOptions[focusOption], index);
+    } else if (enter && ctrlKey) {
+      runQuery();
     }
   };
 
@@ -94,8 +103,16 @@ const QueryEditor: FC<QueryEditorProps> = ({
       multiline
       error={!!error}
       onFocus={() => setFocusField(true)}
-      onBlur={() => setFocusField(false)}
-      onKeyUp={handleKeyUp}
+      onBlur={(e) => {
+        const autocompleteItem = e.relatedTarget?.id || "";
+        const itemIndex = actualOptions.indexOf(autocompleteItem.replace("$autocomplete$", ""));
+        if (itemIndex !== -1) {
+          setQuery(actualOptions[itemIndex], index);
+          e.target.focus();
+        } else {
+          setFocusField(false);
+        }
+      }}
       onKeyDown={handleKeyDown}
       onChange={(e) => setQuery(e.target.value, index)}
     />
@@ -103,7 +120,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       <Paper elevation={3} sx={{ maxHeight: 300, overflow: "auto" }}>
         <MenuList ref={wrapperEl} dense>
           {actualOptions.map((item, i) =>
-            <MenuItem key={item} sx={{bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})`}}>
+            <MenuItem id={`$autocomplete$${item}`} key={item} sx={{bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})`}}>
               {item}
             </MenuItem>)}
         </MenuList>

@@ -285,10 +285,10 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		var tssLeft, tssRight []*timeseries
 		switch strings.ToLower(be.Op) {
 		case "and", "if":
-			// Fetch right-side series at first, since the left side of `and` and `if` operator
-			// usually contains lower number of time series. This should produce more specific label filters
-			// for the left side of the query. This, in turn, should reduce the time to select series
-			// for the left side of the query.
+			// Fetch right-side series at first, since it usually contains
+			// lower number of time series for `and` and `if` operator.
+			// This should produce more specific label filters for the left side of the query.
+			// This, in turn, should reduce the time to select series for the left side of the query.
 			tssRight, tssLeft, err = execBinaryOpArgs(ec, be.Right, be.Left, be)
 		default:
 			tssLeft, tssRight, err = execBinaryOpArgs(ec, be.Left, be.Right, be)
@@ -352,9 +352,15 @@ func execBinaryOpArgs(ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *
 	if err != nil {
 		return nil, nil, err
 	}
-	lfs := getCommonLabelFilters(tssFirst)
-	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
-	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
+	switch strings.ToLower(be.Op) {
+	case "or":
+		// Do not pushdown common label filters from tssFirst for `or` operation, since this can filter out the needed time series from tssSecond.
+		// See https://prometheus.io/docs/prometheus/latest/querying/operators/#logical-set-binary-operators for details.
+	default:
+		lfs := getCommonLabelFilters(tssFirst)
+		lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
+		exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
+	}
 	tssSecond, err := evalExpr(ec, exprSecond)
 	if err != nil {
 		return nil, nil, err
@@ -376,12 +382,18 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 			continue
 		}
 		values = getUniqueValues(values)
+		if len(values) > 10000 {
+			// Skip the filter on the given tag, since it needs to enumerate too many unique values.
+			// This may slow down the search for matching time series.
+			continue
+		}
 		lf := metricsql.LabelFilter{
 			Label: key,
 		}
 		if len(values) == 1 {
 			lf.Value = values[0]
 		} else {
+			sort.Strings(values)
 			lf.Value = joinRegexpValues(values)
 			lf.IsRegexp = true
 		}
@@ -402,7 +414,6 @@ func getUniqueValues(a []string) []string {
 			m[s] = struct{}{}
 		}
 	}
-	sort.Strings(results)
 	return results
 }
 
@@ -622,6 +633,9 @@ func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, exp
 	if err != nil {
 		return nil, err
 	}
+	if funcName == "absent_over_time" {
+		rvs = aggregateAbsentOverTime(ec, re.Expr, rvs)
+	}
 	if offset != 0 && len(rvs) > 0 {
 		// Make a copy of timestamps, since they may be used in other values.
 		srcTimestamps := rvs[0].Timestamps
@@ -634,6 +648,27 @@ func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, exp
 		}
 	}
 	return rvs, nil
+}
+
+// aggregateAbsentOverTime collapses tss to a single time series with 1 and nan values.
+//
+// Values for returned series are set to nan if at least a single tss series contains nan at that point.
+// This means that tss contains a series with non-empty results at that point.
+// This follows Prometheus logic - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2130
+func aggregateAbsentOverTime(ec *EvalConfig, expr metricsql.Expr, tss []*timeseries) []*timeseries {
+	rvs := getAbsentTimeseries(ec, expr)
+	if len(tss) == 0 {
+		return rvs
+	}
+	for i := range tss[0].Values {
+		for _, ts := range tss {
+			if math.IsNaN(ts.Values[i]) {
+				rvs[0].Values[i] = nan
+				break
+			}
+		}
+	}
+	return rvs
 }
 
 func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
@@ -658,10 +693,6 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 		return nil, err
 	}
 	if len(tssSQ) == 0 {
-		if funcName == "absent_over_time" {
-			tss := evalNumber(ec, 1)
-			return tss, nil
-		}
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
@@ -811,14 +842,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, funcName string, rf rollupFunc
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()
-		var tss []*timeseries
-		if funcName == "absent_over_time" {
-			tss = getAbsentTimeseries(ec, me)
-		}
-		// Add missing points until ec.End.
-		// Do not cache the result, since missing points
-		// may be backfilled in the future.
-		tss = mergeTimeseries(tssCached, tss, start, ec)
+		tss := mergeTimeseries(tssCached, nil, start, ec)
 		return tss, nil
 	}
 

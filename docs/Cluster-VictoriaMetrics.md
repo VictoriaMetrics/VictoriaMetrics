@@ -307,7 +307,7 @@ Data replication can be used for increasing storage durability. See [these docs]
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series), [series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps determining bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps determining bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
 
 The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
@@ -321,7 +321,7 @@ It is recommended leaving the following amounts of spare resources:
 Some capacity planning tips for VictoriaMetrics cluster:
 
 * The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor.
-* Cluster capacity for [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series) can be increased by adding more `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmstorage` node.
+* Cluster capacity for [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) can be increased by adding more `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmstorage` node.
 * Query latency can be reduced by increasing the number of `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmselect` node.
 * The total number of CPU cores needed for all the `vminsert` nodes can be calculated from the ingestion rate: `CPUs = ingestion_rate / 100K`.
 * The `-rpc.disableCompression` command-line flag at `vminsert` nodes can increase ingestion capacity at the cost of higher network bandwidth usage between `vminsert` and `vmstorage`.
@@ -421,18 +421,25 @@ All the cluster components provide the following handlers for [profiling](https:
 * `http://vmselect:8481/debug/pprof/heap` for memory profile and `http://vmselect:8481/debug/pprof/profile` for CPU profile
 * `http://vmstorage:8482/debug/pprof/heap` for memory profile and `http://vmstorage:8482/debug/pprof/profile` for CPU profile
 
-Example command for collecting cpu profile from `vmstorage`:
+Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://vmstorage:8482/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
-Example command for collecting memory profile from `vminsert`:
+</div>
+
+Example command for collecting memory profile from `vminsert` (replace `0.0.0.0` with `vminsert` hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://vminsert:8480/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
 
+</div>
 
 ## Community and contributions
 
@@ -483,7 +490,9 @@ Below is the output for `/path/to/vminsert -help`:
     	The maximum size in bytes of a single DataDog POST request to /api/v1/series
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -disableRerouting
-    	Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate (default true)
+    	Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -dropSamplesOnOverload (default true)
+  -dropSamplesOnOverload
+    	Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -491,7 +500,7 @@ Below is the output for `/path/to/vminsert -help`:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -588,9 +597,9 @@ Below is the output for `/path/to/vminsert -help`:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```
@@ -614,7 +623,7 @@ Below is the output for `/path/to/vmselect -help`:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteTrimTimestamp duration
@@ -714,9 +723,9 @@ Below is the output for `/path/to/vmselect -help`:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```
@@ -742,7 +751,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -finalMergeDelay duration
     	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -forceFlushAuthKey string
@@ -817,9 +826,9 @@ Below is the output for `/path/to/vmstorage -help`:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
   -vminsertAddr string

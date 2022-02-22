@@ -15,9 +15,16 @@ import (
 var idxbCache = blockcache.NewCache(getMaxIndexBlocksCacheSize)
 var ibCache = blockcache.NewCache(getMaxInmemoryBlocksCacheSize)
 
+// SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlock cache
+func SetIndexBlocksCacheSize(size int) {
+	maxIndexBlockCacheSize = size
+}
+
 func getMaxIndexBlocksCacheSize() int {
 	maxIndexBlockCacheSizeOnce.Do(func() {
-		maxIndexBlockCacheSize = int(0.2 * float64(memory.Allowed()))
+		if maxIndexBlockCacheSize <= 0 {
+			maxIndexBlockCacheSize = int(0.10 * float64(memory.Allowed()))
+		}
 	})
 	return maxIndexBlockCacheSize
 }
@@ -27,9 +34,16 @@ var (
 	maxIndexBlockCacheSizeOnce sync.Once
 )
 
+// SetDataBlocksCacheSize overrides the default size of indexdb/dataBlocks cache
+func SetDataBlocksCacheSize(size int) {
+	maxInmemoryBlockCacheSize = size
+}
+
 func getMaxInmemoryBlocksCacheSize() int {
 	maxInmemoryBlockCacheSizeOnce.Do(func() {
-		maxInmemoryBlockCacheSize = int(0.3 * float64(memory.Allowed()))
+		if maxInmemoryBlockCacheSize <= 0 {
+			maxInmemoryBlockCacheSize = int(0.25 * float64(memory.Allowed()))
+		}
 	})
 	return maxInmemoryBlockCacheSize
 }

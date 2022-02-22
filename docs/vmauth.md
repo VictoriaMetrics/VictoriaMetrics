@@ -192,17 +192,25 @@ ROOT_IMAGE=scratch make package-vmauth
 
 `vmauth` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
-* Memory profile. It can be collected with the following command:
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<vmauth-host>:8427/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 ```
 
-* CPU profile. It can be collected with the following command:
+</div>
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<vmauth-host>:8427/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
+
+</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
@@ -227,6 +235,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
+  -eula
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -279,9 +289,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```

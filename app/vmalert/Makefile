@@ -27,6 +27,15 @@ vmalert-ppc64le-prod:
 vmalert-386-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-386
 
+vmalert-darwin-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-amd64
+
+vmalert-darwin-arm64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-arm64
+
+vmalert-windows-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
+
 package-vmalert:
 	APP_NAME=vmalert $(MAKE) package-via-docker
 
@@ -70,6 +79,13 @@ run-vmalert: vmalert
 		-evaluationInterval=3s \
 		-rule.configCheckInterval=10s
 
+run-vmalert-sd: vmalert
+	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \
+		-datasource.url=http://localhost:8428 \
+		-remoteWrite.url=http://localhost:8428 \
+		-notifier.config=app/vmalert/notifier/testdata/consul.good.yaml \
+		-configCheckInterval=10s
+
 replay-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules-replay-good.rules \
 		-datasource.url=http://localhost:8428 \
@@ -102,6 +118,3 @@ vmalert-pure:
 
 vmalert-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmalert $(MAKE) app-local-windows-with-goarch
-
-vmalert-windows-amd64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64

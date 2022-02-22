@@ -918,37 +918,42 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 	}
 }
 
+func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []MetricRow {
+	var mrs []MetricRow
+	var mn MetricName
+	mn.Tags = []Tag{
+		{[]byte("job"), []byte("webservice")},
+		{[]byte("instance"), []byte("1.2.3.4")},
+	}
+	for i := 0; i < int(rows); i++ {
+		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
+		metricNameRaw := mn.marshalRaw(nil)
+		timestamp := rand.Int63n(timestampMax-timestampMin) + timestampMin
+		value := rand.NormFloat64() * 1e6
+
+		mr := MetricRow{
+			MetricNameRaw: metricNameRaw,
+			Timestamp:     timestamp,
+			Value:         value,
+		}
+		mrs = append(mrs, mr)
+	}
+	return mrs
+}
+
 func testStorageAddRows(s *Storage) error {
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 
 	for i := 0; i < addsCount; i++ {
-		var mrs []MetricRow
-		var mn MetricName
-		mn.Tags = []Tag{
-			{[]byte("job"), []byte("webservice")},
-			{[]byte("instance"), []byte("1.2.3.4")},
-		}
-		for j := 0; j < rowsPerAdd; j++ {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rand.Intn(100)))
-			metricNameRaw := mn.marshalRaw(nil)
-			timestamp := rand.Int63n(1e10)
-			value := rand.NormFloat64() * 1e6
-
-			mr := MetricRow{
-				MetricNameRaw: metricNameRaw,
-				Timestamp:     timestamp,
-				Value:         value,
-			}
-			mrs = append(mrs, mr)
-		}
+		mrs := testGenerateMetricRows(rowsPerAdd, 0, 1e10)
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
 	}
 
 	// Verify the storage contains rows.
-	minRowsExpected := uint64(rowsPerAdd) * addsCount
+	minRowsExpected := uint64(rowsPerAdd * addsCount)
 	var m Metrics
 	s.UpdateMetrics(&m)
 	if m.TableMetrics.SmallRowsCount < minRowsExpected {

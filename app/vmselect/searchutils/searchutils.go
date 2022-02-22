@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -48,14 +49,14 @@ func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 				return maxTimeMsecs, nil
 			}
 			// Try parsing duration relative to the current time
-			d, err1 := metricsql.DurationValue(argValue, 0)
+			d, err1 := promutils.ParseDuration(argValue)
 			if err1 != nil {
 				return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 			}
 			if d > 0 {
 				d = -d
 			}
-			t = time.Now().Add(time.Duration(d) * time.Millisecond)
+			t = time.Now().Add(d)
 		}
 		secs = float64(t.UnixNano()) / 1e9
 	}
@@ -91,11 +92,11 @@ func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
 		// Try parsing string format
-		d, err := metricsql.DurationValue(argValue, 0)
+		d, err := promutils.ParseDuration(argValue)
 		if err != nil {
 			return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 		}
-		secs = float64(d) / 1000
+		secs = d.Seconds()
 	}
 	msecs := int64(secs * 1e3)
 	if msecs <= 0 || msecs > maxDurationMsecs {

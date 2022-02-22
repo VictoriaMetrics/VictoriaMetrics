@@ -3,6 +3,7 @@ package promscrape
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/bits"
 	"strconv"
@@ -371,6 +372,22 @@ func (sw *scrapeWork) mustSwitchToStreamParseMode(responseSize int) bool {
 	return sw.Config.canSwitchToStreamParseMode() && responseSize >= minResponseSizeForStreamParse.N
 }
 
+// getTargetResponse() fetches response from sw target in the same way as when scraping the target.
+func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
+	if *streamParse || sw.Config.StreamParse || sw.mustSwitchToStreamParseMode(sw.prevBodyLen) {
+		// Read the response in stream mode.
+		sr, err := sw.GetStreamReader()
+		if err != nil {
+			return nil, err
+		}
+		data, err := ioutil.ReadAll(sr)
+		sr.MustClose()
+		return data, err
+	}
+	// Read the response in usual mode.
+	return sw.ReadData(nil)
+}
+
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
 	if *streamParse || sw.Config.StreamParse || sw.mustSwitchToStreamParseMode(sw.prevBodyLen) {
 		// Read data from scrape targets in streaming manner.
@@ -455,7 +472,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		// This should reduce memory usage when scraping targets which return big responses.
 		leveledbytebufferpool.Put(body)
 	}
-	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
 }
 
@@ -558,7 +575,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		sw.storeLastScrape(sbr.body)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err

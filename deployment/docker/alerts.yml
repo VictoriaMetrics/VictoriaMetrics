@@ -44,6 +44,17 @@ groups:
           description: "Too high memory usage may result into multiple issues such as OOMs or degraded performance.
            Consider to either increase available memory or decrease the load on the process."
 
+      - alert: TooHighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 90% of CPU is used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          description: "Too high CPU usage may be a sign of insufficient resources and make process unstable.
+               Consider to either increase available CPU resources or decrease the load on the process."
+
+
   # Alerts group for VM single assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/10229 is installed.
   # Pls update the `dashboard` annotation according to your setup.
@@ -176,13 +187,13 @@ groups:
              sum(rate(vm_slow_row_inserts_total[5m])) by(instance)
              /
              sum(rate(vm_rows_inserted_total[5m])) by (instance)
-           ) > 0.5
+           ) > 0.05
         for: 15m
         labels:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
-          summary: "Percentage of slow inserts is more than 50% on \"{{ $labels.instance }}\" for the last 15m"
+          summary: "Percentage of slow inserts is more than 5% on \"{{ $labels.instance }}\" for the last 15m"
           description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series."
 

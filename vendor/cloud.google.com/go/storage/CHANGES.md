@@ -1,5 +1,21 @@
 # Changes
 
+
+## [1.21.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.20.0...storage/v1.21.0) (2022-02-17)
+
+
+### Features
+
+* **storage:** add better version metadata to calls ([#5507](https://github.com/googleapis/google-cloud-go/issues/5507)) ([13fe0bc](https://github.com/googleapis/google-cloud-go/commit/13fe0bc0d8acbffd46b59ab69b25449f1cbd6a88)), refs [#2749](https://github.com/googleapis/google-cloud-go/issues/2749)
+* **storage:** add Writer.ChunkRetryDeadline ([#5482](https://github.com/googleapis/google-cloud-go/issues/5482)) ([498a746](https://github.com/googleapis/google-cloud-go/commit/498a746769fa43958b92af8875b927879947128e))
+
+## [1.20.0](https://www.github.com/googleapis/google-cloud-go/compare/storage/v1.19.0...storage/v1.20.0) (2022-02-04)
+
+
+### Features
+
+* **storage/internal:** Update definition of RewriteObjectRequest to bring to parity with JSON API support ([#5447](https://www.github.com/googleapis/google-cloud-go/issues/5447)) ([7d175ef](https://www.github.com/googleapis/google-cloud-go/commit/7d175ef12b7b3e75585427f5dd2aab4a175e92d6))
+
 ## [1.19.0](https://www.github.com/googleapis/google-cloud-go/compare/storage/v1.18.2...storage/v1.19.0) (2022-01-25)
 
 

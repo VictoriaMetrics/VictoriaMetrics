@@ -3,8 +3,10 @@
 {% import (
     "time"
     "sort"
+    "path"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 ) %}
 
 
@@ -119,7 +121,7 @@
 {% endfunc %}
 
 
-{% func ListAlerts(groupAlerts []GroupAlerts) %}
+{% func ListAlerts(pathPrefix string, groupAlerts []GroupAlerts) %}
     {%= tpl.Header("Alerts", navItems) %}
     {% if len(groupAlerts) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
@@ -184,7 +186,7 @@
                                 </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
-                                    <a href="/{%s g.ID %}/{%s ar.ID %}/status">Details</a>
+                                    <a href="{%s path.Join(pathPrefix, g.ID, ar.ID, "status") %}">Details</a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -205,7 +207,63 @@
 
 {% endfunc %}
 
-{% func Alert(alert *APIAlert) %}
+{% func ListTargets(targets map[notifier.TargetType][]notifier.Target) %}
+    {%= tpl.Header("Notifiers", navItems) %}
+    {% if len(targets) > 0 %}
+         <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
+         <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+
+         {%code
+             var keys []string
+             for key := range targets {
+                 keys = append(keys, string(key))
+             }
+             sort.Strings(keys)
+         %}
+
+         {% for i := range keys  %}
+           {%code typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
+                count := len(ns)
+            %}
+           <div class="group-heading data-bs-target="rules-{%s typeK %}">
+             <span class="anchor" id="notifiers-{%s typeK %}"></span>
+             <a href="#notifiers-{%s typeK %}">{%s typeK %} ({%d count %})</a>
+         </div>
+         <div class="collapse show" id="notifiers-{%s typeK %}">
+             <table class="table table-striped table-hover table-sm">
+                 <thead>
+                     <tr>
+                         <th scope="col">Labels</th>
+                         <th scope="col">Address</th>
+                     </tr>
+                 </thead>
+                 <tbody>
+                 {% for _, n := range ns %}
+                     <tr>
+                         <td>
+                              {% for _, l := range n.Labels %}
+                                      <span class="ms-1 badge bg-primary">{%s l.Name %}={%s l.Value %}</span>
+                              {% endfor %}
+                          </td>
+                         <td>{%s n.Notifier.Addr() %}</td>
+                     </tr>
+                 {% endfor %}
+              </tbody>
+             </table>
+         </div>
+     {% endfor %}
+
+    {% else %}
+        <div>
+            <p>No items...</p>
+        </div>
+    {% endif %}
+
+    {%= tpl.Footer() %}
+
+{% endfunc %}
+
+{% func Alert(pathPrefix string, alert *APIAlert) %}
     {%= tpl.Header("", navItems) %}
     {%code
         var labelKeys []string
@@ -272,7 +330,7 @@
           Group
         </div>
         <div class="col">
-           <a target="_blank" href="/groups#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
+           <a target="_blank" href="{%s path.Join(pathPrefix,"groups") %}#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
         </div>
       </div>
     </div>

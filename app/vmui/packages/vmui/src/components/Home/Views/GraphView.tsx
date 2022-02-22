@@ -22,6 +22,21 @@ export interface GraphViewProps {
   setPeriod: ({from, to}: {from: Date, to: Date}) => void
 }
 
+const promValueToNumber = (s: string): number => {
+  // See https://prometheus.io/docs/prometheus/latest/querying/api/#expression-query-result-formats
+  switch (s) {
+    case "NaN":
+      return NaN;
+    case "Inf":
+    case "+Inf":
+      return Infinity;
+    case "-Inf":
+      return -Infinity;
+    default:
+      return parseFloat(s);
+  }
+};
+
 const GraphView: FC<GraphViewProps> = ({
   data = [],
   period,
@@ -59,19 +74,36 @@ const GraphView: FC<GraphViewProps> = ({
       const seriesItem = getSeriesItem(d, hideSeries);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
-
-      d.values.forEach(v => {
+      let tmpValues = tempValues[d.group];
+      if (!tmpValues) {
+        tmpValues = [];
+      }
+      for (const v of d.values) {
         tempTimes.push(v[0]);
-        tempValues[d.group] ? tempValues[d.group].push(+v[1]) : tempValues[d.group] = [+v[1]];
-      });
+        tmpValues.push(promValueToNumber(v[1]));
+      }
+      tempValues[d.group] = tmpValues;
     });
 
     const timeSeries = getTimeSeries(tempTimes, currentStep, period);
     setDataChart([timeSeries, ...data.map(d => {
-      return timeSeries.map(t => {
-        const value = d.values.find(v => v[0] === t);
-        return value ? +value[1] : null;
-      });
+      const results = [];
+      const values = d.values;
+      let j = 0;
+      for (const t of timeSeries) {
+        while (j < values.length && values[j][0] < t) j++;
+        let v = null;
+        if (j < values.length && values[j][0] == t) {
+          v = promValueToNumber(values[j][1]);
+          if (!Number.isFinite(v)) {
+            // Treat special values as nulls in order to satisfy uPlot.
+            // Otherwise it may draw unexpected graphs.
+            v = null;
+          }
+        }
+        results.push(v);
+      }
+      return results;
     })] as uPlotData);
     setLimitsYaxis(tempValues);
 

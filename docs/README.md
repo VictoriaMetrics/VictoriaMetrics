@@ -274,6 +274,8 @@ VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/age
 
 Run DataDog agent with `DD_DD_URL=http://victoriametrics-host:8428/datadog` environment variable in order to write data to VictoriaMetrics at `victoriametrics-host` host. Another option is to set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
 
+VictoriaMetrics doesn't check `DD_API_KEY` param, so it can be set to arbitrary value.
+
 Example on how to send data to VictoriaMetrics via DataDog "submit metrics" API from command line:
 
 ```bash
@@ -330,7 +332,7 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line.
+  unless `db` tag exists in the InfluxDB line. The `db` label name can be overriden via `-influxDBLabel` command-line flag.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -867,7 +869,7 @@ The [deduplication](#deduplication) isn't applied for the data exported in nativ
 
 ## How to import time series data
 
-Time series data can be imported via any supported ingestion protocol:
+Time series data can be imported into VictoriaMetrics via any supported ingestion protocol:
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](#prometheus-setup) for details.
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
@@ -1067,7 +1069,7 @@ with scrape intervals exceeding `5m`.
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-VictoriaMetrics capacity scales linearly with the available resources. The needed amounts of CPU and RAM highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series), series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics for your production workload and iteratively scaling CPU and RAM resources until it becomes stable according to [troubleshooting docs](#troubleshooting). A single-node VictoriaMetrics works perfectly with the following production workload according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html):
+VictoriaMetrics capacity scales linearly with the available resources. The needed amounts of CPU and RAM highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series), series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics for your production workload and iteratively scaling CPU and RAM resources until it becomes stable according to [troubleshooting docs](#troubleshooting). A single-node VictoriaMetrics works perfectly with the following production workload according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html):
 
 * Ingestion rate: 1.5+ million samples per second
 * Active time series: 50+ million
@@ -1129,9 +1131,9 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 
 ## Deduplication
 
-VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-line flag
-is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points
-on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept.  In the case of equal timestamps, an arbitrary data point will be kept.
+VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-line flag is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2112#issuecomment-1032587618) for more details on how downsampling works.
+
+The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. It is safe to use deduplication and downsampling simultaneously.
 
 The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. It is recommended to have a single `scrape_interval` across all the scrape targets. See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
 
@@ -1140,15 +1142,49 @@ write data to the same VictoriaMetrics instance. These vmagent or Prometheus ins
 `external_labels` section in their configs, so they write data to the same time series.
 
 
+## Storage
+
+VictoriaMetrics stores time series data in [MergeTree](https://en.wikipedia.org/wiki/Log-structured_merge-tree)-like 
+data structures. On insert, VictoriaMetrics accumulates up to 1s of data and dumps it on disk to
+`<-storageDataPath>/data/small/YYYY_MM/` subdirectory forming a `part` with the following 
+name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`. Each part consists of two "columns":
+values and timestamps. These are sorted and compressed raw time series values. Additionally, part contains
+index files for searching for specific series in the values and timestamps files.
+
+`Parts` are periodically merged into the bigger parts. The resulting `part` is constructed 
+under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` subdirectory. When the resulting `part` is complete, it is atomically moved from the `tmp` 
+to its own subdirectory, while the source parts are atomically removed. The end result is that the source 
+parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/{small,big}/YYYY_MM/` directory.
+Information about merging process is available in [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) 
+and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Grafana dashboards. 
+See more details in [monitoring docs](#monitoring).
+
+The `merge` process is usually named "compaction", because the resulting `part` size is usually smaller than 
+the sum of the source `parts`. There are following benefits of doing the merge process:
+* it improves query performance, since lower number of `parts` are inspected with each query;
+* it reduces the number of data files, since each `part`contains fixed number of files; 
+* better compression rate for the resulting part.
+
+Newly added `parts` either appear in the storage or fail to appear. 
+Storage never contains partially created parts. The same applies to merge process — `parts` are either fully 
+merged into a new `part` or fail to merge. There are no partially merged `parts` in MergeTree. 
+`Part` contents in MergeTree never change. Parts are immutable. They may be only deleted after the merge 
+to a bigger `part` or when the `part` contents goes outside the configured `-retentionPeriod`.
+
+See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
+
+See also [how to work with snapshots](#how-to-work-with-snapshots).
+
 ## Retention
 
 Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
 that the data will be stored for 3 months and then deleted.
-Data is split in per-month partitions inside `<-storageDataPath>/data/small` and `<-storageDataPath>/data/big` folders.
+Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 Data partitions outside the configured retention are deleted on the first day of new month.
 
 Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
-Data parts outside of the configured retention are eventually deleted during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+Data parts outside of the configured retention are eventually deleted during 
+[background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
 For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
@@ -1272,7 +1308,7 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
 The most interesting metrics are:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
-  aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
+  aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 * `increase(vm_new_timeseries_created_total[1h])` - time series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) during the previous hour.
 * `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
 * `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
@@ -1280,10 +1316,10 @@ The most interesting metrics are:
 * `sum(vm_data_size_bytes)` - the total size of data on disk.
 * `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
   If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
+  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 * `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
   If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
+  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
 VictoriaMetrics also exposes currently running queries with their execution times at `/api/v1/status/active_queries` page.
 
@@ -1303,7 +1339,7 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 
 By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
 
-* `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series).
+* `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 * `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
 Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
@@ -1347,7 +1383,7 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
     See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
-  then it is likely you have too many [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-active-time-series) for the current amount of RAM.
+  then it is likely you have too many [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) for the current amount of RAM.
   VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics such as `vm_slow_row_inserts_total` and `vm_slow_metric_name_loads_total`, which could be used
   as an indicator of low amounts of RAM. It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
   ingestion and query performance in this case.
@@ -1392,6 +1428,31 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
 
+## Cache tuning
+
+VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
+The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
+- `vm_cache_size_bytes` - the actual cache size
+- `vm_cache_size_max_bytes` - cache size limit
+- `vm_cache_requests_total` - the number of requests to the cache
+- `vm_cache_misses_total` - the number of cache misses
+- `vm_cache_entries` - the number of entries in the cache
+
+Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
+and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
+contain `Caches` section with cache metrics visualized. The panels show the current
+memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
+then cache efficiency is already very high and does not need any tuning.
+The panel `Cache usage %` in `Troubleshooting` section shows the percentage of used cache size
+from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
+
+Please note, default cache sizes were carefully adjusted accordingly to the most
+practical scenarios and workloads. Change the defaults only if you understand the implications.
+
+To override the default values see command-line flags with `-storage.cacheSize` prefix.
+See the full description of flags [here](#list-of-command-line-flags).
+
+
 ## Data migration
 
 Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
@@ -1426,7 +1487,7 @@ cache when samples with timestamps older than `now - search.cacheTimestampOffset
 
 VictoriaMetrics doesn't support updating already existing sample values to new ones. It stores all the ingested data points
 for the same time series with identical timestamps. While it is possible substituting old time series with new time series via
-[removal of old time series](#how-to-delete-timeseries) and then [writing new time series](#backfilling), this approach
+[removal of old time series](#how-to-delete-time-series) and then [writing new time series](#backfilling), this approach
 should be used only for one-off updates. It shouldn't be used for frequent updates because of non-zero overhead related to data removal.
 
 
@@ -1464,17 +1525,25 @@ for running ingestion benchmarks based on node_exporter metrics.
 
 VictoriaMetrics provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
-* Memory profile. It can be collected with the following command:
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<victoria-metrics-host>:8428/debug/pprof/heap > mem.pprof
+curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 ```
 
-* CPU profile. It can be collected with the following command:
+</div>
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
 
 ```bash
-curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
+curl http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
 ```
+
+</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
@@ -1596,7 +1665,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
     	Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
-    	Whether to check only -promscrape.config and then exit. Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
+    	Whether to check only -promscrape.config and then exit. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -1604,7 +1673,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -eula
-    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/legal/eula/
+    	By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -finalMergeDelay duration
     	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -forceFlushAuthKey string
@@ -1644,6 +1713,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -influx.maxLineSize size
     	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxDBLabel string
+    	Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
     	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
   -influxMeasurementFieldSeparator string
@@ -1714,7 +1785,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.config.dryRun
     	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
-    	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
+    	Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields (default true)
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -promscrape.consul.waitTime duration
@@ -1744,7 +1815,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.eurekaSDCheckInterval duration
     	Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
   -promscrape.fileSDCheckInterval duration
-    	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
+    	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 5m0s)
   -promscrape.gceSDCheckInterval duration
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
   -promscrape.httpSDCheckInterval duration
@@ -1854,6 +1925,15 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	authKey, which must be passed in query string to /snapshot* pages
   -sortLabels
     	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -storage.cacheSizeIndexDBDataBlocks size
+    	Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBIndexBlocks size
+    	Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeStorageTSID size
+    	Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.maxDailySeries int
     	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
@@ -1866,9 +1946,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+    	Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
     	Show VictoriaMetrics version
 ```

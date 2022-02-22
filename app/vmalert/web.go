@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -24,6 +25,9 @@ var (
 
 func initLinks() {
 	pathPrefix := httpserver.GetPathPrefix()
+	if pathPrefix == "" {
+		pathPrefix = "/"
+	}
 	apiLinks = [][2]string{
 		{path.Join(pathPrefix, "api/v1/groups"), "list all loaded groups and rules"},
 		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
@@ -33,9 +37,10 @@ func initLinks() {
 		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: pathPrefix},
+		{Name: "vmalert", Url: path.Join(pathPrefix, "/")},
 		{Name: "Groups", Url: path.Join(pathPrefix, "groups")},
 		{Name: "Alerts", Url: path.Join(pathPrefix, "alerts")},
+		{Name: "Notifiers", Url: path.Join(pathPrefix, "notifiers")},
 		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
 	}
 }
@@ -49,6 +54,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		initLinks()
 	})
 
+	pathPrefix := httpserver.GetPathPrefix()
+	if pathPrefix == "" {
+		pathPrefix = "/"
+	}
+
 	switch r.URL.Path {
 	case "/":
 		if r.Method != "GET" {
@@ -57,10 +67,13 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteWelcome(w)
 		return true
 	case "/alerts":
-		WriteListAlerts(w, rh.groupAlerts())
+		WriteListAlerts(w, pathPrefix, rh.groupAlerts())
 		return true
 	case "/groups":
 		WriteListGroups(w, rh.groups())
+		return true
+	case "/notifiers":
+		WriteListTargets(w, notifier.GetTargets())
 		return true
 	case "/api/v1/groups":
 		data, err := rh.listGroups()
@@ -108,7 +121,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		// <groupID>/<alertID>/status
-		WriteAlert(w, alert)
+		WriteAlert(w, pathPrefix, alert)
 		return true
 	}
 }

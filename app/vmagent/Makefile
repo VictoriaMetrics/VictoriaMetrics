@@ -27,6 +27,15 @@ vmagent-ppc64le-prod:
 vmagent-386-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-386
 
+vmagent-darwin-amd64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-amd64
+
+vmagent-darwin-arm64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-arm64
+
+vmagent-windows-amd64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64
+
 package-vmagent:
 	APP_NAME=vmagent $(MAKE) package-via-docker
 
@@ -81,6 +90,3 @@ vmagent-pure:
 
 vmagent-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmagent $(MAKE) app-local-windows-with-goarch
-
-vmagent-windows-amd64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64

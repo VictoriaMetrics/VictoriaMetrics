@@ -94,8 +94,8 @@ and writing data to VictoriaMetrics.
 VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL query language](MetricsQL) based on PromQL. The simplicity is twofold:
 - It is simpler to configure and operate. There is no need for configuring [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md),
   fighting the [gossip protocol](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md)
-  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/production/cassandra/),
-  [DynamoDB](https://cortexmetrics.io/docs/production/aws/) or [Memcached](https://cortexmetrics.io/docs/production/caching/).
+  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/chunks-storage/running-chunks-storage-with-cassandra/),
+  [DynamoDB](https://cortexmetrics.io/docs/chunks-storage/aws-tips/) or [Memcached](https://cortexmetrics.io/docs/chunks-storage/caching/).
 - VictoriaMetrics has a simpler architecture. This means fewer bugs and more useful features in the long run compared to competing TSDBs.
 
 See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
@@ -312,12 +312,12 @@ The solution against high churn rate is to identify and eliminate labels with fr
 
 ## What is high cardinality?
 
-High cardinality usually means a high number of [active time series](#what-is-active-time-series). High cardinality may lead to high memory usage and/or to a high percentage of [slow inserts](#what-is-slow-insert). The source of high cardinality is usually a label with a large number of unique values, which presents a big share of the ingested time series. The solution is to identify and remove the source of high cardinality with the help of [/api/v1/status/tsdb](https://docs.victoriametrics.com/#tsdb-stats).
+High cardinality usually means a high number of [active time series](#what-is-an-active-time-series). High cardinality may lead to high memory usage and/or to a high percentage of [slow inserts](#what-is-a-slow-insert). The source of high cardinality is usually a label with a large number of unique values, which presents a big share of the ingested time series. The solution is to identify and remove the source of high cardinality with the help of [/api/v1/status/tsdb](https://docs.victoriametrics.com/#tsdb-stats).
 
 
 ## What is a slow insert?
 
-VictoriaMetrics maintains in-memory cache for mapping of [active time series](#what-is-active-time-series) into internal series ids. The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache, then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache. This operation is much slower than the cache lookup, so such an insert is named a `slow insert`. A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring) indicates a memory shortage for the current number of [active time series](#what-is-active-time-series). Such a condition usually leads to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage. The solution is to add more memory or to reduce the number of [active time series](#what-is-active-time-series). The `/api/v1/status/tsdb` page can be helpful for locating the source of high number of active time seriess – see [these docs](https://docs.victoriametrics.com/#tsdb-stats).
+VictoriaMetrics maintains in-memory cache for mapping of [active time series](#what-is-an-active-time-series) into internal series ids. The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache, then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache. This operation is much slower than the cache lookup, so such an insert is named a `slow insert`. A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring) indicates a memory shortage for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage. The solution is to add more memory or to reduce the number of [active time series](#what-is-an-active-time-series). The `/api/v1/status/tsdb` page can be helpful for locating the source of high number of active time seriess – see [these docs](https://docs.victoriametrics.com/#tsdb-stats).
 
 
 ## How to optimize MetricsQL query?
