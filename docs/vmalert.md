@@ -1,4 +1,7 @@
----\nsort: 4\n---\n
+---
+sort: 4
+---
+
 # vmalert
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
