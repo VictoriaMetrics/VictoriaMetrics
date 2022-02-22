@@ -1,7 +1,4 @@
----
-sort: 4
----
-
+---\nsort: 4\n---\n
 # vmalert
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
@@ -19,7 +16,7 @@ implementation and aims to be compatible with its syntax.
  support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
  support;
-* Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
+* Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-aplha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
