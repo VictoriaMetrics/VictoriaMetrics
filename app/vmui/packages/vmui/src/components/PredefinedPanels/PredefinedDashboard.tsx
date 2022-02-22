@@ -33,7 +33,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels
           description={p.description}
           unit={p.unit}
           expr={p.expr}
-          hideLegend={p.hideLegend}/>
+          showLegend={p.showLegend}/>
       )}
     </AccordionDetails>
   </Accordion>;

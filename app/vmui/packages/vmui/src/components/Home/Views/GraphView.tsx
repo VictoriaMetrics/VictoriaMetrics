@@ -17,7 +17,7 @@ export interface GraphViewProps {
   query: string[];
   yaxis: YaxisState;
   unit?: string;
-  hideLegend?: boolean;
+  showLegend?: boolean;
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({from, to}: {from: Date, to: Date}) => void
 }
@@ -29,7 +29,7 @@ const GraphView: FC<GraphViewProps> = ({
   query,
   yaxis,
   unit,
-  hideLegend,
+  showLegend= true,
   setYaxisLimits,
   setPeriod
 }) => {
@@ -98,7 +98,7 @@ const GraphView: FC<GraphViewProps> = ({
     {(data.length > 0)
       ? <div>
         <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit} setPeriod={setPeriod}/>
-        {!hideLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
+        {showLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
       </div>
       : <Alert color="warning" severity="warning" sx={{mt: 2}}>No data to show</Alert>}
   </>;

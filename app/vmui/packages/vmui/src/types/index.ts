@@ -40,7 +40,7 @@ export interface PanelSettings {
   description?: string;
   unit?: string;
   expr: string[];
-  hideLegend?: boolean;
+  showLegend?: boolean;
 }
 
 export interface DashboardRow {
