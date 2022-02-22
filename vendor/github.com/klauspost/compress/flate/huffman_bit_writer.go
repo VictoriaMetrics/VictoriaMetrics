@@ -1034,6 +1034,9 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 			}
 		}
 		if abs < max {
+			if debugDeflate {
+				fmt.Println("stored", abs, "<", max)
+			}
 			// No chance we can compress this...
 			w.writeStoredHeader(len(input), eof)
 			w.writeBytes(input)
@@ -1058,6 +1061,9 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 
 	// Store bytes, if we don't get a reasonable improvement.
 	if storable && ssize <= estBits {
+		if debugDeflate {
+			fmt.Println("stored,", ssize, "<=", estBits)
+		}
 		w.writeStoredHeader(len(input), eof)
 		w.writeBytes(input)
 		return
@@ -1068,7 +1074,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 
 		if estBits < reuseSize {
 			if debugDeflate {
-				//fmt.Println("not reusing, reuse:", reuseSize/8, "> new:", estBits/8, "- header est:", w.lastHeader/8)
+				fmt.Println("NOT reusing, reuse:", reuseSize/8, "> new:", estBits/8, "header est:", w.lastHeader/8, "bytes")
 			}
 			// We owe an EOB
 			w.writeCode(w.literalEncoding.codes[endBlockMarker])
@@ -1102,6 +1108,9 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 	// Go 1.16 LOVES having these on stack. At least 1.5x the speed.
 	bits, nbits, nbytes := w.bits, w.nbits, w.nbytes
 
+	if debugDeflate {
+		count -= int(nbytes)*8 + int(nbits)
+	}
 	// Unroll, write 3 codes/loop.
 	// Fastest number of unrolls.
 	for len(input) > 3 {
@@ -1111,12 +1120,15 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 			binary.LittleEndian.PutUint64(w.bytes[nbytes:], bits)
 			bits >>= (n * 8) & 63
 			nbits -= n * 8
-			nbytes += uint8(n)
+			nbytes += n
 		}
 		if nbytes >= bufferFlushSize {
 			if w.err != nil {
 				nbytes = 0
 				return
+			}
+			if debugDeflate {
+				count += int(nbytes) * 8
 			}
 			_, w.err = w.writer.Write(w.bytes[:nbytes])
 			nbytes = 0
@@ -1133,13 +1145,6 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 
 	// Remaining...
 	for _, t := range input {
-		// Bitwriting inlined, ~30% speedup
-		c := encoding[t]
-		bits |= uint64(c.code) << (nbits & 63)
-		nbits += c.len
-		if debugDeflate {
-			count += int(c.len)
-		}
 		if nbits >= 48 {
 			binary.LittleEndian.PutUint64(w.bytes[nbytes:], bits)
 			//*(*uint64)(unsafe.Pointer(&w.bytes[nbytes])) = bits
@@ -1151,17 +1156,33 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 					nbytes = 0
 					return
 				}
+				if debugDeflate {
+					count += int(nbytes) * 8
+				}
 				_, w.err = w.writer.Write(w.bytes[:nbytes])
 				nbytes = 0
 			}
+		}
+		// Bitwriting inlined, ~30% speedup
+		c := encoding[t]
+		bits |= uint64(c.code) << (nbits & 63)
+		nbits += c.len
+		if debugDeflate {
+			count += int(c.len)
 		}
 	}
 	// Restore...
 	w.bits, w.nbits, w.nbytes = bits, nbits, nbytes
 
 	if debugDeflate {
-		fmt.Println("wrote", count/8, "bytes")
+		nb := count + int(nbytes)*8 + int(nbits)
+		fmt.Println("wrote", nb, "bits,", nb/8, "bytes.")
 	}
+	// Flush if needed to have space.
+	if w.nbits >= 48 {
+		w.writeOutBits()
+	}
+
 	if eof || sync {
 		w.writeCode(w.literalEncoding.codes[endBlockMarker])
 		w.lastHeader = 0
