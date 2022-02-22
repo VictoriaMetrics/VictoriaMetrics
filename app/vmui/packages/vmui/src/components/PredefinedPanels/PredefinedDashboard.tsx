@@ -7,12 +7,14 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import PredefinedPanels from "./PredefinedPanels";
+import Alert from "@mui/material/Alert";
 
 export interface PredefinedDashboardProps extends DashboardRow {
+  filename: string;
   index: number;
 }
 
-const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels}) => {
+const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels, filename}) => {
 
   return <Accordion defaultExpanded={!index} sx={{boxShadow: "none"}}>
     <AccordionSummary
@@ -23,18 +25,22 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels
     >
       <Box display="flex" alignItems="center" width={"100%"}>
         {title && <Typography variant="h6" fontWeight="bold" sx={{mr: 2}}>{title}</Typography>}
-        <Typography variant="body2" fontStyle="italic">({panels.length} panels)</Typography>
+        {panels && <Typography variant="body2" fontStyle="italic">({panels.length} panels)</Typography>}
       </Box>
     </AccordionSummary>
     <AccordionDetails sx={{display: "grid", gridGap: "10px"}}>
-      {panels.map((p, i) =>
-        <PredefinedPanels key={i}
+      {Array.isArray(panels) && !!panels.length
+        ? panels.map((p, i) => <PredefinedPanels key={i}
           title={p.title}
           description={p.description}
           unit={p.unit}
           expr={p.expr}
-          showLegend={p.showLegend}/>
-      )}
+          filename={filename}
+          showLegend={p.showLegend}/>)
+        : <Alert color="error" severity="error" sx={{m: 4}}>
+          <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+        </Alert>
+      }
     </AccordionDetails>
   </Accordion>;
 };

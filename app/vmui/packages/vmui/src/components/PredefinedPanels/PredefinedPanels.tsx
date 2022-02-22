@@ -1,4 +1,4 @@
-import React, {FC, useEffect, useRef, useState} from "preact/compat";
+import React, {FC, useEffect, useMemo, useRef, useState} from "preact/compat";
 import Box from "@mui/material/Box";
 import {PanelSettings} from "../../types";
 import Tooltip from "@mui/material/Tooltip";
@@ -16,12 +16,17 @@ import {CustomStep} from "../../state/graph/reducer";
 import {marked} from "marked";
 import "./dashboard.css";
 
-const PredefinedPanels: FC<PanelSettings> = ({
+export interface PredefinedPanelsProps extends PanelSettings {
+  filename: string;
+}
+
+const PredefinedPanels: FC<PredefinedPanelsProps> = ({
   title,
   description,
   unit,
   expr,
-  showLegend
+  showLegend,
+  filename
 }) => {
 
   const {time: {period}} = useAppState();
@@ -38,9 +43,10 @@ const PredefinedPanels: FC<PanelSettings> = ({
     }
   });
 
+  const validExpr = useMemo(() => Array.isArray(expr) && expr.every(q => typeof q === "string"), [expr]);
 
   const {isLoading, graphData, error} = useFetchQuery({
-    predefinedQuery: expr,
+    predefinedQuery: validExpr ? expr : [],
     display: "chart",
     visible,
     customStep,
@@ -71,6 +77,10 @@ const PredefinedPanels: FC<PanelSettings> = ({
       if (containerRef.current) observer.unobserve(containerRef.current);
     };
   }, []);
+
+  if (!validExpr) return <Alert color="error" severity="error" sx={{m: 4}}>
+    <code>&quot;expr&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+  </Alert>;
 
   return <Box border="1px solid" borderRadius="2px" borderColor="divider" ref={containerRef}>
     <Box px={2} py={1} display="grid" gap={1} gridTemplateColumns="18px 1fr auto"

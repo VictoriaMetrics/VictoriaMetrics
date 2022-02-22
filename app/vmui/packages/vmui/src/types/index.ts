@@ -51,5 +51,5 @@ export interface DashboardRow {
 export interface DashboardSettings {
   title?: string;
   filename: string;
-  rows: DashboardRow[]
+  rows: DashboardRow[];
 }
