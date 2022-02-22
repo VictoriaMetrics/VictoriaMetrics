@@ -28,13 +28,10 @@ export const defaultOptions = {
   },
 };
 
-export const formatTicks = (u: uPlot, ticks: number[]): string[] => {
+export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
   return ticks.map(v => {
     const n = Math.abs(v);
-    if (n > 1e-3 && n < 1e4) {
-      return v.toString();
-    }
-    return v.toExponential(1);
+    return `${n > 1e-3 && n < 1e4 ? v.toString() : v.toExponential(1)} ${unit}`;
   });
 };
 
