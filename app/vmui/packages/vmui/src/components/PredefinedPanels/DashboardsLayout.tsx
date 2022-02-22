@@ -21,7 +21,7 @@ const DashboardLayout: FC = () => {
   }, [dashboards, tab]);
 
   useEffect(() => {
-    getDashboardSettings().then(d => setDashboards(d));
+    getDashboardSettings().then(d => d.length && setDashboards(d));
   }, []);
 
   return <Box id="homeLayout">
