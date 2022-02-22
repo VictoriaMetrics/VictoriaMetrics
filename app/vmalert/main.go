@@ -167,7 +167,20 @@ func newManager(ctx context.Context) (*manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
-	nts, err := notifier.Init(alertURLGeneratorFn)
+
+	labels := make(map[string]string, 0)
+	for _, s := range *externalLabels {
+		if len(s) == 0 {
+			continue
+		}
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `Name=value`; got %q", s)
+		}
+		labels[s[:n]] = s[n+1:]
+	}
+
+	nts, err := notifier.Init(alertURLGeneratorFn, labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
@@ -175,7 +188,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		groups:         make(map[uint64]*Group),
 		querierBuilder: q,
 		notifiers:      nts,
-		labels:         map[string]string{},
+		labels:         labels,
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {
@@ -189,16 +202,6 @@ func newManager(ctx context.Context) (*manager, error) {
 	}
 	manager.rr = rr
 
-	for _, s := range *externalLabels {
-		if len(s) == 0 {
-			continue
-		}
-		n := strings.IndexByte(s, '=')
-		if n < 0 {
-			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `Name=value`; got %q", s)
-		}
-		manager.labels[s[:n]] = s[n+1:]
-	}
 	return manager, nil
 }
 

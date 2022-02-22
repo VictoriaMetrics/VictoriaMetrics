@@ -9,9 +9,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 )
 
 func TestConfigWatcherReload(t *testing.T) {
@@ -31,6 +28,7 @@ static_configs:
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
+	defer cw.mustStop()
 	ns := cw.notifiers()
 	if len(ns) != 2 {
 		t.Fatalf("expected to have 2 notifiers; got %d %#v", len(ns), ns)
@@ -78,16 +76,11 @@ consul_sd_configs:
       - alertmanager
 `, consulSDServer.URL))
 
-	prevCheckInterval := *consul.SDCheckInterval
-	defer func() { *consul.SDCheckInterval = prevCheckInterval }()
-
-	*consul.SDCheckInterval = time.Millisecond * 100
-
 	cw, err := newWatcher(consulSDFile.Name(), nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
-	time.Sleep(*consul.SDCheckInterval * 2)
+	defer cw.mustStop()
 
 	if len(cw.notifiers()) != 2 {
 		t.Fatalf("expected to get 2 notifiers; got %d", len(cw.notifiers()))
@@ -161,6 +154,7 @@ consul_sd_configs:
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
+	defer cw.mustStop()
 
 	const workers = 500
 	const iterations = 10
