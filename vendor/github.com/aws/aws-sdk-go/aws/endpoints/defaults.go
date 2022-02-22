@@ -13551,6 +13551,9 @@ var awsPartition = partition{
 		"mq": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
+					Region: "af-south-1",
+				}: endpoint{},
+				endpointKey{
 					Region: "ap-east-1",
 				}: endpoint{},
 				endpointKey{
