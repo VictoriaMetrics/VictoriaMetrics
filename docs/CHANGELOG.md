@@ -14,6 +14,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: reduce memory usage for various caches under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+
 
 ## [v1.73.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.1)
 
