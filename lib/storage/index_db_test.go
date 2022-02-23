@@ -1851,9 +1851,9 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:   workingsetcache.New(1234, time.Hour),
-		metricNameCache: workingsetcache.New(1234, time.Hour),
-		tsidCache:       workingsetcache.New(1234, time.Hour),
+		metricIDCache:   workingsetcache.New(1234),
+		metricNameCache: workingsetcache.New(1234),
+		tsidCache:       workingsetcache.New(1234),
 	}
 	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s
