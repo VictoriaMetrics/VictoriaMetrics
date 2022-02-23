@@ -172,6 +172,9 @@ func (c *Cache) cacheSizeWatcher() {
 			return
 		case <-t.C:
 		}
+		if c.loadMode() != split {
+			continue
+		}
 		var cs fastcache.Stats
 		curr := c.curr.Load().(*fastcache.Cache)
 		curr.UpdateStats(&cs)
@@ -188,10 +191,10 @@ func (c *Cache) cacheSizeWatcher() {
 	// Do this in the following steps:
 	// 1) switch to mode=switching
 	// 2) move curr cache to prev
-	// 3) create curr with the double size
-	// 4) wait until curr size exceeds maxBytesSize, i.e. it is populated with new data
+	// 3) create curr cache with doubled size
+	// 4) wait until curr cache size exceeds maxBytesSize, i.e. it is populated with new data
 	// 5) switch to mode=whole
-	// 6) drop prev
+	// 6) drop prev cache
 
 	c.mu.Lock()
 	c.setMode(switching)
