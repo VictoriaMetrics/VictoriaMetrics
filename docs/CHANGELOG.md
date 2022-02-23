@@ -16,6 +16,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * FEATURE: reduce memory usage for various caches under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): properly parse JWT tokens if they are encoded with [URL-safe base64 encoding](https://datatracker.ietf.org/doc/html/rfc4648#section-5).
+
 
 ## [v1.73.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.1)
 
