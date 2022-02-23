@@ -76,7 +76,7 @@ var checkRollupResultCacheResetOnce sync.Once
 var rollupResultResetMetricRowSample atomic.Value
 
 var rollupResultCacheV = &rollupResultCache{
-	c: workingsetcache.New(1024*1024, time.Hour), // This is a cache for testing.
+	c: workingsetcache.New(1024 * 1024), // This is a cache for testing.
 }
 var rollupResultCachePath string
 
@@ -104,9 +104,9 @@ func InitRollupResultCache(cachePath string) {
 	var c *workingsetcache.Cache
 	if len(rollupResultCachePath) > 0 {
 		logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
-		c = workingsetcache.Load(rollupResultCachePath, cacheSize, time.Hour)
+		c = workingsetcache.Load(rollupResultCachePath, cacheSize)
 	} else {
-		c = workingsetcache.New(cacheSize, time.Hour)
+		c = workingsetcache.New(cacheSize)
 	}
 	if *disableCache {
 		c.Reset()

@@ -142,9 +142,9 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, e
 		tb:                tb,
 		name:              name,
 
-		tagFiltersCache:            workingsetcache.New(mem/32, time.Hour),
+		tagFiltersCache:            workingsetcache.New(mem / 32),
 		s:                          s,
-		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
+		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
 	return db, nil
 }

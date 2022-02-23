@@ -993,7 +993,7 @@ func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcac
 	path := s.cachePath + "/" + name
 	logger.Infof("loading %s cache from %q...", info, path)
 	startTime := time.Now()
-	c := workingsetcache.Load(path, sizeBytes, time.Hour)
+	c := workingsetcache.Load(path, sizeBytes)
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
 	logger.Infof("loaded %s cache from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
