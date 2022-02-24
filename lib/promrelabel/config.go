@@ -22,6 +22,7 @@ type RelabelConfig struct {
 	Modulus      uint64          `yaml:"modulus,omitempty"`
 	Replacement  *string         `yaml:"replacement,omitempty"`
 	Action       string          `yaml:"action,omitempty"`
+	If           *IfExpression   `yaml:"if,omitempty"`
 }
 
 // MultiLineRegex contains a regex, which can be split into multiple lines.
@@ -44,7 +45,7 @@ type MultiLineRegex struct {
 func (mlr *MultiLineRegex) UnmarshalYAML(f func(interface{}) error) error {
 	var v interface{}
 	if err := f(&v); err != nil {
-		return err
+		return fmt.Errorf("cannot parse multiline regex: %w", err)
 	}
 	s, err := stringValue(v)
 	if err != nil {
@@ -224,11 +225,11 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("`source_labels` must contain at least two entries for `action=drop_if_equal`; got %q", sourceLabels)
 		}
 	case "keep":
-		if len(sourceLabels) == 0 {
+		if len(sourceLabels) == 0 && rc.If == nil {
 			return nil, fmt.Errorf("missing `source_labels` for `action=keep`")
 		}
 	case "drop":
-		if len(sourceLabels) == 0 {
+		if len(sourceLabels) == 0 && rc.If == nil {
 			return nil, fmt.Errorf("missing `source_labels` for `action=drop`")
 		}
 	case "hashmod":
@@ -242,7 +243,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("unexpected `modulus` for `action=hashmod`: %d; must be greater than 0", modulus)
 		}
 	case "keep_metrics":
-		if rc.Regex == nil || rc.Regex.s == "" {
+		if (rc.Regex == nil || rc.Regex.s == "") && rc.If == nil {
 			return nil, fmt.Errorf("`regex` must be non-empty for `action=keep_metrics`")
 		}
 		if len(sourceLabels) > 0 {
@@ -251,7 +252,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		sourceLabels = []string{"__name__"}
 		action = "keep"
 	case "drop_metrics":
-		if rc.Regex == nil || rc.Regex.s == "" {
+		if (rc.Regex == nil || rc.Regex.s == "") && rc.If == nil {
 			return nil, fmt.Errorf("`regex` must be non-empty for `action=drop_metrics`")
 		}
 		if len(sourceLabels) > 0 {
@@ -274,6 +275,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		Modulus:      modulus,
 		Replacement:  replacement,
 		Action:       action,
+		If:           rc.If,
 
 		regexOriginal:                regexOriginalCompiled,
 		hasCaptureGroupInTargetLabel: strings.Contains(targetLabel, "$"),

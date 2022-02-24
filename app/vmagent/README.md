@@ -264,7 +264,7 @@ Labels can be added to metrics by the following mechanisms:
 
 ## Relabeling
 
-`vmagent` and VictoriaMetrics support Prometheus-compatible relabeling.
+VictoriaMetrics components (including `vmagent`) support Prometheus-compatible relabeling.
 They provide the following additional actions on top of actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
 * `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`.
@@ -287,6 +287,21 @@ The `regex` value can be split into multiple lines for improved readability and 
   - "metric_a"
   - "metric_b"
   - "foo_.+"
+```
+
+VictoriaMetrics components support an optional `if` filter, which can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops targets, which don't match `foo{bar="baz"}` series selector:
+
+```yaml
+- action: keep
+  if: 'foo{bar="baz"}'
+```
+
+This is equivalent to less clear traditional relabeling rule:
+
+```yaml
+- action: keep
+  source_labels: [__name__, bar]
+  regex: 'foo;baz'
 ```
 
 The relabeling can be defined in the following places:

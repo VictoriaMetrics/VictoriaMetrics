@@ -23,6 +23,7 @@ type parsedRelabelConfig struct {
 	Modulus      uint64
 	Replacement  string
 	Action       string
+	If           *IfExpression
 
 	regexOriginal                *regexp.Regexp
 	hasCaptureGroupInTargetLabel bool
@@ -137,8 +138,17 @@ func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	src := labels[labelsOffset:]
+	if prc.If != nil && !prc.If.Match(labels) {
+		if prc.Action == "keep" {
+			// Drop the target on `if` mismatch for `action: keep`
+			return labels[:labelsOffset]
+		}
+		// Do not apply prc actions on `if` mismatch.
+		return labels
+	}
 	switch prc.Action {
 	case "replace":
+		// Store `replacement` at `target_label` if the `regex` matches `source_labels` joined with `separator`
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		if prc.Regex == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInTargetLabel {
@@ -174,6 +184,8 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		relabelBufPool.Put(bb)
 		return setLabelValue(labels, labelsOffset, nameStr, valueStr)
 	case "replace_all":
+		// Replace all the occurences of `regex` at `source_labels` joined with `separator` with the `replacement`
+		// and store the result at `target_label`
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		sourceStr := string(bb.B)
@@ -208,6 +220,15 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return labels
 	case "keep":
+		// Keep the target if `source_labels` joined with `separator` match the `regex`.
+		if prc.Regex == defaultRegexForRelabelConfig {
+			// Fast path for the case with `if` and without explicitly set `regex`:
+			//
+			// - action: keep
+			//   if: 'some{label=~"filters"}'
+			//
+			return labels
+		}
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		keep := prc.matchString(bytesutil.ToUnsafeString(bb.B))
@@ -217,6 +238,15 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return labels
 	case "drop":
+		// Drop the target if `source_labels` joined with `separator` don't match the `regex`.
+		if prc.Regex == defaultRegexForRelabelConfig {
+			// Fast path for the case with `if` and without explicitly set `regex`:
+			//
+			// - action: drop
+			//   if: 'some{label=~"filters"}'
+			//
+			return labels[:labelsOffset]
+		}
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		drop := prc.matchString(bytesutil.ToUnsafeString(bb.B))
@@ -226,6 +256,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return labels
 	case "hashmod":
+		// Calculate the `modulus` from the hash of `source_labels` joined with `separator` and store it at `target_label`
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		h := xxhash.Sum64(bb.B) % prc.Modulus
@@ -233,6 +264,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		relabelBufPool.Put(bb)
 		return setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
 	case "labelmap":
+		// Replace label names with the `replacement` if they match `regex`
 		for i := range src {
 			label := &src[i]
 			labelName, ok := prc.replaceFullString(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
@@ -242,12 +274,14 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return labels
 	case "labelmap_all":
+		// Replace all the occurences of `regex` at label names with `replacement`
 		for i := range src {
 			label := &src[i]
 			label.Name, _ = prc.replaceStringSubmatches(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
 		}
 		return labels
 	case "labeldrop":
+		// Drop labels with names matching the `regex`
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
@@ -257,6 +291,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return dst
 	case "labelkeep":
+		// Keep labels with names matching the `regex`
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
