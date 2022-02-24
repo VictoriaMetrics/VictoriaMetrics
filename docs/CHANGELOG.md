@@ -14,6 +14,23 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: add support for conditional relabeling via `if` filter. The `if` filter can contain arbitrary [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following rule drops targets matching `foo{bar="baz"}` series selector:
+
+```yml
+- action: drop
+  if: 'foo{bar="baz"}'
+```
+
+This rule is equivalent to less clear traditional one:
+
+```yml
+- action: drop
+  source_labels: [__name__, bar]
+  regex: 'foo;baz'
+```
+
+  See [relabeling docs](https://docs.victoriametrics.com/vmagent.html#relabeling) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1998) for more details.
+
 * FEATURE: reduce memory usage for various caches under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): properly parse JWT tokens if they are encoded with [URL-safe base64 encoding](https://datatracker.ietf.org/doc/html/rfc4648#section-5).
