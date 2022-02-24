@@ -382,7 +382,7 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 			continue
 		}
 		values = getUniqueValues(values)
-		if len(values) > 10000 {
+		if len(values) > 1000 {
 			// Skip the filter on the given tag, since it needs to enumerate too many unique values.
 			// This may slow down the search for matching time series.
 			continue
