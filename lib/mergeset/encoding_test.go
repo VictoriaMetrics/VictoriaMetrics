@@ -67,7 +67,7 @@ func TestInmemoryBlockSort(t *testing.T) {
 		}
 
 		// Sort ib.
-		ib.sort()
+		sort.Sort(&ib)
 		sort.Strings(items)
 
 		// Verify items are sorted.

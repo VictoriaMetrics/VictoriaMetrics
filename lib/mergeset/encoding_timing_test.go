@@ -2,6 +2,7 @@ package mergeset
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -16,7 +17,7 @@ func BenchmarkInmemoryBlockMarshal(b *testing.B) {
 			b.Fatalf("cannot add more than %d items", i)
 		}
 	}
-	ibSrc.sort()
+	sort.Sort(&ibSrc)
 
 	b.ResetTimer()
 	b.SetBytes(itemsCount)
