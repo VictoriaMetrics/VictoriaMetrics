@@ -49,7 +49,10 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 			hasPositiveFilter = true
 		}
 	}
-	if len(names) == 0 {
+	// If tfs have no filters on __name__ or have no non-negative filters,
+	// then it is impossible to construct composite tag filter.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2238
+	if len(names) == 0 || !hasPositiveFilter {
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return []*TagFilters{tfs}
 	}
@@ -61,7 +64,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 		tfsNew := make([]tagFilter, 0, len(tfs.tfs))
 		for _, tf := range tfs.tfs {
 			if len(tf.key) == 0 {
-				if !hasPositiveFilter || tf.isNegative {
+				if tf.isNegative {
 					// Negative filters on metric name cannot be used for building composite filter, so leave them as is.
 					tfsNew = append(tfsNew, tf)
 					continue
