@@ -1868,7 +1868,12 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
 
-	// Verify whether the maximum date in `ts` covers tr.MinTimestamp.
+	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
+	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
+	// This means that containsTimeRange() can return true if `tr` is located below the min date stored in `ts`.
+	// This is OK, since this case isn't encountered too much in practice.
+	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
+	// is located above the max date stored there.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	prefix := kb.B
