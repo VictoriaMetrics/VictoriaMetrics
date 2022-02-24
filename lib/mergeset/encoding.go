@@ -137,25 +137,6 @@ func (ib *inmemoryBlock) Add(x []byte) bool {
 // It must fit CPU cache size, i.e. 64KB for the current CPUs.
 const maxInmemoryBlockSize = 64 * 1024
 
-func (ib *inmemoryBlock) sort() {
-	sort.Sort(ib)
-	data := ib.data
-	items := ib.items
-	bb := bbPool.Get()
-	b := bytesutil.ResizeNoCopyMayOverallocate(bb.B, len(data))
-	b = b[:0]
-	for i, it := range items {
-		bLen := len(b)
-		b = append(b, it.String(data)...)
-		items[i] = Item{
-			Start: uint32(bLen),
-			End:   uint32(len(b)),
-		}
-	}
-	bb.B, ib.data = data, b
-	bbPool.Put(bb)
-}
-
 // storageBlock represents a block of data on the storage.
 type storageBlock struct {
 	itemsData []byte
@@ -195,7 +176,7 @@ func (ib *inmemoryBlock) isSorted() bool {
 // - returns the marshal type used for the encoding.
 func (ib *inmemoryBlock) MarshalUnsortedData(sb *storageBlock, firstItemDst, commonPrefixDst []byte, compressLevel int) ([]byte, []byte, uint32, marshalType) {
 	if !ib.isSorted() {
-		ib.sort()
+		sort.Sort(ib)
 	}
 	ib.updateCommonPrefix()
 	return ib.marshalData(sb, firstItemDst, commonPrefixDst, compressLevel)
@@ -251,7 +232,7 @@ func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefi
 	firstItemDst = append(firstItemDst, firstItem...)
 	commonPrefixDst = append(commonPrefixDst, ib.commonPrefix...)
 
-	if len(ib.data)-len(ib.commonPrefix)*len(ib.items) < 64 || len(ib.items) < 2 {
+	if len(data)-len(ib.commonPrefix)*len(ib.items) < 64 || len(ib.items) < 2 {
 		// Use plain encoding form small block, since it is cheaper.
 		ib.marshalDataPlain(sb)
 		return firstItemDst, commonPrefixDst, uint32(len(ib.items)), marshalTypePlain
@@ -302,7 +283,7 @@ func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefi
 	bbLens.B = bLens
 	bbPool.Put(bbLens)
 
-	if float64(len(sb.itemsData)) > 0.9*float64(len(ib.data)-len(ib.commonPrefix)*len(ib.items)) {
+	if float64(len(sb.itemsData)) > 0.9*float64(len(data)-len(ib.commonPrefix)*len(ib.items)) {
 		// Bad compression rate. It is cheaper to use plain encoding.
 		ib.marshalDataPlain(sb)
 		return firstItemDst, commonPrefixDst, uint32(len(ib.items)), marshalTypePlain
