@@ -32,6 +32,7 @@ This rule is equivalent to less clear traditional one:
   See [relabeling docs](https://docs.victoriametrics.com/vmagent.html#relabeling) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1998) for more details.
 
 * FEATURE: reduce memory usage for various caches under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): re-use Kafka client when pushing data from [many tenants](https://docs.victoriametrics.com/vmagent.html#multitenancy) to Kafka. Previously a separate Kafka client was created per each tenant. This could lead to increased load on Kafka. See [how to push data from vmagent to Kafka](https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-kafka).
 
 * BUGFIX: properly handle [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) containing a filter for multiple metric names plus a negative filter. For example, `{__name__=~"foo|bar",job!="baz"}` . Previously VictoriaMetrics could return series with `foo` or `bar` names and with `job="baz"`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2238).
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): properly parse JWT tokens if they are encoded with [URL-safe base64 encoding](https://datatracker.ietf.org/doc/html/rfc4648#section-5).
