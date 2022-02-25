@@ -50,7 +50,8 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 
 	// Use the minimum possible compressLevel for compressing inmemoryPart,
 	// since it will be merged into file part soon.
-	compressLevel := 0
+	// See https://github.com/facebook/zstd/releases/tag/v1.3.4 for details about negative compression level
+	compressLevel := -5
 	mp.bh.firstItem, mp.bh.commonPrefix, mp.bh.itemsCount, mp.bh.marshalType = ib.MarshalUnsortedData(&mp.sb, mp.bh.firstItem[:0], mp.bh.commonPrefix[:0], compressLevel)
 
 	mp.ph.itemsCount = uint64(len(ib.items))
