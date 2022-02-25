@@ -630,6 +630,11 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	dst.AccountID = mn.AccountID
 	dst.ProjectID = mn.ProjectID
 	dst.MetricGroupID = xxhash.Sum64(mn.MetricGroup)
+	// Assume that the job-like metric is put at mn.Tags[0], while instance-like metric is put at mn.Tags[1]
+	// This assumption is true because mn.Tags must be sorted with mn.sortTags() before calling generateTSID() function.
+	// This allows grouping data blocks for the same (job, instance) close to each other on disk.
+	// This reduces disk seeks and disk read IO when data blocks are read from disk for the same job and/or instance.
+	// For example, data blocks for time series matching `process_resident_memory_bytes{job="vmstorage"}` are physically adjancent on disk.
 	if len(mn.Tags) > 0 {
 		dst.JobID = uint32(xxhash.Sum64(mn.Tags[0].Value))
 	}
