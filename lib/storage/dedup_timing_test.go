@@ -16,6 +16,7 @@ func BenchmarkDeduplicateSamples(b *testing.B) {
 	for _, minScrapeInterval := range []time.Duration{time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second} {
 		b.Run(fmt.Sprintf("minScrapeInterval=%s", minScrapeInterval), func(b *testing.B) {
 			dedupInterval := minScrapeInterval.Milliseconds()
+			dedupMetricPointInterval := int64(0)
 			b.ReportAllocs()
 			b.SetBytes(blockSize)
 			b.RunParallel(func(pb *testing.PB) {
@@ -24,7 +25,7 @@ func BenchmarkDeduplicateSamples(b *testing.B) {
 				for pb.Next() {
 					timestampsCopy := append(timestampsCopy[:0], timestamps...)
 					valuesCopy := append(valuesCopy[:0], values...)
-					ts, vs := DeduplicateSamples(timestampsCopy, valuesCopy, dedupInterval)
+					ts, vs := DeduplicateSamples(timestampsCopy, valuesCopy, dedupInterval, dedupMetricPointInterval)
 					if len(ts) == 0 || len(vs) == 0 {
 						panic(fmt.Errorf("expecting non-empty results; got\nts=%v\nvs=%v", ts, vs))
 					}

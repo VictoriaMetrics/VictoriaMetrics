@@ -40,7 +40,8 @@ func TestDeduplicateSamples(t *testing.T) {
 			values[i] = float64(i)
 		}
 		dedupInterval := scrapeInterval.Milliseconds()
-		timestampsCopy, values = DeduplicateSamples(timestampsCopy, values, dedupInterval)
+		dedupMetricPointInterval := int64(0)
+		timestampsCopy, values = DeduplicateSamples(timestampsCopy, values, dedupInterval, dedupMetricPointInterval)
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
 			t.Fatalf("invalid DeduplicateSamples(%v) result;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
@@ -70,7 +71,7 @@ func TestDeduplicateSamples(t *testing.T) {
 
 		// Verify that the second call to DeduplicateSamples doesn't modify samples.
 		valuesCopy := append([]float64{}, values...)
-		timestampsCopy, valuesCopy = DeduplicateSamples(timestampsCopy, valuesCopy, dedupInterval)
+		timestampsCopy, valuesCopy = DeduplicateSamples(timestampsCopy, valuesCopy, dedupInterval, dedupMetricPointInterval)
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
 			t.Fatalf("invalid DeduplicateSamples(%v) timestamps for the second call;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
@@ -99,7 +100,8 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 			values[i] = int64(i)
 		}
 		dedupInterval := scrapeInterval.Milliseconds()
-		timestampsCopy, values = deduplicateSamplesDuringMerge(timestampsCopy, values, dedupInterval)
+		dedupMetricPointInterval := int64(0)
+		timestampsCopy, values = deduplicateSamplesDuringMerge(timestampsCopy, values, dedupInterval, dedupMetricPointInterval)
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
 			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) result;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
@@ -129,7 +131,7 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 
 		// Verify that the second call to DeduplicateSamples doesn't modify samples.
 		valuesCopy := append([]int64{}, values...)
-		timestampsCopy, valuesCopy = deduplicateSamplesDuringMerge(timestampsCopy, valuesCopy, dedupInterval)
+		timestampsCopy, valuesCopy = deduplicateSamplesDuringMerge(timestampsCopy, valuesCopy, dedupInterval, dedupMetricPointInterval)
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
 			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) timestamps for the second call;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}

@@ -479,7 +479,8 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 		return firstErr
 	}
 	dedupInterval := storage.GetDedupInterval()
-	mergeSortBlocks(dst, sbs, dedupInterval)
+	dedupMetricPointInterval := storage.GetDedupMetricPointInterval()
+	mergeSortBlocks(dst, sbs, dedupInterval, dedupMetricPointInterval)
 	return nil
 }
 
@@ -500,7 +501,7 @@ var sbPool sync.Pool
 
 var metricRowsSkipped = metrics.NewCounter(`vm_metric_rows_skipped_total{name="vmselect"}`)
 
-func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64) {
+func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64, dedupMetricPointInterval int64) {
 	// Skip empty sort blocks, since they cannot be passed to heap.Init.
 	src := sbh
 	sbh = sbh[:0]
@@ -543,7 +544,7 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64) {
 			putSortBlock(top)
 		}
 	}
-	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values, dedupInterval)
+	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values, dedupInterval, dedupMetricPointInterval)
 	dedups := len(dst.Timestamps) - len(timestamps)
 	dedupsDuringSelect.Add(dedups)
 	dst.Timestamps = timestamps

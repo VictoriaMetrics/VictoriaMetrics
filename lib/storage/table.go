@@ -443,7 +443,7 @@ func (tb *table) startFinalDedupWatcher() {
 }
 
 func (tb *table) finalDedupWatcher() {
-	if !isDedupEnabled() {
+	if !isDedupEnabled() && !isDedupMetricPointEnabled() {
 		// Deduplication is disabled.
 		return
 	}
