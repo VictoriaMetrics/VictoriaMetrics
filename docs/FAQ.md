@@ -175,7 +175,7 @@ The main differences between Cortex and VictoriaMetrics:
 
 - VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [works faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 - VictoriaMetrics needs lower amounts of storage space than InfluxDB for production data.
-- VictoriaMetrics provides a better query language – [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) – than InfluxQL or Flux. See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
+- VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 - VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to InfluxDB – Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-time-series-data) for details.
 - VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
