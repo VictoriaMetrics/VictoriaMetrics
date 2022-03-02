@@ -93,10 +93,12 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	}
 	// Convert src to prompbmarshal.Label format suitable for relabeling.
 	tmpLabels := ctx.tmpLabels[:0]
+	oriNameEmpty := false
 	for _, label := range labels {
 		name := bytesutil.ToUnsafeString(label.Name)
 		if len(name) == 0 {
 			name = "__name__"
+			oriNameEmpty = true
 		}
 		value := bytesutil.ToUnsafeString(label.Value)
 		tmpLabels = append(tmpLabels, prompbmarshal.Label{
@@ -116,7 +118,7 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	dst := labels[:0]
 	for _, label := range tmpLabels {
 		name := bytesutil.ToUnsafeBytes(label.Name)
-		if label.Name == "__name__" {
+		if oriNameEmpty && label.Name == "__name__" {
 			name = nil
 		}
 		value := bytesutil.ToUnsafeBytes(label.Value)
