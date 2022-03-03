@@ -148,6 +148,21 @@ func (sb *storageBlock) Reset() {
 	sb.lensData = sb.lensData[:0]
 }
 
+func getStorageBlock() *storageBlock {
+	v := storageBlockPool.Get()
+	if v == nil {
+		return &storageBlock{}
+	}
+	return v.(*storageBlock)
+}
+
+func putStorageBlock(sb *storageBlock) {
+	sb.Reset()
+	storageBlockPool.Put(sb)
+}
+
+var storageBlockPool sync.Pool
+
 type marshalType uint8
 
 const (
