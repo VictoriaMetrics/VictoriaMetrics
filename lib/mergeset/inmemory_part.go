@@ -1,8 +1,9 @@
 package mergeset
 
 import (
+	"sync"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -45,8 +46,13 @@ func (mp *inmemoryPart) Reset() {
 // Init initializes mp from ib.
 func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.Reset()
-	sb := getStorageBlock()
-	defer putStorageBlock(sb)
+
+	// Re-use mp.itemsData and mp.lensData in sb.
+	// This eliminates copying itemsData and lensData from sb to mp later.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2247
+	sb := &storageBlock{}
+	sb.itemsData = mp.itemsData.B[:0]
+	sb.lensData = mp.lensData.B[:0]
 
 	// Use the minimum possible compressLevel for compressing inmemoryPart,
 	// since it will be merged into file part soon.
@@ -59,11 +65,11 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.ph.firstItem = append(mp.ph.firstItem[:0], ib.items[0].String(ib.data)...)
 	mp.ph.lastItem = append(mp.ph.lastItem[:0], ib.items[len(ib.items)-1].String(ib.data)...)
 
-	fs.MustWriteData(&mp.itemsData, sb.itemsData)
+	mp.itemsData.B = sb.itemsData
 	mp.bh.itemsBlockOffset = 0
 	mp.bh.itemsBlockSize = uint32(len(mp.itemsData.B))
 
-	fs.MustWriteData(&mp.lensData, sb.lensData)
+	mp.lensData.B = sb.lensData
 	mp.bh.lensBlockOffset = 0
 	mp.bh.lensBlockSize = uint32(len(mp.lensData.B))
 
@@ -97,25 +103,16 @@ func (mp *inmemoryPart) size() uint64 {
 }
 
 func getInmemoryPart() *inmemoryPart {
-	select {
-	case mp := <-mpPool:
-		return mp
-	default:
+	v := inmemoryPartPool.Get()
+	if v == nil {
 		return &inmemoryPart{}
 	}
+	return v.(*inmemoryPart)
 }
 
 func putInmemoryPart(mp *inmemoryPart) {
 	mp.Reset()
-	select {
-	case mpPool <- mp:
-	default:
-		// Drop mp in order to reduce memory usage.
-	}
+	inmemoryPartPool.Put(mp)
 }
 
-// Use chan instead of sync.Pool in order to reduce memory usage on systems with big number of CPU cores,
-// since sync.Pool maintains per-CPU pool of inmemoryPart objects.
-//
-// The inmemoryPart object size can exceed 64KB, so it is better to use chan instead of sync.Pool for reducing memory usage.
-var mpPool = make(chan *inmemoryPart, cgroup.AvailableCPUs())
+var inmemoryPartPool sync.Pool

@@ -227,7 +227,9 @@ func (pw *partWrapper) decRef() {
 	}
 
 	if pw.mp != nil {
-		putInmemoryPart(pw.mp)
+		// Do not return pw.mp to pool via putInmemoryPart(),
+		// since pw.mp size may be too big compared to other entries stored in the pool.
+		// This may result in increased memory usage because of high fragmentation.
 		pw.mp = nil
 	}
 	pw.p.MustClose()
@@ -740,7 +742,10 @@ func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
 
 	// Prepare blockStreamWriter for destination part.
 	bsw := getBlockStreamWriter()
-	mpDst := getInmemoryPart()
+	// Do not obtain mpDst via getInmemoryPart(), since its size
+	// may be too big comparing to other entries in the pool.
+	// This may result in increased memory usage because of high fragmentation.
+	mpDst := &inmemoryPart{}
 	bsw.InitFromInmemoryPart(mpDst)
 
 	// Merge parts.
