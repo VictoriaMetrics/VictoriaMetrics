@@ -1,5 +1,12 @@
 # Changes
 
+## [0.3.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.2.0...iam/v0.3.0) (2022-02-23)
+
+
+### Features
+
+* **iam:** set versionClient to module version ([55f0d92](https://github.com/googleapis/google-cloud-go/commit/55f0d92bf112f14b024b4ab0076c9875a17423c9))
+
 ## [0.2.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.1.1...iam/v0.2.0) (2022-02-14)
 
 
