@@ -10,7 +10,6 @@ import (
 
 type inmemoryPart struct {
 	ph partHeader
-	sb storageBlock
 	bh blockHeader
 	mr metaindexRow
 
@@ -28,7 +27,6 @@ type inmemoryPart struct {
 
 func (mp *inmemoryPart) Reset() {
 	mp.ph.Reset()
-	mp.sb.Reset()
 	mp.bh.Reset()
 	mp.mr.Reset()
 
@@ -47,25 +45,27 @@ func (mp *inmemoryPart) Reset() {
 // Init initializes mp from ib.
 func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.Reset()
+	sb := getStorageBlock()
+	defer putStorageBlock(sb)
 
 	// Use the minimum possible compressLevel for compressing inmemoryPart,
 	// since it will be merged into file part soon.
 	// See https://github.com/facebook/zstd/releases/tag/v1.3.4 for details about negative compression level
 	compressLevel := -5
-	mp.bh.firstItem, mp.bh.commonPrefix, mp.bh.itemsCount, mp.bh.marshalType = ib.MarshalUnsortedData(&mp.sb, mp.bh.firstItem[:0], mp.bh.commonPrefix[:0], compressLevel)
+	mp.bh.firstItem, mp.bh.commonPrefix, mp.bh.itemsCount, mp.bh.marshalType = ib.MarshalUnsortedData(sb, mp.bh.firstItem[:0], mp.bh.commonPrefix[:0], compressLevel)
 
 	mp.ph.itemsCount = uint64(len(ib.items))
 	mp.ph.blocksCount = 1
 	mp.ph.firstItem = append(mp.ph.firstItem[:0], ib.items[0].String(ib.data)...)
 	mp.ph.lastItem = append(mp.ph.lastItem[:0], ib.items[len(ib.items)-1].String(ib.data)...)
 
-	fs.MustWriteData(&mp.itemsData, mp.sb.itemsData)
+	fs.MustWriteData(&mp.itemsData, sb.itemsData)
 	mp.bh.itemsBlockOffset = 0
-	mp.bh.itemsBlockSize = uint32(len(mp.sb.itemsData))
+	mp.bh.itemsBlockSize = uint32(len(mp.itemsData.B))
 
-	fs.MustWriteData(&mp.lensData, mp.sb.lensData)
+	fs.MustWriteData(&mp.lensData, sb.lensData)
 	mp.bh.lensBlockOffset = 0
-	mp.bh.lensBlockSize = uint32(len(mp.sb.lensData))
+	mp.bh.lensBlockSize = uint32(len(mp.lensData.B))
 
 	mp.unpackedIndexBlockBuf = mp.bh.Marshal(mp.unpackedIndexBlockBuf[:0])
 	mp.packedIndexBlockBuf = encoding.CompressZSTDLevel(mp.packedIndexBlockBuf[:0], mp.unpackedIndexBlockBuf, 0)
