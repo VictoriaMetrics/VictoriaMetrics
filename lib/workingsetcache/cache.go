@@ -17,6 +17,8 @@ const (
 	whole     = 2
 )
 
+const defaultExpireDuration = 20 * time.Minute
+
 // Cache is a cache for working set entries.
 //
 // The cache evicts inactive entries after the given expireDuration.
@@ -48,10 +50,18 @@ type Cache struct {
 }
 
 // Load loads the cache from filePath and limits its size to maxBytes
+// and evicts inactive entries in 20 minutes.
+//
+// Stop must be called on the returned cache when it is no longer needed.
+func Load(filePath string, maxBytes int) *Cache {
+	return LoadWithExpire(filePath, maxBytes, defaultExpireDuration)
+}
+
+// LoadWithExpire loads the cache from filePath and limits its size to maxBytes
 // and evicts inactive entires after expireDuration.
 //
 // Stop must be called on the returned cache when it is no longer needed.
-func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
+func LoadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
@@ -60,8 +70,10 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 		// The cache couldn't be loaded with maxBytes size.
 		// This may mean that the cache is split into curr and prev caches.
 		// Try loading it again with maxBytes / 2 size.
-		curr := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
-		prev := fastcache.New(maxBytes / 2)
+		// Put the loaded cache into `prev` instead of `curr`
+		// in order to limit the growth of the cache for the current period of time.
+		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
+		curr := fastcache.New(maxBytes / 2)
 		c := newCacheInternal(curr, prev, split, maxBytes)
 		c.runWatchers(expireDuration)
 		return c
@@ -74,11 +86,18 @@ func Load(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 	return newCacheInternal(curr, prev, whole, maxBytes)
 }
 
-// New creates new cache with the given maxBytes capacity and the given expireDuration
+// New creates new cache with the given maxBytes capacity.
+//
+// Stop must be called on the returned cache when it is no longer needed.
+func New(maxBytes int) *Cache {
+	return NewWithExpire(maxBytes, defaultExpireDuration)
+}
+
+// NewWithExpire creates new cache with the given maxBytes capacity and the given expireDuration
 // for inactive entries.
 //
 // Stop must be called on the returned cache when it is no longer needed.
-func New(maxBytes int, expireDuration time.Duration) *Cache {
+func NewWithExpire(maxBytes int, expireDuration time.Duration) *Cache {
 	curr := fastcache.New(maxBytes / 2)
 	prev := fastcache.New(1024)
 	c := newCacheInternal(curr, prev, split, maxBytes)
@@ -153,6 +172,9 @@ func (c *Cache) cacheSizeWatcher() {
 			return
 		case <-t.C:
 		}
+		if c.loadMode() != split {
+			continue
+		}
 		var cs fastcache.Stats
 		curr := c.curr.Load().(*fastcache.Cache)
 		curr.UpdateStats(&cs)
@@ -169,10 +191,10 @@ func (c *Cache) cacheSizeWatcher() {
 	// Do this in the following steps:
 	// 1) switch to mode=switching
 	// 2) move curr cache to prev
-	// 3) create curr with the double size
-	// 4) wait until curr size exceeds maxBytesSize, i.e. it is populated with new data
+	// 3) create curr cache with doubled size
+	// 4) wait until curr cache size exceeds maxBytesSize, i.e. it is populated with new data
 	// 5) switch to mode=whole
-	// 6) drop prev
+	// 6) drop prev cache
 
 	c.mu.Lock()
 	c.setMode(switching)

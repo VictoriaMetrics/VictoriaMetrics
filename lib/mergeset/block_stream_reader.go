@@ -98,20 +98,20 @@ func (bsr *blockStreamReader) String() string {
 	return bsr.ph.String()
 }
 
-// InitFromInmemoryPart initializes bsr from the given ip.
-func (bsr *blockStreamReader) InitFromInmemoryPart(ip *inmemoryPart) {
+// InitFromInmemoryPart initializes bsr from the given mp.
+func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
 	bsr.reset()
 
 	var err error
-	bsr.mrs, err = unmarshalMetaindexRows(bsr.mrs[:0], ip.metaindexData.NewReader())
+	bsr.mrs, err = unmarshalMetaindexRows(bsr.mrs[:0], mp.metaindexData.NewReader())
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal metaindex rows from inmemory part: %s", err)
 	}
 
-	bsr.ph.CopyFrom(&ip.ph)
-	bsr.indexReader = ip.indexData.NewReader()
-	bsr.itemsReader = ip.itemsData.NewReader()
-	bsr.lensReader = ip.lensData.NewReader()
+	bsr.ph.CopyFrom(&mp.ph)
+	bsr.indexReader = mp.indexData.NewReader()
+	bsr.itemsReader = mp.itemsData.NewReader()
+	bsr.lensReader = mp.lensData.NewReader()
 
 	if bsr.ph.itemsCount <= 0 {
 		logger.Panicf("BUG: source inmemoryPart must contain at least a single item")
