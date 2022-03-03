@@ -5,7 +5,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -13,12 +12,6 @@ type inmemoryPart struct {
 	ph partHeader
 	bh blockHeader
 	mr metaindexRow
-
-	unpackedIndexBlockBuf []byte
-	packedIndexBlockBuf   []byte
-
-	unpackedMetaindexBuf []byte
-	packedMetaindexBuf   []byte
 
 	metaindexData bytesutil.ByteBuffer
 	indexData     bytesutil.ByteBuffer
@@ -30,12 +23,6 @@ func (mp *inmemoryPart) Reset() {
 	mp.ph.Reset()
 	mp.bh.Reset()
 	mp.mr.Reset()
-
-	mp.unpackedIndexBlockBuf = mp.unpackedIndexBlockBuf[:0]
-	mp.packedIndexBlockBuf = mp.packedIndexBlockBuf[:0]
-
-	mp.unpackedMetaindexBuf = mp.unpackedMetaindexBuf[:0]
-	mp.packedMetaindexBuf = mp.packedMetaindexBuf[:0]
 
 	mp.metaindexData.Reset()
 	mp.indexData.Reset()
@@ -73,18 +60,20 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.bh.lensBlockOffset = 0
 	mp.bh.lensBlockSize = uint32(len(mp.lensData.B))
 
-	mp.unpackedIndexBlockBuf = mp.bh.Marshal(mp.unpackedIndexBlockBuf[:0])
-	mp.packedIndexBlockBuf = encoding.CompressZSTDLevel(mp.packedIndexBlockBuf[:0], mp.unpackedIndexBlockBuf, 0)
-	fs.MustWriteData(&mp.indexData, mp.packedIndexBlockBuf)
+	bb := inmemoryPartBytePool.Get()
+	bb.B = mp.bh.Marshal(bb.B[:0])
+	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, 0)
 
 	mp.mr.firstItem = append(mp.mr.firstItem[:0], mp.bh.firstItem...)
 	mp.mr.blockHeadersCount = 1
 	mp.mr.indexBlockOffset = 0
-	mp.mr.indexBlockSize = uint32(len(mp.packedIndexBlockBuf))
-	mp.unpackedMetaindexBuf = mp.mr.Marshal(mp.unpackedMetaindexBuf[:0])
-	mp.packedMetaindexBuf = encoding.CompressZSTDLevel(mp.packedMetaindexBuf[:0], mp.unpackedMetaindexBuf, 0)
-	fs.MustWriteData(&mp.metaindexData, mp.packedMetaindexBuf)
+	mp.mr.indexBlockSize = uint32(len(mp.indexData.B))
+	bb.B = mp.mr.Marshal(bb.B[:0])
+	mp.metaindexData.B = encoding.CompressZSTDLevel(mp.metaindexData.B[:0], bb.B, 0)
+	inmemoryPartBytePool.Put(bb)
 }
+
+var inmemoryPartBytePool bytesutil.ByteBufferPool
 
 // It is safe calling NewPart multiple times.
 // It is unsafe re-using mp while the returned part is in use.
