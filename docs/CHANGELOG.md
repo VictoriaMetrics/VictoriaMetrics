@@ -14,6 +14,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.74.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.74.0)
+
+Released at 03-03-2022
+
 * FEATURE: add support for conditional relabeling via `if` filter. The `if` filter can contain arbitrary [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following rule drops targets matching `foo{bar="baz"}` series selector:
 
 ```yml
