@@ -22,7 +22,7 @@ With CRD (Custom Resource Definition) you can define application configuration a
 
 ## Use cases
 
- For kubernetes-cluster administrators, it simplifies installation, configuration, management for `VictoriaMetrics` application. And the main feature of operator -  is ability to delegate applications monitoring configuration to the end-users.
+ For kubernetes-cluster administrators, it simplifies installation, configuration and management for `VictoriaMetrics` application. The main feature of operator is its ability to delegate the configuration of applications monitoring to the end-users.
  
  For applications developers, its great possibility for managing observability of applications. You can define metrics scraping and alerting configuration for your application and manage it with an application deployment process. Just define app_deployment.yaml, app_vmpodscrape.yaml and app_vmrule.yaml. That's it, you can apply it to a kubernetes cluster. Check [quick-start](/Operator/quick-start.html) for an example.
 
