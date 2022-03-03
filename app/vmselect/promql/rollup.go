@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -17,6 +20,17 @@ import (
 var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The minimum interval for staleness calculations. "+
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
+
+var downsampling = flag.String("downsampling.period", "", "-downsampling.period=30d:2,180d:5 instructs VictoriaMetrics to deduplicate samples older than 30 days with 2x scrape interval and to deduplicate samples older than 180 days with 5x scrape interval interval.")
+var minSamplesPerSeries = flag.Int("downsampling.minSamplesPerSeries", 10e2, "The minimum number of samples a single query can scan per each time series will do select downsampling. See also -downsampling.minSamplesPerSeries")
+
+var once sync.Once
+var meta []DownSamplingMeta
+
+type DownSamplingMeta struct {
+	Duration            time.Duration
+	ScrapeIntervalCount int
+}
 
 var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":        newRollupFuncOneArg(rollupAbsent),
@@ -482,7 +496,129 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 //
 // Do cannot be called from concurrent goroutines.
 func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) []float64 {
+
+	once.Do(func() {
+		if *downsampling != "" {
+			//downsampling like 30d:2,180d:5
+			aggregates := strings.Split(*downsampling, ",")
+			if len(aggregates) > 0 {
+				for _, v := range aggregates {
+					chunks := strings.Split(v, ":")
+					if len(chunks) > 0 {
+						duration, e1 := convertDuration(chunks[0])
+						scrapeIntervalCount, e2 := strconv.Atoi(chunks[1])
+						if e1 == nil && e2 == nil {
+							if scrapeIntervalCount > 1 {
+								dm := DownSamplingMeta{Duration: duration,
+									ScrapeIntervalCount: scrapeIntervalCount}
+								meta = append(meta, dm)
+							}
+						}
+					}
+				}
+			}
+
+			if len(meta) > 1 {
+				sort.Slice(meta, func(i, j int) bool {
+					return meta[i].Duration > meta[j].Duration
+				})
+			}
+
+		}
+	})
+
+	//select downsampling logic
+	if len(meta) > 1 && len(values) >= *minSamplesPerSeries {
+		timeInterval := rc.End - rc.Start
+
+		var scrapeIntervalCount int64
+
+		for _, v := range meta {
+			if timeInterval >= v.Duration.Milliseconds() {
+				scrapeIntervalCount = int64(v.ScrapeIntervalCount)
+				break
+			}
+		}
+		scrapeInterval := getScrapeInterval(timestamps)
+		downsamplingInterval := scrapeInterval * scrapeIntervalCount
+		timestamps, values = deduplicateMetricPointInternal(timestamps, values, downsamplingInterval)
+	}
+
 	return rc.doInternal(dstValues, nil, values, timestamps)
+}
+
+func convertDuration(duration string) (time.Duration, error) {
+	/*
+		Golang's time library doesn't support many different
+		string formats (year, month, week, day) because they
+		aren't consistent ranges. But Java's library _does_.
+		Consequently, we'll need to handle all the custom
+		time ranges, and, to make the internal API call consistent,
+		we'll need to allow for durations that Go supports, too.
+
+		The nice thing is all the "broken" time ranges are > 1 hour,
+		so we can just make assumptions to convert them to a range in hours.
+		They aren't *good* assumptions, but they're reasonable
+		for this function.
+	*/
+	var actualDuration time.Duration
+	var err error
+	var timeValue int
+	if strings.HasSuffix(duration, "y") {
+		timeValue, err = strconv.Atoi(strings.Trim(duration, "y"))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+		timeValue = timeValue * 365 * 24
+		actualDuration, err = time.ParseDuration(fmt.Sprintf("%vh", timeValue))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else if strings.HasSuffix(duration, "w") {
+		timeValue, err = strconv.Atoi(strings.Trim(duration, "w"))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+		timeValue = timeValue * 7 * 24
+		actualDuration, err = time.ParseDuration(fmt.Sprintf("%vh", timeValue))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else if strings.HasSuffix(duration, "d") {
+		timeValue, err = strconv.Atoi(strings.Trim(duration, "d"))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+		timeValue = timeValue * 24
+		actualDuration, err = time.ParseDuration(fmt.Sprintf("%vh", timeValue))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else if strings.HasSuffix(duration, "h") || strings.HasSuffix(duration, "m") || strings.HasSuffix(duration, "s") || strings.HasSuffix(duration, "ms") {
+		actualDuration, err = time.ParseDuration(duration)
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else {
+		return 0, fmt.Errorf("invalid time duration string: %q", duration)
+	}
+	return actualDuration, nil
+}
+
+func deduplicateMetricPointInternal(srcTimestamps []int64, srcValues []float64, dedupMetricPointInterval int64) ([]int64, []float64) {
+	tsPre := srcTimestamps[0]
+	dstTimestamps := srcTimestamps[:1]
+	dstValues := srcValues[:1]
+	for i := 1; i < len(srcTimestamps); i++ {
+		ts := srcTimestamps[i]
+		if ts-tsPre < dedupMetricPointInterval {
+			continue
+		}
+		dstTimestamps = append(dstTimestamps, ts)
+		dstValues = append(dstValues, srcValues[i])
+		tsPre = ts
+	}
+	return dstTimestamps, dstValues
 }
 
 // DoTimeseriesMap calculates rollups for the given timestamps and values and puts them to tsm.
