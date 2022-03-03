@@ -100,6 +100,30 @@ users:
   url_prefix: http://foo.bar
 `)
 
+	// Username and influx_token in a single config
+	f(`
+users:
+- username: foo
+  influx_token: bbb
+  url_prefix: http://foo.bar
+`)
+
+	// influx_token and password in a single config
+	f(`
+users:
+- password: foo
+  influx_token: bbb
+  url_prefix: http://foo.bar
+`)
+
+	// Bearer_token and influx_token in a single config
+	f(`
+users:
+- influx_token: foo
+  bearer_token: bbb
+  url_prefix: http://foo.bar
+`)
+
 	// Duplicate users
 	f(`
 users:
@@ -119,6 +143,17 @@ users:
 - username: bar
   url_prefix: http://xxx.yyy
 - bearer_token: foo
+  url_prefix: https://sss.sss
+`)
+
+	// Duplicate influx_tokens
+	f(`
+users:
+- influx_token: foo
+  url_prefix: http://foo.bar
+- username: bar
+  url_prefix: http://xxx.yyy
+- influx_token: foo
   url_prefix: https://sss.sss
 `)
 
@@ -207,7 +242,7 @@ users:
   password: bar
   url_prefix: http://aaa:343/bbb
 `, map[string]*UserInfo{
-		getAuthToken("", "foo", "bar"): {
+		getAuthToken("", "", "foo", "bar"): {
 			Username:  "foo",
 			Password:  "bar",
 			URLPrefix: mustParseURL("http://aaa:343/bbb"),
@@ -223,7 +258,7 @@ users:
   - http://node1:343/bbb
   - http://node2:343/bbb
 `, map[string]*UserInfo{
-		getAuthToken("", "foo", "bar"): {
+		getAuthToken("", "", "foo", "bar"): {
 			Username: "foo",
 			Password: "bar",
 			URLPrefix: mustParseURLs([]string{
@@ -241,11 +276,11 @@ users:
 - username: bar
   url_prefix: https://bar/x///
 `, map[string]*UserInfo{
-		getAuthToken("", "foo", ""): {
+		getAuthToken("", "", "foo", ""): {
 			Username:  "foo",
 			URLPrefix: mustParseURL("http://foo"),
 		},
-		getAuthToken("", "bar", ""): {
+		getAuthToken("", "", "bar", ""): {
 			Username:  "bar",
 			URLPrefix: mustParseURL("https://bar/x"),
 		},
@@ -264,7 +299,7 @@ users:
     - "foo: bar"
     - "xxx: y"
 `, map[string]*UserInfo{
-		getAuthToken("foo", "", ""): {
+		getAuthToken("foo", "", "", ""): {
 			BearerToken: "foo",
 			URLMap: []URLMap{
 				{
@@ -290,7 +325,7 @@ users:
 				},
 			},
 		},
-		getAuthToken("", "foo", ""): {
+		getAuthToken("", "", "foo", ""): {
 			BearerToken: "foo",
 			URLMap: []URLMap{
 				{

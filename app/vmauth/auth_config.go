@@ -34,6 +34,7 @@ type AuthConfig struct {
 type UserInfo struct {
 	Name        string     `yaml:"name,omitempty"`
 	BearerToken string     `yaml:"bearer_token,omitempty"`
+	InfluxToken string     `yaml:"influx_token,omitempty"`
 	Username    string     `yaml:"username,omitempty"`
 	Password    string     `yaml:"password,omitempty"`
 	URLPrefix   *URLPrefix `yaml:"url_prefix,omitempty"`
@@ -262,21 +263,31 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	byUsername := make(map[string]bool, len(uis))
 	byBearerToken := make(map[string]bool, len(uis))
+	byInfluxToken := make(map[string]bool, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		if ui.BearerToken == "" && ui.Username == "" {
-			return nil, fmt.Errorf("either bearer_token or username must be set")
+		if ui.BearerToken == "" && ui.InfluxToken == "" && ui.Username == "" {
+			return nil, fmt.Errorf("Bearer_token, influx_token or username must be set")
 		}
 		if ui.BearerToken != "" && ui.Username != "" {
 			return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
 		}
+		if ui.InfluxToken != "" && ui.Username != "" {
+			return nil, fmt.Errorf("influx_token=%q and username=%q cannot be set simultaneously", ui.InfluxToken, ui.Username)
+		}
+		if ui.BearerToken != "" && ui.InfluxToken != "" {
+			return nil, fmt.Errorf("bearer_token=%q and influx_token=%q cannot be set simultaneously", ui.BearerToken, ui.InfluxToken)
+		}
 		if byBearerToken[ui.BearerToken] {
 			return nil, fmt.Errorf("duplicate bearer_token found; bearer_token: %q", ui.BearerToken)
+		}
+		if byInfluxToken[ui.InfluxToken] {
+			return nil, fmt.Errorf("duplicate influx_token found; influx_token: %q", ui.InfluxToken)
 		}
 		if byUsername[ui.Username] {
 			return nil, fmt.Errorf("duplicate username found; username: %q", ui.Username)
 		}
-		at1, at2 := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		at1, at2 := getAuthTokens(ui.BearerToken, ui.InfluxToken, ui.Username, ui.Password)
 		if byAuthToken[at1] != nil {
 			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at1)
 		}
@@ -313,6 +324,17 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 			byBearerToken[ui.BearerToken] = true
 		}
+		if ui.InfluxToken != "" {
+			name := "influx_token"
+			if ui.Name != "" {
+				name = ui.Name
+			}
+			if ui.Password != "" {
+				return nil, fmt.Errorf("password shouldn't be set for influx_token %q", ui.InfluxToken)
+			}
+			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
+			byInfluxToken[ui.InfluxToken] = true
+		}
 		if ui.Username != "" {
 			name := ui.Username
 			if ui.Name != "" {
@@ -327,20 +349,27 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 	return byAuthToken, nil
 }
 
-func getAuthTokens(bearerToken, username, password string) (string, string) {
+func getAuthTokens(bearerToken, influxToken, username, password string) (string, string) {
 	if bearerToken != "" {
 		// Accept the bearerToken as Basic Auth username with empty password
-		at1 := getAuthToken(bearerToken, "", "")
-		at2 := getAuthToken("", bearerToken, "")
+		at1 := getAuthToken(bearerToken, "", "", "")
+		at2 := getAuthToken("", "", bearerToken, "")
 		return at1, at2
 	}
-	at := getAuthToken("", username, password)
+	if influxToken != "" {
+		at := getAuthToken("", influxToken, "", "")
+		return at, at
+	}
+	at := getAuthToken("", "", username, password)
 	return at, at
 }
 
-func getAuthToken(bearerToken, username, password string) string {
+func getAuthToken(bearerToken, influxToken, username, password string) string {
 	if bearerToken != "" {
 		return "Bearer " + bearerToken
+	}
+	if influxToken != "" {
+		return "Token " + influxToken
 	}
 	token := username + ":" + password
 	token64 := base64.StdEncoding.EncodeToString([]byte(token))
