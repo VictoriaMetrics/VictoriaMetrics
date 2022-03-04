@@ -539,7 +539,9 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 			}
 		}
 
-		timestamps, values = deduplicateMetricPointInternal(timestamps, values, dsInterval)
+		if dsInterval > 0 {
+			timestamps, values = deduplicateMetricPointInternal(timestamps, values, dsInterval)
+		}
 	}
 
 	return rc.doInternal(dstValues, nil, values, timestamps)
