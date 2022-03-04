@@ -21,15 +21,15 @@ var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The 
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
-var downsampling = flag.String("downsampling.period", "", "-downsampling.period=30d:2,180d:5 instructs VictoriaMetrics to deduplicate samples older than 30 days with 2x scrape interval and to deduplicate samples older than 180 days with 5x scrape interval interval.")
+var downsampling = flag.String("downsampling.period", "", "-downsampling.period=30d:5m,180d:30m instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 30 minutes interval interval.")
 var minSamplesPerSeries = flag.Int("downsampling.minSamplesPerSeries", 10e2, "The minimum number of samples a single query can scan per each time series will do select downsampling. See also -downsampling.minSamplesPerSeries")
 
 var once sync.Once
 var meta []DownSamplingMeta
 
 type DownSamplingMeta struct {
-	Duration            time.Duration
-	ScrapeIntervalCount int
+	Duration             time.Duration
+	DownsamplingInterval time.Duration
 }
 
 var rollupFuncs = map[string]newRollupFunc{
@@ -499,18 +499,18 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 	once.Do(func() {
 		if *downsampling != "" {
-			//downsampling like 30d:2,180d:5
+			//downsampling like 30d:5m,180d:30m
 			aggregates := strings.Split(*downsampling, ",")
 			if len(aggregates) > 0 {
 				for _, v := range aggregates {
 					chunks := strings.Split(v, ":")
 					if len(chunks) > 0 {
 						duration, e1 := convertDuration(chunks[0])
-						scrapeIntervalCount, e2 := strconv.Atoi(chunks[1])
+						downsamplingInterval, e2 := convertDuration(chunks[1])
 						if e1 == nil && e2 == nil {
-							if scrapeIntervalCount > 1 {
+							if downsamplingInterval > 1 {
 								dm := DownSamplingMeta{Duration: duration,
-									ScrapeIntervalCount: scrapeIntervalCount}
+									DownsamplingInterval: downsamplingInterval}
 								meta = append(meta, dm)
 							}
 						}
@@ -527,21 +527,21 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 		}
 	})
 
-	//select downsampling logic
 	if len(meta) > 1 && len(values) >= *minSamplesPerSeries {
 		timeInterval := rc.End - rc.Start
 
-		var scrapeIntervalCount int64
+		var dsInterval int64
 
 		for _, v := range meta {
 			if timeInterval >= v.Duration.Milliseconds() {
-				scrapeIntervalCount = int64(v.ScrapeIntervalCount)
+				dsInterval = v.DownsamplingInterval.Milliseconds()
 				break
 			}
 		}
-		scrapeInterval := getScrapeInterval(timestamps)
-		downsamplingInterval := scrapeInterval * scrapeIntervalCount
-		timestamps, values = deduplicateMetricPointInternal(timestamps, values, downsamplingInterval)
+
+		if dsInterval > 0 {
+			timestamps, values = deduplicateMetricPointInternal(timestamps, values, dsInterval)
+		}
 	}
 
 	return rc.doInternal(dstValues, nil, values, timestamps)
@@ -1710,6 +1710,17 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
+	/*
+		//在这边逻辑进行过滤 排查拉取间隔之外的数据点
+		if *removeUnnecessaryMetricPoint {
+			//获取拉取间隔
+			scrapeInterval := getScrapeInterval(timestamps) - 100
+
+			if len(timestamps) > 1 && len(values) > 1 {
+				timestamps, values = deduplicateMetricPointInternal(timestamps, values, scrapeInterval)
+			}
+		}
+	*/
 	if len(values) < 2 {
 		if len(values) == 0 {
 			return nan
