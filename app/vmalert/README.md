@@ -296,7 +296,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
 ```
 ./bin/vmalert -rule=rules.yml  \                                # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://vmselect:8481/select/0/prometheus    # vmselect addr for executing rules expressions
-    -remoteWrite.url=http://vminsert:8480/insert/0/prometheuss  # vminsert addr to persist alerts state and recording rules results
+    -remoteWrite.url=http://vminsert:8480/insert/0/prometheus   # vminsert addr to persist alerts state and recording rules results
     -remoteRead.url=http://vmselect:8481/select/0/prometheus    # vmselect addr for restoring alerts state after restart
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
@@ -352,7 +352,7 @@ or reducing resolution) and push results to "cold" cluster.
 ```
 ./bin/vmalert -rule=downsampling-rules.yml \                                        # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recordi ng rules expressions
-    -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheuss   # vminsert addr to persist recording rules results
+    -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
 <img alt="vmalert multi cluster" src="vmalert_multicluster.png">
