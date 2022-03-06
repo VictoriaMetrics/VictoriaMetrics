@@ -48,10 +48,8 @@ func (prc *parsedRelabelConfig) String() string {
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
-//
-// If isFinalize is set, then FinalizeLabels is called on the labels[labelsOffset:].
 func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
-	var inStr string
+	var inStr, outStr string
 	relabelDebug := false
 	if pcs != nil {
 		relabelDebug = pcs.relabelDebug
@@ -70,14 +68,15 @@ func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) 
 			labels = tmp
 		}
 	}
+	if relabelDebug {
+		outStr = labelsToString(labels[labelsOffset:])
+	}
 	labels = removeEmptyLabels(labels, labelsOffset)
 	if relabelDebug {
 		if len(labels) == labelsOffset {
-			logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed", inStr)
+			logger.Infof("\nRelabel  In: %s\nRelabeled to DROP: %s", inStr, outStr)
 			return labels
-		}
-		outStr := labelsToString(labels[labelsOffset:])
-		if inStr == outStr {
+		} else if inStr == outStr {
 			logger.Infof("\nRelabel  In: %s\nRelabel Out: KEPT AS IS - no change", inStr)
 		} else {
 			logger.Infof("\nRelabel  In: %s\nRelabel Out: %s", inStr, outStr)
