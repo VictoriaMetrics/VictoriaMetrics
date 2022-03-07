@@ -15,10 +15,15 @@ var (
 	configPath                    = flag.String("notifier.config", "", "Path to configuration file for notifiers")
 	suppressDuplicateTargetErrors = flag.Bool("notifier.suppressDuplicateTargetErrors", false, "Whether to suppress 'duplicate target' errors during discovery")
 
-	addrs                 = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
-	basicAuthUsername     = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
-	basicAuthPassword     = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
-	basicAuthPasswordFile = flagutil.NewArray("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
+	addrs                        = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
+	basicAuthUsername            = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
+	basicAuthPassword            = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
+	basicAuthPasswordFile        = flagutil.NewArray("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
+	authorizationType            = flagutil.NewArray("notifier.authorization.type", "Optional authorization type (`basic or bearer`) for -notifier.url")
+	authorizationCredentials     = flagutil.NewArray("notifier.authorization.credentials", "Optional authorization credentials for -notifier.url")
+	authorizationCredentialsFile = flagutil.NewArray("notifier.authorization.credentialsFile", "Optional path to authorization credentials file for -notifier.url")
+	bearerToken                  = flagutil.NewArray("notifier.bearerToken", "Optional bearer token for -notifier.url")
+	bearerTokenFile              = flagutil.NewArray("notifier.bearerTokenFile", "Optional path to bearer token file for -notifier.url")
 
 	tlsInsecureSkipVerify = flagutil.NewArrayBool("notifier.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to -notifier.url")
 	tlsCertFile           = flagutil.NewArray("notifier.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
@@ -111,7 +116,15 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 				Password:     promauth.NewSecret(basicAuthPassword.GetOptionalArg(i)),
 				PasswordFile: basicAuthPasswordFile.GetOptionalArg(i),
 			},
+			Authorization: &promauth.Authorization{
+				Type:            authorizationType.GetOptionalArg(i),
+				Credentials:     promauth.NewSecret(authorizationCredentials.GetOptionalArg(i)),
+				CredentialsFile: authorizationCredentialsFile.GetOptionalArg(i),
+			},
+			BearerToken:     promauth.NewSecret(bearerToken.GetOptionalArg(i)),
+			BearerTokenFile: bearerTokenFile.GetOptionalArg(i),
 		}
+
 		addr = strings.TrimSuffix(addr, "/")
 		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, time.Minute)
 		if err != nil {
