@@ -14,5 +14,8 @@ func AuthConfig(baUser, baPass, baFile, bearerToken, bearerTokenFile string, az 
 			PasswordFile: baFile,
 		}
 	}
-	return promauth.NewConfig(".", az, baCfg, bearerToken, bearerTokenFile, nil, nil)
+	if az != nil && az.Type != "" {
+		return promauth.NewConfig(".", az, nil, "", "", nil, nil)
+	}
+	return promauth.NewConfig(".", nil, baCfg, bearerToken, bearerTokenFile, nil, nil)
 }

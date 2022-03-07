@@ -112,15 +112,16 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
-	var az *promauth.Authorization
-	var ba *promauth.BasicAuthConfig
+	az := new(promauth.Authorization)
+	ba := new(promauth.BasicAuthConfig)
+	var baToken string
 	if authCfg.BasicAuth != nil {
 		ba = authCfg.BasicAuth
 	}
 	if authCfg.Authorization != nil {
 		az = authCfg.Authorization
 	}
-	aCfg, err := utils.AuthConfig(ba.Username, ba.Password.String(), ba.PasswordFile, authCfg.BearerToken.String(), authCfg.BearerTokenFile, az)
+	aCfg, err := utils.AuthConfig(ba.Username, ba.Password.String(), ba.PasswordFile, baToken, authCfg.BearerTokenFile, az)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
