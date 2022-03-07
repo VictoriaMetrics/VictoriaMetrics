@@ -8,17 +8,21 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
 	addr = flag.String("datasource.url", "", "VictoriaMetrics or vmselect url. Required parameter. "+
 		"E.g. http://127.0.0.1:8428")
-	appendTypePrefix      = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
-	basicAuthUsername     = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
-	basicAuthPassword     = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
-	basicAuthPasswordFile = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
-	bearerToken           = flag.String("datasource.bearerToken", "", "Optional bearer auth token to use for -datasource.url.")
-	bearerTokenFile       = flag.String("datasource.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.url.")
+	appendTypePrefix             = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+	basicAuthUsername            = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthPassword            = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+	basicAuthPasswordFile        = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
+	bearerToken                  = flag.String("datasource.bearerToken", "", "Optional bearer auth token to use for -datasource.url.")
+	bearerTokenFile              = flag.String("datasource.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.url.")
+	authorizationType            = flag.String("datasource.type", "", "Optional authorization type (`basic or bearer`) for -datasource.url")
+	authorizationCredentials     = flag.String("datasource.credentials", "", "Optional authorization credentials for -datasource.url")
+	authorizationCredentialsFile = flag.String("datasource.credentialsFile", "", "Optional path to authorization credentials file for -datasource.url")
 
 	tlsInsecureSkipVerify = flag.Bool("datasource.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.url")
 	tlsCertFile           = flag.String("datasource.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.url")
@@ -64,7 +68,13 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		extraParams.Set("round_digits", fmt.Sprintf("%d", *roundDigits))
 	}
 
-	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile)
+	az := &promauth.Authorization{
+		Type:            *authorizationType,
+		Credentials:     promauth.NewSecret(*authorizationCredentials),
+		CredentialsFile: *authorizationCredentialsFile,
+	}
+
+	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile, az)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

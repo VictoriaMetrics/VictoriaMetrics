@@ -7,17 +7,21 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts "+
 		"state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
 		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
-	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
-	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
-	basicAuthPasswordFile = flag.String("remoteRead.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteRead.url")
-	bearerToken           = flag.String("remoteRead.bearerToken", "", "Optional bearer auth token to use for -remoteRead.url.")
-	bearerTokenFile       = flag.String("remoteRead.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteRead.url.")
+	basicAuthUsername            = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
+	basicAuthPassword            = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
+	basicAuthPasswordFile        = flag.String("remoteRead.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteRead.url")
+	bearerToken                  = flag.String("remoteRead.bearerToken", "", "Optional bearer auth token to use for -remoteRead.url.")
+	bearerTokenFile              = flag.String("remoteRead.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteRead.url.")
+	authorizationType            = flag.String("remoteRead.type", "", "Optional authorization type (`basic or bearer`) for -remoteRead.url")
+	authorizationCredentials     = flag.String("remoteRead.credentials", "", "Optional authorization credentials for -remoteRead.url")
+	authorizationCredentialsFile = flag.String("remoteRead.credentialsFile", "", "Optional path to authorization credentials file for -remoteRead.url")
 
 	tlsInsecureSkipVerify = flag.Bool("remoteRead.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteRead.url")
 	tlsCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
@@ -39,7 +43,14 @@ func Init() (datasource.QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
-	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile)
+
+	az := &promauth.Authorization{
+		Type:            *authorizationType,
+		Credentials:     promauth.NewSecret(*authorizationCredentials),
+		CredentialsFile: *authorizationCredentialsFile,
+	}
+
+	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile, az)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

@@ -7,17 +7,21 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
 	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
 		"and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
 		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend")
-	basicAuthUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
-	basicAuthPassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
-	basicAuthPasswordFile = flag.String("remoteWrite.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteWrite.url")
-	bearerToken           = flag.String("remoteWrite.bearerToken", "", "Optional bearer auth token to use for -remoteWrite.url.")
-	bearerTokenFile       = flag.String("remoteWrite.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteWrite.url.")
+	basicAuthUsername            = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	basicAuthPassword            = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
+	basicAuthPasswordFile        = flag.String("remoteWrite.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteWrite.url")
+	bearerToken                  = flag.String("remoteWrite.bearerToken", "", "Optional bearer auth token to use for -remoteWrite.url.")
+	bearerTokenFile              = flag.String("remoteWrite.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteWrite.url.")
+	authorizationType            = flag.String("remoteWrite.type", "", "Optional authorization type (`basic or bearer`) for -remoteWrite.url")
+	authorizationCredentials     = flag.String("remoteWrite.credentials", "", "Optional authorization credentials for -remoteWrite.url")
+	authorizationCredentialsFile = flag.String("remoteWrite.credentialsFile", "", "Optional path to authorization credentials file for -remoteWrite.url")
 
 	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
@@ -46,7 +50,13 @@ func Init(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
-	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile)
+	az := &promauth.Authorization{
+		Type:            *authorizationType,
+		Credentials:     promauth.NewSecret(*authorizationCredentials),
+		CredentialsFile: *authorizationCredentialsFile,
+	}
+
+	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile, az)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
