@@ -171,9 +171,12 @@ func TestVMInstantQueryWithAuthorization(t *testing.T) {
 		reqToken := r.Header.Get("Authorization")
 		splitToken := strings.Split(reqToken, "Bearer ")
 		if len(splitToken) != 2 {
-			t.Errorf("expected %s as basic auth got %s", basicAuthPass, splitToken)
+			t.Errorf("expected two items got %d", len(splitToken))
 		}
-		reqToken = splitToken[1]
+		token := splitToken[1]
+		if token != basicAuthPass {
+			t.Errorf("expected %s as basic auth got %s", basicAuthPass, token)
+		}
 
 		if r.URL.Query().Get("query") != query {
 			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))

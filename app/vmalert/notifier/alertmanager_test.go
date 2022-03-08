@@ -115,7 +115,7 @@ func TestAlertManager_Send(t *testing.T) {
 }
 
 func TestAlertManager_SendWithAuthorization(t *testing.T) {
-	const baUser, baPass = "foo", "bar"
+	const baPass = "bar"
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
 		t.Errorf("should not be called")
@@ -125,9 +125,12 @@ func TestAlertManager_SendWithAuthorization(t *testing.T) {
 		reqToken := r.Header.Get("Authorization")
 		splitToken := strings.Split(reqToken, "Bearer ")
 		if len(splitToken) != 2 {
-			t.Errorf("expected %s as basic auth got %s", baPass, splitToken)
+			t.Errorf("expected two items got %d", len(splitToken))
 		}
-		reqToken = splitToken[1]
+		token := splitToken[1]
+		if token != baPass {
+			t.Errorf("expected %s as basic auth got %s", baPass, token)
+		}
 		c++
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST method got %s", r.Method)
