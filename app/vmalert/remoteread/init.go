@@ -7,7 +7,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -44,13 +43,10 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
-	az := &promauth.Authorization{
-		Type:            *authorizationType,
-		Credentials:     promauth.NewSecret(*authorizationCredentials),
-		CredentialsFile: *authorizationCredentialsFile,
-	}
-
-	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile, az)
+	authCfg, err := utils.AuthConfig(
+		utils.WithAuthorization(*authorizationType, *authorizationCredentials, *authorizationCredentialsFile),
+		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		utils.WithBearer(*bearerToken, *bearerTokenFile))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

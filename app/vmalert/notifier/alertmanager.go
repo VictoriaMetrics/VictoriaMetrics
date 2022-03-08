@@ -120,7 +120,11 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	if authCfg.Authorization != nil {
 		az = authCfg.Authorization
 	}
-	aCfg, err := utils.AuthConfig(ba.Username, ba.Password.String(), ba.PasswordFile, authCfg.BearerToken.String(), authCfg.BearerTokenFile, az)
+
+	aCfg, err := utils.AuthConfig(
+		utils.WithAuthorization(az.Type, az.Credentials.String(), az.CredentialsFile),
+		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
+		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

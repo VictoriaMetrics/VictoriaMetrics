@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -68,13 +67,10 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		extraParams.Set("round_digits", fmt.Sprintf("%d", *roundDigits))
 	}
 
-	az := &promauth.Authorization{
-		Type:            *authorizationType,
-		Credentials:     promauth.NewSecret(*authorizationCredentials),
-		CredentialsFile: *authorizationCredentialsFile,
-	}
-
-	authCfg, err := utils.AuthConfig(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile, *bearerToken, *bearerTokenFile, az)
+	authCfg, err := utils.AuthConfig(
+		utils.WithAuthorization(*authorizationType, *authorizationCredentials, *authorizationCredentialsFile),
+		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		utils.WithBearer(*bearerToken, *bearerTokenFile))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
