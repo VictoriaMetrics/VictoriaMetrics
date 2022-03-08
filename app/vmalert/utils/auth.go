@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
+// AuthConfigOptions options which helps build promauth.Config
 type AuthConfigOptions func(config *promauth.HTTPClientConfig)
 
 // AuthConfig returns promauth.Config based on the given params
