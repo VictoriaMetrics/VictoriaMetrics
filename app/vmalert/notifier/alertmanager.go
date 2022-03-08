@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
@@ -114,17 +115,22 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 
 	az := new(promauth.Authorization)
 	ba := new(promauth.BasicAuthConfig)
+	oauth := new(promauth.OAuth2Config)
 	if authCfg.BasicAuth != nil {
 		ba = authCfg.BasicAuth
 	}
 	if authCfg.Authorization != nil {
 		az = authCfg.Authorization
 	}
+	if authCfg.OAuth2 != nil {
+		oauth = authCfg.OAuth2
+	}
 
 	aCfg, err := utils.AuthConfig(
 		utils.WithAuthorization(az.Type, az.Credentials.String(), az.CredentialsFile),
 		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
-		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile))
+		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
+		utils.WithOAuth(oauth.ClientID, oauth.ClientSecretFile, oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";")))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

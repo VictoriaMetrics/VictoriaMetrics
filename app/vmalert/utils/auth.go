@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"strings"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -16,6 +18,7 @@ func AuthConfig(filterOptions ...AuthConfigOptions) (*promauth.Config, error) {
 	return authCfg.NewConfig(".")
 }
 
+// WithAuthorization returns AuthConfigOptions and initialized promauth.Authorization based on given params
 func WithAuthorization(authType, credentials, credentialsFile string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
 		authCfg := &promauth.Authorization{}
@@ -34,6 +37,7 @@ func WithAuthorization(authType, credentials, credentialsFile string) AuthConfig
 	}
 }
 
+// WithBasicAuth returns AuthConfigOptions and initialized promauth.BasicAuthConfig based on given params
 func WithBasicAuth(username, password, passwordFile string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
 		if username != "" || password != "" || passwordFile != "" {
@@ -46,6 +50,7 @@ func WithBasicAuth(username, password, passwordFile string) AuthConfigOptions {
 	}
 }
 
+// WithBearer returns AuthConfigOptions and set BearerToken or BearerTokenFile based on given params
 func WithBearer(token, tokenFile string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
 		if token != "" {
@@ -53,6 +58,21 @@ func WithBearer(token, tokenFile string) AuthConfigOptions {
 		}
 		if tokenFile != "" {
 			config.BearerTokenFile = tokenFile
+		}
+	}
+}
+
+// WithOAuth returns AuthConfigOptions and set OAuth params based on given params
+func WithOAuth(clientID, clientSecret, clientSecretFile, tokenURL, scopes string) AuthConfigOptions {
+	return func(config *promauth.HTTPClientConfig) {
+		if clientSecretFile != "" || clientSecret != "" {
+			config.OAuth2 = &promauth.OAuth2Config{
+				ClientID:         clientID,
+				ClientSecret:     promauth.NewSecret(clientSecret),
+				ClientSecretFile: clientSecretFile,
+				TokenURL:         tokenURL,
+				Scopes:           strings.Split(scopes, ";"),
+			}
 		}
 	}
 }

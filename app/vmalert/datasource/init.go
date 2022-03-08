@@ -13,10 +13,12 @@ import (
 var (
 	addr = flag.String("datasource.url", "", "VictoriaMetrics or vmselect url. Required parameter. "+
 		"E.g. http://127.0.0.1:8428")
-	appendTypePrefix             = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
-	basicAuthUsername            = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
-	basicAuthPassword            = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
-	basicAuthPasswordFile        = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
+	appendTypePrefix = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+
+	basicAuthUsername     = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthPassword     = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+	basicAuthPasswordFile = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
+
 	bearerToken                  = flag.String("datasource.bearerToken", "", "Optional bearer auth token to use for -datasource.url.")
 	bearerTokenFile              = flag.String("datasource.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.url.")
 	authorizationType            = flag.String("datasource.type", "", "Optional authorization type (`basic or bearer`) for -datasource.url")
@@ -28,6 +30,17 @@ var (
 	tlsKeyFile            = flag.String("datasource.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -datasource.url")
 	tlsCAFile             = flag.String("datasource.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used`)
 	tlsServerName         = flag.String("datasource.tlsServerName", "", `Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used`)
+
+	oauth2ClientID = flag.String("datasource.oauth2.clientID", "", "Optional OAuth2 clientID to use for -datasource.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
+	oauth2ClientSecret = flag.String("datasource.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -datasource.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
+	oauth2ClientSecretFile = flag.String("datasource.oauth2.clientSecretFile", "", "Optional OAuth2 clientSecretFile to use for -datasource.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
+	oauth2TokenURL = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
+	oauth2Scopes = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'. "+
+		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
 
 	lookBack  = flag.Duration("datasource.lookback", 0, `Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
 	queryStep = flag.Duration("datasource.queryStep", 0, "queryStep defines how far a value can fallback to when evaluating queries. "+
@@ -70,7 +83,8 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	authCfg, err := utils.AuthConfig(
 		utils.WithAuthorization(*authorizationType, *authorizationCredentials, *authorizationCredentialsFile),
 		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
-		utils.WithBearer(*bearerToken, *bearerTokenFile))
+		utils.WithBearer(*bearerToken, *bearerTokenFile),
+		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
