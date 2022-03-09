@@ -1455,6 +1455,27 @@ See the full description of flags [here](#list-of-command-line-flags).
 
 ## Data migration
 
+### From VictoriaMetrics
+
+The simplest way to migrate data from one single-node (source) to another (destination), or from one vmstorage node 
+to another do the following:
+1. Stop the VictoriaMetrics (source) with `kill -INT`;
+2. Copy (via [rsync](https://en.wikipedia.org/wiki/Rsync) or any other tool) the entire folder specified 
+via `-storageDataPath` from the source node to the destination node.
+3. Once copy is done, stop the VictoriaMetrics (destination) with `kill -INT` and verify that 
+its `-storageDataPath` points to the copied folder from p.2;
+4. Start the VictoriaMetrics (destination). The copied data should be now available.
+
+Things to consider when copying data:
+1. Data formats between single-node and vmstorage node aren't compatible and can't be copied.
+2. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
+
+For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
+of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
+
+
+### From other systems
+
 Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
 
 * From Prometheus to VictoriaMetrics
