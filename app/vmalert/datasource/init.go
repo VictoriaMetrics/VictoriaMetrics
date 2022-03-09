@@ -19,11 +19,8 @@ var (
 	basicAuthPassword     = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 	basicAuthPasswordFile = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
 
-	bearerToken                  = flag.String("datasource.bearerToken", "", "Optional bearer auth token to use for -datasource.url.")
-	bearerTokenFile              = flag.String("datasource.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.url.")
-	authorizationType            = flag.String("datasource.type", "", "Optional authorization type (`basic or bearer`) for -datasource.url")
-	authorizationCredentials     = flag.String("datasource.credentials", "", "Optional authorization credentials for -datasource.url")
-	authorizationCredentialsFile = flag.String("datasource.credentialsFile", "", "Optional path to authorization credentials file for -datasource.url")
+	bearerToken     = flag.String("datasource.bearerToken", "", "Optional bearer auth token to use for -datasource.url.")
+	bearerTokenFile = flag.String("datasource.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.url.")
 
 	tlsInsecureSkipVerify = flag.Bool("datasource.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.url")
 	tlsCertFile           = flag.String("datasource.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.url")
@@ -81,7 +78,6 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	}
 
 	authCfg, err := utils.AuthConfig(
-		utils.WithAuthorization(*authorizationType, *authorizationCredentials, *authorizationCredentialsFile),
 		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
 		utils.WithBearer(*bearerToken, *bearerTokenFile),
 		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes))

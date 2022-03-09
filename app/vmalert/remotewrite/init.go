@@ -21,10 +21,6 @@ var (
 	bearerToken     = flag.String("remoteWrite.bearerToken", "", "Optional bearer auth token to use for -remoteWrite.url.")
 	bearerTokenFile = flag.String("remoteWrite.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteWrite.url.")
 
-	authorizationType            = flag.String("remoteWrite.type", "", "Optional authorization type (`basic or bearer`) for -remoteWrite.url")
-	authorizationCredentials     = flag.String("remoteWrite.credentials", "", "Optional authorization credentials for -remoteWrite.url")
-	authorizationCredentialsFile = flag.String("remoteWrite.credentialsFile", "", "Optional path to authorization credentials file for -remoteWrite.url")
-
 	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
 	concurrency   = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote querier")
@@ -65,7 +61,6 @@ func Init(ctx context.Context) (*Client, error) {
 	}
 
 	authCfg, err := utils.AuthConfig(
-		utils.WithAuthorization(*authorizationType, *authorizationCredentials, *authorizationCredentialsFile),
 		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
 		utils.WithBearer(*bearerToken, *bearerTokenFile),
 		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes))

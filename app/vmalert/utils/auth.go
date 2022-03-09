@@ -19,19 +19,6 @@ func AuthConfig(filterOptions ...AuthConfigOptions) (*promauth.Config, error) {
 	return authCfg.NewConfig(".")
 }
 
-// WithAuthorization returns AuthConfigOptions and initialized promauth.Authorization based on given params
-func WithAuthorization(authType, credentials, credentialsFile string) AuthConfigOptions {
-	return func(config *promauth.HTTPClientConfig) {
-		if authType != "" || credentials != "" || credentialsFile != "" {
-			config.Authorization = &promauth.Authorization{
-				Type:            authType,
-				Credentials:     promauth.NewSecret(credentials),
-				CredentialsFile: credentialsFile,
-			}
-		}
-	}
-}
-
 // WithBasicAuth returns AuthConfigOptions and initialized promauth.BasicAuthConfig based on given params
 func WithBasicAuth(username, password, passwordFile string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
