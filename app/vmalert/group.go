@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"net/url"
 	"sync"
 	"time"
@@ -276,8 +277,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 			if len(g.Rules) > 0 {
-				resolveDuration := getResolveDuration(g.Interval)
-				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, resolveDuration)
+				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, getResolveDuration(g.Interval))
 				for err := range errs {
 					if err != nil {
 						logger.Errorf("group %q: %s", g.Name, err)
@@ -293,9 +293,14 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 // so in case if vmalert stops sending updates for some reason,
 // notifier could automatically resolve the alert.
 func getResolveDuration(groupInterval time.Duration) time.Duration {
+	delta := *resendDelay
+	if *maxResolveDuration > *resendDelay {
+		delta = *maxResolveDuration
+	}
 	resolveInterval := groupInterval * 3
-	if *maxResolveDuration > 0 && (resolveInterval > *maxResolveDuration) {
-		return *maxResolveDuration
+	log.Printf("delta => %d; resolveInterval => %d", delta, resolveInterval)
+	if delta > 0 && (delta > resolveInterval) {
+		return delta
 	}
 	return resolveInterval
 }

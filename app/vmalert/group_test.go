@@ -243,18 +243,21 @@ func TestResolveDuration(t *testing.T) {
 	testCases := []struct {
 		groupInterval time.Duration
 		maxDuration   time.Duration
+		resendDelay   time.Duration
 		expected      time.Duration
 	}{
-		{time.Minute, 0, 3 * time.Minute},
-		{3 * time.Minute, 0, 9 * time.Minute},
-		{time.Minute, 2 * time.Minute, 2 * time.Minute},
-		{0, 0, 0},
+		{time.Minute, 0, 0, 3 * time.Minute},
+		{time.Minute, 0, 4 * time.Minute, 4 * time.Minute},
+		{3 * time.Minute, 0, 0, 9 * time.Minute},
+		{time.Minute, 2 * time.Minute, 1 * time.Minute, 3 * time.Minute},
+		{0, 0, 0, 0},
 	}
 	defaultResolveDuration := *maxResolveDuration
 	defer func() { *maxResolveDuration = defaultResolveDuration }()
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%v-%v-%v", tc.groupInterval, tc.expected, tc.maxDuration), func(t *testing.T) {
 			*maxResolveDuration = tc.maxDuration
+			*resendDelay = tc.resendDelay
 			got := getResolveDuration(tc.groupInterval)
 			if got != tc.expected {
 				t.Errorf("expected to have %v; got %v", tc.expected, got)
