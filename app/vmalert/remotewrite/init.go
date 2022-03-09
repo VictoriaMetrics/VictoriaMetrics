@@ -34,16 +34,11 @@ var (
 	tlsServerName = flag.String("remoteWrite.tlsServerName", "", "Optional TLS server name to use for connections to -remoteWrite.url. "+
 		"By default the server name from -remoteWrite.url is used")
 
-	oauth2ClientID = flag.String("remoteWrite.oauth2.clientID", "", "Optional OAuth2 clientID to use for -remoteWrite.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	oauth2ClientSecret = flag.String("remoteWrite.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -remoteWrite.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	oauth2ClientSecretFile = flag.String("remoteWrite.oauth2.clientSecretFile", "", "Optional OAuth2 clientSecretFile to use for -remoteWrite.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	oauth2TokenURL = flag.String("remoteWrite.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -notifier.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	oauth2Scopes = flag.String("remoteWrite.oauth2.scopes", "", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
-		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	oauth2ClientID         = flag.String("remoteWrite.oauth2.clientID", "", "Optional OAuth2 clientID to use for -remoteWrite.url.")
+	oauth2ClientSecret     = flag.String("remoteWrite.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -remoteWrite.url.")
+	oauth2ClientSecretFile = flag.String("remoteWrite.oauth2.clientSecretFile", "", "Optional OAuth2 clientSecretFile to use for -remoteWrite.url.")
+	oauth2TokenURL         = flag.String("remoteWrite.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -notifier.url.")
+	oauth2Scopes           = flag.String("remoteWrite.oauth2.scopes", "", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.")
 
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 )

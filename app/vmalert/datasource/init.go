@@ -28,16 +28,11 @@ var (
 	tlsCAFile             = flag.String("datasource.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used`)
 	tlsServerName         = flag.String("datasource.tlsServerName", "", `Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used`)
 
-	oauth2ClientID = flag.String("datasource.oauth2.clientID", "", "Optional OAuth2 clientID to use for -datasource.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
-	oauth2ClientSecret = flag.String("datasource.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -datasource.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
-	oauth2ClientSecretFile = flag.String("datasource.oauth2.clientSecretFile", "", "Optional OAuth2 clientSecretFile to use for -datasource.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
-	oauth2TokenURL = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url. "+
-		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
-	oauth2Scopes = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'. "+
-		"If multiple args are set, then they are applied independently for the corresponding -datasource.url")
+	oauth2ClientID         = flag.String("datasource.oauth2.clientID", "", "Optional OAuth2 clientID to use for -datasource.url. ")
+	oauth2ClientSecret     = flag.String("datasource.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -datasource.url.")
+	oauth2ClientSecretFile = flag.String("datasource.oauth2.clientSecretFile", "", "Optional OAuth2 clientSecretFile to use for -datasource.url. ")
+	oauth2TokenURL         = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url.")
+	oauth2Scopes           = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'")
 
 	lookBack  = flag.Duration("datasource.lookback", 0, `Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
 	queryStep = flag.Duration("datasource.queryStep", 0, "queryStep defines how far a value can fallback to when evaluating queries. "+
