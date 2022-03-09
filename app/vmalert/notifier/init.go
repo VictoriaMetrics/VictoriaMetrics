@@ -21,10 +21,6 @@ var (
 	basicAuthPassword     = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
 	basicAuthPasswordFile = flagutil.NewArray("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
 
-	authorizationType            = flagutil.NewArray("notifier.authorization.type", "Optional authorization type (`basic or bearer`) for -notifier.url")
-	authorizationCredentials     = flagutil.NewArray("notifier.authorization.credentials", "Optional authorization credentials for -notifier.url")
-	authorizationCredentialsFile = flagutil.NewArray("notifier.authorization.credentialsFile", "Optional path to authorization credentials file for -notifier.url")
-
 	bearerToken     = flagutil.NewArray("notifier.bearerToken", "Optional bearer token for -notifier.url")
 	bearerTokenFile = flagutil.NewArray("notifier.bearerTokenFile", "Optional path to bearer token file for -notifier.url")
 
@@ -129,11 +125,6 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 				Username:     basicAuthUsername.GetOptionalArg(i),
 				Password:     promauth.NewSecret(basicAuthPassword.GetOptionalArg(i)),
 				PasswordFile: basicAuthPasswordFile.GetOptionalArg(i),
-			},
-			Authorization: &promauth.Authorization{
-				Type:            authorizationType.GetOptionalArg(i),
-				Credentials:     promauth.NewSecret(authorizationCredentials.GetOptionalArg(i)),
-				CredentialsFile: authorizationCredentialsFile.GetOptionalArg(i),
 			},
 			BearerToken:     promauth.NewSecret(bearerToken.GetOptionalArg(i)),
 			BearerTokenFile: bearerTokenFile.GetOptionalArg(i),
