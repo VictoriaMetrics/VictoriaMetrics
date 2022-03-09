@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexpcache"
 )
 
 // convertToCompositeTagFilterss converts tfss to composite filters.
@@ -471,42 +472,32 @@ func (tf *tagFilter) matchSuffix(b []byte) (bool, error) {
 
 // RegexpCacheSize returns the number of cached regexps for tag filters.
 func RegexpCacheSize() int {
-	regexpCacheLock.RLock()
-	n := len(regexpCacheMap)
-	regexpCacheLock.RUnlock()
-	return n
+	return regexpCache.Len()
 }
 
 // RegexpCacheRequests returns the number of requests to regexp cache.
 func RegexpCacheRequests() uint64 {
-	return atomic.LoadUint64(&regexpCacheRequests)
+	return regexpCache.Requests()
 }
 
 // RegexpCacheMisses returns the number of cache misses for regexp cache.
 func RegexpCacheMisses() uint64 {
-	return atomic.LoadUint64(&regexpCacheMisses)
+	return regexpCache.Misses()
 }
 
-func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
-	atomic.AddUint64(&regexpCacheRequests, 1)
-
-	regexpCacheLock.RLock()
-	rcv, ok := regexpCacheMap[string(expr)]
-	regexpCacheLock.RUnlock()
-	if ok {
+func getRegexpFromCache(expr []byte) (*regexpCacheValue, error) {
+	if rcv := regexpCache.Get(string(expr)); rcv != nil {
 		// Fast path - the regexp found in the cache.
-		return rcv, nil
+		return rcv.(*regexpCacheValue), nil
 	}
-
 	// Slow path - build the regexp.
-	atomic.AddUint64(&regexpCacheMisses, 1)
 	exprOrig := string(expr)
 
 	expr = []byte(tagCharsRegexpEscaper.Replace(exprOrig))
 	exprStr := fmt.Sprintf("^(%s)$", expr)
 	re, err := regexp.Compile(exprStr)
 	if err != nil {
-		return rcv, fmt.Errorf("invalid regexp %q: %w", exprStr, err)
+		return nil, fmt.Errorf("invalid regexp %q: %w", exprStr, err)
 	}
 
 	sExpr := string(expr)
@@ -521,26 +512,14 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	}
 
 	// Put the reMatch in the cache.
+	var rcv regexpCacheValue
 	rcv.orValues = orValues
 	rcv.reMatch = reMatch
 	rcv.reCost = reCost
 	rcv.literalSuffix = literalSuffix
+	regexpCache.Put(exprOrig, &rcv)
 
-	regexpCacheLock.Lock()
-	if overflow := len(regexpCacheMap) - getMaxRegexpCacheSize(); overflow > 0 {
-		overflow = int(float64(len(regexpCacheMap)) * 0.1)
-		for k := range regexpCacheMap {
-			delete(regexpCacheMap, k)
-			overflow--
-			if overflow <= 0 {
-				break
-			}
-		}
-	}
-	regexpCacheMap[exprOrig] = rcv
-	regexpCacheLock.Unlock()
-
-	return rcv, nil
+	return &rcv, nil
 }
 
 func newMatchFuncForOrSuffixes(orValues []string) (reMatch func(b []byte) bool, reCost uint64) {
@@ -903,11 +882,7 @@ var (
 )
 
 var (
-	regexpCacheMap  = make(map[string]regexpCacheValue)
-	regexpCacheLock sync.RWMutex
-
-	regexpCacheRequests uint64
-	regexpCacheMisses   uint64
+	regexpCache = regexpcache.NewCache(getMaxRegexpCacheSize)
 )
 
 type regexpCacheValue struct {
@@ -919,11 +894,8 @@ type regexpCacheValue struct {
 
 func getRegexpPrefix(b []byte) ([]byte, []byte) {
 	// Fast path - search the prefix in the cache.
-	prefixesCacheLock.RLock()
-	ps, ok := prefixesCacheMap[string(b)]
-	prefixesCacheLock.RUnlock()
-
-	if ok {
+	if ps := prefixesCache.Get(string(b)); ps != nil {
+		ps := ps.(*prefixSuffix)
 		return ps.prefix, ps.suffix
 	}
 
@@ -931,22 +903,11 @@ func getRegexpPrefix(b []byte) ([]byte, []byte) {
 	prefix, suffix := extractRegexpPrefix(b)
 
 	// Put the prefix and the suffix to the cache.
-	prefixesCacheLock.Lock()
-	if overflow := len(prefixesCacheMap) - getMaxPrefixesCacheSize(); overflow > 0 {
-		overflow = int(float64(len(prefixesCacheMap)) * 0.1)
-		for k := range prefixesCacheMap {
-			delete(prefixesCacheMap, k)
-			overflow--
-			if overflow <= 0 {
-				break
-			}
-		}
-	}
-	prefixesCacheMap[string(b)] = prefixSuffix{
+	ps := &prefixSuffix{
 		prefix: prefix,
 		suffix: suffix,
 	}
-	prefixesCacheLock.Unlock()
+	prefixesCache.Put(string(b), ps)
 
 	return prefix, suffix
 }
@@ -968,8 +929,7 @@ var (
 )
 
 var (
-	prefixesCacheMap  = make(map[string]prefixSuffix)
-	prefixesCacheLock sync.RWMutex
+	prefixesCache = regexpcache.NewCache(getMaxPrefixesCacheSize)
 )
 
 type prefixSuffix struct {
