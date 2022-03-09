@@ -519,10 +519,8 @@ func TestRequestParams(t *testing.T) {
 }
 
 func TestAuthConfig(t *testing.T) {
-	// c := &http.Client{}
 	var testCases = []struct {
-		name string
-		// queryRange bool
+		name    string
 		vmFn    func() *VMStorage
 		checkFn func(t *testing.T, r *http.Request)
 	}{
