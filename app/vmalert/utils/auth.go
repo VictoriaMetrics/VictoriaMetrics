@@ -22,18 +22,12 @@ func AuthConfig(filterOptions ...AuthConfigOptions) (*promauth.Config, error) {
 // WithAuthorization returns AuthConfigOptions and initialized promauth.Authorization based on given params
 func WithAuthorization(authType, credentials, credentialsFile string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
-		authCfg := &promauth.Authorization{}
-		if authType != "" {
-			authCfg.Type = authType
-		}
-		if credentials != "" {
-			authCfg.Credentials = promauth.NewSecret(credentials)
-		}
-		if credentialsFile != "" {
-			authCfg.CredentialsFile = credentialsFile
-		}
-		if authCfg.Type != "" || authCfg.Credentials.String() != "" || authCfg.CredentialsFile != "" {
-			config.Authorization = authCfg
+		if authType != "" || credentials != "" || credentialsFile != "" {
+			config.Authorization = &promauth.Authorization{
+				Type:            authType,
+				Credentials:     promauth.NewSecret(credentials),
+				CredentialsFile: credentialsFile,
+			}
 		}
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -81,139 +82,6 @@ func TestVMInstantQuery(t *testing.T) {
 	defer srv.Close()
 
 	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
-	if err != nil {
-		t.Fatalf("unexpected: %s", err)
-	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client(), false)
-
-	p := NewPrometheusType()
-	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
-
-	if _, err := pq.Query(ctx, query); err == nil {
-		t.Fatalf("expected connection error got nil")
-	}
-	if _, err := pq.Query(ctx, query); err == nil {
-		t.Fatalf("expected invalid response status error got nil")
-	}
-	if _, err := pq.Query(ctx, query); err == nil {
-		t.Fatalf("expected response body error got nil")
-	}
-	if _, err := pq.Query(ctx, query); err == nil {
-		t.Fatalf("expected error status got nil")
-	}
-	if _, err := pq.Query(ctx, query); err == nil {
-		t.Fatalf("expected unknown status got nil")
-	}
-	if _, err := pq.Query(ctx, query); err == nil {
-		t.Fatalf("expected non-vector resultType error  got nil")
-	}
-	m, err := pq.Query(ctx, query)
-	if err != nil {
-		t.Fatalf("unexpected %s", err)
-	}
-	if len(m) != 2 {
-		t.Fatalf("expected 2 metrics got %d in %+v", len(m), m)
-	}
-	expected := []Metric{
-		{
-			Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
-			Timestamps: []int64{1583786142},
-			Values:     []float64{13763},
-		},
-		{
-			Labels:     []Label{{Value: "vm_requests", Name: "__name__"}},
-			Timestamps: []int64{1583786140},
-			Values:     []float64{2000},
-		},
-	}
-	if !reflect.DeepEqual(m, expected) {
-		t.Fatalf("unexpected metric %+v want %+v", m, expected)
-	}
-
-	g := NewGraphiteType()
-	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
-
-	m, err = gq.Query(ctx, queryRender)
-	if err != nil {
-		t.Fatalf("unexpected %s", err)
-	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
-	}
-	exp := Metric{
-		Labels:     []Label{{Value: "constantLine(10)", Name: "name"}},
-		Timestamps: []int64{1611758403},
-		Values:     []float64{10},
-	}
-	if !reflect.DeepEqual(m[0], exp) {
-		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
-	}
-}
-
-func TestVMInstantQueryWithAuthorization(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
-		t.Errorf("should not be called")
-	})
-	c := -1
-	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
-		c++
-		switch c {
-		case 7:
-			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
-		}
-	})
-	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
-		c++
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST method got %s", r.Method)
-		}
-		reqToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(reqToken, "Bearer ")
-		if len(splitToken) != 2 {
-			t.Errorf("expected two items got %d", len(splitToken))
-		}
-		token := splitToken[1]
-		if token != basicAuthPass {
-			t.Errorf("expected %s as basic auth got %s", basicAuthPass, token)
-		}
-
-		if r.URL.Query().Get("query") != query {
-			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))
-		}
-		timeParam := r.URL.Query().Get("time")
-		if timeParam == "" {
-			t.Errorf("expected 'time' in query param, got nil instead")
-		}
-		if _, err := strconv.ParseInt(timeParam, 10, 64); err != nil {
-			t.Errorf("failed to parse 'time' query param: %s", err)
-		}
-		switch c {
-		case 0:
-			conn, _, _ := w.(http.Hijacker).Hijack()
-			_ = conn.Close()
-		case 1:
-			w.WriteHeader(500)
-		case 2:
-			w.Write([]byte("[]"))
-		case 3:
-			w.Write([]byte(`{"status":"error", "errorType":"type:", "error":"some error msg"}`))
-		case 4:
-			w.Write([]byte(`{"status":"unknown"}`))
-		case 5:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix"}}`))
-		case 6:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests"},"value":[1583786140,"2000"]}]}}`))
-		}
-	})
-
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-
-	authCfg, err := promauth.NewConfig(".", &promauth.Authorization{
-		Type:        "Bearer",
-		Credentials: promauth.NewSecret(basicAuthPass),
-	}, nil, "", "", nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
@@ -646,6 +514,61 @@ func TestRequestParams(t *testing.T) {
 				tc.vm.setGraphiteReqParams(req, query, timestamp)
 			}
 			tc.checkFn(t, req)
+		})
+	}
+}
+
+func TestAuthConfig(t *testing.T) {
+	// c := &http.Client{}
+	var testCases = []struct {
+		name string
+		// queryRange bool
+		vmFn    func() *VMStorage
+		checkFn func(t *testing.T, r *http.Request)
+	}{
+		{
+			name: "basic auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{authCfg: cfg}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				u, p, _ := r.BasicAuth()
+				checkEqualString(t, "foo", u)
+				checkEqualString(t, "bar", p)
+			},
+		},
+		{
+			name: "bearer auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBearer("foo", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{authCfg: cfg}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				reqToken := r.Header.Get("Authorization")
+				splitToken := strings.Split(reqToken, "Bearer ")
+				if len(splitToken) != 2 {
+					t.Errorf("expected two items got %d", len(splitToken))
+				}
+				token := splitToken[1]
+				checkEqualString(t, "foo", token)
+			},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			vm := tt.vmFn()
+			req, err := vm.newRequestPOST()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			tt.checkFn(t, req)
 		})
 	}
 }
