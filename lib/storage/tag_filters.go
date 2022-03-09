@@ -9,8 +9,10 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
@@ -471,42 +473,42 @@ func (tf *tagFilter) matchSuffix(b []byte) (bool, error) {
 
 // RegexpCacheSize returns the number of cached regexps for tag filters.
 func RegexpCacheSize() int {
-	regexpCacheLock.RLock()
-	n := len(regexpCacheMap)
-	regexpCacheLock.RUnlock()
-	return n
+	return regexpCache.Len()
+}
+
+// RegexpCacheSizeBytes returns the number of cached regexps for tag filters.
+func RegexpCacheSizeBytes() int {
+	return regexpCache.SizeBytes()
+}
+
+// RegexpCacheMaxSizeBytes returns the number of cached regexps for tag filters.
+func RegexpCacheMaxSizeBytes() int {
+	return regexpCache.SizeMaxBytes()
 }
 
 // RegexpCacheRequests returns the number of requests to regexp cache.
 func RegexpCacheRequests() uint64 {
-	return atomic.LoadUint64(&regexpCacheRequests)
+	return regexpCache.Requests()
 }
 
 // RegexpCacheMisses returns the number of cache misses for regexp cache.
 func RegexpCacheMisses() uint64 {
-	return atomic.LoadUint64(&regexpCacheMisses)
+	return regexpCache.Misses()
 }
 
-func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
-	atomic.AddUint64(&regexpCacheRequests, 1)
-
-	regexpCacheLock.RLock()
-	rcv, ok := regexpCacheMap[string(expr)]
-	regexpCacheLock.RUnlock()
-	if ok {
+func getRegexpFromCache(expr []byte) (*regexpCacheValue, error) {
+	if rcv := regexpCache.Get(string(expr)); rcv != nil {
 		// Fast path - the regexp found in the cache.
-		return rcv, nil
+		return rcv.(*regexpCacheValue), nil
 	}
-
 	// Slow path - build the regexp.
-	atomic.AddUint64(&regexpCacheMisses, 1)
 	exprOrig := string(expr)
 
 	expr = []byte(tagCharsRegexpEscaper.Replace(exprOrig))
 	exprStr := fmt.Sprintf("^(%s)$", expr)
 	re, err := regexp.Compile(exprStr)
 	if err != nil {
-		return rcv, fmt.Errorf("invalid regexp %q: %w", exprStr, err)
+		return nil, fmt.Errorf("invalid regexp %q: %w", exprStr, err)
 	}
 
 	sExpr := string(expr)
@@ -521,26 +523,16 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	}
 
 	// Put the reMatch in the cache.
+	var rcv regexpCacheValue
 	rcv.orValues = orValues
 	rcv.reMatch = reMatch
 	rcv.reCost = reCost
 	rcv.literalSuffix = literalSuffix
+	// heuristic for rcv in-memory size
+	rcv.sizeBytes = 8 + 2*len(exprOrig) + len(literalSuffix)
+	regexpCache.Put(exprOrig, &rcv)
 
-	regexpCacheLock.Lock()
-	if overflow := len(regexpCacheMap) - getMaxRegexpCacheSize(); overflow > 0 {
-		overflow = int(float64(len(regexpCacheMap)) * 0.1)
-		for k := range regexpCacheMap {
-			delete(regexpCacheMap, k)
-			overflow--
-			if overflow <= 0 {
-				break
-			}
-		}
-	}
-	regexpCacheMap[exprOrig] = rcv
-	regexpCacheLock.Unlock()
-
-	return rcv, nil
+	return &rcv, nil
 }
 
 func newMatchFuncForOrSuffixes(orValues []string) (reMatch func(b []byte) bool, reCost uint64) {
@@ -888,11 +880,9 @@ var tagCharsReverseRegexpEscaper = strings.NewReplacer(
 
 func getMaxRegexpCacheSize() int {
 	maxRegexpCacheSizeOnce.Do(func() {
-		n := memory.Allowed() / 1024 / 1024
-		if n < 100 {
-			n = 100
+		if maxRegexpCacheSize <= 0 {
+			maxRegexpCacheSize = int(0.05 * float64(memory.Allowed()))
 		}
-		maxRegexpCacheSize = n
 	})
 	return maxRegexpCacheSize
 }
@@ -903,11 +893,7 @@ var (
 )
 
 var (
-	regexpCacheMap  = make(map[string]regexpCacheValue)
-	regexpCacheLock sync.RWMutex
-
-	regexpCacheRequests uint64
-	regexpCacheMisses   uint64
+	regexpCache = lrucache.NewCache(getMaxRegexpCacheSize)
 )
 
 type regexpCacheValue struct {
@@ -915,15 +901,18 @@ type regexpCacheValue struct {
 	reMatch       func(b []byte) bool
 	reCost        uint64
 	literalSuffix string
+	sizeBytes     int
+}
+
+// SizeBytes implements interface
+func (rcv *regexpCacheValue) SizeBytes() int {
+	return rcv.sizeBytes
 }
 
 func getRegexpPrefix(b []byte) ([]byte, []byte) {
 	// Fast path - search the prefix in the cache.
-	prefixesCacheLock.RLock()
-	ps, ok := prefixesCacheMap[string(b)]
-	prefixesCacheLock.RUnlock()
-
-	if ok {
+	if ps := prefixesCache.Get(string(b)); ps != nil {
+		ps := ps.(*prefixSuffix)
 		return ps.prefix, ps.suffix
 	}
 
@@ -931,33 +920,20 @@ func getRegexpPrefix(b []byte) ([]byte, []byte) {
 	prefix, suffix := extractRegexpPrefix(b)
 
 	// Put the prefix and the suffix to the cache.
-	prefixesCacheLock.Lock()
-	if overflow := len(prefixesCacheMap) - getMaxPrefixesCacheSize(); overflow > 0 {
-		overflow = int(float64(len(prefixesCacheMap)) * 0.1)
-		for k := range prefixesCacheMap {
-			delete(prefixesCacheMap, k)
-			overflow--
-			if overflow <= 0 {
-				break
-			}
-		}
-	}
-	prefixesCacheMap[string(b)] = prefixSuffix{
+	ps := &prefixSuffix{
 		prefix: prefix,
 		suffix: suffix,
 	}
-	prefixesCacheLock.Unlock()
+	prefixesCache.Put(string(b), ps)
 
 	return prefix, suffix
 }
 
 func getMaxPrefixesCacheSize() int {
 	maxPrefixesCacheSizeOnce.Do(func() {
-		n := memory.Allowed() / 1024 / 1024
-		if n < 100 {
-			n = 100
+		if maxPrefixesCacheSize <= 0 {
+			maxPrefixesCacheSize = int(0.05 * float64(memory.Allowed()))
 		}
-		maxPrefixesCacheSize = n
 	})
 	return maxPrefixesCacheSize
 }
@@ -968,13 +944,42 @@ var (
 )
 
 var (
-	prefixesCacheMap  = make(map[string]prefixSuffix)
-	prefixesCacheLock sync.RWMutex
+	prefixesCache = lrucache.NewCache(getMaxPrefixesCacheSize)
 )
+
+// RegexpPrefixesCacheSize returns the number of cached regexp prefixes for tag filters.
+func RegexpPrefixesCacheSize() int {
+	return prefixesCache.Len()
+}
+
+// RegexpPrefixesCacheSizeBytes returns the number of cached regexp prefixes for tag filters.
+func RegexpPrefixesCacheSizeBytes() int {
+	return prefixesCache.SizeBytes()
+}
+
+// RegexpPrefixesCacheMaxSizeBytes returns the size of cached regexp prefixes for tag filters in bytes.
+func RegexpPrefixesCacheMaxSizeBytes() int {
+	return prefixesCache.SizeMaxBytes()
+}
+
+// RegexpPrefixesCacheRequests returns the number of requests to regexp prefixes cache.
+func RegexpPrefixesCacheRequests() uint64 {
+	return prefixesCache.Requests()
+}
+
+// RegexpPrefixesCacheMisses returns the number of cache misses for regexp prefixes cache.
+func RegexpPrefixesCacheMisses() uint64 {
+	return prefixesCache.Misses()
+}
 
 type prefixSuffix struct {
 	prefix []byte
 	suffix []byte
+}
+
+// SizeBytes implements interface
+func (ps *prefixSuffix) SizeBytes() int {
+	return cap(ps.prefix) + cap(ps.suffix) + int(unsafe.Sizeof(*ps))
 }
 
 func extractRegexpPrefix(b []byte) ([]byte, []byte) {
