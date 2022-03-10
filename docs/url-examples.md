@@ -167,7 +167,7 @@ Single:
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -G 'http://localhost:8428/prometheus/api/v1/label/job/values’
+curl -G 'http://localhost:8428/prometheus/api/v1/label/job/values'
 ```
 
 </div>
@@ -176,7 +176,7 @@ Cluster:
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values’
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values'
 ```
 
 </div>
