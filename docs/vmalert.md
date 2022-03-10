@@ -518,6 +518,16 @@ The shortlist of configuration flags is the following:
     	Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
     	Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
+  -datasource.oauth2.clientID string
+    	Optional OAuth2 clientID to use for -datasource.url. 
+  -datasource.oauth2.clientSecret string
+    	Optional OAuth2 clientSecret to use for -datasource.url.
+  -datasource.oauth2.clientSecretFile string
+    	Optional OAuth2 clientSecretFile to use for -datasource.url. 
+  -datasource.oauth2.scopes string
+    	Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
+  -datasource.oauth2.tokenUrl string
+    	Optional OAuth2 tokenURL to use for -datasource.url.
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
   -datasource.roundDigits int
@@ -610,8 +620,29 @@ The shortlist of configuration flags is the following:
   -notifier.basicAuth.username array
     	Optional basic auth username for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.bearerToken array
+    	Optional bearer token for -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.bearerTokenFile array
+    	Optional path to bearer token file for -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.config string
     	Path to configuration file for notifiers
+  -notifier.oauth2.clientID array
+    	Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.clientSecret array
+    	Optional OAuth2 clientSecret to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.clientSecretFile array
+    	Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.scopes array
+    	Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.tokenUrl array
+    	Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.suppressDuplicateTargetErrors
     	Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
@@ -658,6 +689,16 @@ The shortlist of configuration flags is the following:
     	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
     	Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
+  -remoteRead.oauth2.clientID string
+    	Optional OAuth2 clientID to use for -remoteRead.url.
+  -remoteRead.oauth2.clientSecret string
+    	Optional OAuth2 clientSecret to use for -remoteRead.url.
+  -remoteRead.oauth2.clientSecretFile string
+    	Optional OAuth2 clientSecretFile to use for -remoteRead.url.
+  -remoteRead.oauth2.scopes string
+    	Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
+  -remoteRead.oauth2.tokenUrl string
+    	Optional OAuth2 tokenURL to use for -remoteRead.url. 
   -remoteRead.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
   -remoteRead.tlsCertFile string
@@ -690,6 +731,16 @@ The shortlist of configuration flags is the following:
     	Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
     	Defines the max number of pending datapoints to remote write endpoint (default 100000)
+  -remoteWrite.oauth2.clientID string
+    	Optional OAuth2 clientID to use for -remoteWrite.url.
+  -remoteWrite.oauth2.clientSecret string
+    	Optional OAuth2 clientSecret to use for -remoteWrite.url.
+  -remoteWrite.oauth2.clientSecretFile string
+    	Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
+  -remoteWrite.oauth2.scopes string
+    	Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
+  -remoteWrite.oauth2.tokenUrl string
+    	Optional OAuth2 tokenURL to use for -notifier.url.
   -remoteWrite.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
   -remoteWrite.tlsCertFile string
