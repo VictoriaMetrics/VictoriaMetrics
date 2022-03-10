@@ -297,9 +297,9 @@ func getResolveDuration(groupInterval time.Duration) time.Duration {
 	if maxDuration > delta {
 		delta = maxDuration
 	}
-	resolveInterval := groupInterval * 3
-	if delta > 0 && (delta > resolveInterval) {
-		return delta
+	resolveInterval := groupInterval * 4
+	if delta > 0 && delta > resolveInterval {
+		return delta * 4
 	}
 	return resolveInterval
 }
