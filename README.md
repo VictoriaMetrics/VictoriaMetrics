@@ -1461,7 +1461,7 @@ The simplest way to migrate data from one single-node (source) to another (desti
 to another do the following:
 1. Stop the VictoriaMetrics (source) with `kill -INT`;
 2. Copy (via [rsync](https://en.wikipedia.org/wiki/Rsync) or any other tool) the entire folder specified 
-via `-storageDataPath` from the source node to the destination node.
+via `-storageDataPath` from the source node to the empty folder at the destination node.
 3. Once copy is done, stop the VictoriaMetrics (destination) with `kill -INT` and verify that 
 its `-storageDataPath` points to the copied folder from p.2;
 4. Start the VictoriaMetrics (destination). The copied data should be now available.
