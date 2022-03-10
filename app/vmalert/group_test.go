@@ -246,11 +246,11 @@ func TestResolveDuration(t *testing.T) {
 		resendDelay   time.Duration
 		expected      time.Duration
 	}{
-		{time.Minute, 0, 0, 3 * time.Minute},
-		{time.Minute, 0, 2 * time.Minute, 3 * time.Minute},
+		{time.Minute, 0, 0, 4 * time.Minute},
+		{time.Minute, 0, 2 * time.Minute, 4 * time.Minute},
 		{time.Minute, 4 * time.Minute, 4 * time.Minute, 4 * time.Minute},
-		{2 * time.Minute, 1 * time.Minute, 2 * time.Minute, 6 * time.Minute},
-		{time.Minute, 2 * time.Minute, 1 * time.Minute, 3 * time.Minute},
+		{2 * time.Minute, 1 * time.Minute, 2 * time.Minute, 8 * time.Minute},
+		{time.Minute, 2 * time.Minute, 1 * time.Minute, 4 * time.Minute},
 		{0, 0, 0, 0},
 	}
 	defaultResolveDuration := *maxResolveDuration
