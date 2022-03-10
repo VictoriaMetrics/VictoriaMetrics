@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -513,6 +514,59 @@ func TestRequestParams(t *testing.T) {
 				tc.vm.setGraphiteReqParams(req, query, timestamp)
 			}
 			tc.checkFn(t, req)
+		})
+	}
+}
+
+func TestAuthConfig(t *testing.T) {
+	var testCases = []struct {
+		name    string
+		vmFn    func() *VMStorage
+		checkFn func(t *testing.T, r *http.Request)
+	}{
+		{
+			name: "basic auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{authCfg: cfg}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				u, p, _ := r.BasicAuth()
+				checkEqualString(t, "foo", u)
+				checkEqualString(t, "bar", p)
+			},
+		},
+		{
+			name: "bearer auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBearer("foo", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{authCfg: cfg}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				reqToken := r.Header.Get("Authorization")
+				splitToken := strings.Split(reqToken, "Bearer ")
+				if len(splitToken) != 2 {
+					t.Errorf("expected two items got %d", len(splitToken))
+				}
+				token := splitToken[1]
+				checkEqualString(t, "foo", token)
+			},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			vm := tt.vmFn()
+			req, err := vm.newRequestPOST()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			tt.checkFn(t, req)
 		})
 	}
 }
