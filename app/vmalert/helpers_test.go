@@ -70,13 +70,11 @@ func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
 	fn.Lock()
 	defer fn.Unlock()
 	fn.sendCounter++
-	// 	atomic.AddUint32(&fn.sendCounter, 1)
 	fn.alerts = alerts
 	return nil
 }
 
 func (fn *fakeNotifier) GetSendingCounter() uint32 {
-	// return atomic.LoadUint32(&fn.sendCounter)
 	return fn.sendCounter
 }
 
