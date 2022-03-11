@@ -256,31 +256,22 @@ func TestResentDelay(t *testing.T) {
 		expectedSentTimes uint32
 	}{
 		{
-			name:         "zero value of resend delay",
-			ruleFilePath: "config/testdata/rules_interval_good.rules",
-			alertFn: func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
-				return prepareAlert(t, r, m1, groupName, label, host)
-			},
+			name:              "zero value of resend delay",
+			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(0) * time.Second,
 			expectedSentTimes: 4,
 		},
 		{
-			name:         "resendDelay lower than LastSent",
-			ruleFilePath: "config/testdata/rules_interval_good.rules",
-			alertFn: func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
-				return prepareAlert(t, r, m1, groupName, label, host)
-			},
+			name:              "resendDelay lower than LastSent",
+			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(1) * time.Second,
 			expectedSentTimes: 3,
 		},
 		{
-			name:         "resendDelay higher than LastSent",
-			ruleFilePath: "config/testdata/rules_interval_good.rules",
-			alertFn: func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
-				return prepareAlert(t, r, m1, groupName, label, host)
-			},
+			name:              "resendDelay higher than LastSent",
+			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(4) * time.Second,
 			expectedSentTimes: 1,
@@ -307,15 +298,10 @@ func TestResentDelay(t *testing.T) {
 				metrics = append(metrics, metricWithLabels(t, "instance", instance, "job", job))
 			}
 
-			r := g.Rules[0].(*AlertingRule)
-
-			var alerts []notifier.Alert
-			for idx, metric := range metrics {
-				at, err := tc.alertFn(t, r, metric, g.Name, "bar", instances[idx])
+			for _, metric := range metrics {
 				if err != nil {
 					t.Fatalf("faield to create alert: %s", err)
 				}
-				alerts = append(alerts, *at)
 				fs.add(metric)
 			}
 
