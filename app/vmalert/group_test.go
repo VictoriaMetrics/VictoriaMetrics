@@ -253,28 +253,28 @@ func TestResentDelay(t *testing.T) {
 		alertFn           func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error)
 		waitTimeout       time.Duration
 		resendDelay       time.Duration
-		expectedSentTimes uint32
+		expectedSentTimes []uint32
 	}{
 		{
 			name:              "zero value of resend delay",
 			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(0) * time.Second,
-			expectedSentTimes: 4,
+			expectedSentTimes: []uint32{4, 5},
 		},
 		{
 			name:              "resendDelay lower than LastSent",
 			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(1) * time.Second,
-			expectedSentTimes: 3,
+			expectedSentTimes: []uint32{2, 3},
 		},
 		{
 			name:              "resendDelay higher than LastSent",
 			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(4) * time.Second,
-			expectedSentTimes: 1,
+			expectedSentTimes: []uint32{1},
 		},
 	}
 
@@ -318,8 +318,8 @@ func TestResentDelay(t *testing.T) {
 			time.Sleep(tc.waitTimeout)
 
 			sentTimes := fn.GetSendingCounter()
-			if tc.expectedSentTimes != sentTimes {
-				t.Errorf("expected %d sending, got %d sending", tc.expectedSentTimes, sentTimes)
+			if containes(tc.expectedSentTimes, sentTimes) {
+				t.Errorf("expected one of %#v sending, got %d sending", tc.expectedSentTimes, sentTimes)
 			}
 			g.close()
 			<-finished
@@ -348,4 +348,13 @@ func prepareAlert(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName
 	}
 	alert.ID = hash(metricWithLabels(t, labels1...))
 	return alert, nil
+}
+
+func containes(expectedSentTimes []uint32, sendTimes uint32) bool {
+	for _, st := range expectedSentTimes {
+		if st == sendTimes {
+			return true
+		}
+	}
+	return false
 }
