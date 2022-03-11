@@ -25,7 +25,8 @@ const App: FC = () => {
             <AuthStateProvider> {/* Auth related info - optionally persisted to Local Storage */}
               <GraphStateProvider> {/* Graph settings */}
                 <SnackbarProvider> {/* Display various snackbars */}
-                  <BrowserRouter>
+                  {/* TODO set dynamic basename */}
+                  <BrowserRouter basename={"/vmui"}>
                     <Routes>
                       <Route path={router.home} element={<HomeLayout/>}/>
                       <Route path={router.dashboards} element={<DashboardsLayout/>}/>
