@@ -10,7 +10,8 @@ import (
 )
 
 // Cache caches any values with limited number of entries
-// items evicted in LRU order
+// evicted in LRU order.
+// Cache must be created only via NewCache function
 type Cache struct {
 	requests          uint64
 	misses            uint64
@@ -109,7 +110,8 @@ func (c *Cache) Len() int {
 	return n
 }
 
-// Put puts the given value under the given key k into c.
+// Put puts the given value under the given key k into c,
+// but only if the key k was already requested via Get at least twice. 
 func (c *Cache) Put(key string, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
