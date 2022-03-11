@@ -61,7 +61,7 @@ func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, 
 type fakeNotifier struct {
 	sync.Mutex
 	alerts      []notifier.Alert
-	sendCounter uint32
+	sendCounter uint8
 }
 
 func (*fakeNotifier) Close()       {}
@@ -74,7 +74,7 @@ func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
 	return nil
 }
 
-func (fn *fakeNotifier) GetSendingCounter() uint32 {
+func (fn *fakeNotifier) GetSendingCounter() uint8 {
 	return fn.sendCounter
 }
 

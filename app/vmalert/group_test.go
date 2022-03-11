@@ -253,28 +253,28 @@ func TestResentDelay(t *testing.T) {
 		alertFn           func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error)
 		waitTimeout       time.Duration
 		resendDelay       time.Duration
-		expectedSentTimes []uint32
+		expectedSentTimes []uint8
 	}{
 		{
 			name:              "zero value of resend delay",
 			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(0) * time.Second,
-			expectedSentTimes: []uint32{4, 5},
+			expectedSentTimes: []uint8{4, 5},
 		},
 		{
 			name:              "resendDelay lower than LastSent",
 			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(1) * time.Second,
-			expectedSentTimes: []uint32{2, 3},
+			expectedSentTimes: []uint8{2, 3},
 		},
 		{
 			name:              "resendDelay higher than LastSent",
 			ruleFilePath:      "config/testdata/rules_interval_good.rules",
 			waitTimeout:       10 * time.Second,
 			resendDelay:       time.Duration(4) * time.Second,
-			expectedSentTimes: []uint32{1},
+			expectedSentTimes: []uint8{1},
 		},
 	}
 
@@ -350,7 +350,7 @@ func prepareAlert(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName
 	return alert, nil
 }
 
-func containes(expectedSentTimes []uint32, sendTimes uint32) bool {
+func containes(expectedSentTimes []uint8, sendTimes uint8) bool {
 	for _, st := range expectedSentTimes {
 		if st == sendTimes {
 			return true
