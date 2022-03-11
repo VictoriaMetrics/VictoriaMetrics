@@ -30,7 +30,7 @@ type Alert struct {
 	Start time.Time
 	// End defines the moment of time when Alert supposed to expire
 	End time.Time
-	// LastSent defines the moment when Alert was sent
+	// LastSent defines the moment when Alert was sent last time
 	LastSent time.Time
 	// Value stores the value returned from evaluating expression from Expr field
 	Value float64
@@ -142,4 +142,13 @@ func templateAnnotation(dst io.Writer, text string, data tplData, funcs template
 		return fmt.Errorf("error evaluating annotation template: %w", err)
 	}
 	return nil
+}
+
+func (a *Alert) NeedsSending(ts time.Time, resendDelay time.Duration) bool {
+	// if an alert has been resolved since the last send, resend it
+	if a.End.After(a.LastSent) {
+		return true
+	}
+
+	return a.LastSent.Add(resendDelay).Before(ts)
 }

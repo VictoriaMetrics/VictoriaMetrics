@@ -376,6 +376,9 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 		switch a.State {
 		case notifier.StateFiring:
 			a.End = time.Now().Add(resolveDuration)
+			if time.Since(a.LastSent) < *resendDelay {
+				continue
+			}
 			alerts = append(alerts, *a)
 		case notifier.StateInactive:
 			// set End to execStart to notify
@@ -390,8 +393,13 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 
 	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers() {
+		now := time.Now()
 		if err := nt.Send(ctx, alerts); err != nil {
 			errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
+		} else {
+			for _, alert := range ar.alerts {
+				alert.LastSent = now
+			}
 		}
 	}
 	return errGr.Err()
