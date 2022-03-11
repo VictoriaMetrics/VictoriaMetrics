@@ -8,8 +8,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+)
+
+var (
+	inst1, inst2, job, cluster = "foo", "bar", "baz", "east-1"
 )
 
 func init() {
@@ -158,55 +163,29 @@ func TestGroupStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
+
 	const evalInterval = time.Millisecond
+
 	fs := &fakeQuerier{}
 	fn := &fakeNotifier{}
 
 	g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
-	const inst1, inst2, job = "foo", "bar", "baz"
 	m1 := metricWithLabels(t, "instance", inst1, "job", job)
 	m2 := metricWithLabels(t, "instance", inst2, "job", job)
 
 	r := g.Rules[0].(*AlertingRule)
-	alert1, err := r.newAlert(m1, time.Now(), nil)
-	if err != nil {
-		t.Fatalf("faield to create alert: %s", err)
-	}
-	alert1.State = notifier.StateFiring
-	// add external label
-	alert1.Labels["cluster"] = "east-1"
-	// add rule labels - see config/testdata/rules1-good.rules
-	alert1.Labels["label"] = "bar"
-	alert1.Labels["host"] = inst1
-	// add service labels
-	alert1.Labels[alertNameLabel] = alert1.Name
-	alert1.Labels[alertGroupNameLabel] = g.Name
-	var labels1 []string
-	for k, v := range alert1.Labels {
-		labels1 = append(labels1, k, v)
-	}
-	alert1.ID = hash(metricWithLabels(t, labels1...))
 
-	alert2, err := r.newAlert(m2, time.Now(), nil)
+	alert1, err := prepareAlert(t, r, m1, g.Name, "bar", inst1)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
-	alert2.State = notifier.StateFiring
-	// add external label
-	alert2.Labels["cluster"] = "east-1"
-	// add rule labels - see config/testdata/rules1-good.rules
-	alert2.Labels["label"] = "bar"
-	alert2.Labels["host"] = inst2
-	// add service labels
-	alert2.Labels[alertNameLabel] = alert2.Name
-	alert2.Labels[alertGroupNameLabel] = g.Name
-	var labels2 []string
-	for k, v := range alert2.Labels {
-		labels2 = append(labels2, k, v)
+
+	alert2, err := prepareAlert(t, r, m2, g.Name, "bar", inst2)
+	if err != nil {
+		t.Fatalf("faield to create alert: %s", err)
 	}
-	alert2.ID = hash(metricWithLabels(t, labels2...))
 
 	finished := make(chan struct{})
 	fs.add(m1)
@@ -265,4 +244,122 @@ func TestResolveDuration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResentDelay(t *testing.T) {
+	var testCases = []struct {
+		name              string
+		ruleFilePath      string
+		alertFn           func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error)
+		waitTimeout       time.Duration
+		resendDelay       time.Duration
+		expectedSentTimes uint32
+	}{
+		{
+			name:         "zero value of resend delay",
+			ruleFilePath: "config/testdata/rules_interval_good.rules",
+			alertFn: func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
+				return prepareAlert(t, r, m1, groupName, label, host)
+			},
+			waitTimeout:       10 * time.Second,
+			resendDelay:       time.Duration(0) * time.Second,
+			expectedSentTimes: 4,
+		},
+		{
+			name:         "resendDelay lower than LastSent",
+			ruleFilePath: "config/testdata/rules_interval_good.rules",
+			alertFn: func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
+				return prepareAlert(t, r, m1, groupName, label, host)
+			},
+			waitTimeout:       10 * time.Second,
+			resendDelay:       time.Duration(1) * time.Second,
+			expectedSentTimes: 3,
+		},
+		{
+			name:         "resendDelay higher than LastSent",
+			ruleFilePath: "config/testdata/rules_interval_good.rules",
+			alertFn: func(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
+				return prepareAlert(t, r, m1, groupName, label, host)
+			},
+			waitTimeout:       10 * time.Second,
+			resendDelay:       time.Duration(4) * time.Second,
+			expectedSentTimes: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			groups, err := config.Parse([]string{tc.ruleFilePath}, true, true)
+			if err != nil {
+				t.Fatalf("failed to parse rules: %s", err)
+			}
+			const evalInterval = time.Millisecond
+			fs := &fakeQuerier{}
+			fn := &fakeNotifier{}
+
+			g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": cluster})
+			g.Concurrency = 2
+
+			instances := []string{inst1, inst2}
+
+			var metrics []datasource.Metric
+			for _, instance := range instances {
+				metrics = append(metrics, metricWithLabels(t, "instance", instance, "job", job))
+			}
+
+			r := g.Rules[0].(*AlertingRule)
+
+			var alerts []notifier.Alert
+			for idx, metric := range metrics {
+				at, err := tc.alertFn(t, r, metric, g.Name, "bar", instances[idx])
+				if err != nil {
+					t.Fatalf("faield to create alert: %s", err)
+				}
+				alerts = append(alerts, *at)
+				fs.add(metric)
+			}
+
+			finished := make(chan struct{})
+			go func() {
+				g.start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil)
+				close(finished)
+			}()
+
+			duration := tc.resendDelay
+			resendDelay = &duration
+
+			// wait for multiple evals
+			time.Sleep(tc.waitTimeout)
+
+			sentTimes := fn.GetSendingCounter()
+			if tc.expectedSentTimes != sentTimes {
+				t.Errorf("expected %d sending, got %d sending", tc.expectedSentTimes, sentTimes)
+			}
+			g.close()
+			<-finished
+		})
+	}
+}
+
+func prepareAlert(t *testing.T, r *AlertingRule, m1 datasource.Metric, groupName, label, host string) (*notifier.Alert, error) {
+	alert, err := r.newAlert(m1, time.Now(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	alert.State = notifier.StateFiring
+	// add external label
+	alert.Labels["cluster"] = cluster
+	// add rule labels - see config/testdata/rules1-good.rules
+	alert.Labels["label"] = label
+	alert.Labels["host"] = host
+	// add service labels
+	alert.Labels[alertNameLabel] = alert.Name
+	alert.Labels[alertGroupNameLabel] = groupName
+	var labels1 []string
+	for k, v := range alert.Labels {
+		labels1 = append(labels1, k, v)
+	}
+	alert.ID = hash(metricWithLabels(t, labels1...))
+	return alert, nil
 }

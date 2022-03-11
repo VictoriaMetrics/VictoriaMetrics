@@ -60,7 +60,8 @@ func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, 
 
 type fakeNotifier struct {
 	sync.Mutex
-	alerts []notifier.Alert
+	alerts      []notifier.Alert
+	sendCounter uint32
 }
 
 func (*fakeNotifier) Close()       {}
@@ -68,8 +69,15 @@ func (*fakeNotifier) Addr() string { return "" }
 func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
 	fn.Lock()
 	defer fn.Unlock()
+	fn.sendCounter++
+	// 	atomic.AddUint32(&fn.sendCounter, 1)
 	fn.alerts = alerts
 	return nil
+}
+
+func (fn *fakeNotifier) GetSendingCounter() uint32 {
+	// return atomic.LoadUint32(&fn.sendCounter)
+	return fn.sendCounter
 }
 
 func (fn *fakeNotifier) getAlerts() []notifier.Alert {
