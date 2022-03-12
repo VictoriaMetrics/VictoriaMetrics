@@ -608,6 +608,11 @@ func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName)
 
 func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricGroupID = xxhash.Sum64(mn.MetricGroup)
+	// Assume that the job-like metric is put at mn.Tags[0], while instance-like metric is put at mn.Tags[1]
+	// This assumption is true because mn.Tags must be sorted with mn.sortTags() before calling generateTSID() function.
+	// This allows grouping data blocks for the same (job, instance) close to each other on disk.
+	// This reduces disk seeks and disk read IO when data blocks are read from disk for the same job and/or instance.
+	// For example, data blocks for time series matching `process_resident_memory_bytes{job="vmstorage"}` are physically adjancent on disk.
 	if len(mn.Tags) > 0 {
 		dst.JobID = uint32(xxhash.Sum64(mn.Tags[0].Value))
 	}
@@ -1868,7 +1873,12 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
 
-	// Verify whether the maximum date in `ts` covers tr.MinTimestamp.
+	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
+	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
+	// This means that containsTimeRange() can return true if `tr` is located below the min date stored in `ts`.
+	// This is OK, since this case isn't encountered too much in practice.
+	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
+	// is located above the max date stored there.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	prefix := kb.B

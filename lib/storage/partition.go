@@ -1255,6 +1255,13 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 
 func getCompressLevelForRowsCount(rowsCount, blocksCount uint64) int {
 	avgRowsPerBlock := rowsCount / blocksCount
+	// See https://github.com/facebook/zstd/releases/tag/v1.3.4 about negative compression levels.
+	if avgRowsPerBlock <= 10 {
+		return -5
+	}
+	if avgRowsPerBlock <= 50 {
+		return -2
+	}
 	if avgRowsPerBlock <= 200 {
 		return -1
 	}

@@ -102,7 +102,7 @@ Just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/Vi
 The following command-line flags are used the most:
 
 * `-storageDataPath` - VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
-* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [these docs](#retention) for more details.
+* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [the Retention section](#retention) for more details.
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
@@ -744,7 +744,7 @@ The delete API is intended mainly for the following cases:
 * One-off deleting of accidentally written invalid (or undesired) time series.
 * One-off deleting of user data due to [GDPR](https://en.wikipedia.org/wiki/General_Data_Protection_Regulation).
 
-It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
+Using the delete API is not recommended in the following cases, since it brings a non-zero overhead:
 
 * Regular cleanups for unneeded data. Just prevent writing unneeded data into VictoriaMetrics.
   This can be done with [relabeling](#relabeling).
@@ -753,7 +753,7 @@ It isn't recommended using delete API for the following cases, since it brings n
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
 
-It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
+It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
 
 ## Forced merge
@@ -1147,7 +1147,7 @@ write data to the same VictoriaMetrics instance. These vmagent or Prometheus ins
 VictoriaMetrics stores time series data in [MergeTree](https://en.wikipedia.org/wiki/Log-structured_merge-tree)-like 
 data structures. On insert, VictoriaMetrics accumulates up to 1s of data and dumps it on disk to
 `<-storageDataPath>/data/small/YYYY_MM/` subdirectory forming a `part` with the following 
-name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`. Each part consists of two "columns":
+name pattern: `rowsCount_blocksCount_minTimestamp_maxTimestamp`. Each part consists of two "columns":
 values and timestamps. These are sorted and compressed raw time series values. Additionally, part contains
 index files for searching for specific series in the values and timestamps files.
 
@@ -1177,24 +1177,24 @@ See also [how to work with snapshots](#how-to-work-with-snapshots).
 
 ## Retention
 
-Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
-that the data will be stored for 3 months and then deleted.
-Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
-Data partitions outside the configured retention are deleted on the first day of new month.
+Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. The default retention period is one month.
 
+Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
+Data partitions outside the configured retention are deleted on the first day of the new month.
 Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
 Data parts outside of the configured retention are eventually deleted during 
 [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
-In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
-For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
+The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
+For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
 
-VictoriaMetrics supports retention smaller than 1 month. For example, `-retentionPeriod=5d` would set data retention for 5 days.
-Please note, time range covered by data part is not limited by retention period unit. Hence, data part may contain data
+Please note, the time range covered by data part is not limited by retention period unit. Hence, data part may contain data
 for multiple days and will be deleted only when fully outside of the configured retention.
 
-It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to lower
-value than before then data outside the configured period will be eventually deleted.
+It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to a lower
+value than before, then data outside the configured period will be eventually deleted.
+
+VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
 
 ## Multiple retentions
 
@@ -1454,6 +1454,27 @@ See the full description of flags [here](#list-of-command-line-flags).
 
 
 ## Data migration
+
+### From VictoriaMetrics
+
+The simplest way to migrate data from one single-node (source) to another (destination), or from one vmstorage node 
+to another do the following:
+1. Stop the VictoriaMetrics (source) with `kill -INT`;
+2. Copy (via [rsync](https://en.wikipedia.org/wiki/Rsync) or any other tool) the entire folder specified 
+via `-storageDataPath` from the source node to the empty folder at the destination node.
+3. Once copy is done, stop the VictoriaMetrics (destination) with `kill -INT` and verify that 
+its `-storageDataPath` points to the copied folder from p.2;
+4. Start the VictoriaMetrics (destination). The copied data should be now available.
+
+Things to consider when copying data:
+1. Data formats between single-node and vmstorage node aren't compatible and can't be copied.
+2. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
+
+For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
+of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
+
+
+### From other systems
 
 Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
 

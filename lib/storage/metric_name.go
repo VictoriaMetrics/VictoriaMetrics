@@ -608,6 +608,12 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 
 // sortTags sorts tags in mn to canonical form needed for storing in the index.
 //
+// The sortTags tries moving job-like tag to mn.Tags[0], while instance-like tag to mn.Tags[1].
+// See commonTagKeys list for job-like and instance-like tags.
+// This guarantees that indexdb entries for the same (job, instance) are located
+// close to each other on disk. This reduces disk seeks and disk read IO when metrics
+// for a particular job and/or instance are read from the disk.
+//
 // The function also de-duplicates tags with identical keys in mn. The last tag value
 // for duplicate tags wins.
 //
