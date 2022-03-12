@@ -14,6 +14,8 @@ import router from "./router/index";
 import HomeLayout from "./components/Home/HomeLayout";
 import DashboardsLayout from "./components/PredefinedPanels/DashboardsLayout";
 
+const [baseRoute] = window.location.href.match(/\/(?:graph|vmui)/) || ["/"];
+
 const App: FC = () => {
 
   return <>
@@ -25,8 +27,7 @@ const App: FC = () => {
             <AuthStateProvider> {/* Auth related info - optionally persisted to Local Storage */}
               <GraphStateProvider> {/* Graph settings */}
                 <SnackbarProvider> {/* Display various snackbars */}
-                  {/* TODO set dynamic basename */}
-                  <BrowserRouter basename={"/vmui"}>
+                  <BrowserRouter basename={baseRoute}>
                     <Routes>
                       <Route path={router.home} element={<HomeLayout/>}/>
                       <Route path={router.dashboards} element={<DashboardsLayout/>}/>
