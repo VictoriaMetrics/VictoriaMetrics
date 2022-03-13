@@ -840,7 +840,7 @@ Below is the output for `/path/to/vmstorage -help`:
 
 ## VictoriaMetrics Logo
 
-[Zip](VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
+[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
 
 Files included in each folder:
 
