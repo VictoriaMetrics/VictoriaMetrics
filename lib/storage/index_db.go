@@ -2153,7 +2153,8 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			break
 		}
 		if !tagSeen && (!tf.isNegative && tf.isEmptyMatch || tf.isNegative && !tf.isEmptyMatch) {
-			// tf contains positive empty-match filter for non-existing tag key
+			// tf contains positive empty-match filter for non-existing tag key, i.e. 
+			// {non_existing_tag_key=~"foobar|"}
 			//
 			// OR 
 			//
