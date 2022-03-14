@@ -54,9 +54,9 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 alert got %d", length)
 		}
 	})
-	t.Run("/api/v1/groups", func(t *testing.T) {
+	t.Run("/api/v1/rules", func(t *testing.T) {
 		lr := listGroupsResponse{}
-		getResp(ts.URL+"/api/v1/groups", &lr, 200)
+		getResp(ts.URL+"/api/v1/rules", &lr, 200)
 		if length := len(lr.Data.Groups); length != 1 {
 			t.Errorf("expected 1 group got %d", length)
 		}

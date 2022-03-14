@@ -19,14 +19,15 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu          sync.RWMutex
-	Name        string
-	File        string
-	Rules       []Rule
-	Type        datasource.Type
-	Interval    time.Duration
-	Concurrency int
-	Checksum    string
+	mu             sync.RWMutex
+	Name           string
+	File           string
+	Rules          []Rule
+	Type           datasource.Type
+	Interval       time.Duration
+	Concurrency    int
+	Checksum       string
+	LastEvaluation time.Time
 
 	Labels map[string]string
 	Params url.Values
@@ -283,6 +284,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 						logger.Errorf("group %q: %s", g.Name, err)
 					}
 				}
+				g.LastEvaluation = iterationStart
 			}
 			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
