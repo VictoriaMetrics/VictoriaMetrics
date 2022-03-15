@@ -141,7 +141,7 @@ Additional information:
 
 ## /api/v1/labels
 
-**Get a list of label names
+**Get a list of label names**
 
 Single:
 <div class="with-copy" markdown="1">
@@ -161,7 +161,7 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/labels'
 
 </div>
 
-**Querying label values
+**Querying label values**
 
 Single:
 <div class="with-copy" markdown="1">
@@ -188,13 +188,13 @@ Additional information:
 
 ## /api/v1/query
 
-**Performs PromQL instant query
+**Performs PromQL/MetricsQL instant query**
 
 Single:
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -G 'http://localhost:8428/prometheus/api/v1/query?query=vm_http_request_errors_total'
+curl -G 'http://localhost:8428/prometheus/api/v1/query?query=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z'
 ```
 
 </div>
@@ -203,7 +203,7 @@ Cluster:
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_request_errors_total'
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z'
 ```
 
 </div>
@@ -211,11 +211,11 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_r
 Additional information: 
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Instant queries](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
+* [Instant vector selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors)
 
 ## /api/v1/query_range
 
-
-**Performs PromQL range_query
+**Performs PromQL range_query**
 
 Single:
 <div class="with-copy" markdown="1">
@@ -246,11 +246,11 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_
 Additional information: 
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Range queries](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
-
+* [Range Vector Selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors)
 
 ## /api/v1/series
 
-**Finding series by label matchers
+**Finding series by label matchers**
 
 Single:
 <div class="with-copy" markdown="1">
@@ -276,8 +276,7 @@ Additional information:
 
 ## /api/v1/status/tsdb
 
-**Cardinality statistics 
-
+**Cardinality statistics**
 
 Single:
 <div class="with-copy" markdown="1">
@@ -303,7 +302,8 @@ Additional information:
 
 ## /api/v1/targets  
 
-**Checking targets
+**Checking targets**
+
 Should be sent to vmagent/VMsingle
 
 Single:
