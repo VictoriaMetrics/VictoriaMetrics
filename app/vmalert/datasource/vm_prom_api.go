@@ -125,7 +125,7 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 	if s.lookBack > 0 {
 		timestamp = timestamp.Add(-s.lookBack)
 	}
-	if s.evaluationInterval > 0 {
+	if *queryTimeAlignment && s.evaluationInterval > 0 {
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
 		timestamp = timestamp.Truncate(s.evaluationInterval)
 	}

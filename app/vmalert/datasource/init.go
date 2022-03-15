@@ -30,6 +30,8 @@ var (
 	queryStep = flag.Duration("datasource.queryStep", 0, "queryStep defines how far a value can fallback to when evaluating queries. "+
 		"For example, if datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query."+
 		"If queryStep isn't specified, rule's evaluationInterval will be used instead.")
+	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Whether to align "time" parameter with evaluation interval.`+
+		"Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
 	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
 	roundDigits        = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
