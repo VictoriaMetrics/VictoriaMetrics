@@ -31,6 +31,8 @@ type RecordingRule struct {
 	mu sync.RWMutex
 	// stores last moment of time Exec was called
 	lastExecTime time.Time
+	// stores the duration of the last Exec call
+	lastExecDuration time.Duration
 	// stores last error that happened in Exec func
 	// resets on every successful Exec
 	// may be used as Health state
@@ -123,11 +125,13 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 
 // Exec executes RecordingRule expression via the given Querier.
 func (rr *RecordingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
+	start := time.Now()
 	qMetrics, err := rr.q.Query(ctx, rr.Expr)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
 
-	rr.lastExecTime = time.Now()
+	rr.lastExecTime = start
+	rr.lastExecDuration = time.Since(start)
 	rr.lastExecError = err
 	rr.lastExecSamples = len(qMetrics)
 	if err != nil {
@@ -193,23 +197,27 @@ func (rr *RecordingRule) UpdateWith(r Rule) error {
 	return nil
 }
 
-// RuleAPI returns Rule representation in form
-// of APIRecordingRule
-func (rr *RecordingRule) RuleAPI() APIRecordingRule {
-	var lastErr string
-	if rr.lastExecError != nil {
-		lastErr = rr.lastExecError.Error()
-	}
-	return APIRecordingRule{
+// ToAPI returns Rule's representation in form
+// of APIRule
+func (rr *RecordingRule) ToAPI() APIRule {
+	r := APIRule{
+		Type:           "recording",
+		DatasourceType: rr.Type.String(),
+		Name:           rr.Name,
+		Query:          rr.Expr,
+		Labels:         rr.Labels,
+		LastEvaluation: rr.lastExecTime,
+		EvaluationTime: rr.lastExecDuration.Seconds(),
+		Health:         "ok",
+		LastSamples:    rr.lastExecSamples,
 		// encode as strings to avoid rounding
-		ID:          fmt.Sprintf("%d", rr.ID()),
-		GroupID:     fmt.Sprintf("%d", rr.GroupID),
-		Name:        rr.Name,
-		Type:        rr.Type.String(),
-		Expression:  rr.Expr,
-		LastError:   lastErr,
-		LastSamples: rr.lastExecSamples,
-		LastExec:    rr.lastExecTime,
-		Labels:      rr.Labels,
+		ID:      fmt.Sprintf("%d", rr.ID()),
+		GroupID: fmt.Sprintf("%d", rr.GroupID),
 	}
+
+	if rr.lastExecError != nil {
+		r.LastError = rr.lastExecError.Error()
+		r.Health = "err"
+	}
+	return r
 }
