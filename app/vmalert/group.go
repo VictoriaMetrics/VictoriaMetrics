@@ -349,6 +349,7 @@ var (
 func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Duration) error {
 	execTotal.Inc()
 
+	now := time.Now()
 	tss, err := rule.Exec(ctx)
 	if err != nil {
 		execErrors.Inc()
@@ -373,12 +374,12 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 	for _, a := range ar.alerts {
 		switch a.State {
 		case notifier.StateFiring:
-			a.End = time.Now().Add(resolveDuration)
+			a.End = now.Add(resolveDuration)
 			alerts = append(alerts, *a)
 		case notifier.StateInactive:
 			// set End to execStart to notify
 			// that it was just resolved
-			a.End = time.Now()
+			a.End = now
 			alerts = append(alerts, *a)
 		}
 	}
