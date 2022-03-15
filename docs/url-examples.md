@@ -215,7 +215,7 @@ Additional information:
 
 ## /api/v1/query_range
 
-**Performs PromQL range_query**
+**Performs PromQL/MetricsQL range_query**
 
 Single:
 <div class="with-copy" markdown="1">
