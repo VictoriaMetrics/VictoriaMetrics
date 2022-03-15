@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -280,6 +281,14 @@ func InitTemplateFunc(externalURL *url.URL) {
 		// usually used alongside with `query` template function.
 		"label": func(label string, m metric) string {
 			return m.Labels[label]
+		},
+
+		// sortByLabel sorts the given metrics by provided label key
+		"sortByLabel": func(label string, metrics []metric) []metric {
+			sort.SliceStable(metrics, func(i, j int) bool {
+				return metrics[i].Labels[label] < metrics[j].Labels[label]
+			})
+			return metrics
 		},
 
 		// value returns the value of the given metric.

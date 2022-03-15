@@ -19,14 +19,15 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu          sync.RWMutex
-	Name        string
-	File        string
-	Rules       []Rule
-	Type        datasource.Type
-	Interval    time.Duration
-	Concurrency int
-	Checksum    string
+	mu             sync.RWMutex
+	Name           string
+	File           string
+	Rules          []Rule
+	Type           datasource.Type
+	Interval       time.Duration
+	Concurrency    int
+	Checksum       string
+	LastEvaluation time.Time
 
 	Labels map[string]string
 	Params url.Values
@@ -282,6 +283,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 						logger.Errorf("group %q: %s", g.Name, err)
 					}
 				}
+				g.LastEvaluation = iterationStart
 			}
 			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
@@ -351,6 +353,7 @@ var (
 func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Duration) error {
 	execTotal.Inc()
 
+	now := time.Now()
 	tss, err := rule.Exec(ctx)
 	if err != nil {
 		execErrors.Inc()
@@ -375,7 +378,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 	for _, a := range ar.alerts {
 		switch a.State {
 		case notifier.StateFiring:
-			a.End = time.Now().Add(resolveDuration)
+			a.End = now.Add(resolveDuration)
 			if time.Since(a.LastSent) < *resendDelay {
 				continue
 			}
@@ -383,7 +386,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 		case notifier.StateInactive:
 			// set End to execStart to notify
 			// that it was just resolved
-			a.End = time.Now()
+			a.End = now
 			alerts = append(alerts, *a)
 		}
 	}

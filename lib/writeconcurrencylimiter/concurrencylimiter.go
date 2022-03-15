@@ -31,7 +31,7 @@ func Init() {
 // Do calls f with the limited concurrency.
 func Do(f func() error) error {
 	// Limit the number of conurrent f calls in order to prevent from excess
-	// memory usage and CPU trashing.
+	// memory usage and CPU thrashing.
 	select {
 	case ch <- struct{}{}:
 		err := f()
