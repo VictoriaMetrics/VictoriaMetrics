@@ -29,7 +29,7 @@ func initLinks() {
 		pathPrefix = "/"
 	}
 	apiLinks = [][2]string{
-		{path.Join(pathPrefix, "api/v1/groups"), "list all loaded groups and rules"},
+		{path.Join(pathPrefix, "api/v1/rules"), "list all loaded groups and rules"},
 		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
 		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "get alert status by ID"},
 		{path.Join(pathPrefix, "flags"), "command-line flags"},
@@ -75,7 +75,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/notifiers":
 		WriteListTargets(w, notifier.GetTargets())
 		return true
-	case "/api/v1/groups":
+	case "/api/v1/rules":
 		data, err := rh.listGroups()
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
@@ -127,10 +127,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 type listGroupsResponse struct {
-	Data struct {
+	Status string `json:"status"`
+	Data   struct {
 		Groups []APIGroup `json:"groups"`
 	} `json:"data"`
-	Status string `json:"status"`
 }
 
 func (rh *requestHandler) groups() []APIGroup {
@@ -149,6 +149,7 @@ func (rh *requestHandler) groups() []APIGroup {
 
 	return groups
 }
+
 func (rh *requestHandler) listGroups() ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
 	lr.Data.Groups = rh.groups()
@@ -163,10 +164,10 @@ func (rh *requestHandler) listGroups() ([]byte, error) {
 }
 
 type listAlertsResponse struct {
-	Data struct {
+	Status string `json:"status"`
+	Data   struct {
 		Alerts []*APIAlert `json:"alerts"`
 	} `json:"data"`
-	Status string `json:"status"`
 }
 
 func (rh *requestHandler) groupAlerts() []GroupAlerts {
@@ -181,7 +182,7 @@ func (rh *requestHandler) groupAlerts() []GroupAlerts {
 			if !ok {
 				continue
 			}
-			alerts = append(alerts, a.AlertsAPI()...)
+			alerts = append(alerts, a.AlertsToAPI()...)
 		}
 		if len(alerts) > 0 {
 			groupAlerts = append(groupAlerts, GroupAlerts{
@@ -204,7 +205,7 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 			if !ok {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsAPI()...)
+			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
 		}
 	}
 

@@ -3,7 +3,7 @@
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 rules against configured `-datasource.url`. For sending alerting notifications
-vmalert relies on [Alertmanager]((https://github.com/prometheus/alertmanager)) configured via `-notifier.url` flag.
+vmalert relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
 protocol and require `-remoteWrite.url` to be configured.
 Vmalert is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
@@ -296,7 +296,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
 ```
 ./bin/vmalert -rule=rules.yml  \                                # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://vmselect:8481/select/0/prometheus    # vmselect addr for executing rules expressions
-    -remoteWrite.url=http://vminsert:8480/insert/0/prometheuss  # vminsert addr to persist alerts state and recording rules results
+    -remoteWrite.url=http://vminsert:8480/insert/0/prometheus   # vminsert addr to persist alerts state and recording rules results
     -remoteRead.url=http://vmselect:8481/select/0/prometheus    # vmselect addr for restoring alerts state after restart
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
@@ -352,7 +352,7 @@ or reducing resolution) and push results to "cold" cluster.
 ```
 ./bin/vmalert -rule=downsampling-rules.yml \                                        # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recordi ng rules expressions
-    -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheuss   # vminsert addr to persist recording rules results
+    -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
 <img alt="vmalert multi cluster" src="vmalert_multicluster.png">
@@ -514,8 +514,20 @@ The shortlist of configuration flags is the following:
     	Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
     	Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
+  -datasource.oauth2.clientID string
+    	Optional OAuth2 clientID to use for -datasource.url. 
+  -datasource.oauth2.clientSecret string
+    	Optional OAuth2 clientSecret to use for -datasource.url.
+  -datasource.oauth2.clientSecretFile string
+    	Optional OAuth2 clientSecretFile to use for -datasource.url. 
+  -datasource.oauth2.scopes string
+    	Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
+  -datasource.oauth2.tokenUrl string
+    	Optional OAuth2 tokenURL to use for -datasource.url.
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+  -datasource.queryTimeAlignment
+        Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
     	Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.tlsCAFile string
@@ -606,8 +618,29 @@ The shortlist of configuration flags is the following:
   -notifier.basicAuth.username array
     	Optional basic auth username for -notifier.url
     	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.bearerToken array
+    	Optional bearer token for -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.bearerTokenFile array
+    	Optional path to bearer token file for -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.config string
     	Path to configuration file for notifiers
+  -notifier.oauth2.clientID array
+    	Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.clientSecret array
+    	Optional OAuth2 clientSecret to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.clientSecretFile array
+    	Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.scopes array
+    	Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.tokenUrl array
+    	Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.suppressDuplicateTargetErrors
     	Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
@@ -654,6 +687,16 @@ The shortlist of configuration flags is the following:
     	Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
     	Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
+  -remoteRead.oauth2.clientID string
+    	Optional OAuth2 clientID to use for -remoteRead.url.
+  -remoteRead.oauth2.clientSecret string
+    	Optional OAuth2 clientSecret to use for -remoteRead.url.
+  -remoteRead.oauth2.clientSecretFile string
+    	Optional OAuth2 clientSecretFile to use for -remoteRead.url.
+  -remoteRead.oauth2.scopes string
+    	Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
+  -remoteRead.oauth2.tokenUrl string
+    	Optional OAuth2 tokenURL to use for -remoteRead.url. 
   -remoteRead.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
   -remoteRead.tlsCertFile string
@@ -686,6 +729,16 @@ The shortlist of configuration flags is the following:
     	Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
     	Defines the max number of pending datapoints to remote write endpoint (default 100000)
+  -remoteWrite.oauth2.clientID string
+    	Optional OAuth2 clientID to use for -remoteWrite.url.
+  -remoteWrite.oauth2.clientSecret string
+    	Optional OAuth2 clientSecret to use for -remoteWrite.url.
+  -remoteWrite.oauth2.clientSecretFile string
+    	Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
+  -remoteWrite.oauth2.scopes string
+    	Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
+  -remoteWrite.oauth2.tokenUrl string
+    	Optional OAuth2 tokenURL to use for -notifier.url.
   -remoteWrite.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
   -remoteWrite.tlsCertFile string
