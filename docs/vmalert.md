@@ -530,6 +530,8 @@ The shortlist of configuration flags is the following:
     	Optional OAuth2 tokenURL to use for -datasource.url.
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+  -datasource.queryTimeAlignment
+        Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
     	Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.tlsCAFile string
