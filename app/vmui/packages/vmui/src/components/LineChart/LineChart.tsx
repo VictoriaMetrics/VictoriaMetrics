@@ -75,7 +75,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     if (tooltipIdx.dataIdx === u.cursor.idx) return;
     tooltipIdx.dataIdx = u.cursor.idx || 0;
     if (tooltipIdx.seriesIdx !== null && tooltipIdx.dataIdx !== undefined) {
-      setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset});
+      setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit});
     }
   };
 
@@ -83,7 +83,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     if (tooltipIdx.seriesIdx === sidx) return;
     tooltipIdx.seriesIdx = sidx;
     sidx && tooltipIdx.dataIdx !== undefined
-      ? setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset})
+      ? setTooltip({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit})
       : tooltip.style.display = "none";
   };
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];

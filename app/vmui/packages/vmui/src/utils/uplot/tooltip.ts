@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import {SetupTooltip} from "./types";
 import {getColorLine} from "./helpers";
 
-export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset}: SetupTooltip): void => {
+export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = ""}: SetupTooltip): void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
   if (seriesIdx === null || dataIdx === undefined) return;
   const dataSeries = u.data[seriesIdx][dataIdx];
@@ -25,7 +25,7 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
   tooltip.innerHTML = `<div>${date}</div>
                        <div class="u-tooltip-data">
-                         ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${dataSeries}</b>
+                         ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${dataSeries}</b> ${unit}
                        </div>
                        <div class="u-tooltip__info">${info}</div>`;
 };
