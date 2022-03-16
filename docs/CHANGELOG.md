@@ -19,6 +19,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `sortByLabel` template function in order to be consistent with Prometheus. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/template_reference/#functions) for more details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): improve compliance with [Prometheus Alert Generator Specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md).
 
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): return an additional point after `until` timestamp in the same way as Graphite does. Previously VictoriaMetrics didn't return this point, which could result in missing last point on the graph.
+
 
 ## [v1.74.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.74.0)
 
