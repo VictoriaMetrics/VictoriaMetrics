@@ -1076,7 +1076,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, 
 	// on idb level.
 
 	// Limit the number of concurrent goroutines that may search TSIDS in the storage.
-	// This should prevent from out of memory errors and CPU trashing when too many
+	// This should prevent from out of memory errors and CPU thrashing when too many
 	// goroutines call searchTSIDs.
 	select {
 	case searchTSIDsConcurrencyCh <- struct{}{}:
@@ -1550,7 +1550,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	}
 
 	// Limit the number of concurrent goroutines that may add rows to the storage.
-	// This should prevent from out of memory errors and CPU trashing when too many
+	// This should prevent from out of memory errors and CPU thrashing when too many
 	// goroutines call AddRows.
 	select {
 	case addRowsConcurrencyCh <- struct{}{}:
