@@ -277,8 +277,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 			if len(g.Rules) > 0 {
-				resolveDuration := getResolveDuration(g.Interval)
-				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, resolveDuration)
+				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, getResolveDuration(g.Interval))
 				for err := range errs {
 					if err != nil {
 						logger.Errorf("group %q: %s", g.Name, err)
@@ -291,15 +290,18 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 }
 
-// resolveDuration for alerts is equal to 3 interval evaluations
-// so in case if vmalert stops sending updates for some reason,
-// notifier could automatically resolve the alert.
+// getResolveDuration returns the duration after which firing alert
+// can be considered as resolved.
 func getResolveDuration(groupInterval time.Duration) time.Duration {
-	resolveInterval := groupInterval * 3
-	if *maxResolveDuration > 0 && (resolveInterval > *maxResolveDuration) {
-		return *maxResolveDuration
+	delta := *resendDelay
+	if groupInterval > delta {
+		delta = groupInterval
 	}
-	return resolveInterval
+	resolveDuration := delta * 4
+	if *maxResolveDuration > 0 && resolveDuration > *maxResolveDuration {
+		resolveDuration = *maxResolveDuration
+	}
+	return resolveDuration
 }
 
 type executor struct {
@@ -370,19 +372,8 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 	if !ok {
 		return nil
 	}
-	var alerts []notifier.Alert
-	for _, a := range ar.alerts {
-		switch a.State {
-		case notifier.StateFiring:
-			a.End = now.Add(resolveDuration)
-			alerts = append(alerts, *a)
-		case notifier.StateInactive:
-			// set End to execStart to notify
-			// that it was just resolved
-			a.End = now
-			alerts = append(alerts, *a)
-		}
-	}
+
+	alerts := ar.alertsToSend(now, resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
 		return nil
 	}
