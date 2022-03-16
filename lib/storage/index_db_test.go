@@ -1181,10 +1181,10 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	
+
 	// Positive empty match by non-existing tag
 	tfs.Reset()
-	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar|"), false , true); err != nil {
+	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar|"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, positive filter: %s", err)
 	}
 	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
