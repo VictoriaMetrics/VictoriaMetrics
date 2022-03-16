@@ -774,6 +774,8 @@ The shortlist of configuration flags is the following:
     	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
     	Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+  -rule.resendDelay duration
+    	Minimum amount of time to wait before resending an alert to notifier
   -rule.validateExpressions
     	Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates

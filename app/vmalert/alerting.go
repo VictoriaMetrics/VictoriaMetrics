@@ -550,3 +550,26 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	}
 	return nil
 }
+
+// alertsToSend walks through the current alerts of AlertingRule
+// and returns only those which should be sent to notifier.
+// Isn't concurrent safe.
+func (ar *AlertingRule) alertsToSend(ts time.Time, resolveDuration, resendDelay time.Duration) []notifier.Alert {
+	var alerts []notifier.Alert
+	for _, a := range ar.alerts {
+		switch a.State {
+		case notifier.StateFiring:
+			if time.Since(a.LastSent) < resendDelay {
+				continue
+			}
+			a.End = ts.Add(resolveDuration)
+			a.LastSent = ts
+			alerts = append(alerts, *a)
+		case notifier.StateInactive:
+			a.End = ts
+			a.LastSent = ts
+			alerts = append(alerts, *a)
+		}
+	}
+	return alerts
+}

@@ -290,20 +290,18 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 }
 
-// resolveDuration for alerts is equal to 3 interval evaluations
-// so in case if vmalert stops sending updates for some reason,
-// notifier could automatically resolve the alert.
+// getResolveDuration returns the duration after which firing alert
+// can be considered as resolved.
 func getResolveDuration(groupInterval time.Duration) time.Duration {
-	maxDuration := *maxResolveDuration
 	delta := *resendDelay
-	if maxDuration > delta {
-		delta = maxDuration
+	if groupInterval > delta {
+		delta = groupInterval
 	}
-	resolveInterval := groupInterval * 4
-	if delta > 0 && delta > resolveInterval {
-		return delta * 4
+	resolveDuration := delta * 4
+	if *maxResolveDuration > 0 && resolveDuration > *maxResolveDuration {
+		resolveDuration = *maxResolveDuration
 	}
-	return resolveInterval
+	return resolveDuration
 }
 
 type executor struct {
@@ -374,35 +372,16 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 	if !ok {
 		return nil
 	}
-	var alerts []notifier.Alert
-	for _, a := range ar.alerts {
-		switch a.State {
-		case notifier.StateFiring:
-			a.End = now.Add(resolveDuration)
-			if time.Since(a.LastSent) < *resendDelay {
-				continue
-			}
-			alerts = append(alerts, *a)
-		case notifier.StateInactive:
-			// set End to execStart to notify
-			// that it was just resolved
-			a.End = now
-			alerts = append(alerts, *a)
-		}
-	}
+
+	alerts := ar.alertsToSend(now, resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
 		return nil
 	}
 
 	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers() {
-		now := time.Now()
 		if err := nt.Send(ctx, alerts); err != nil {
 			errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
-		} else {
-			for _, alert := range ar.alerts {
-				alert.LastSent = now
-			}
 		}
 	}
 	return errGr.Err()
