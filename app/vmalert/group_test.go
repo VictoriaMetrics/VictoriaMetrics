@@ -158,10 +158,11 @@ func TestGroupStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
-	const evalInterval = time.Millisecond
+
 	fs := &fakeQuerier{}
 	fn := &fakeNotifier{}
 
+	const evalInterval = time.Millisecond
 	g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
@@ -223,6 +224,12 @@ func TestGroupStart(t *testing.T) {
 	expectedAlerts := []notifier.Alert{*alert1, *alert2}
 	compareAlerts(t, expectedAlerts, gotAlerts)
 
+	gotAlertsNum := fn.getCounter()
+	if gotAlertsNum < len(expectedAlerts)*2 {
+		t.Fatalf("expected to receive at least %d alerts; got %d instead",
+			len(expectedAlerts)*2, gotAlertsNum)
+	}
+
 	// reset previous data
 	fs.reset()
 	// and set only one datapoint for response
@@ -243,18 +250,29 @@ func TestResolveDuration(t *testing.T) {
 	testCases := []struct {
 		groupInterval time.Duration
 		maxDuration   time.Duration
+		resendDelay   time.Duration
 		expected      time.Duration
 	}{
-		{time.Minute, 0, 3 * time.Minute},
-		{3 * time.Minute, 0, 9 * time.Minute},
-		{time.Minute, 2 * time.Minute, 2 * time.Minute},
-		{0, 0, 0},
+		{time.Minute, 0, 0, 4 * time.Minute},
+		{time.Minute, 0, 2 * time.Minute, 8 * time.Minute},
+		{time.Minute, 4 * time.Minute, 4 * time.Minute, 4 * time.Minute},
+		{2 * time.Minute, time.Minute, 2 * time.Minute, time.Minute},
+		{time.Minute, 2 * time.Minute, 1 * time.Minute, 2 * time.Minute},
+		{2 * time.Minute, 0, 1 * time.Minute, 8 * time.Minute},
+		{0, 0, 0, 0},
 	}
+
 	defaultResolveDuration := *maxResolveDuration
-	defer func() { *maxResolveDuration = defaultResolveDuration }()
+	defaultResendDelay := *resendDelay
+	defer func() {
+		*maxResolveDuration = defaultResolveDuration
+		*resendDelay = defaultResendDelay
+	}()
+
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%v-%v-%v", tc.groupInterval, tc.expected, tc.maxDuration), func(t *testing.T) {
 			*maxResolveDuration = tc.maxDuration
+			*resendDelay = tc.resendDelay
 			got := getResolveDuration(tc.groupInterval)
 			if got != tc.expected {
 				t.Errorf("expected to have %v; got %v", tc.expected, got)
