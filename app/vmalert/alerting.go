@@ -191,9 +191,10 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 			if at.Sub(prevT) > ar.EvalInterval {
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
-				a.Start = at
-			} else if at.Sub(a.Start) >= ar.For {
+				a.ActiveAt = at
+			} else if at.Sub(a.ActiveAt) >= ar.For {
 				a.State = notifier.StateFiring
+				a.Start = at
 			}
 			prevT = at
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
@@ -205,13 +206,13 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
-	start := time.Now()
-	qMetrics, err := ar.q.Query(ctx, ar.Expr)
+	ts := time.Now()
+	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
-	ar.lastExecTime = start
-	ar.lastExecDuration = time.Since(start)
+	ar.lastExecTime = ts
+	ar.lastExecDuration = time.Since(ts)
 	ar.lastExecError = err
 	ar.lastExecSamples = len(qMetrics)
 	if err != nil {
@@ -225,7 +226,7 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 		}
 	}
 
-	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query) }
+	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query, ts) }
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
@@ -273,6 +274,7 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 		}
 		a.ID = h
 		a.State = notifier.StatePending
+		a.ActiveAt = ts
 		ar.alerts[h] = a
 	}
 
@@ -289,8 +291,9 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 			a.State = notifier.StateInactive
 			continue
 		}
-		if a.State == notifier.StatePending && time.Since(a.Start) >= ar.For {
+		if a.State == notifier.StatePending && time.Since(a.ActiveAt) >= ar.For {
 			a.State = notifier.StateFiring
+			a.Start = ts
 			alertsFired.Inc()
 		}
 	}
@@ -360,12 +363,12 @@ func hash(m datasource.Metric) uint64 {
 
 func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notifier.QueryFn) (*notifier.Alert, error) {
 	a := &notifier.Alert{
-		GroupID: ar.GroupID,
-		Name:    ar.Name,
-		Labels:  map[string]string{},
-		Value:   m.Values[0],
-		Start:   start,
-		Expr:    ar.Expr,
+		GroupID:  ar.GroupID,
+		Name:     ar.Name,
+		Labels:   map[string]string{},
+		Value:    m.Values[0],
+		ActiveAt: start,
+		Expr:     ar.Expr,
 	}
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
@@ -453,7 +456,7 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 		Labels:      a.Labels,
 		Annotations: a.Annotations,
 		State:       a.State.String(),
-		ActiveAt:    a.Start,
+		ActiveAt:    a.ActiveAt,
 		Restored:    a.Restored,
 		Value:       strconv.FormatFloat(a.Value, 'f', -1, 32),
 	}
@@ -507,11 +510,11 @@ func alertForToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.Time
 		labels[k] = v
 	}
 	labels["__name__"] = alertForStateMetricName
-	return newTimeSeries([]float64{float64(a.Start.Unix())}, []int64{timestamp}, labels)
+	return newTimeSeries([]float64{float64(a.ActiveAt.Unix())}, []int64{timestamp}, labels)
 }
 
 // Restore restores the state of active alerts basing on previously written time series.
-// Restore restores only Start field. Field State will be always Pending and supposed
+// Restore restores only ActiveAt field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
 func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
@@ -519,7 +522,8 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		return fmt.Errorf("querier is nil")
 	}
 
-	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query) }
+	ts := time.Now()
+	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query, ts) }
 
 	// account for external labels in filter
 	var labelsFilter string
@@ -532,7 +536,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, err := q.Query(ctx, expr)
+	qMetrics, err := q.Query(ctx, expr, ts)
 	if err != nil {
 		return err
 	}

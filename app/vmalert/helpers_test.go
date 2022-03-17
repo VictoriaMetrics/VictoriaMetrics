@@ -44,10 +44,10 @@ func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Qu
 }
 
 func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
-	return fq.Query(ctx, q)
+	return fq.Query(ctx, q, time.Now())
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]datasource.Metric, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {

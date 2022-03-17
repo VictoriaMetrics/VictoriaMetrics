@@ -61,7 +61,7 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 		},
 		{
 			newTestAlertingRule("for", time.Second),
-			&notifier.Alert{State: notifier.StateFiring, Start: timestamp.Add(time.Second)},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second)},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
@@ -76,7 +76,7 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 		},
 		{
 			newTestAlertingRule("for pending", 10*time.Second),
-			&notifier.Alert{State: notifier.StatePending, Start: timestamp.Add(time.Second)},
+			&notifier.Alert{State: notifier.StatePending, ActiveAt: timestamp.Add(time.Second)},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
@@ -380,9 +380,9 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StatePending, Start: time.Unix(1, 0)},
-				{State: notifier.StatePending, Start: time.Unix(3, 0)},
-				{State: notifier.StatePending, Start: time.Unix(5, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(3, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(5, 0)},
 			},
 		},
 		{
@@ -391,9 +391,9 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StatePending, Start: time.Unix(1, 0)},
-				{State: notifier.StatePending, Start: time.Unix(1, 0)},
-				{State: notifier.StateFiring, Start: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
 			},
 		},
 		{
@@ -402,11 +402,11 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{Values: []float64{1, 1, 1, 1, 1}, Timestamps: []int64{1, 2, 5, 6, 20}},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StatePending, Start: time.Unix(1, 0)},
-				{State: notifier.StateFiring, Start: time.Unix(1, 0)},
-				{State: notifier.StatePending, Start: time.Unix(5, 0)},
-				{State: notifier.StateFiring, Start: time.Unix(5, 0)},
-				{State: notifier.StatePending, Start: time.Unix(20, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(5, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(5, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(20, 0)},
 			},
 		},
 		{
@@ -418,15 +418,15 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StatePending, Start: time.Unix(1, 0)},
-				{State: notifier.StatePending, Start: time.Unix(1, 0)},
-				{State: notifier.StateFiring, Start: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
 				//
-				{State: notifier.StatePending, Start: time.Unix(1, 0),
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0),
 					Labels: map[string]string{
 						"foo": "bar",
 					}},
-				{State: notifier.StatePending, Start: time.Unix(5, 0),
+				{State: notifier.StatePending, ActiveAt: time.Unix(5, 0),
 					Labels: map[string]string{
 						"foo": "bar",
 					}},
@@ -479,7 +479,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 						a.Labels = make(map[string]string)
 					}
 					a.Labels[alertNameLabel] = tc.rule.Name
-					expTS = append(expTS, tc.rule.alertToTimeSeries(tc.expAlerts[j], timestamp)...)
+					expTS = append(expTS, tc.rule.alertToTimeSeries(a, timestamp)...)
 					j++
 				}
 			}
@@ -511,7 +511,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 			},
 			map[uint64]*notifier.Alert{
 				hash(datasource.Metric{}): {State: notifier.StatePending,
-					Start: time.Now().Truncate(time.Hour)},
+					ActiveAt: time.Now().Truncate(time.Hour)},
 			},
 		},
 		{
@@ -532,7 +532,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 					"foo", "bar",
 					"namespace", "baz",
 				)): {State: notifier.StatePending,
-					Start: time.Now().Truncate(time.Hour)},
+					ActiveAt: time.Now().Truncate(time.Hour)},
 			},
 		},
 		{
@@ -552,7 +552,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 					"namespace", "baz",
 					"source", "vm",
 				)): {State: notifier.StatePending,
-					Start: time.Now().Truncate(time.Hour)},
+					ActiveAt: time.Now().Truncate(time.Hour)},
 			},
 		},
 		{
@@ -573,11 +573,11 @@ func TestAlertingRule_Restore(t *testing.T) {
 			},
 			map[uint64]*notifier.Alert{
 				hash(metricWithLabels(t, "host", "localhost-1")): {State: notifier.StatePending,
-					Start: time.Now().Truncate(time.Hour)},
+					ActiveAt: time.Now().Truncate(time.Hour)},
 				hash(metricWithLabels(t, "host", "localhost-2")): {State: notifier.StatePending,
-					Start: time.Now().Truncate(2 * time.Hour)},
+					ActiveAt: time.Now().Truncate(2 * time.Hour)},
 				hash(metricWithLabels(t, "host", "localhost-3")): {State: notifier.StatePending,
-					Start: time.Now().Truncate(3 * time.Hour)},
+					ActiveAt: time.Now().Truncate(3 * time.Hour)},
 			},
 		},
 	}
@@ -602,8 +602,8 @@ func TestAlertingRule_Restore(t *testing.T) {
 				if got.State != exp.State {
 					t.Fatalf("expected state %d; got %d", exp.State, got.State)
 				}
-				if got.Start != exp.Start {
-					t.Fatalf("expected Start %v; got %v", exp.Start, got.Start)
+				if got.ActiveAt != exp.ActiveAt {
+					t.Fatalf("expected ActiveAt %v; got %v", exp.ActiveAt, got.ActiveAt)
 				}
 			}
 		})

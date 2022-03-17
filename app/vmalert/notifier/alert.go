@@ -26,7 +26,9 @@ type Alert struct {
 	State AlertState
 	// Expr contains expression that was executed to generate the Alert
 	Expr string
-	// Start defines the moment of time when Alert has triggered
+	// ActiveAt defines the moment of time when Alert has become active
+	ActiveAt time.Time
+	// Start defines the moment of time when Alert has become firing
 	Start time.Time
 	// End defines the moment of time when Alert supposed to expire
 	End time.Time
