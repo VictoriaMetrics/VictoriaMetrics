@@ -458,8 +458,8 @@ func Fsync(fd int) error {
 //sys	Listen(s int, n int) (err error)
 //sys	lstat(path string, stat *Stat_t) (err error)
 //sys	Pause() (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = pread64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = pread64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
