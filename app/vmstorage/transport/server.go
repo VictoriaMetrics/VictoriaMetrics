@@ -58,11 +58,11 @@ type Server struct {
 
 // NewServer returns new Server.
 func NewServer(vminsertAddr, vmselectAddr string, storage *storage.Storage) (*Server, error) {
-	vminsertLN, err := netutil.NewTCPListener("vminsert", vminsertAddr)
+	vminsertLN, err := netutil.NewTCPListener("vminsert", vminsertAddr, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", vminsertAddr, err)
 	}
-	vmselectLN, err := netutil.NewTCPListener("vmselect", vmselectAddr)
+	vmselectLN, err := netutil.NewTCPListener("vmselect", vmselectAddr, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", vmselectAddr, err)
 	}

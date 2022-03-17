@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,15 +14,18 @@ import (
 
 var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used")
 
-// NewTCPListener returns new TCP listener for the given addr.
+// NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //
 // name is used for exported metrics. Each listener in the program must have
 // distinct name.
-func NewTCPListener(name, addr string) (*TCPListener, error) {
+func NewTCPListener(name, addr string, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
+	}
+	if tlsConfig != nil {
+		ln = tls.NewListener(ln, tlsConfig)
 	}
 	tln := &TCPListener{
 		Listener: ln,

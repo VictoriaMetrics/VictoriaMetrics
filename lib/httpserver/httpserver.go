@@ -86,39 +86,17 @@ func Serve(addr string, rh RequestHandler) {
 	}
 	logger.Infof("starting http server at %s://%s/", scheme, hostAddr)
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
-	lnTmp, err := netutil.NewTCPListener(scheme, addr)
+	var tlsConfig *tls.Config
+	if *tlsEnable {
+		tc, err := netutil.GetServerTLSConfig("", *tlsCertFile, *tlsKeyFile)
+		if err != nil {
+			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
+		}
+		tlsConfig = tc
+	}
+	ln, err := netutil.NewTCPListener(scheme, addr, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	}
-	ln := net.Listener(lnTmp)
-
-	if *tlsEnable {
-		var certLock sync.Mutex
-		var certDeadline uint64
-		var cert *tls.Certificate
-		c, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
-		if err != nil {
-			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
-		}
-		cert = &c
-		cfg := &tls.Config{
-			MinVersion:               tls.VersionTLS12,
-			PreferServerCipherSuites: true,
-			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				certLock.Lock()
-				defer certLock.Unlock()
-				if fasttime.UnixTimestamp() > certDeadline {
-					c, err = tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
-					if err != nil {
-						return nil, fmt.Errorf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %w", *tlsCertFile, *tlsKeyFile, err)
-					}
-					certDeadline = fasttime.UnixTimestamp() + 1
-					cert = &c
-				}
-				return cert, nil
-			},
-		}
-		ln = tls.NewListener(ln, cfg)
 	}
 	serveWithListener(addr, ln, rh)
 }
