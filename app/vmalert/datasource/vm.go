@@ -86,6 +86,7 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
 	}
 
+	//fmt.Println("..", req.URL.String())
 	resp, err := s.do(ctx, req)
 	if err != nil {
 		return nil, err

@@ -201,6 +201,8 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	defer prompbmarshal.ResetWriteRequest(wr)
 	defer bufferFlushDuration.UpdateDuration(time.Now())
 
+	fmt.Println("rw -->", wr)
+
 	data, err := wr.Marshal()
 	if err != nil {
 		logger.Errorf("failed to marshal WriteRequest: %s", err)
@@ -225,7 +227,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 
 	droppedRows.Add(len(wr.Timeseries))
 	droppedBytes.Add(len(b))
-	logger.Errorf("all %d attempts to send request failed - dropping %d timeseries",
+	logger.Errorf("all %d attempts to send request failed - dropping %d time series",
 		attempts, len(wr.Timeseries))
 }
 

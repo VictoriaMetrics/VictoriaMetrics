@@ -32,6 +32,8 @@ type Alert struct {
 	Start time.Time
 	// End defines the moment of time when Alert supposed to expire
 	End time.Time
+	// ResolvedAt defines the moment when Alert was switched from Firing to Inactive
+	ResolvedAt time.Time
 	// LastSent defines the moment when Alert was sent last time
 	LastSent time.Time
 	// Value stores the value returned from evaluating expression from Expr field

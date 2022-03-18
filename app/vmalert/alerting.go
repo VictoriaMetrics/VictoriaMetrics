@@ -203,6 +203,10 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 	return result, nil
 }
 
+// resolvedRetention is the duration for which a resolved alert instance
+// is kept in memory state and consequently repeatedly sent to the AlertManager.
+const resolvedRetention = 15 * time.Minute
+
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
@@ -210,6 +214,9 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
+
+	fmt.Printf(">> alert %q has been evaluated at %v with %d results\n",
+		ar.Name, ts, len(qMetrics))
 
 	ar.lastExecTime = ts
 	ar.lastExecDuration = time.Since(ts)
@@ -221,7 +228,7 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
-		if a.State == notifier.StateInactive {
+		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > resolvedRetention {
 			delete(ar.alerts, h)
 		}
 	}
@@ -255,6 +262,13 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 		}
 		updated[h] = struct{}{}
 		if a, ok := ar.alerts[h]; ok {
+			if a.State == notifier.StateInactive {
+				// alert could be in inactive state for resolvedRetention
+				// so when we again receive metrics for it - we switch it
+				// back to notifier.StatePending
+				fmt.Println("alerting rule was switched from Inactive to Pending", a.Name)
+				a.State = notifier.StatePending
+			}
 			if a.Value != m.Values[0] {
 				// update Value field with latest value
 				a.Value = m.Values[0]
@@ -288,16 +302,21 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 				delete(ar.alerts, h)
 				continue
 			}
-			a.State = notifier.StateInactive
+			if a.State == notifier.StateFiring {
+				a.State = notifier.StateInactive
+				a.ResolvedAt = ts
+			}
 			continue
 		}
 		if a.State == notifier.StatePending && time.Since(a.ActiveAt) >= ar.For {
 			a.State = notifier.StateFiring
 			a.Start = ts
+			fmt.Printf("!! alert %q became FIRING at %v (active since %v)\n",
+				a.Name, a.Start, a.ActiveAt)
 			alertsFired.Inc()
 		}
 	}
-	return ar.toTimeSeries(ar.lastExecTime.Unix()), nil
+	return ar.toTimeSeries(ts.Unix()), nil
 }
 
 func expandLabels(m datasource.Metric, q notifier.QueryFn, ar *AlertingRule) (map[string]string, error) {
@@ -438,6 +457,9 @@ func (ar *AlertingRule) AlertsToAPI() []*APIAlert {
 	var alerts []*APIAlert
 	ar.mu.RLock()
 	for _, a := range ar.alerts {
+		if a.State == notifier.StateInactive {
+			continue
+		}
 		alerts = append(alerts, ar.newAlertAPI(*a))
 	}
 	ar.mu.RUnlock()
@@ -482,7 +504,7 @@ const (
 	alertGroupNameLabel = "alertgroup"
 )
 
-// alertToTimeSeries converts the given alert with the given timestamp to timeseries
+// alertToTimeSeries converts the given alert with the given timestamp to time series
 func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	tss = append(tss, alertToTimeSeries(a, timestamp))
@@ -562,18 +584,21 @@ func (ar *AlertingRule) alertsToSend(ts time.Time, resolveDuration, resendDelay 
 	var alerts []notifier.Alert
 	for _, a := range ar.alerts {
 		switch a.State {
+		case notifier.StatePending:
+			continue
 		case notifier.StateFiring:
 			if time.Since(a.LastSent) < resendDelay {
 				continue
 			}
 			a.End = ts.Add(resolveDuration)
-			a.LastSent = ts
-			alerts = append(alerts, *a)
 		case notifier.StateInactive:
+			if time.Since(a.LastSent) < resendDelay && a.ResolvedAt.Before(a.LastSent) {
+				continue
+			}
 			a.End = ts
-			a.LastSent = ts
-			alerts = append(alerts, *a)
 		}
+		a.LastSent = ts
+		alerts = append(alerts, *a)
 	}
 	return alerts
 }
