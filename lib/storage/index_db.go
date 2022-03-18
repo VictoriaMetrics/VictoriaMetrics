@@ -2152,14 +2152,20 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			tagMatched = true
 			break
 		}
-		if !tagSeen && tf.isNegative && !tf.isEmptyMatch {
+		if !tagSeen && (!tf.isNegative && tf.isEmptyMatch || tf.isNegative && !tf.isEmptyMatch) {
+			// tf contains positive empty-match filter for non-existing tag key, i.e.
+			// {non_existing_tag_key=~"foobar|"}
+			//
+			// OR
+			//
 			// tf contains negative filter for non-exsisting tag key
 			// and this filter doesn't match empty string, i.e. {non_existing_tag_key!="foobar"}
 			// Such filter matches anything.
 			//
 			// Note that the filter `{non_existing_tag_key!~"|foobar"}` shouldn't match anything,
 			// since it is expected that it matches non-empty `non_existing_tag_key`.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 for details.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 and
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2255 for details.
 			continue
 		}
 		if tagMatched {
