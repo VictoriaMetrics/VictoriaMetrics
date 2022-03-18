@@ -19,6 +19,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 Released at 18-03-2022
 
+**Update notes:** release contains breaking change to vmalert's API introduced in [ee396b5](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2320/commits/ee396b5750d0bcb98233d624f88fa6cf92a8253b).
+It replaces the `api/v1/groups` API handler with `api/v1/rules` handler in order to become compatible
+with [alerts generator specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md).
+See other changes introduced to vmalert [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2320).
+
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add support for mTLS communications between cluster components. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/550).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add ability to use OAuth2 for `-datasource.url`, `-notifier.url` and `-remoteRead.url`. See the corresponding command-line flags containing `oauth2` in their names [here](https://docs.victoriametrics.com/vmalert.html#flags).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add ability to use Bearer Token for `-notifier.url` via `-notifier.bearerToken` and `-notifier.bearerTokenFile` command-line flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1824).
