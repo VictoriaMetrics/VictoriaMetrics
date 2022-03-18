@@ -396,6 +396,10 @@ func (lah *lastAccessHeap) Push(x interface{}) {
 func (lah *lastAccessHeap) Pop() interface{} {
 	h := *lah
 	e := h[len(h)-1]
+
+	// Remove the reference to deleted entry, so Go GC could free up memory occupied by the deleted entry.
+	h[len(h)-1] = nil
+
 	*lah = h[:len(h)-1]
 	return e
 }
