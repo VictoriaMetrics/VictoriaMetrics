@@ -2,7 +2,8 @@
 # Username and bearer_token values must be unique.
 
 users:
-  # Requests with the 'Authorization: Bearer XXXX' header are proxied to http://localhost:8428 .
+  # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
+  # header are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"

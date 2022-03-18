@@ -1,7 +1,7 @@
 # vmauth
 
 `vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
-It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) and `Bearer token` is supported),
+It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication), `Bearer token` and [InfluxDB authorization](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897) is supported),
 matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 The `-auth.config` can point to either local file or to http url.
 
@@ -39,7 +39,8 @@ Each `url_prefix` in the [-auth.config](#auth-config) may contain either a singl
 # Username and bearer_token values must be unique.
 
 users:
-  # Requests with the 'Authorization: Bearer XXXX' header are proxied to http://localhost:8428 .
+  # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
+  # header are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
