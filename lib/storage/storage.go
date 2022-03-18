@@ -620,7 +620,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 	s.freeDiskSpaceWatcherWG.Add(1)
 	go func() {
 		defer s.freeDiskSpaceWatcherWG.Done()
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for {
 			select {
