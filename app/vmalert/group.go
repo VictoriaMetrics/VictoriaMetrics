@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -247,7 +250,10 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{rw: rw, notifiers: nts}
+	e := &executor{
+		rw:                       rw,
+		notifiers:                nts,
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -307,6 +313,12 @@ func getResolveDuration(groupInterval time.Duration) time.Duration {
 type executor struct {
 	notifiers func() []notifier.Notifier
 	rw        *remotewrite.Client
+
+	// previouslySentSeriesToRW stores series sent to RW on previous iteration
+	// map[ruleID]map[ruleLabels][]prompb.Label
+	// where `ruleID` is ID of the Rule within a Group
+	// and `ruleLabels` is []prompb.Label marshalled to a string
+	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, resolveDuration time.Duration) chan error {
@@ -358,14 +370,20 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
 
-	if len(tss) > 0 && e.rw != nil {
-		for _, ts := range tss {
-			remoteWriteTotal.Inc()
-			if err := e.rw.Push(ts); err != nil {
-				remoteWriteErrors.Inc()
-				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
+	errGr := new(utils.ErrGroup)
+	if e.rw != nil {
+		pushToRW := func(tss []prompbmarshal.TimeSeries) {
+			for _, ts := range tss {
+				remoteWriteTotal.Inc()
+				if err := e.rw.Push(ts); err != nil {
+					remoteWriteErrors.Inc()
+					errGr.Add(fmt.Errorf("rule %q: remote write failure: %w", rule, err))
+				}
 			}
 		}
+		pushToRW(tss)
+		staleSeries := e.getStaleSeries(rule, tss, now)
+		pushToRW(staleSeries)
 	}
 
 	ar, ok := rule.(*AlertingRule)
@@ -378,11 +396,55 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 		return nil
 	}
 
-	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers() {
 		if err := nt.Send(ctx, alerts); err != nil {
 			errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
 		}
 	}
 	return errGr.Err()
+}
+
+// getStaledSeries checks whether there are stale series from previously sent ones.
+func (e *executor) getStaleSeries(rule Rule, tss []prompbmarshal.TimeSeries, timestamp time.Time) []prompbmarshal.TimeSeries {
+	ruleLabels := make(map[string][]prompbmarshal.Label)
+	for _, ts := range tss {
+		// convert labels to strings so we can compare with previously sent series
+		key := labelsToString(ts.Labels)
+		ruleLabels[key] = ts.Labels
+	}
+
+	rID := rule.ID()
+	var staleS []prompbmarshal.TimeSeries
+	// check whether there are series which disappeared and need to be marked as stale
+	for key, labels := range e.previouslySentSeriesToRW[rID] {
+		if _, ok := ruleLabels[key]; ok {
+			continue
+		}
+		// previously sent series are missing in current series, so we mark them as stale
+		ss := newTimeSeriesPB([]float64{decimal.StaleNaN}, []int64{timestamp.Unix()}, labels)
+		staleS = append(staleS, ss)
+	}
+	// set previous series to current
+	e.previouslySentSeriesToRW[rID] = ruleLabels
+
+	return staleS
+}
+
+func labelsToString(labels []prompbmarshal.Label) string {
+	var b []byte
+	b = append(b, '{')
+	for i, label := range labels {
+		if len(label.Name) == 0 {
+			b = append(b, "__name__"...)
+		} else {
+			b = append(b, label.Name...)
+		}
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		if i < len(labels)-1 {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
 }
