@@ -1254,7 +1254,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Positive empty match by non-existing tag
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar|"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, positive filter: %s", err)
 	}
