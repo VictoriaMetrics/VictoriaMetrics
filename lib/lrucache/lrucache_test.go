@@ -1,4 +1,4 @@
-package regexpcache
+package lrucache
 
 import (
 	"fmt"
@@ -57,44 +57,13 @@ func TestCache(t *testing.T) {
 	if n := c.Misses(); n != 1 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 1)
 	}
-	// Check cache misses
-	key = "entry-with-miss"
-	// Verify that the entry wasn't stored to the cache and increment cache miss
-	if b1 := c.Get(key); b1 != nil {
-		t.Fatalf("unexpected non-nil value obtained; got %v", b1)
-	}
-	// Store the missed entry to the cache. It shouldn't be stored because of the previous cache miss
-	c.Put(key, &v)
-	// Verify that the entry wasn't stored to the cache.
-	if b1 := c.Get(key); b1 != nil {
-		t.Fatalf("unexpected non-nil value obtained after single cache miss; got %v", b1)
-	}
-	if n := c.Requests(); n != 4 {
-		t.Fatalf("unexpected number of requests; got %d; want %d", n, 4)
-	}
-	if n := c.Misses(); n != 3 {
-		t.Fatalf("unexpected number of misses; got %d; want %d", n, 3)
-	}
-	// Store the entry again. Now it must be stored because of the second cache miss.
-	c.Put(key, &v)
-	if b1 := c.Get(key); b1 != &v {
-		t.Fatalf("unexpected value obtained; got %v; want %v", b1, &v)
-	}
-	if n := c.Requests(); n != 5 {
-		t.Fatalf("unexpected number of requests; got %d; want %d", n, 5)
-	}
-	if n := c.Misses(); n != 3 {
-		t.Fatalf("unexpected number of misses; got %d; want %d", n, 3)
-	}
-
 	// Manually clean the cache. The entry shouldn't be deleted because it was recently accessed.
-	c.cleanPerKeyMisses()
 	c.cleanByTimeout()
-	if n := c.Len(); n != 2 {
+	if n := c.Len(); n != 1 {
 		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 2)
 	}
 	// overflow cache with maxSize
-	for i := 0; i <= maxSize-2; i++ {
+	for i := 0; i <= maxSize-1; i++ {
 		key := fmt.Sprintf("key-number-%d", i)
 		value := &testEntry{
 			record: "test record",

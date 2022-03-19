@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexpcache"
 )
 
 // convertToCompositeTagFilterss converts tfss to composite filters.
@@ -882,7 +882,7 @@ var (
 )
 
 var (
-	regexpCache = regexpcache.NewCache(getMaxRegexpCacheSize)
+	regexpCache = lrucache.NewCache(getMaxRegexpCacheSize)
 )
 
 type regexpCacheValue struct {
@@ -929,7 +929,7 @@ var (
 )
 
 var (
-	prefixesCache = regexpcache.NewCache(getMaxPrefixesCacheSize)
+	prefixesCache = lrucache.NewCache(getMaxPrefixesCacheSize)
 )
 
 type prefixSuffix struct {

@@ -1,7 +1,8 @@
-package regexpcache
+package lrucache
 
 import (
 	"container/heap"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,7 +20,6 @@ type Cache struct {
 	cleanerStoppedCh  chan struct{}
 	mu                sync.Mutex
 	m                 map[string]*cacheEntry
-	perKeyMisses      map[string]int
 	getMaxSize        func() int
 	lah               lastAccessHeap
 }
@@ -36,7 +36,6 @@ type cacheEntry struct {
 func NewCache(getMaxSize func() int) *Cache {
 	c := &Cache{
 		m:                 make(map[string]*cacheEntry),
-		perKeyMisses:      make(map[string]int),
 		getMaxSize:        getMaxSize,
 		cleanerStoppedCh:  make(chan struct{}),
 		cleanerMustStopCh: make(chan struct{}),
@@ -52,10 +51,11 @@ func (c *Cache) MustStop() {
 }
 
 func (c *Cache) cleaner() {
-	ticker := time.NewTicker(55 * time.Second)
+	// clean-up internal chosen randomly in 45-55 seconds range
+	// it should shift background jobs
+	tick := rand.Intn(10) + 45
+	ticker := time.NewTicker(time.Duration(tick) * time.Second)
 	defer ticker.Stop()
-	perKeyMissesTicker := time.NewTicker(4 * time.Minute)
-	defer perKeyMissesTicker.Stop()
 	for {
 		select {
 		case <-c.cleanerMustStopCh:
@@ -63,8 +63,6 @@ func (c *Cache) cleaner() {
 			return
 		case <-ticker.C:
 			c.cleanByTimeout()
-		case <-perKeyMissesTicker.C:
-			c.cleanPerKeyMisses()
 		}
 	}
 }
@@ -86,12 +84,6 @@ func (c *Cache) cleanByTimeout() {
 	}
 }
 
-func (c *Cache) cleanPerKeyMisses() {
-	c.mu.Lock()
-	c.perKeyMisses = make(map[string]int, len(c.perKeyMisses))
-	c.mu.Unlock()
-}
-
 // Requests returns cache requests
 func (c *Cache) Requests() uint64 {
 	return atomic.LoadUint64(&c.requests)
@@ -111,15 +103,10 @@ func (c *Cache) Len() int {
 }
 
 // Put puts the given value under the given key k into c,
-// but only if the key k was already requested via Get at least twice. 
+// but only if the key k was already requested via Get at least twice.
 func (c *Cache) Put(key string, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.perKeyMisses[key] == 1 {
-		// Do not cache entry if it has been requested only once (aka one-time-wonders items).
-		// This should reduce memory usage for the cache.
-		return
-	}
 	entry := &cacheEntry{
 		lastAccessTime: fasttime.UnixTimestamp(),
 		key:            key,
@@ -154,8 +141,6 @@ func (c *Cache) Get(key string) interface{} {
 		return e.value
 	}
 
-	// Slow path - the entry is missing in the cache.
-	c.perKeyMisses[key]++
 	atomic.AddUint64(&c.misses, 1)
 	return nil
 }
@@ -196,6 +181,8 @@ func (lah *lastAccessHeap) Push(x interface{}) {
 func (lah *lastAccessHeap) Pop() interface{} {
 	h := *lah
 	e := h[len(h)-1]
+	// Remove the reference to deleted entry, so Go GC could free up memory occupied by the deleted entry.
+	h[len(h)-1] = nil
 	*lah = h[:len(h)-1]
 	return e
 }
