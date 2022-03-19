@@ -13,29 +13,29 @@ import (
 // Cache caches any values with limited number of entries
 // evicted in LRU order.
 // Cache must be created only via NewCache function
-type Cache struct {
+type Cache[T any] struct {
 	requests          uint64
 	misses            uint64
 	cleanerMustStopCh chan struct{}
 	cleanerStoppedCh  chan struct{}
 	mu                sync.Mutex
-	m                 map[string]*cacheEntry
+	m                 map[string]*cacheEntry[T]
 	getMaxSize        func() int
-	lah               lastAccessHeap
+	lah               lastAccessHeap[T]
 }
 
-type cacheEntry struct {
+type cacheEntry[T any] struct {
 	lastAccessTime uint64
 	heapIdx        int
 
 	key   string
-	value interface{}
+	value *T
 }
 
 // NewCache returns new Cache with limited entries count
-func NewCache(getMaxSize func() int) *Cache {
-	c := &Cache{
-		m:                 make(map[string]*cacheEntry),
+func NewCache[T any](getMaxSize func() int) *Cache[T] {
+	c := &Cache[T]{
+		m:                 make(map[string]*cacheEntry[T]),
 		getMaxSize:        getMaxSize,
 		cleanerStoppedCh:  make(chan struct{}),
 		cleanerMustStopCh: make(chan struct{}),
@@ -45,12 +45,12 @@ func NewCache(getMaxSize func() int) *Cache {
 }
 
 // MustStop frees up resources occupied by c.
-func (c *Cache) MustStop() {
+func (c *Cache[T]) MustStop() {
 	close(c.cleanerMustStopCh)
 	<-c.cleanerStoppedCh
 }
 
-func (c *Cache) cleaner() {
+func (c *Cache[T]) cleaner() {
 	// clean-up internal chosen randomly in 45-55 seconds range
 	// it should shift background jobs
 	tick := rand.Intn(10) + 45
@@ -67,7 +67,7 @@ func (c *Cache) cleaner() {
 	}
 }
 
-func (c *Cache) cleanByTimeout() {
+func (c *Cache[T]) cleanByTimeout() {
 	// Delete items accessed more than four minutes ago.
 	// This time should be enough for repeated queries.
 	lastAccessTime := fasttime.UnixTimestamp() - 4*60
@@ -85,17 +85,17 @@ func (c *Cache) cleanByTimeout() {
 }
 
 // Requests returns cache requests
-func (c *Cache) Requests() uint64 {
+func (c *Cache[T]) Requests() uint64 {
 	return atomic.LoadUint64(&c.requests)
 }
 
 // Misses returns cache misses
-func (c *Cache) Misses() uint64 {
+func (c *Cache[T]) Misses() uint64 {
 	return atomic.LoadUint64(&c.misses)
 }
 
 // Len returns number of entries at cache
-func (c *Cache) Len() int {
+func (c *Cache[T]) Len() int {
 	c.mu.Lock()
 	n := len(c.m)
 	c.mu.Unlock()
@@ -104,10 +104,10 @@ func (c *Cache) Len() int {
 
 // Put puts the given value under the given key k into c,
 // but only if the key k was already requested via Get at least twice.
-func (c *Cache) Put(key string, value interface{}) {
+func (c *Cache[T]) Put(key string, value *T) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	entry := &cacheEntry{
+	entry := &cacheEntry[T]{
 		lastAccessTime: fasttime.UnixTimestamp(),
 		key:            key,
 		value:          value,
@@ -128,7 +128,7 @@ func (c *Cache) Put(key string, value interface{}) {
 }
 
 // Get returns cached value for the given key k from c and updates access time.
-func (c *Cache) Get(key string) interface{} {
+func (c *Cache[T]) Get(key string) *T {
 	atomic.AddUint64(&c.requests, 1)
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -145,15 +145,15 @@ func (c *Cache) Get(key string) interface{} {
 	return nil
 }
 
-type lastAccessHeap []*cacheEntry
+type lastAccessHeap[T any] []*cacheEntry[T]
 
 // Len implements interface
-func (lah *lastAccessHeap) Len() int {
+func (lah *lastAccessHeap[T]) Len() int {
 	return len(*lah)
 }
 
 // Swap  implements interface
-func (lah *lastAccessHeap) Swap(i, j int) {
+func (lah *lastAccessHeap[T]) Swap(i, j int) {
 	h := *lah
 	a := h[i]
 	b := h[j]
@@ -164,21 +164,21 @@ func (lah *lastAccessHeap) Swap(i, j int) {
 }
 
 // Less  implements interface
-func (lah *lastAccessHeap) Less(i, j int) bool {
+func (lah *lastAccessHeap[T]) Less(i, j int) bool {
 	h := *lah
 	return h[i].lastAccessTime < h[j].lastAccessTime
 }
 
 // Push  implements interface
-func (lah *lastAccessHeap) Push(x interface{}) {
-	e := x.(*cacheEntry)
+func (lah *lastAccessHeap[T]) Push(x interface{}) {
+	e := x.(*cacheEntry[T])
 	h := *lah
 	e.heapIdx = len(h)
 	*lah = append(h, e)
 }
 
 // Pop  implements interface
-func (lah *lastAccessHeap) Pop() interface{} {
+func (lah *lastAccessHeap[T]) Pop() interface{} {
 	h := *lah
 	e := h[len(h)-1]
 	// Remove the reference to deleted entry, so Go GC could free up memory occupied by the deleted entry.

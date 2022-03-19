@@ -488,7 +488,7 @@ func RegexpCacheMisses() uint64 {
 func getRegexpFromCache(expr []byte) (*regexpCacheValue, error) {
 	if rcv := regexpCache.Get(string(expr)); rcv != nil {
 		// Fast path - the regexp found in the cache.
-		return rcv.(*regexpCacheValue), nil
+		return rcv, nil
 	}
 	// Slow path - build the regexp.
 	exprOrig := string(expr)
@@ -882,7 +882,7 @@ var (
 )
 
 var (
-	regexpCache = lrucache.NewCache(getMaxRegexpCacheSize)
+	regexpCache = lrucache.NewCache[regexpCacheValue](getMaxRegexpCacheSize)
 )
 
 type regexpCacheValue struct {
@@ -895,7 +895,6 @@ type regexpCacheValue struct {
 func getRegexpPrefix(b []byte) ([]byte, []byte) {
 	// Fast path - search the prefix in the cache.
 	if ps := prefixesCache.Get(string(b)); ps != nil {
-		ps := ps.(*prefixSuffix)
 		return ps.prefix, ps.suffix
 	}
 
@@ -929,7 +928,7 @@ var (
 )
 
 var (
-	prefixesCache = lrucache.NewCache(getMaxPrefixesCacheSize)
+	prefixesCache = lrucache.NewCache[prefixSuffix](getMaxPrefixesCacheSize)
 )
 
 type prefixSuffix struct {
