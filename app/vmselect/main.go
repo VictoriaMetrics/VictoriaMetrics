@@ -243,6 +243,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		if r.Method != "GET" {
 			return false
 		}
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>VictoriaMetrics cluster - vmselect</h2></br>")
 		fmt.Fprintf(w, "See <a href='https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format'>docs</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
