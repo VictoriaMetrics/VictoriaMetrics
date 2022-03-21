@@ -6,7 +6,7 @@ import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import throttle from "lodash.throttle";
-import {DisplayType} from "../components/Home/Configurator/DisplayTypeSwitch";
+import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
 import {CustomStep} from "../state/graph/reducer";
 
 interface FetchQueryParams {

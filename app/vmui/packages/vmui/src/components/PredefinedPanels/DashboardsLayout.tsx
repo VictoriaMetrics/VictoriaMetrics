@@ -1,5 +1,4 @@
 import React, {FC, useEffect, useMemo, useState} from "preact/compat";
-import Header from "../Header/Header";
 import getDashboardSettings from "./getDashboardSettings";
 import {DashboardRow, DashboardSettings} from "../../types";
 import Box from "@mui/material/Box";
@@ -24,8 +23,7 @@ const DashboardLayout: FC = () => {
     getDashboardSettings().then(d => d.length && setDashboards(d));
   }, []);
 
-  return <Box id="homeLayout">
-    <Header/>
+  return <>
     {!dashboards && <Alert color="info" severity="info" sx={{m: 4}}>Dashboards not found</Alert>}
     {dashboards && <>
       <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
@@ -49,7 +47,7 @@ const DashboardLayout: FC = () => {
           </Alert>}
       </Box>
     </>}
-  </Box>;
+  </>;
 };
 
 export default DashboardLayout;

@@ -4,13 +4,13 @@ import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import {ExecutionControls} from "../Home/Configurator/Time/ExecutionControls";
+import {ExecutionControls} from "../CustomPanel/Configurator/Time/ExecutionControls";
 import Logo from "../common/Logo";
 import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
-import {TimeSelector} from "../Home/Configurator/Time/TimeSelector";
-import GlobalSettings from "../Home/Configurator/Settings/GlobalSettings";
-import {useLocation, useNavigate} from "react-router-dom";
+import {TimeSelector} from "../CustomPanel/Configurator/Time/TimeSelector";
+import GlobalSettings from "../CustomPanel/Configurator/Settings/GlobalSettings";
+import {Link as RouterLink, useLocation, useNavigate} from "react-router-dom";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import router from "../../router/index";
@@ -56,18 +56,19 @@ const useStyles = makeStyles({
 const Header: FC = () => {
 
   const classes = useStyles();
-  const location = useLocation();
+  const {search, pathname} = useLocation();
   const navigate = useNavigate();
 
-  const [activeMenu, setActiveMenu] = useState(location.pathname);
+  const [activeMenu, setActiveMenu] = useState(pathname);
 
   const onClickLogo = () => {
+    navigateHandler(router.home);
     setQueryStringWithoutPageReload("");
     window.location.reload();
   };
 
   const navigateHandler = (pathname: string) => {
-    navigate({pathname, search: location.search});
+    navigate({pathname, search: search});
   };
 
   return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
@@ -88,8 +89,8 @@ const Header: FC = () => {
       <Box sx={{ml: 8}}>
         <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
           onChange={(e, val) => setActiveMenu(val)}>
-          <Tab label="Custom panel" value={router.home} onClick={() => navigateHandler(router.home)}/>
-          <Tab label="Dashboards" value={router.dashboards} onClick={() => navigateHandler(router.dashboards)}/>
+          <Tab label="Custom panel" value={router.home} component={RouterLink} to={`${router.home}${search}`}/>
+          <Tab label="Dashboards" value={router.dashboards} component={RouterLink} to={`${router.dashboards}${search}`}/>
         </Tabs>
       </Box>
       <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>

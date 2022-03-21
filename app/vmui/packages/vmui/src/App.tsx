@@ -1,5 +1,5 @@
 import React, {FC} from "preact/compat";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import {HashRouter, Route, Routes} from "react-router-dom";
 import {SnackbarProvider} from "./contexts/Snackbar";
 import {StateProvider} from "./state/common/StateContext";
 import {AuthStateProvider} from "./state/auth/AuthStateContext";
@@ -11,10 +11,10 @@ import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import DayjsUtils from "@date-io/dayjs";
 import router from "./router/index";
 
+import CustomPanel from "./components/CustomPanel/CustomPanel";
 import HomeLayout from "./components/Home/HomeLayout";
 import DashboardsLayout from "./components/PredefinedPanels/DashboardsLayout";
 
-const [baseRoute] = window.location.href.match(/\/(?:graph|vmui)/) || ["/"];
 
 const App: FC = () => {
 
@@ -27,12 +27,14 @@ const App: FC = () => {
             <AuthStateProvider> {/* Auth related info - optionally persisted to Local Storage */}
               <GraphStateProvider> {/* Graph settings */}
                 <SnackbarProvider> {/* Display various snackbars */}
-                  <BrowserRouter basename={baseRoute}>
+                  <HashRouter>
                     <Routes>
-                      <Route path={router.home} element={<HomeLayout/>}/>
-                      <Route path={router.dashboards} element={<DashboardsLayout/>}/>
+                      <Route path={"/"} element={<HomeLayout/>}>
+                        <Route path={router.home} element={<CustomPanel/>}/>
+                        <Route path={router.dashboards} element={<DashboardsLayout/>}/>
+                      </Route>
                     </Routes>
-                  </BrowserRouter>
+                  </HashRouter>
                 </SnackbarProvider>
               </GraphStateProvider>
             </AuthStateProvider>
