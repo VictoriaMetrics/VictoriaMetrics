@@ -20,7 +20,7 @@
     "@types/node": "^17.0.21",
     "@types/qs": "^6.9.7",
     "@types/react": "^17.0.40",
-    "@types/react-dom": "^17.0.11",
+    "@types/react-dom": "^17.0.14",
     "@types/react-measure": "^2.0.8",
     "dayjs": "^1.11.0",
     "lodash.debounce": "^4.0.8",
