@@ -12633,7 +12633,7 @@ type CloudFunctionConfiguration struct {
 	Event *string `deprecated:"true" type:"string" enum:"Event"`
 
 	// Bucket events for which to send notifications.
-	Events []*string `locationName:"Event" type:"list" flattened:"true"`
+	Events []*string `locationName:"Event" type:"list" flattened:"true" enum:"Event"`
 
 	// An optional unique identifier for configurations in a notification configuration.
 	// If you don't provide one, Amazon S3 will assign an ID.
@@ -21627,7 +21627,7 @@ type GetObjectAttributesInput struct {
 	// in the response. Fields that you do not specify are not returned.
 	//
 	// ObjectAttributes is a required field
-	ObjectAttributes []*string `location:"header" locationName:"x-amz-object-attributes" type:"list" required:"true"`
+	ObjectAttributes []*string `location:"header" locationName:"x-amz-object-attributes" type:"list" required:"true" enum:"ObjectAttributes"`
 
 	// Specifies the part after which listing should begin. Only parts with higher
 	// part numbers will be listed.
@@ -25167,7 +25167,7 @@ type InventoryConfiguration struct {
 	IsEnabled *bool `type:"boolean" required:"true"`
 
 	// Contains the optional fields that are included in the inventory results.
-	OptionalFields []*string `locationNameList:"Field" type:"list"`
+	OptionalFields []*string `locationNameList:"Field" type:"list" enum:"InventoryOptionalField"`
 
 	// Specifies the schedule for generating inventory results.
 	//
@@ -25694,7 +25694,7 @@ type LambdaFunctionConfiguration struct {
 	// in the Amazon S3 User Guide.
 	//
 	// Events is a required field
-	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true"`
+	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true" enum:"Event"`
 
 	// Specifies object key name filtering rules. For information about key name
 	// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
@@ -29643,7 +29643,7 @@ type Object struct {
 	_ struct{} `type:"structure"`
 
 	// The algorithm that was used to create a checksum of the object.
-	ChecksumAlgorithm []*string `type:"list" flattened:"true"`
+	ChecksumAlgorithm []*string `type:"list" flattened:"true" enum:"ChecksumAlgorithm"`
 
 	// The entity tag is a hash of the object. The ETag reflects changes only to
 	// the contents of an object, not its metadata. The ETag may or may not be an
@@ -30060,7 +30060,7 @@ type ObjectVersion struct {
 	_ struct{} `type:"structure"`
 
 	// The algorithm that was used to create a checksum of the object.
-	ChecksumAlgorithm []*string `type:"list" flattened:"true"`
+	ChecksumAlgorithm []*string `type:"list" flattened:"true" enum:"ChecksumAlgorithm"`
 
 	// The entity tag is an MD5 hash of that version of the object.
 	ETag *string `type:"string"`
@@ -36025,7 +36025,7 @@ type QueueConfiguration struct {
 	// A collection of bucket events for which to send notifications
 	//
 	// Events is a required field
-	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true"`
+	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true" enum:"Event"`
 
 	// Specifies object key name filtering rules. For information about key name
 	// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
@@ -36114,7 +36114,7 @@ type QueueConfigurationDeprecated struct {
 	Event *string `deprecated:"true" type:"string" enum:"Event"`
 
 	// A collection of bucket events for which to send notifications.
-	Events []*string `locationName:"Event" type:"list" flattened:"true"`
+	Events []*string `locationName:"Event" type:"list" flattened:"true" enum:"Event"`
 
 	// An optional unique identifier for configurations in a notification configuration.
 	// If you don't provide one, Amazon S3 will assign an ID.
@@ -39062,7 +39062,7 @@ type TopicConfiguration struct {
 	// in the Amazon S3 User Guide.
 	//
 	// Events is a required field
-	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true"`
+	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true" enum:"Event"`
 
 	// Specifies object key name filtering rules. For information about key name
 	// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
@@ -39152,7 +39152,7 @@ type TopicConfigurationDeprecated struct {
 	Event *string `deprecated:"true" type:"string" enum:"Event"`
 
 	// A collection of events related to objects
-	Events []*string `locationName:"Event" type:"list" flattened:"true"`
+	Events []*string `locationName:"Event" type:"list" flattened:"true" enum:"Event"`
 
 	// An optional unique identifier for configurations in a notification configuration.
 	// If you don't provide one, Amazon S3 will assign an ID.
