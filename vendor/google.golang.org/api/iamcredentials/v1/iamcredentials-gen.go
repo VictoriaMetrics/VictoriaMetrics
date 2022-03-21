@@ -87,7 +87,7 @@ const (
 
 // NewService creates a new Service.
 func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, error) {
-	scopesOption := option.WithScopes(
+	scopesOption := internaloption.WithDefaultScopes(
 		"https://www.googleapis.com/auth/cloud-platform",
 	)
 	// NOTE: prepend, so we don't override user-specified scopes.

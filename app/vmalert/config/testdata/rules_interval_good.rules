@@ -1,0 +1,12 @@
+groups:
+  - name: groupTest
+    interval: 1s
+    rules:
+      - alert: VMRows
+        for: 2s
+        expr: sum(rate(vm_http_request_errors_total[2s])) > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"

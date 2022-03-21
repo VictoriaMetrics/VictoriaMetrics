@@ -158,6 +158,11 @@ It is possible manualy setting up a toy cluster on a single host. In this case e
 * `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
 
 
+## mTLS protection
+
+By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert` and `vmselect` must be configured with client-side certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are verified by `vmstorage` when `vminsert` and `vmselect` dial `vmstorage`. An optional `-cluster.tlsCAFile` command-line flag can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority).
+
+
 ### Environment variables
 
 Each flag values can be set thru environment variables by following these rules:
@@ -482,6 +487,14 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 Below is the output for `/path/to/vminsert -help`:
 
 ```
+  -cluster.tls
+    	Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCAFile string
+    	Path to TLS CA file to use for verifying certificates provided by -storageNode. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCertFile string
+    	Path to client-side TLS certificate file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsKeyFile string
+    	Path to client-side TLS key file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -clusternativeListenAddr string
     	TCP address to listen for data from other vminsert nodes in multi-level cluster setup. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8400 must be set. Doesn't work if empty
   -csvTrimTimestamp duration
@@ -530,6 +543,8 @@ Below is the output for `/path/to/vminsert -help`:
   -influx.maxLineSize size
     	The maximum size in bytes for a single InfluxDB line during parsing
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxDBLabel string
+    	Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
     	TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
   -influxMeasurementFieldSeparator string
@@ -611,6 +626,14 @@ Below is the output for `/path/to/vmselect -help`:
 ```
   -cacheDataPath string
     	Path to directory for cache files. Cache isn't saved if empty
+  -cluster.tls
+    	Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCAFile string
+    	Path to TLS CA file to use for verifying certificates provided by -storageNode. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCertFile string
+    	Path to client-side TLS certificate file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsKeyFile string
+    	Path to client-side TLS key file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
     	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -downsampling.period array
@@ -737,6 +760,14 @@ Below is the output for `/path/to/vmstorage -help`:
 ```
   -bigMergeConcurrency int
     	The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+  -cluster.tls
+    	Whether to use TLS when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCAFile string
+    	Path to TLS CA file to use for verifying certificates provided by vminsert and vmselect. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCertFile string
+    	Path to server-side TLS certificate file to use when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsKeyFile string
+    	Path to server-side TLS key file to use when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
     	Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueriesOutsideRetention
@@ -814,6 +845,15 @@ Below is the output for `/path/to/vmstorage -help`:
     	The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
     	authKey, which must be passed in query string to /snapshot* pages
+  -storage.cacheSizeIndexDBDataBlocks size
+    	Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBIndexBlocks size
+    	Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeStorageTSID size
+    	Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.maxDailySeries int
     	The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
@@ -840,7 +880,7 @@ Below is the output for `/path/to/vmstorage -help`:
 
 ## VictoriaMetrics Logo
 
-[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
+[Zip](VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
 
 Files included in each folder:
 

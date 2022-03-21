@@ -527,7 +527,7 @@ The shortlist of configuration flags is the following:
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
   -datasource.queryTimeAlignment
-        Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
+    	Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
     	Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.tlsCAFile string
@@ -774,6 +774,8 @@ The shortlist of configuration flags is the following:
     	Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
     	Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+  -rule.resendDelay duration
+    	Minimum amount of time to wait before resending an alert to notifier
   -rule.validateExpressions
     	Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
