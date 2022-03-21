@@ -161,6 +161,12 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/labels'
 
 </div>
 
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+
+## /api/v1/label/<label_name>/values
+
 **Querying label values**
 
 Single:
@@ -182,8 +188,6 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values'
 </div>
 
 Additional information: 
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 * [Getting label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 
 ## /api/v1/query
