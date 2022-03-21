@@ -44,6 +44,8 @@ See other changes introduced to vmalert [here](https://github.com/VictoriaMetric
 
 Released at 03-03-2022
 
+**Update notes:** In this release VictoriaMetrics may use some extra memory due to issues [#2242](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [#2007](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007). These issues were addressed in [v1.75.0](#v1750), so we recommend updating straight to it.
+
 * FEATURE: add support for conditional relabeling via `if` filter. The `if` filter can contain arbitrary [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following rule drops targets matching `foo{bar="baz"}` series selector:
 
 ```yml
@@ -74,6 +76,8 @@ This rule is equivalent to less clear traditional one:
 
 Released at 22-02-2022
 
+**Update notes:** In this release VictoriaMetrics may use some extra memory due to issues [#2242](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [#2007](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007). These issues were addressed in [v1.75.0](#v1750), so we recommend updating straight to it.
+
 * FEATURE: allow overriding default limits for the following in-memory caches, which usually occupy the most memory:
   * `storage/tsid` - the cache speeds up lookups of internal metric ids by `metric_name{labels...}` during data ingestion. The size for this cache can be tuned with `-storage.cacheSizeStorageTSID` command-line flag.
   * `indexdb/dataBlocks` - the cache speeds up data lookups in `<-storageDataPath>/indexdb` files. The size for this cache can be tuned with `-storage.cacheSizeIndexDBDataBlocks` command-line flag.
@@ -94,16 +98,7 @@ Released at 22-02-2022
 
 Released at 14-02-2022
 
-**Update notes:** changes introduced in [#1401](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401)
-are heavily related to the TSID cache, which is mostly utilized during the ingestion. The fix implies the cache
-internal structure change which would cause the cache reset on startup. After the update, users need to expect higher
-CPU and memory usage during the ingestion while the cache is being populated. Normally, we expect this process to take 
-less than hour.
-
-We recommend updating in "off-peak" time when load on the VictoriaMetrics is on its minimum. We also recommend
-skipping [v1.73.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.0) in favour of
-[v1.73.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.1) which contains the fix for reducing
-the memory usage after the update.
+**Update notes:** In this release VictoriaMetrics may use some extra memory described in issues [#2242](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [#2007](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007). These issues were addressed in [v1.75.0](#v1750), so we recommend updating straight to it.
 
 * FEATURE: publish VictoriaMetrics binaries for MacOS amd64 and MacOS arm64 (aka MacBook M1) at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1896) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1851).
 * FEATURE: reduce CPU and disk IO usage during `indexdb` rotation once per `-retentionPeriod`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401).
@@ -189,7 +184,7 @@ Released at 20-12-2021
 
 **Update notes:** deduplication logic was slightly changed on the release, which may cause extra 
 [background merges](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-for already existing data parts. This process is intentionally limited by one CPU core, but still can result
+for already existing data parts for installations with `-dedup.minScrapeInterval` flag value greater than 0. This process is intentionally limited by one CPU core, but still can result
 into increase of CPU usage until merges are finished.
 
 We recommend updating in "off-peak" time when load on the VictoriaMetrics is on its minimum.
