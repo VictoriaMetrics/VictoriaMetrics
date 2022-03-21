@@ -39,15 +39,25 @@ interface AxisExtend extends Axis {
   _size?: number;
 }
 
+const getTextWidth = (val: string, font: string): number => {
+  const span = document.createElement("span");
+  span.innerText = val;
+  span.style.cssText = `position: absolute; z-index: -1; pointer-events: none; opacity: 0; font: ${font}`;
+  document.body.appendChild(span);
+  const width = span.offsetWidth;
+  span.remove();
+  return width;
+};
+
 export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: number): number => {
   const axis = u.axes[axisIdx] as AxisExtend;
 
   if (cycleNum > 1) return axis._size || 60;
 
-  let axisSize = 4 + (axis?.ticks?.size || 0) + (axis.gap || 0);
+  let axisSize = 6 + (axis?.ticks?.size || 0) + (axis.gap || 0);
 
   const longestVal = (values ?? []).reduce((acc, val) => val.length > acc.length ? val : acc, "");
-  if (longestVal != "") axisSize += u.ctx.measureText(longestVal).width / devicePixelRatio;
+  if (longestVal != "") axisSize += getTextWidth(longestVal, u.ctx.font);
 
   return Math.ceil(axisSize);
 };
