@@ -88,13 +88,13 @@ Currently, vmanomaly ships with a few common models:
 ### Examples
 For example here’s how Prophet predictions could look like on example of real data  
 (Prophet auto-detected seasonality interval):
-[prophet](prophet.png)
+![prophet](anomaly/prophet-example.png)
 
 And here’s how Holt-Winters predictions real-world data could look like (seasonality manually 
  set to 1 week). Notice that it predicts anomalies in 
 different places than Prophet, because the model noticed there are usually spikes on Friday 
 morning, so it accounted for that:
-[hw](hw.png)
+![hw](anomaly/holtwinters-example.png)
 
 ## Process
 Upon starting, vmanomaly queries the initial range of data, and trains its model (“fit” by convention).
@@ -109,8 +109,18 @@ The writer is also pluggable, users can supply their own writers.
 
 
 ## Usage
-Script accepts only one parameter -- config file path
-`python3 -m vmanomaly config_zscore.yaml`
+Script accepts only one parameter -- config file path:
 
-It is also possible to split up config to multiple files, just list them all in command line 
-`python3 -m vmanomaly model_prophet.yaml io_csv.yaml scheduler_oneoff.yaml`
+```sh
+python3 vmanomaly.py config_zscore.yaml
+```
+or
+```sh
+python3 -m vmanomaly config_zscore.yaml
+```
+
+It is also possible to split up config to multiple files, just list them all in command line:
+
+```sh
+python3 -m vmanomaly model_prophet.yaml io_csv.yaml scheduler_oneoff.yaml
+```
