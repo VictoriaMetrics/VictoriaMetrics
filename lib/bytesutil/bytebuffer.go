@@ -36,17 +36,24 @@ func (bb *ByteBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// MustReadAt reads len(p) bytes starting from the given offset.
-func (bb *ByteBuffer) MustReadAt(p []byte, offset int64) {
+// MustReadAt must read len(p) bytes from offset off to p and returns read bytes.
+// Returned slice cannot be modified.
+func (bb *ByteBuffer) MustReadAt(p []byte, offset int64) []byte {
 	if offset < 0 {
 		logger.Panicf("BUG: cannot read at negative offset=%d", offset)
 	}
 	if offset > int64(len(bb.B)) {
 		logger.Panicf("BUG: too big offset=%d; cannot exceed len(bb.B)=%d", offset, len(bb.B))
 	}
-	if n := copy(p, bb.B[offset:]); n < len(p) {
-		logger.Panicf("BUG: EOF occurred after reading %d bytes out of %d bytes at offset %d", n, len(p), offset)
+	dstLen := len(p)
+	p = bb.B[offset:]
+	if dstLen < len(p) {
+		p = p[:dstLen]
 	}
+	if dstLen != len(p) {
+		logger.Panicf("BUG: EOF occurred after reading %d bytes out of %d bytes at offset %d", len(p), dstLen, offset)
+	}
+	return p
 }
 
 // ReadFrom reads all the data from r to bb until EOF.

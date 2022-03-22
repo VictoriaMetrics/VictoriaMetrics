@@ -18,8 +18,9 @@ const is32BitPtr = (^uintptr(0) >> 32) == 0
 
 // MustReadAtCloser is rand-access read interface.
 type MustReadAtCloser interface {
-	// MustReadAt must read len(p) bytes from offset off to p.
-	MustReadAt(p []byte, off int64)
+	// MustReadAt must read len(p) bytes from offset off to p and returns read bytes.
+	// Returned slice cannot be modified.
+	MustReadAt(p []byte, off int64) []byte
 
 	// MustClose must close the reader.
 	MustClose()
@@ -31,10 +32,11 @@ type ReaderAt struct {
 	mmapData []byte
 }
 
-// MustReadAt reads len(p) bytes at off from r.
-func (r *ReaderAt) MustReadAt(p []byte, off int64) {
+// MustReadAt reads len(p) bytes at off from r and returns read bytes
+// returned values cannot be modified
+func (r *ReaderAt) MustReadAt(p []byte, off int64) []byte {
 	if len(p) == 0 {
-		return
+		return p
 	}
 	if off < 0 {
 		logger.Panicf("off=%d cannot be negative", off)
@@ -51,13 +53,18 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		if off > int64(len(r.mmapData)-len(p)) {
 			logger.Panicf("off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(r.mmapData)-len(p), len(p))
 		}
-		src := r.mmapData[off:]
-		// The copy() below may result in thread block as described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d .
-		// But production workload proved this is OK in most cases, so use it without fear :)
-		copy(p, src)
+		dstLen := len(p)
+		p = r.mmapData[off:]
+		if dstLen < len(p) {
+			p = p[:dstLen]
+		}
+		if dstLen != len(p) {
+			logger.Panicf("FATAL: unexpected number of bytes read from mmap buffer; got %d; want %d", len(p), dstLen)
+		}
 	}
 	readCalls.Inc()
 	readBytes.Add(len(p))
+	return p
 }
 
 // MustClose closes r.

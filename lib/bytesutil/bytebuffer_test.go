@@ -232,7 +232,7 @@ func TestByteBufferMustReadAt(t *testing.T) {
 				t.Fatalf("expecting non-nil error when reading at negative offset")
 			}
 		}()
-		bb.MustReadAt(p, -1)
+		p = bb.MustReadAt(p, -1)
 	}()
 
 	// Try reading past the end of buffer
@@ -242,18 +242,18 @@ func TestByteBufferMustReadAt(t *testing.T) {
 				t.Fatalf("expecting non-nil error when reading past the end of buffer")
 			}
 		}()
-		bb.MustReadAt(p, int64(len(testStr))+1)
+		p = bb.MustReadAt(p, int64(len(testStr))+1)
 	}()
 
 	// Try reading the first byte
 	n := len(p)
-	bb.MustReadAt(p, 0)
+	p = bb.MustReadAt(p, 0)
 	if string(p) != testStr[:n] {
 		t.Fatalf("unexpected value read: %q; want %q", p, testStr[:n])
 	}
 
 	// Try reading the last byte
-	bb.MustReadAt(p, int64(len(testStr))-1)
+	p = bb.MustReadAt(p, int64(len(testStr))-1)
 	if string(p) != testStr[len(testStr)-1:] {
 		t.Fatalf("unexpected value read: %q; want %q", p, testStr[len(testStr)-1:])
 	}
@@ -271,7 +271,7 @@ func TestByteBufferMustReadAt(t *testing.T) {
 
 	// Try reading multiple bytes from the middle
 	p = make([]byte, 3)
-	bb.MustReadAt(p, 2)
+	p = bb.MustReadAt(p, 2)
 	if string(p) != testStr[2:2+len(p)] {
 		t.Fatalf("unexpected value read: %q; want %q", p, testStr[2:2+len(p)])
 	}
