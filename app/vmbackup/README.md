@@ -22,14 +22,13 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 See also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 
-
 ## Use cases
 
 ### Regular backups
 
 Regular backup can be performed with the following command:
 
-```
+```bash
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
@@ -39,28 +38,25 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
-
 ### Regular backups with server-side copy from existing backup
 
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be sped up
 with the following command:
 
-```
+```bash
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
-
 
 ### Incremental backups
 
 Incremental backups are performed if `-dst` points to an already existing backup. In this case only new data is uploaded to remote storage.
 It saves time and network bandwidth costs when working with big backups:
 
-```
+```bash
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/existing/backup>
 ```
-
 
 ### Smart backups
 
@@ -68,7 +64,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 
 * Run the following command every hour:
 
-```
+```bash
 vmbackup -snapshotName=<latest-snapshot> -dst=gs://<bucket>/latest
 ```
 
@@ -77,12 +73,11 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 
 * Run the following command once a day:
 
-```
+```bash
 vmbackup -snapshotName=<daily-snapshot> -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
-
 
 This apporach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
 or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when creating daily backup.
@@ -90,7 +85,6 @@ or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when
 Do not forget to remove old snapshots and backups when they are no longer needed in order to save storage costs.
 
 See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) for automating smart backups.
-
 
 ## How does it work?
 
@@ -108,15 +102,14 @@ Such splitting minimizes the amounts of data to re-transfer after temporary erro
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:
 
-- All the files in the snapshot are immutable.
-- Old files are periodically merged into new files.
-- Smaller files have higher probability to be merged.
-- Consecutive snapshots share many identical files.
+* All the files in the snapshot are immutable.
+* Old files are periodically merged into new files.
+* Smaller files have higher probability to be merged.
+* Consecutive snapshots share many identical files.
 
 These properties allow performing fast and cheap incremental backups and server-side copying from `-origin` paths.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 `vmbackup` can work improperly or slowly when these properties are violated.
-
 
 ## Troubleshooting
 
@@ -126,15 +119,14 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) and vice versa.
 
-
 ## Advanced usage
-
 
 * Obtaining credentials from a file.
 
   Add flag `-credsFilePath=/etc/credentials` with the following content:
 
     for s3 (aws, minio or other s3 compatible storages):
+
      ```bash
      [default]
      aws_access_key_id=theaccesskey
@@ -142,6 +134,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
     ```
 
     for gce cloud storage:
+
     ```json
     {
            "type": "service_account",
@@ -159,7 +152,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 * Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
   You have to add a custom url endpoint via flag:
-```
+
+```bash
   # for minio
   -customS3Endpoint=http://localhost:9000
 
@@ -169,101 +163,99 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 * Run `vmbackup -help` in order to see all the available options:
 
-```
+```bash
   -concurrency int
-    	The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
+     The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
-    	Path to file with S3 configs. Configs are loaded from default location if not set.
-    	See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
+     Path to file with S3 configs. Configs are loaded from default location if not set.
+     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -configProfile string
-    	Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used
+     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used
   -credsFilePath string
-    	Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
-    	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
+     Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -customS3Endpoint string
-    	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
+     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -dst string
-    	Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
-    	-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
+     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+     -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
   -enableTCP6
-    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
-    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
-    	Prefix for environment variables if -envflag.enable is set
+     Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
-    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
-    	Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
+     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-    	Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
-    	Timeout for incoming idle http connections (default 1m0s)
+     Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-    	The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
-    	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
+     An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+     Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-    	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-    	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-    	TCP address for exporting metrics at /metrics page (default ":8420")
+     TCP address for exporting metrics at /metrics page (default ":8420")
   -loggerDisableTimestamps
-    	Whether to disable writing timestamps in logs
+     Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
-    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
+     Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
-    	Format for logs. Possible values: default, json (default "default")
+     Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
-    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
-    	Output for the logs. Supported values: stderr, stdout (default "stderr")
+     Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
-    	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
+     Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
-    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+     Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxBytesPerSecond size
-    	The maximum upload speed. There is no limit if it is set to 0
-    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     The maximum upload speed. There is no limit if it is set to 0
+     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedBytes size
-    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-    	Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -origin string
-    	Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
+     Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
   -pprofAuthKey string
-    	Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -s3ForcePathStyle
-    	Prefixing endpoint with bucket name when set false, true by default. (default true)
+     Prefixing endpoint with bucket name when set false, true by default. (default true)
   -snapshot.createURL string
-    	VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
+     VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
   -snapshot.deleteURL string
-    	VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
+     VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
   -snapshotName string
-    	Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
+     Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
   -storageDataPath string
-    	Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
+     Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls
-    	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
   -tlsKeyFile string
-    	Path to file with TLS key. Used only if -tls is set
+     Path to file with TLS key. Used only if -tls is set
   -version
-    	Show VictoriaMetrics version
+     Show VictoriaMetrics version
 ```
-
 
 ## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - see `vmutils-*` archives there.
-
 
 ### Development build
 
