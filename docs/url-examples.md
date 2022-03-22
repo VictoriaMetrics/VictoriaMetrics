@@ -210,10 +210,6 @@ Cluster:
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_request_errors_total&time=2021-02-22T19:10:30.781Z'
 ```
 
-```bash
-curl -G http://<vmselect>:8481/select/0/prometheus/api/v1/query_range --data-urlencode 'query=sum(increase(vm_http_request_errors_total{status=""}[5m])) by (status)'
-```
-
 </div>
 
 Additional information: 
@@ -247,6 +243,10 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_
 
 ```bash
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=-1h&step=10m'
+```
+
+```bash
+curl -G http://<vmselect>:8481/select/0/prometheus/api/v1/query_range --data-urlencode 'query=sum(increase(vm_http_request_errors_total{status=""}[5m])) by (status)'
 ```
 
 </div>
