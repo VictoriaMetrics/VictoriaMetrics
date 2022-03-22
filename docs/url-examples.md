@@ -138,6 +138,203 @@ Additional information:
 * [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 * [How to import CSV data](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data)
 
+## /api/v1/labels
+
+**Get a list of label names**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/prometheus/api/v1/labels'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/labels'
+```
+
+</div>
+
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+
+## /api/v1/label/<label_name>/values
+
+**Querying label values**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/prometheus/api/v1/label/job/values'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values'
+```
+
+</div>
+
+Additional information: 
+* [Getting label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
+
+## /api/v1/query
+
+**Performs PromQL/MetricsQL instant query**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/prometheus/api/v1/query?query=vm_http_request_errors_total&time=2021-02-22T19:10:30.781Z'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_request_errors_total&time=2021-02-22T19:10:30.781Z'
+```
+
+</div>
+
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [Instant queries](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
+* [Instant vector selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors)
+
+## /api/v1/query_range
+
+**Performs PromQL/MetricsQL range_query**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z&step=20m'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z&step=20m'
+```
+
+</div>
+
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=-1h&step=10m'
+```
+
+```bash
+curl -G http://<vmselect>:8481/select/0/prometheus/api/v1/query_range --data-urlencode 'query=sum(increase(vm_http_request_errors_total{status=""}[5m])) by (status)'
+```
+
+</div>
+
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [Range queries](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
+* [Range Vector Selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors)
+
+## /api/v1/series
+
+**Finding series by label matchers**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/prometheus/api/v1/series?match[]=vm_http_request_errors_total&start=-1h'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/series?match[]=vm_http_request_errors_total&start=-1h'
+```
+
+</div>
+
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [Finding series by label matchers](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
+
+## /api/v1/status/tsdb
+
+**Cardinality statistics**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/prometheus/api/v1/status/tsdb'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb'
+```
+
+</div>
+
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [TSDB Stats](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
+
+## /api/v1/targets  
+
+**Checking targets**
+
+Should be sent to vmagent/VMsingle
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmsingle>:8428/api/v1/targets' 
+```
+
+</div>
+
+cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmagent>:8429/api/v1/targets' 
+```
+
+</div>
+
+Additional information: 
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
+* [Targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets)
+
 ## /datadog/api/v1/series
 
 **Sends data from DataDog agent to VM**
