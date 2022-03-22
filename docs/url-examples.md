@@ -4,11 +4,10 @@ sort: 20
 
 # VictoriaMetrics API examples
 
-
 ## /api/v1/admin/tsdb/delete_series
 
 **Deletes time series from VictoriaMetrics**
- 
+
 Single:
 <div class="with-copy" markdown="1">
 
@@ -28,13 +27,13 @@ curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series
 </div>
 
 Additional information:
-* [How to delete time series](https://docs.victoriametrics.com/#how-to-delete-time-series)
 
+* [How to delete time series](https://docs.victoriametrics.com/#how-to-delete-time-series)
 
 ## /api/v1/export/csv
 
 **Exports CSV data from VictoriaMetrics**
- 
+
 Single:
 <div class="with-copy" markdown="1">
 
@@ -43,7 +42,7 @@ curl 'http://<victoriametrics-addr>:8428/api/v1/export/csv?format=__name__,__val
 ```
 
 </div>
- 
+
 Cluster:
 <div class="with-copy" markdown="1">
 
@@ -53,10 +52,10 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv?format=__n
 
 </div>
 
-Additional information: 
+Additional information:
+
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-csv-data)
 * [URL Format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
-
 
 ## /api/v1/export/native
   
@@ -81,8 +80,8 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/native?match=v
 </div>
 
 More information:
-* [How to export data in native format](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 
+* [How to export data in native format](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 
 ## /api/v1/import
 
@@ -107,13 +106,13 @@ curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/promethe
 </div>
 
 Additional information:
+
 * [How to import time series data](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 
-
-## /api/v1/import/csv 
+## /api/v1/import/csv
 
 **Imports CSV data to VictoriaMetrics**
- 
+
 Single:
 <div class="with-copy" markdown="1">
 
@@ -134,15 +133,15 @@ curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1
 
 </div>
 
-Additional information: 
+Additional information:
+
 * [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 * [How to import CSV data](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data)
-
 
 ## /datadog/api/v1/series
 
 **Sends data from DataDog agent to VM**
- 
+
 Single:
 <div class="with-copy" markdown="1">
 
@@ -198,8 +197,8 @@ echo '
 </div>
 
 Additional information:
-* [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
 
+* [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
 
 ## /graphite/metrics/find
 
@@ -213,7 +212,7 @@ curl -G 'http://localhost:8428/graphite/metrics/find?query=vm_http_request_error
 ```
 
 </div>
- 
+
 Cluster:
 <div class="with-copy" markdown="1">
 
@@ -222,12 +221,12 @@ curl -G 'http://<vmselect>:8481/select/0/graphite/metrics/find?query=vm_http_req
 ```
 
 </div>
- 
+
 Additional information:
+
 * [Metrics find](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
 * [How to send data from graphite compatible agents such as statsd](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [URL Format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
-
 
 ## /influx/write
 
@@ -241,7 +240,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 ```
 
 </div>
- 
+
 Cluster:
 <div class="with-copy" markdown="1">
 
@@ -250,10 +249,10 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 ```
 
 </div>
- 
-Additional information:
-* [How to send data from influxdb compatible agents such as telegraf](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 
+Additional information:
+
+* [How to send data from influxdb compatible agents such as telegraf](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 
 ## TCP and UDP
 
@@ -270,7 +269,7 @@ echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 
 ```
 
 </div>
- 
+
 Cluster:
 <div class="with-copy" markdown="1">
 
@@ -279,9 +278,9 @@ echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2 VictoriaMetrics_Ac
 ```
 
 </div>
- 
+
 Enable HTTP server for OpenTSDB /api/put requests by setting `-opentsdbHTTPListenAddr` command-line flag.
- 
+
 Single:
 <div class="with-copy" markdown="1">
 
@@ -290,7 +289,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 ```
 
 </div>
- 
+
 Cluster:
 <div class="with-copy" markdown="1">
 
@@ -300,16 +299,16 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 ```
 
 </div>
- 
+
 Additional information:
+
 * [Api http put](http://opentsdb.net/docs/build/html/api_http/put.html)
 * [How to send data from opentsdb compatible agents](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents)
-
 
 **How to write data with Graphite plaintext protocol to VictoriaMetrics**
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command-line flag.
- 
+
 Single:
 <div class="with-copy" markdown="1">
 
@@ -319,7 +318,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" |
 ```
 
 </div>
- 
+
 Cluster:
 <div class="with-copy" markdown="1">
 
@@ -332,5 +331,6 @@ echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date
 Additional information:
 
 `VictoriaMetrics_AccountID=42` - tag that indicated tenant ID.
+
 * [Request handler](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/a3eafd2e7fc75776dfc19d3c68c85589454d9dce/app/vminsert/opentsdb/request_handler.go#L47)
 * [How to send data from graphite compatible agents such as statsd](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
