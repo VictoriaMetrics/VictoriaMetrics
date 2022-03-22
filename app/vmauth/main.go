@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +72,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 		return true
+	}
+	if strings.HasPrefix(authToken, "Token ") {
+		// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
+		// See https://docs.influxdata.com/influxdb/v2.0/api/
+		authToken = strings.Replace(authToken, "Token", "Bearer", 1)
 	}
 	ac := authConfig.Load().(map[string]*UserInfo)
 	ui := ac[authToken]

@@ -28,7 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Package apierror implements a wrapper error for parsing error details from
-// API calls. Currently, only errors representing a gRPC status are supported.
+// API calls. Both HTTP & gRPC status errors are supported.
 package apierror
 
 import (

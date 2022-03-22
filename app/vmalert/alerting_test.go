@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -779,6 +780,76 @@ func TestAlertingRule_Template(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAlertsToSend(t *testing.T) {
+	ts := time.Now()
+	f := func(alerts, expAlerts []*notifier.Alert, resolveDuration, resendDelay time.Duration) {
+		t.Helper()
+		ar := &AlertingRule{alerts: make(map[uint64]*notifier.Alert)}
+		for i, a := range alerts {
+			ar.alerts[uint64(i)] = a
+		}
+		gotAlerts := ar.alertsToSend(ts, resolveDuration, resendDelay)
+		if gotAlerts == nil && expAlerts == nil {
+			return
+		}
+		if len(gotAlerts) != len(expAlerts) {
+			t.Fatalf("expected to get %d alerts; got %d instead",
+				len(expAlerts), len(gotAlerts))
+		}
+		sort.Slice(expAlerts, func(i, j int) bool {
+			return expAlerts[i].Name < expAlerts[j].Name
+		})
+		sort.Slice(gotAlerts, func(i, j int) bool {
+			return gotAlerts[i].Name < gotAlerts[j].Name
+		})
+		for i, exp := range expAlerts {
+			got := gotAlerts[i]
+			if got.LastSent != exp.LastSent {
+				t.Fatalf("expected LastSent to be %v; got %v", exp.LastSent, got.LastSent)
+			}
+			if got.End != exp.End {
+				t.Fatalf("expected End to be %v; got %v", exp.End, got.End)
+			}
+		}
+	}
+
+	f( // send firing alert with custom resolve time
+		[]*notifier.Alert{{State: notifier.StateFiring}},
+		[]*notifier.Alert{{LastSent: ts, End: ts.Add(5 * time.Minute)}},
+		5*time.Minute, time.Minute,
+	)
+	f( // resolve inactive alert at the current timestamp
+		[]*notifier.Alert{{State: notifier.StateInactive}},
+		[]*notifier.Alert{{LastSent: ts, End: ts}},
+		time.Minute, time.Minute,
+	)
+	f( // mixed case of firing and resolved alerts. Names are added for deterministic sorting
+		[]*notifier.Alert{{Name: "a", State: notifier.StateFiring}, {Name: "b", State: notifier.StateInactive}},
+		[]*notifier.Alert{{Name: "a", LastSent: ts, End: ts.Add(5 * time.Minute)}, {Name: "b", LastSent: ts, End: ts}},
+		5*time.Minute, time.Minute,
+	)
+	f( // mixed case of pending and resolved alerts. Names are added for deterministic sorting
+		[]*notifier.Alert{{Name: "a", State: notifier.StatePending}, {Name: "b", State: notifier.StateInactive}},
+		[]*notifier.Alert{{Name: "b", LastSent: ts, End: ts}},
+		5*time.Minute, time.Minute,
+	)
+	f( // attempt to send alert that was already sent in the resendDelay interval
+		[]*notifier.Alert{{State: notifier.StateFiring, LastSent: ts.Add(-time.Second)}},
+		nil,
+		time.Minute, time.Minute,
+	)
+	f( // attempt to send alert that was sent out of the resendDelay interval
+		[]*notifier.Alert{{State: notifier.StateFiring, LastSent: ts.Add(-2 * time.Minute)}},
+		[]*notifier.Alert{{LastSent: ts, End: ts.Add(time.Minute)}},
+		time.Minute, time.Minute,
+	)
+	f( // alert must be sent even if resendDelay interval is 0
+		[]*notifier.Alert{{State: notifier.StateFiring, LastSent: ts.Add(-time.Second)}},
+		[]*notifier.Alert{{LastSent: ts, End: ts.Add(time.Minute)}},
+		time.Minute, 0,
+	)
 }
 
 func newTestRuleWithLabels(name string, labels ...string) *AlertingRule {

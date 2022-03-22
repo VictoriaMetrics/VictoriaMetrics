@@ -38,6 +38,8 @@ type AlertingRule struct {
 	alerts map[uint64]*notifier.Alert
 	// stores last moment of time Exec was called
 	lastExecTime time.Time
+	// stores the duration of the last Exec call
+	lastExecDuration time.Duration
 	// stores last error that happened in Exec func
 	// resets on every successful Exec
 	// may be used as Health state
@@ -203,12 +205,14 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
+	start := time.Now()
 	qMetrics, err := ar.q.Query(ctx, ar.Expr)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
+	ar.lastExecTime = start
+	ar.lastExecDuration = time.Since(start)
 	ar.lastExecError = err
-	ar.lastExecTime = time.Now()
 	ar.lastExecSamples = len(qMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
@@ -386,31 +390,48 @@ func (ar *AlertingRule) AlertAPI(id uint64) *APIAlert {
 	return ar.newAlertAPI(*a)
 }
 
-// RuleAPI returns Rule representation in form
-// of APIAlertingRule
-func (ar *AlertingRule) RuleAPI() APIAlertingRule {
-	var lastErr string
+// ToAPI returns Rule representation in form
+// of APIRule
+func (ar *AlertingRule) ToAPI() APIRule {
+	r := APIRule{
+		Type:           "alerting",
+		DatasourceType: ar.Type.String(),
+		Name:           ar.Name,
+		Query:          ar.Expr,
+		Duration:       ar.For.Seconds(),
+		Labels:         ar.Labels,
+		Annotations:    ar.Annotations,
+		LastEvaluation: ar.lastExecTime,
+		EvaluationTime: ar.lastExecDuration.Seconds(),
+		Health:         "ok",
+		State:          "inactive",
+		Alerts:         ar.AlertsToAPI(),
+		LastSamples:    ar.lastExecSamples,
+
+		// encode as strings to avoid rounding in JSON
+		ID:      fmt.Sprintf("%d", ar.ID()),
+		GroupID: fmt.Sprintf("%d", ar.GroupID),
+	}
 	if ar.lastExecError != nil {
-		lastErr = ar.lastExecError.Error()
+		r.LastError = ar.lastExecError.Error()
+		r.Health = "err"
 	}
-	return APIAlertingRule{
-		// encode as strings to avoid rounding
-		ID:          fmt.Sprintf("%d", ar.ID()),
-		GroupID:     fmt.Sprintf("%d", ar.GroupID),
-		Type:        ar.Type.String(),
-		Name:        ar.Name,
-		Expression:  ar.Expr,
-		For:         ar.For.String(),
-		LastError:   lastErr,
-		LastSamples: ar.lastExecSamples,
-		LastExec:    ar.lastExecTime,
-		Labels:      ar.Labels,
-		Annotations: ar.Annotations,
+	// satisfy APIRule.State logic
+	if len(r.Alerts) > 0 {
+		r.State = notifier.StatePending.String()
+		stateFiring := notifier.StateFiring.String()
+		for _, a := range r.Alerts {
+			if a.State == stateFiring {
+				r.State = stateFiring
+				break
+			}
+		}
 	}
+	return r
 }
 
-// AlertsAPI generates list of APIAlert objects from existing alerts
-func (ar *AlertingRule) AlertsAPI() []*APIAlert {
+// AlertsToAPI generates list of APIAlert objects from existing alerts
+func (ar *AlertingRule) AlertsToAPI() []*APIAlert {
 	var alerts []*APIAlert
 	ar.mu.RLock()
 	for _, a := range ar.alerts {
@@ -528,4 +549,27 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.Start)
 	}
 	return nil
+}
+
+// alertsToSend walks through the current alerts of AlertingRule
+// and returns only those which should be sent to notifier.
+// Isn't concurrent safe.
+func (ar *AlertingRule) alertsToSend(ts time.Time, resolveDuration, resendDelay time.Duration) []notifier.Alert {
+	var alerts []notifier.Alert
+	for _, a := range ar.alerts {
+		switch a.State {
+		case notifier.StateFiring:
+			if time.Since(a.LastSent) < resendDelay {
+				continue
+			}
+			a.End = ts.Add(resolveDuration)
+			a.LastSent = ts
+			alerts = append(alerts, *a)
+		case notifier.StateInactive:
+			a.End = ts
+			a.LastSent = ts
+			alerts = append(alerts, *a)
+		}
+	}
+	return alerts
 }
