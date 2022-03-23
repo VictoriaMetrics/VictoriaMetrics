@@ -209,14 +209,10 @@ const resolvedRetention = 15 * time.Minute
 
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
-	ts := time.Now()
+func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
 	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
-
-	fmt.Printf(">> alert %q has been evaluated at %v with %d results\n",
-		ar.Name, ts, len(qMetrics))
 
 	ar.lastExecTime = ts
 	ar.lastExecDuration = time.Since(ts)
@@ -266,8 +262,8 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 				// alert could be in inactive state for resolvedRetention
 				// so when we again receive metrics for it - we switch it
 				// back to notifier.StatePending
-				fmt.Println("alerting rule was switched from Inactive to Pending", a.Name)
 				a.State = notifier.StatePending
+				a.ActiveAt = ts
 			}
 			if a.Value != m.Values[0] {
 				// update Value field with latest value
@@ -311,8 +307,6 @@ func (ar *AlertingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, e
 		if a.State == notifier.StatePending && time.Since(a.ActiveAt) >= ar.For {
 			a.State = notifier.StateFiring
 			a.Start = ts
-			fmt.Printf("!! alert %q became FIRING at %v (active since %v)\n",
-				a.Name, a.Start, a.ActiveAt)
 			alertsFired.Inc()
 		}
 	}
@@ -581,21 +575,24 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 // and returns only those which should be sent to notifier.
 // Isn't concurrent safe.
 func (ar *AlertingRule) alertsToSend(ts time.Time, resolveDuration, resendDelay time.Duration) []notifier.Alert {
+	needsSending := func(a *notifier.Alert) bool {
+		if a.State == notifier.StatePending {
+			return false
+		}
+		if a.ResolvedAt.After(a.LastSent) {
+			return true
+		}
+		return a.LastSent.Add(resendDelay).Before(ts)
+	}
+
 	var alerts []notifier.Alert
 	for _, a := range ar.alerts {
-		switch a.State {
-		case notifier.StatePending:
+		if !needsSending(a) {
 			continue
-		case notifier.StateFiring:
-			if time.Since(a.LastSent) < resendDelay {
-				continue
-			}
-			a.End = ts.Add(resolveDuration)
-		case notifier.StateInactive:
-			if time.Since(a.LastSent) < resendDelay && a.ResolvedAt.Before(a.LastSent) {
-				continue
-			}
-			a.End = ts
+		}
+		a.End = ts.Add(resolveDuration)
+		if a.State == notifier.StateInactive {
+			a.End = a.ResolvedAt
 		}
 		a.LastSent = ts
 		alerts = append(alerts, *a)

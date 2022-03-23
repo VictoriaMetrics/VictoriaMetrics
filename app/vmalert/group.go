@@ -283,7 +283,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 			if len(g.Rules) > 0 {
-				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, getResolveDuration(g.Interval))
+				resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
+				errs := e.execConcurrently(ctx, g.Rules, iterationStart, g.Concurrency, resolveDuration)
 				for err := range errs {
 					if err != nil {
 						logger.Errorf("group %q: %s", g.Name, err)
@@ -298,14 +299,13 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 
 // getResolveDuration returns the duration after which firing alert
 // can be considered as resolved.
-func getResolveDuration(groupInterval time.Duration) time.Duration {
-	delta := *resendDelay
+func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Duration {
 	if groupInterval > delta {
 		delta = groupInterval
 	}
 	resolveDuration := delta * 4
-	if *maxResolveDuration > 0 && resolveDuration > *maxResolveDuration {
-		resolveDuration = *maxResolveDuration
+	if maxDuration > 0 && resolveDuration > maxDuration {
+		resolveDuration = maxDuration
 	}
 	return resolveDuration
 }
@@ -321,12 +321,12 @@ type executor struct {
 	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
 }
 
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, resolveDuration time.Duration) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, resolveDuration)
+			res <- e.exec(ctx, rule, ts, resolveDuration)
 		}
 		close(res)
 		return res
@@ -339,7 +339,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, r, resolveDuration)
+				res <- e.exec(ctx, r, ts, resolveDuration)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -360,11 +360,10 @@ var (
 	remoteWriteTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 )
 
-func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDuration time.Duration) error {
 	execTotal.Inc()
 
-	now := time.Now()
-	tss, err := rule.Exec(ctx)
+	tss, err := rule.Exec(ctx, ts)
 	if err != nil {
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
@@ -382,7 +381,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 			}
 		}
 		pushToRW(tss)
-		staleSeries := e.getStaleSeries(rule, tss, now)
+		staleSeries := e.getStaleSeries(rule, tss, ts)
 		pushToRW(staleSeries)
 	}
 
@@ -391,7 +390,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 		return nil
 	}
 
-	alerts := ar.alertsToSend(now, resolveDuration, *resendDelay)
+	alerts := ar.alertsToSend(ts, resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
 		return nil
 	}

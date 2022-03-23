@@ -242,7 +242,8 @@ func TestGroupStart(t *testing.T) {
 	time.Sleep(20 * evalInterval)
 
 	gotAlerts = fn.getAlerts()
-	expectedAlerts = []notifier.Alert{*alert1}
+	alert2.State = notifier.StateInactive
+	expectedAlerts = []notifier.Alert{*alert1, *alert2}
 	compareAlerts(t, expectedAlerts, gotAlerts)
 
 	g.close()
@@ -265,18 +266,9 @@ func TestResolveDuration(t *testing.T) {
 		{0, 0, 0, 0},
 	}
 
-	defaultResolveDuration := *maxResolveDuration
-	defaultResendDelay := *resendDelay
-	defer func() {
-		*maxResolveDuration = defaultResolveDuration
-		*resendDelay = defaultResendDelay
-	}()
-
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%v-%v-%v", tc.groupInterval, tc.expected, tc.maxDuration), func(t *testing.T) {
-			*maxResolveDuration = tc.maxDuration
-			*resendDelay = tc.resendDelay
-			got := getResolveDuration(tc.groupInterval)
+			got := getResolveDuration(tc.groupInterval, tc.resendDelay, tc.maxDuration)
 			if got != tc.expected {
 				t.Errorf("expected to have %v; got %v", tc.expected, got)
 			}

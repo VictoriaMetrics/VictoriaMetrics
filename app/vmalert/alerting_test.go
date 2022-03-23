@@ -169,7 +169,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty", 0),
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>inactive", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -177,7 +177,9 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{},
 			},
-			nil,
+			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+			},
 		},
 		{
 			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
@@ -217,8 +219,9 @@ func TestAlertingRule_Exec(t *testing.T) {
 			},
 			// 1: fire first alert
 			// 2: fire second alert, set first inactive
-			// 3: fire third alert, set second inactive, delete first one
+			// 3: fire third alert, set second inactive
 			[]testAlert{
+				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
 				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateInactive}},
 				{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			},
@@ -301,7 +304,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			for _, step := range tc.steps {
 				fq.reset()
 				fq.add(step...)
-				if _, err := tc.rule.Exec(context.TODO()); err != nil {
+				if _, err := tc.rule.Exec(context.TODO(), time.Now()); err != nil {
 					t.Fatalf("unexpected err: %s", err)
 				}
 				// artificial delay between applying steps
@@ -618,14 +621,14 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 
 	// successful attempt
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
-	_, err := ar.Exec(context.TODO())
+	_, err := ar.Exec(context.TODO(), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// label `job` will collide with rule extra label and will make both time series equal
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
-	_, err = ar.Exec(context.TODO())
+	_, err = ar.Exec(context.TODO(), time.Now())
 	if !errors.Is(err, errDuplicate) {
 		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
 	}
@@ -634,7 +637,7 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 
 	expErr := "connection reset by peer"
 	fq.setErr(errors.New(expErr))
-	_, err = ar.Exec(context.TODO())
+	_, err = ar.Exec(context.TODO(), time.Now())
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -762,7 +765,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			tc.rule.GroupID = fakeGroup.ID()
 			tc.rule.q = fq
 			fq.add(tc.metrics...)
-			if _, err := tc.rule.Exec(context.TODO()); err != nil {
+			if _, err := tc.rule.Exec(context.TODO(), time.Now()); err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 			for hash, expAlert := range tc.expAlerts {
@@ -821,17 +824,17 @@ func TestAlertsToSend(t *testing.T) {
 		5*time.Minute, time.Minute,
 	)
 	f( // resolve inactive alert at the current timestamp
-		[]*notifier.Alert{{State: notifier.StateInactive}},
+		[]*notifier.Alert{{State: notifier.StateInactive, ResolvedAt: ts}},
 		[]*notifier.Alert{{LastSent: ts, End: ts}},
 		time.Minute, time.Minute,
 	)
 	f( // mixed case of firing and resolved alerts. Names are added for deterministic sorting
-		[]*notifier.Alert{{Name: "a", State: notifier.StateFiring}, {Name: "b", State: notifier.StateInactive}},
+		[]*notifier.Alert{{Name: "a", State: notifier.StateFiring}, {Name: "b", State: notifier.StateInactive, ResolvedAt: ts}},
 		[]*notifier.Alert{{Name: "a", LastSent: ts, End: ts.Add(5 * time.Minute)}, {Name: "b", LastSent: ts, End: ts}},
 		5*time.Minute, time.Minute,
 	)
 	f( // mixed case of pending and resolved alerts. Names are added for deterministic sorting
-		[]*notifier.Alert{{Name: "a", State: notifier.StatePending}, {Name: "b", State: notifier.StateInactive}},
+		[]*notifier.Alert{{Name: "a", State: notifier.StatePending}, {Name: "b", State: notifier.StateInactive, ResolvedAt: ts}},
 		[]*notifier.Alert{{Name: "b", LastSent: ts, End: ts}},
 		5*time.Minute, time.Minute,
 	)
@@ -849,6 +852,16 @@ func TestAlertsToSend(t *testing.T) {
 		[]*notifier.Alert{{State: notifier.StateFiring, LastSent: ts.Add(-time.Second)}},
 		[]*notifier.Alert{{LastSent: ts, End: ts.Add(time.Minute)}},
 		time.Minute, 0,
+	)
+	f( // inactive alert which has been sent already
+		[]*notifier.Alert{{State: notifier.StateInactive, LastSent: ts.Add(-time.Second), ResolvedAt: ts.Add(-2 * time.Second)}},
+		nil,
+		time.Minute, time.Minute,
+	)
+	f( // inactive alert which has been resolved after last send
+		[]*notifier.Alert{{State: notifier.StateInactive, LastSent: ts.Add(-time.Second), ResolvedAt: ts}},
+		[]*notifier.Alert{{LastSent: ts, End: ts}},
+		time.Minute, time.Minute,
 	)
 }
 

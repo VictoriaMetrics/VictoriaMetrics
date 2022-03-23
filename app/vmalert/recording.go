@@ -124,8 +124,7 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 }
 
 // Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context) ([]prompbmarshal.TimeSeries, error) {
-	ts := time.Now()
+func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
 	qMetrics, err := rr.q.Query(ctx, rr.Expr, ts)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
