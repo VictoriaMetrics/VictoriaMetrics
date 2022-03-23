@@ -397,6 +397,33 @@ Additional information:
 
 * [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
 
+## /federate
+
+**Returns federated metrics**
+
+Single:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://localhost:8428/federate?match[]=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z'
+```
+
+</div>
+
+Cluster:
+<div class="with-copy" markdown="1">
+
+```bash
+curl -G 'http://<vmselect>:8481/select/0/prometheus/federate?match[]=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z'
+```
+
+</div>
+
+Additional information:
+
+* [Federation](https://docs.victoriametrics.com/?#federation)
+* [Prometheus-compatible federation data](https://prometheus.io/docs/prometheus/latest/federation/#configuring-federation)
+
 ## /graphite/metrics/find
 
 **Searches Graphite metrics in VictoriaMetrics**
