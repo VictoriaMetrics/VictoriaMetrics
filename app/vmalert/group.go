@@ -229,6 +229,8 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 
+	evalTS := time.Now()
+
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
 	if !skipRandSleepOnGroupStart {
 		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
@@ -281,10 +283,15 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
 			g.metrics.iterationTotal.Inc()
+
+			missed := (time.Since(evalTS) / g.Interval) - 1
+			// TODO: add metrics for missing rounds
+			evalTS = evalTS.Add((missed + 1) * g.Interval)
+
 			iterationStart := time.Now()
 			if len(g.Rules) > 0 {
 				resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-				errs := e.execConcurrently(ctx, g.Rules, iterationStart, g.Concurrency, resolveDuration)
+				errs := e.execConcurrently(ctx, g.Rules, evalTS, g.Concurrency, resolveDuration)
 				for err := range errs {
 					if err != nil {
 						logger.Errorf("group %q: %s", g.Name, err)
