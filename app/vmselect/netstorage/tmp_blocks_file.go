@@ -150,7 +150,7 @@ func (tbf *tmpBlocksFile) MustReadBlockRefAt(partRef storage.PartRef, addr tmpBl
 		bb := tmpBufPool.Get()
 		defer tmpBufPool.Put(bb)
 		bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, addr.size)
-		tbf.r.MustReadAt(bb.B, int64(addr.offset))
+		bb.B = tbf.r.MustReadAt(bb.B, int64(addr.offset))
 		buf = bb.B
 	}
 	var br storage.BlockRef
