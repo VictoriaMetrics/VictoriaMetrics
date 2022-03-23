@@ -499,6 +499,7 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 * [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). See [these docs](#tsdb-stats) for details.
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
+* [/federate](https://prometheus.io/docs/prometheus/latest/federation/) - see [these docs](#federation) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 All the Prometheus querying API handlers can be prepended with `/prometheus` prefix. For example, both `/prometheus/api/v1/query` and `/api/v1/query` should work.
