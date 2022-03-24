@@ -97,6 +97,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != "GET" {
 			return false
 		}
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>Single-node VictoriaMetrics</h2></br>")
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/'>https://docs.victoriametrics.com/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")

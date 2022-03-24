@@ -7,32 +7,32 @@ sort: 11
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
-* [AbiosGaming](#abiosgaming)
-* [adidas](#adidas)
-* [Adsterra](#adsterra)
-* [ARNES](#arnes)
-* [Brandwatch](#brandwatch)
-* [CERN](#cern)
-* [COLOPL](#colopl)
-* [Dreamteam](#dreamteam)
-* [Fly.io](#flyio)
-* [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
-* [Grammarly](#grammarly)
-* [Groove X](#groove-x)
-* [Idealo.de](#idealode)
-* [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
-* [Percona](#percona)
-* [Razorpay](#razorpay)
-* [Sensedia](#sensedia)
-* [Smarkets](#smarkets)
-* [Synthesio](#synthesio)
-* [Wedos.com](#wedoscom)
-* [Wix.com](#wixcom)
-* [Zerodha](#zerodha)
-* [zhihu](#zhihu)
+- [Case studies and talks](#case-studies-and-talks)
+  - [AbiosGaming](#abiosgaming)
+  - [adidas](#adidas)
+  - [Adsterra](#adsterra)
+  - [ARNES](#arnes)
+  - [Brandwatch](#brandwatch)
+  - [CERN](#cern)
+  - [COLOPL](#colopl)
+  - [Dreamteam](#dreamteam)
+  - [Fly.io](#flyio)
+  - [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
+  - [Grammarly](#grammarly)
+  - [Groove X](#groove-x)
+  - [Idealo.de](#idealode)
+  - [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+  - [Percona](#percona)
+  - [Razorpay](#razorpay)
+  - [Sensedia](#sensedia)
+  - [Smarkets](#smarkets)
+  - [Synthesio](#synthesio)
+  - [Wedos.com](#wedoscom)
+  - [Wix.com](#wixcom)
+  - [Zerodha](#zerodha)
+  - [zhihu](#zhihu)
 
 You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics).
-
 
 ## AbiosGaming
 
@@ -51,7 +51,6 @@ You can also read [articles about VictoriaMetrics from our users](https://docs.v
 > From a usability point of view, VictoriaMetrics is the clear winner. Neither Prometheus nor TimescaleDB managed to do any kind of aggregations on our high cardinality metrics, whereas VictoriaMetrics does.
 
 See [the full article](https://abiosgaming.com/press/high-cardinality-aggregations/).
-
 
 ## adidas
 
@@ -118,7 +117,6 @@ We have 2 single-node instances of VictoriaMetrics. The first instance collects 
 The second instance collects and stores low-resolution metrics (300s scrape interval) for a month.
 We use Promxy + Alertmanager for global view and alerts evaluation.
 
-
 ## ARNES
 
 [The Academic and Research Network of Slovenia](https://www.arnes.si/en/) (ARNES) is a public institute that provides network services to research,
@@ -139,7 +137,7 @@ the same result with far less maintenance overhead and lower hardware requiremen
 
 After testing it a few months and with great support from the maintainers on [Slack](https://slack.victoriametrics.com/),
 we decided to go with it. VM's support for the ingestion of InfluxDB metrics was an additional bonus as our hardware team uses
-SNMPCollector to collect metrics from network devices and switching from InfluxDB to VictoriaMetrics required just a simple change in the config file. 
+SNMPCollector to collect metrics from network devices and switching from InfluxDB to VictoriaMetrics required just a simple change in the config file.
 
 Numbers:
 
@@ -169,6 +167,7 @@ The engineering department at Brandwatch has been using InfluxDB to store applic
 but when End-of-Life of InfluxDB version 1.x was announced we decided to re-evaluate our entire metrics collection and storage stack.
 
 The main goals for the new metrics stack were:
+
 - improved performance
 - lower maintenance
 - support for native clustering in open source version
@@ -180,6 +179,7 @@ that made them unfit for our use case. Prometheus was also considered but it's p
 to include in the already significant change.
 
 Once we found VictoriaMetrics it solved the following problems:
+
 - it is very lightweight and we can now run virtual machines instead of dedicated hardware machines for metrics storage
 - very short startup time and any possible gaps in data can easily be filled in using Promxy
 - we could continue using Telegraf as our metrics agent and ship identical metrics to both InfluxDB and VictoriaMetrics during the migration period (migration just about to start)
@@ -211,24 +211,23 @@ of the [CMS](https://home.cern/science/experiments/cms) detector system.
 According to [published talk](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
 VictoriaMetrics is used for the following purposes as a part of the "CMS Monitoring cluster":
 
-* As a long-term storage for messages ingested from the [NATS messaging system](https://nats.io/). Ingested messages are pushed directly to VictoriaMetrics via HTTP protocol
-* As a long-term storage for Prometheus monitoring system (30 days retention policy. There are plans to increase it up to ½ year)
-* As a data source for visualizing metrics in Grafana.
+- As a long-term storage for messages ingested from the [NATS messaging system](https://nats.io/). Ingested messages are pushed directly to VictoriaMetrics via HTTP protocol
+- As a long-term storage for Prometheus monitoring system (30 days retention policy. There are plans to increase it up to ½ year)
+- As a data source for visualizing metrics in Grafana.
 
 R&D topic: Evaluate VictoraMetrics vs InfluxDB for large cardinality data.
 
 Please also see [The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf) publication from CERN with details about their VictoriaMetrics usage.
-
 
 ## COLOPL
 
 [COLOPL](http://www.colopl.co.jp/en/) is Japanese game development company. It started using VictoriaMetrics
 after evaulating the following remote storage solutions for Prometheus:
 
-* Cortex
-* Thanos
-* M3DB
-* VictoriaMetrics
+- Cortex
+- Thanos
+- M3DB
+- VictoriaMetrics
 
 See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victoria-metrics) and [video](https://www.youtube.com/watch?v=hUpHIluxw80)
 from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
@@ -239,10 +238,10 @@ from `Large-scale, super-load system monitoring platform built with VictoriaMetr
 
 Numbers:
 
-* Active time series: from 350K to 725K
-* Total number of time series: from 100M to 320M
-* Total number of datapoints: from 120 billions to 155 billions
-* Retention period: 3 months
+- Active time series: from 350K to 725K
+- Total number of time series: from 100M to 320M
+- Total number of datapoints: from 120 billions to 155 billions
+- Retention period: 3 months
 
 VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
@@ -259,7 +258,6 @@ as the load balancer for reads.
 > Vicky grew into a more ambitious offering, and added its own Prometheus scraper; we adopted it and scaled it as far as we reasonably could in a single-node configuration. Scaling requirements ultimately pushed us into a clustered deployment; we run an HA cluster (fronted by haproxy). Current Vicky has a really straightforward multi-tenant API — it’s easy to namespace metrics for customers — and it chugs along for us without too much minding.
 
 See [the full post](https://fly.io/blog/measuring-fly/).
-
 
 ## German Research Center for Artificial Intelligence
 
@@ -296,7 +294,6 @@ Numbers:
 - CPU usage: 0.1 CPU cores
 - RAM usage: 2.8 GB
 
-
 ## Grammarly
 
 [Grammarly](https://www.grammarly.com/) provides digital writing assistant that helps 30 million people and 30 thousand teams write more clearly and effectively every day. In building a product that scales across multiple platforms and devices, Grammarly works to empower users whenever and wherever they communicate.
@@ -331,7 +328,6 @@ Numbers:
   - median: 2 milliseconds
 - CPU usage: 12 CPU cores
 - RAM usage: 250 GB
-
 
 ## Groove X
 
@@ -373,7 +369,6 @@ Numbers:
 - Retention: 13 months
 - Size of all datapoints: 3.5 TB
 
-
 ## MHI Vestas Offshore Wind
 
 The mission of [MHI Vestas Offshore Wind](http://www.mhivestasoffshore.com) is to co-develop offshore wind as an economically viable and sustainable energy resource to benefit future generations.
@@ -388,13 +383,11 @@ Numbers with current, limited roll out:
 - Data size on disk: 800 GiB
 - Retention period: 3 years
 
-
 ## Percona
 
 [Percona](https://www.percona.com/) is a leader in providing best-of-breed enterprise-class support, consulting, managed services, training and software for MySQL®, MariaDB®, MongoDB®, PostgreSQL® and other open source databases in on-premises and cloud environments.
 
 Percona migrated from Prometheus to VictoriaMetrics in the [Percona Monitoring and Management](https://www.percona.com/software/database-tools/percona-monitoring-and-management) product. This allowed [reducing resource usage](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/) and [getting rid of complex firewall setup](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/), while [improving user experience](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
-
 
 ## Razorpay
 
@@ -405,17 +398,17 @@ Percona migrated from Prometheus to VictoriaMetrics in the [Percona Monitoring a
 > We executed a variety of POCs on various solutions and finally arrived at the following technologies: M3DB, Thanos, Cortex and VictoriaMetrics. The clear winner was VictoriaMetrics.
 
 > The following are some of the basic observations we derived from Victoria Metrics:
-> * Simple components, each horizontally scalable.
-> * Clear separation between writes and reads.
-> * Runs from default configurations, with no extra frills.
-> * Default retention starts with 1 month
-> * Storage, ingestion, and reads can be easily scaled.
-> * High Compression store ~ 70% more compression.
-> * Currently running in production with commodity hardware with a good mix of spot instances.
-> * Successfully ran some of the worst Grafana dashboards/queries that have historically failed to run.
+>
+> - Simple components, each horizontally scalable.
+> - Clear separation between writes and reads.
+> - Runs from default configurations, with no extra frills.
+> - Default retention starts with 1 month
+> - Storage, ingestion, and reads can be easily scaled.
+> - High Compression store ~ 70% more compression.
+> - Currently running in production with commodity hardware with a good mix of spot instances.
+> - Successfully ran some of the worst Grafana dashboards/queries that have historically failed to run.
 
 See [the full article](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2).
-
 
 ## Sensedia
 
@@ -432,6 +425,7 @@ See [the full article](https://engineering.razorpay.com/scaling-to-trillions-of-
 [Aecio dos Santos Pires](http://aeciopires.com), Cloud Architect, Sensedia.
 
 Numbers:
+
 - Cluster mode
 - Active time series: 700K
 - Ingestion rate: 70K datapoints per second
@@ -441,7 +435,6 @@ Numbers:
 - Churn rate: 3 million of new time series per day
 - Query response time (99th percentile): 500ms
 
-
 ## Smarkets
 
 [Smarkets](https://smarkets.com/) simplifies peer-to-peer trading on sporting and political events.
@@ -449,14 +442,14 @@ Numbers:
 > We always wanted our developers to have out-of-the-box monitoring available for any application or service. Before we adopted Kubernetes this was achieved either with Prometheus metrics, or with statsd being sent over to the underlying host and then converted into Prometheus metrics. As we expanded our Kubernetes adoption and started to split clusters, we also wanted developers to be able to expose metrics directly to Prometheus by annotating services. Those metrics were then only available inside the cluster so they couldn’t be scraped globally.
 
 > We considered three different solutions to improve our architecture:
-> * Prometheus + Cortex
-> * Prometheus + Thanos Receive
-> * Prometheus + Victoria Metrics
+>
+> - Prometheus + Cortex
+> - Prometheus + Thanos Receive
+> - Prometheus + Victoria Metrics
 
 > We selected Victoria Metrics. Our new architecture has been very stable since it was put into production. With the previous setup we would have had two or three cardinality explosions in a two-week period, with this new one we have none.
 
 See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3).
-
 
 ## Synthesio
 
@@ -465,6 +458,7 @@ See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a
 > We fully migrated from [Metrictank](https://grafana.com/oss/metrictank/)  to VictoriaMetrics
 
 Numbers:
+
 - Single node
 - Active time series: 5 millions
 - Datapoints: 1.25 trillions
@@ -480,11 +474,11 @@ Numbers:
 
 Numbers:
 
-* The number of acitve time series: 5M.
-* Ingestion rate: 170K data points per second.
-* Query duration: median is ~2ms, 99th percentile is ~50ms.
+- The number of acitve time series: 5M.
+- Ingestion rate: 170K data points per second.
+- Query duration: median is ~2ms, 99th percentile is ~50ms.
 
-> We like that VictoriaMetrics is simple to configuree and requires zero maintenance. It works right out of the box and once it's set up you can just forget about it. 
+> We like that VictoriaMetrics is simple to configuree and requires zero maintenance. It works right out of the box and once it's set up you can just forget about it.
 
 ## Wix.com
 
@@ -494,24 +488,24 @@ Numbers:
 
 Numbers:
 
-* The number of active time series per VictoriaMetrics instance is 50 millions.
-* The total number of time series per VictoriaMetrics instance is 5000 million.
-* Ingestion rate per VictoriaMetrics instance is 1.1 millions data points per second.
-* The total number of datapoints per VictoriaMetrics instance is 8.5 trillion.
-* The average churn rate is 150 millions new time series per day.
-* The average query rate is ~150 per second (mostly alert queries).
-* Query duration: median is ~1ms, 99th percentile is ~1sec.
-* Retention period: 3 months.
+- The number of active time series per VictoriaMetrics instance is 50 millions.
+- The total number of time series per VictoriaMetrics instance is 5000 million.
+- Ingestion rate per VictoriaMetrics instance is 1.1 millions data points per second.
+- The total number of datapoints per VictoriaMetrics instance is 8.5 trillion.
+- The average churn rate is 150 millions new time series per day.
+- The average query rate is ~150 per second (mostly alert queries).
+- Query duration: median is ~1ms, 99th percentile is ~1sec.
+- Retention period: 3 months.
 
 > The alternatives that we tested prior to choosing VictoriaMetrics were: Prometheus federated, Cortex, IronDB and Thanos.
 > The items that were critical to us central tsdb, in order of importance were as follows:
 
-* At least 3 month worth of retention.
-* Raw data, no aggregation, no sampling.
-* High query speed.
-* Clean fail state for HA (multi-node clusters may return partial data resulting in false alerts).
-* Enough headroom/scaling capacity for future growth which is planned to be up to 100M active time series.
-* Ability to split DB replicas per workload. Alert queries go to one replica and user queries go to another (speed for users, effective cache).
+- At least 3 month worth of retention.
+- Raw data, no aggregation, no sampling.
+- High query speed.
+- Clean fail state for HA (multi-node clusters may return partial data resulting in false alerts).
+- Enough headroom/scaling capacity for future growth which is planned to be up to 100M active time series.
+- Ability to split DB replicas per workload. Alert queries go to one replica and user queries go to another (speed for users, effective cache).
 
 > Optimizing for those points and our specific workload, VictoriaMetrics proved to be the best option. As icing on the cake we’ve got [PromQL extensions](https://docs.victoriametrics.com/MetricsQL.html) - `default 0` and `histogram` are my favorite ones. We really like having a lot of tsdb params easily available via config options which makes tsdb easy to tune for each specific use case. We've also found a great community in [Slack channel](https://slack.victoriametrics.com/) and responsive and helpful maintainer support.
 
@@ -521,23 +515,22 @@ Alex Ulstein, Head of Monitoring, Wix.com
 
 [Zerodha](https://zerodha.com/) is India's largest stock broker. The monitoring team at Zerodha had the following requirements:
 
-* Multiple K8s clusters to monitor
-* Consistent monitoring infra for each cluster across the fleet
-* The ability to handle billions of timeseries events at any point of time
-* Easy to operate and cost effective
+- Multiple K8s clusters to monitor
+- Consistent monitoring infra for each cluster across the fleet
+- The ability to handle billions of timeseries events at any point of time
+- Easy to operate and cost effective
 
 Thanos, Cortex and VictoriaMetrics were evaluated as a long-term storage for Prometheus. VictoriaMetrics has been selected for the following reasons:
 
-* Blazingly fast benchmarks for a single node setup.
-* Single binary mode. Easy to scale vertically with far fewer operational headaches.
-* Considerable [improvements on creating Histograms](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
-* [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) gives us the ability to extend PromQL with more aggregation operators.
-* The API is compatible with Prometheus and nearly all standard PromQL queries work well out of the box.
-* Handles storage well, with periodic compaction which makes it easy to take snapshots.
+- Blazingly fast benchmarks for a single node setup.
+- Single binary mode. Easy to scale vertically with far fewer operational headaches.
+- Considerable [improvements on creating Histograms](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
+- [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) gives us the ability to extend PromQL with more aggregation operators.
+- The API is compatible with Prometheus and nearly all standard PromQL queries work well out of the box.
+- Handles storage well, with periodic compaction which makes it easy to take snapshots.
 
 Please see [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit) slides,
 [video](https://youtu.be/ZJQYW-cFOms) and [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/) blog post for more details.
-
 
 ## zhihu
 

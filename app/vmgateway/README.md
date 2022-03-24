@@ -2,7 +2,6 @@
 
 ***vmgateway is a part of [enterprise package](https://victoriametrics.com/products/enterprise/). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
-
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
 
 `vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
@@ -16,7 +15,6 @@
 
 `vmgateway` is included in our [enterprise packages](https://victoriametrics.com/products/enterprise/).
 
-
 ## Access Control
 
 <img alt="vmgateway-ac" src="vmgateway-access-control.jpg">
@@ -24,6 +22,7 @@
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
 jwt token must be in following format:
+
 ```json
 {
   "exp": 1617304574,
@@ -41,13 +40,15 @@ jwt token must be in following format:
   }
 }
 ```
+
 Where:
-- `exp` - required, expire time in unix_timestamp. If the token expires then `vmgateway` rejects the request.
-- `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenand_id": {}}`
-- `tenant_id` - optional, for cluster mode, routes requests to the corresponding tenant.
-- `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics. Multiple filters are added with `and` operation. If defined, `extra_label` from original request removed.
-- `extra_filters` - optional, [series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) added to the select query requests. Multiple selectors are added with `or` operation. If defined, `extra_filter` from original request removed.
-- `mode` - optional, access mode for api - read, write, or full. Supported values: 0 - full (default value), 1 - read, 2 - write.
+
+* `exp` - required, expire time in unix_timestamp. If the token expires then `vmgateway` rejects the request.
+* `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenand_id": {}}`
+* `tenant_id` - optional, for cluster mode, routes requests to the corresponding tenant.
+* `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics. Multiple filters are added with `and` operation. If defined, `extra_label` from original request removed.
+* `extra_filters` - optional, [series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) added to the select query requests. Multiple selectors are added with `or` operation. If defined, `extra_filter` from original request removed.
+* `mode` - optional, access mode for api - read, write, or full. Supported values: 0 - full (default value), 1 - read, 2 - write.
 
 ## QuickStart
 
@@ -66,17 +67,18 @@ Start vmgateway
 ```
 
 Retrieve data from the database
+
 ```bash
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2bV9hY2Nlc3MiOnsidGVuYW50X2lkIjp7fSwicm9sZSI6MX0sImV4cCI6MTkzOTM0NjIxMH0.5WUxEfdcV9hKo4CtQdtuZYOGpGXWwaqM9VuVivMMrVg'
 ```
 
 A request with an incorrect token or without any token will be rejected:
+
 ```bash
 curl 'http://localhost:8431/api/v1/series/count'
 
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incorrect-token'
 ```
-
 
 ## Rate Limiter
 
@@ -88,14 +90,16 @@ Limits incoming requests by given, pre-configured limits. It supports read and w
 The metrics that you want to rate limit must be scraped from the cluster.
 
 List of supported limit types:
-- `queries` - count of api requests made at tenant to read the api, such as `/api/v1/query`, `/api/v1/series` and others.
-- `active_series` - count of current active series at any given tenant.
-- `new_series` - count of created series; aka churn rate
-- `rows_inserted` - count of inserted rows per tenant.
+
+* `queries` - count of api requests made at tenant to read the api, such as `/api/v1/query`, `/api/v1/series` and others.
+* `active_series` - count of current active series at any given tenant.
+* `new_series` - count of created series; aka churn rate
+* `rows_inserted` - count of inserted rows per tenant.
 
 List of supported time windows:
-- `minute`
-- `hour`
+
+* `minute`
+* `hour`
 
 Limits can be specified per tenant or at a global level if you omit `project_id` and `account_id`.
 
@@ -119,6 +123,7 @@ limits:
 ## QuickStart
 
 cluster version of VictoriaMetrics is required for rate limiting.
+
 ```bash
 # start datasource for cluster metrics
 
@@ -169,6 +174,7 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 ## Configuration
 
 The shortlist of configuration flags include the following:
+
 ```console
   -clusterMode
         enable this for the cluster version
@@ -276,11 +282,10 @@ The shortlist of configuration flags include the following:
 ## TroubleShooting
 
 * Access control:
-  * incorrect `jwt` format, try https://jwt.io/#debugger-io with our tokens
+  * incorrect `jwt` format, try <https://jwt.io/#debugger-io> with our tokens
   * expired token, check `exp` field.
 * Rate Limiting:
   * `scrape_interval` at datasource, reduce it to apply limits faster.
-
 
 ## Limitations
 
