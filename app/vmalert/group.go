@@ -47,6 +47,7 @@ type Group struct {
 type groupMetrics struct {
 	iterationTotal    *utils.Counter
 	iterationDuration *utils.Summary
+	iterationMissed   *utils.Counter
 }
 
 func newGroupMetrics(name, file string) *groupMetrics {
@@ -54,6 +55,7 @@ func newGroupMetrics(name, file string) *groupMetrics {
 	labels := fmt.Sprintf(`group=%q, file=%q`, name, file)
 	m.iterationTotal = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	m.iterationDuration = utils.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	m.iterationMissed = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
 	return m
 }
 
@@ -285,7 +287,9 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			g.metrics.iterationTotal.Inc()
 
 			missed := (time.Since(evalTS) / g.Interval) - 1
-			// TODO: add metrics for missing rounds
+			if missed > 0 {
+				g.metrics.iterationMissed.Inc()
+			}
 			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
 			iterationStart := time.Now()
