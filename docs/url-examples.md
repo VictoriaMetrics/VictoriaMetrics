@@ -421,7 +421,7 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/federate?match[]=vm_http_req
 
 Additional information:
 
-* [Federation](https://docs.victoriametrics.com/?#federation)
+* [Federation](https://docs.victoriametrics.com/#federation)
 * [Prometheus-compatible federation data](https://prometheus.io/docs/prometheus/latest/federation/#configuring-federation)
 
 ## /graphite/metrics/find
