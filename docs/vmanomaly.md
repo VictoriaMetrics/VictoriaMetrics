@@ -1,5 +1,5 @@
 ---
-sort: 23
+sort: 11
 ---
 
 # vmanomaly
@@ -62,7 +62,7 @@ Currently, vmanomaly ships with a few common models:
    outside
    the _yhat_lower_/_yhat_upper_ bounds.
 
-   See [Prophet documentation](https://facebook.github.io/prophet/)
+   See Prophet documentation: https://facebook.github.io/prophet/
 
 3. **Holt-Winters**
 

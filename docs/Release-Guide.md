@@ -1,5 +1,5 @@
 ---
-sort: 17
+sort: 18
 ---
 
 # Release process guidance

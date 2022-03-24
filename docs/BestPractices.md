@@ -1,5 +1,5 @@
 ---
-sort: 19
+sort: 20
 ---
 
 # VictoriaMetrics best practices

@@ -1,5 +1,5 @@
 ---
-sort: 20
+sort: 21
 ---
 
 # VictoriaMetrics API examples
