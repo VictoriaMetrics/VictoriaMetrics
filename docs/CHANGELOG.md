@@ -40,6 +40,7 @@ See other changes introduced to vmalert [here](https://github.com/VictoriaMetric
 * BUGFIX: properly free up memory occupied by deleted cache entries for the following caches: `indexdb/dataBlocks`, `indexdb/indexBlocks`, `storage/indexBlocks`. This should reduce the increased memory usage starting from v1.73.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007) issue.
 * BUGFIX: reduce the interval for checking for free disk space from 30 seconds to 1 second. This should reduce the probability of `no space left on device` panics when `-storage.minFreeDiskSpaceBytes` is set to too low values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2305).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): prevent from panic at vmagent when importing a time series with big number of samples. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2335). Thanks to @bleedfish for discovering and fixing the issue.
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): return an additional point after `until` timestamp in the same way as Graphite does. Previously VictoriaMetrics didn't return this point, which could result in missing last point on the graph.
 
 ## [v1.74.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.74.0)
 
