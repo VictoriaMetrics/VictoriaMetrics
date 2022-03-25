@@ -210,12 +210,13 @@ const resolvedRetention = 15 * time.Minute
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
+	start := time.Now()
 	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
-	ar.lastExecTime = ts
-	ar.lastExecDuration = time.Since(ts)
+	ar.lastExecTime = start
+	ar.lastExecDuration = time.Since(start)
 	ar.lastExecError = err
 	ar.lastExecSamples = len(qMetrics)
 	if err != nil {

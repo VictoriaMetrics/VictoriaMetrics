@@ -695,9 +695,9 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 10, "instance", "bar", alertNameLabel, "override"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, alertNameLabel, "override", "region", "east", "instance", "foo")): {
+				hash(metricWithLabels(t, alertNameLabel, "override label", "region", "east", "instance", "foo")): {
 					Labels: map[string]string{
-						alertNameLabel: "override",
+						alertNameLabel: "override label",
 						"instance":     "foo",
 						"region":       "east",
 					},
@@ -706,9 +706,9 @@ func TestAlertingRule_Template(t *testing.T) {
 						"description": `It is 2 connections for "foo"`,
 					},
 				},
-				hash(metricWithLabels(t, alertNameLabel, "override", "region", "east", "instance", "bar")): {
+				hash(metricWithLabels(t, alertNameLabel, "override label", "region", "east", "instance", "bar")): {
 					Labels: map[string]string{
-						alertNameLabel: "override",
+						alertNameLabel: "override label",
 						"instance":     "bar",
 						"region":       "east",
 					},

@@ -201,8 +201,6 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	defer prompbmarshal.ResetWriteRequest(wr)
 	defer bufferFlushDuration.UpdateDuration(time.Now())
 
-	fmt.Println("rw -->", wr)
-
 	data, err := wr.Marshal()
 	if err != nil {
 		logger.Errorf("failed to marshal WriteRequest: %s", err)

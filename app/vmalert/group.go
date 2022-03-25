@@ -264,12 +264,10 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
-		defer func() {
-			g.metrics.iterationDuration.UpdateDuration(start)
-			g.LastEvaluation = start
-		}()
 
 		if len(g.Rules) < 1 {
+			g.metrics.iterationDuration.UpdateDuration(start)
+			g.LastEvaluation = start
 			return
 		}
 
@@ -280,6 +278,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 				logger.Errorf("group %q: %s", g.Name, err)
 			}
 		}
+		g.metrics.iterationDuration.UpdateDuration(start)
+		g.LastEvaluation = start
 	}
 
 	eval(evalTS)
