@@ -231,6 +231,11 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 
+	e := &executor{
+		rw:                       rw,
+		notifiers:                nts,
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
+
 	evalTS := time.Now()
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
@@ -254,10 +259,31 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{
-		rw:                       rw,
-		notifiers:                nts,
-		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
+
+	eval := func(ts time.Time) {
+		g.metrics.iterationTotal.Inc()
+
+		start := time.Now()
+		defer func() {
+			g.metrics.iterationDuration.UpdateDuration(start)
+			g.LastEvaluation = start
+		}()
+
+		if len(g.Rules) < 1 {
+			return
+		}
+
+		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration)
+		for err := range errs {
+			if err != nil {
+				logger.Errorf("group %q: %s", g.Name, err)
+			}
+		}
+	}
+
+	eval(evalTS)
+
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -284,26 +310,13 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
-			g.metrics.iterationTotal.Inc()
-
 			missed := (time.Since(evalTS) / g.Interval) - 1
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
 			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
-			iterationStart := time.Now()
-			if len(g.Rules) > 0 {
-				resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-				errs := e.execConcurrently(ctx, g.Rules, evalTS, g.Concurrency, resolveDuration)
-				for err := range errs {
-					if err != nil {
-						logger.Errorf("group %q: %s", g.Name, err)
-					}
-				}
-				g.LastEvaluation = iterationStart
-			}
-			g.metrics.iterationDuration.UpdateDuration(iterationStart)
+			eval(evalTS)
 		}
 	}
 }
