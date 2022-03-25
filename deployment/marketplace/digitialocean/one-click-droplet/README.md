@@ -4,9 +4,9 @@ VictoriaMetrics is a fast and scalable open source time series database and moni
 
 ## Description
 
-VictoriaMetrics is a free [open source time series database](https://en.wikipedia.org/wiki/Time_series_database) (TSDB) and monitoring solution, designed to collect, store and process real-time metrics. 
+VictoriaMetrics is a free [open source time series database](https://en.wikipedia.org/wiki/Time_series_database) (TSDB) and monitoring solution, designed to collect, store and process real-time metrics.
 
-It supports the [Prometheus](https://en.wikipedia.org/wiki/Prometheus_(software)) pull model and various push protocols ([Graphite](https://en.wikipedia.org/wiki/Graphite_(software)), [InfluxDB](https://en.wikipedia.org/wiki/InfluxDB), OpenTSDB) for data ingestion. It is optimized for storage with high-latency IO, low IOPS and time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). 
+It supports the [Prometheus](https://en.wikipedia.org/wiki/Prometheus_(software)) pull model and various push protocols ([Graphite](https://en.wikipedia.org/wiki/Graphite_(software)), [InfluxDB](https://en.wikipedia.org/wiki/InfluxDB), OpenTSDB) for data ingestion. It is optimized for storage with high-latency IO, low IOPS and time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
 For reading the data and evaluating alerting rules, VictoriaMetrics supports the PromQL, [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) and Graphite query languages. VictoriaMetrics Single is fully autonomous and can be used as a long-term storage for time series.
 
@@ -16,7 +16,7 @@ For reading the data and evaluating alerting rules, VictoriaMetrics supports the
 
 ### Config
 
-VictoriaMetrics configuration is located at `/etc/victoriametrics/single/scrape.yml` on the droplet. 
+VictoriaMetrics configuration is located at `/etc/victoriametrics/single/scrape.yml` on the droplet.
 This One Click app uses 8428, 2003, 4242 and 8089 ports to accept metrics from different protocols. It's recommended to disable ports for protocols which are not needed. [Ubuntu firewall](https://help.ubuntu.com/community/UFW) can be used to easily disable access for specific ports.
 
 ### Scraping metrics
@@ -26,6 +26,7 @@ VictoriaMetrics supports metrics scraping in the same way as Prometheus does. Ch
 ### Sending metrics
 
 Besides scraping, VictoriaMetrics accepts write requests for various ingestion protocols. This One Click app supports the following protocols:
+
 - [Datadog](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent), [Influx (telegraph)](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf), [JSON](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format), [CSV](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data), [Prometheus](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format)  on port :8428
 - [Graphite (statsd)](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) on port :2003 tcp/udp
 - [OpenTSDB](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents) on port :4242
