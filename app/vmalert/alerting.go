@@ -156,7 +156,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 	}
 	for _, s := range series {
 		// set additional labels to identify group and rule Name
-		if s.Label(alertNameLabel) == "" && ar.Name != "" {
+		if ar.Name != "" {
 			s.SetLabel(alertNameLabel, ar.Name)
 		}
 		if !*disableAlertGroupLabel && ar.GroupName != "" {
@@ -234,7 +234,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 	// update list of active alerts
 	for _, m := range qMetrics {
 		// set additional labels to identify group and rule name
-		if m.Label(alertNameLabel) == "" && ar.Name != "" {
+		if ar.Name != "" {
 			m.SetLabel(alertNameLabel, ar.Name)
 		}
 		if !*disableAlertGroupLabel && ar.GroupName != "" {
