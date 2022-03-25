@@ -254,7 +254,8 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 		if _, ok := updated[h]; ok {
 			// duplicate may be caused by extra labels
 			// conflicting with the metric labels
-			return nil, fmt.Errorf("labels %v: %w", m.Labels, errDuplicate)
+			ar.lastExecError = fmt.Errorf("labels %v: %w", m.Labels, errDuplicate)
+			return nil, ar.lastExecError
 		}
 		updated[h] = struct{}{}
 		if a, ok := ar.alerts[h]; ok {
