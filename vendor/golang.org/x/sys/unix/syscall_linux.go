@@ -366,6 +366,8 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
+//sys	Waitid(idType int, id int, info *Siginfo, options int, rusage *Rusage) (err error)
+
 func Mkfifo(path string, mode uint32) error {
 	return Mknod(path, mode|S_IFIFO, 0)
 }
@@ -2446,5 +2448,4 @@ func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
 // Vfork
 // Vhangup
 // Vserver
-// Waitid
 // _Sysctl
