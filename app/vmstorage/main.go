@@ -555,6 +555,10 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
 	})
+	metrics.NewGauge(`vm_cache_entries{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheSize())
+	})
+
 	metrics.NewGauge(`vm_cache_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSize)
 	})
@@ -589,6 +593,12 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheSizeBytes)
 	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/regexps"}`, func() float64 {
+		return float64(storage.RegexpCacheSizeBytes())
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheSizeBytes())
+	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSizeBytes)
 	})
@@ -613,6 +623,12 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/regexps"}`, func() float64 {
+		return float64(storage.RegexpCacheMaxSizeBytes())
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheMaxSizeBytes())
 	})
 
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/tsid"}`, func() float64 {
@@ -639,6 +655,9 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheRequests())
 	})
+	metrics.NewGauge(`vm_cache_requests_total{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheRequests())
+	})
 
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/tsid"}`, func() float64 {
 		return float64(m().TSIDCacheMisses)
@@ -663,6 +682,9 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheMisses())
+	})
+	metrics.NewGauge(`vm_cache_misses_total{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheMisses())
 	})
 
 	metrics.NewGauge(`vm_deleted_metrics_total{type="indexdb"}`, func() float64 {
