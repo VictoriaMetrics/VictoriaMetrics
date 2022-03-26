@@ -256,21 +256,32 @@ func (s *Search) NextMetricBlock() bool {
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
 type SearchQuery struct {
-	AccountID    uint32
-	ProjectID    uint32
+	AccountID uint32
+	ProjectID uint32
+
+	// The time range for searching time series
 	MinTimestamp int64
 	MaxTimestamp int64
-	TagFilterss  [][]TagFilter
+
+	// Tag filters for the search query
+	TagFilterss [][]TagFilter
+
+	// The maximum number of time series the search query can return.
+	MaxMetrics int
 }
 
 // NewSearchQuery creates new search query for the given args.
-func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [][]TagFilter) *SearchQuery {
+func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+	if maxMetrics <= 0 {
+		maxMetrics = 2e9
+	}
 	return &SearchQuery{
 		AccountID:    accountID,
 		ProjectID:    projectID,
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
+		MaxMetrics:   maxMetrics,
 	}
 }
 
@@ -375,6 +386,7 @@ func (sq *SearchQuery) Marshal(dst []byte) []byte {
 			dst = tagFilters[i].Marshal(dst)
 		}
 	}
+	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
 	return dst
 }
 
@@ -437,6 +449,12 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		}
 		sq.TagFilterss[i] = tagFilters
 	}
+
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal MaxMetrics: too short src len: %d; must be at least %d bytes", len(src), 4)
+	}
+	sq.MaxMetrics = int(encoding.UnmarshalUint32(src))
+	src = src[4:]
 
 	return src, nil
 }

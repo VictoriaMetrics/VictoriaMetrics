@@ -54,7 +54,7 @@ func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 			})
 		}
 		tfss := joinTagFilterss(tfs, etfs)
-		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss)
+		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss, 0)
 		n, err := netstorage.DeleteSeries(at, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot delete series for %q: %w", sq, err)
@@ -199,7 +199,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs)
+		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, limit*10)
 		if err != nil {
 			return err
 		}
@@ -288,7 +288,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs)
+		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, limit*10)
 		if err != nil {
 			return err
 		}
@@ -356,7 +356,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs)
+	sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, limit*10)
 	if err != nil {
 		return err
 	}
@@ -484,14 +484,14 @@ func getInt(r *http.Request, argName string) (int, error) {
 	return n, nil
 }
 
-func getSearchQueryForExprs(startTime time.Time, at *auth.Token, etfs [][]storage.TagFilter, exprs []string) (*storage.SearchQuery, error) {
+func getSearchQueryForExprs(startTime time.Time, at *auth.Token, etfs [][]storage.TagFilter, exprs []string, maxMetrics int) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)
 	if err != nil {
 		return nil, err
 	}
 	ct := startTime.UnixNano() / 1e6
 	tfss := joinTagFilterss(tfs, etfs)
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss, maxMetrics)
 	return sq, nil
 }
 

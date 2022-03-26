@@ -45,6 +45,12 @@ var (
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 	selectNodes = flagutil.NewArray("selectNode", "Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
+
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxFederateSeries   = flag.Int("search.maxFederateSeries", 300e3, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
+	maxExportSeries     = flag.Int("search.maxExportSeries", 1e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
+	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 1e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
+	maxSeriesLimit      = flag.Int("search.maxSeries", 10e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 )
 
 // Default step used if not set.
@@ -81,7 +87,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxFederateSeries)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
 	if err != nil {
@@ -142,7 +148,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -242,7 +248,7 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -393,7 +399,8 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 		return err
 	}
 	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxExportSeries)
+
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -497,7 +504,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tagFilterss, 0)
 	deletedCount, err := netstorage.DeleteSeries(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
@@ -658,7 +665,7 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
 	isPartial := false
 	if end-start > 24*3600*1000 {
@@ -777,12 +784,12 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	var status *storage.TSDBStatus
 	var isPartial bool
 	if len(matches) == 0 && len(etfs) == 0 {
-		status, isPartial, err = netstorage.GetTSDBStatusForDate(at, denyPartialResponse, deadline, date, topN)
+		status, isPartial, err = netstorage.GetTSDBStatusForDate(at, denyPartialResponse, deadline, date, topN, *maxTSDBStatusSeries)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, isPartial, err = tsdbStatusWithMatches(at, denyPartialResponse, matches, etfs, date, topN, deadline)
+		status, isPartial, err = tsdbStatusWithMatches(at, denyPartialResponse, matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -798,7 +805,7 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	return nil
 }
 
-func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, false, err
@@ -809,7 +816,7 @@ func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []s
 	}
 	start := int64(date*secsPerDay) * 1000
 	end := int64(date*secsPerDay+secsPerDay) * 1000
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, maxMetrics)
 	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(at, denyPartialResponse, deadline, sq, topN)
 	if err != nil {
 		return nil, false, err
@@ -906,7 +913,7 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
 	isPartial := false
 	if end-start > 24*3600*1000 {
@@ -1009,7 +1016,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
@@ -1158,6 +1165,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		Start:               start,
 		End:                 start,
 		Step:                step,
+		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		LookbackDelta:       lookbackDelta,
@@ -1251,6 +1259,7 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		Start:               start,
 		End:                 end,
 		Step:                step,
+		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,

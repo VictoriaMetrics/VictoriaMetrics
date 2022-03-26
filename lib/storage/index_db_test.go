@@ -1846,7 +1846,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 
 	// Check GetTSDBStatusWithFiltersForDate with nil filters.
-	status, err := db.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, baseDate, 5, noDeadline)
+	status, err := db.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, baseDate, 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatusWithFiltersForDate with nil filters: %s", err)
 	}
@@ -1914,7 +1914,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err := tfs.Add([]byte("day"), []byte("0"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatusWithFiltersForDate(accountID, projectID, []*TagFilters{tfs}, baseDate, 5, noDeadline)
+	status, err = db.GetTSDBStatusWithFiltersForDate(accountID, projectID, []*TagFilters{tfs}, baseDate, 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
 	}

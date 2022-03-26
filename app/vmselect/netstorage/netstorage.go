@@ -1084,7 +1084,7 @@ func deduplicateStrings(a []string) []string {
 }
 
 // GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func GetTSDBStatusForDate(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline, date uint64, topN int) (*storage.TSDBStatus, bool, error) {
+func GetTSDBStatusForDate(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -1095,7 +1095,7 @@ func GetTSDBStatusForDate(at *auth.Token, denyPartialResponse bool, deadline sea
 	}
 	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.tsdbStatusRequests.Inc()
-		status, err := sn.getTSDBStatusForDate(at.AccountID, at.ProjectID, date, topN, deadline)
+		status, err := sn.getTSDBStatusForDate(at.AccountID, at.ProjectID, date, topN, maxMetrics, deadline)
 		if err != nil {
 			sn.tsdbStatusErrors.Inc()
 			err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1790,10 +1790,10 @@ func (sn *storageNode) getLabelEntries(accountID, projectID uint32, deadline sea
 	return tagEntries, nil
 }
 
-func (sn *storageNode) getTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+func (sn *storageNode) getTSDBStatusForDate(accountID, projectID uint32, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
 	var status *storage.TSDBStatus
 	f := func(bc *handshake.BufferedConn) error {
-		st, err := sn.getTSDBStatusForDateOnConn(bc, accountID, projectID, date, topN)
+		st, err := sn.getTSDBStatusForDateOnConn(bc, accountID, projectID, date, topN, maxMetrics)
 		if err != nil {
 			return err
 		}
@@ -2254,7 +2254,7 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 	}
 }
 
-func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN int) (*storage.TSDBStatus, error) {
+func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
@@ -2266,6 +2266,10 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 	// topN shouldn't exceed 32 bits, so send it as uint32.
 	if err := writeUint32(bc, uint32(topN)); err != nil {
 		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
+	}
+	// maxMetrics shouldn't exceed 32 bits, so send it as uint32.
+	if err := writeUint32(bc, uint32(maxMetrics)); err != nil {
+		return nil, fmt.Errorf("cannot send maxMetrics=%d to conn: %w", maxMetrics, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush tsdbStatus args to conn: %w", err)

@@ -28,7 +28,7 @@ var (
 	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series a single query can process. This allows protecting against heavy queries, which select unexpectedly high number of series. See also -search.maxSamplesPerQuery and -search.maxSamplesPerSeries")
+	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'no limit'. See also -search.max* command-line flags at vmselect")
 
 	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -905,9 +905,17 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read topN: %w", err)
 	}
+	maxMetricsUint32, err := ctx.readUint32()
+	if err != nil {
+		return fmt.Errorf("cannot read MaxMetrics: %w", err)
+	}
+	maxMetrics := int(maxMetricsUint32)
+	if maxMetrics < 0 {
+		return fmt.Errorf("too big value for MaxMetrics=%d; must be smaller than 2e9", maxMetricsUint32)
+	}
 
 	// Execute the request
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, uint64(date), int(topN), ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, uint64(date), int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -950,8 +958,9 @@ func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) e
 	if err := ctx.setupTfss(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
+	maxMetrics := ctx.getMaxMetrics()
 	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -1008,7 +1017,8 @@ func (s *Server) processVMSelectSearchMetricNames(ctx *vmselectRequestCtx) error
 	if err := ctx.setupTfss(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
-	mns, err := s.storage.SearchMetricNames(ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
+	maxMetrics := ctx.getMaxMetrics()
+	mns, err := s.storage.SearchMetricNames(ctx.tfss, tr, maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -1056,7 +1066,8 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	startTime := time.Now()
-	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
+	maxMetrics := ctx.getMaxMetrics()
+	ctx.sr.Init(s.storage, ctx.tfss, tr, maxMetrics, ctx.deadline)
 	indexSearchDuration.UpdateDuration(startTime)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
@@ -1130,6 +1141,18 @@ var (
 	vmselectMetricRowsRead   = metrics.NewCounter(`vm_vmselect_metric_rows_read_total`)
 )
 
+func (ctx *vmselectRequestCtx) getMaxMetrics() int {
+	maxMetrics := ctx.sq.MaxMetrics
+	if maxMetrics <= 0 || maxMetrics > *maxMetricsPerSearch {
+		maxMetrics = *maxMetricsPerSearch
+	}
+	if maxMetrics <= 0 {
+		// The limit is missing.
+		maxMetrics = 2e9
+	}
+	return maxMetrics
+}
+
 func (ctx *vmselectRequestCtx) setupTfss(s *storage.Storage, tr storage.TimeRange) error {
 	tfss := ctx.tfss[:0]
 	accountID := ctx.sq.AccountID
@@ -1140,13 +1163,14 @@ func (ctx *vmselectRequestCtx) setupTfss(s *storage.Storage, tr storage.TimeRang
 			tf := &tagFilters[i]
 			if string(tf.Key) == "__graphite__" {
 				query := tf.Value
-				paths, err := s.SearchGraphitePaths(accountID, projectID, tr, query, *maxMetricsPerSearch, ctx.deadline)
+				maxMetrics := ctx.getMaxMetrics()
+				paths, err := s.SearchGraphitePaths(accountID, projectID, tr, query, maxMetrics, ctx.deadline)
 				if err != nil {
 					return fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
 				}
-				if len(paths) >= *maxMetricsPerSearch {
-					return fmt.Errorf("more than -search.maxUniqueTimeseries=%d time series match Graphite query %q; "+
-						"either narrow down the query or increase -search.maxUniqueTimeseries command-line flag value", *maxMetricsPerSearch, query)
+				if len(paths) >= maxMetrics {
+					return fmt.Errorf("more than %d time series match Graphite query %q; "+
+						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes", maxMetrics, query)
 				}
 				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
 				continue
