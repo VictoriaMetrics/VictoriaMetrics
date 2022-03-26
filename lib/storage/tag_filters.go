@@ -530,7 +530,7 @@ func getRegexpFromCache(expr []byte) (*regexpCacheValue, error) {
 	rcv.reCost = reCost
 	rcv.literalSuffix = literalSuffix
 	// heuristic for rcv in-memory size
-	rcv.sizeBytes = 8 + 2*len(exprOrig) + len(literalSuffix)
+	rcv.sizeBytes = 8*len(exprOrig) + len(literalSuffix)
 	regexpCache.PutEntry(exprOrig, &rcv)
 
 	return &rcv, nil
