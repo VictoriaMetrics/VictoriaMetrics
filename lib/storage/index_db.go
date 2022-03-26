@@ -1315,9 +1315,9 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 }
 
 // GetTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
-func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	is := db.getIndexSearch(deadline)
-	status, err := is.getTSDBStatusWithFiltersForDate(tfss, date, topN)
+	status, err := is.getTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
@@ -1327,7 +1327,7 @@ func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint
 	}
 	ok := db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
-		status, err = is.getTSDBStatusWithFiltersForDate(tfss, date, topN)
+		status, err = is.getTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -1337,14 +1337,14 @@ func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint
 }
 
 // getTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
-func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int) (*TSDBStatus, error) {
+func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN, maxMetrics int) (*TSDBStatus, error) {
 	var filter *uint64set.Set
 	if len(tfss) > 0 {
 		tr := TimeRange{
 			MinTimestamp: int64(date) * msecPerDay,
 			MaxTimestamp: int64(date+1) * msecPerDay,
 		}
-		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, 2e9)
+		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
 		if err != nil {
 			return nil, err
 		}

@@ -1,5 +1,5 @@
 ---
-sort: 12
+sort: 13
 ---
 
 # Quick Start
@@ -16,5 +16,6 @@ Open `http://localhost:8428` in web browser and read [these docs](https://docs.v
 VictoriaMetrics is also available in binaries (see [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)) and in source code (see [how to build VictoriaMetrics from sources](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-build-from-sources)).
 
 There are also the following versions of VictoriaMetrics available:
+
 * [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) - horizontally scalable VictoriaMetrics, which scales to multiple nodes.
 * [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc).

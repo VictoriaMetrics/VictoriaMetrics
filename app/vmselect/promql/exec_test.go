@@ -61,6 +61,7 @@ func TestExecSuccess(t *testing.T) {
 			Start:       start,
 			End:         end,
 			Step:        step,
+			MaxSeries:   1000,
 			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits: 100,
 		}
@@ -7496,6 +7497,7 @@ func TestExecError(t *testing.T) {
 			Start:       1000,
 			End:         2000,
 			Step:        100,
+			MaxSeries:   1000,
 			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits: 100,
 		}

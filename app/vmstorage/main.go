@@ -227,17 +227,17 @@ func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.
 }
 
 // GetTSDBStatusForDate returns TSDB status for the given date.
-func GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+func GetTSDBStatusForDate(date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(nil, date, topN, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(nil, date, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }
 
 // GetTSDBStatusWithFiltersForDate returns TSDB status for given filters on the given date.
-func GetTSDBStatusWithFiltersForDate(tfss []*storage.TagFilters, date uint64, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+func GetTSDBStatusWithFiltersForDate(tfss []*storage.TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }
@@ -680,6 +680,10 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
 	})
+	metrics.NewGauge(`vm_cache_entries{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheSize())
+	})
+
 	metrics.NewGauge(`vm_cache_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSize)
 	})
@@ -714,6 +718,12 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheSizeBytes)
 	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/regexps"}`, func() float64 {
+		return float64(storage.RegexpCacheSizeBytes())
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheSizeBytes())
+	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSizeBytes)
 	})
@@ -738,6 +748,12 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagFiltersCacheSizeMaxBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/regexps"}`, func() float64 {
+		return float64(storage.RegexpCacheMaxSizeBytes())
+	})
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheMaxSizeBytes())
 	})
 
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/tsid"}`, func() float64 {
@@ -764,6 +780,9 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheRequests())
 	})
+	metrics.NewGauge(`vm_cache_requests_total{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheRequests())
+	})
 
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/tsid"}`, func() float64 {
 		return float64(m().TSIDCacheMisses)
@@ -788,6 +807,9 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheMisses())
+	})
+	metrics.NewGauge(`vm_cache_misses_total{type="storage/regexpPrefixes"}`, func() float64 {
+		return float64(storage.RegexpPrefixesCacheMisses())
 	})
 
 	metrics.NewGauge(`vm_deleted_metrics_total{type="indexdb"}`, func() float64 {
