@@ -1182,6 +1182,19 @@ func TestMatchTagFilters(t *testing.T) {
 		t.Fatalf("Should match")
 	}
 
+	// Positive empty match by non-existing tag
+	tfs.Reset()
+	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar|"), false, true); err != nil {
+		t.Fatalf("cannot add regexp, positive filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !ok {
+		t.Fatalf("Should match")
+	}
+
 	// Negative match by non-existing tag
 	tfs.Reset()
 	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar"), false, false); err != nil {
@@ -1753,7 +1766,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 
 	// Check GetTSDBStatusWithFiltersForDate with nil filters.
-	status, err := db.GetTSDBStatusWithFiltersForDate(nil, baseDate, 5, noDeadline)
+	status, err := db.GetTSDBStatusWithFiltersForDate(nil, baseDate, 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatusWithFiltersForDate with nil filters: %s", err)
 	}
@@ -1821,7 +1834,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err := tfs.Add([]byte("day"), []byte("0"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatusWithFiltersForDate([]*TagFilters{tfs}, baseDate, 5, noDeadline)
+	status, err = db.GetTSDBStatusWithFiltersForDate([]*TagFilters{tfs}, baseDate, 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
 	}

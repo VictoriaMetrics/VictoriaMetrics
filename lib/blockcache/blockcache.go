@@ -265,14 +265,10 @@ func (c *cache) cleanByTimeout() {
 	defer c.mu.Unlock()
 
 	for len(c.lah) > 0 {
-		e := c.lah[0]
-		if lastAccessTime < e.lastAccessTime {
+		if lastAccessTime < c.lah[0].lastAccessTime {
 			break
 		}
-		c.updateSizeBytes(-e.b.SizeBytes())
-		pes := c.m[e.k.Part]
-		delete(pes, e.k.Offset)
-		heap.Pop(&c.lah)
+		c.removeLeastRecentlyAccessedItem()
 	}
 }
 
@@ -333,12 +329,21 @@ func (c *cache) PutBlock(k Key, b Block) {
 	c.updateSizeBytes(e.b.SizeBytes())
 	maxSizeBytes := c.getMaxSizeBytes()
 	for c.SizeBytes() > maxSizeBytes && len(c.lah) > 0 {
-		e := c.lah[0]
-		c.updateSizeBytes(-e.b.SizeBytes())
-		pes := c.m[e.k.Part]
-		delete(pes, e.k.Offset)
-		heap.Pop(&c.lah)
+		c.removeLeastRecentlyAccessedItem()
 	}
+}
+
+func (c *cache) removeLeastRecentlyAccessedItem() {
+	e := c.lah[0]
+	c.updateSizeBytes(-e.b.SizeBytes())
+	p := e.k.Part
+	pes := c.m[p]
+	delete(pes, e.k.Offset)
+	if len(pes) == 0 {
+		// Remove reference to p from c.m in order to free up memory occupied by p.
+		delete(c.m, p)
+	}
+	heap.Pop(&c.lah)
 }
 
 func (c *cache) Len() int {
@@ -396,6 +401,10 @@ func (lah *lastAccessHeap) Push(x interface{}) {
 func (lah *lastAccessHeap) Pop() interface{} {
 	h := *lah
 	e := h[len(h)-1]
+
+	// Remove the reference to deleted entry, so Go GC could free up memory occupied by the deleted entry.
+	h[len(h)-1] = nil
+
 	*lah = h[:len(h)-1]
 	return e
 }

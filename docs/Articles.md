@@ -1,5 +1,5 @@
 ---
-sort: 16
+sort: 17
 ---
 
 # Articles
@@ -59,7 +59,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics — creating the best remote storage for Prometheus](https://faun.pub/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac)
 * [Anomaly Detection in VictoriaMetrics](https://victoriametrics.medium.com/anomaly-detection-in-victoriametrics-9528538786a7)
 
-
 ### Benchmarks
 
 * [When size matters — benchmarking VictoriaMetrics vs Timescale and InfluxDB](https://valyala.medium.com/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
@@ -70,7 +69,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [First look at performance comparison between InfluxDB IOx and VictoriaMetrics](https://victoriametrics.medium.com/first-look-at-perfomance-comparassion-between-influxdb-iox-and-victoriametrics-e590f847935b)
 * [Prometheus vs VictoriaMetrics benchmark on node-exporter metrics](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f)
 * [Promscale vs VictoriaMetrics: resource usage on production workload](https://valyala.medium.com/promscale-vs-victoriametrics-resource-usage-on-production-workload-91c8e3786c03)
-
 
 ### Technical articles
 
@@ -84,7 +82,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Why irate from Prometheus doesn't capture spikes](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832)
 * [VictoriaMetrics: PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
 
-
 ### Tutorials, guides and how-to articles
 
 * [PromQL tutorial for beginners and humans](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
@@ -96,7 +93,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [How to use relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [How to monitor Go applications with VictoriaMetrics](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870)
 * [Prometheus storage: tech terms for humans](https://valyala.medium.com/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
-
 
 ### Other articles
 

@@ -54,7 +54,7 @@ func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 			})
 		}
 		tfss := joinTagFilterss(tfs, etfs)
-		sq := storage.NewSearchQuery(0, ct, tfss)
+		sq := storage.NewSearchQuery(0, ct, tfss, 0)
 		n, err := netstorage.DeleteSeries(sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot delete series for %q: %w", sq, err)
@@ -196,7 +196,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, limit*10)
 		if err != nil {
 			return err
 		}
@@ -282,7 +282,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, limit*10)
 		if err != nil {
 			return err
 		}
@@ -349,7 +349,7 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	sq, err := getSearchQueryForExprs(startTime, etfs, exprs)
+	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, limit*10)
 	if err != nil {
 		return err
 	}
@@ -474,14 +474,14 @@ func getInt(r *http.Request, argName string) (int, error) {
 	return n, nil
 }
 
-func getSearchQueryForExprs(startTime time.Time, etfs [][]storage.TagFilter, exprs []string) (*storage.SearchQuery, error) {
+func getSearchQueryForExprs(startTime time.Time, etfs [][]storage.TagFilter, exprs []string, maxMetrics int) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)
 	if err != nil {
 		return nil, err
 	}
 	ct := startTime.UnixNano() / 1e6
 	tfss := joinTagFilterss(tfs, etfs)
-	sq := storage.NewSearchQuery(0, ct, tfss)
+	sq := storage.NewSearchQuery(0, ct, tfss, maxMetrics)
 	return sq, nil
 }
 
