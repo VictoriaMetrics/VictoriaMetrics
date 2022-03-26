@@ -133,20 +133,20 @@ func TestCacheConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
-		go func() {
+		go func(worker int) {
 			defer wg.Done()
-			testCacheSetGet(c)
-		}()
+			testCacheSetGet(c, worker)
+		}(i)
 	}
 	wg.Wait()
 }
 
-func testCacheSetGet(c *Cache) {
+func testCacheSetGet(c *Cache, worker int) {
 	for i := 0; i < 1000; i++ {
 		part := (interface{})(i)
 		b := testBlock{}
 		k := Key{
-			Offset: uint64(i),
+			Offset: uint64(worker*1000 + i),
 			Part:   part,
 		}
 		c.PutBlock(k, &b)
