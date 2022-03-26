@@ -1,18 +1,25 @@
 import {useEffect, useMemo, useCallback, useState} from "preact/compat";
-import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../../../../api/query-range";
-import {useAppState} from "../../../../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult} from "../../../../api/types";
-import {isValidHttpUrl} from "../../../../utils/url";
-import {ErrorTypes} from "../../../../types";
-import {useGraphState} from "../../../../state/graph/GraphStateContext";
-import {getAppModeEnable, getAppModeParams} from "../../../../utils/app-mode";
+import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../api/query-range";
+import {useAppState} from "../state/common/StateContext";
+import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
+import {isValidHttpUrl} from "../utils/url";
+import {ErrorTypes} from "../types";
+import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import throttle from "lodash.throttle";
-import {DisplayType} from "../DisplayTypeSwitch";
+import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
+import {CustomStep} from "../state/graph/reducer";
+
+interface FetchQueryParams {
+  predefinedQuery?: string[]
+  visible: boolean
+  display?: DisplayType,
+  customStep: CustomStep,
+}
 
 const appModeEnable = getAppModeEnable();
 const {serverURL: appServerUrl} = getAppModeParams();
 
-export const useFetchQuery = (): {
+export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: FetchQueryParams): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -21,8 +28,6 @@ export const useFetchQuery = (): {
   queryOptions: string[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
-
-  const {customStep} = useGraphState();
 
   const [queryOptions, setQueryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,11 +72,10 @@ export const useFetchQuery = (): {
         setError(`${e.name}: ${e.message}`);
       }
     }
-
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(throttle(fetchData, 300), []);
+  const throttledFetchData = useCallback(throttle(fetchData, 1000), []);
 
   const fetchOptions = async () => {
     const server = appModeEnable ? appServerUrl : serverUrl;
@@ -91,16 +95,19 @@ export const useFetchQuery = (): {
 
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
+    const expr = predefinedQuery ?? query;
+    const displayChart = (display || displayType) === "chart";
     if (!period) return;
     if (!server) {
       setError(ErrorTypes.emptyServer);
-    } else if (query.every(q => !q.trim())) {
+    } else if (expr.every(q => !q.trim())) {
       setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(server)) {
-      if (customStep.enable) period.step = customStep.value;
-      return query.filter(q => q.trim()).map(q => displayType === "chart"
-        ? getQueryRangeUrl(server, q, period, nocache)
-        : getQueryUrl(server, q, period));
+      const updatedPeriod = {...period};
+      if (customStep.enable) updatedPeriod.step = customStep.value;
+      return expr.filter(q => q.trim()).map(q => displayChart
+        ? getQueryRangeUrl(server, q, updatedPeriod, nocache)
+        : getQueryUrl(server, q, updatedPeriod));
     } else {
       setError(ErrorTypes.validServer);
     }
@@ -111,10 +118,10 @@ export const useFetchQuery = (): {
     fetchOptions();
   }, [serverUrl]);
 
-  // TODO: this should depend on query as well, but need to decide when to do the request. Doing it on each query change - looks to be a bad idea. Probably can be done on blur
   useEffect(() => {
-    throttledFetchData(fetchUrl, fetchQueue, displayType);
-  }, [fetchUrl]);
+    if (!visible) return;
+    throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
+  }, [fetchUrl, visible]);
 
   useEffect(() => {
     const fetchPast = fetchQueue.slice(0, -1);

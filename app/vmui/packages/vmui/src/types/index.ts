@@ -34,3 +34,22 @@ export enum ErrorTypes {
   validServer = "Please provide a valid Server URL",
   validQuery = "Please enter a valid Query and execute it"
 }
+
+export interface PanelSettings {
+  title?: string;
+  description?: string;
+  unit?: string;
+  expr: string[];
+  showLegend?: boolean;
+}
+
+export interface DashboardRow {
+  title?: string;
+  panels: PanelSettings[];
+}
+
+export interface DashboardSettings {
+  title?: string;
+  filename: string;
+  rows: DashboardRow[];
+}

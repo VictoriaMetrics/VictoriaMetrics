@@ -1,6 +1,5 @@
 import React, {FC, useMemo, useState} from "preact/compat";
 import {hexToRGB} from "../../utils/color";
-import {useAppState} from "../../state/common/StateContext";
 import {LegendItem} from "../../utils/uplot/types";
 import "./legend.css";
 import {getDashLine} from "../../utils/uplot/helpers";
@@ -8,12 +7,11 @@ import Tooltip from "@mui/material/Tooltip";
 
 export interface LegendProps {
   labels: LegendItem[];
+  query: string[];
   onChange: (item: LegendItem, metaKey: boolean) => void;
 }
 
-const Legend: FC<LegendProps> = ({labels, onChange}) => {
-  const {query} = useAppState();
-
+const Legend: FC<LegendProps> = ({labels, query, onChange}) => {
   const [copiedValue, setCopiedValue] = useState("");
 
   const groups = useMemo(() => {

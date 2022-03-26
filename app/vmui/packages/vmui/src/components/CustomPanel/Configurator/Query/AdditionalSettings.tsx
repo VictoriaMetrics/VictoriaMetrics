@@ -5,10 +5,14 @@ import {saveToStorage} from "../../../../utils/storage";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import BasicSwitch from "../../../../theme/switch";
 import StepConfigurator from "./StepConfigurator";
+import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
 
 const AdditionalSettings: FC = () => {
 
-  const {queryControls: {autocomplete, nocache}} = useAppState();
+  const {customStep} = useGraphState();
+  const graphDispatch = useGraphDispatch();
+
+  const {queryControls: {autocomplete, nocache}, time: {period: {step}}} = useAppState();
   const dispatch = useAppDispatch();
 
   const onChangeAutocomplete = () => {
@@ -33,7 +37,13 @@ const AdditionalSettings: FC = () => {
       />
     </Box>
     <Box ml={2}>
-      <StepConfigurator/>
+      <StepConfigurator defaultStep={step} customStepEnable={customStep.enable}
+        setStep={(value) => {
+          graphDispatch({type: "SET_CUSTOM_STEP", payload: value});
+        }}
+        toggleEnableStep={() => {
+          graphDispatch({type: "TOGGLE_CUSTOM_STEP"});
+        }}/>
     </Box>
   </Box>;
 };
