@@ -1,12 +1,18 @@
-import {Axis, Series} from "uplot";
+import uPlot, {Axis, Series} from "uplot";
 import {getMaxFromArray, getMinFromArray} from "../math";
 import {roundToMilliseconds} from "../time";
 import {AxisRange} from "../../state/graph/reducer";
-import {formatTicks} from "./helpers";
+import {formatTicks, sizeAxis} from "./helpers";
 import {TimeParams} from "../../types";
 
-export const getAxes = (series: Series[]): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
-  const axis = {scale: a, show: true, font: "10px Arial", values: formatTicks};
+export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
+  const axis = {
+    scale: a,
+    show: true,
+    size: sizeAxis,
+    font: "10px Arial",
+    values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
+  };
   if (!a) return {space: 80};
   if (!(Number(a) % 2)) return {...axis, side: 1};
   return axis;

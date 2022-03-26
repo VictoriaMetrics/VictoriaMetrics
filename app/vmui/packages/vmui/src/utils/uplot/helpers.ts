@@ -1,4 +1,4 @@
-import uPlot from "uplot";
+import uPlot, {Axis} from "uplot";
 import {getColorFromString} from "../color";
 
 export const defaultOptions = {
@@ -28,14 +28,38 @@ export const defaultOptions = {
   },
 };
 
-export const formatTicks = (u: uPlot, ticks: number[]): string[] => {
+export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
   return ticks.map(v => {
     const n = Math.abs(v);
-    if (n > 1e-3 && n < 1e4) {
-      return v.toString();
-    }
-    return v.toExponential(1);
+    return `${n > 1e-3 && n < 1e4 ? v.toString() : v.toExponential(1)} ${unit}`;
   });
+};
+
+interface AxisExtend extends Axis {
+  _size?: number;
+}
+
+const getTextWidth = (val: string, font: string): number => {
+  const span = document.createElement("span");
+  span.innerText = val;
+  span.style.cssText = `position: absolute; z-index: -1; pointer-events: none; opacity: 0; font: ${font}`;
+  document.body.appendChild(span);
+  const width = span.offsetWidth;
+  span.remove();
+  return width;
+};
+
+export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: number): number => {
+  const axis = u.axes[axisIdx] as AxisExtend;
+
+  if (cycleNum > 1) return axis._size || 60;
+
+  let axisSize = 6 + (axis?.ticks?.size || 0) + (axis.gap || 0);
+
+  const longestVal = (values ?? []).reduce((acc, val) => val.length > acc.length ? val : acc, "");
+  if (longestVal != "") axisSize += getTextWidth(longestVal, u.ctx.font);
+
+  return Math.ceil(axisSize);
 };
 
 export const getColorLine = (scale: number, label: string): string => getColorFromString(`${scale}${label}`);
