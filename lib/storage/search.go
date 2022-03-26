@@ -226,17 +226,27 @@ func (s *Search) NextMetricBlock() bool {
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
 type SearchQuery struct {
+	// The time range for searching time series
 	MinTimestamp int64
 	MaxTimestamp int64
-	TagFilterss  [][]TagFilter
+
+	// Tag filters for the search query
+	TagFilterss [][]TagFilter
+
+	// The maximum number of time series the search query can return.
+	MaxMetrics int
 }
 
 // NewSearchQuery creates new search query for the given args.
-func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter) *SearchQuery {
+func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+	if maxMetrics <= 0 {
+		maxMetrics = 2e9
+	}
 	return &SearchQuery{
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
+		MaxMetrics:   maxMetrics,
 	}
 }
 

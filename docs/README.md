@@ -820,13 +820,13 @@ Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/native?match
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time series.
 
-On large databases you may experience problems with limit on unique timeseries (default value is 300000). In this case you need to adjust `-search.maxUniqueTimeseries` parameter:
+On large databases you may experience problems with limit on the number of time series, which can be exported. In this case you need to adjust `-search.maxExportSeries` command-line flag:
 
 ```bash
 # count unique timeseries in database
 wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
 
-# relaunch victoriametrics with search.maxUniqueTimeseries more than value from previous command
+# relaunch victoriametrics with search.maxExportSeries more than value from previous command
 ```
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
@@ -1835,6 +1835,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration (default 8)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
+  -search.maxExportSeries int
+     The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage (default 1000000)
+  -search.maxFederateSeries int
+     The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 300000)
+  -search.maxGraphiteSeries int
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxPointsPerTimeseries int
@@ -1850,12 +1856,16 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries (default 1000000000)
   -search.maxSamplesPerSeries int
      The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage (default 30000000)
+  -search.maxSeries int
+     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 10000)
   -search.maxStalenessInterval duration
      The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
      The maximum duration for /api/v1/status/* requests (default 5m0s)
   -search.maxStepForPointsAdjustment duration
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
+  -search.maxTSDBStatusSeries int
+     The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 1000000)
   -search.maxTagKeys int
      The maximum number of tag keys returned from /api/v1/labels (default 100000)
   -search.maxTagValueSuffixesPerSearch int
@@ -1863,7 +1873,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxTagValues int
      The maximum number of tag values returned from /api/v1/label/<label_name>/values (default 100000)
   -search.maxUniqueTimeseries int
-     The maximum number of unique time series each search can scan. This option allows limiting memory usage (default 300000)
+     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.minStalenessInterval duration
      The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
   -search.noStaleMarkers

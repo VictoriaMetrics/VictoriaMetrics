@@ -42,6 +42,12 @@ var (
 		"See also '-search.maxLookback' flag, which has the same meaning due to historical reasons")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
+
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxFederateSeries   = flag.Int("search.maxFederateSeries", 300e3, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
+	maxExportSeries     = flag.Int("search.maxExportSeries", 1e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
+	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 1e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
+	maxSeriesLimit      = flag.Int("search.maxSeries", 10e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 )
 
 // Default step used if not set.
@@ -78,7 +84,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxFederateSeries)
 	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
@@ -135,7 +141,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -232,7 +238,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -383,7 +389,7 @@ func exportHandler(w http.ResponseWriter, matches []string, etfs [][]storage.Tag
 	}
 	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
 
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxExportSeries)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -484,7 +490,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	sq := storage.NewSearchQuery(0, ct, tagFilterss)
+	sq := storage.NewSearchQuery(0, ct, tagFilterss, 0)
 	deletedCount, err := netstorage.DeleteSeries(sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
@@ -597,7 +603,7 @@ func labelValuesWithMatches(labelName string, matches []string, etfs [][]storage
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
@@ -709,12 +715,12 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	}
 	var status *storage.TSDBStatus
 	if len(matches) == 0 && len(etfs) == 0 {
-		status, err = netstorage.GetTSDBStatusForDate(deadline, date, topN)
+		status, err = netstorage.GetTSDBStatusForDate(deadline, date, topN, *maxTSDBStatusSeries)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, err = tsdbStatusWithMatches(matches, etfs, date, topN, deadline)
+		status, err = tsdbStatusWithMatches(matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -729,7 +735,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-func tsdbStatusWithMatches(matches []string, etfs [][]storage.TagFilter, date uint64, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+func tsdbStatusWithMatches(matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, err
@@ -740,7 +746,7 @@ func tsdbStatusWithMatches(matches []string, etfs [][]storage.TagFilter, date ui
 	}
 	start := int64(date*secsPerDay) * 1000
 	end := int64(date*secsPerDay+secsPerDay) * 1000
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, maxMetrics)
 	status, err := netstorage.GetTSDBStatusWithFilters(deadline, sq, topN)
 	if err != nil {
 		return nil, err
@@ -835,7 +841,7 @@ func labelsWithMatches(matches []string, etfs [][]storage.TagFilter, start, end 
 	if len(tagFilterss) == 0 {
 		logger.Panicf("BUG: tagFilterss must be non-empty")
 	}
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
@@ -933,7 +939,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxSeriesLimit)
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
 		mns, err := netstorage.SearchMetricNames(sq, deadline)
@@ -1080,6 +1086,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		Start:               start,
 		End:                 start,
 		Step:                step,
+		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		LookbackDelta:       lookbackDelta,
@@ -1170,6 +1177,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 		Start:               start,
 		End:                 end,
 		Step:                step,
+		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,
