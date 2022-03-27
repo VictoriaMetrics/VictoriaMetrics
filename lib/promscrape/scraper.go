@@ -144,8 +144,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
-			cfg.mustStop()
-			cfgNew.mustStart()
+			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
 			data = dataNew
 			marshaledData = cfgNew.marshal()
@@ -160,8 +159,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
 			}
-			cfg.mustStop()
-			cfgNew.mustStart()
+			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
 			data = dataNew
 			configData.Store(&marshaledData)

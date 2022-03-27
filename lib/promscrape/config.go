@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -74,14 +75,60 @@ func (cfg *Config) marshal() []byte {
 }
 
 func (cfg *Config) mustStart() {
+	cfg.mustRestart(nil)
+}
+
+func (cfg *Config) mustRestart(prevCfg *Config) {
 	startTime := time.Now()
 	logger.Infof("starting service discovery routines...")
+	getPrevScByName := func(jobName string) *ScrapeConfig {
+		if prevCfg == nil {
+			return nil
+		}
+		for i := range prevCfg.ScrapeConfigs {
+			sc := &prevCfg.ScrapeConfigs[i]
+			if sc.JobName == jobName {
+				return sc
+			}
+		}
+		return nil
+	}
+	var toStart, toStop []*ScrapeConfig
+	existJobNames := make(map[string]struct{}, len(cfg.ScrapeConfigs))
 	for i := range cfg.ScrapeConfigs {
-		cfg.ScrapeConfigs[i].mustStart(cfg.baseDir)
+		sc := cfg.ScrapeConfigs[i]
+		jobName := sc.JobName
+		existJobNames[jobName] = struct{}{}
+		prevSC := getPrevScByName(jobName)
+		if prevSC != nil && prevSC.checksum == sc.checksum {
+			// config checksum the same, no need to restart it
+			// replace reference with previous job, it allows to stop it properly later.
+			cfg.ScrapeConfigs[i] = *prevSC
+			continue
+		}
+		if prevSC != nil {
+			toStop = append(toStop, prevSC)
+		}
+		toStart = append(toStart, &sc)
+	}
+	if prevCfg != nil {
+		// stop jobs, that was not found at current configuration
+		for i := range prevCfg.ScrapeConfigs {
+			prevSC := prevCfg.ScrapeConfigs[i]
+			if _, ok := existJobNames[prevSC.JobName]; !ok {
+				toStop = append(toStop, &prevSC)
+			}
+		}
+	}
+	for _, sc := range toStop {
+		sc.mustStop()
+	}
+	for _, sc := range toStart {
+		sc.mustStart(cfg.baseDir)
 	}
 	jobNames := cfg.getJobNames()
 	tsmGlobal.registerJobNames(jobNames)
-	logger.Infof("started service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("started service discovery routines in %.3f seconds, added=%d, removed=%d", time.Since(startTime).Seconds(), len(toStart), len(toStop))
 }
 
 func (cfg *Config) mustStop() {
@@ -157,6 +204,8 @@ type ScrapeConfig struct {
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
+	// This is set during unmarshal
+	checksum uint64 `yaml:"-"`
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
@@ -322,6 +371,11 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 	// Initialize cfg.ScrapeConfigs
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		b, err := yaml.Marshal(sc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ScrapeConfig for checksum: %w", err)
+		}
+		sc.checksum = xxhash.Sum64(b)
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
@@ -1129,24 +1183,30 @@ func internLabelStrings(labels []prompbmarshal.Label) {
 }
 
 func internString(s string) string {
-	internStringsMapLock.Lock()
-	defer internStringsMapLock.Unlock()
 
-	if sInterned, ok := internStringsMap[s]; ok {
-		return sInterned
+	if sInterned, ok := internStringsMap.Load(s); ok {
+		return sInterned.(string)
+	}
+	isc := atomic.LoadUint64(&internStringCount)
+	if isc > 100e3 {
+		internStringsMapLock.Lock()
+		internStringsMap = sync.Map{}
+		atomic.AddUint64(&internStringCount, ^(isc - 1))
+		internStringsMapLock.Unlock()
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := string(append([]byte{}, s...))
-	internStringsMap[sCopy] = sCopy
-	if len(internStringsMap) > 100e3 {
-		internStringsMap = make(map[string]string, 100e3)
-	}
+	internStringsMap.Store(sCopy, sCopy)
+	atomic.AddUint64(&internStringCount, 1)
 	return sCopy
 }
 
 var (
-	internStringsMapLock sync.Mutex
-	internStringsMap     = make(map[string]string, 100e3)
+	internStringCount = uint64(0)
+	// guards map replacement
+	internStringsMapLock = sync.Mutex{}
+	// according to profiling, sync.Map is better for concurrent write/reads load
+	internStringsMap = sync.Map{}
 )
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {

@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/metrics"
@@ -299,11 +300,19 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 				// Refresh endpoints and enpointslices targets in background, since they depend on other object types such as pod and service.
 				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
 				go func() {
+					reloadTime := time.Second * 10
 					for {
-						time.Sleep(5 * time.Second)
+						time.Sleep(reloadTime)
+						ct := time.Now()
 						gw.mu.Lock()
 						uw.reloadScrapeWorksForAPIWatchersLocked(uw.aws)
 						gw.mu.Unlock()
+						elapsed := time.Since(ct)
+						if elapsed > reloadTime {
+							// increase reload time to prevent possible live locks
+							logger.Warnf("reload apiWatcher for apiURL=%q took=%.3f seconds, increasing reload time", uw.apiURL, elapsed.Seconds())
+							reloadTime = elapsed + 5*time.Second
+						}
 					}
 				}()
 			}
@@ -518,19 +527,38 @@ func (uw *urlWatcher) reloadScrapeWorksForAPIWatchersLocked(awsMap map[*apiWatch
 	for aw := range awsMap {
 		aws = append(aws, aw)
 	}
+	var mu sync.Mutex
 	swosByKey := make([]map[string][]interface{}, len(aws))
 	for i := range aws {
 		swosByKey[i] = make(map[string][]interface{})
 	}
-	for key, o := range uw.objectsByKey {
-		labels := o.getTargetLabels(uw.gw)
-		for i, aw := range aws {
-			swos := aw.getScrapeWorkObjectsForLabels(labels)
-			if len(swos) > 0 {
-				swosByKey[i][key] = swos
-			}
-		}
+	// update swos concurrently,
+	// it must decrease reload time for high number of records at promscrape file
+	maxConcurrent := cgroup.AvailableCPUs() - 2
+	if maxConcurrent < 1 {
+		maxConcurrent = 1
 	}
+	limit := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+	for key, o := range uw.objectsByKey {
+		limit <- struct{}{}
+		wg.Add(1)
+		// update swsos for each target at separate CPU
+		go func(key string, o object) {
+			labels := o.getTargetLabels(uw.gw)
+			for i, aw := range aws {
+				swos := aw.getScrapeWorkObjectsForLabels(labels)
+				if len(swos) > 0 {
+					mu.Lock()
+					swosByKey[i][key] = swos
+					mu.Unlock()
+				}
+			}
+			<-limit
+			wg.Done()
+		}(key, o)
+	}
+	wg.Wait()
 	for i, aw := range aws {
 		aw.reloadScrapeWorks(uw, swosByKey[i])
 	}
