@@ -164,7 +164,7 @@ Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 
-## /api/v1/label/<label_name>/values
+## /api/v1/label/\<label_name\>/values
 
 **Querying label values**
 
