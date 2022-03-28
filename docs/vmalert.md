@@ -385,7 +385,7 @@ See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
+* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status"` - get alert status by ID.
 Used as alert source in AlertManager.
