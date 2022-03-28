@@ -66,7 +66,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
-    "@typescript-eslint/parser": "^5.15.0",
+    "@typescript-eslint/parser": "^5.16.0",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.29.4",
     "react-app-rewired": "^2.2.1"
