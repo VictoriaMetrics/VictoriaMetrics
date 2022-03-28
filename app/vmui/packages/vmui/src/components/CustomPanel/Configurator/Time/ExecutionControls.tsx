@@ -10,6 +10,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
+import {useLocation} from "react-router-dom";
 
 interface AutoRefreshOption {
   seconds: number
@@ -35,6 +36,12 @@ export const ExecutionControls: FC = () => {
 
   const dispatch = useAppDispatch();
   const {queryControls: {autoRefresh}} = useAppState();
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (autoRefresh) dispatch({type: "TOGGLE_AUTOREFRESH"});
+  }, [location]);
 
   const [selectedDelay, setSelectedDelay] = useState<AutoRefreshOption>(delayOptions[0]);
 

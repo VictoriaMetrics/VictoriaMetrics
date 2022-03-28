@@ -1,5 +1,5 @@
 /* eslint max-lines: 0 */
-import {DisplayType} from "../../components/Home/Configurator/DisplayTypeSwitch";
+import {DisplayType} from "../../components/CustomPanel/Configurator/DisplayTypeSwitch";
 import {TimeParams, TimePeriod} from "../../types";
 import {
   dateFromSeconds,

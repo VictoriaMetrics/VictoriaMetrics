@@ -27,7 +27,6 @@ var (
 	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels")
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan. This option allows limiting memory usage")
 	maxSamplesPerSeries          = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery           = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
 )
@@ -642,7 +641,7 @@ func DeleteSeries(sq *storage.SearchQuery, deadline searchutils.Deadline) (int, 
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return 0, err
 	}
@@ -900,11 +899,11 @@ func GetLabelEntries(deadline searchutils.Deadline) ([]storage.TagEntry, error) 
 }
 
 // GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func GetTSDBStatusForDate(deadline searchutils.Deadline, date uint64, topN int) (*storage.TSDBStatus, error) {
+func GetTSDBStatusForDate(deadline searchutils.Deadline, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	status, err := vmstorage.GetTSDBStatusForDate(date, topN, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatusForDate(date, topN, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
@@ -922,12 +921,12 @@ func GetTSDBStatusWithFilters(deadline searchutils.Deadline, sq *storage.SearchQ
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 	date := uint64(tr.MinTimestamp) / (3600 * 24 * 1000)
-	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status with filters request: %w", err)
 	}
@@ -978,7 +977,7 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return err
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return err
 	}
@@ -989,7 +988,7 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
 	startTime := time.Now()
-	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	sr.Init(vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
@@ -1086,12 +1085,12 @@ func SearchMetricNames(sq *storage.SearchQuery, deadline searchutils.Deadline) (
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 
-	mns, err := vmstorage.SearchMetricNames(tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	mns, err := vmstorage.SearchMetricNames(tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("cannot find metric names: %w", err)
 	}
@@ -1114,7 +1113,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1124,7 +1123,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 
 	sr := getStorageSearch()
 	startTime := time.Now()
-	maxSeriesCount := sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	maxSeriesCount := sr.Init(vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
 	m := make(map[string][]blockRef, maxSeriesCount)
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
@@ -1227,7 +1226,7 @@ type blockRef struct {
 	addr    tmpBlockAddr
 }
 
-func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
+func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(tagFilterss))
 	for _, tagFilters := range tagFilterss {
 		tfs := storage.NewTagFilters()
@@ -1235,13 +1234,13 @@ func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, deadline
 			tf := &tagFilters[i]
 			if string(tf.Key) == "__graphite__" {
 				query := tf.Value
-				paths, err := vmstorage.SearchGraphitePaths(tr, query, *maxMetricsPerSearch, deadline.Deadline())
+				paths, err := vmstorage.SearchGraphitePaths(tr, query, maxMetrics, deadline.Deadline())
 				if err != nil {
 					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
 				}
-				if len(paths) >= *maxMetricsPerSearch {
-					return nil, fmt.Errorf("more than -search.maxUniqueTimeseries=%d time series match Graphite query %q; "+
-						"either narrow down the query or increase -search.maxUniqueTimeseries command-line flag value", *maxMetricsPerSearch, query)
+				if len(paths) >= maxMetrics {
+					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
+						"either narrow down the query or increase the corresponding -search.max* command-line flag value", maxMetrics, query)
 				}
 				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
 				continue

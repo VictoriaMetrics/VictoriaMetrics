@@ -10,6 +10,7 @@ import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
 import makeStyles from "@mui/styles/makeStyles";
 import {useSortedCategories} from "../../../hooks/useSortedCategories";
+import Alert from "@mui/material/Alert";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -98,7 +99,7 @@ const TableView: FC<GraphViewProps> = ({data}) => {
             </TableBody>
           </Table>
         </TableContainer>
-        : <div style={{textAlign: "center"}}>No data to show</div>}
+        : <Alert color="warning" severity="warning" sx={{mt: 2}}>No data to show</Alert>}
     </>
   );
 };
