@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,7 +15,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -44,6 +48,7 @@ type Group struct {
 type groupMetrics struct {
 	iterationTotal    *utils.Counter
 	iterationDuration *utils.Summary
+	iterationMissed   *utils.Counter
 }
 
 func newGroupMetrics(name, file string) *groupMetrics {
@@ -51,6 +56,7 @@ func newGroupMetrics(name, file string) *groupMetrics {
 	labels := fmt.Sprintf(`group=%q, file=%q`, name, file)
 	m.iterationTotal = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	m.iterationDuration = utils.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	m.iterationMissed = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
 	return m
 }
 
@@ -226,6 +232,13 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 
+	e := &executor{
+		rw:                       rw,
+		notifiers:                nts,
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
+
+	evalTS := time.Now()
+
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
 	if !skipRandSleepOnGroupStart {
 		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
@@ -247,7 +260,31 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{rw: rw, notifiers: nts}
+
+	eval := func(ts time.Time) {
+		g.metrics.iterationTotal.Inc()
+
+		start := time.Now()
+
+		if len(g.Rules) < 1 {
+			g.metrics.iterationDuration.UpdateDuration(start)
+			g.LastEvaluation = start
+			return
+		}
+
+		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration)
+		for err := range errs {
+			if err != nil {
+				logger.Errorf("group %q: %s", g.Name, err)
+			}
+		}
+		g.metrics.iterationDuration.UpdateDuration(start)
+		g.LastEvaluation = start
+	}
+
+	eval(evalTS)
+
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -274,32 +311,26 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
-			g.metrics.iterationTotal.Inc()
-			iterationStart := time.Now()
-			if len(g.Rules) > 0 {
-				errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, getResolveDuration(g.Interval))
-				for err := range errs {
-					if err != nil {
-						logger.Errorf("group %q: %s", g.Name, err)
-					}
-				}
-				g.LastEvaluation = iterationStart
+			missed := (time.Since(evalTS) / g.Interval) - 1
+			if missed > 0 {
+				g.metrics.iterationMissed.Inc()
 			}
-			g.metrics.iterationDuration.UpdateDuration(iterationStart)
+			evalTS = evalTS.Add((missed + 1) * g.Interval)
+
+			eval(evalTS)
 		}
 	}
 }
 
 // getResolveDuration returns the duration after which firing alert
 // can be considered as resolved.
-func getResolveDuration(groupInterval time.Duration) time.Duration {
-	delta := *resendDelay
+func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Duration {
 	if groupInterval > delta {
 		delta = groupInterval
 	}
 	resolveDuration := delta * 4
-	if *maxResolveDuration > 0 && resolveDuration > *maxResolveDuration {
-		resolveDuration = *maxResolveDuration
+	if maxDuration > 0 && resolveDuration > maxDuration {
+		resolveDuration = maxDuration
 	}
 	return resolveDuration
 }
@@ -307,14 +338,20 @@ func getResolveDuration(groupInterval time.Duration) time.Duration {
 type executor struct {
 	notifiers func() []notifier.Notifier
 	rw        *remotewrite.Client
+
+	// previouslySentSeriesToRW stores series sent to RW on previous iteration
+	// map[ruleID]map[ruleLabels][]prompb.Label
+	// where `ruleID` is ID of the Rule within a Group
+	// and `ruleLabels` is []prompb.Label marshalled to a string
+	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
 }
 
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, resolveDuration time.Duration) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, resolveDuration)
+			res <- e.exec(ctx, rule, ts, resolveDuration)
 		}
 		close(res)
 		return res
@@ -327,7 +364,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, r, resolveDuration)
+				res <- e.exec(ctx, r, ts, resolveDuration)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -348,24 +385,29 @@ var (
 	remoteWriteTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 )
 
-func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDuration time.Duration) error {
 	execTotal.Inc()
 
-	now := time.Now()
-	tss, err := rule.Exec(ctx)
+	tss, err := rule.Exec(ctx, ts)
 	if err != nil {
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
 
-	if len(tss) > 0 && e.rw != nil {
-		for _, ts := range tss {
-			remoteWriteTotal.Inc()
-			if err := e.rw.Push(ts); err != nil {
-				remoteWriteErrors.Inc()
-				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
+	errGr := new(utils.ErrGroup)
+	if e.rw != nil {
+		pushToRW := func(tss []prompbmarshal.TimeSeries) {
+			for _, ts := range tss {
+				remoteWriteTotal.Inc()
+				if err := e.rw.Push(ts); err != nil {
+					remoteWriteErrors.Inc()
+					errGr.Add(fmt.Errorf("rule %q: remote write failure: %w", rule, err))
+				}
 			}
 		}
+		pushToRW(tss)
+		staleSeries := e.getStaleSeries(rule, tss, ts)
+		pushToRW(staleSeries)
 	}
 
 	ar, ok := rule.(*AlertingRule)
@@ -373,16 +415,60 @@ func (e *executor) exec(ctx context.Context, rule Rule, resolveDuration time.Dur
 		return nil
 	}
 
-	alerts := ar.alertsToSend(now, resolveDuration, *resendDelay)
+	alerts := ar.alertsToSend(ts, resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
 		return nil
 	}
 
-	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers() {
 		if err := nt.Send(ctx, alerts); err != nil {
 			errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
 		}
 	}
 	return errGr.Err()
+}
+
+// getStaledSeries checks whether there are stale series from previously sent ones.
+func (e *executor) getStaleSeries(rule Rule, tss []prompbmarshal.TimeSeries, timestamp time.Time) []prompbmarshal.TimeSeries {
+	ruleLabels := make(map[string][]prompbmarshal.Label)
+	for _, ts := range tss {
+		// convert labels to strings so we can compare with previously sent series
+		key := labelsToString(ts.Labels)
+		ruleLabels[key] = ts.Labels
+	}
+
+	rID := rule.ID()
+	var staleS []prompbmarshal.TimeSeries
+	// check whether there are series which disappeared and need to be marked as stale
+	for key, labels := range e.previouslySentSeriesToRW[rID] {
+		if _, ok := ruleLabels[key]; ok {
+			continue
+		}
+		// previously sent series are missing in current series, so we mark them as stale
+		ss := newTimeSeriesPB([]float64{decimal.StaleNaN}, []int64{timestamp.Unix()}, labels)
+		staleS = append(staleS, ss)
+	}
+	// set previous series to current
+	e.previouslySentSeriesToRW[rID] = ruleLabels
+
+	return staleS
+}
+
+func labelsToString(labels []prompbmarshal.Label) string {
+	var b strings.Builder
+	b.WriteRune('{')
+	for i, label := range labels {
+		if len(label.Name) == 0 {
+			b.WriteString("__name__")
+		} else {
+			b.WriteString(label.Name)
+		}
+		b.WriteRune('=')
+		b.WriteString(strconv.Quote(label.Value))
+		if i < len(labels)-1 {
+			b.WriteRune(',')
+		}
+	}
+	b.WriteRune('}')
+	return b.String()
 }
