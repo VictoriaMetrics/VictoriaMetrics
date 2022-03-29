@@ -8,7 +8,7 @@ import (
 
 // Querier interface wraps Query and QueryRange methods
 type Querier interface {
-	Query(ctx context.Context, query string) ([]Metric, error)
+	Query(ctx context.Context, query string, ts time.Time) ([]Metric, error)
 	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
 }
 

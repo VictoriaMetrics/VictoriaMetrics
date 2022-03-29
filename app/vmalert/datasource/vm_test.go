@@ -89,26 +89,27 @@ func TestVMInstantQuery(t *testing.T) {
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
+	ts := time.Now()
 
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected invalid response status error got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected response body error got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected error status got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected unknown status got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
 	}
-	m, err := pq.Query(ctx, query)
+	m, err := pq.Query(ctx, query, ts)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -134,7 +135,7 @@ func TestVMInstantQuery(t *testing.T) {
 	g := NewGraphiteType()
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
 
-	m, err = gq.Query(ctx, queryRender)
+	m, err = gq.Query(ctx, queryRender, ts)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}

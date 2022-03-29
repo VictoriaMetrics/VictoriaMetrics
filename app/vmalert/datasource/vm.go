@@ -71,13 +71,12 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 }
 
 // Query executes the given query and returns parsed response
-func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
+func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Metric, error) {
 	req, err := s.newRequestPOST()
 	if err != nil {
 		return nil, err
 	}
 
-	ts := time.Now()
 	switch s.dataSourceType.String() {
 	case "prometheus":
 		s.setPrometheusInstantReqParams(req, query, ts)

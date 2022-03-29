@@ -225,7 +225,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 
 	droppedRows.Add(len(wr.Timeseries))
 	droppedBytes.Add(len(b))
-	logger.Errorf("all %d attempts to send request failed - dropping %d timeseries",
+	logger.Errorf("all %d attempts to send request failed - dropping %d time series",
 		attempts, len(wr.Timeseries))
 }
 
