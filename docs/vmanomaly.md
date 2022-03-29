@@ -111,7 +111,7 @@ optionally preserving labels).
 
  
 ## Usage
-The vmanomapy accepts only one parameter -- config file path:
+The vmanomaly accepts only one parameter -- config file path:
 
 ```sh
 python3 vmanomaly.py config_zscore.yaml
