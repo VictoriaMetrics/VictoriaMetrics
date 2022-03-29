@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -454,20 +455,20 @@ func (e *executor) getStaleSeries(rule Rule, tss []prompbmarshal.TimeSeries, tim
 }
 
 func labelsToString(labels []prompbmarshal.Label) string {
-	var b []byte
-	b = append(b, '{')
+	var b strings.Builder
+	b.WriteRune('{')
 	for i, label := range labels {
 		if len(label.Name) == 0 {
-			b = append(b, "__name__"...)
+			b.WriteString("__name__")
 		} else {
-			b = append(b, label.Name...)
+			b.WriteString(label.Name)
 		}
-		b = append(b, '=')
-		b = strconv.AppendQuote(b, label.Value)
+		b.WriteRune('=')
+		b.WriteString(strconv.Quote(label.Value))
 		if i < len(labels)-1 {
-			b = append(b, ',')
+			b.WriteRune(',')
 		}
 	}
-	b = append(b, '}')
-	return string(b)
+	b.WriteRune('}')
+	return b.String()
 }
