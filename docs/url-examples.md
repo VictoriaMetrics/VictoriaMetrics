@@ -100,7 +100,7 @@ Cluster:
 <div class="with-copy" markdown="1">
 
 ```bash
-curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/prometheus/api/v1/import'
+curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import'
 ```
 
 </div>
