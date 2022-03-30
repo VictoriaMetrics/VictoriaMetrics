@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import { Outlet } from "react-router-dom";
 
 const HomeLayout: FC = () => {
-  return <Box id="homeLayout">
+  return <Box>
     <Header/>
     <Outlet/>
   </Box>;
