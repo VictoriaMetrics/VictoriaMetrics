@@ -20,14 +20,14 @@ DashboardRow:
 <br/>
 PanelSettings:
 
-| Name        |    Type    |                                                                               Description |
-|:------------|:----------:|------------------------------------------------------------------------------------------:|
-| expr*       | `string[]` |                                                                       Data source queries |
-| title       |  `string`  |                                                                               Panel title |
-| description |  `string`  |                                                    Additional information about the panel |
-| unit        |  `string`  |                                                                               Y-axis unit |
-| showLegend  | `boolean`  |                                       If `false`, the legend hide. Default value - `true` |
-| width       |  `number`  | The number of columns the grid item uses.<br/> From 1 (minimum width) to 12 (full width). |
+| Name        |    Type    |                                                                                Description |
+|:------------|:----------:|-------------------------------------------------------------------------------------------:|
+| expr*       | `string[]` |                                                                        Data source queries |
+| title       |  `string`  |                                                                                Panel title |
+| description |  `string`  |                                                     Additional information about the panel |
+| unit        |  `string`  |                                                                                Y-axis unit |
+| showLegend  | `boolean`  |                                        If `false`, the legend hide. Default value - `true` |
+| width       |  `number`  |      The number of columns the panel uses.<br/> From 1 (minimum width) to 12 (full width). |
 
 ---
 
