@@ -82,41 +82,34 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
     <code>&quot;expr&quot;</code> not found. Check the configuration file <b>{filename}</b>.
   </Alert>;
 
-  return <Box border="1px solid" borderRadius="2px" borderColor="divider" ref={containerRef}>
-    <Box px={2} py={1} display="grid" gap={1} gridTemplateColumns="18px 1fr auto"
+  return <Box border="1px solid" borderRadius="2px" borderColor="divider" width={"100%"} height={"100%"} ref={containerRef}>
+    <Box px={2} py={1} display="flex" flexWrap={"wrap"}
+      width={"100%"}
       alignItems="center" justifyContent="space-between" borderBottom={"1px solid"} borderColor={"divider"}>
-      <Tooltip arrow componentsProps={{
-        tooltip: {
-          sx: {maxWidth: "100%"}
-        }
-      }}
-      title={<Box sx={{p: 1}}>
-        {description && <Box mb={2}>
-          <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Description:</Typography>
-          <div className="panelDescription" dangerouslySetInnerHTML={{__html: marked.parse(description)}}/>
-        </Box>}
-        <Box>
-          <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Queries:</Typography>
-          <div>
-            {expr.map((e, i) => <Box key={`${i}_${e}`} mb={0.5}>{e}</Box>)}
-          </div>
-        </Box>
-      </Box>}>
-        <InfoIcon color="info"/>
+      <Tooltip arrow componentsProps={{tooltip: {sx: {maxWidth: "100%"}}}}
+        title={<Box sx={{p: 1}}>
+          {description && <Box mb={2}>
+            <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Description:</Typography>
+            <div className="panelDescription" dangerouslySetInnerHTML={{__html: marked.parse(description)}}/>
+          </Box>}
+          <Box>
+            <Typography fontWeight={"500"} sx={{mb: 0.5, textDecoration: "underline"}}>Queries:</Typography>
+            <div>
+              {expr.map((e, i) => <Box key={`${i}_${e}`} mb={0.5}>{e}</Box>)}
+            </div>
+          </Box>
+        </Box>}>
+        <InfoIcon color="info" sx={{mr: 1}}/>
       </Tooltip>
-      <Typography variant="subtitle1" gridColumn={2} textAlign={"left"} width={"100%"} fontWeight={500}>
+      <Typography component={"div"} variant="subtitle1" fontWeight={500} sx={{mr: 2, py: 1, flexGrow: "1"}}>
         {title || ""}
       </Typography>
-      <Box display={"grid"} gridTemplateColumns={"repeat(2, auto)"} gap={2} alignItems={"center"}>
+      <Box mr={2} py={1}>
         <StepConfigurator defaultStep={period.step} customStepEnable={customStep.enable}
-          setStep={(value) => {
-            setCustomStep({...customStep, value: value});
-          }}
-          toggleEnableStep={() => {
-            setCustomStep({...customStep, enable: !customStep.enable});
-          }}/>
-        <GraphSettings yaxis={yaxis} setYaxisLimits={setYaxisLimits} toggleEnableLimits={toggleEnableLimits}/>
+          setStep={(value) => setCustomStep({...customStep, value: value})}
+          toggleEnableStep={() => setCustomStep({...customStep, enable: !customStep.enable})}/>
       </Box>
+      <GraphSettings yaxis={yaxis} setYaxisLimits={setYaxisLimits} toggleEnableLimits={toggleEnableLimits}/>
     </Box>
     <Box px={2} pb={2}>
       {isLoading && <Spinner isLoading={true} height={"500px"}/>}
