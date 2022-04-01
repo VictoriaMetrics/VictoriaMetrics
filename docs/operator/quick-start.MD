@@ -114,7 +114,7 @@ The VictoriaMetrics Operator introduces additional resources in Kubernetes to de
 * [VMStaticScrape](#vmstaticscrape)
 * [VMAuth](#vmauth)
 * [VMUser](#vmuser)
-* [Selectors](#Object selectors)
+* [Selectors](#object-selectors)
 
 ## VMSingle
 
