@@ -11,7 +11,7 @@
     "@mui/material": "^5.5.1",
     "@mui/styles": "^5.5.1",
     "@testing-library/jest-dom": "^5.16.2",
-    "@testing-library/react": "^12.1.4",
+    "@testing-library/react": "^13.0.0",
     "@testing-library/user-event": "^14.0.4",
     "@types/jest": "^27.4.1",
     "@types/lodash.debounce": "^4.0.6",
