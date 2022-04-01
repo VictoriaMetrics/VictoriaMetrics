@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkvmui=self.webpackChunkvmui||[]).push([[362],{8362:function(e,s,u){e.exports=u.p+"static/media/README.a3933343f0099d3929b4.md"}}]);
