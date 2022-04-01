@@ -21,16 +21,18 @@ export interface LineChartProps {
   series: uPlotSeries[];
   unit?: string;
   setPeriod: ({from, to}: {from: Date, to: Date}) => void;
+  container: HTMLDivElement | null
 }
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
 const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
-  period, yaxis, unit, setPeriod}) => {
+  period, yaxis, unit, setPeriod, container}) => {
+
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({min: period.start, max: period.end});
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
-  const layoutSize = useResize(document.getElementById("homeLayout"));
+  const layoutSize = useResize(container);
 
   const tooltip = document.createElement("div");
   tooltip.className = "u-tooltip";
@@ -105,7 +107,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     series,
     axes: getAxes(series, unit),
     scales: {...getScales()},
-    width: layoutSize.width ? layoutSize.width - 64 : 400,
+    width: layoutSize.width || 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
   };
 
