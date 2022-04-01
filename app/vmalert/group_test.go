@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -239,7 +242,8 @@ func TestGroupStart(t *testing.T) {
 	time.Sleep(20 * evalInterval)
 
 	gotAlerts = fn.getAlerts()
-	expectedAlerts = []notifier.Alert{*alert1}
+	alert2.State = notifier.StateInactive
+	expectedAlerts = []notifier.Alert{*alert1, *alert2}
 	compareAlerts(t, expectedAlerts, gotAlerts)
 
 	g.close()
@@ -262,21 +266,100 @@ func TestResolveDuration(t *testing.T) {
 		{0, 0, 0, 0},
 	}
 
-	defaultResolveDuration := *maxResolveDuration
-	defaultResendDelay := *resendDelay
-	defer func() {
-		*maxResolveDuration = defaultResolveDuration
-		*resendDelay = defaultResendDelay
-	}()
-
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%v-%v-%v", tc.groupInterval, tc.expected, tc.maxDuration), func(t *testing.T) {
-			*maxResolveDuration = tc.maxDuration
-			*resendDelay = tc.resendDelay
-			got := getResolveDuration(tc.groupInterval)
+			got := getResolveDuration(tc.groupInterval, tc.resendDelay, tc.maxDuration)
 			if got != tc.expected {
 				t.Errorf("expected to have %v; got %v", tc.expected, got)
 			}
 		})
 	}
+}
+
+func TestGetStaleSeries(t *testing.T) {
+	ts := time.Now()
+	e := &executor{
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+	}
+	f := func(rule Rule, labels, expLabels [][]prompbmarshal.Label) {
+		t.Helper()
+		var tss []prompbmarshal.TimeSeries
+		for _, l := range labels {
+			tss = append(tss, newTimeSeriesPB([]float64{1}, []int64{ts.Unix()}, l))
+		}
+		staleS := e.getStaleSeries(rule, tss, ts)
+		if staleS == nil && expLabels == nil {
+			return
+		}
+		if len(staleS) != len(expLabels) {
+			t.Fatalf("expected to get %d stale series, got %d",
+				len(expLabels), len(staleS))
+		}
+		for i, exp := range expLabels {
+			got := staleS[i]
+			if !reflect.DeepEqual(exp, got.Labels) {
+				t.Fatalf("expected to get labels: \n%v;\ngot instead: \n%v",
+					exp, got.Labels)
+			}
+			if len(got.Samples) != 1 {
+				t.Fatalf("expected to have 1 sample; got %d", len(got.Samples))
+			}
+			if !decimal.IsStaleNaN(got.Samples[0].Value) {
+				t.Fatalf("expected sample value to be %v; got %v", decimal.StaleNaN, got.Samples[0].Value)
+			}
+		}
+	}
+
+	// warn: keep in mind, that executor holds the state, so sequence of f calls matters
+
+	// single series
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		nil,
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
+	f(&AlertingRule{RuleID: 1},
+		nil,
+		nil)
+
+	// multiple series
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{
+			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
+			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
+		},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		nil,
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")})
+
+	// multiple rules and series
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{
+			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
+			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
+		},
+		nil)
+	f(&AlertingRule{RuleID: 2},
+		[][]prompbmarshal.Label{
+			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
+			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
+		},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		nil)
 }

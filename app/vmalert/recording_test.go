@@ -77,7 +77,7 @@ func TestRecoridngRule_Exec(t *testing.T) {
 			fq := &fakeQuerier{}
 			fq.add(tc.metrics...)
 			tc.rule.q = fq
-			tss, err := tc.rule.Exec(context.TODO())
+			tss, err := tc.rule.Exec(context.TODO(), time.Now())
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -178,7 +178,7 @@ func TestRecoridngRule_ExecNegative(t *testing.T) {
 	expErr := "connection reset by peer"
 	fq.setErr(errors.New(expErr))
 	rr.q = fq
-	_, err := rr.Exec(context.TODO())
+	_, err := rr.Exec(context.TODO(), time.Now())
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -193,7 +193,7 @@ func TestRecoridngRule_ExecNegative(t *testing.T) {
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
 	fq.add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
-	_, err = rr.Exec(context.TODO())
+	_, err = rr.Exec(context.TODO(), time.Now())
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}

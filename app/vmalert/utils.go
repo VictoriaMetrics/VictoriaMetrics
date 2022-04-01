@@ -30,3 +30,20 @@ func newTimeSeries(values []float64, timestamps []int64, labels map[string]strin
 	}
 	return ts
 }
+
+// newTimeSeriesPB creates prompbmarshal.TimeSeries with given
+// values, timestamps and labels.
+// It expects that labels are already sorted.
+func newTimeSeriesPB(values []float64, timestamps []int64, labels []prompbmarshal.Label) prompbmarshal.TimeSeries {
+	ts := prompbmarshal.TimeSeries{
+		Samples: make([]prompbmarshal.Sample, len(values)),
+	}
+	for i := range values {
+		ts.Samples[i] = prompbmarshal.Sample{
+			Value:     values[i],
+			Timestamp: time.Unix(timestamps[i], 0).UnixNano() / 1e6,
+		}
+	}
+	ts.Labels = labels
+	return ts
+}

@@ -14,7 +14,7 @@ func TestHandler(t *testing.T) {
 	ar := &AlertingRule{
 		Name: "alert",
 		alerts: map[uint64]*notifier.Alert{
-			0: {},
+			0: {State: notifier.StateFiring},
 		},
 	}
 	g := &Group{
