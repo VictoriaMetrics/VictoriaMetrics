@@ -68,7 +68,8 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 3. Update `cluster` version in [`main.yml`](https://github.com/VictoriaMetrics/ansible-playbooks/blob/master/roles/cluster/defaults/main.yml#L3)
 4. Update `single` version in [`main.yml`](https://github.com/VictoriaMetrics/ansible-playbooks/blob/master/roles/single/defaults/main.yml#L6)
 5. Commit changes
-6. Create new release. This automatically publishes the new versions to galaxy.ansible.com 
+6. Create a new tag
+7. Create a new release. This automatically publishes the new versions to galaxy.ansible.com 
 
 ## Github pages
 
