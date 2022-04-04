@@ -49,7 +49,7 @@ kubectl get pods -n monitoring-system
 
 ## Installing by Kustomize
 
-You can install operator using [Kustomize](https://kubernetes-sigs.github.io/kustomize/) by pointing to the remote kustomization file.
+You can install operator using [Kustomize](https://kustomize.io/) by pointing to the remote kustomization file.
 
 ```yaml
 # Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
@@ -114,7 +114,7 @@ The VictoriaMetrics Operator introduces additional resources in Kubernetes to de
 * [VMStaticScrape](#vmstaticscrape)
 * [VMAuth](#vmauth)
 * [VMUser](#vmuser)
-* [Selectors](#Object selectors)
+* [Selectors](#object-selectors)
 
 ## VMSingle
 

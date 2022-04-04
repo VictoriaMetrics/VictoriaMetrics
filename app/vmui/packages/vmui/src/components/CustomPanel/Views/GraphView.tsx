@@ -1,4 +1,4 @@
-import React, {FC, useEffect, useMemo, useState} from "preact/compat";
+import React, {FC, useEffect, useMemo, useRef, useState} from "preact/compat";
 import {MetricResult} from "../../../api/types";
 import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
@@ -126,10 +126,14 @@ const GraphView: FC<GraphViewProps> = ({
     setLegend(tempLegend);
   }, [hideSeries]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   return <>
-    {(data.length > 0)
-      ? <div>
-        <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit} setPeriod={setPeriod}/>
+    {(data.length > 0) ?
+      <div style={{width: "100%"}} ref={containerRef}>
+        {containerRef?.current &&
+          <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit}
+            setPeriod={setPeriod} container={containerRef?.current}/>}
         {showLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
       </div>
       : <Alert color="warning" severity="warning" sx={{mt: 2}}>No data to show</Alert>}

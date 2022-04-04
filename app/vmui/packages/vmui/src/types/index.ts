@@ -41,6 +41,7 @@ export interface PanelSettings {
   unit?: string;
   expr: string[];
   showLegend?: boolean;
+  width?: number
 }
 
 export interface DashboardRow {

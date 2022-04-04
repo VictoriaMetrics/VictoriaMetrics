@@ -529,6 +529,8 @@ The shortlist of configuration flags is the following:
      Optional bearer auth token to use for -datasource.url.
   -datasource.bearerTokenFile string
      Optional path to bearer token file to use for -datasource.url.
+  -datasource.disableKeepAlive
+     Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
   -datasource.lookback duration
      Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
