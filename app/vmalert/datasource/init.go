@@ -41,7 +41,9 @@ var (
 	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Whether to align "time" parameter with evaluation interval.`+
 		"Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
 	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
-	roundDigits        = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
+	disableKeepAlive   = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
+		`If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.`)
+	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
 )
 
@@ -62,6 +64,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
+	tr.DisableKeepAlives = *disableKeepAlive
 	tr.MaxIdleConnsPerHost = *maxIdleConnections
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
