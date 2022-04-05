@@ -144,17 +144,12 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 			c.mu.Unlock()
 			return
 		}
-		// Expire prev cache and create fresh curr cache with the same capacity.
-		// Do not reuse prev cache, since it can occupy too big amounts of memory.
+		// Reset prev cache and swap it with the curr cache.
 		prev := c.prev.Load().(*fastcache.Cache)
-		prev.Reset()
 		curr := c.curr.Load().(*fastcache.Cache)
 		c.prev.Store(curr)
-		// Use c.maxBytes/2 instead of cs.MaxBytesSize for creating new cache,
-		// since cs.MaxBytesSize may not match c.maxBytes/2, so the created cache
-		// couldn't be loaded from file with c.maxBytes/2 limit after saving with cs.MaxBytesSize size.
-		curr = fastcache.New(c.maxBytes / 2)
-		c.curr.Store(curr)
+		prev.Reset()
+		c.curr.Store(prev)
 		c.mu.Unlock()
 	}
 }
@@ -197,9 +192,9 @@ func (c *Cache) cacheSizeWatcher() {
 	c.mu.Lock()
 	c.setMode(switching)
 	prev := c.prev.Load().(*fastcache.Cache)
-	prev.Reset()
 	curr := c.curr.Load().(*fastcache.Cache)
 	c.prev.Store(curr)
+	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
 	c.curr.Store(fastcache.New(c.maxBytes))
@@ -222,8 +217,8 @@ func (c *Cache) cacheSizeWatcher() {
 	c.mu.Lock()
 	c.setMode(whole)
 	prev = c.prev.Load().(*fastcache.Cache)
-	prev.Reset()
 	c.prev.Store(fastcache.New(1024))
+	prev.Reset()
 	c.mu.Unlock()
 }
 
