@@ -17,7 +17,7 @@ const (
 	whole     = 2
 )
 
-const defaultExpireDuration = 20 * time.Minute
+const defaultExpireDuration = 10 * time.Minute
 
 // Cache is a cache for working set entries.
 //
