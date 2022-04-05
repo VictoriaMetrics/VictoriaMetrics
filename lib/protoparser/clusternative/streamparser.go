@@ -31,7 +31,7 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 	)
 	for {
 		// Do not use unmarshalWork pool, since every unmarshalWork structure usually occupies
-		// big amounts of memory (more than consts.MaxInsertPacketSize bytes).
+		// big amounts of memory (more than consts.MaxInsertPacketSizeForVMStorage bytes).
 		// The pool would result in increased memory usage.
 		uw := &unmarshalWork{}
 		uw.callback = func(rows []storage.MetricRow) {
@@ -74,9 +74,9 @@ func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) (
 		return dst, err
 	}
 	packetSize := encoding.UnmarshalUint64(sizeBuf.B)
-	if packetSize > consts.MaxInsertPacketSize {
+	if packetSize > consts.MaxInsertPacketSizeForVMStorage {
 		parseErrors.Inc()
-		return dst, fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSize)
+		return dst, fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSizeForVMStorage)
 	}
 	dstLen := len(dst)
 	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstLen+int(packetSize))

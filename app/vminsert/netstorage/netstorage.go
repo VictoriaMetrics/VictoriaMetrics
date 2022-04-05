@@ -512,8 +512,8 @@ func InitStorageNodes(addrs []string, hashSeed uint64) {
 	}
 
 	maxBufSizePerStorageNode = memory.Allowed() / 8 / len(storageNodes)
-	if maxBufSizePerStorageNode > consts.MaxInsertPacketSize {
-		maxBufSizePerStorageNode = consts.MaxInsertPacketSize
+	if maxBufSizePerStorageNode > consts.MaxInsertPacketSizeForVMInsert {
+		maxBufSizePerStorageNode = consts.MaxInsertPacketSizeForVMInsert
 	}
 
 	for idx, sn := range storageNodes {
