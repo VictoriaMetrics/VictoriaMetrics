@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -17,12 +16,11 @@ import (
 
 // ParseStream parses /api/v1/import/native lines from req and calls callback for parsed blocks.
 //
-// The callback can be called concurrently multiple times for streamed data from req.
+// The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold block after returning.
-func ParseStream(req *http.Request, callback func(block *Block) error) error {
-	r := req.Body
-	if req.Header.Get("Content-Encoding") == "gzip" {
+func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) error {
+	if isGzip {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
