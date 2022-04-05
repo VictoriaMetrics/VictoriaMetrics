@@ -16,7 +16,7 @@ cloud.google.com/go/iam
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal
 cloud.google.com/go/storage/internal/apiv2
-# github.com/VictoriaMetrics/fastcache v1.9.0
+# github.com/VictoriaMetrics/fastcache v1.10.0
 ## explicit; go 1.13
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/fasthttp v1.1.0
@@ -290,7 +290,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20220403205710-6acee93ad0eb
+# golang.org/x/sys v0.0.0-20220405052023-b1e9470b6e64
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
