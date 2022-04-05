@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
 	"github.com/urfave/cli/v2"
 )
 
@@ -162,6 +165,39 @@ func main() {
 						},
 					}
 					return p.run()
+				},
+			},
+			{
+				Name:  "verify-block",
+				Usage: "Verifies exported block with VictoriaMetrics Native format",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "gunzip",
+						Usage: "Use GNU zip decompression for exported block",
+						Value: false,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					common.StartUnmarshalWorkers()
+					blockPath := c.Args().First()
+					isBlockGzipped := c.Bool("gunzip")
+					if len(blockPath) == 0 {
+						return cli.Exit("you must provide path for exported data block", 1)
+					}
+					log.Printf("verifying block at path=%q", blockPath)
+					f, err := os.OpenFile(blockPath, os.O_RDONLY, 0600)
+					if err != nil {
+						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
+					}
+					var blocksCount uint64
+					if err := parser.ParseStream(f, isBlockGzipped, func(block *parser.Block) error {
+						atomic.AddUint64(&blocksCount, 1)
+						return nil
+					}); err != nil {
+						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount, err), 1)
+					}
+					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount)
+					return nil
 				},
 			},
 		},
