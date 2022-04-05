@@ -88,8 +88,8 @@ var tplHeaders = []string{
 // map of annotations.
 // Every alert could have a different datasource, so function
 // requires a queryFunction as an argument.
-func (a *Alert) ExecTemplate(q QueryFn, annotations map[string]string) (map[string]string, error) {
-	tplData := AlertTplData{Value: a.Value, Labels: a.Labels, Expr: a.Expr}
+func (a *Alert) ExecTemplate(q QueryFn, labels, annotations map[string]string) (map[string]string, error) {
+	tplData := AlertTplData{Value: a.Value, Labels: labels, Expr: a.Expr}
 	return templateAnnotations(annotations, tplData, funcsWithQuery(q))
 }
 
