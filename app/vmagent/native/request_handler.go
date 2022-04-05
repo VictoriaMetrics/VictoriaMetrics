@@ -30,8 +30,9 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
+	isGzip := req.Header.Get("Content-Encoding") == "gzip"
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, func(block *parser.Block) error {
+		return parser.ParseStream(req.Body, isGzip, func(block *parser.Block) error {
 			return insertRows(at, block, extraLabels)
 		})
 	})

@@ -6,18 +6,17 @@ sort: 8
 
 VictoriaMetrics command-line tool
 
+vmctl provides various useful actions with VictoriaMetrics components.
+
 Features:
+- migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
+- migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
+- migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
+- migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
+- migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
+- [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
 
-- [x] Prometheus: migrate data from Prometheus to VictoriaMetrics using snapshot API
-- [x] Thanos: migrate data from Thanos to VictoriaMetrics
-- [ ] ~~Prometheus: migrate data from Prometheus to VictoriaMetrics by query~~(discarded)
-- [x] InfluxDB: migrate data from InfluxDB to VictoriaMetrics
-- [x] OpenTSDB: migrate data from OpenTSDB to VictoriaMetrics
-- [ ] Storage Management: data re-balancing between nodes
-
-vmctl acts as a proxy between data source ([Prometheus](#migrating-data-from-prometheus),
-[InfluxDB](#migrating-data-from-influxdb-1x), [VictoriaMetrics](##migrating-data-from-victoriametrics), etc.)
-and destination - VictoriaMetrics single or cluster version. To see the full list of supported modes
+To see the full list of supported modes
 run the following command:
 
 ```bash
@@ -33,6 +32,7 @@ COMMANDS:
    influx      Migrate timeseries from InfluxDB
    prometheus  Migrate timeseries from Prometheus
    vm-native   Migrate time series between VictoriaMetrics installations via native binary format
+   verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
 Each mode has its own unique set of flags specific (e.g. prefixed with `influx` for influx mode)
@@ -511,6 +511,21 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
 4. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 and specify `accountID` param.
+
+## Verifying exported blocks from VictoriaMetrics
+
+In this mode, `vmctl` allows verifying correctness and integrity of data exported via [native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format) from VictoriaMetrics. 
+You can verify exported data at disk before uploading it by `vmctl verify-block` command:
+
+```bash
+# export blocks from VictoriaMetrics
+curl localhost:8428/api/v1/export/native -g -d 'match[]={__name__!=""}' -o exported_data_block
+# verify block content
+./vmctl verify-block exported_data_block
+2022/03/30 18:04:50 verifying block at path="exported_data_block"
+2022/03/30 18:04:50 successfully verified block at path="exported_data_block", blockCount=123786
+2022/03/30 18:04:50 Total time: 100.108ms
+```
 
 ## Tuning
 
