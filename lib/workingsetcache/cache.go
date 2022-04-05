@@ -149,8 +149,6 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		prev := c.prev.Load().(*fastcache.Cache)
 		prev.Reset()
 		curr := c.curr.Load().(*fastcache.Cache)
-		var cs fastcache.Stats
-		curr.UpdateStats(&cs)
 		c.prev.Store(curr)
 		// Use c.maxBytes/2 instead of cs.MaxBytesSize for creating new cache,
 		// since cs.MaxBytesSize may not match c.maxBytes/2, so the created cache
@@ -162,7 +160,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 }
 
 func (c *Cache) cacheSizeWatcher() {
-	t := time.NewTicker(time.Minute)
+	t := time.NewTicker(1500 * time.Millisecond)
 	defer t.Stop()
 
 	var maxBytesSize uint64
