@@ -141,6 +141,53 @@ func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
 }
 
+type labelSet struct {
+	// origin labels from series
+	// used for templating
+	origin map[string]string
+	// processed labels with additional data
+	// used as Alert labels
+	processed map[string]string
+}
+
+// toLabels converts labels from given Metric
+// to labelSet which contains original and processed labels.
+func (ar *AlertingRule) toLabels(m datasource.Metric, qFn notifier.QueryFn) (*labelSet, error) {
+	ls := &labelSet{
+		origin:    make(map[string]string, len(m.Labels)),
+		processed: make(map[string]string),
+	}
+	for _, l := range m.Labels {
+		// drop __name__ to be consistent with Prometheus alerting
+		if l.Name == "__name__" {
+			continue
+		}
+		ls.origin[l.Name] = l.Value
+		ls.processed[l.Name] = l.Value
+	}
+
+	extraLabels, err := notifier.ExecTemplate(qFn, ar.Labels, notifier.AlertTplData{
+		Labels: ls.origin,
+		Value:  m.Values[0],
+		Expr:   ar.Expr,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand labels: %s", err)
+	}
+	for k, v := range extraLabels {
+		ls.processed[k] = v
+	}
+
+	// set additional labels to identify group and rule name
+	if ar.Name != "" {
+		ls.processed[alertNameLabel] = ar.Name
+	}
+	if !*disableAlertGroupLabel && ar.GroupName != "" {
+		ls.processed[alertGroupNameLabel] = ar.GroupName
+	}
+	return ls, nil
+}
+
 // ExecRange executes alerting rule on the given time range similarly to Exec.
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
@@ -155,24 +202,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range series {
-		// set additional labels to identify group and rule Name
-		if ar.Name != "" {
-			s.SetLabel(alertNameLabel, ar.Name)
-		}
-		if !*disableAlertGroupLabel && ar.GroupName != "" {
-			s.SetLabel(alertGroupNameLabel, ar.GroupName)
-		}
-		// extra labels could contain templates, so we expand them first
-		labels, err := expandLabels(s, qFn, ar)
-		if err != nil {
-			return nil, fmt.Errorf("failed to expand labels: %s", err)
-		}
-		for k, v := range labels {
-			// apply extra labels to datasource
-			// so the hash key will be consistent on restore
-			s.SetLabel(k, v)
-		}
-		a, err := ar.newAlert(s, time.Time{}, qFn) // initial alert
+		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
 		if err != nil {
 			return nil, fmt.Errorf("failed to create alert: %s", err)
 		}
@@ -234,28 +264,15 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
-		// set additional labels to identify group and rule name
-		if ar.Name != "" {
-			m.SetLabel(alertNameLabel, ar.Name)
-		}
-		if !*disableAlertGroupLabel && ar.GroupName != "" {
-			m.SetLabel(alertGroupNameLabel, ar.GroupName)
-		}
-		// extra labels could contain templates, so we expand them first
-		labels, err := expandLabels(m, qFn, ar)
+		ls, err := ar.toLabels(m, qFn)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand labels: %s", err)
 		}
-		for k, v := range labels {
-			// apply extra labels to datasource
-			// so the hash key will be consistent on restore
-			m.SetLabel(k, v)
-		}
-		h := hash(m)
+		h := hash(ls.processed)
 		if _, ok := updated[h]; ok {
 			// duplicate may be caused by extra labels
 			// conflicting with the metric labels
-			ar.lastExecError = fmt.Errorf("labels %v: %w", m.Labels, errDuplicate)
+			ar.lastExecError = fmt.Errorf("labels %v: %w", ls.processed, errDuplicate)
 			return nil, ar.lastExecError
 		}
 		updated[h] = struct{}{}
@@ -272,14 +289,14 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 				a.Value = m.Values[0]
 				// and re-exec template since Value can be used
 				// in annotations
-				a.Annotations, err = a.ExecTemplate(qFn, ar.Annotations)
+				a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
 				if err != nil {
 					return nil, err
 				}
 			}
 			continue
 		}
-		a, err := ar.newAlert(m, ar.lastExecTime, qFn)
+		a, err := ar.newAlert(m, ls, ar.lastExecTime, qFn)
 		if err != nil {
 			ar.lastExecError = err
 			return nil, fmt.Errorf("failed to create alert: %w", err)
@@ -315,19 +332,6 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 	return ar.toTimeSeries(ts.Unix()), nil
 }
 
-func expandLabels(m datasource.Metric, q notifier.QueryFn, ar *AlertingRule) (map[string]string, error) {
-	metricLabels := make(map[string]string)
-	for _, l := range m.Labels {
-		metricLabels[l.Name] = l.Value
-	}
-	tpl := notifier.AlertTplData{
-		Labels: metricLabels,
-		Value:  m.Values[0],
-		Expr:   ar.Expr,
-	}
-	return notifier.ExecTemplate(q, ar.Labels, tpl)
-}
-
 func (ar *AlertingRule) toTimeSeries(timestamp int64) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	for _, a := range ar.alerts {
@@ -358,42 +362,43 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 }
 
 // TODO: consider hashing algorithm in VM
-func hash(m datasource.Metric) uint64 {
+func hash(labels map[string]string) uint64 {
 	hash := fnv.New64a()
-	labels := m.Labels
-	sort.Slice(labels, func(i, j int) bool {
-		return labels[i].Name < labels[j].Name
-	})
-	for _, l := range labels {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
 		// drop __name__ to be consistent with Prometheus alerting
-		if l.Name == "__name__" {
+		if k == "__name__" {
 			continue
 		}
-		hash.Write([]byte(l.Name))
-		hash.Write([]byte(l.Value))
+		name, value := k, labels[k]
+		hash.Write([]byte(name))
+		hash.Write([]byte(value))
 		hash.Write([]byte("\xff"))
 	}
 	return hash.Sum64()
 }
 
-func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notifier.QueryFn) (*notifier.Alert, error) {
+func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.Time, qFn notifier.QueryFn) (*notifier.Alert, error) {
+	var err error
+	if ls == nil {
+		ls, err = ar.toLabels(m, qFn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand labels: %s", err)
+		}
+	}
 	a := &notifier.Alert{
 		GroupID:  ar.GroupID,
 		Name:     ar.Name,
-		Labels:   map[string]string{},
+		Labels:   ls.processed,
 		Value:    m.Values[0],
 		ActiveAt: start,
 		Expr:     ar.Expr,
 	}
-	for _, l := range m.Labels {
-		// drop __name__ to be consistent with Prometheus alerting
-		if l.Name == "__name__" {
-			continue
-		}
-		a.Labels[l.Name] = l.Value
-	}
-	var err error
-	a.Annotations, err = a.ExecTemplate(qFn, ar.Annotations)
+	a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
 	return a, err
 }
 
@@ -560,15 +565,26 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	}
 
 	for _, m := range qMetrics {
-		a, err := ar.newAlert(m, time.Unix(int64(m.Values[0]), 0), qFn)
+		ls := &labelSet{
+			origin:    make(map[string]string, len(m.Labels)),
+			processed: make(map[string]string, len(m.Labels)),
+		}
+		for _, l := range m.Labels {
+			if l.Name == "__name__" {
+				continue
+			}
+			ls.origin[l.Name] = l.Value
+			ls.processed[l.Name] = l.Value
+		}
+		a, err := ar.newAlert(m, ls, time.Unix(int64(m.Values[0]), 0), qFn)
 		if err != nil {
 			return fmt.Errorf("failed to create alert: %w", err)
 		}
-		a.ID = hash(m)
+		a.ID = hash(ls.processed)
 		a.State = notifier.StatePending
 		a.Restored = true
 		ar.alerts[a.ID] = a
-		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.Start)
+		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
 	}
 	return nil
 }
