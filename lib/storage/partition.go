@@ -481,7 +481,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 
 func (pt *partition) flushRowsToParts(rows []rawRow) {
 	maxRows := getMaxRawRowsPerShard()
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	for len(rows) > 0 {
 		n := maxRows
 		if n > len(rows) {
@@ -495,7 +495,22 @@ func (pt *partition) flushRowsToParts(rows []rawRow) {
 		rows = rows[n:]
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 }
+
+func getWaitGroup() *sync.WaitGroup {
+	v := wgPool.Get()
+	if v == nil {
+		return &sync.WaitGroup{}
+	}
+	return v.(*sync.WaitGroup)
+}
+
+func putWaitGroup(wg *sync.WaitGroup) {
+	wgPool.Put(wg)
+}
+
+var wgPool sync.Pool
 
 func (pt *partition) addRowsPart(rows []rawRow) {
 	if len(rows) == 0 {

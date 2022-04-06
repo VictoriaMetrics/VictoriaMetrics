@@ -724,7 +724,7 @@ func (is *indexSearch) searchTagKeysOnTimeRange(tks map[string]struct{}, tr Time
 		return is.searchTagKeys(tks, maxTagKeys)
 	}
 	var mu sync.Mutex
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
@@ -752,6 +752,7 @@ func (is *indexSearch) searchTagKeysOnTimeRange(tks map[string]struct{}, tr Time
 		}(date)
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	return errGlobal
 }
 
@@ -926,7 +927,7 @@ func (is *indexSearch) searchTagValuesOnTimeRange(tvs map[string]struct{}, tagKe
 		return is.searchTagValues(tvs, tagKey, maxTagValues)
 	}
 	var mu sync.Mutex
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
@@ -954,6 +955,7 @@ func (is *indexSearch) searchTagValuesOnTimeRange(tvs map[string]struct{}, tagKe
 		}(date)
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	return errGlobal
 }
 
@@ -1141,7 +1143,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 	// Query over multiple days in parallel.
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	for minDate <= maxDate {
@@ -1171,6 +1173,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 		minDate++
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	return errGlobal
 }
 
@@ -2446,7 +2449,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 	}
 
 	// Slower path - search for metricIDs for each day in parallel.
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	var mu sync.Mutex // protects metricIDs + errGlobal vars from concurrent access below
 	for minDate <= maxDate {
@@ -2473,6 +2476,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 		minDate++
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	if errGlobal != nil {
 		return errGlobal
 	}
