@@ -92,9 +92,9 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	}
 	tlsCfg := authCfg.NewTLSConfig()
 	tr := &http.Transport{
-		Dial:                statDial,
+		DialContext:         statDial,
 		TLSClientConfig:     tlsCfg,
-		TLSHandshakeTimeout: 5 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
 		MaxConnsPerHost:     2 * concurrency,
 		MaxIdleConnsPerHost: 2 * concurrency,
 		IdleConnTimeout:     time.Minute,
