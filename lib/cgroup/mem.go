@@ -19,15 +19,17 @@ func init() {
 
 func initGOGC() {
 	if v := os.Getenv("GOGC"); v != "" {
-		n, err := strconv.Atoi(v)
+		n, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			n = 100
 		}
-		gogc = n
+		gogc = int(n)
 	} else {
-		// Set GOGC to 50% by default if it isn't set yet.
-		// This should reduce memory usage for typical workloads for VictoriaMetrics components.
-		gogc = 50
+		// Use lower GOGC if it isn't set yet.
+		// This should reduce memory usage for typical workloads for VictoriaMetrics components
+		// at the cost of increased CPU usage.
+		// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction exceeds 0.05 for extended periods of time.
+		gogc = 30
 		debug.SetGCPercent(gogc)
 	}
 }
