@@ -6,6 +6,7 @@ sort: 18
 
 ## Release version and Docker images
 
+0. Make sure that the release commits have no security issues.
 1. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
 2. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
@@ -13,8 +14,9 @@ sort: 18
    * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
 3. Run `TAG=v1.xx.y make publish-release`. It will create `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory and publish Docker images for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
-4. Push release tag to <https://github.com/VictoriaMetrics/VictoriaMetrics> : `git push origin v1.xx.y`.
-5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> , create new release from the pushed tag on step 5 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 2.
+4. Push release tags to <https://github.com/VictoriaMetrics/VictoriaMetrics> : `git push origin v1.xx.y` and `git push origin v1.xx.y-cluster`. Do not push `-enterprise` tags to public repository.
+5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> , create new release from the pushed tag on step 4 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 3.
+6. Copy the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release to [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page.
 
 ## Building snap package
 
