@@ -65,7 +65,7 @@ const finalPartsToMerge = 3
 // The number of shards for rawRow entries per partition.
 //
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
-var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 7) / 8
+var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 3) / 4
 
 // getMaxRawRowsPerShard returns the maximum number of rows that haven't been converted into parts yet.
 func getMaxRawRowsPerShard() int {
