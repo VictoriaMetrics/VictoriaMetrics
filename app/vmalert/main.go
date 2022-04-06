@@ -243,7 +243,7 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
-		templated, err := alert.ExecTemplate(nil, m)
+		templated, err := alert.ExecTemplate(nil, nil, m)
 		if err != nil {
 			logger.Errorf("can not exec source template %s", err)
 		}

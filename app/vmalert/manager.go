@@ -37,7 +37,7 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 
 	g, ok := m.groups[gID]
 	if !ok {
-		return nil, fmt.Errorf("can't find group with id %q", gID)
+		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
 	for _, rule := range g.Rules {
 		ar, ok := rule.(*AlertingRule)
@@ -48,7 +48,7 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 			return apiAlert, nil
 		}
 	}
-	return nil, fmt.Errorf("can't find alert with id %q in group %q", aID, g.Name)
+	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
 }
 
 func (m *manager) start(ctx context.Context, groupsCfg []config.Group) error {

@@ -174,7 +174,7 @@ func TestGroupStart(t *testing.T) {
 	m2 := metricWithLabels(t, "instance", inst2, "job", job)
 
 	r := g.Rules[0].(*AlertingRule)
-	alert1, err := r.newAlert(m1, time.Now(), nil)
+	alert1, err := r.newAlert(m1, nil, time.Now(), nil)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
@@ -187,13 +187,9 @@ func TestGroupStart(t *testing.T) {
 	// add service labels
 	alert1.Labels[alertNameLabel] = alert1.Name
 	alert1.Labels[alertGroupNameLabel] = g.Name
-	var labels1 []string
-	for k, v := range alert1.Labels {
-		labels1 = append(labels1, k, v)
-	}
-	alert1.ID = hash(metricWithLabels(t, labels1...))
+	alert1.ID = hash(alert1.Labels)
 
-	alert2, err := r.newAlert(m2, time.Now(), nil)
+	alert2, err := r.newAlert(m2, nil, time.Now(), nil)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
@@ -206,11 +202,7 @@ func TestGroupStart(t *testing.T) {
 	// add service labels
 	alert2.Labels[alertNameLabel] = alert2.Name
 	alert2.Labels[alertGroupNameLabel] = g.Name
-	var labels2 []string
-	for k, v := range alert2.Labels {
-		labels2 = append(labels2, k, v)
-	}
-	alert2.ID = hash(metricWithLabels(t, labels2...))
+	alert2.ID = hash(alert2.Labels)
 
 	finished := make(chan struct{})
 	fs.add(m1)
