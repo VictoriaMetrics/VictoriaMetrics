@@ -29,7 +29,8 @@ var (
 
 func statDial(ctx context.Context, networkUnused, addr string) (conn net.Conn, err error) {
 	network := netutil.GetTCPNetwork()
-	conn, err = stdDialer.DialContext(ctx, network, addr)
+	d := getStdDialer()
+	conn, err = d.DialContext(ctx, network, addr)
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
