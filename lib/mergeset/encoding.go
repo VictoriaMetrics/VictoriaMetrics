@@ -28,9 +28,10 @@ type Item struct {
 //
 // The returned bytes representation belongs to data.
 func (it Item) Bytes(data []byte) []byte {
+	n := int(it.End - it.Start)
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	sh.Cap = int(it.End - it.Start)
-	sh.Len = int(it.End - it.Start)
+	sh.Cap = n
+	sh.Len = n
 	sh.Data += uintptr(it.Start)
 	return data
 }
@@ -48,8 +49,13 @@ func (it Item) String(data []byte) string {
 func (ib *inmemoryBlock) Len() int { return len(ib.items) }
 
 func (ib *inmemoryBlock) Less(i, j int) bool {
-	data := ib.data
 	items := ib.items
+	a := items[i]
+	b := items[j]
+	cpLen := uint32(len(ib.commonPrefix))
+	a.Start += cpLen
+	b.Start += cpLen
+	data := ib.data
 	return string(items[i].Bytes(data)) < string(items[j].Bytes(data))
 }
 
@@ -59,9 +65,15 @@ func (ib *inmemoryBlock) Swap(i, j int) {
 }
 
 type inmemoryBlock struct {
+	// commonPrefix contains common prefix for all the items stored in the inmemoryBlock
 	commonPrefix []byte
-	data         []byte
-	items        []Item
+
+	// data contains source data for items
+	data []byte
+
+	// items contains items stored in inmemoryBlock.
+	// Every item contains the prefix specified at commonPrefix.
+	items []Item
 }
 
 func (ib *inmemoryBlock) SizeBytes() int {
@@ -74,17 +86,29 @@ func (ib *inmemoryBlock) Reset() {
 	ib.items = ib.items[:0]
 }
 
-func (ib *inmemoryBlock) updateCommonPrefix() {
+func (ib *inmemoryBlock) updateCommonPrefixSorted() {
 	ib.commonPrefix = ib.commonPrefix[:0]
-	if len(ib.items) == 0 {
+	items := ib.items
+	if len(items) == 0 {
 		return
 	}
-	items := ib.items
 	data := ib.data
 	cp := items[0].Bytes(data)
-	if len(cp) == 0 {
+	if len(items) > 1 {
+		cpLen := commonPrefixLen(cp, items[len(items)-1].Bytes(data))
+		cp = cp[:cpLen]
+	}
+	ib.commonPrefix = append(ib.commonPrefix[:0], cp...)
+}
+
+func (ib *inmemoryBlock) updateCommonPrefixUnsorted() {
+	ib.commonPrefix = ib.commonPrefix[:0]
+	items := ib.items
+	if len(items) == 0 {
 		return
 	}
+	data := ib.data
+	cp := items[0].Bytes(data)
 	for _, it := range items[1:] {
 		cpLen := commonPrefixLen(cp, it.Bytes(data))
 		if cpLen == 0 {
@@ -176,9 +200,11 @@ func (ib *inmemoryBlock) isSorted() bool {
 // - returns the marshal type used for the encoding.
 func (ib *inmemoryBlock) MarshalUnsortedData(sb *storageBlock, firstItemDst, commonPrefixDst []byte, compressLevel int) ([]byte, []byte, uint32, marshalType) {
 	if !ib.isSorted() {
+		ib.updateCommonPrefixUnsorted()
 		sort.Sort(ib)
+	} else {
+		ib.updateCommonPrefixSorted()
 	}
-	ib.updateCommonPrefix()
 	return ib.marshalData(sb, firstItemDst, commonPrefixDst, compressLevel)
 }
 
@@ -197,7 +223,7 @@ func (ib *inmemoryBlock) MarshalSortedData(sb *storageBlock, firstItemDst, commo
 	if isInTest && !ib.isSorted() {
 		logger.Panicf("BUG: %d items must be sorted; items:\n%s", len(ib.items), ib.debugItemsString())
 	}
-	ib.updateCommonPrefix()
+	ib.updateCommonPrefixSorted()
 	return ib.marshalData(sb, firstItemDst, commonPrefixDst, compressLevel)
 }
 
@@ -218,7 +244,7 @@ func (ib *inmemoryBlock) debugItemsString() string {
 
 // Preconditions:
 // - ib.items must be sorted.
-// - updateCommonPrefix must be called.
+// - updateCommonPrefix* must be called.
 func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefixDst []byte, compressLevel int) ([]byte, []byte, uint32, marshalType) {
 	if len(ib.items) <= 0 {
 		logger.Panicf("BUG: inmemoryBlock.marshalData must be called on non-empty blocks only")
