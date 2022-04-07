@@ -315,10 +315,13 @@ func TestAlertingRule_Exec(t *testing.T) {
 			}
 			expAlerts := make(map[uint64]*notifier.Alert)
 			for _, ta := range tc.expAlerts {
-				labels := ta.labels
-				labels = append(labels, alertNameLabel)
-				labels = append(labels, tc.rule.Name)
-				h := hash(metricWithLabels(t, labels...))
+				labels := make(map[string]string)
+				for i := 0; i < len(ta.labels); i += 2 {
+					k, v := ta.labels[i], ta.labels[i+1]
+					labels[k] = v
+				}
+				labels[alertNameLabel] = tc.rule.Name
+				h := hash(labels)
 				expAlerts[h] = ta.alert
 			}
 			for key, exp := range expAlerts {
@@ -513,7 +516,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 				),
 			},
 			map[uint64]*notifier.Alert{
-				hash(datasource.Metric{}): {State: notifier.StatePending,
+				hash(nil): {State: notifier.StatePending,
 					ActiveAt: time.Now().Truncate(time.Hour)},
 			},
 		},
@@ -529,12 +532,12 @@ func TestAlertingRule_Restore(t *testing.T) {
 				),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t,
-					alertNameLabel, "metric labels",
-					alertGroupNameLabel, "groupID",
-					"foo", "bar",
-					"namespace", "baz",
-				)): {State: notifier.StatePending,
+				hash(map[string]string{
+					alertNameLabel:      "metric labels",
+					alertGroupNameLabel: "groupID",
+					"foo":               "bar",
+					"namespace":         "baz",
+				}): {State: notifier.StatePending,
 					ActiveAt: time.Now().Truncate(time.Hour)},
 			},
 		},
@@ -550,11 +553,11 @@ func TestAlertingRule_Restore(t *testing.T) {
 				),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t,
-					"foo", "bar",
-					"namespace", "baz",
-					"source", "vm",
-				)): {State: notifier.StatePending,
+				hash(map[string]string{
+					"foo":       "bar",
+					"namespace": "baz",
+					"source":    "vm",
+				}): {State: notifier.StatePending,
 					ActiveAt: time.Now().Truncate(time.Hour)},
 			},
 		},
@@ -575,11 +578,11 @@ func TestAlertingRule_Restore(t *testing.T) {
 				),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "host", "localhost-1")): {State: notifier.StatePending,
+				hash(map[string]string{"host": "localhost-1"}): {State: notifier.StatePending,
 					ActiveAt: time.Now().Truncate(time.Hour)},
-				hash(metricWithLabels(t, "host", "localhost-2")): {State: notifier.StatePending,
+				hash(map[string]string{"host": "localhost-2"}): {State: notifier.StatePending,
 					ActiveAt: time.Now().Truncate(2 * time.Hour)},
-				hash(metricWithLabels(t, "host", "localhost-3")): {State: notifier.StatePending,
+				hash(map[string]string{"host": "localhost-3"}): {State: notifier.StatePending,
 					ActiveAt: time.Now().Truncate(3 * time.Hour)},
 			},
 		},
@@ -659,7 +662,7 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 1, "instance", "bar"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, alertNameLabel, "common", "region", "east", "instance", "foo")): {
+				hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "foo"}): {
 					Annotations: map[string]string{},
 					Labels: map[string]string{
 						alertNameLabel: "common",
@@ -667,7 +670,7 @@ func TestAlertingRule_Template(t *testing.T) {
 						"instance":     "foo",
 					},
 				},
-				hash(metricWithLabels(t, alertNameLabel, "common", "region", "east", "instance", "bar")): {
+				hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "bar"}): {
 					Annotations: map[string]string{},
 					Labels: map[string]string{
 						alertNameLabel: "common",
@@ -682,11 +685,10 @@ func TestAlertingRule_Template(t *testing.T) {
 				Name: "override label",
 				Labels: map[string]string{
 					"instance": "{{ $labels.instance }}",
-					"region":   "east",
 				},
 				Annotations: map[string]string{
-					"summary":     `Too high connection number for "{{ $labels.instance }}" for region {{ $labels.region }}`,
-					"description": `It is {{ $value }} connections for "{{ $labels.instance }}"`,
+					"summary":     `Too high connection number for "{{ $labels.instance }}"`,
+					"description": `{{ $labels.alertname}}: It is {{ $value }} connections for "{{ $labels.instance }}"`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
 			},
@@ -695,64 +697,58 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 10, "instance", "bar", alertNameLabel, "override"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, alertNameLabel, "override label", "region", "east", "instance", "foo")): {
+				hash(map[string]string{alertNameLabel: "override label", "instance": "foo"}): {
 					Labels: map[string]string{
 						alertNameLabel: "override label",
 						"instance":     "foo",
-						"region":       "east",
 					},
 					Annotations: map[string]string{
-						"summary":     `Too high connection number for "foo" for region east`,
-						"description": `It is 2 connections for "foo"`,
+						"summary":     `Too high connection number for "foo"`,
+						"description": `override: It is 2 connections for "foo"`,
 					},
 				},
-				hash(metricWithLabels(t, alertNameLabel, "override label", "region", "east", "instance", "bar")): {
+				hash(map[string]string{alertNameLabel: "override label", "instance": "bar"}): {
 					Labels: map[string]string{
 						alertNameLabel: "override label",
 						"instance":     "bar",
-						"region":       "east",
 					},
 					Annotations: map[string]string{
-						"summary":     `Too high connection number for "bar" for region east`,
-						"description": `It is 10 connections for "bar"`,
+						"summary":     `Too high connection number for "bar"`,
+						"description": `override: It is 10 connections for "bar"`,
 					},
 				},
 			},
 		},
 		{
 			&AlertingRule{
-				Name:      "ExtraTemplating",
+				Name:      "OriginLabels",
 				GroupName: "Testing",
 				Labels: map[string]string{
-					"name":     "alert_{{ $labels.alertname }}",
-					"group":    "group_{{ $labels.alertgroup }}",
 					"instance": "{{ $labels.instance }}",
 				},
 				Annotations: map[string]string{
-					"summary":     `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
-					"description": `Alert "{{ $labels.name }}({{ $labels.group }})" for instance {{ $labels.instance }}`,
+					"summary": `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
 			},
 			[]datasource.Metric{
-				metricWithValueAndLabels(t, 1, "instance", "foo"),
+				metricWithValueAndLabels(t, 1,
+					alertNameLabel, "originAlertname",
+					alertGroupNameLabel, "originGroupname",
+					"instance", "foo"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, alertNameLabel, "ExtraTemplating",
-					"name", "alert_ExtraTemplating",
-					alertGroupNameLabel, "Testing",
-					"group", "group_Testing",
-					"instance", "foo")): {
+				hash(map[string]string{
+					alertNameLabel:      "OriginLabels",
+					alertGroupNameLabel: "Testing",
+					"instance":          "foo"}): {
 					Labels: map[string]string{
-						alertNameLabel:      "ExtraTemplating",
-						"name":              "alert_ExtraTemplating",
+						alertNameLabel:      "OriginLabels",
 						alertGroupNameLabel: "Testing",
-						"group":             "group_Testing",
 						"instance":          "foo",
 					},
 					Annotations: map[string]string{
-						"summary":     `Alert "ExtraTemplating(Testing)" for instance foo`,
-						"description": `Alert "alert_ExtraTemplating(group_Testing)" for instance foo`,
+						"summary": `Alert "originAlertname(originGroupname)" for instance foo`,
 					},
 				},
 			},

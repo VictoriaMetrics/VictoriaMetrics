@@ -32,16 +32,8 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 	for ctx.Read() {
 		uw := getUnmarshalWork()
 		uw.errLogger = errLogger
-		uw.callback = func(rows []Row) {
-			if err := callback(rows); err != nil {
-				ctx.callbackErrLock.Lock()
-				if ctx.callbackErr == nil {
-					ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
-				}
-				ctx.callbackErrLock.Unlock()
-			}
-			ctx.wg.Done()
-		}
+		uw.ctx = ctx
+		uw.callback = callback
 		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
@@ -140,7 +132,8 @@ var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
 	rows             Rows
-	callback         func(rows []Row)
+	ctx              *streamContext
+	callback         func(rows []Row) error
 	errLogger        func(string)
 	defaultTimestamp int64
 	reqBuf           []byte
@@ -148,10 +141,23 @@ type unmarshalWork struct {
 
 func (uw *unmarshalWork) reset() {
 	uw.rows.Reset()
+	uw.ctx = nil
 	uw.callback = nil
 	uw.errLogger = nil
 	uw.defaultTimestamp = 0
 	uw.reqBuf = uw.reqBuf[:0]
+}
+
+func (uw *unmarshalWork) runCallback(rows []Row) {
+	ctx := uw.ctx
+	if err := uw.callback(rows); err != nil {
+		ctx.callbackErrLock.Lock()
+		if ctx.callbackErr == nil {
+			ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+		}
+		ctx.callbackErrLock.Unlock()
+	}
+	ctx.wg.Done()
 }
 
 // Unmarshal implements common.UnmarshalWork
@@ -176,7 +182,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	uw.callback(rows)
+	uw.runCallback(rows)
 	putUnmarshalWork(uw)
 }
 

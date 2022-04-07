@@ -125,9 +125,16 @@ type rawItemsShards struct {
 // The number of shards for rawItems per table.
 //
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
-var rawItemsShardsPerTable = cgroup.AvailableCPUs()
+var rawItemsShardsPerTable = func() int {
+	cpus := cgroup.AvailableCPUs()
+	multiplier := cpus
+	if multiplier > 16 {
+		multiplier = 16
+	}
+	return (cpus*multiplier + 1) / 2
+}()
 
-const maxBlocksPerShard = 512
+const maxBlocksPerShard = 256
 
 func (riss *rawItemsShards) init() {
 	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)

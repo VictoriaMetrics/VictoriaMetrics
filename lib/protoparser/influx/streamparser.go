@@ -56,16 +56,8 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
-		uw.callback = func(db string, rows []Row) {
-			if err := callback(db, rows); err != nil {
-				ctx.callbackErrLock.Lock()
-				if ctx.callbackErr == nil {
-					ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
-				}
-				ctx.callbackErrLock.Unlock()
-			}
-			ctx.wg.Done()
-		}
+		uw.ctx = ctx
+		uw.callback = callback
 		uw.db = db
 		uw.tsMultiplier = tsMultiplier
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
@@ -165,7 +157,8 @@ var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
 	rows         Rows
-	callback     func(db string, rows []Row)
+	ctx          *streamContext
+	callback     func(db string, rows []Row) error
 	db           string
 	tsMultiplier int64
 	reqBuf       []byte
@@ -173,10 +166,23 @@ type unmarshalWork struct {
 
 func (uw *unmarshalWork) reset() {
 	uw.rows.Reset()
+	uw.ctx = nil
 	uw.callback = nil
 	uw.db = ""
 	uw.tsMultiplier = 0
 	uw.reqBuf = uw.reqBuf[:0]
+}
+
+func (uw *unmarshalWork) runCallback(rows []Row) {
+	ctx := uw.ctx
+	if err := uw.callback(uw.db, rows); err != nil {
+		ctx.callbackErrLock.Lock()
+		if ctx.callbackErr == nil {
+			ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+		}
+		ctx.callbackErrLock.Unlock()
+	}
+	ctx.wg.Done()
 }
 
 // Unmarshal implements common.UnmarshalWork
@@ -225,7 +231,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	uw.callback(uw.db, rows)
+	uw.runCallback(rows)
 	putUnmarshalWork(uw)
 }
 

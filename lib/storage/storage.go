@@ -166,10 +166,11 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
 	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
 		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
-		var wg sync.WaitGroup
+		wg := getWaitGroup()
 		wg.Add(1)
 		fs.MustRemoveAllWithDoneCallback(s.cachePath, wg.Done)
 		wg.Wait()
+		putWaitGroup(wg)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
 	}
 
