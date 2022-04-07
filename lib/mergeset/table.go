@@ -131,7 +131,7 @@ var rawItemsShardsPerTable = func() int {
 	if multiplier > 16 {
 		multiplier = 16
 	}
-	return (cpus * multiplier + 1) / 2
+	return (cpus*multiplier + 1) / 2
 }()
 
 const maxBlocksPerShard = 256
