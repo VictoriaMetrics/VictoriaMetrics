@@ -24,7 +24,7 @@ Released at 07-04-2022
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): improve compatibility with [Prometheus Alert Generator specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2340).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `-datasource.disableKeepAlive` command-line flag, which can be used for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) to datasources. This option can be useful for distributing load among multiple datasources behind TCP proxy such as [HAProxy](http://www.haproxy.org/).
 * FEATURE: [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): reduce memory usage by up to 50% for `vminsert` and `vmstorage` under high ingestion rate.
-* FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): Allow to read `-ratelimit.config` file from URL. Also add `-atelimit.configCheckInterval` command-line option. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2241).
+* FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): Allow to read `-ratelimit.config` file from URL. Also add `-ratelimit.configCheckInterval` command-line option. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2241).
 * FEATURE: add the following command-line flags, which can be used for fine-grained limiting of CPU and memory usage during various API calls:
 
   * `-search.maxFederateSeries` for limiting the number of time series, which can be returned from [/federate](https://docs.victoriametrics.com/#federation).
