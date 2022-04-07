@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.76.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.0)
+
+Released at 07-04-2022
+
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add ability to verify files obtained via [native export](https://docs.victoriametrics.com/#how-to-export-data-in-native-format). See [these docs](https://docs.victoriametrics.com/vmctl.html#verifying-exported-blocks-from-victoriametrics) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2362).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add pre-defined dasbhoards for per-job CPU usage, memory usage and disk IO usage. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2243) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): improve compatibility with [Prometheus Alert Generator specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2340).
