@@ -7,18 +7,22 @@ Let's cover the case. You have multiple regions with workloads and want to colle
 The monitoring setup is in the dedicated regions as shown below:
 
 <p align="center">
-  <img src="multi-regional-setup-dedicated-regions.png" width="800" alt="Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring">
+  <img 
+        src="multi-regional-setup-dedicated-regions.png" 
+        width="800" 
+        alt="Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring">
 </p>
 
-Every workload region (Earth, Mars, Venus) has a vmagent that sends data to multiple regions with a monitoring setup. The monitoring setup (Ground Control 1,2 ) contains VictoriaMetrics Time Series Database(TSDB) cluster or single.
+Every workload region (Earth, Mars, Venus) has a vmagent that sends data to multiple regions with a monitoring setup. 
+The monitoring setup (Ground Control 1,2) contains VictoriaMetrics Time Series Database(TSDB) cluster or single.
 
 Using this schema, you can achieve:
 
 * Global Querying View
-  * Querying all metrics from one monitoring installation
+* Querying all metrics from one monitoring installation
 * High Availability
-  * You can lose one region, but your experience will be the same.
-  * Of course, that means you duplicate your traffic twice.
+* You can lose one region, but your experience will be the same.
+* Of course, that means you duplicate your traffic twice.
 
 ### How to write the data to Ground Control regions
 
@@ -58,7 +62,7 @@ You can set up vmalert in each Ground control region that evaluates recording an
 
 For alert deduplication, please use [cluster mode in Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/#high-availability).
 
-We also recommend to adopt these alerts:
+We also recommend adopting these alerts:
 
 * VictoriaMetrics Single - [https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
 * VictoriaMetrics Cluster - [https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml)
