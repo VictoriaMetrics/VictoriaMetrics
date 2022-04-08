@@ -22,6 +22,8 @@ BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-
 
 Released at 07-04-2022
 
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes may log communication errors during the upgrade. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release.
+
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add ability to verify files obtained via [native export](https://docs.victoriametrics.com/#how-to-export-data-in-native-format). See [these docs](https://docs.victoriametrics.com/vmctl.html#verifying-exported-blocks-from-victoriametrics) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2362).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add pre-defined dasbhoards for per-job CPU usage, memory usage and disk IO usage. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2243) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): improve compatibility with [Prometheus Alert Generator specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2340).
