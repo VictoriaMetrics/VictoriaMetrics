@@ -1674,7 +1674,7 @@ func (sn *storageNode) registerMetricNames(mrs []storage.MetricRow, deadline sea
 	f := func(bc *handshake.BufferedConn) error {
 		return sn.registerMetricNamesOnConn(bc, mrs)
 	}
-	return sn.execOnConnWithPossibleRetry("registerMetricNames_v1", f, deadline)
+	return sn.execOnConnWithPossibleRetry("registerMetricNames_v2", f, deadline)
 }
 
 func (sn *storageNode) deleteMetrics(requestData []byte, deadline searchutils.Deadline) (int, error) {
@@ -1687,7 +1687,7 @@ func (sn *storageNode) deleteMetrics(requestData []byte, deadline searchutils.De
 		deletedCount = n
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("deleteMetrics_v3", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("deleteMetrics_v4", f, deadline); err != nil {
 		return 0, err
 	}
 	return deletedCount, nil
@@ -1703,7 +1703,7 @@ func (sn *storageNode) getLabelsOnTimeRange(accountID, projectID uint32, tr stor
 		labels = ls
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("labelsOnTimeRange_v1", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("labelsOnTimeRange_v2", f, deadline); err != nil {
 		return nil, err
 	}
 	return labels, nil
@@ -1719,7 +1719,7 @@ func (sn *storageNode) getLabels(accountID, projectID uint32, deadline searchuti
 		labels = ls
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("labels_v2", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("labels_v3", f, deadline); err != nil {
 		return nil, err
 	}
 	return labels, nil
@@ -1735,7 +1735,7 @@ func (sn *storageNode) getLabelValuesOnTimeRange(accountID, projectID uint32, la
 		labelValues = lvs
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("labelValuesOnTimeRange_v1", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("labelValuesOnTimeRange_v2", f, deadline); err != nil {
 		return nil, err
 	}
 	return labelValues, nil
@@ -1751,7 +1751,7 @@ func (sn *storageNode) getLabelValues(accountID, projectID uint32, labelName str
 		labelValues = lvs
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("labelValues_v2", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("labelValues_v3", f, deadline); err != nil {
 		return nil, err
 	}
 	return labelValues, nil
@@ -1768,7 +1768,7 @@ func (sn *storageNode) getTagValueSuffixes(accountID, projectID uint32, tr stora
 		suffixes = ss
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("tagValueSuffixes_v1", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("tagValueSuffixes_v2", f, deadline); err != nil {
 		return nil, err
 	}
 	return suffixes, nil
@@ -1784,7 +1784,7 @@ func (sn *storageNode) getLabelEntries(accountID, projectID uint32, deadline sea
 		tagEntries = tes
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("labelEntries_v2", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("labelEntries_v3", f, deadline); err != nil {
 		return nil, err
 	}
 	return tagEntries, nil
@@ -1800,7 +1800,7 @@ func (sn *storageNode) getTSDBStatusForDate(accountID, projectID uint32, date ui
 		status = st
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("tsdbStatus_v2", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("tsdbStatus_v3", f, deadline); err != nil {
 		return nil, err
 	}
 	return status, nil
@@ -1816,7 +1816,7 @@ func (sn *storageNode) getTSDBStatusWithFilters(requestData []byte, topN int, de
 		status = st
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("tsdbStatusWithFilters_v1", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("tsdbStatusWithFilters_v2", f, deadline); err != nil {
 		return nil, err
 	}
 	return status, nil
@@ -1832,7 +1832,7 @@ func (sn *storageNode) getSeriesCount(accountID, projectID uint32, deadline sear
 		n = nn
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("seriesCount_v2", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("seriesCount_v3", f, deadline); err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -1848,7 +1848,7 @@ func (sn *storageNode) processSearchMetricNames(requestData []byte, deadline sea
 		metricNames = mns
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry("searchMetricNames_v1", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry("searchMetricNames_v2", f, deadline); err != nil {
 		return nil, err
 	}
 	return metricNames, nil
@@ -1861,7 +1861,7 @@ func (sn *storageNode) processSearchQuery(requestData []byte, fetchData bool, pr
 		}
 		return nil
 	}
-	return sn.execOnConnWithPossibleRetry("search_v4", f, deadline)
+	return sn.execOnConnWithPossibleRetry("search_v5", f, deadline)
 }
 
 func (sn *storageNode) execOnConnWithPossibleRetry(funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {

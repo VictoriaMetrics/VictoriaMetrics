@@ -492,31 +492,31 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	ctx.deadline = fasttime.UnixTimestamp() + uint64(timeout)
 
 	switch rpcName {
-	case "search_v4":
+	case "search_v5":
 		return s.processVMSelectSearch(ctx)
-	case "searchMetricNames_v1":
+	case "searchMetricNames_v2":
 		return s.processVMSelectSearchMetricNames(ctx)
-	case "labelValuesOnTimeRange_v1":
+	case "labelValuesOnTimeRange_v2":
 		return s.processVMSelectLabelValuesOnTimeRange(ctx)
-	case "labelValues_v2":
+	case "labelValues_v3":
 		return s.processVMSelectLabelValues(ctx)
-	case "tagValueSuffixes_v1":
+	case "tagValueSuffixes_v2":
 		return s.processVMSelectTagValueSuffixes(ctx)
-	case "labelEntries_v2":
+	case "labelEntries_v3":
 		return s.processVMSelectLabelEntries(ctx)
-	case "labelsOnTimeRange_v1":
+	case "labelsOnTimeRange_v2":
 		return s.processVMSelectLabelsOnTimeRange(ctx)
-	case "labels_v2":
+	case "labels_v3":
 		return s.processVMSelectLabels(ctx)
-	case "seriesCount_v2":
+	case "seriesCount_v3":
 		return s.processVMSelectSeriesCount(ctx)
-	case "tsdbStatus_v2":
+	case "tsdbStatus_v3":
 		return s.processVMSelectTSDBStatus(ctx)
-	case "tsdbStatusWithFilters_v1":
+	case "tsdbStatusWithFilters_v2":
 		return s.processVMSelectTSDBStatusWithFilters(ctx)
-	case "deleteMetrics_v3":
+	case "deleteMetrics_v4":
 		return s.processVMSelectDeleteMetrics(ctx)
-	case "registerMetricNames_v1":
+	case "registerMetricNames_v2":
 		return s.processVMSelectRegisterMetricNames(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", ctx.dataBuf)
