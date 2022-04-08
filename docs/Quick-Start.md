@@ -12,7 +12,7 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) 
 * [Snap packages](https://snapcraft.io/victoriametrics)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
-* [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+* [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics)
 * [How to build from sources](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-build-from-sources)
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
