@@ -318,16 +318,19 @@ Some capacity planning tips for VictoriaMetrics cluster:
 
 ## High availability
 
+The database is considered highly available if it continues accepting new data and processing incoming queries when some of its components are temporarily unavailable.
+VictoriaMetrics cluster is highly available according to this definition - see [cluster availability docs](#cluster-availability).
+
 It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
-This improves cluster performance and availability.
-It isn't recommended spreading components for a single cluster across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency
-and higher error rates comparing the network inside AZ.
+This improves cluster performance and availability. It isn't recommended spreading components for a single cluster
+across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency and higher
+error rates comparing the network inside a single AZ.
 
 If you need multi-AZ setup, then it is recommended running independed clusters in each AZ and setting up
 [vmagent](https://docs.victoriametrics.com/vmagent.html) in front of these clusters, so it could replicate incoming data
-into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
+into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent.html#multitenancy) for details.
+Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
 
-Another solution is to use [multi-level cluster setup](#multi-level-cluster-setup).
 
 ## Multi-level cluster setup
 
