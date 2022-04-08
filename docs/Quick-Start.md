@@ -20,7 +20,7 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 Just download VictoriaMetrics and follow [these instructions](#how-to-start-victoriametrics).
 Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
 
-### Starting VM-Signle with Docker:
+### Starting VM-Signle via Docker:
 
 The following commands download the latest available [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics) and start it at port 8428, while storing the ingested data at `victoria-metrics-data` subdirectory under the current directory:
 
