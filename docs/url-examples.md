@@ -322,7 +322,6 @@ curl -G 'http://<vmsingle>:8428/api/v1/targets'
 
 </div>
 
-cluster:
 <div class="with-copy" markdown="1">
 
 ```bash
