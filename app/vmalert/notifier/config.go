@@ -34,9 +34,10 @@ type Config struct {
 
 	// HTTPClientConfig contains HTTP configuration for Notifier clients
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
-	// RelabelConfigs contains list of relabeling rules
+	// RelabelConfigs contains list of relabeling rules for entities discovered via SD
 	RelabelConfigs []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
-
+	// AlertRelabelConfigs contains list of relabeling rules alert labels
+	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 	// The timeout used when sending alerts.
 	Timeout promutils.Duration `yaml:"timeout,omitempty"`
 
@@ -52,6 +53,8 @@ type Config struct {
 
 	// stores already parsed RelabelConfigs object
 	parsedRelabelConfigs *promrelabel.ParsedConfigs
+	// stores already parsed AlertRelabelConfigs object
+	parsedAlertRelabelConfigs *promrelabel.ParsedConfigs
 }
 
 // StaticConfig contains list of static targets in the following form:
@@ -78,6 +81,11 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return fmt.Errorf("failed to parse relabeling config: %w", err)
 	}
 	cfg.parsedRelabelConfigs = rCfg
+	arCfg, err := promrelabel.ParseRelabelConfigs(cfg.AlertRelabelConfigs, false)
+	if err != nil {
+		return fmt.Errorf("failed to parse alert relabeling config: %w", err)
+	}
+	cfg.parsedAlertRelabelConfigs = arCfg
 
 	b, err := yaml.Marshal(cfg)
 	if err != nil {
