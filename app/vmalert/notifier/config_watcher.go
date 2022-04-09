@@ -141,7 +141,7 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 		}
 		duplicates[u] = struct{}{}
 
-		am, err := NewAlertManager(u, genFn, cfg.HTTPClientConfig, cfg.Timeout.Duration())
+		am, err := NewAlertManager(u, genFn, cfg.HTTPClientConfig, cfg.parsedAlertRelabelConfigs, cfg.Timeout.Duration())
 		if err != nil {
 			errors = append(errors, err)
 			continue
@@ -165,7 +165,7 @@ func (cw *configWatcher) start() error {
 				if err != nil {
 					return fmt.Errorf("failed to parse labels for target %q: %s", target, err)
 				}
-				notifier, err := NewAlertManager(address, cw.genFn, cw.cfg.HTTPClientConfig, cw.cfg.Timeout.Duration())
+				notifier, err := NewAlertManager(address, cw.genFn, cw.cfg.HTTPClientConfig, cw.cfg.parsedRelabelConfigs, cw.cfg.Timeout.Duration())
 				if err != nil {
 					return fmt.Errorf("failed to init alertmanager for addr %q: %s", address, err)
 				}

@@ -911,12 +911,17 @@ static_configs:
 consul_sd_configs:
   [ - <consul_sd_config> ... ]
 
-# List of relabel configurations.
+# List of relabel configurations for entities discovere via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
 # See https://docs.victoriametrics.com/vmagent.html#relabeling
 relabel_configs:
   [ - <relabel_config> ... ]
 
+# List of relabel configurations for alert labels sent via Notifier.
+# Supports the same relabeling features as the rest of VictoriaMetrics components.
+# See https://docs.victoriametrics.com/vmagent.html#relabeling
+alert_relabel_configs:
+  [ - <relabel_config> ... ]
 ```
 
 The configuration file can be [hot-reloaded](#hot-config-reload).
