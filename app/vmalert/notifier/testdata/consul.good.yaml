@@ -11,3 +11,6 @@ relabel_configs:
     regex: .*,__scheme__=([^,]+),.*
     replacement: '${1}'
     target_label: __scheme__
+alert_relabel_configs:
+  - target_label: "foo"
+    replacement: "aaa"
