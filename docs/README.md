@@ -538,7 +538,8 @@ Additionally VictoriaMetrics provides the following handlers:
 
 ## Graphite API usage
 
-VictoriaMetrics supports the following Graphite APIs, which are needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/):
+VictoriaMetrics supports data ingestion in Graphite protocol - see [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
+VictoriaMetrics supports the following Graphite querying APIs, which are needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/):
 
 * Render API - see [these docs](#graphite-render-api-usage).
 * Metrics API - see [these docs](#graphite-metrics-api-usage).
