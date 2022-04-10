@@ -122,15 +122,12 @@ func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, time
 func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	sn := storageNodes[storageNodeIdx]
-	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= maxBufSizePerStorageNode {
+	br.buf = storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
+	if len(br.buf) >= maxBufSizePerStorageNode {
 		// Send buf to storageNode, since it is too big.
 		if err := br.pushTo(sn); err != nil {
 			return err
 		}
-		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
-	} else {
-		br.buf = bufNew
 	}
 	br.rows++
 	return nil
