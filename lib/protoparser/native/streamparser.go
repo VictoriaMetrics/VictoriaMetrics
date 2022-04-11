@@ -8,7 +8,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -48,19 +47,27 @@ func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) er
 		callbackErrLock sync.Mutex
 		callbackErr     error
 	)
+	addFirstErr := func(err error) {
+		processErrors.Inc()
+		callbackErrLock.Lock()
+		if callbackErr == nil {
+			callbackErr = fmt.Errorf("error when processing native block: %w", err)
+		}
+		callbackErrLock.Unlock()
+	}
 	for {
 		uw := getUnmarshalWork()
 		uw.tr = tr
-		uw.callback = func(block *Block) {
-			if err := callback(block); err != nil {
-				processErrors.Inc()
-				callbackErrLock.Lock()
-				if callbackErr == nil {
-					callbackErr = fmt.Errorf("error when processing native block: %w", err)
-				}
-				callbackErrLock.Unlock()
+		uw.callback = func(block *Block, parseErr error) {
+			defer wg.Done()
+			// fast path
+			if parseErr != nil {
+				addFirstErr(parseErr)
+				return
 			}
-			wg.Done()
+			if err := callback(block); err != nil {
+				addFirstErr(err)
+			}
 		}
 
 		// Read uw.metricNameBuf
@@ -142,7 +149,7 @@ var (
 
 type unmarshalWork struct {
 	tr            storage.TimeRange
-	callback      func(block *Block)
+	callback      func(block *Block, parseErr error)
 	metricNameBuf []byte
 	blockBuf      []byte
 	block         Block
@@ -157,13 +164,11 @@ func (uw *unmarshalWork) reset() {
 
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	if err := uw.unmarshal(); err != nil {
+	err := uw.unmarshal()
+	if err != nil {
 		parseErrors.Inc()
-		logger.Errorf("error when unmarshaling native block: %s", err)
-		putUnmarshalWork(uw)
-		return
 	}
-	uw.callback(&uw.block)
+	uw.callback(&uw.block, err)
 	putUnmarshalWork(uw)
 }
 
