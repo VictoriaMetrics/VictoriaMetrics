@@ -841,7 +841,7 @@ The [deduplication](#deduplication) isn't applied for the data exported in nativ
 
 ## How to import time series data
 
-Time series data can be imported into VictoriaMetrics via any supported ingestion protocol:
+Time series data can be imported into VictoriaMetrics via any supported data ingestion protocol:
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](#prometheus-setup) for details.
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
