@@ -48,11 +48,15 @@ type Writer struct {
 	// attributes are ignored.
 	ObjectAttrs
 
-	// SendCRC specifies whether to transmit a CRC32C field. It should be set
+	// SendCRC32C specifies whether to transmit a CRC32C field. It should be set
 	// to true in addition to setting the Writer's CRC32C field, because zero
 	// is a valid CRC and normally a zero would not be transmitted.
 	// If a CRC32C is sent, and the data written does not match the checksum,
 	// the write will be rejected.
+	//
+	// Note: SendCRC32C must be set to true BEFORE the first call to
+	// Writer.Write() in order to send the checksum. If it is set after that
+	// point, the checksum will be ignored.
 	SendCRC32C bool
 
 	// ChunkSize controls the maximum number of bytes of the object that the

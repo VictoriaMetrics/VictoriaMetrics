@@ -11,7 +11,7 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v0.3.0
 ## explicit; go 1.15
 cloud.google.com/go/iam
-# cloud.google.com/go/storage v1.21.0
+# cloud.google.com/go/storage v1.22.0
 ## explicit; go 1.15
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal
@@ -139,6 +139,9 @@ github.com/google/go-cmp/cmp/internal/value
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
+# github.com/googleapis/go-type-adapters v1.0.0
+## explicit; go 1.11
+github.com/googleapis/go-type-adapters/adapters
 # github.com/influxdata/influxdb v1.9.6
 ## explicit; go 1.17
 github.com/influxdata/influxdb/client/v2
@@ -346,8 +349,13 @@ google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/googleapis/storage/v2
+google.golang.org/genproto/googleapis/type/color
 google.golang.org/genproto/googleapis/type/date
+google.golang.org/genproto/googleapis/type/datetime
+google.golang.org/genproto/googleapis/type/decimal
 google.golang.org/genproto/googleapis/type/expr
+google.golang.org/genproto/googleapis/type/fraction
+google.golang.org/genproto/googleapis/type/month
 # google.golang.org/grpc v1.45.0
 ## explicit; go 1.14
 google.golang.org/grpc
@@ -443,6 +451,7 @@ google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/emptypb
 google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/timestamppb
+google.golang.org/protobuf/types/known/wrapperspb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2

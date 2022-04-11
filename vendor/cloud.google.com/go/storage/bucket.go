@@ -27,12 +27,16 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/internal/optional"
 	"cloud.google.com/go/internal/trace"
+	"github.com/googleapis/go-type-adapters/adapters"
 	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iamcredentials/v1"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
+	"google.golang.org/genproto/googleapis/storage/v2"
+	storagepb "google.golang.org/genproto/googleapis/storage/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 // BucketHandle provides operations on a Google Cloud Storage bucket.
@@ -801,6 +805,36 @@ func newBucket(b *raw.Bucket) (*BucketAttrs, error) {
 	}, nil
 }
 
+func newBucketFromProto(b *storagepb.Bucket) *BucketAttrs {
+	if b == nil {
+		return nil
+	}
+	return &BucketAttrs{
+		Name:                     parseBucketName(b.GetName()),
+		Location:                 b.GetLocation(),
+		MetaGeneration:           b.GetMetageneration(),
+		DefaultEventBasedHold:    b.GetDefaultEventBasedHold(),
+		StorageClass:             b.GetStorageClass(),
+		Created:                  b.GetCreateTime().AsTime(),
+		VersioningEnabled:        b.GetVersioning().GetEnabled(),
+		ACL:                      toBucketACLRulesFromProto(b.GetAcl()),
+		DefaultObjectACL:         toObjectACLRulesFromProto(b.GetDefaultObjectAcl()),
+		Labels:                   b.GetLabels(),
+		RequesterPays:            b.GetBilling().GetRequesterPays(),
+		Lifecycle:                toLifecycleFromProto(b.GetLifecycle()),
+		RetentionPolicy:          toRetentionPolicyFromProto(b.GetRetentionPolicy()),
+		CORS:                     toCORSFromProto(b.GetCors()),
+		Encryption:               toBucketEncryptionFromProto(b.GetEncryption()),
+		Logging:                  toBucketLoggingFromProto(b.GetLogging()),
+		Website:                  toBucketWebsiteFromProto(b.GetWebsite()),
+		BucketPolicyOnly:         toBucketPolicyOnlyFromProto(b.GetIamConfig()),
+		UniformBucketLevelAccess: toUniformBucketLevelAccessFromProto(b.GetIamConfig()),
+		PublicAccessPrevention:   toPublicAccessPreventionFromProto(b.GetIamConfig()),
+		LocationType:             b.GetLocationType(),
+		RPO:                      toRPOFromProto(b),
+	}
+}
+
 // toRawBucket copies the editable attribute from b to the raw library's Bucket type.
 func (b *BucketAttrs) toRawBucket() *raw.Bucket {
 	// Copy label map.
@@ -850,6 +884,66 @@ func (b *BucketAttrs) toRawBucket() *raw.Bucket {
 		Logging:          b.Logging.toRawBucketLogging(),
 		Website:          b.Website.toRawBucketWebsite(),
 		IamConfiguration: bktIAM,
+		Rpo:              b.RPO.String(),
+	}
+}
+
+func (b *BucketAttrs) toProtoBucket() *storagepb.Bucket {
+	if b == nil {
+		return &storagepb.Bucket{}
+	}
+
+	// Copy label map.
+	var labels map[string]string
+	if len(b.Labels) > 0 {
+		labels = make(map[string]string, len(b.Labels))
+		for k, v := range b.Labels {
+			labels[k] = v
+		}
+	}
+
+	// Ignore VersioningEnabled if it is false. This is OK because
+	// we only call this method when creating a bucket, and by default
+	// new buckets have versioning off.
+	var v *storagepb.Bucket_Versioning
+	if b.VersioningEnabled {
+		v = &storagepb.Bucket_Versioning{Enabled: true}
+	}
+	var bb *storagepb.Bucket_Billing
+	if b.RequesterPays {
+		bb = &storage.Bucket_Billing{RequesterPays: true}
+	}
+	var bktIAM *storagepb.Bucket_IamConfig
+	if b.UniformBucketLevelAccess.Enabled || b.BucketPolicyOnly.Enabled || b.PublicAccessPrevention != PublicAccessPreventionUnknown {
+		bktIAM = &storagepb.Bucket_IamConfig{}
+		if b.UniformBucketLevelAccess.Enabled || b.BucketPolicyOnly.Enabled {
+			bktIAM.UniformBucketLevelAccess = &storagepb.Bucket_IamConfig_UniformBucketLevelAccess{
+				Enabled: true,
+			}
+		}
+		// TODO(noahdietz): This will be switched to a string.
+		//
+		// if b.PublicAccessPrevention != PublicAccessPreventionUnknown {
+		// 	bktIAM.PublicAccessPrevention = b.PublicAccessPrevention.String()
+		// }
+	}
+
+	return &storagepb.Bucket{
+		Name:             b.Name,
+		Location:         b.Location,
+		StorageClass:     b.StorageClass,
+		Acl:              toProtoBucketACL(b.ACL),
+		DefaultObjectAcl: toProtoObjectACL(b.DefaultObjectACL),
+		Versioning:       v,
+		Labels:           labels,
+		Billing:          bb,
+		Lifecycle:        toProtoLifecycle(b.Lifecycle),
+		RetentionPolicy:  b.RetentionPolicy.toProtoRetentionPolicy(),
+		Cors:             toProtoCORS(b.CORS),
+		Encryption:       b.Encryption.toProtoBucketEncryption(),
+		Logging:          b.Logging.toProtoBucketLogging(),
+		Website:          b.Website.toProtoBucketWebsite(),
+		IamConfig:        bktIAM,
 		Rpo:              b.RPO.String(),
 	}
 }
@@ -1190,11 +1284,46 @@ func applyBucketConds(method string, conds *BucketConditions, call interface{}) 
 	return nil
 }
 
+// applyBucketConds modifies the provided request message using the conditions
+// in conds. msg is a protobuf Message that has fields if_metageneration_match
+// and if_metageneration_not_match.
+func applyBucketCondsProto(method string, conds *BucketConditions, msg proto.Message) error {
+	rmsg := msg.ProtoReflect()
+
+	if conds == nil {
+		return nil
+	}
+	if err := conds.validate(method); err != nil {
+		return err
+	}
+
+	switch {
+	case conds.MetagenerationMatch != 0:
+		if !setConditionProtoField(rmsg, "if_metageneration_match", conds.MetagenerationMatch) {
+			return fmt.Errorf("storage: %s: ifMetagenerationMatch not supported", method)
+		}
+	case conds.MetagenerationNotMatch != 0:
+		if !setConditionProtoField(rmsg, "if_metageneration_not_match", conds.MetagenerationNotMatch) {
+			return fmt.Errorf("storage: %s: ifMetagenerationNotMatch not supported", method)
+		}
+	}
+	return nil
+}
+
 func (rp *RetentionPolicy) toRawRetentionPolicy() *raw.BucketRetentionPolicy {
 	if rp == nil {
 		return nil
 	}
 	return &raw.BucketRetentionPolicy{
+		RetentionPeriod: int64(rp.RetentionPeriod / time.Second),
+	}
+}
+
+func (rp *RetentionPolicy) toProtoRetentionPolicy() *storagepb.Bucket_RetentionPolicy {
+	if rp == nil {
+		return nil
+	}
+	return &storagepb.Bucket_RetentionPolicy{
 		RetentionPeriod: int64(rp.RetentionPeriod / time.Second),
 	}
 }
@@ -1214,11 +1343,35 @@ func toRetentionPolicy(rp *raw.BucketRetentionPolicy) (*RetentionPolicy, error) 
 	}, nil
 }
 
+func toRetentionPolicyFromProto(rp *storagepb.Bucket_RetentionPolicy) *RetentionPolicy {
+	if rp == nil {
+		return nil
+	}
+	return &RetentionPolicy{
+		RetentionPeriod: time.Duration(rp.GetRetentionPeriod()) * time.Second,
+		EffectiveTime:   rp.GetEffectiveTime().AsTime(),
+		IsLocked:        rp.GetIsLocked(),
+	}
+}
+
 func toRawCORS(c []CORS) []*raw.BucketCors {
 	var out []*raw.BucketCors
 	for _, v := range c {
 		out = append(out, &raw.BucketCors{
 			MaxAgeSeconds:  int64(v.MaxAge / time.Second),
+			Method:         v.Methods,
+			Origin:         v.Origins,
+			ResponseHeader: v.ResponseHeaders,
+		})
+	}
+	return out
+}
+
+func toProtoCORS(c []CORS) []*storagepb.Bucket_Cors {
+	var out []*storagepb.Bucket_Cors
+	for _, v := range c {
+		out = append(out, &storagepb.Bucket_Cors{
+			MaxAgeSeconds:  int32(v.MaxAge / time.Second),
 			Method:         v.Methods,
 			Origin:         v.Origins,
 			ResponseHeader: v.ResponseHeaders,
@@ -1235,6 +1388,19 @@ func toCORS(rc []*raw.BucketCors) []CORS {
 			Methods:         v.Method,
 			Origins:         v.Origin,
 			ResponseHeaders: v.ResponseHeader,
+		})
+	}
+	return out
+}
+
+func toCORSFromProto(rc []*storagepb.Bucket_Cors) []CORS {
+	var out []CORS
+	for _, v := range rc {
+		out = append(out, CORS{
+			MaxAge:          time.Duration(v.GetMaxAgeSeconds()) * time.Second,
+			Methods:         v.GetMethod(),
+			Origins:         v.GetOrigin(),
+			ResponseHeaders: v.GetResponseHeader(),
 		})
 	}
 	return out
@@ -1283,6 +1449,51 @@ func toRawLifecycle(l Lifecycle) *raw.BucketLifecycle {
 	return &rl
 }
 
+func toProtoLifecycle(l Lifecycle) *storagepb.Bucket_Lifecycle {
+	var rl storagepb.Bucket_Lifecycle
+
+	for _, r := range l.Rules {
+		rr := &storagepb.Bucket_Lifecycle_Rule{
+			Action: &storagepb.Bucket_Lifecycle_Rule_Action{
+				Type:         r.Action.Type,
+				StorageClass: r.Action.StorageClass,
+			},
+			Condition: &storagepb.Bucket_Lifecycle_Rule_Condition{
+				// Note: The Apiary types use int64 (even though the Discovery
+				// doc states "format: int32"), so the client types used int64,
+				// but the proto uses int32 so we have a potentially lossy
+				// conversion.
+				AgeDays:                 proto.Int32(int32(r.Condition.AgeInDays)),
+				DaysSinceCustomTime:     proto.Int32(int32(r.Condition.DaysSinceCustomTime)),
+				DaysSinceNoncurrentTime: proto.Int32(int32(r.Condition.DaysSinceNoncurrentTime)),
+				MatchesStorageClass:     r.Condition.MatchesStorageClasses,
+				NumNewerVersions:        proto.Int32(int32(r.Condition.NumNewerVersions)),
+			},
+		}
+
+		switch r.Condition.Liveness {
+		case LiveAndArchived:
+			rr.Condition.IsLive = nil
+		case Live:
+			rr.Condition.IsLive = proto.Bool(true)
+		case Archived:
+			rr.Condition.IsLive = proto.Bool(false)
+		}
+
+		if !r.Condition.CreatedBefore.IsZero() {
+			rr.Condition.CreatedBefore = adapters.TimeToProtoDate(r.Condition.CreatedBefore)
+		}
+		if !r.Condition.CustomTimeBefore.IsZero() {
+			rr.Condition.CustomTimeBefore = adapters.TimeToProtoDate(r.Condition.CustomTimeBefore)
+		}
+		if !r.Condition.NoncurrentTimeBefore.IsZero() {
+			rr.Condition.NoncurrentTimeBefore = adapters.TimeToProtoDate(r.Condition.NoncurrentTimeBefore)
+		}
+		rl.Rule = append(rl.Rule, rr)
+	}
+	return &rl
+}
+
 func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 	var l Lifecycle
 	if rl == nil {
@@ -1325,12 +1536,63 @@ func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 	return l
 }
 
+func toLifecycleFromProto(rl *storagepb.Bucket_Lifecycle) Lifecycle {
+	var l Lifecycle
+	if rl == nil {
+		return l
+	}
+	for _, rr := range rl.GetRule() {
+		r := LifecycleRule{
+			Action: LifecycleAction{
+				Type:         rr.GetAction().GetType(),
+				StorageClass: rr.GetAction().GetStorageClass(),
+			},
+			Condition: LifecycleCondition{
+				AgeInDays:               int64(rr.GetCondition().GetAgeDays()),
+				DaysSinceCustomTime:     int64(rr.GetCondition().GetDaysSinceCustomTime()),
+				DaysSinceNoncurrentTime: int64(rr.GetCondition().GetDaysSinceNoncurrentTime()),
+				MatchesStorageClasses:   rr.GetCondition().GetMatchesStorageClass(),
+				NumNewerVersions:        int64(rr.GetCondition().GetNumNewerVersions()),
+			},
+		}
+
+		if rr.GetCondition().IsLive == nil {
+			r.Condition.Liveness = LiveAndArchived
+		} else if rr.GetCondition().GetIsLive() {
+			r.Condition.Liveness = Live
+		} else {
+			r.Condition.Liveness = Archived
+		}
+
+		if rr.GetCondition().GetCreatedBefore() != nil {
+			r.Condition.CreatedBefore = adapters.ProtoDateToUTCTime(rr.GetCondition().GetCreatedBefore())
+		}
+		if rr.GetCondition().GetCustomTimeBefore() != nil {
+			r.Condition.CustomTimeBefore = adapters.ProtoDateToUTCTime(rr.GetCondition().GetCustomTimeBefore())
+		}
+		if rr.GetCondition().GetNoncurrentTimeBefore() != nil {
+			r.Condition.NoncurrentTimeBefore = adapters.ProtoDateToUTCTime(rr.GetCondition().GetNoncurrentTimeBefore())
+		}
+		l.Rules = append(l.Rules, r)
+	}
+	return l
+}
+
 func (e *BucketEncryption) toRawBucketEncryption() *raw.BucketEncryption {
 	if e == nil {
 		return nil
 	}
 	return &raw.BucketEncryption{
 		DefaultKmsKeyName: e.DefaultKMSKeyName,
+	}
+}
+
+func (e *BucketEncryption) toProtoBucketEncryption() *storagepb.Bucket_Encryption {
+	if e == nil {
+		return nil
+	}
+	return &storagepb.Bucket_Encryption{
+		DefaultKmsKey: e.DefaultKMSKeyName,
 	}
 }
 
@@ -1341,11 +1603,28 @@ func toBucketEncryption(e *raw.BucketEncryption) *BucketEncryption {
 	return &BucketEncryption{DefaultKMSKeyName: e.DefaultKmsKeyName}
 }
 
+func toBucketEncryptionFromProto(e *storagepb.Bucket_Encryption) *BucketEncryption {
+	if e == nil {
+		return nil
+	}
+	return &BucketEncryption{DefaultKMSKeyName: e.GetDefaultKmsKey()}
+}
+
 func (b *BucketLogging) toRawBucketLogging() *raw.BucketLogging {
 	if b == nil {
 		return nil
 	}
 	return &raw.BucketLogging{
+		LogBucket:       b.LogBucket,
+		LogObjectPrefix: b.LogObjectPrefix,
+	}
+}
+
+func (b *BucketLogging) toProtoBucketLogging() *storagepb.Bucket_Logging {
+	if b == nil {
+		return nil
+	}
+	return &storagepb.Bucket_Logging{
 		LogBucket:       b.LogBucket,
 		LogObjectPrefix: b.LogObjectPrefix,
 	}
@@ -1361,11 +1640,31 @@ func toBucketLogging(b *raw.BucketLogging) *BucketLogging {
 	}
 }
 
+func toBucketLoggingFromProto(b *storagepb.Bucket_Logging) *BucketLogging {
+	if b == nil {
+		return nil
+	}
+	return &BucketLogging{
+		LogBucket:       b.GetLogBucket(),
+		LogObjectPrefix: b.GetLogObjectPrefix(),
+	}
+}
+
 func (w *BucketWebsite) toRawBucketWebsite() *raw.BucketWebsite {
 	if w == nil {
 		return nil
 	}
 	return &raw.BucketWebsite{
+		MainPageSuffix: w.MainPageSuffix,
+		NotFoundPage:   w.NotFoundPage,
+	}
+}
+
+func (w *BucketWebsite) toProtoBucketWebsite() *storagepb.Bucket_Website {
+	if w == nil {
+		return nil
+	}
+	return &storagepb.Bucket_Website{
 		MainPageSuffix: w.MainPageSuffix,
 		NotFoundPage:   w.NotFoundPage,
 	}
@@ -1378,6 +1677,16 @@ func toBucketWebsite(w *raw.BucketWebsite) *BucketWebsite {
 	return &BucketWebsite{
 		MainPageSuffix: w.MainPageSuffix,
 		NotFoundPage:   w.NotFoundPage,
+	}
+}
+
+func toBucketWebsiteFromProto(w *storagepb.Bucket_Website) *BucketWebsite {
+	if w == nil {
+		return nil
+	}
+	return &BucketWebsite{
+		MainPageSuffix: w.GetMainPageSuffix(),
+		NotFoundPage:   w.GetNotFoundPage(),
 	}
 }
 
@@ -1397,6 +1706,16 @@ func toBucketPolicyOnly(b *raw.BucketIamConfiguration) BucketPolicyOnly {
 	}
 }
 
+func toBucketPolicyOnlyFromProto(b *storagepb.Bucket_IamConfig) BucketPolicyOnly {
+	if b == nil || !b.GetUniformBucketLevelAccess().GetEnabled() {
+		return BucketPolicyOnly{}
+	}
+	return BucketPolicyOnly{
+		Enabled:    true,
+		LockedTime: b.GetUniformBucketLevelAccess().GetLockTime().AsTime(),
+	}
+}
+
 func toUniformBucketLevelAccess(b *raw.BucketIamConfiguration) UniformBucketLevelAccess {
 	if b == nil || b.UniformBucketLevelAccess == nil || !b.UniformBucketLevelAccess.Enabled {
 		return UniformBucketLevelAccess{}
@@ -1410,6 +1729,16 @@ func toUniformBucketLevelAccess(b *raw.BucketIamConfiguration) UniformBucketLeve
 	return UniformBucketLevelAccess{
 		Enabled:    true,
 		LockedTime: lt,
+	}
+}
+
+func toUniformBucketLevelAccessFromProto(b *storagepb.Bucket_IamConfig) UniformBucketLevelAccess {
+	if b == nil || !b.GetUniformBucketLevelAccess().GetEnabled() {
+		return UniformBucketLevelAccess{}
+	}
+	return UniformBucketLevelAccess{
+		Enabled:    true,
+		LockedTime: b.GetUniformBucketLevelAccess().GetLockTime().AsTime(),
 	}
 }
 
@@ -1427,11 +1756,39 @@ func toPublicAccessPrevention(b *raw.BucketIamConfiguration) PublicAccessPrevent
 	}
 }
 
+func toPublicAccessPreventionFromProto(b *storagepb.Bucket_IamConfig) PublicAccessPrevention {
+	if b == nil {
+		return PublicAccessPreventionUnknown
+	}
+	switch b.GetPublicAccessPrevention() {
+	case publicAccessPreventionInherited, publicAccessPreventionUnspecified:
+		return PublicAccessPreventionInherited
+	case publicAccessPreventionEnforced:
+		return PublicAccessPreventionEnforced
+	default:
+		return PublicAccessPreventionUnknown
+	}
+}
+
 func toRPO(b *raw.Bucket) RPO {
 	if b == nil {
 		return RPOUnknown
 	}
 	switch b.Rpo {
+	case rpoDefault:
+		return RPODefault
+	case rpoAsyncTurbo:
+		return RPOAsyncTurbo
+	default:
+		return RPOUnknown
+	}
+}
+
+func toRPOFromProto(b *storagepb.Bucket) RPO {
+	if b == nil {
+		return RPOUnknown
+	}
+	switch b.GetRpo() {
 	case rpoDefault:
 		return RPODefault
 	case rpoAsyncTurbo:
@@ -1543,6 +1900,7 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	req.StartOffset(it.query.StartOffset)
 	req.EndOffset(it.query.EndOffset)
 	req.Versions(it.query.Versions)
+	req.IncludeTrailingDelimiter(it.query.IncludeTrailingDelimiter)
 	if len(it.query.fieldSelection) > 0 {
 		req.Fields("nextPageToken", googleapi.Field(it.query.fieldSelection))
 	}
