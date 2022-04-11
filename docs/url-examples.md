@@ -108,7 +108,7 @@ curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/0/promet
 <div class="with-copy" markdown="1">
 
 ```bash
-curl -i -d 'metric_name{foo="bar"} 123' -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus'
+curl -d 'metric_name{foo="bar"} 123' -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus'
 ```
 
 </div>
