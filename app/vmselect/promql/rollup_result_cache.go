@@ -51,6 +51,9 @@ var (
 // InitRollupResultCache initializes the rollupResult cache
 //
 // if cachePath is empty, then the cache isn't stored to persistent disk.
+//
+// ResetRollupResultCache must be called when the cache must be reset.
+// StopRollupResultCache must be called when the cache isn't needed anymore.
 func InitRollupResultCache(cachePath string) {
 	rollupResultCachePath = cachePath
 	startTime := time.Now()
@@ -87,16 +90,19 @@ func InitRollupResultCache(cachePath string) {
 			rollupResultCachePath, time.Since(startTime).Seconds(), fcs().EntriesCount, fcs().BytesSize)
 	}
 
-	metrics.NewGauge(`vm_cache_entries{type="promql/rollupResult"}`, func() float64 {
+	// Use metrics.GetOrCreateGauge instead of metrics.NewGauge,
+	// so InitRollupResultCache+StopRollupResultCache could be called multiple times in tests.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2406
+	metrics.GetOrCreateGauge(`vm_cache_entries{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().EntriesCount)
 	})
-	metrics.NewGauge(`vm_cache_size_bytes{type="promql/rollupResult"}`, func() float64 {
+	metrics.GetOrCreateGauge(`vm_cache_size_bytes{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().BytesSize)
 	})
-	metrics.NewGauge(`vm_cache_requests_total{type="promql/rollupResult"}`, func() float64 {
+	metrics.GetOrCreateGauge(`vm_cache_requests_total{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().GetCalls)
 	})
-	metrics.NewGauge(`vm_cache_misses_total{type="promql/rollupResult"}`, func() float64 {
+	metrics.GetOrCreateGauge(`vm_cache_misses_total{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().Misses)
 	})
 
