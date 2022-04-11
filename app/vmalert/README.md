@@ -911,7 +911,7 @@ static_configs:
 consul_sd_configs:
   [ - <consul_sd_config> ... ]
 
-# List of relabel configurations for entities discovere via service discovery.
+# List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
 # See https://docs.victoriametrics.com/vmagent.html#relabeling
 relabel_configs:

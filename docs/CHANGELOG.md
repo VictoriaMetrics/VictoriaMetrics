@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for `alert_relabel_configs` option at `-notifier.config`. This option allows configuring relabeling rules for alerts before sending them to configured notifiers. See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file) for details.
+
 BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): properly calculate [hitCount](https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.hitcount) function. Previously it could return empty results if there were no original samples in some parts of the selected time range.
 
 
