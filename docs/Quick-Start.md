@@ -17,8 +17,8 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
-Just download VictoriaMetrics and follow [these instructions](#how-to-start-victoriametrics).
-Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
+Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-start-victoriametrics).
+Then read [Prometheus setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup) and [Grafana setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup) docs.
 
 ### Starting VM-Signle via Docker:
 
@@ -35,6 +35,16 @@ There are also the following versions of VictoriaMetrics available:
 
 * [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) - horizontally scalable VictoriaMetrics, which scales to multiple nodes.
 
+### Starting VM-Cluster via Docker:
+
+The following commands clone the latest available [VictoriaMetrics cluster repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docer container via 'docer-compose'. Further customization is possible by editing the [docker-compose.yaml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/docker-compose.yml) file.
+
+```bash
+git clone https://github.com/VictoriaMetrics/VictoriaMetrics --branch cluster && cd VictoriaMetrics/deployment/docker && docker-compose up
+```
+
+* [Cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup)
+
 ## Writing data
 
 Data can be written by:
@@ -48,8 +58,8 @@ Data can be written by:
 * [In native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format)
 * [Imported in CSV format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data)
 * [Imported in Prometheus exposition format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format)
-* `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
- See [these docs](#how-to-import-data-in-json-line-format) for details.
+* `/api/v1/import` for importing data obtained from [/api/v1/export](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-json-line-format).
+ See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format) for details.
 
 ## Reading data
 
