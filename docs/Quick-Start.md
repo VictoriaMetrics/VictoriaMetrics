@@ -8,7 +8,7 @@ sort: 13
 
 Single-server-VictoriaMetrics VictoriaMetrics is available as:
 
-* [Database as a Service (dbaas)](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc)
+* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc)
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) 
 * [Snap packages](https://snapcraft.io/victoriametrics)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
