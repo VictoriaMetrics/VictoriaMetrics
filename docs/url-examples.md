@@ -85,7 +85,7 @@ More information:
 
 ## /api/v1/import
 
-**Imports data obtained via /api/v1/export**
+**Imports custom data as well as data obtained via /api/v1/export**
 
 Single:
 <div class="with-copy" markdown="1">
@@ -101,6 +101,14 @@ Cluster:
 
 ```bash
 curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import'
+```
+
+</div>
+
+<div class="with-copy" markdown="1">
+
+```bash
+curl -i -d 'metric_name{foo="bar"} 123' -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus'
 ```
 
 </div>
