@@ -52,7 +52,6 @@ import (
 	"google.golang.org/api/transport"
 	htransport "google.golang.org/api/transport/http"
 	storagepb "google.golang.org/genproto/googleapis/storage/v2"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -66,6 +65,9 @@ var (
 	ErrBucketNotExist = errors.New("storage: bucket doesn't exist")
 	// ErrObjectNotExist indicates that the object does not exist.
 	ErrObjectNotExist = errors.New("storage: object doesn't exist")
+	// errMethodNotSupported indicates that the method called is not currently supported by the client.
+	// TODO: Export this error when launching the transport-agnostic client.
+	errMethodNotSupported = errors.New("storage: method is not currently supported")
 	// errMethodNotValid indicates that given HTTP method is not valid.
 	errMethodNotValid = fmt.Errorf("storage: HTTP method should be one of %v", reflect.ValueOf(signedURLMethods).MapKeys())
 )
@@ -84,12 +86,6 @@ const (
 	// ScopeReadWrite grants permissions to manage your
 	// data in Google Cloud Storage.
 	ScopeReadWrite = raw.DevstorageReadWriteScope
-
-	// defaultConnPoolSize is the default number of connections
-	// to initialize in the GAPIC gRPC connection pool. A larger
-	// connection pool may be necessary for jobs that require
-	// high throughput and/or leverage many concurrent streams.
-	defaultConnPoolSize = 4
 )
 
 var xGoogHeader = fmt.Sprintf("gl-go/%s gccl/%s", version.Go(), internal.Version)
@@ -220,27 +216,6 @@ func newHybridClient(ctx context.Context, opts *hybridClientOptions) (*Client, e
 		return nil, err
 	}
 
-	// Set emulator options for gRPC if an emulator was specified. Note that in a
-	// hybrid client, STORAGE_EMULATOR_HOST will set the host to use for HTTP and
-	// STORAGE_EMULATOR_HOST_GRPC will set the host to use for gRPC (when using a
-	// local emulator, HTTP and gRPC must use different ports, so this is
-	// necessary).
-	// TODO: when full gRPC client is available, remove STORAGE_EMULATOR_HOST_GRPC
-	// and use STORAGE_EMULATOR_HOST for both the HTTP and gRPC based clients.
-	if host := os.Getenv("STORAGE_EMULATOR_HOST_GRPC"); host != "" {
-		// Strip the scheme from the emulator host. WithEndpoint does not take a
-		// scheme for gRPC.
-		if strings.Contains(host, "://") {
-			host = strings.SplitN(host, "://", 2)[1]
-		}
-
-		opts.GRPCOpts = append(opts.GRPCOpts,
-			option.WithEndpoint(host),
-			option.WithGRPCDialOption(grpc.WithInsecure()),
-			option.WithoutAuthentication(),
-		)
-	}
-
 	g, err := gapic.NewClient(ctx, opts.GRPCOpts...)
 	if err != nil {
 		return nil, err
@@ -248,14 +223,6 @@ func newHybridClient(ctx context.Context, opts *hybridClientOptions) (*Client, e
 	c.gc = g
 
 	return c, nil
-}
-
-// defaultGRPCOptions returns a set of the default client options
-// for gRPC client initialization.
-func defaultGRPCOptions() []option.ClientOption {
-	return []option.ClientOption{
-		option.WithGRPCConnectionPool(defaultConnPoolSize),
-	}
 }
 
 // Close closes the Client.
@@ -309,10 +276,18 @@ type bucketBoundHostname struct {
 }
 
 func (s pathStyle) host(bucket string) string {
+	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
+		return stripScheme(host)
+	}
+
 	return "storage.googleapis.com"
 }
 
 func (s virtualHostedStyle) host(bucket string) string {
+	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
+		return bucket + "." + stripScheme(host)
+	}
+
 	return bucket + ".storage.googleapis.com"
 }
 
@@ -358,6 +333,14 @@ func VirtualHostedStyle() URLStyle {
 // be set to true.
 func BucketBoundHostname(hostname string) URLStyle {
 	return bucketBoundHostname{hostname: hostname}
+}
+
+// Strips the scheme from a host if it contains it
+func stripScheme(host string) string {
+	if strings.Contains(host, "://") {
+		host = strings.SplitN(host, "://", 2)[1]
+	}
+	return host
 }
 
 // SignedURLOptions allows you to restrict the access to the signed URL.
@@ -586,6 +569,8 @@ func v4SanitizeHeaders(hdrs []string) []string {
 // access to a restricted resource for a limited time without needing a
 // Google account or signing in. For more information about signed URLs, see
 // https://cloud.google.com/storage/docs/accesscontrol#signed_urls_query_string_authentication
+// If initializing a Storage Client, instead use the Bucket.SignedURL method
+// which uses the Client's credentials to handle authentication.
 func SignedURL(bucket, object string, opts *SignedURLOptions) (string, error) {
 	now := utcNow()
 	if err := validateOptions(opts, now); err != nil {
@@ -856,7 +841,7 @@ func signedURLV2(bucket, name string, opts *SignedURLOptions) (string, error) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(b)
 	u.Scheme = "https"
-	u.Host = "storage.googleapis.com"
+	u.Host = PathStyle().host(bucket)
 	q := u.Query()
 	q.Set("GoogleAccessId", opts.GoogleAccessID)
 	q.Set("Expires", fmt.Sprintf("%d", opts.Expires.Unix()))
@@ -1326,6 +1311,9 @@ type ObjectAttrs struct {
 	// Composer. In those cases, if the SendCRC32C field in the Writer or Composer
 	// is set to is true, the uploaded data is rejected if its CRC32C hash does
 	// not match this field.
+	//
+	// Note: For a Writer, SendCRC32C must be set to true BEFORE the first call to
+	// Writer.Write() in order to send the checksum.
 	CRC32C uint32
 
 	// MediaLink is an URL to the object's content. This field is read-only.
@@ -1485,7 +1473,7 @@ func newObjectFromProto(o *storagepb.Object) *ObjectAttrs {
 		EventBasedHold:          o.GetEventBasedHold(),
 		TemporaryHold:           o.TemporaryHold,
 		RetentionExpirationTime: convertProtoTime(o.GetRetentionExpireTime()),
-		ACL:                     fromProtoToObjectACLRules(o.GetAcl()),
+		ACL:                     toObjectACLRulesFromProto(o.GetAcl()),
 		Owner:                   o.GetOwner().GetEntity(),
 		ContentEncoding:         o.ContentEncoding,
 		ContentDisposition:      o.ContentDisposition,
@@ -1588,6 +1576,14 @@ type Query struct {
 	// which returns all properties. Passing ProjectionNoACL will omit Owner and ACL,
 	// which may improve performance when listing many objects.
 	Projection Projection
+
+	// IncludeTrailingDelimiter controls how objects which end in a single
+	// instance of Delimiter (for example, if Query.Delimiter = "/" and the
+	// object name is "foo/bar/") are included in the results. By default, these
+	// objects only show up as prefixes. If IncludeTrailingDelimiter is set to
+	// true, they will also be included as objects and their metadata will be
+	// populated in the returned ObjectAttrs.
+	IncludeTrailingDelimiter bool
 }
 
 // attrToFieldMap maps the field names of ObjectAttrs to the underlying field
@@ -2037,7 +2033,14 @@ func bucketResourceName(p, b string) string {
 // parseBucketName strips the leading resource path segment and returns the
 // bucket ID, which is the simple Bucket name typical of the v1 API.
 func parseBucketName(b string) string {
-	return strings.TrimPrefix(b, "projects/_/buckets/")
+	sep := strings.LastIndex(b, "/")
+	return b[sep+1:]
+}
+
+// toProjectResource accepts a project ID and formats it as a Project resource
+// name.
+func toProjectResource(project string) string {
+	return fmt.Sprintf("projects/%s", project)
 }
 
 // setConditionProtoField uses protobuf reflection to set named condition field

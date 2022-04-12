@@ -239,6 +239,8 @@ func conditionStatusCodeOnSuccess(statusCode int) PostPolicyV4Condition {
 
 // GenerateSignedPostPolicyV4 generates a PostPolicyV4 value from bucket, object and opts.
 // The generated URL and fields will then allow an unauthenticated client to perform multipart uploads.
+// If initializing a Storage Client, instead use the Bucket.GenerateSignedPostPolicyV4
+// method which uses the Client's credentials to handle authentication.
 func GenerateSignedPostPolicyV4(bucket, object string, opts *PostPolicyV4Options) (*PostPolicyV4, error) {
 	if bucket == "" {
 		return nil, errors.New("storage: bucket must be non-empty")

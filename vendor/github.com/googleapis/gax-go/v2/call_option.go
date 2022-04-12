@@ -173,6 +173,21 @@ func (o grpcOpt) Resolve(s *CallSettings) {
 	s.GRPC = o
 }
 
+type pathOpt struct {
+	p string
+}
+
+func (p pathOpt) Resolve(s *CallSettings) {
+	s.Path = p.p
+}
+
+// WithPath applies a Path override to the HTTP-based APICall.
+//
+// This is for internal use only.
+func WithPath(p string) CallOption {
+	return &pathOpt{p: p}
+}
+
 // WithGRPCOptions allows passing gRPC call options during client creation.
 func WithGRPCOptions(opt ...grpc.CallOption) CallOption {
 	return grpcOpt(append([]grpc.CallOption(nil), opt...))
@@ -186,4 +201,7 @@ type CallSettings struct {
 
 	// CallOptions to be forwarded to GRPC.
 	GRPC []grpc.CallOption
+
+	// Path is an HTTP override for an APICall.
+	Path string
 }
