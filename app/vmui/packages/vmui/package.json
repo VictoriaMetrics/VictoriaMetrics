@@ -6,7 +6,7 @@
   "dependencies": {
     "@date-io/dayjs": "^2.13.1",
     "@emotion/styled": "^11.8.1",
-    "@mui/icons-material": "^5.5.1",
+    "@mui/icons-material": "^5.6.0",
     "@mui/lab": "^5.0.0-alpha.73",
     "@mui/material": "^5.5.1",
     "@mui/styles": "^5.5.1",
@@ -20,7 +20,7 @@
     "@types/marked": "^4.0.2",
     "@types/node": "^17.0.21",
     "@types/qs": "^6.9.7",
-    "@types/react": "^17.0.43",
+    "@types/react": "^18.0.2",
     "@types/react-dom": "^18.0.0",
     "@types/react-measure": "^2.0.8",
     "@types/react-router-dom": "^5.3.3",
@@ -30,7 +30,7 @@
     "lodash.get": "^4.4.2",
     "lodash.throttle": "^4.1.1",
     "marked": "^4.0.14",
-    "preact": "^10.6.6",
+    "preact": "^10.7.1",
     "qs": "^6.10.3",
     "react-router-dom": "^6.3.0",
     "typescript": "~4.6.2",
@@ -66,7 +66,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
-    "@typescript-eslint/parser": "^5.15.0",
+    "@typescript-eslint/parser": "^5.19.0",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.29.4",
     "react-app-rewired": "^2.2.1"
