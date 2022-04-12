@@ -58,8 +58,7 @@ var (
 
 var clusterMemberID int
 
-// must be called before any scraper
-func initClusterMemberID() error {
+func mustInitClusterMemberID() {
 	s := *clusterMemberNum
 	// special case for kubernetes deployment, where pod-name formatted at some-pod-name-1
 	// obtain memberNum from last segment
@@ -69,10 +68,9 @@ func initClusterMemberID() error {
 	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return fmt.Errorf("cannot parse -promscrape.cluster.memberNum=%q: %w", *clusterMemberNum, err)
+		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
 	}
 	clusterMemberID = int(n)
-	return nil
 }
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
