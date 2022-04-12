@@ -102,6 +102,56 @@ func (cfg *Config) mustStart() {
 	logger.Infof("started service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
 }
 
+func (cfg *Config) mustRestart(prevCfg *Config) {
+	startTime := time.Now()
+	logger.Infof("restarting service discovery routines...")
+
+	prevScrapeCfgByName := make(map[string]*ScrapeConfig, len(prevCfg.ScrapeConfigs))
+	for i := range prevCfg.ScrapeConfigs {
+		sc := &prevCfg.ScrapeConfigs[i]
+		prevScrapeCfgByName[sc.JobName] = sc
+	}
+
+	var toStart, toStop []*ScrapeConfig
+	currentJobNames := make(map[string]struct{}, len(cfg.ScrapeConfigs))
+	for i := range cfg.ScrapeConfigs {
+		sc := cfg.ScrapeConfigs[i]
+		currentJobNames[sc.JobName] = struct{}{}
+		prevSC := prevScrapeCfgByName[sc.JobName]
+
+		if prevSC != nil && prevSC.checksum == sc.checksum {
+			// config checksum is the same, so no need to restart it
+			// replace reference with previous job, it allows to stop it properly later.
+			cfg.ScrapeConfigs[i] = *prevSC
+			continue
+		}
+		if prevSC != nil {
+			// prev scrape config checksum doesn't match checksum for current config
+			// mark it to stop
+			toStop = append(toStop, prevSC)
+		}
+		toStart = append(toStart, &sc)
+	}
+	// add toStop jobs which weren't found in the current configuration
+	for i := range prevCfg.ScrapeConfigs {
+		prevSC := &prevCfg.ScrapeConfigs[i]
+		if _, ok := currentJobNames[prevSC.JobName]; !ok {
+			// prev scrape config wasn't found at current scrape config
+			// mark it to stop
+			toStop = append(toStop, prevSC)
+		}
+	}
+	for _, sc := range toStop {
+		sc.mustStop()
+	}
+	for _, sc := range toStart {
+		sc.mustStart(cfg.baseDir)
+	}
+	jobNames := cfg.getJobNames()
+	tsmGlobal.registerJobNames(jobNames)
+	logger.Infof("restarted service discovery routines in %.3f seconds, stopped=%d, started=%d", time.Since(startTime).Seconds(), len(toStop), len(toStart))
+}
+
 func (cfg *Config) mustStop() {
 	startTime := time.Now()
 	logger.Infof("stopping service discovery routines...")
@@ -175,6 +225,8 @@ type ScrapeConfig struct {
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
+	// This is set during unmarshal
+	checksum uint64
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
@@ -340,6 +392,11 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 	// Initialize cfg.ScrapeConfigs
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		b, err := yaml.Marshal(*sc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ScrapeConfig for checksum: %w", err)
+		}
+		sc.checksum = xxhash.Sum64(b)
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)

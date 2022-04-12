@@ -14,7 +14,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 ## tip
-
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): restart only changed sections at promscrape configuration. It reduces configuration reload time and prevents possible metrics lost, if configuration reload takes too much time. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2270)
 
 ## [v1.76.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.1)
 
