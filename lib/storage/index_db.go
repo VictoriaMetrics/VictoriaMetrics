@@ -2227,7 +2227,8 @@ func (is *indexSearch) searchMetricIDsInternal(tfss []*TagFilters, tr TimeRange,
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+			return nil, fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
+				"or increase -search.max* command-line flag values at vmselect", maxMetrics)
 		}
 	}
 	return metricIDs, nil
@@ -2247,6 +2248,10 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 	atomic.AddUint64(&is.db.globalSearchCalls, 1)
 	m, err := is.getMetricIDsForDateAndFilters(0, tfs, maxMetrics)
 	if err != nil {
+		if errors.Is(err, errFallbackToGlobalSearch) {
+			return fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
+				"or increase -search.max* command-line flag values at vmselect", maxMetrics)
+		}
 		return err
 	}
 	metricIDs.UnionMayOwn(m)
