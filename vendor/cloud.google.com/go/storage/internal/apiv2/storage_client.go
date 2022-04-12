@@ -19,7 +19,6 @@ package storage
 import (
 	"context"
 	"math"
-	"time"
 
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
@@ -29,7 +28,6 @@ import (
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	storagepb "google.golang.org/genproto/googleapis/storage/v2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
@@ -83,354 +81,35 @@ func defaultGRPCClientOptions() []option.ClientOption {
 
 func defaultCallOptions() *CallOptions {
 	return &CallOptions{
-		DeleteBucket: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		GetBucket: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		CreateBucket: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		ListBuckets: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		LockBucketRetentionPolicy: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		GetIamPolicy: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		SetIamPolicy: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		TestIamPermissions: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		UpdateBucket: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		DeleteNotification: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		GetNotification: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		CreateNotification: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		ListNotifications: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		ComposeObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		DeleteObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		GetObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		ReadObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		UpdateObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		WriteObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		ListObjects: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		RewriteObject: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		StartResumableWrite: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		QueryWriteStatus: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		GetServiceAccount: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		CreateHmacKey: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		DeleteHmacKey: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		GetHmacKey: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		ListHmacKeys: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
-		UpdateHmacKey: []gax.CallOption{
-			gax.WithRetry(func() gax.Retryer {
-				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
-					codes.Unavailable,
-				}, gax.Backoff{
-					Initial:    1000 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
-					Multiplier: 2.00,
-				})
-			}),
-		},
+		DeleteBucket:              []gax.CallOption{},
+		GetBucket:                 []gax.CallOption{},
+		CreateBucket:              []gax.CallOption{},
+		ListBuckets:               []gax.CallOption{},
+		LockBucketRetentionPolicy: []gax.CallOption{},
+		GetIamPolicy:              []gax.CallOption{},
+		SetIamPolicy:              []gax.CallOption{},
+		TestIamPermissions:        []gax.CallOption{},
+		UpdateBucket:              []gax.CallOption{},
+		DeleteNotification:        []gax.CallOption{},
+		GetNotification:           []gax.CallOption{},
+		CreateNotification:        []gax.CallOption{},
+		ListNotifications:         []gax.CallOption{},
+		ComposeObject:             []gax.CallOption{},
+		DeleteObject:              []gax.CallOption{},
+		GetObject:                 []gax.CallOption{},
+		ReadObject:                []gax.CallOption{},
+		UpdateObject:              []gax.CallOption{},
+		WriteObject:               []gax.CallOption{},
+		ListObjects:               []gax.CallOption{},
+		RewriteObject:             []gax.CallOption{},
+		StartResumableWrite:       []gax.CallOption{},
+		QueryWriteStatus:          []gax.CallOption{},
+		GetServiceAccount:         []gax.CallOption{},
+		CreateHmacKey:             []gax.CallOption{},
+		DeleteHmacKey:             []gax.CallOption{},
+		GetHmacKey:                []gax.CallOption{},
+		ListHmacKeys:              []gax.CallOption{},
+		UpdateHmacKey:             []gax.CallOption{},
 	}
 }
 
@@ -807,7 +486,7 @@ func (c *gRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *gRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -818,11 +497,6 @@ func (c *gRPCClient) Close() error {
 }
 
 func (c *gRPCClient) DeleteBucket(ctx context.Context, req *storagepb.DeleteBucketRequest, opts ...gax.CallOption) error {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).DeleteBucket[0:len((*c.CallOptions).DeleteBucket):len((*c.CallOptions).DeleteBucket)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -834,11 +508,6 @@ func (c *gRPCClient) DeleteBucket(ctx context.Context, req *storagepb.DeleteBuck
 }
 
 func (c *gRPCClient) GetBucket(ctx context.Context, req *storagepb.GetBucketRequest, opts ...gax.CallOption) (*storagepb.Bucket, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).GetBucket[0:len((*c.CallOptions).GetBucket):len((*c.CallOptions).GetBucket)], opts...)
 	var resp *storagepb.Bucket
@@ -854,11 +523,6 @@ func (c *gRPCClient) GetBucket(ctx context.Context, req *storagepb.GetBucketRequ
 }
 
 func (c *gRPCClient) CreateBucket(ctx context.Context, req *storagepb.CreateBucketRequest, opts ...gax.CallOption) (*storagepb.Bucket, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).CreateBucket[0:len((*c.CallOptions).CreateBucket):len((*c.CallOptions).CreateBucket)], opts...)
 	var resp *storagepb.Bucket
@@ -917,11 +581,6 @@ func (c *gRPCClient) ListBuckets(ctx context.Context, req *storagepb.ListBuckets
 }
 
 func (c *gRPCClient) LockBucketRetentionPolicy(ctx context.Context, req *storagepb.LockBucketRetentionPolicyRequest, opts ...gax.CallOption) (*storagepb.Bucket, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).LockBucketRetentionPolicy[0:len((*c.CallOptions).LockBucketRetentionPolicy):len((*c.CallOptions).LockBucketRetentionPolicy)], opts...)
 	var resp *storagepb.Bucket
@@ -937,11 +596,6 @@ func (c *gRPCClient) LockBucketRetentionPolicy(ctx context.Context, req *storage
 }
 
 func (c *gRPCClient) GetIamPolicy(ctx context.Context, req *iampb.GetIamPolicyRequest, opts ...gax.CallOption) (*iampb.Policy, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).GetIamPolicy[0:len((*c.CallOptions).GetIamPolicy):len((*c.CallOptions).GetIamPolicy)], opts...)
 	var resp *iampb.Policy
@@ -957,11 +611,6 @@ func (c *gRPCClient) GetIamPolicy(ctx context.Context, req *iampb.GetIamPolicyRe
 }
 
 func (c *gRPCClient) SetIamPolicy(ctx context.Context, req *iampb.SetIamPolicyRequest, opts ...gax.CallOption) (*iampb.Policy, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).SetIamPolicy[0:len((*c.CallOptions).SetIamPolicy):len((*c.CallOptions).SetIamPolicy)], opts...)
 	var resp *iampb.Policy
@@ -977,11 +626,6 @@ func (c *gRPCClient) SetIamPolicy(ctx context.Context, req *iampb.SetIamPolicyRe
 }
 
 func (c *gRPCClient) TestIamPermissions(ctx context.Context, req *iampb.TestIamPermissionsRequest, opts ...gax.CallOption) (*iampb.TestIamPermissionsResponse, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).TestIamPermissions[0:len((*c.CallOptions).TestIamPermissions):len((*c.CallOptions).TestIamPermissions)], opts...)
 	var resp *iampb.TestIamPermissionsResponse
@@ -997,11 +641,6 @@ func (c *gRPCClient) TestIamPermissions(ctx context.Context, req *iampb.TestIamP
 }
 
 func (c *gRPCClient) UpdateBucket(ctx context.Context, req *storagepb.UpdateBucketRequest, opts ...gax.CallOption) (*storagepb.Bucket, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).UpdateBucket[0:len((*c.CallOptions).UpdateBucket):len((*c.CallOptions).UpdateBucket)], opts...)
 	var resp *storagepb.Bucket
@@ -1017,11 +656,6 @@ func (c *gRPCClient) UpdateBucket(ctx context.Context, req *storagepb.UpdateBuck
 }
 
 func (c *gRPCClient) DeleteNotification(ctx context.Context, req *storagepb.DeleteNotificationRequest, opts ...gax.CallOption) error {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).DeleteNotification[0:len((*c.CallOptions).DeleteNotification):len((*c.CallOptions).DeleteNotification)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -1033,11 +667,6 @@ func (c *gRPCClient) DeleteNotification(ctx context.Context, req *storagepb.Dele
 }
 
 func (c *gRPCClient) GetNotification(ctx context.Context, req *storagepb.GetNotificationRequest, opts ...gax.CallOption) (*storagepb.Notification, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).GetNotification[0:len((*c.CallOptions).GetNotification):len((*c.CallOptions).GetNotification)], opts...)
 	var resp *storagepb.Notification
@@ -1053,11 +682,6 @@ func (c *gRPCClient) GetNotification(ctx context.Context, req *storagepb.GetNoti
 }
 
 func (c *gRPCClient) CreateNotification(ctx context.Context, req *storagepb.CreateNotificationRequest, opts ...gax.CallOption) (*storagepb.Notification, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).CreateNotification[0:len((*c.CallOptions).CreateNotification):len((*c.CallOptions).CreateNotification)], opts...)
 	var resp *storagepb.Notification
@@ -1116,11 +740,6 @@ func (c *gRPCClient) ListNotifications(ctx context.Context, req *storagepb.ListN
 }
 
 func (c *gRPCClient) ComposeObject(ctx context.Context, req *storagepb.ComposeObjectRequest, opts ...gax.CallOption) (*storagepb.Object, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).ComposeObject[0:len((*c.CallOptions).ComposeObject):len((*c.CallOptions).ComposeObject)], opts...)
 	var resp *storagepb.Object
@@ -1136,11 +755,6 @@ func (c *gRPCClient) ComposeObject(ctx context.Context, req *storagepb.ComposeOb
 }
 
 func (c *gRPCClient) DeleteObject(ctx context.Context, req *storagepb.DeleteObjectRequest, opts ...gax.CallOption) error {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).DeleteObject[0:len((*c.CallOptions).DeleteObject):len((*c.CallOptions).DeleteObject)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -1152,11 +766,6 @@ func (c *gRPCClient) DeleteObject(ctx context.Context, req *storagepb.DeleteObje
 }
 
 func (c *gRPCClient) GetObject(ctx context.Context, req *storagepb.GetObjectRequest, opts ...gax.CallOption) (*storagepb.Object, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).GetObject[0:len((*c.CallOptions).GetObject):len((*c.CallOptions).GetObject)], opts...)
 	var resp *storagepb.Object
@@ -1186,11 +795,6 @@ func (c *gRPCClient) ReadObject(ctx context.Context, req *storagepb.ReadObjectRe
 }
 
 func (c *gRPCClient) UpdateObject(ctx context.Context, req *storagepb.UpdateObjectRequest, opts ...gax.CallOption) (*storagepb.Object, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).UpdateObject[0:len((*c.CallOptions).UpdateObject):len((*c.CallOptions).UpdateObject)], opts...)
 	var resp *storagepb.Object
@@ -1264,11 +868,6 @@ func (c *gRPCClient) ListObjects(ctx context.Context, req *storagepb.ListObjects
 }
 
 func (c *gRPCClient) RewriteObject(ctx context.Context, req *storagepb.RewriteObjectRequest, opts ...gax.CallOption) (*storagepb.RewriteResponse, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).RewriteObject[0:len((*c.CallOptions).RewriteObject):len((*c.CallOptions).RewriteObject)], opts...)
 	var resp *storagepb.RewriteResponse
@@ -1284,11 +883,6 @@ func (c *gRPCClient) RewriteObject(ctx context.Context, req *storagepb.RewriteOb
 }
 
 func (c *gRPCClient) StartResumableWrite(ctx context.Context, req *storagepb.StartResumableWriteRequest, opts ...gax.CallOption) (*storagepb.StartResumableWriteResponse, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).StartResumableWrite[0:len((*c.CallOptions).StartResumableWrite):len((*c.CallOptions).StartResumableWrite)], opts...)
 	var resp *storagepb.StartResumableWriteResponse
@@ -1304,11 +898,6 @@ func (c *gRPCClient) StartResumableWrite(ctx context.Context, req *storagepb.Sta
 }
 
 func (c *gRPCClient) QueryWriteStatus(ctx context.Context, req *storagepb.QueryWriteStatusRequest, opts ...gax.CallOption) (*storagepb.QueryWriteStatusResponse, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).QueryWriteStatus[0:len((*c.CallOptions).QueryWriteStatus):len((*c.CallOptions).QueryWriteStatus)], opts...)
 	var resp *storagepb.QueryWriteStatusResponse
@@ -1324,11 +913,6 @@ func (c *gRPCClient) QueryWriteStatus(ctx context.Context, req *storagepb.QueryW
 }
 
 func (c *gRPCClient) GetServiceAccount(ctx context.Context, req *storagepb.GetServiceAccountRequest, opts ...gax.CallOption) (*storagepb.ServiceAccount, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).GetServiceAccount[0:len((*c.CallOptions).GetServiceAccount):len((*c.CallOptions).GetServiceAccount)], opts...)
 	var resp *storagepb.ServiceAccount
@@ -1344,11 +928,6 @@ func (c *gRPCClient) GetServiceAccount(ctx context.Context, req *storagepb.GetSe
 }
 
 func (c *gRPCClient) CreateHmacKey(ctx context.Context, req *storagepb.CreateHmacKeyRequest, opts ...gax.CallOption) (*storagepb.CreateHmacKeyResponse, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).CreateHmacKey[0:len((*c.CallOptions).CreateHmacKey):len((*c.CallOptions).CreateHmacKey)], opts...)
 	var resp *storagepb.CreateHmacKeyResponse
@@ -1364,11 +943,6 @@ func (c *gRPCClient) CreateHmacKey(ctx context.Context, req *storagepb.CreateHma
 }
 
 func (c *gRPCClient) DeleteHmacKey(ctx context.Context, req *storagepb.DeleteHmacKeyRequest, opts ...gax.CallOption) error {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).DeleteHmacKey[0:len((*c.CallOptions).DeleteHmacKey):len((*c.CallOptions).DeleteHmacKey)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -1380,11 +954,6 @@ func (c *gRPCClient) DeleteHmacKey(ctx context.Context, req *storagepb.DeleteHma
 }
 
 func (c *gRPCClient) GetHmacKey(ctx context.Context, req *storagepb.GetHmacKeyRequest, opts ...gax.CallOption) (*storagepb.HmacKeyMetadata, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).GetHmacKey[0:len((*c.CallOptions).GetHmacKey):len((*c.CallOptions).GetHmacKey)], opts...)
 	var resp *storagepb.HmacKeyMetadata
@@ -1443,11 +1012,6 @@ func (c *gRPCClient) ListHmacKeys(ctx context.Context, req *storagepb.ListHmacKe
 }
 
 func (c *gRPCClient) UpdateHmacKey(ctx context.Context, req *storagepb.UpdateHmacKeyRequest, opts ...gax.CallOption) (*storagepb.HmacKeyMetadata, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
 	ctx = insertMetadata(ctx, c.xGoogMetadata)
 	opts = append((*c.CallOptions).UpdateHmacKey[0:len((*c.CallOptions).UpdateHmacKey):len((*c.CallOptions).UpdateHmacKey)], opts...)
 	var resp *storagepb.HmacKeyMetadata
