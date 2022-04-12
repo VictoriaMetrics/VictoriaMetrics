@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import {SetupTooltip} from "./types";
-import {getColorLine} from "./helpers";
+import {getColorLine,formatPrettyNumber} from "./helpers";
 
 export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = ""}: SetupTooltip): void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
@@ -25,7 +25,7 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
   tooltip.innerHTML = `<div>${date}</div>
                        <div class="u-tooltip-data">
-                         ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${dataSeries}</b> ${unit}
+                         ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${formatPrettyNumber(dataSeries)}</b> ${unit}
                        </div>
                        <div class="u-tooltip__info">${info}</div>`;
 };
