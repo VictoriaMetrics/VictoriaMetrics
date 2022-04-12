@@ -37,7 +37,7 @@ There are also the following versions of VictoriaMetrics available:
 
 ### Starting VM-Cluster via Docker:
 
-The following commands clone the latest available [VictoriaMetrics cluster repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docer container via 'docer-compose'. Further customization is possible by editing the [docker-compose.yaml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/docker-compose.yml) file.
+The following commands clone the latest available [VictoriaMetrics cluster repository](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) and start the docker container via 'docker-compose'. Further customization is possible by editing the [docker-compose.yaml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/docker-compose.yml) file.
 
 ```bash
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics --branch cluster && cd VictoriaMetrics/deployment/docker && docker-compose up
@@ -47,7 +47,7 @@ git clone https://github.com/VictoriaMetrics/VictoriaMetrics --branch cluster &&
 
 ## Writing data
 
-Data can be written by:
+Data can be written to VictoriaMetrics in the following ways:
 
 * [DataDog agent](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent)
 * [InfluxDB-compatible agents such as Telegraf](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
@@ -55,13 +55,14 @@ Data can be written by:
 * [OpenTSDB-compatible agents](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents)
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
 * [In JSON line format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format)
-* [In native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format)
 * [Imported in CSV format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data)
 * [Imported in Prometheus exposition format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format)
 * `/api/v1/import` for importing data obtained from [/api/v1/export](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-json-line-format).
  See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format) for details.
 
 ## Reading data
+
+VictoriaMetrics various APIs for reading the data. [This document briefly describes these APIs](https://docs.victoriametrics.com/url-examples.html).
 
 ### Grafana setup:
 
