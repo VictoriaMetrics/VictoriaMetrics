@@ -29,7 +29,7 @@ export const defaultOptions = {
 };
 
 export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
-  return ticks.map(v => `${v.toLocaleString()} ${unit}`);
+  return ticks.map(v => `${v.toString()} ${unit}`);
 };
 
 interface AxisExtend extends Axis {
