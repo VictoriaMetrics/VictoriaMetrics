@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/aws"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -59,6 +61,17 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	oauth2Scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+
+	useSigV4 = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing to use for -remoteWrite.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional aws region to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional roleARN to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AccessKey  to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey to use for -remoteWrite.url."+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
 type client struct {
@@ -69,6 +82,7 @@ type client struct {
 
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
+	awsConfig *aws.Config
 
 	rl rateLimiter
 
@@ -91,6 +105,10 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		logger.Panicf("FATAL: cannot initialize auth config: %s", err)
 	}
 	tlsCfg := authCfg.NewTLSConfig()
+	awsCfg, err := getAwsConfig(argIdx)
+	if err != nil {
+		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite idx: %d, err: %s", argIdx, err)
+	}
 	tr := &http.Transport{
 		DialContext:         statDial,
 		TLSClientConfig:     tlsCfg,
@@ -115,6 +133,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authCfg:        authCfg,
+		awsConfig:      awsCfg,
 		fq:             fq,
 		hc: &http.Client{
 			Transport: tr,
@@ -201,6 +220,19 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	return authCfg, nil
 }
 
+func getAwsConfig(argIdx int) (*aws.Config, error) {
+
+	if !useSigV4.GetOptionalArg(argIdx) {
+		return nil, nil
+	}
+
+	cfg, err := aws.NewConfig(awsRegion.GetOptionalArg(argIdx), awsRoleARN.GetOptionalArg(argIdx), awsAccessKey.GetOptionalArg(argIdx), promauth.NewSecret(awsSecretKey.GetOptionalArg(argIdx)))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create aws Config for remoteWrite idx: %d, err: %w", argIdx, err)
+	}
+	return cfg, nil
+}
+
 func (c *client) runWorker() {
 	var ok bool
 	var block []byte
@@ -250,6 +282,11 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	retriesCount := 0
 	c.bytesSent.Add(len(block))
 	c.blocksSent.Inc()
+	var payloadHash string
+	// calculate payloadHash if needed.
+	if c.awsConfig != nil {
+		payloadHash = aws.HashHex(block)
+	}
 
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
@@ -265,6 +302,12 @@ again:
 		req.Header.Set("Authorization", ah)
 	}
 
+	if c.awsConfig != nil {
+		if err := aws.SignRequestWithConfig(req, c.awsConfig, "aps", payloadHash); err != nil {
+			// there is no need in retry, request will be rejected by client.Do and retried by code below
+			logger.Warnf("cannot sign remoteWrite request with AWS sigV4 provider: %s", err)
+		}
+	}
 	startTime := time.Now()
 	resp, err := c.hc.Do(req)
 	c.requestDuration.UpdateDuration(startTime)

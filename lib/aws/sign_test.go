@@ -1,4 +1,4 @@
-package ec2
+package aws
 
 import (
 	"testing"
@@ -10,12 +10,12 @@ func TestNewSignedRequest(t *testing.T) {
 		t.Helper()
 		service := "ec2"
 		region := "us-east-1"
-		ac := &apiCredentials{
+		ac := &credentials{
 			AccessKeyID:     "fake-access-key",
 			SecretAccessKey: "foobar",
 		}
 		ct := time.Unix(0, 0).UTC()
-		req, err := newSignedRequestWithTime(apiURL, service, region, ac, ct)
+		req, err := NewSignedGetRequestWithTime(apiURL, service, region, ac, ct)
 		if err != nil {
 			t.Fatalf("error in newSignedRequest: %s", err)
 		}
