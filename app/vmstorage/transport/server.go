@@ -1143,12 +1143,12 @@ var (
 
 func (ctx *vmselectRequestCtx) getMaxMetrics() int {
 	maxMetrics := ctx.sq.MaxMetrics
-	if maxMetrics <= 0 || maxMetrics > *maxMetricsPerSearch {
-		maxMetrics = *maxMetricsPerSearch
+	maxMetricsLimit := *maxMetricsPerSearch
+	if maxMetricsLimit <= 0 {
+		maxMetricsLimit = 2e9
 	}
-	if maxMetrics <= 0 {
-		// The limit is missing.
-		maxMetrics = 2e9
+	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
+		maxMetrics = maxMetricsLimit
 	}
 	return maxMetrics
 }
