@@ -29,10 +29,7 @@ export const defaultOptions = {
 };
 
 export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
-  return ticks.map(v => {
-    const n = Math.abs(v);
-    return `${n > 1e-3 && n < 1e4 ? v.toString() : v.toExponential(1)} ${unit}`;
-  });
+  return ticks.map(v => `${v.toLocaleString()} ${unit}`);
 };
 
 interface AxisExtend extends Axis {
