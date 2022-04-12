@@ -358,6 +358,8 @@ spread scrape targets among a cluster of two `vmagent` instances:
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
 
+The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `vmagent` runs in Kubernetes. The pod name must end with a number in the range `0 ... promscrape.cluster.memberNum-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
+
 By default each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
 start a cluster of three `vmagent` instances, where each target is scraped by two `vmagent` instances:

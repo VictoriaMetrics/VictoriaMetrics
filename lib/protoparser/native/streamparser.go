@@ -8,7 +8,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -43,49 +42,37 @@ func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) er
 
 	// Read native blocks and feed workers with work.
 	sizeBuf := make([]byte, 4)
-	var wg sync.WaitGroup
-	var (
-		callbackErrLock sync.Mutex
-		callbackErr     error
-	)
+
+	ctx := &streamContext{}
 	for {
 		uw := getUnmarshalWork()
 		uw.tr = tr
-		uw.callback = func(block *Block) {
-			if err := callback(block); err != nil {
-				processErrors.Inc()
-				callbackErrLock.Lock()
-				if callbackErr == nil {
-					callbackErr = fmt.Errorf("error when processing native block: %w", err)
-				}
-				callbackErrLock.Unlock()
-			}
-			wg.Done()
-		}
+		uw.ctx = ctx
+		uw.callback = callback
 
 		// Read uw.metricNameBuf
 		if _, err := io.ReadFull(br, sizeBuf); err != nil {
 			if err == io.EOF {
 				// End of stream
 				putUnmarshalWork(uw)
-				wg.Wait()
-				return callbackErr
+				ctx.wg.Wait()
+				return ctx.err
 			}
 			readErrors.Inc()
-			wg.Wait()
+			ctx.wg.Wait()
 			return fmt.Errorf("cannot read metricName size: %w", err)
 		}
 		readCalls.Inc()
 		bufSize := encoding.UnmarshalUint32(sizeBuf)
 		if bufSize > 1024*1024 {
 			parseErrors.Inc()
-			wg.Wait()
+			ctx.wg.Wait()
 			return fmt.Errorf("too big metricName size; got %d; shouldn't exceed %d", bufSize, 1024*1024)
 		}
 		uw.metricNameBuf = bytesutil.ResizeNoCopyMayOverallocate(uw.metricNameBuf, int(bufSize))
 		if _, err := io.ReadFull(br, uw.metricNameBuf); err != nil {
 			readErrors.Inc()
-			wg.Wait()
+			ctx.wg.Wait()
 			return fmt.Errorf("cannot read metricName with size %d bytes: %w", bufSize, err)
 		}
 		readCalls.Inc()
@@ -93,28 +80,34 @@ func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) er
 		// Read uw.blockBuf
 		if _, err := io.ReadFull(br, sizeBuf); err != nil {
 			readErrors.Inc()
-			wg.Wait()
+			ctx.wg.Wait()
 			return fmt.Errorf("cannot read native block size: %w", err)
 		}
 		readCalls.Inc()
 		bufSize = encoding.UnmarshalUint32(sizeBuf)
 		if bufSize > 1024*1024 {
 			parseErrors.Inc()
-			wg.Wait()
+			ctx.wg.Wait()
 			return fmt.Errorf("too big native block size; got %d; shouldn't exceed %d", bufSize, 1024*1024)
 		}
 		uw.blockBuf = bytesutil.ResizeNoCopyMayOverallocate(uw.blockBuf, int(bufSize))
 		if _, err := io.ReadFull(br, uw.blockBuf); err != nil {
 			readErrors.Inc()
-			wg.Wait()
+			ctx.wg.Wait()
 			return fmt.Errorf("cannot read native block with size %d bytes: %w", bufSize, err)
 		}
 		readCalls.Inc()
 		blocksRead.Inc()
 
-		wg.Add(1)
+		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
 	}
+}
+
+type streamContext struct {
+	wg      sync.WaitGroup
+	errLock sync.Mutex
+	err     error
 }
 
 // Block is a single block from `/api/v1/import/native` request.
@@ -142,13 +135,15 @@ var (
 
 type unmarshalWork struct {
 	tr            storage.TimeRange
-	callback      func(block *Block)
+	ctx           *streamContext
+	callback      func(block *Block) error
 	metricNameBuf []byte
 	blockBuf      []byte
 	block         Block
 }
 
 func (uw *unmarshalWork) reset() {
+	uw.ctx = nil
 	uw.callback = nil
 	uw.metricNameBuf = uw.metricNameBuf[:0]
 	uw.blockBuf = uw.blockBuf[:0]
@@ -157,13 +152,22 @@ func (uw *unmarshalWork) reset() {
 
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	if err := uw.unmarshal(); err != nil {
+	err := uw.unmarshal()
+	if err != nil {
 		parseErrors.Inc()
-		logger.Errorf("error when unmarshaling native block: %s", err)
-		putUnmarshalWork(uw)
-		return
+	} else {
+		err = uw.callback(&uw.block)
 	}
-	uw.callback(&uw.block)
+	ctx := uw.ctx
+	if err != nil {
+		processErrors.Inc()
+		ctx.errLock.Lock()
+		if ctx.err == nil {
+			ctx.err = fmt.Errorf("error when processing native block: %w", err)
+		}
+		ctx.errLock.Unlock()
+	}
+	ctx.wg.Done()
 	putUnmarshalWork(uw)
 }
 

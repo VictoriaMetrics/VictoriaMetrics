@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // Alert the triggered alert
@@ -146,4 +148,19 @@ func templateAnnotation(dst io.Writer, text string, data tplData, funcs template
 		return fmt.Errorf("error evaluating annotation template: %w", err)
 	}
 	return nil
+}
+
+func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {
+	var labels []prompbmarshal.Label
+	for k, v := range a.Labels {
+		labels = append(labels, prompbmarshal.Label{
+			Name:  k,
+			Value: v,
+		})
+	}
+	promrelabel.SortLabels(labels)
+	if relabelCfg != nil {
+		return relabelCfg.Apply(labels, 0, false)
+	}
+	return labels
 }

@@ -3,11 +3,32 @@ package promql
 import (
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
+func TestRollupResultCacheInitStop(t *testing.T) {
+	t.Run("inmemory", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			InitRollupResultCache("")
+			StopRollupResultCache()
+		}
+	})
+	t.Run("file-based", func(t *testing.T) {
+		cacheFilePath := "test-rollup-result-cache"
+		for i := 0; i < 3; i++ {
+			InitRollupResultCache(cacheFilePath)
+			StopRollupResultCache()
+		}
+		fs.MustRemoveAll(cacheFilePath)
+	})
+}
+
 func TestRollupResultCache(t *testing.T) {
+	InitRollupResultCache("")
+	defer StopRollupResultCache()
+
 	ResetRollupResultCache()
 	window := int64(456)
 	ec := &EvalConfig{

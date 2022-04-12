@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // AlertManager represents integration provider with Prometheus alert manager
@@ -22,6 +23,8 @@ type AlertManager struct {
 	timeout time.Duration
 
 	authCfg *promauth.Config
+	// stores already parsed RelabelConfigs object
+	relabelConfigs *promrelabel.ParsedConfigs
 
 	metrics *metrics
 }
@@ -59,7 +62,7 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 	b := &bytes.Buffer{}
-	writeamRequest(b, alerts, am.argFunc)
+	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
 
 	req, err := http.NewRequest("POST", am.addr, b)
 	if err != nil {
@@ -103,7 +106,8 @@ type AlertURLGenerator func(Alert) string
 const alertManagerPath = "/api/v2/alerts"
 
 // NewAlertManager is a constructor for AlertManager
-func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig, timeout time.Duration) (*AlertManager, error) {
+func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig,
+	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration) (*AlertManager, error) {
 	tls := &promauth.TLSConfig{}
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig
@@ -131,11 +135,12 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	}
 
 	return &AlertManager{
-		addr:    alertManagerURL,
-		argFunc: fn,
-		authCfg: aCfg,
-		client:  &http.Client{Transport: tr},
-		timeout: timeout,
-		metrics: newMetrics(alertManagerURL),
+		addr:           alertManagerURL,
+		argFunc:        fn,
+		authCfg:        aCfg,
+		relabelConfigs: relabelCfg,
+		client:         &http.Client{Transport: tr},
+		timeout:        timeout,
+		metrics:        newMetrics(alertManagerURL),
 	}, nil
 }

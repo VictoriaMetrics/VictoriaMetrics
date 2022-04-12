@@ -29,10 +29,14 @@ export const defaultOptions = {
 };
 
 export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
-  return ticks.map(v => {
-    const n = Math.abs(v);
-    return `${n > 1e-3 && n < 1e4 ? v.toString() : v.toExponential(1)} ${unit}`;
-  });
+  return ticks.map(v => `${formatPrettyNumber(v)} ${unit}`);
+};
+
+export const formatPrettyNumber = (n: number | null | undefined): string => {
+  if (n === undefined || n === null) {
+    return "";
+  }
+  return n.toLocaleString("en-US", { maximumSignificantDigits: 20 });
 };
 
 interface AxisExtend extends Axis {

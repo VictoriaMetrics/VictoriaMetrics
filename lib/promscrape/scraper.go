@@ -52,6 +52,7 @@ func CheckConfig() error {
 //
 // Scraped data is passed to pushData.
 func Init(pushData func(wr *prompbmarshal.WriteRequest)) {
+	mustInitClusterMemberID()
 	globalStopChan = make(chan struct{})
 	scraperWG.Add(1)
 	go func() {

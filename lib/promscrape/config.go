@@ -49,11 +49,29 @@ var (
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 0, "The number of members in a cluster of scrapers. "+
 		"Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
-	clusterMemberNum = flag.Int("promscrape.cluster.memberNum", 0, "The number of number in the cluster of scrapers. "+
-		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster")
+	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of number in the cluster of scrapers. "+
+		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
+		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
 )
+
+var clusterMemberID int
+
+func mustInitClusterMemberID() {
+	s := *clusterMemberNum
+	// special case for kubernetes deployment, where pod-name formatted at some-pod-name-1
+	// obtain memberNum from last segment
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2359
+	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
+		s = s[idx+1:]
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
+	}
+	clusterMemberID = int(n)
+}
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
@@ -996,7 +1014,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
 		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
-		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
+		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, clusterMemberID)
 		scrapeWorkKeyBufPool.Put(bb)
 		if needSkip {
 			return nil, nil

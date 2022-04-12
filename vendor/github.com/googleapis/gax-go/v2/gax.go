@@ -36,4 +36,4 @@
 package gax
 
 // Version specifies the gax-go version being used.
-const Version = "2.2.0"
+const Version = "2.3.0"

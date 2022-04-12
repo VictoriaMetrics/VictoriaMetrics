@@ -16,6 +16,7 @@ updates:
     directory: "/app/vmui/packages/vmui/web"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -24,3 +25,4 @@ updates:
     directory: "/app/vmui/packages/vmui"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
