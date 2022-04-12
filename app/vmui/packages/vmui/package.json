@@ -30,7 +30,7 @@
     "lodash.get": "^4.4.2",
     "lodash.throttle": "^4.1.1",
     "marked": "^4.0.14",
-    "preact": "^10.6.6",
+    "preact": "^10.7.1",
     "qs": "^6.10.3",
     "react-router-dom": "^6.3.0",
     "typescript": "~4.6.2",
