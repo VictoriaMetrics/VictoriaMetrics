@@ -51,7 +51,7 @@ var (
 		"Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of number in the cluster of scrapers. "+
 		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
-		"Can be specified as pod name of kubernetes statefulset - pod-name-1, where Num is numeric part of pod after -")
+		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
 )
@@ -59,19 +59,19 @@ var (
 var clusterMemberID int
 
 // must be called before any scraper
-func initClusterID() error {
-	clusterMemberNum := *clusterMemberNum
+func initClusterMemberID() error {
+	s := *clusterMemberNum
 	// special case for kubernetes deployment, where pod-name formatted at some-pod-name-1
 	// obtain memberNum from last segment
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2359
-	if idx := strings.LastIndexByte(clusterMemberNum, '-'); idx > 0 {
-		clusterMemberNum = clusterMemberNum[idx+1:]
+	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
+		s = s[idx+1:]
 	}
-	i, err := strconv.ParseInt(clusterMemberNum, 10, 64)
+	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return fmt.Errorf("cannot parse clusterMemberNum=%q : %w", clusterMemberNum, err)
+		return fmt.Errorf("cannot parse -promscrape.cluster.memberNum=%q: %w", *clusterMemberNum, err)
 	}
-	clusterMemberID = int(i)
+	clusterMemberID = int(n)
 	return nil
 }
 

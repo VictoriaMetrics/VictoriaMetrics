@@ -99,7 +99,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	if err := initClusterID(); err != nil {
+	if err := initClusterMemberID(); err != nil {
 		logger.Fatalf("cannot init clusterMembership: %s", err)
 	}
 	logger.Infof("reading Prometheus configs from %q", configFile)
