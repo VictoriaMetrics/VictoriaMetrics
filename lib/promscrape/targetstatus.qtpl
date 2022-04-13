@@ -42,52 +42,40 @@ job={%q= jobName %} (0/0 up)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <title>Scrape targets</title>
-    <script>
-function collapse_all() {
-  for (var i = 0; i < {%d len(jts) %}; i++) {
-    let el = document.getElementById("table-" + i);
-    if (!el) {
-        continue;
-    }
-    el.style.display = 'none';
-  }
-}
-function expand_all() {
-  for (var i = 0; i < {%d len(jts) %}; i++) {
-    let el = document.getElementById("table-" + i);
-    if (!el) {
-      continue;
-    }
-    el.style.display = 'block';
-  }
-}
-    </script>
 </head>
 <body class="m-3">
   <h1>Scrape targets</h1>
-  <div style="padding: 3px">
-    <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
+  <div class="mb-4">
+    <button type="button" class="me-1 btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
         All
     </button>
-    <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
+    <button type="button" class="me-1 btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
         Unhealthy
     </button>
-    <button type="button" class="btn btn-primary" onclick="collapse_all()">
+    <button type="button" class="btn btn-primary me-1" onclick="collapse_all()">
         Collapse all
     </button>
-    <button type="button" class="btn btn-secondary" onclick="expand_all()">
+    <button type="button" class="btn btn-secondary me-1" onclick="expand_all()">
         Expand all
     </button>
   </div>
   {% for i, js := range jts %}
     {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
-    <div>
+    <div class="mb-4">
       <h4>
         {%s js.job %}{% space %}({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
-        <button type="button" class="btn btn-primary" onclick="document.getElementById('table-{%d i %}').style.display='none'">collapse</button>
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('table-{%d i %}').style.display='block'">expand</button>
+        <button type="button" class="btn btn-primary me-1" onclick="document.getElementById('table-{%d i %}').style.display='none'">collapse</button>
+        <button type="button" class="btn btn-secondary me-1" onclick="document.getElementById('table-{%d i %}').style.display='block'">expand</button>
       </h4>
-      <div id="table-{%d i %}">
+      <div id="table-{%d i %}" class="row">
+      <div class="col-4 mb-2">
+          <input type="text" id="search-{%d i %}" placeholder="Search" class="form-control" />
+          <small class="form-text text-muted">
+            Enter text or regexp and it will filter by two fields <span class="badge bg-light text-dark">endpoint</span>
+            or
+            <span class="badge bg-light text-dark">labels</span>
+          </small>
+      </div>
       <table class="table table-striped table-hover table-bordered table-sm">
         <thead>
           <tr>
@@ -102,7 +90,7 @@ function expand_all() {
             <th scope="col" title="error from the last scrape (if any)">Last error</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="list-{%d i %}">
           {% for _, ts := range js.targetsStatus %}
             {% code
               endpoint := ts.sw.Config.ScrapeURL
@@ -111,11 +99,11 @@ function expand_all() {
             %}
             {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
             <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert"{% endif %}>
-              <td><a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
+              <td class="endpoint"><a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
                 <a href="target_response?id={%s targetID %}" target="_blank" title="click to fetch target response on behalf of the scraper">response</a>
               )</td>
               <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
-              <td>
+              <td class="labels">
 		<div title="click to show original labels" onclick="document.getElementById('original_labels_{%s targetID %}').style.display='block'">
                   {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
                 </div>
@@ -163,6 +151,73 @@ function expand_all() {
     </div>
   {% endfor %}
 </body>
+<script src="//cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<script>
+function collapse_all() {
+  for (var i = 0; i < {%d len(jts) %}; i++) {
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+        continue;
+    }
+    el.style.display = 'none';
+  }
+}
+function expand_all() {
+  for (var i = 0; i < {%d len(jts) %}; i++) {
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+      continue;
+    }
+    el.style.display = 'block';
+  }
+}
+</script>
+<script>
+    var usersLists = [];
+    for (var i = 0; i <= {%d len(jts) %}-1; i++) {
+            var options = {
+                valueNames: [ 'endpoint', 'labels' ],
+                listClass: `list-${i}`
+            };
+
+        usersLists.push({ listObj: new List(`table-${i}`, options), input: document.querySelector(`#search-${i}`)});
+    }
+
+    usersLists.forEach((obj) => {
+        obj.listObj.search('', ['endpoint'], searchFunction);
+        obj.listObj.search('', ['labels'], searchFunction);
+
+        obj.input.addEventListener('keyup', debounce(function(event) {
+              obj.listObj.search(event.target.value, ['endpoint'], searchFunction);
+              obj.listObj.search(event.target.value, ['labels'], searchFunction);
+        }));
+
+        function searchFunction(searchString, columns) {
+
+            console.log(columns);
+            for (var k = 0, kl = obj.listObj.items.length; k < kl; k++) {
+                const text = obj.listObj.items[k]._values[columns[0]]; console.log(text);
+                obj.listObj.items[k].found = regexpSearch(searchString, text);
+            }
+        }
+    });
+
+    function regexpSearch(searchString, text) {
+        var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";
+        var searchRegexObj = new RegExp(searchRegex,"gm");
+        console.log(searchRegex);
+        console.log(text.search(searchRegexObj));
+        return (searchString !== "") && (text.search(searchRegexObj) > -1);
+    }
+
+    function debounce(func, timeout = 300){
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { func.apply(this, args); }, timeout);
+        };
+    }
+</script>
 </html>
 {% endfunc %}
 
