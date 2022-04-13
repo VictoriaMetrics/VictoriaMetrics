@@ -52,7 +52,7 @@ To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
-aggregating alerts, and sending notifications. Please note, notifier address also supports Consul Service Discovery via
+aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
 [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
@@ -850,8 +850,9 @@ Notifier also supports configuration via file specified with flag `notifier.conf
   -notifier.config=app/vmalert/notifier/testdata/consul.good.yaml
 ```
 
-The configuration file allows to configure static notifiers or discover notifiers via
-[Consul](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config).
+The configuration file allows to configure static notifiers, discover notifiers via
+[Consul](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
+and [DNS](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config):
 For example:
 
 ```
@@ -864,6 +865,12 @@ consul_sd_configs:
   - server: localhost:8500
     services:
       - alertmanager
+      
+dns_sd_configs:
+  - names:
+      - my.domain.com
+    type: 'A'
+    port: 9093
 ```
 
 The list of configured or discovered Notifiers can be explored via [UI](#Web).
@@ -914,6 +921,11 @@ static_configs:
 # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 consul_sd_configs:
   [ - <consul_sd_config> ... ]
+
+# List of DNS service discovery configurations.
+# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+dns_sd_configs:
+  [ - <dns_sd_config> ... ]
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
