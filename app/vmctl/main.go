@@ -215,7 +215,7 @@ func main() {
 
 	err = app.Run(os.Args)
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 	log.Printf("Total time: %v", time.Since(start))
 }
