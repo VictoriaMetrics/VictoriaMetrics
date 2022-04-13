@@ -180,24 +180,22 @@ function expand_all() {
                 listClass: `list-${i}`
             };
 
-        usersLists.push({ listObj: new List(`table-${i}`, options), input: document.querySelector(`#search-${i}`)});
+        usersLists.push({ lists: new List(`table-${i}`, options), input: document.querySelector(`#search-${i}`)});
     }
 
-    usersLists.forEach((obj) => {
-        obj.listObj.search('', ['endpoint'], searchFunction);
-        obj.listObj.search('', ['labels'], searchFunction);
+    usersLists.forEach((userList) => {
+        userList.lists.search('', ['endpoint'], searchFunction);
+        userList.lists.search('', ['labels'], searchFunction);
 
-        obj.input.addEventListener('keyup', debounce(function(event) {
-              obj.listObj.search(event.target.value, ['endpoint'], searchFunction);
-              obj.listObj.search(event.target.value, ['labels'], searchFunction);
+        userList.input.addEventListener('keyup', debounce(function(event) {
+              userList.lists.search(event.target.value, ['endpoint'], searchFunction);
+              userList.lists.search(event.target.value, ['labels'], searchFunction);
         }));
 
         function searchFunction(searchString, columns) {
-
-            console.log(columns);
-            for (var k = 0, kl = obj.listObj.items.length; k < kl; k++) {
-                const text = obj.listObj.items[k]._values[columns[0]]; console.log(text);
-                obj.listObj.items[k].found = regexpSearch(searchString, text);
+            for (var k = 0, kl = userList.lists.items.length; k < kl; k++) {
+                const text = userList.lists.items[k]._values[columns[0]];
+                userList.lists.items[k].found = regexpSearch(searchString, text);
             }
         }
     });
@@ -205,8 +203,6 @@ function expand_all() {
     function regexpSearch(searchString, text) {
         var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";
         var searchRegexObj = new RegExp(searchRegex,"gm");
-        console.log(searchRegex);
-        console.log(text.search(searchRegexObj));
         return (searchString !== "") && (text.search(searchRegexObj) > -1);
     }
 

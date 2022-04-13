@@ -410,7 +410,7 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line targetstatus.qtpl:177
 	qw422016.N().S("`")
 //line targetstatus.qtpl:177
-	qw422016.N().S(`};usersLists.push({ listObj: new List(`)
+	qw422016.N().S(`};usersLists.push({ lists: new List(`)
 //line targetstatus.qtpl:177
 	qw422016.N().S("`")
 //line targetstatus.qtpl:177
@@ -426,85 +426,85 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line targetstatus.qtpl:177
 	qw422016.N().S("`")
 //line targetstatus.qtpl:177
-	qw422016.N().S(`)});}usersLists.forEach((obj) => {obj.listObj.search('', ['endpoint'], searchFunction);obj.listObj.search('', ['labels'], searchFunction);obj.input.addEventListener('keyup', debounce(function(event) {obj.listObj.search(event.target.value, ['endpoint'], searchFunction);obj.listObj.search(event.target.value, ['labels'], searchFunction);}));function searchFunction(searchString, columns) {console.log(columns);for (var k = 0, kl = obj.listObj.items.length; k < kl; k++) {const text = obj.listObj.items[k]._values[columns[0]]; console.log(text);obj.listObj.items[k].found = regexpSearch(searchString, text);}}});function regexpSearch(searchString, text) {var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";var searchRegexObj = new RegExp(searchRegex,"gm");console.log(searchRegex);console.log(text.search(searchRegexObj));return (searchString !== "") && (text.search(searchRegexObj) > -1);}function debounce(func, timeout = 300){let timer;return (...args) => {clearTimeout(timer);timer = setTimeout(() => { func.apply(this, args); }, timeout);};}</script></html>`)
-//line targetstatus.qtpl:222
+	qw422016.N().S(`)});}usersLists.forEach((userList) => {userList.lists.search('', ['endpoint'], searchFunction);userList.lists.search('', ['labels'], searchFunction);userList.input.addEventListener('keyup', debounce(function(event) {userList.lists.search(event.target.value, ['endpoint'], searchFunction);userList.lists.search(event.target.value, ['labels'], searchFunction);}));function searchFunction(searchString, columns) {for (var k = 0, kl = userList.lists.items.length; k < kl; k++) {const text = userList.lists.items[k]._values[columns[0]];userList.lists.items[k].found = regexpSearch(searchString, text);}}});function regexpSearch(searchString, text) {var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";var searchRegexObj = new RegExp(searchRegex,"gm");return (searchString !== "") && (text.search(searchRegexObj) > -1);}function debounce(func, timeout = 300){let timer;return (...args) => {clearTimeout(timer);timer = setTimeout(() => { func.apply(this, args); }, timeout);};}</script></html>`)
+//line targetstatus.qtpl:218
 }
 
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 func WriteTargetsResponseHTML(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) {
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	StreamTargetsResponseHTML(qw422016, jts, emptyJobs, onlyUnhealthy)
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	qt422016.ReleaseWriter(qw422016)
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 }
 
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) string {
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	qb422016 := qt422016.AcquireByteBuffer()
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	WriteTargetsResponseHTML(qb422016, jts, emptyJobs, onlyUnhealthy)
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	qs422016 := string(qb422016.B)
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	qt422016.ReleaseByteBuffer(qb422016)
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 	return qs422016
-//line targetstatus.qtpl:222
+//line targetstatus.qtpl:218
 }
 
-//line targetstatus.qtpl:224
+//line targetstatus.qtpl:220
 func streamformatLabel(qw422016 *qt422016.Writer, labels []prompbmarshal.Label) {
-//line targetstatus.qtpl:224
+//line targetstatus.qtpl:220
 	qw422016.N().S(`{`)
-//line targetstatus.qtpl:226
+//line targetstatus.qtpl:222
 	for i, label := range labels {
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:223
 		qw422016.E().S(label.Name)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:223
 		qw422016.N().S(`=`)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:223
 		qw422016.E().Q(label.Value)
-//line targetstatus.qtpl:228
+//line targetstatus.qtpl:224
 		if i+1 < len(labels) {
-//line targetstatus.qtpl:228
+//line targetstatus.qtpl:224
 			qw422016.N().S(`,`)
-//line targetstatus.qtpl:228
+//line targetstatus.qtpl:224
 			qw422016.N().S(` `)
-//line targetstatus.qtpl:228
+//line targetstatus.qtpl:224
 		}
-//line targetstatus.qtpl:229
+//line targetstatus.qtpl:225
 	}
-//line targetstatus.qtpl:229
+//line targetstatus.qtpl:225
 	qw422016.N().S(`}`)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 }
 
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 func writeformatLabel(qq422016 qtio422016.Writer, labels []prompbmarshal.Label) {
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	streamformatLabel(qw422016, labels)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	qt422016.ReleaseWriter(qw422016)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 }
 
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 func formatLabel(labels []prompbmarshal.Label) string {
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	qb422016 := qt422016.AcquireByteBuffer()
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	writeformatLabel(qb422016, labels)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	qs422016 := string(qb422016.B)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	qt422016.ReleaseByteBuffer(qb422016)
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 	return qs422016
-//line targetstatus.qtpl:231
+//line targetstatus.qtpl:227
 }
