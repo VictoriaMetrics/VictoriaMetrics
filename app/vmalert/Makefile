@@ -83,7 +83,7 @@ run-vmalert-sd: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \
 		-datasource.url=http://localhost:8428 \
 		-remoteWrite.url=http://localhost:8428 \
-		-notifier.config=app/vmalert/notifier/testdata/consul.good.yaml \
+		-notifier.config=app/vmalert/notifier/testdata/mixed.good.yaml \
 		-configCheckInterval=10s
 
 replay-vmalert: vmalert
