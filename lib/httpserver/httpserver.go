@@ -33,7 +33,7 @@ var (
 	tlsEnable       = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set")
 	tlsCertFile     = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
 	tlsKeyFile      = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated")
-	tlsCipherSuites = flag.String("tlsCipherSuite", "", "Defines a list of cipher suites for example. It can be defined as tls cipher names (TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA) or uint16 numbers (0x2f,0x35). Used only if -tls is set. The provided ciphers suites is automatically re-read every second, so it can be dynamically updated")
+	tlsCipherSuites = flagutil.NewArray("tlsCipherSuite", "Defines a list of comma-separated cipher suites. It can be defined as tls cipher names (TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA). Used only if -tls is set.")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
@@ -106,9 +106,12 @@ func Serve(addr string, rh RequestHandler) {
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
-		if *tlsCipherSuites != "" {
-			definedCipherSuites := strings.Split(*tlsCipherSuites, ",")
-			cipherSuites = append(cipherSuites, collectCipherSuites(definedCipherSuites)...)
+		if len(*tlsCipherSuites) != 0 {
+			collectedCipherSuites, err := collectCipherSuites(*tlsCipherSuites)
+			if err != nil {
+				logger.Fatalf("cannot use TLS cipher suites from tlsCipherSuites=%q: %s", *tlsCipherSuites, err)
+			}
+			cipherSuites = append(cipherSuites, collectedCipherSuites...)
 		}
 		cert = &c
 		cfg := &tls.Config{
@@ -695,25 +698,20 @@ func GetRequestURI(r *http.Request) string {
 	return requestURI + delimiter + queryArgs
 }
 
-func collectCipherSuites(definedCipherSuites []string) []uint16 {
+func collectCipherSuites(definedCipherSuites []string) ([]uint16, error) {
 	var cipherSuites []uint16
 
 	supportedCipherSuites := tls.CipherSuites()
+	supportedCipherSuitesMap := make(map[string]uint16, len(supportedCipherSuites))
 	for _, scf := range supportedCipherSuites {
-		for _, gotSuite := range definedCipherSuites {
-			if strings.EqualFold(scf.Name, gotSuite) {
-				cipherSuites = append(cipherSuites, scf.ID)
-			} else {
-				parseUint, err := strconv.ParseUint(strings.TrimLeft(gotSuite, "0x"), 16, 16)
-				if err != nil {
-					continue
-				}
-				csID := uint16(parseUint)
-				if csID == scf.ID {
-					cipherSuites = append(cipherSuites, csID)
-				}
-			}
-		}
+		supportedCipherSuitesMap[strings.ToLower(scf.Name)] = scf.ID
 	}
-	return cipherSuites
+	for _, gotSuite := range definedCipherSuites {
+		id, ok := supportedCipherSuitesMap[strings.ToLower(gotSuite)]
+		if !ok {
+			return nil, fmt.Errorf("got unsupported cipher suite name: %s", gotSuite)
+		}
+		cipherSuites = append(cipherSuites, id)
+	}
+	return cipherSuites, nil
 }
