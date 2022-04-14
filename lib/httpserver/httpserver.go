@@ -701,7 +701,7 @@ func collectCipherSuites(definedCipherSuites []string) []uint16 {
 	supportedCipherSuites := tls.CipherSuites()
 	for _, scf := range supportedCipherSuites {
 		for _, gotSuite := range definedCipherSuites {
-			if scf.Name == gotSuite {
+			if strings.ToLower(scf.Name) == strings.ToLower(gotSuite) {
 				cipherSuites = append(cipherSuites, scf.ID)
 			} else {
 				parseUint, err := strconv.ParseUint(strings.TrimLeft(gotSuite, "0x"), 16, 16)

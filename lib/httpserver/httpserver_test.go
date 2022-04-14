@@ -35,6 +35,11 @@ func Test_validateCipherSuites(t *testing.T) {
 			want: []uint16{0x2f, 0x35},
 		},
 		{
+			name: "got correct string with different cases (upper and lower) cipher suite",
+			args: args{definedCipherSuites: []string{"tls_rsa_with_aes_128_cbc_sha", "TLS_RSA_WITH_AES_256_CBC_SHA"}},
+			want: []uint16{0x2f, 0x35},
+		},
+		{
 			name: "got correct number cipher suite",
 			args: args{definedCipherSuites: []string{"0x2f", "0x35"}},
 			want: []uint16{0x2f, 0x35},
