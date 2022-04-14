@@ -195,316 +195,318 @@ func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOrig
 //line targetstatus.qtpl:37
 func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) {
 //line targetstatus.qtpl:37
-	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"><title>Scrape targets</title></head><body class="m-3"><h1>Scrape targets</h1><div class="mb-4"><button type="button" class="me-1 btn`)
-//line targetstatus.qtpl:49
+	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"><title>Scrape targets</title></head><body class="py-3"><div class="container-fluid"><div class="row"><main class="col-12"><h1>Scrape targets</h1><div class="row mb-4"><div class="col-12"><button type="button" class="me-1 btn`)
+//line targetstatus.qtpl:53
 	qw422016.N().S(` `)
-//line targetstatus.qtpl:49
+//line targetstatus.qtpl:53
 	if !onlyUnhealthy {
-//line targetstatus.qtpl:49
+//line targetstatus.qtpl:53
 		qw422016.N().S(`btn-primary`)
-//line targetstatus.qtpl:49
+//line targetstatus.qtpl:53
 	} else {
-//line targetstatus.qtpl:49
+//line targetstatus.qtpl:53
 		qw422016.N().S(`btn-secondary`)
-//line targetstatus.qtpl:49
+//line targetstatus.qtpl:53
 	}
-//line targetstatus.qtpl:49
+//line targetstatus.qtpl:53
 	qw422016.N().S(`" onclick="location.href='targets'">All</button><button type="button" class="me-1 btn`)
-//line targetstatus.qtpl:52
+//line targetstatus.qtpl:56
 	qw422016.N().S(` `)
-//line targetstatus.qtpl:52
+//line targetstatus.qtpl:56
 	if onlyUnhealthy {
-//line targetstatus.qtpl:52
+//line targetstatus.qtpl:56
 		qw422016.N().S(`btn-primary`)
-//line targetstatus.qtpl:52
+//line targetstatus.qtpl:56
 	} else {
-//line targetstatus.qtpl:52
+//line targetstatus.qtpl:56
 		qw422016.N().S(`btn-secondary`)
-//line targetstatus.qtpl:52
+//line targetstatus.qtpl:56
 	}
-//line targetstatus.qtpl:52
-	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button><button type="button" class="btn btn-primary me-1" onclick="collapse_all()">Collapse all</button><button type="button" class="btn btn-secondary me-1" onclick="expand_all()">Expand all</button></div>`)
-//line targetstatus.qtpl:62
+//line targetstatus.qtpl:56
+	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button><button type="button" class="btn btn-primary me-1" onclick="collapse_all()">Collapse all</button><button type="button" class="btn btn-secondary me-1" onclick="expand_all()">Expand all</button></div></div><div class="row"><div class="col-12">`)
+//line targetstatus.qtpl:69
 	for i, js := range jts {
-//line targetstatus.qtpl:63
+//line targetstatus.qtpl:70
 		if onlyUnhealthy && js.upCount == js.targetsTotal {
-//line targetstatus.qtpl:63
+//line targetstatus.qtpl:70
 			continue
-//line targetstatus.qtpl:63
+//line targetstatus.qtpl:70
 		}
-//line targetstatus.qtpl:63
-		qw422016.N().S(`<div class="mb-4"><h4>`)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:70
+		qw422016.N().S(`<div class="row mb-4"><div class="col-12"><h4>`)
+//line targetstatus.qtpl:74
 		qw422016.E().S(js.job)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:74
 		qw422016.N().S(` `)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:74
 		qw422016.N().S(`(`)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:74
 		qw422016.N().D(js.upCount)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:74
 		qw422016.N().S(`/`)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:74
 		qw422016.N().D(js.targetsTotal)
-//line targetstatus.qtpl:66
+//line targetstatus.qtpl:74
 		qw422016.N().S(` `)
-//line targetstatus.qtpl:66
-		qw422016.N().S(`up)<button type="button" class="btn btn-primary me-1" onclick="document.getElementById('table-`)
-//line targetstatus.qtpl:67
+//line targetstatus.qtpl:74
+		qw422016.N().S(`up)</h4><div class="row mb-2"><div class="col-12"><button type="button" class="btn btn-primary me-1"onclick="document.getElementById('table-`)
+//line targetstatus.qtpl:79
 		qw422016.N().D(i)
-//line targetstatus.qtpl:67
-		qw422016.N().S(`').style.display='none'">collapse</button><button type="button" class="btn btn-secondary me-1" onclick="document.getElementById('table-`)
-//line targetstatus.qtpl:68
+//line targetstatus.qtpl:79
+		qw422016.N().S(`').style.display='none'">collapse</button><button type="button" class="btn btn-secondary me-1"onclick="document.getElementById('table-`)
+//line targetstatus.qtpl:82
 		qw422016.N().D(i)
-//line targetstatus.qtpl:68
-		qw422016.N().S(`').style.display='block'">expand</button></h4><div id="table-`)
-//line targetstatus.qtpl:70
+//line targetstatus.qtpl:82
+		qw422016.N().S(`').style.display='block'">expand</button></div></div><div id="table-`)
+//line targetstatus.qtpl:86
 		qw422016.N().D(i)
-//line targetstatus.qtpl:70
-		qw422016.N().S(`" class="row"><div class="col-4 mb-2"><input type="text" id="search-`)
-//line targetstatus.qtpl:72
+//line targetstatus.qtpl:86
+		qw422016.N().S(`" class="table-responsive"><div class="col-4 mb-2"><input type="text" id="search-`)
+//line targetstatus.qtpl:88
 		qw422016.N().D(i)
-//line targetstatus.qtpl:72
-		qw422016.N().S(`" placeholder="Search" class="form-control" /><small class="form-text text-muted">Enter text or regexp and it will filter by two fields <span class="badge bg-light text-dark">endpoint</span>or<span class="badge bg-light text-dark">labels</span></small></div><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col" title="scrape target labels">Labels</th><th scope="col" title="total scrapes">Scrapes</th><th scope="col" title="total scrape errors">Errors</th><th scope="col" title="the time of the last scrape">Last Scrape</th><th scope="col" title="the duration of the last scrape">Duration</th><th scope="col" title="the number of metrics scraped during the last scrape">Samples</th><th scope="col" title="error from the last scrape (if any)">Last error</th></tr></thead><tbody class="list-`)
-//line targetstatus.qtpl:93
+//line targetstatus.qtpl:88
+		qw422016.N().S(`" placeholder="Search" class="form-control"/><small class="form-text text-muted">Enter text or regexp and it will filter by two fields <spanclass="badge bg-light text-dark">endpoint</span>or<span class="badge bg-light text-dark">labels</span></small></div><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col" title="scrape target labels">Labels</th><th scope="col" title="total scrapes">Scrapes</th><th scope="col" title="total scrape errors">Errors</th><th scope="col" title="the time of the last scrape">Last Scrape</th><th scope="col" title="the duration of the last scrape">Duration</th><th scope="col" title="the number of metrics scraped during the last scrape">Samples</th><th scope="col" title="error from the last scrape (if any)">Last error</th></tr></thead><tbody class="list-`)
+//line targetstatus.qtpl:110
 		qw422016.N().D(i)
-//line targetstatus.qtpl:93
+//line targetstatus.qtpl:110
 		qw422016.N().S(`">`)
-//line targetstatus.qtpl:94
+//line targetstatus.qtpl:111
 		for _, ts := range js.targetsStatus {
-//line targetstatus.qtpl:96
+//line targetstatus.qtpl:113
 			endpoint := ts.sw.Config.ScrapeURL
 			targetID := getTargetID(ts.sw)
 			lastScrapeTime := ts.getDurationFromLastScrape()
 
-//line targetstatus.qtpl:100
-			if onlyUnhealthy && ts.up {
-//line targetstatus.qtpl:100
-				continue
-//line targetstatus.qtpl:100
-			}
-//line targetstatus.qtpl:100
-			qw422016.N().S(`<tr`)
-//line targetstatus.qtpl:101
-			if !ts.up {
-//line targetstatus.qtpl:101
-				qw422016.N().S(` `)
-//line targetstatus.qtpl:101
-				qw422016.N().S(`class="alert alert-danger" role="alert"`)
-//line targetstatus.qtpl:101
-			}
-//line targetstatus.qtpl:101
-			qw422016.N().S(`><td class="endpoint"><a href="`)
-//line targetstatus.qtpl:102
-			qw422016.E().S(endpoint)
-//line targetstatus.qtpl:102
-			qw422016.N().S(`" target="_blank">`)
-//line targetstatus.qtpl:102
-			qw422016.E().S(endpoint)
-//line targetstatus.qtpl:102
-			qw422016.N().S(`</a> (<a href="target_response?id=`)
-//line targetstatus.qtpl:103
-			qw422016.E().S(targetID)
-//line targetstatus.qtpl:103
-			qw422016.N().S(`" target="_blank" title="click to fetch target response on behalf of the scraper">response</a>)</td><td>`)
-//line targetstatus.qtpl:105
-			if ts.up {
-//line targetstatus.qtpl:105
-				qw422016.N().S(`UP`)
-//line targetstatus.qtpl:105
-			} else {
-//line targetstatus.qtpl:105
-				qw422016.N().S(`DOWN`)
-//line targetstatus.qtpl:105
-			}
-//line targetstatus.qtpl:105
-			qw422016.N().S(`</td><td class="labels"><div title="click to show original labels" onclick="document.getElementById('original_labels_`)
-//line targetstatus.qtpl:107
-			qw422016.E().S(targetID)
-//line targetstatus.qtpl:107
-			qw422016.N().S(`').style.display='block'">`)
-//line targetstatus.qtpl:108
-			streamformatLabel(qw422016, promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels))
-//line targetstatus.qtpl:108
-			qw422016.N().S(`</div><div style="display:none" id="original_labels_`)
-//line targetstatus.qtpl:110
-			qw422016.E().S(targetID)
-//line targetstatus.qtpl:110
-			qw422016.N().S(`">`)
-//line targetstatus.qtpl:111
-			streamformatLabel(qw422016, ts.sw.Config.OriginalLabels)
-//line targetstatus.qtpl:111
-			qw422016.N().S(`</div></td><td>`)
-//line targetstatus.qtpl:114
-			qw422016.N().D(ts.scrapesTotal)
-//line targetstatus.qtpl:114
-			qw422016.N().S(`</td><td>`)
-//line targetstatus.qtpl:115
-			qw422016.N().D(ts.scrapesFailed)
-//line targetstatus.qtpl:115
-			qw422016.N().S(`</td><td>`)
 //line targetstatus.qtpl:117
-			if lastScrapeTime < 365*24*time.Hour {
+			if onlyUnhealthy && ts.up {
+//line targetstatus.qtpl:117
+				continue
+//line targetstatus.qtpl:117
+			}
+//line targetstatus.qtpl:117
+			qw422016.N().S(`<tr`)
 //line targetstatus.qtpl:118
-				qw422016.N().FPrec(lastScrapeTime.Seconds(), 3)
+			if !ts.up {
 //line targetstatus.qtpl:118
-				qw422016.N().S(`s ago`)
+				qw422016.N().S(` `)
+//line targetstatus.qtpl:118
+				qw422016.N().S(`class="alert alert-danger" role="alert"`)
+//line targetstatus.qtpl:118
+			}
+//line targetstatus.qtpl:118
+			qw422016.N().S(`><td class="endpoint"><a href="`)
 //line targetstatus.qtpl:119
+			qw422016.E().S(endpoint)
+//line targetstatus.qtpl:119
+			qw422016.N().S(`" target="_blank">`)
+//line targetstatus.qtpl:119
+			qw422016.E().S(endpoint)
+//line targetstatus.qtpl:119
+			qw422016.N().S(`</a> (<a href="target_response?id=`)
+//line targetstatus.qtpl:120
+			qw422016.E().S(targetID)
+//line targetstatus.qtpl:120
+			qw422016.N().S(`" target="_blank"title="click to fetch target response on behalf of the scraper">response</a>)</td><td>`)
+//line targetstatus.qtpl:124
+			if ts.up {
+//line targetstatus.qtpl:124
+				qw422016.N().S(`UP`)
+//line targetstatus.qtpl:124
 			} else {
-//line targetstatus.qtpl:119
-				qw422016.N().S(`none`)
-//line targetstatus.qtpl:121
-			}
-//line targetstatus.qtpl:121
-			qw422016.N().S(`<td>`)
-//line targetstatus.qtpl:122
-			qw422016.N().D(int(ts.scrapeDuration))
-//line targetstatus.qtpl:122
-			qw422016.N().S(`ms</td><td>`)
-//line targetstatus.qtpl:123
-			qw422016.N().D(ts.samplesScraped)
-//line targetstatus.qtpl:123
-			qw422016.N().S(`</td><td>`)
 //line targetstatus.qtpl:124
-			if ts.err != nil {
-//line targetstatus.qtpl:124
-				qw422016.E().S(ts.err.Error())
+				qw422016.N().S(`DOWN`)
 //line targetstatus.qtpl:124
 			}
 //line targetstatus.qtpl:124
-			qw422016.N().S(`</td></tr>`)
-//line targetstatus.qtpl:126
-		}
-//line targetstatus.qtpl:126
-		qw422016.N().S(`</tbody></table></div></div>`)
+			qw422016.N().S(`</td><td class="labels"><div title="click to show original labels"onclick="document.getElementById('original_labels_`)
+//line targetstatus.qtpl:127
+			qw422016.E().S(targetID)
+//line targetstatus.qtpl:127
+			qw422016.N().S(`').style.display='block'">`)
+//line targetstatus.qtpl:128
+			streamformatLabel(qw422016, promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels))
+//line targetstatus.qtpl:128
+			qw422016.N().S(`</div><div style="display:none" id="original_labels_`)
+//line targetstatus.qtpl:130
+			qw422016.E().S(targetID)
+//line targetstatus.qtpl:130
+			qw422016.N().S(`">`)
 //line targetstatus.qtpl:131
-	}
-//line targetstatus.qtpl:133
-	for _, jobName := range emptyJobs {
-//line targetstatus.qtpl:133
-		qw422016.N().S(`<div><h4><a>`)
-//line targetstatus.qtpl:136
-		qw422016.E().S(jobName)
-//line targetstatus.qtpl:136
-		qw422016.N().S(`(0/0 up)</a></h4><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col">Labels</th><th scope="col">Last Scrape</th><th scope="col">Scrape Duration</th><th scope="col">Samples Scraped</th><th scope="col">Error</th></tr></thead></table></div>`)
-//line targetstatus.qtpl:152
-	}
-//line targetstatus.qtpl:152
-	qw422016.N().S(`</body><script src="//cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script><script>function collapse_all() {for (var i = 0; i <`)
-//line targetstatus.qtpl:157
-	qw422016.N().D(len(jts))
-//line targetstatus.qtpl:157
-	qw422016.N().S(`; i++) {let el = document.getElementById("table-" + i);if (!el) {continue;}el.style.display = 'none';}}function expand_all() {for (var i = 0; i <`)
-//line targetstatus.qtpl:166
-	qw422016.N().D(len(jts))
-//line targetstatus.qtpl:166
-	qw422016.N().S(`; i++) {let el = document.getElementById("table-" + i);if (!el) {continue;}el.style.display = 'block';}}</script><script>var usersLists = [];for (var i = 0; i <=`)
-//line targetstatus.qtpl:177
-	qw422016.N().D(len(jts))
-//line targetstatus.qtpl:177
-	qw422016.N().S(`-1; i++) {var options = {valueNames: [ 'endpoint', 'labels' ],listClass: `)
-//line targetstatus.qtpl:177
-	qw422016.N().S("`")
-//line targetstatus.qtpl:177
-	qw422016.N().S(`list-${i}`)
-//line targetstatus.qtpl:177
-	qw422016.N().S("`")
-//line targetstatus.qtpl:177
-	qw422016.N().S(`};usersLists.push({ lists: new List(`)
-//line targetstatus.qtpl:177
-	qw422016.N().S("`")
-//line targetstatus.qtpl:177
-	qw422016.N().S(`table-${i}`)
-//line targetstatus.qtpl:177
-	qw422016.N().S("`")
-//line targetstatus.qtpl:177
-	qw422016.N().S(`, options), input: document.querySelector(`)
-//line targetstatus.qtpl:177
-	qw422016.N().S("`")
-//line targetstatus.qtpl:177
-	qw422016.N().S(`#search-${i}`)
-//line targetstatus.qtpl:177
-	qw422016.N().S("`")
-//line targetstatus.qtpl:177
-	qw422016.N().S(`)});}usersLists.forEach((userList) => {userList.lists.search('', ['endpoint'], searchFunction);userList.lists.search('', ['labels'], searchFunction);userList.input.addEventListener('keyup', debounce(function(event) {userList.lists.search(event.target.value, ['endpoint'], searchFunction);userList.lists.search(event.target.value, ['labels'], searchFunction);}));function searchFunction(searchString, columns) {for (var k = 0, kl = userList.lists.items.length; k < kl; k++) {const text = userList.lists.items[k]._values[columns[0]];userList.lists.items[k].found = regexpSearch(searchString, text);}}});function regexpSearch(searchString, text) {var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";var searchRegexObj = new RegExp(searchRegex,"gm");return (searchString !== "") && (text.search(searchRegexObj) > -1);}function debounce(func, timeout = 300){let timer;return (...args) => {clearTimeout(timer);timer = setTimeout(() => { func.apply(this, args); }, timeout);};}</script></html>`)
-//line targetstatus.qtpl:218
-}
-
-//line targetstatus.qtpl:218
-func WriteTargetsResponseHTML(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) {
-//line targetstatus.qtpl:218
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line targetstatus.qtpl:218
-	StreamTargetsResponseHTML(qw422016, jts, emptyJobs, onlyUnhealthy)
-//line targetstatus.qtpl:218
-	qt422016.ReleaseWriter(qw422016)
-//line targetstatus.qtpl:218
-}
-
-//line targetstatus.qtpl:218
-func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) string {
-//line targetstatus.qtpl:218
-	qb422016 := qt422016.AcquireByteBuffer()
-//line targetstatus.qtpl:218
-	WriteTargetsResponseHTML(qb422016, jts, emptyJobs, onlyUnhealthy)
-//line targetstatus.qtpl:218
-	qs422016 := string(qb422016.B)
-//line targetstatus.qtpl:218
-	qt422016.ReleaseByteBuffer(qb422016)
-//line targetstatus.qtpl:218
-	return qs422016
-//line targetstatus.qtpl:218
-}
-
-//line targetstatus.qtpl:220
-func streamformatLabel(qw422016 *qt422016.Writer, labels []prompbmarshal.Label) {
-//line targetstatus.qtpl:220
-	qw422016.N().S(`{`)
-//line targetstatus.qtpl:222
-	for i, label := range labels {
-//line targetstatus.qtpl:223
-		qw422016.E().S(label.Name)
-//line targetstatus.qtpl:223
-		qw422016.N().S(`=`)
-//line targetstatus.qtpl:223
-		qw422016.E().Q(label.Value)
-//line targetstatus.qtpl:224
-		if i+1 < len(labels) {
-//line targetstatus.qtpl:224
-			qw422016.N().S(`,`)
-//line targetstatus.qtpl:224
-			qw422016.N().S(` `)
-//line targetstatus.qtpl:224
+			streamformatLabel(qw422016, ts.sw.Config.OriginalLabels)
+//line targetstatus.qtpl:131
+			qw422016.N().S(`</div></td><td>`)
+//line targetstatus.qtpl:134
+			qw422016.N().D(ts.scrapesTotal)
+//line targetstatus.qtpl:134
+			qw422016.N().S(`</td><td>`)
+//line targetstatus.qtpl:135
+			qw422016.N().D(ts.scrapesFailed)
+//line targetstatus.qtpl:135
+			qw422016.N().S(`</td><td>`)
+//line targetstatus.qtpl:137
+			if lastScrapeTime < 365*24*time.Hour {
+//line targetstatus.qtpl:138
+				qw422016.N().FPrec(lastScrapeTime.Seconds(), 3)
+//line targetstatus.qtpl:138
+				qw422016.N().S(`s ago`)
+//line targetstatus.qtpl:139
+			} else {
+//line targetstatus.qtpl:139
+				qw422016.N().S(`none`)
+//line targetstatus.qtpl:141
+			}
+//line targetstatus.qtpl:141
+			qw422016.N().S(`<td>`)
+//line targetstatus.qtpl:142
+			qw422016.N().D(int(ts.scrapeDuration))
+//line targetstatus.qtpl:142
+			qw422016.N().S(`ms</td><td>`)
+//line targetstatus.qtpl:143
+			qw422016.N().D(ts.samplesScraped)
+//line targetstatus.qtpl:143
+			qw422016.N().S(`</td><td>`)
+//line targetstatus.qtpl:144
+			if ts.err != nil {
+//line targetstatus.qtpl:144
+				qw422016.E().S(ts.err.Error())
+//line targetstatus.qtpl:144
+			}
+//line targetstatus.qtpl:144
+			qw422016.N().S(`</td></tr>`)
+//line targetstatus.qtpl:146
 		}
-//line targetstatus.qtpl:225
+//line targetstatus.qtpl:146
+		qw422016.N().S(`</tbody></table></div></div></div>`)
+//line targetstatus.qtpl:152
 	}
-//line targetstatus.qtpl:225
-	qw422016.N().S(`}`)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:152
+	qw422016.N().S(`</div></div>`)
+//line targetstatus.qtpl:156
+	for _, jobName := range emptyJobs {
+//line targetstatus.qtpl:156
+		qw422016.N().S(`<div><h4><a>`)
+//line targetstatus.qtpl:159
+		qw422016.E().S(jobName)
+//line targetstatus.qtpl:159
+		qw422016.N().S(`(0/0 up)</a></h4><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col">Labels</th><th scope="col">Last Scrape</th><th scope="col">Scrape Duration</th><th scope="col">Samples Scraped</th><th scope="col">Error</th></tr></thead></table></div>`)
+//line targetstatus.qtpl:175
+	}
+//line targetstatus.qtpl:175
+	qw422016.N().S(`</main></div></div></body><script src="//cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script><script>function collapse_all() {for (var i = 0; i <`)
+//line targetstatus.qtpl:184
+	qw422016.N().D(len(jts))
+//line targetstatus.qtpl:184
+	qw422016.N().S(`; i++) {let el = document.getElementById("table-" + i);if (!el) {continue;}el.style.display = 'none';}}function expand_all() {for (var i = 0; i <`)
+//line targetstatus.qtpl:193
+	qw422016.N().D(len(jts))
+//line targetstatus.qtpl:193
+	qw422016.N().S(`; i++) {let el = document.getElementById("table-" + i);if (!el) {continue;}el.style.display = 'block';}}</script><script>var usersLists = [];for (var i = 0; i <=`)
+//line targetstatus.qtpl:204
+	qw422016.N().D(len(jts))
+//line targetstatus.qtpl:204
+	qw422016.N().S(`-1; i++) {var options = {valueNames: [ 'endpoint', 'labels' ],listClass: `)
+//line targetstatus.qtpl:204
+	qw422016.N().S("`")
+//line targetstatus.qtpl:204
+	qw422016.N().S(`list-${i}`)
+//line targetstatus.qtpl:204
+	qw422016.N().S("`")
+//line targetstatus.qtpl:204
+	qw422016.N().S(`};usersLists.push({ lists: new List(`)
+//line targetstatus.qtpl:204
+	qw422016.N().S("`")
+//line targetstatus.qtpl:204
+	qw422016.N().S(`table-${i}`)
+//line targetstatus.qtpl:204
+	qw422016.N().S("`")
+//line targetstatus.qtpl:204
+	qw422016.N().S(`, options), input: document.querySelector(`)
+//line targetstatus.qtpl:204
+	qw422016.N().S("`")
+//line targetstatus.qtpl:204
+	qw422016.N().S(`#search-${i}`)
+//line targetstatus.qtpl:204
+	qw422016.N().S("`")
+//line targetstatus.qtpl:204
+	qw422016.N().S(`)});}usersLists.forEach((userList) => {userList.lists.search('', ['endpoint'], searchFunction);userList.lists.search('', ['labels'], searchFunction);userList.input.addEventListener('keyup', debounce(function(event) {userList.lists.search(event.target.value, ['endpoint'], searchFunction);userList.lists.search(event.target.value, ['labels'], searchFunction);}));function searchFunction(searchString, columns) {for (var k = 0, kl = userList.lists.items.length; k < kl; k++) {const text = userList.lists.items[k]._values[columns[0]];userList.lists.items[k].found = regexpSearch(searchString, text);}}});function regexpSearch(searchString, text) {var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";var searchRegexObj = new RegExp(searchRegex,"gm");return (searchString !== "") && (text.search(searchRegexObj) > -1);}function debounce(func, timeout = 300){let timer;return (...args) => {clearTimeout(timer);timer = setTimeout(() => { func.apply(this, args); }, timeout);};}</script></html>`)
+//line targetstatus.qtpl:245
 }
 
-//line targetstatus.qtpl:227
-func writeformatLabel(qq422016 qtio422016.Writer, labels []prompbmarshal.Label) {
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
+func WriteTargetsResponseHTML(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) {
+//line targetstatus.qtpl:245
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line targetstatus.qtpl:227
-	streamformatLabel(qw422016, labels)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
+	StreamTargetsResponseHTML(qw422016, jts, emptyJobs, onlyUnhealthy)
+//line targetstatus.qtpl:245
 	qt422016.ReleaseWriter(qw422016)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
 }
 
-//line targetstatus.qtpl:227
-func formatLabel(labels []prompbmarshal.Label) string {
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
+func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) string {
+//line targetstatus.qtpl:245
 	qb422016 := qt422016.AcquireByteBuffer()
-//line targetstatus.qtpl:227
-	writeformatLabel(qb422016, labels)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
+	WriteTargetsResponseHTML(qb422016, jts, emptyJobs, onlyUnhealthy)
+//line targetstatus.qtpl:245
 	qs422016 := string(qb422016.B)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
 	qt422016.ReleaseByteBuffer(qb422016)
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
 	return qs422016
-//line targetstatus.qtpl:227
+//line targetstatus.qtpl:245
+}
+
+//line targetstatus.qtpl:247
+func streamformatLabel(qw422016 *qt422016.Writer, labels []prompbmarshal.Label) {
+//line targetstatus.qtpl:247
+	qw422016.N().S(`{`)
+//line targetstatus.qtpl:249
+	for i, label := range labels {
+//line targetstatus.qtpl:250
+		qw422016.E().S(label.Name)
+//line targetstatus.qtpl:250
+		qw422016.N().S(`=`)
+//line targetstatus.qtpl:250
+		qw422016.E().Q(label.Value)
+//line targetstatus.qtpl:251
+		if i+1 < len(labels) {
+//line targetstatus.qtpl:251
+			qw422016.N().S(`,`)
+//line targetstatus.qtpl:251
+			qw422016.N().S(` `)
+//line targetstatus.qtpl:251
+		}
+//line targetstatus.qtpl:252
+	}
+//line targetstatus.qtpl:252
+	qw422016.N().S(`}`)
+//line targetstatus.qtpl:254
+}
+
+//line targetstatus.qtpl:254
+func writeformatLabel(qq422016 qtio422016.Writer, labels []prompbmarshal.Label) {
+//line targetstatus.qtpl:254
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line targetstatus.qtpl:254
+	streamformatLabel(qw422016, labels)
+//line targetstatus.qtpl:254
+	qt422016.ReleaseWriter(qw422016)
+//line targetstatus.qtpl:254
+}
+
+//line targetstatus.qtpl:254
+func formatLabel(labels []prompbmarshal.Label) string {
+//line targetstatus.qtpl:254
+	qb422016 := qt422016.AcquireByteBuffer()
+//line targetstatus.qtpl:254
+	writeformatLabel(qb422016, labels)
+//line targetstatus.qtpl:254
+	qs422016 := string(qb422016.B)
+//line targetstatus.qtpl:254
+	qt422016.ReleaseByteBuffer(qb422016)
+//line targetstatus.qtpl:254
+	return qs422016
+//line targetstatus.qtpl:254
 }
