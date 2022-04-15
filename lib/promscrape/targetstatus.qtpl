@@ -34,7 +34,7 @@ job={%q= jobName %} (0/0 up)
 
 {% endfunc %}
 
-{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool) %}
+{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, searchQuery string) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,20 +48,31 @@ job={%q= jobName %} (0/0 up)
             <div class="row">
                 <main class="col-12">
                     <h1>Scrape targets</h1>
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <button type="button" class="me-1 btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-auto">
+                            <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
                                 All
                             </button>
-                            <button type="button" class="me-1 btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
                                 Unhealthy
                             </button>
-                            <button type="button" class="btn btn-primary me-1" onclick="collapse_all()">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-primary" onclick="collapse_all()">
                                 Collapse all
                             </button>
-                            <button type="button" class="btn btn-secondary me-1" onclick="expand_all()">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-secondary" onclick="expand_all()">
                                 Expand all
                             </button>
+                        </div>
+                        <div class="col-auto">
+                            <form action="/targets" method="get" accept-charset="utf-8">
+                                <input type="text" id="search" name="search" placeholder="Search" class="form-control" value="{%s searchQuery %}"/>
+                            </form>
                         </div>
                     </div>
                     <div class="row">
@@ -84,15 +95,6 @@ job={%q= jobName %} (0/0 up)
                                         </div>
                                     </div>
                                     <div id="table-{%d i %}" class="table-responsive">
-                                        <div class="col-4 mb-2">
-                                            <input type="text" id="search-{%d i %}" placeholder="Search" class="form-control"/>
-                                            <small class="form-text text-muted">
-                                                Enter text or regexp and it will filter by two fields <span
-                                                    class="badge bg-light text-dark">endpoint</span>
-                                                or
-                                                <span class="badge bg-light text-dark">labels</span>
-                                            </small>
-                                        </div>
                                         <table class="table table-striped table-hover table-bordered table-sm">
                                             <thead>
                                             <tr>
@@ -178,7 +180,6 @@ job={%q= jobName %} (0/0 up)
         </div>
 
 </body>
-<script src="//cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
 <script>
 function collapse_all() {
   for (var i = 0; i < {%d len(jts) %}; i++) {
@@ -198,48 +199,6 @@ function expand_all() {
     el.style.display = 'block';
   }
 }
-</script>
-<script>
-    var usersLists = [];
-    for (var i = 0; i <= {%d len(jts) %}-1; i++) {
-            var options = {
-                valueNames: [ 'endpoint', 'labels' ],
-                listClass: `list-${i}`
-            };
-
-        usersLists.push({ lists: new List(`table-${i}`, options), input: document.querySelector(`#search-${i}`)});
-    }
-
-    usersLists.forEach((userList) => {
-        userList.lists.search('', ['endpoint'], searchFunction);
-        userList.lists.search('', ['labels'], searchFunction);
-
-        userList.input.addEventListener('keyup', debounce(function(event) {
-              userList.lists.search(event.target.value, ['endpoint'], searchFunction);
-              userList.lists.search(event.target.value, ['labels'], searchFunction);
-        }));
-
-        function searchFunction(searchString, columns) {
-            for (var k = 0, kl = userList.lists.items.length; k < kl; k++) {
-                const text = userList.lists.items[k]._values[columns[0]];
-                userList.lists.items[k].found = regexpSearch(searchString, text);
-            }
-        }
-    });
-
-    function regexpSearch(searchString, text) {
-        var searchRegex = "(?=.*"+searchString.replace(/(?:\W+)/g,")(?=.*")+").*";
-        var searchRegexObj = new RegExp(searchRegex,"gm");
-        return (searchString !== "") && (text.search(searchRegexObj) > -1);
-    }
-
-    function debounce(func, timeout = 300){
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => { func.apply(this, args); }, timeout);
-        };
-    }
 </script>
 </html>
 {% endfunc %}

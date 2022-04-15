@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,7 +22,10 @@ var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maxi
 	"Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. "+
 	"Note that the increased number of tracked dropped targets may result in increased memory usage")
 
-var tsmGlobal = newTargetStatusMap()
+var (
+	tsmGlobal = newTargetStatusMap()
+	filterReg = regexp.MustCompile(`/(?:\W+)/g`)
+)
 
 // WriteTargetResponse serves requests to /target_response?id=<id>
 //
@@ -45,9 +49,10 @@ func WriteTargetResponse(w http.ResponseWriter, r *http.Request) error {
 func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
 	showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 	showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
+	searchRequest := strings.TrimSpace(r.FormValue("search"))
 	if accept := r.Header.Get("Accept"); strings.Contains(accept, "text/html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy)
+		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, searchRequest)
 	} else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
@@ -355,6 +360,25 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 	return jts, emptyJobs
 }
 
+func filterJobs(jts []jobTargetsStatuses, searchQuery string) []jobTargetsStatuses {
+	regQuery := filterReg.ReplaceAllString(searchQuery, ")(?=.*")
+	finder := regexp.MustCompile(regQuery)
+
+	var filteredJts []jobTargetsStatuses
+	var ts []targetStatus
+	for _, job := range jts {
+		for _, targetStatus := range job.targetsStatus {
+			if finder.FindString(targetStatus.sw.Config.ScrapeURL) != "" ||
+				finder.FindString(targetStatus.sw.Config.LabelsString()) != "" {
+				ts = append(ts, targetStatus)
+				job.targetsStatus = ts
+				filteredJts = append(filteredJts, job)
+			}
+		}
+	}
+	return filteredJts
+}
+
 func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 	jobNamesMap := make(map[string]struct{}, len(jobNames))
 	for _, jobName := range jobNames {
@@ -373,9 +397,12 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
-func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool) {
+func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, searchQuery string) {
 	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy)
+	if searchQuery != "" {
+		jss = filterJobs(jss, searchQuery)
+	}
+	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, searchQuery)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
