@@ -223,7 +223,7 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line targetstatus.qtpl:58
 	}
 //line targetstatus.qtpl:58
-	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button></div><div class="col-auto"><button type="button" class="btn btn-primary" onclick="collapse_all()">Collapse all</button></div><div class="col-auto"><button type="button" class="btn btn-secondary" onclick="expand_all()">Expand all</button></div><div class="col-auto"><form action="/targets" method="get" accept-charset="utf-8"><input type="text" id="search" name="search" placeholder="Search" class="form-control" value="`)
+	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button></div><div class="col-auto"><button type="button" class="btn btn-primary" onclick="collapse_all()">Collapse all</button></div><div class="col-auto"><button type="button" class="btn btn-secondary" onclick="expand_all()">Expand all</button></div><div class="col-auto"><form action="/targets" method="get" accept-charset="utf-8"><input type="text" id="search" name="search" placeholder="Search: enter text or regexp" class="form-control" value="`)
 //line targetstatus.qtpl:74
 	qw422016.E().S(searchQuery)
 //line targetstatus.qtpl:74
