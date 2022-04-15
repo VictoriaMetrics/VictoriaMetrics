@@ -71,7 +71,7 @@ job={%q= jobName %} (0/0 up)
                         </div>
                         <div class="col-auto">
                             <form action="/targets" method="get" accept-charset="utf-8">
-                                <input type="text" id="search" name="search" placeholder="Search" class="form-control" value="{%s searchQuery %}"/>
+                                <input type="text" id="search" name="search" placeholder="Search: enter text or regexp" class="form-control" value="{%s searchQuery %}"/>
                             </form>
                         </div>
                     </div>
