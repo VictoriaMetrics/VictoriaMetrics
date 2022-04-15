@@ -125,8 +125,9 @@ A minimal cluster must contain the following nodes:
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
-It is recommended to run at least two nodes for each service
-for high availability purposes.
+It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
+
+It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
 
 An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes. It must contain the following routing configs according to [the url format](#url-format):
 
@@ -251,15 +252,18 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
 
 ## Cluster resizing and scalability
 
-Cluster performance and capacity scales with adding new nodes.
+Cluster performance and capacity can be scaled up in two ways:
 
-- `vminsert` and `vmselect` nodes are stateless and may be added / removed at any time.
-  Do not forget updating the list of these nodes on http load balancer.
-  Adding more `vminsert` nodes scales data ingestion rate. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/175#issuecomment-536925841)
-  about ingestion rate scalability.
-  Adding more `vmselect` nodes scales select queries rate.
-- `vmstorage` nodes own the ingested data, so they cannot be removed without data loss.
-  Adding more `vmstorage` nodes scales cluster capacity.
+- By adding more resources (CPU, RAM, disk IO, disk space, network bandwidth) to existing nodes in the cluster (aka vertical scalability).
+- By adding more nodes to the cluster (aka horizontal scalability).
+
+General recommendations for cluster scalability:
+
+- Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
+- Adding more `vmstorage` nodes increases the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload when some of `vmstorage` nodes become unavailable.
+- Adding more CPU and RAM to existing `vmstorage` nodes increases the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle. It is preferred to add more `vmstorage` nodes over adding more CPU and RAM to existing `vmstorage` nodes, since higher number of `vmstorage` nodes increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+- Adding more `vminsert` nodes increases the maximum possible data ingestion speed, since the ingested data may be split among bigger number of `vminsert` nodes.
+- Adding more `vmselect` nodes increases the maximum possible queries rate, since the incoming concurrent requests may be split among bigger number of `vmselect` nodes.
 
 Steps to add `vmstorage` node:
 
