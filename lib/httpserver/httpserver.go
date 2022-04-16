@@ -89,7 +89,7 @@ func Serve(addr string, rh RequestHandler) {
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
 	var tlsConfig *tls.Config
 	if *tlsEnable {
-		tc, err := netutil.GetServerTLSConfig("", *tlsCertFile, *tlsKeyFile, *tlsCipherSuites)
+		tc, err := netutil.GetServerTLSConfig(*tlsCertFile, *tlsKeyFile, *tlsCipherSuites)
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
