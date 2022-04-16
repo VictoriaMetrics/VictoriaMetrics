@@ -162,6 +162,8 @@ const (
 	TargetStatic TargetType = "static"
 	// TargetConsul is for targets discovered via Consul
 	TargetConsul TargetType = "consulSD"
+	// TargetDNS is for targets discovered via DNS
+	TargetDNS TargetType = "DNSSD"
 )
 
 // GetTargets returns list of static or discovered targets

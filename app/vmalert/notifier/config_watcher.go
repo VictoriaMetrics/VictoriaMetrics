@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 )
 
 // configWatcher supports dynamic reload of Notifier objects
@@ -193,6 +194,24 @@ func (cw *configWatcher) start() error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to start consulSD discovery: %s", err)
+		}
+	}
+
+	if len(cw.cfg.DNSSDConfigs) > 0 {
+		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]map[string]string, error) {
+			var labels []map[string]string
+			for i := range cw.cfg.DNSSDConfigs {
+				sdc := &cw.cfg.DNSSDConfigs[i]
+				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
+				if err != nil {
+					return nil, fmt.Errorf("got labels err: %s", err)
+				}
+				labels = append(labels, targetLabels...)
+			}
+			return labels, nil
+		})
+		if err != nil {
+			return fmt.Errorf("failed to start DNSSD discovery: %s", err)
 		}
 	}
 	return nil
