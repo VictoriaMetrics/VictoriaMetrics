@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func Test_validateCipherSuites(t *testing.T) {
+func TestCipherSuitesFromNames(t *testing.T) {
 	type args struct {
 		definedCipherSuites []string
 	}
@@ -65,9 +65,9 @@ func Test_validateCipherSuites(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := collectCipherSuites(tt.args.definedCipherSuites)
+			got, err := cipherSuitesFromNames(tt.args.definedCipherSuites)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("collectCipherSuites() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("cipherSuitesFromNames() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {

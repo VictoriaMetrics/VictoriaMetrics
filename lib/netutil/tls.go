@@ -20,7 +20,7 @@ func GetServerTLSConfig(tlsCAFile, tlsCertFile, tlsKeyFile string, tlsCipherSuit
 	if err != nil {
 		return nil, fmt.Errorf("cannot load TLS cert from certFile=%q, keyFile=%q: %w", tlsCertFile, tlsKeyFile, err)
 	}
-	cipherSuites, err := collectCipherSuites(tlsCipherSuites)
+	cipherSuites, err := cipherSuitesFromNames(tlsCipherSuites)
 	if err != nil {
 		return nil, fmt.Errorf("cannot use TLS cipher suites from tlsCipherSuites=%q: %w", tlsCipherSuites, err)
 	}
@@ -59,18 +59,20 @@ func GetServerTLSConfig(tlsCAFile, tlsCertFile, tlsKeyFile string, tlsCipherSuit
 	return cfg, nil
 }
 
-func collectCipherSuites(definedCipherSuites []string) ([]uint16, error) {
-	var cipherSuites []uint16
-
-	supportedCipherSuites := tls.CipherSuites()
-	supportedCipherSuitesMap := make(map[string]uint16, len(supportedCipherSuites))
-	for _, scf := range supportedCipherSuites {
-		supportedCipherSuitesMap[strings.ToLower(scf.Name)] = scf.ID
+func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
+	if len(cipherSuiteNames) == 0 {
+		return nil, nil
 	}
-	for _, gotSuite := range definedCipherSuites {
-		id, ok := supportedCipherSuitesMap[strings.ToLower(gotSuite)]
+	css := tls.CipherSuites()
+	cssMap := make(map[string]uint16, len(css))
+	for _, cs := range css {
+		cssMap[strings.ToLower(cs.Name)] = cs.ID
+	}
+	cipherSuites := make([]uint16, 0, len(cipherSuiteNames))
+	for _, name := range cipherSuiteNames {
+		id, ok := cssMap[strings.ToLower(name)]
 		if !ok {
-			return nil, fmt.Errorf("got unsupported cipher suite name: %s", gotSuite)
+			return nil, fmt.Errorf("unsupported TLS cipher suite name: %s", name)
 		}
 		cipherSuites = append(cipherSuites, id)
 	}
