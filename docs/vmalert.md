@@ -692,6 +692,8 @@ The shortlist of configuration flags is the following:
      The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
+  -promscrape.dnsSDCheckInterval duration
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
   -remoteRead.basicAuth.password string
      Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.passwordFile string
@@ -805,6 +807,9 @@ The shortlist of configuration flags is the following:
      Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
      Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
