@@ -44,7 +44,7 @@ type Config struct {
 	// AlertRelabelConfigs contains list of relabeling rules alert labels
 	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 	// The timeout used when sending alerts.
-	Timeout promutils.Duration `yaml:"timeout,omitempty"`
+	Timeout *promutils.Duration `yaml:"timeout,omitempty"`
 
 	// Checksum stores the hash of yaml definition for the config.
 	// May be used to detect any changes to the config file.
