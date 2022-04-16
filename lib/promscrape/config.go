@@ -83,6 +83,19 @@ type Config struct {
 	baseDir string
 }
 
+func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
+	data = envtemplate.Replace(data)
+	var err error
+	if isStrict {
+		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
+			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
+		}
+	} else {
+		err = yaml.Unmarshal(data, cfg)
+	}
+	return err
+}
+
 func (cfg *Config) marshal() []byte {
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -124,9 +137,9 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels map[string]string  `yaml:"external_labels,omitempty"`
+	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels map[string]string   `yaml:"external_labels,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -134,8 +147,8 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       promutils.Duration          `yaml:"scrape_interval"`
-	ScrapeTimeout        promutils.Duration          `yaml:"scrape_timeout"`
+	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
@@ -168,8 +181,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval promutils.Duration         `yaml:"scrape_align_interval"`
-	ScrapeOffset        promutils.Duration         `yaml:"scrape_offset"`
+	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -309,7 +322,7 @@ func IsDryRun() bool {
 }
 
 func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
-	if err := unmarshalMaybeStrict(data, cfg); err != nil {
+	if err := cfg.unmarshal(data, *strictParse); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal data: %w", err)
 	}
 	absPath, err := filepath.Abs(path)
@@ -347,19 +360,6 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 		sc.swc = swc
 	}
 	return dataNew, nil
-}
-
-func unmarshalMaybeStrict(data []byte, dst interface{}) error {
-	data = envtemplate.Replace(data)
-	var err error
-	if *strictParse {
-		if err = yaml.UnmarshalStrict(data, dst); err != nil {
-			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
-		}
-	} else {
-		err = yaml.Unmarshal(data, dst)
-	}
-	return err
 }
 
 func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
