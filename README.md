@@ -339,7 +339,7 @@ Then [promxy](https://github.com/jacksontj/promxy) could be used for querying th
 The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
 
 * Data ingestion speed is limited by the slowest link to AZ.
-* The cluster stops receiving new samples as soon as at least a single AZ becomes unavailable.
+* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporariliy unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent.html) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent.html#multitenancy). `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
