@@ -111,7 +111,7 @@ func Serve(addr string, rh RequestHandler) {
 			if err != nil {
 				logger.Fatalf("cannot use TLS cipher suites from tlsCipherSuites=%q: %s", *tlsCipherSuites, err)
 			}
-			cipherSuites = append(cipherSuites, collectedCipherSuites...)
+			cipherSuites = collectedCipherSuites
 		}
 		cert = &c
 		cfg := &tls.Config{
