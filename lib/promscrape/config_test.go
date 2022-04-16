@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,63 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
+
+func TestScrapeConfigUnmarshalMarshal(t *testing.T) {
+	f := func(data string) {
+		t.Helper()
+		var cfg Config
+		data = strings.TrimSpace(data)
+		if err := cfg.unmarshal([]byte(data), true); err != nil {
+			t.Fatalf("parse error: %s\ndata:\n%s", err, data)
+		}
+		resultData := string(cfg.marshal())
+		result := strings.TrimSpace(resultData)
+		if result != data {
+			t.Fatalf("unexpected marshaled config:\ngot\n%s\nwant\n%s", result, data)
+		}
+	}
+	f(`
+global:
+  scrape_interval: 10s
+`)
+	f(`
+scrape_config_files:
+- foo
+- bar
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  scrape_timeout: 1.5s
+  static_configs:
+  - targets:
+    - foo
+    - bar
+    labels:
+      foo: bar
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  honor_labels: true
+  honor_timestamps: false
+  scheme: https
+  params:
+    foo:
+    - x
+  authorization:
+    type: foobar
+  relabel_configs:
+  - source_labels: [abc]
+  static_configs:
+  - targets:
+    - foo
+  relabel_debug: true
+  scrape_align_interval: 1h30m0s
+  proxy_bearer_token_file: file.txt
+`)
+
+}
 
 func TestNeedSkipScrapeWork(t *testing.T) {
 	f := func(key string, membersCount, replicationFactor, memberNum int, needSkipExpected bool) {

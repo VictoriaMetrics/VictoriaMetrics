@@ -96,7 +96,8 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
 
   const getScales = (): Scales => {
     const scales: { [key: string]: { range: Scale.Range } } = {x: {range: getRangeX}};
-    Object.keys(yaxis.limits.range).forEach(axis => {
+    const ranges = Object.keys(yaxis.limits.range);
+    (ranges.length ? ranges : ["1"]).forEach(axis => {
       scales[axis] = {range: (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis)};
     });
     return scales;
@@ -105,7 +106,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
   const options: uPlotOptions = {
     ...defaultOptions,
     series,
-    axes: getAxes(series, unit),
+    axes: getAxes(series.length > 1 ? series : [{}, {scale: "1"}], unit),
     scales: {...getScales()},
     width: layoutSize.width || 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
