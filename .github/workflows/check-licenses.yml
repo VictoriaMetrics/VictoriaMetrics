@@ -6,6 +6,9 @@ on:
   pull_request:
     paths:
       - 'vendor'
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build

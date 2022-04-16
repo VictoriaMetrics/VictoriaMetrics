@@ -8,6 +8,9 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build
