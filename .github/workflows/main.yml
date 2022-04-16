@@ -1,7 +1,16 @@
 name: main
 on:
-  - push
-  - pull_request
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build
