@@ -16,6 +16,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for DNS-based discovery for notifiers in the same way as Prometheus does. See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2460).
+* FEATURE: allow specifying TLS cipher suites for incoming https requests via `-tlsCipherSuites` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2404).
 
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): return non-zero exit code on error. This allows handling `vmctl` errors in shell scripts. Previously `vmctl` was returning 0 exit code on error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2322).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly show `scrape_timeout` and `scrape_interval` options at `http://vmagent:8429/config` page. Previously these options weren't displayed even if they were set in `-promscrape.config`.

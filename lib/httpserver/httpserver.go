@@ -33,7 +33,7 @@ var (
 	tlsEnable       = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set")
 	tlsCertFile     = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
 	tlsKeyFile      = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated")
-	tlsCipherSuites = flagutil.NewArray("tlsCipherSuites", "Cipher suites names for TLS encryption. For example, TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA. Used only if -tls flag is set")
+	tlsCipherSuites = flagutil.NewArray("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
@@ -101,17 +101,13 @@ func Serve(addr string, rh RequestHandler) {
 		var certLock sync.Mutex
 		var certDeadline uint64
 		var cert *tls.Certificate
-		var cipherSuites []uint16
 		c, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
 		if err != nil {
-			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
+			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
-		if len(*tlsCipherSuites) != 0 {
-			collectedCipherSuites, err := collectCipherSuites(*tlsCipherSuites)
-			if err != nil {
-				logger.Fatalf("cannot use TLS cipher suites from tlsCipherSuites=%q: %s", *tlsCipherSuites, err)
-			}
-			cipherSuites = collectedCipherSuites
+		cipherSuites, err := cipherSuitesFromNames(*tlsCipherSuites)
+		if err != nil {
+			logger.Fatalf("cannot use TLS cipher suites from -tlsCipherSuites=%q: %s", *tlsCipherSuites, err)
 		}
 		cert = &c
 		cfg := &tls.Config{
@@ -123,7 +119,7 @@ func Serve(addr string, rh RequestHandler) {
 				if fasttime.UnixTimestamp() > certDeadline {
 					c, err = tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
 					if err != nil {
-						return nil, fmt.Errorf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %w", *tlsCertFile, *tlsKeyFile, err)
+						return nil, fmt.Errorf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %w", *tlsCertFile, *tlsKeyFile, err)
 					}
 					certDeadline = fasttime.UnixTimestamp() + 1
 					cert = &c
@@ -698,18 +694,20 @@ func GetRequestURI(r *http.Request) string {
 	return requestURI + delimiter + queryArgs
 }
 
-func collectCipherSuites(definedCipherSuites []string) ([]uint16, error) {
-	var cipherSuites []uint16
-
-	supportedCipherSuites := tls.CipherSuites()
-	supportedCipherSuitesMap := make(map[string]uint16, len(supportedCipherSuites))
-	for _, scf := range supportedCipherSuites {
-		supportedCipherSuitesMap[strings.ToLower(scf.Name)] = scf.ID
+func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
+	if len(cipherSuiteNames) == 0 {
+		return nil, nil
 	}
-	for _, gotSuite := range definedCipherSuites {
-		id, ok := supportedCipherSuitesMap[strings.ToLower(gotSuite)]
+	css := tls.CipherSuites()
+	cssMap := make(map[string]uint16, len(css))
+	for _, cs := range css {
+		cssMap[strings.ToLower(cs.Name)] = cs.ID
+	}
+	cipherSuites := make([]uint16, 0, len(cipherSuiteNames))
+	for _, name := range cipherSuiteNames {
+		id, ok := cssMap[strings.ToLower(name)]
 		if !ok {
-			return nil, fmt.Errorf("got unsupported cipher suite name: %s", gotSuite)
+			return nil, fmt.Errorf("unsupported TLS cipher suite name: %s", name)
 		}
 		cipherSuites = append(cipherSuites, id)
 	}
