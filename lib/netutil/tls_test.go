@@ -1,4 +1,4 @@
-package httpserver
+package netutil
 
 import (
 	"reflect"

@@ -91,44 +91,17 @@ func Serve(addr string, rh RequestHandler) {
 	}
 	logger.Infof("starting http server at %s://%s/", scheme, hostAddr)
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
-	lnTmp, err := netutil.NewTCPListener(scheme, addr)
-	if err != nil {
-		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	}
-	ln := net.Listener(lnTmp)
-
+	var tlsConfig *tls.Config
 	if *tlsEnable {
-		var certLock sync.Mutex
-		var certDeadline uint64
-		var cert *tls.Certificate
-		c, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
+		tc, err := netutil.GetServerTLSConfig("", *tlsCertFile, *tlsKeyFile, *tlsCipherSuites)
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
-		cipherSuites, err := cipherSuitesFromNames(*tlsCipherSuites)
-		if err != nil {
-			logger.Fatalf("cannot use TLS cipher suites from -tlsCipherSuites=%q: %s", *tlsCipherSuites, err)
-		}
-		cert = &c
-		cfg := &tls.Config{
-			MinVersion:               tls.VersionTLS12,
-			PreferServerCipherSuites: true,
-			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				certLock.Lock()
-				defer certLock.Unlock()
-				if fasttime.UnixTimestamp() > certDeadline {
-					c, err = tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
-					if err != nil {
-						return nil, fmt.Errorf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %w", *tlsCertFile, *tlsKeyFile, err)
-					}
-					certDeadline = fasttime.UnixTimestamp() + 1
-					cert = &c
-				}
-				return cert, nil
-			},
-			CipherSuites: cipherSuites,
-		}
-		ln = tls.NewListener(ln, cfg)
+		tlsConfig = tc
+	}
+	ln, err := netutil.NewTCPListener(scheme, addr, tlsConfig)
+	if err != nil {
+		logger.Fatalf("cannot start http server at %s: %s", addr, err)
 	}
 	serveWithListener(addr, ln, rh)
 }
@@ -692,24 +665,4 @@ func GetRequestURI(r *http.Request) string {
 		delimiter = "&"
 	}
 	return requestURI + delimiter + queryArgs
-}
-
-func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
-	if len(cipherSuiteNames) == 0 {
-		return nil, nil
-	}
-	css := tls.CipherSuites()
-	cssMap := make(map[string]uint16, len(css))
-	for _, cs := range css {
-		cssMap[strings.ToLower(cs.Name)] = cs.ID
-	}
-	cipherSuites := make([]uint16, 0, len(cipherSuiteNames))
-	for _, name := range cipherSuiteNames {
-		id, ok := cssMap[strings.ToLower(name)]
-		if !ok {
-			return nil, fmt.Errorf("unsupported TLS cipher suite name: %s", name)
-		}
-		cipherSuites = append(cipherSuites, id)
-	}
-	return cipherSuites, nil
 }
