@@ -2,17 +2,15 @@ package netutil
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
-// GetServerTLSConfig returns TLS config for the server with possible client verification (mTLS) if tlsCAFile isn't empty.
-func GetServerTLSConfig(tlsCAFile, tlsCertFile, tlsKeyFile string, tlsCipherSuites []string) (*tls.Config, error) {
+// GetServerTLSConfig returns TLS config for the server.
+func GetServerTLSConfig(tlsCertFile, tlsKeyFile string, tlsCipherSuites []string) (*tls.Config, error) {
 	var certLock sync.Mutex
 	var certDeadline uint64
 	var cert *tls.Certificate
@@ -42,19 +40,6 @@ func GetServerTLSConfig(tlsCAFile, tlsCertFile, tlsKeyFile string, tlsCipherSuit
 			return cert, nil
 		},
 		CipherSuites: cipherSuites,
-	}
-	if tlsCAFile != "" {
-		// Enable mTLS ( https://en.wikipedia.org/wiki/Mutual_authentication#mTLS )
-		cfg.ClientAuth = tls.RequireAndVerifyClientCert
-		cp := x509.NewCertPool()
-		caPEM, err := fs.ReadFileOrHTTP(tlsCAFile)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read tlsCAFile=%q: %w", tlsCAFile, err)
-		}
-		if !cp.AppendCertsFromPEM(caPEM) {
-			return nil, fmt.Errorf("cannot parse data for tlsCAFile=%q: %s", tlsCAFile, caPEM)
-		}
-		cfg.ClientCAs = cp
 	}
 	return cfg, nil
 }
