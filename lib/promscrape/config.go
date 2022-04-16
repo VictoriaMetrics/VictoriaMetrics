@@ -134,8 +134,8 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       promutils.Duration          `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout        promutils.Duration          `yaml:"scrape_timeout,omitempty"`
+	ScrapeInterval       promutils.Duration          `yaml:"scrape_interval"`
+	ScrapeTimeout        promutils.Duration          `yaml:"scrape_timeout"`
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
@@ -168,8 +168,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval promutils.Duration         `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        promutils.Duration         `yaml:"scrape_offset,omitempty"`
+	ScrapeAlignInterval promutils.Duration         `yaml:"scrape_align_interval"`
+	ScrapeOffset        promutils.Duration         `yaml:"scrape_offset"`
 	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
