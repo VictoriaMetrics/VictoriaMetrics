@@ -360,7 +360,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 	return jts, emptyJobs
 }
 
-func filterJobsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
+func filterTargetsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
 	if searchQuery == "" {
 		return jts, nil
 	}
@@ -384,7 +384,7 @@ func filterJobsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jobTa
 	return filteredJts, nil
 }
 
-func filterJobsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
+func filterTargetsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
 	if searchQuery == "" {
 		return jts, nil
 	}
@@ -414,12 +414,12 @@ func filterJobsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobTarg
 	return filteredJts, nil
 }
 
-func filterJobs(jts []jobTargetsStatuses, endpointQuery, labelQuery string) ([]jobTargetsStatuses, error) {
-	jobsByEndpoint, err := filterJobsByEndpoint(jts, endpointQuery)
+func filterTargets(jts []jobTargetsStatuses, endpointQuery, labelQuery string) ([]jobTargetsStatuses, error) {
+	jobsByEndpoint, err := filterTargetsByEndpoint(jts, endpointQuery)
 	if err != nil {
 		return nil, err
 	}
-	jobsByLabels, err := filterJobsByLabels(jobsByEndpoint, labelQuery)
+	jobsByLabels, err := filterTargetsByLabels(jobsByEndpoint, labelQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +478,7 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
 	jss, emptyJobs := tsm.getTargetsStatusByJob()
 	var err error
-	jss, err = filterJobs(jss, endpointSearch, labelSearch)
+	jss, err = filterTargets(jss, endpointSearch, labelSearch)
 	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, err)
 }
 
