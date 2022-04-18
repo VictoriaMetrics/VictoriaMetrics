@@ -34,7 +34,7 @@ job={%q= jobName %} (0/0 up)
 
 {% endfunc %}
 
-{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, searchQuery string) %}
+{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, endpointSearch, labelSearch string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,141 +44,156 @@ job={%q= jobName %} (0/0 up)
     <title>Scrape targets</title>
 </head>
 <body class="py-3">
-        <div class="container-fluid">
-            <div class="row">
-                <main class="col-12">
-                    <h1>Scrape targets</h1>
-                    <div class="row g-3 align-items-center">
-                        <div class="col-auto">
-                            <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
-                                All
-                            </button>
-                        </div>
-                        <div class="col-auto">
-                            <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
-                                Unhealthy
-                            </button>
-                        </div>
-                        <div class="col-auto">
-                            <button type="button" class="btn btn-primary" onclick="collapse_all()">
-                                Collapse all
-                            </button>
-                        </div>
-                        <div class="col-auto">
-                            <button type="button" class="btn btn-secondary" onclick="expand_all()">
-                                Expand all
-                            </button>
-                        </div>
-                        <div class="col-auto">
-                            <form action="/targets" method="get" accept-charset="utf-8">
-                                <input type="text" id="search" name="search" placeholder="Search: enter text or regexp" class="form-control" value="{%s searchQuery %}"/>
-                            </form>
-                        </div>
+    <div class="container-fluid">
+        {% if err != nil %}
+            {%= errorNotification(err) %}
+        {% endif %}
+        <div class="row">
+            <main class="col-12">
+                <h1>Scrape targets</h1>
+                <hr />
+                <div class="row mb-3">
+                    <h4> Endpoints and labels filter</h4>
+                    <div class="col-4">
+                        <form action="/targets" method="get" accept-charset="utf-8">
+                            <div class="mb-3">
+                                <label for="endpoint_search" class="form-label">Endpoint filter</label>
+                                <input type="text" id="endpoint_search" name="endpoint_search" placeholder="Search: enter text or regexp" class="form-control" value="{%s endpointSearch %}"/>
+                            </div>
+                            <div class="mb-3">
+                                <label for="label_search" class="form-label">Label filter</label>
+                                <input type="text" id="label_search" name="label_search" placeholder="Search: enter text or regexp" class="form-control" value="{%s labelSearch %}"/>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-md">Submit</button>
+                        </form>
                     </div>
-                    <div class="row">
-                        <div class="col-12">
-                            {% for i, js := range jts %}
-                            {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <h4>
-                                        {%s js.job %}{% space %}({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
-                                    </h4>
-                                    <div class="row mb-2">
-                                        <div class="col-12">
-                                            <button type="button" class="btn btn-primary me-1"
-                                                    onclick="document.getElementById('table-{%d i %}').style.display='none'">collapse
-                                            </button>
-                                            <button type="button" class="btn btn-secondary me-1"
-                                                    onclick="document.getElementById('table-{%d i %}').style.display='block'">expand
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="table-{%d i %}" class="table-responsive">
-                                        <table class="table table-striped table-hover table-bordered table-sm">
-                                            <thead>
-                                            <tr>
-                                                <th scope="col">Endpoint</th>
-                                                <th scope="col">State</th>
-                                                <th scope="col" title="scrape target labels">Labels</th>
-                                                <th scope="col" title="total scrapes">Scrapes</th>
-                                                <th scope="col" title="total scrape errors">Errors</th>
-                                                <th scope="col" title="the time of the last scrape">Last Scrape</th>
-                                                <th scope="col" title="the duration of the last scrape">Duration</th>
-                                                <th scope="col" title="the number of metrics scraped during the last scrape">Samples</th>
-                                                <th scope="col" title="error from the last scrape (if any)">Last error</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody class="list-{%d i %}">
-                                            {% for _, ts := range js.targetsStatus %}
-                                            {% code
-                                            endpoint := ts.sw.Config.ScrapeURL
-                                            targetID := getTargetID(ts.sw)
-                                            lastScrapeTime := ts.getDurationFromLastScrape()
-                                            %}
-                                            {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
-                                            <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
-                                                <td class="endpoint"><a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
-                                                    <a href="target_response?id={%s targetID %}" target="_blank"
-                                                       title="click to fetch target response on behalf of the scraper">response</a>
-                                                    )
-                                                </td>
-                                                <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
-                                                <td class="labels">
-                                                    <div title="click to show original labels"
-                                                         onclick="document.getElementById('original_labels_{%s targetID %}').style.display='block'">
-                                                        {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
-                                                    </div>
-                                                    <div style="display:none" id="original_labels_{%s targetID %}">
-                                                        {%= formatLabel(ts.sw.Config.OriginalLabels) %}
-                                                    </div>
-                                                </td>
-                                                <td>{%d ts.scrapesTotal %}</td>
-                                                <td>{%d ts.scrapesFailed %}</td>
-                                                <td>
-                                                    {% if lastScrapeTime < 365*24*time.Hour %}
-                                                    {%f.3 lastScrapeTime.Seconds() %}s ago
-                                                    {% else %}
-                                                    none
-                                                    {% endif %}
-                                                <td>{%d int(ts.scrapeDuration) %}ms</td>
-                                                <td>{%d ts.samplesScraped %}</td>
-                                                <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>
-                                            </tr>
-                                            {% endfor %}
-                                            </tbody>
-                                        </table>
+                </div>
+                <div class="row g-3 align-items-center mb-3">
+                    <div class="col-auto">
+                        <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
+                            All
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
+                            Unhealthy
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-primary" onclick="collapse_all()">
+                            Collapse all
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-secondary" onclick="expand_all()">
+                            Expand all
+                        </button>
+                    </div>
+                </div>
+                <hr />
+                <div class="row">
+                    <div class="col-12">
+                        {% for i, js := range jts %}
+                        {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h4>
+                                    {%s js.job %}{% space %}({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
+                                </h4>
+                                <div class="row mb-2">
+                                    <div class="col-12">
+                                        <button type="button" class="btn btn-primary me-1"
+                                                onclick="document.getElementById('table-{%d i %}').style.display='none'">collapse
+                                        </button>
+                                        <button type="button" class="btn btn-secondary me-1"
+                                                onclick="document.getElementById('table-{%d i %}').style.display='block'">expand
+                                        </button>
                                     </div>
                                 </div>
+                                <div id="table-{%d i %}" class="table-responsive">
+                                    <table class="table table-striped table-hover table-bordered table-sm">
+                                        <thead>
+                                        <tr>
+                                            <th scope="col">Endpoint</th>
+                                            <th scope="col">State</th>
+                                            <th scope="col" title="scrape target labels">Labels</th>
+                                            <th scope="col" title="total scrapes">Scrapes</th>
+                                            <th scope="col" title="total scrape errors">Errors</th>
+                                            <th scope="col" title="the time of the last scrape">Last Scrape</th>
+                                            <th scope="col" title="the duration of the last scrape">Duration</th>
+                                            <th scope="col" title="the number of metrics scraped during the last scrape">Samples</th>
+                                            <th scope="col" title="error from the last scrape (if any)">Last error</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody class="list-{%d i %}">
+                                        {% for _, ts := range js.targetsStatus %}
+                                        {% code
+                                        endpoint := ts.sw.Config.ScrapeURL
+                                        targetID := getTargetID(ts.sw)
+                                        lastScrapeTime := ts.getDurationFromLastScrape()
+                                        %}
+                                        {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
+                                        <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
+                                            <td class="endpoint"><a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
+                                                <a href="target_response?id={%s targetID %}" target="_blank"
+                                                   title="click to fetch target response on behalf of the scraper">response</a>
+                                                )
+                                            </td>
+                                            <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
+                                            <td class="labels">
+                                                <div title="click to show original labels"
+                                                     onclick="document.getElementById('original_labels_{%s targetID %}').style.display='block'">
+                                                    {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
+                                                </div>
+                                                <div style="display:none" id="original_labels_{%s targetID %}">
+                                                    {%= formatLabel(ts.sw.Config.OriginalLabels) %}
+                                                </div>
+                                            </td>
+                                            <td>{%d ts.scrapesTotal %}</td>
+                                            <td>{%d ts.scrapesFailed %}</td>
+                                            <td>
+                                                {% if lastScrapeTime < 365*24*time.Hour %}
+                                                {%f.3 lastScrapeTime.Seconds() %}s ago
+                                                {% else %}
+                                                none
+                                                {% endif %}
+                                            <td>{%d int(ts.scrapeDuration) %}ms</td>
+                                            <td>{%d ts.samplesScraped %}</td>
+                                            <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                            {% endfor %}
                         </div>
+                        {% endfor %}
                     </div>
+                </div>
 
-                      {% for _, jobName := range emptyJobs %}
-                        <div>
-                          <h4>
-                            <a>{%s jobName %} (0/0 up)</a>
-                          </h4>
-                          <table class="table table-striped table-hover table-bordered table-sm">
-                            <thead>
-                              <tr>
-                                <th scope="col">Endpoint</th>
-                                <th scope="col">State</th>
-                                <th scope="col">Labels</th>
-                                <th scope="col">Last Scrape</th>
-                                <th scope="col">Scrape Duration</th>
-                                <th scope="col">Samples Scraped</th>
-                                <th scope="col">Error</th>
-                              </tr>
-                            </thead>
-                          </table>
-                        </div>
-                      {% endfor %}
-                </main>
-            </div>
+                  {% for _, jobName := range emptyJobs %}
+                    <div>
+                      <h4>
+                        <a>{%s jobName %} (0/0 up)</a>
+                      </h4>
+                      <table class="table table-striped table-hover table-bordered table-sm">
+                        <thead>
+                          <tr>
+                            <th scope="col">Endpoint</th>
+                            <th scope="col">State</th>
+                            <th scope="col">Labels</th>
+                            <th scope="col">Last Scrape</th>
+                            <th scope="col">Scrape Duration</th>
+                            <th scope="col">Samples Scraped</th>
+                            <th scope="col">Error</th>
+                          </tr>
+                        </thead>
+                      </table>
+                    </div>
+                  {% endfor %}
+            </main>
         </div>
-
+    </div>
 </body>
 <script>
 function collapse_all() {
@@ -210,6 +225,16 @@ function expand_all() {
       {% if i+1 < len(labels) %},{% space %}{% endif %}
   {% endfor %}
 }
+{% endfunc %}
+
+{% func errorNotification(err error) %}
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:">
+            <use xlink:href="#exclamation-triangle-fill"/></svg>
+        <div>
+            {%s err.Error() %}
+        </div>
+    </div>
 {% endfunc %}
 
 {% endstripspace %}

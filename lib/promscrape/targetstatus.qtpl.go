@@ -193,292 +193,341 @@ func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOrig
 }
 
 //line targetstatus.qtpl:37
-func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, searchQuery string) {
+func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, endpointSearch, labelSearch string, err error) {
 //line targetstatus.qtpl:37
-	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"><title>Scrape targets</title></head><body class="py-3"><div class="container-fluid"><div class="row"><main class="col-12"><h1>Scrape targets</h1><div class="row g-3 align-items-center"><div class="col-auto"><button type="button" class="btn`)
-//line targetstatus.qtpl:53
+	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"><title>Scrape targets</title></head><body class="py-3"><div class="container-fluid">`)
+//line targetstatus.qtpl:48
+	if err != nil {
+//line targetstatus.qtpl:49
+		streamerrorNotification(qw422016, err)
+//line targetstatus.qtpl:50
+	}
+//line targetstatus.qtpl:50
+	qw422016.N().S(`<div class="row"><main class="col-12"><h1>Scrape targets</h1><hr /><div class="row mb-3"><h4> Endpoints and labels filter</h4><div class="col-4"><form action="/targets" method="get" accept-charset="utf-8"><div class="mb-3"><label for="endpoint_search" class="form-label">Endpoint filter</label><input type="text" id="endpoint_search" name="endpoint_search" placeholder="Search: enter text or regexp" class="form-control" value="`)
+//line targetstatus.qtpl:61
+	qw422016.E().S(endpointSearch)
+//line targetstatus.qtpl:61
+	qw422016.N().S(`"/></div><div class="mb-3"><label for="label_search" class="form-label">Label filter</label><input type="text" id="label_search" name="label_search" placeholder="Search: enter text or regexp" class="form-control" value="`)
+//line targetstatus.qtpl:65
+	qw422016.E().S(labelSearch)
+//line targetstatus.qtpl:65
+	qw422016.N().S(`"/></div><button type="submit" class="btn btn-success btn-md">Submit</button></form></div></div><div class="row g-3 align-items-center mb-3"><div class="col-auto"><button type="button" class="btn`)
+//line targetstatus.qtpl:73
 	qw422016.N().S(` `)
-//line targetstatus.qtpl:53
+//line targetstatus.qtpl:73
 	if !onlyUnhealthy {
-//line targetstatus.qtpl:53
+//line targetstatus.qtpl:73
 		qw422016.N().S(`btn-primary`)
-//line targetstatus.qtpl:53
+//line targetstatus.qtpl:73
 	} else {
-//line targetstatus.qtpl:53
+//line targetstatus.qtpl:73
 		qw422016.N().S(`btn-secondary`)
-//line targetstatus.qtpl:53
+//line targetstatus.qtpl:73
 	}
-//line targetstatus.qtpl:53
+//line targetstatus.qtpl:73
 	qw422016.N().S(`" onclick="location.href='targets'">All</button></div><div class="col-auto"><button type="button" class="btn`)
-//line targetstatus.qtpl:58
+//line targetstatus.qtpl:78
 	qw422016.N().S(` `)
-//line targetstatus.qtpl:58
+//line targetstatus.qtpl:78
 	if onlyUnhealthy {
-//line targetstatus.qtpl:58
+//line targetstatus.qtpl:78
 		qw422016.N().S(`btn-primary`)
-//line targetstatus.qtpl:58
+//line targetstatus.qtpl:78
 	} else {
-//line targetstatus.qtpl:58
+//line targetstatus.qtpl:78
 		qw422016.N().S(`btn-secondary`)
-//line targetstatus.qtpl:58
+//line targetstatus.qtpl:78
 	}
-//line targetstatus.qtpl:58
-	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button></div><div class="col-auto"><button type="button" class="btn btn-primary" onclick="collapse_all()">Collapse all</button></div><div class="col-auto"><button type="button" class="btn btn-secondary" onclick="expand_all()">Expand all</button></div><div class="col-auto"><form action="/targets" method="get" accept-charset="utf-8"><input type="text" id="search" name="search" placeholder="Search: enter text or regexp" class="form-control" value="`)
-//line targetstatus.qtpl:74
-	qw422016.E().S(searchQuery)
-//line targetstatus.qtpl:74
-	qw422016.N().S(`"/></form></div></div><div class="row"><div class="col-12">`)
-//line targetstatus.qtpl:80
+//line targetstatus.qtpl:78
+	qw422016.N().S(`" onclick="location.href='targets?show_only_unhealthy=true'">Unhealthy</button></div><div class="col-auto"><button type="button" class="btn btn-primary" onclick="collapse_all()">Collapse all</button></div><div class="col-auto"><button type="button" class="btn btn-secondary" onclick="expand_all()">Expand all</button></div></div><hr /><div class="row"><div class="col-12">`)
+//line targetstatus.qtpl:96
 	for i, js := range jts {
-//line targetstatus.qtpl:81
+//line targetstatus.qtpl:97
 		if onlyUnhealthy && js.upCount == js.targetsTotal {
-//line targetstatus.qtpl:81
+//line targetstatus.qtpl:97
 			continue
-//line targetstatus.qtpl:81
+//line targetstatus.qtpl:97
 		}
-//line targetstatus.qtpl:81
+//line targetstatus.qtpl:97
 		qw422016.N().S(`<div class="row mb-4"><div class="col-12"><h4>`)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.E().S(js.job)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().S(` `)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().S(`(`)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().D(js.upCount)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().S(`/`)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().D(js.targetsTotal)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().S(` `)
-//line targetstatus.qtpl:85
+//line targetstatus.qtpl:101
 		qw422016.N().S(`up)</h4><div class="row mb-2"><div class="col-12"><button type="button" class="btn btn-primary me-1"onclick="document.getElementById('table-`)
-//line targetstatus.qtpl:90
+//line targetstatus.qtpl:106
 		qw422016.N().D(i)
-//line targetstatus.qtpl:90
+//line targetstatus.qtpl:106
 		qw422016.N().S(`').style.display='none'">collapse</button><button type="button" class="btn btn-secondary me-1"onclick="document.getElementById('table-`)
-//line targetstatus.qtpl:93
+//line targetstatus.qtpl:109
 		qw422016.N().D(i)
-//line targetstatus.qtpl:93
+//line targetstatus.qtpl:109
 		qw422016.N().S(`').style.display='block'">expand</button></div></div><div id="table-`)
-//line targetstatus.qtpl:97
-		qw422016.N().D(i)
-//line targetstatus.qtpl:97
-		qw422016.N().S(`" class="table-responsive"><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col" title="scrape target labels">Labels</th><th scope="col" title="total scrapes">Scrapes</th><th scope="col" title="total scrape errors">Errors</th><th scope="col" title="the time of the last scrape">Last Scrape</th><th scope="col" title="the duration of the last scrape">Duration</th><th scope="col" title="the number of metrics scraped during the last scrape">Samples</th><th scope="col" title="error from the last scrape (if any)">Last error</th></tr></thead><tbody class="list-`)
-//line targetstatus.qtpl:112
-		qw422016.N().D(i)
-//line targetstatus.qtpl:112
-		qw422016.N().S(`">`)
 //line targetstatus.qtpl:113
+		qw422016.N().D(i)
+//line targetstatus.qtpl:113
+		qw422016.N().S(`" class="table-responsive"><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col" title="scrape target labels">Labels</th><th scope="col" title="total scrapes">Scrapes</th><th scope="col" title="total scrape errors">Errors</th><th scope="col" title="the time of the last scrape">Last Scrape</th><th scope="col" title="the duration of the last scrape">Duration</th><th scope="col" title="the number of metrics scraped during the last scrape">Samples</th><th scope="col" title="error from the last scrape (if any)">Last error</th></tr></thead><tbody class="list-`)
+//line targetstatus.qtpl:128
+		qw422016.N().D(i)
+//line targetstatus.qtpl:128
+		qw422016.N().S(`">`)
+//line targetstatus.qtpl:129
 		for _, ts := range js.targetsStatus {
-//line targetstatus.qtpl:115
+//line targetstatus.qtpl:131
 			endpoint := ts.sw.Config.ScrapeURL
 			targetID := getTargetID(ts.sw)
 			lastScrapeTime := ts.getDurationFromLastScrape()
 
-//line targetstatus.qtpl:119
+//line targetstatus.qtpl:135
 			if onlyUnhealthy && ts.up {
-//line targetstatus.qtpl:119
+//line targetstatus.qtpl:135
 				continue
-//line targetstatus.qtpl:119
+//line targetstatus.qtpl:135
 			}
-//line targetstatus.qtpl:119
+//line targetstatus.qtpl:135
 			qw422016.N().S(`<tr`)
-//line targetstatus.qtpl:120
+//line targetstatus.qtpl:136
 			if !ts.up {
-//line targetstatus.qtpl:120
+//line targetstatus.qtpl:136
 				qw422016.N().S(` `)
-//line targetstatus.qtpl:120
+//line targetstatus.qtpl:136
 				qw422016.N().S(`class="alert alert-danger" role="alert"`)
-//line targetstatus.qtpl:120
+//line targetstatus.qtpl:136
 			}
-//line targetstatus.qtpl:120
+//line targetstatus.qtpl:136
 			qw422016.N().S(`><td class="endpoint"><a href="`)
-//line targetstatus.qtpl:121
+//line targetstatus.qtpl:137
 			qw422016.E().S(endpoint)
-//line targetstatus.qtpl:121
+//line targetstatus.qtpl:137
 			qw422016.N().S(`" target="_blank">`)
-//line targetstatus.qtpl:121
+//line targetstatus.qtpl:137
 			qw422016.E().S(endpoint)
-//line targetstatus.qtpl:121
+//line targetstatus.qtpl:137
 			qw422016.N().S(`</a> (<a href="target_response?id=`)
-//line targetstatus.qtpl:122
+//line targetstatus.qtpl:138
 			qw422016.E().S(targetID)
-//line targetstatus.qtpl:122
+//line targetstatus.qtpl:138
 			qw422016.N().S(`" target="_blank"title="click to fetch target response on behalf of the scraper">response</a>)</td><td>`)
-//line targetstatus.qtpl:126
+//line targetstatus.qtpl:142
 			if ts.up {
-//line targetstatus.qtpl:126
+//line targetstatus.qtpl:142
 				qw422016.N().S(`UP`)
-//line targetstatus.qtpl:126
+//line targetstatus.qtpl:142
 			} else {
-//line targetstatus.qtpl:126
+//line targetstatus.qtpl:142
 				qw422016.N().S(`DOWN`)
-//line targetstatus.qtpl:126
+//line targetstatus.qtpl:142
 			}
-//line targetstatus.qtpl:126
+//line targetstatus.qtpl:142
 			qw422016.N().S(`</td><td class="labels"><div title="click to show original labels"onclick="document.getElementById('original_labels_`)
-//line targetstatus.qtpl:129
+//line targetstatus.qtpl:145
 			qw422016.E().S(targetID)
-//line targetstatus.qtpl:129
+//line targetstatus.qtpl:145
 			qw422016.N().S(`').style.display='block'">`)
-//line targetstatus.qtpl:130
+//line targetstatus.qtpl:146
 			streamformatLabel(qw422016, promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels))
-//line targetstatus.qtpl:130
+//line targetstatus.qtpl:146
 			qw422016.N().S(`</div><div style="display:none" id="original_labels_`)
-//line targetstatus.qtpl:132
+//line targetstatus.qtpl:148
 			qw422016.E().S(targetID)
-//line targetstatus.qtpl:132
+//line targetstatus.qtpl:148
 			qw422016.N().S(`">`)
-//line targetstatus.qtpl:133
+//line targetstatus.qtpl:149
 			streamformatLabel(qw422016, ts.sw.Config.OriginalLabels)
-//line targetstatus.qtpl:133
+//line targetstatus.qtpl:149
 			qw422016.N().S(`</div></td><td>`)
-//line targetstatus.qtpl:136
+//line targetstatus.qtpl:152
 			qw422016.N().D(ts.scrapesTotal)
-//line targetstatus.qtpl:136
+//line targetstatus.qtpl:152
 			qw422016.N().S(`</td><td>`)
-//line targetstatus.qtpl:137
+//line targetstatus.qtpl:153
 			qw422016.N().D(ts.scrapesFailed)
-//line targetstatus.qtpl:137
+//line targetstatus.qtpl:153
 			qw422016.N().S(`</td><td>`)
-//line targetstatus.qtpl:139
+//line targetstatus.qtpl:155
 			if lastScrapeTime < 365*24*time.Hour {
-//line targetstatus.qtpl:140
+//line targetstatus.qtpl:156
 				qw422016.N().FPrec(lastScrapeTime.Seconds(), 3)
-//line targetstatus.qtpl:140
+//line targetstatus.qtpl:156
 				qw422016.N().S(`s ago`)
-//line targetstatus.qtpl:141
+//line targetstatus.qtpl:157
 			} else {
-//line targetstatus.qtpl:141
+//line targetstatus.qtpl:157
 				qw422016.N().S(`none`)
-//line targetstatus.qtpl:143
+//line targetstatus.qtpl:159
 			}
-//line targetstatus.qtpl:143
+//line targetstatus.qtpl:159
 			qw422016.N().S(`<td>`)
-//line targetstatus.qtpl:144
+//line targetstatus.qtpl:160
 			qw422016.N().D(int(ts.scrapeDuration))
-//line targetstatus.qtpl:144
+//line targetstatus.qtpl:160
 			qw422016.N().S(`ms</td><td>`)
-//line targetstatus.qtpl:145
+//line targetstatus.qtpl:161
 			qw422016.N().D(ts.samplesScraped)
-//line targetstatus.qtpl:145
+//line targetstatus.qtpl:161
 			qw422016.N().S(`</td><td>`)
-//line targetstatus.qtpl:146
+//line targetstatus.qtpl:162
 			if ts.err != nil {
-//line targetstatus.qtpl:146
+//line targetstatus.qtpl:162
 				qw422016.E().S(ts.err.Error())
-//line targetstatus.qtpl:146
+//line targetstatus.qtpl:162
 			}
-//line targetstatus.qtpl:146
+//line targetstatus.qtpl:162
 			qw422016.N().S(`</td></tr>`)
-//line targetstatus.qtpl:148
+//line targetstatus.qtpl:164
 		}
-//line targetstatus.qtpl:148
+//line targetstatus.qtpl:164
 		qw422016.N().S(`</tbody></table></div></div></div>`)
-//line targetstatus.qtpl:154
+//line targetstatus.qtpl:170
 	}
-//line targetstatus.qtpl:154
+//line targetstatus.qtpl:170
 	qw422016.N().S(`</div></div>`)
-//line targetstatus.qtpl:158
+//line targetstatus.qtpl:174
 	for _, jobName := range emptyJobs {
-//line targetstatus.qtpl:158
+//line targetstatus.qtpl:174
 		qw422016.N().S(`<div><h4><a>`)
-//line targetstatus.qtpl:161
+//line targetstatus.qtpl:177
 		qw422016.E().S(jobName)
-//line targetstatus.qtpl:161
+//line targetstatus.qtpl:177
 		qw422016.N().S(`(0/0 up)</a></h4><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Endpoint</th><th scope="col">State</th><th scope="col">Labels</th><th scope="col">Last Scrape</th><th scope="col">Scrape Duration</th><th scope="col">Samples Scraped</th><th scope="col">Error</th></tr></thead></table></div>`)
-//line targetstatus.qtpl:177
+//line targetstatus.qtpl:193
 	}
-//line targetstatus.qtpl:177
+//line targetstatus.qtpl:193
 	qw422016.N().S(`</main></div></div></body><script>function collapse_all() {for (var i = 0; i <`)
-//line targetstatus.qtpl:185
+//line targetstatus.qtpl:201
 	qw422016.N().D(len(jts))
-//line targetstatus.qtpl:185
+//line targetstatus.qtpl:201
 	qw422016.N().S(`; i++) {let el = document.getElementById("table-" + i);if (!el) {continue;}el.style.display = 'none';}}function expand_all() {for (var i = 0; i <`)
-//line targetstatus.qtpl:194
+//line targetstatus.qtpl:210
 	qw422016.N().D(len(jts))
-//line targetstatus.qtpl:194
+//line targetstatus.qtpl:210
 	qw422016.N().S(`; i++) {let el = document.getElementById("table-" + i);if (!el) {continue;}el.style.display = 'block';}}</script></html>`)
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
 }
 
-//line targetstatus.qtpl:204
-func WriteTargetsResponseHTML(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, searchQuery string) {
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
+func WriteTargetsResponseHTML(qq422016 qtio422016.Writer, jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, endpointSearch, labelSearch string, err error) {
+//line targetstatus.qtpl:220
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line targetstatus.qtpl:204
-	StreamTargetsResponseHTML(qw422016, jts, emptyJobs, onlyUnhealthy, searchQuery)
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
+	StreamTargetsResponseHTML(qw422016, jts, emptyJobs, onlyUnhealthy, endpointSearch, labelSearch, err)
+//line targetstatus.qtpl:220
 	qt422016.ReleaseWriter(qw422016)
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
 }
 
-//line targetstatus.qtpl:204
-func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, searchQuery string) string {
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
+func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, endpointSearch, labelSearch string, err error) string {
+//line targetstatus.qtpl:220
 	qb422016 := qt422016.AcquireByteBuffer()
-//line targetstatus.qtpl:204
-	WriteTargetsResponseHTML(qb422016, jts, emptyJobs, onlyUnhealthy, searchQuery)
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
+	WriteTargetsResponseHTML(qb422016, jts, emptyJobs, onlyUnhealthy, endpointSearch, labelSearch, err)
+//line targetstatus.qtpl:220
 	qs422016 := string(qb422016.B)
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
 	qt422016.ReleaseByteBuffer(qb422016)
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
 	return qs422016
-//line targetstatus.qtpl:204
+//line targetstatus.qtpl:220
 }
 
-//line targetstatus.qtpl:206
+//line targetstatus.qtpl:222
 func streamformatLabel(qw422016 *qt422016.Writer, labels []prompbmarshal.Label) {
-//line targetstatus.qtpl:206
+//line targetstatus.qtpl:222
 	qw422016.N().S(`{`)
-//line targetstatus.qtpl:208
+//line targetstatus.qtpl:224
 	for i, label := range labels {
-//line targetstatus.qtpl:209
+//line targetstatus.qtpl:225
 		qw422016.E().S(label.Name)
-//line targetstatus.qtpl:209
+//line targetstatus.qtpl:225
 		qw422016.N().S(`=`)
-//line targetstatus.qtpl:209
+//line targetstatus.qtpl:225
 		qw422016.E().Q(label.Value)
-//line targetstatus.qtpl:210
+//line targetstatus.qtpl:226
 		if i+1 < len(labels) {
-//line targetstatus.qtpl:210
+//line targetstatus.qtpl:226
 			qw422016.N().S(`,`)
-//line targetstatus.qtpl:210
+//line targetstatus.qtpl:226
 			qw422016.N().S(` `)
-//line targetstatus.qtpl:210
+//line targetstatus.qtpl:226
 		}
-//line targetstatus.qtpl:211
+//line targetstatus.qtpl:227
 	}
-//line targetstatus.qtpl:211
+//line targetstatus.qtpl:227
 	qw422016.N().S(`}`)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 }
 
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 func writeformatLabel(qq422016 qtio422016.Writer, labels []prompbmarshal.Label) {
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	streamformatLabel(qw422016, labels)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	qt422016.ReleaseWriter(qw422016)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 }
 
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 func formatLabel(labels []prompbmarshal.Label) string {
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	qb422016 := qt422016.AcquireByteBuffer()
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	writeformatLabel(qb422016, labels)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	qs422016 := string(qb422016.B)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	qt422016.ReleaseByteBuffer(qb422016)
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
 	return qs422016
-//line targetstatus.qtpl:213
+//line targetstatus.qtpl:229
+}
+
+//line targetstatus.qtpl:231
+func streamerrorNotification(qw422016 *qt422016.Writer, err error) {
+//line targetstatus.qtpl:231
+	qw422016.N().S(`<div class="alert alert-danger d-flex align-items-center" role="alert"><svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#exclamation-triangle-fill"/></svg><div>`)
+//line targetstatus.qtpl:236
+	qw422016.E().S(err.Error())
+//line targetstatus.qtpl:236
+	qw422016.N().S(`</div></div>`)
+//line targetstatus.qtpl:239
+}
+
+//line targetstatus.qtpl:239
+func writeerrorNotification(qq422016 qtio422016.Writer, err error) {
+//line targetstatus.qtpl:239
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line targetstatus.qtpl:239
+	streamerrorNotification(qw422016, err)
+//line targetstatus.qtpl:239
+	qt422016.ReleaseWriter(qw422016)
+//line targetstatus.qtpl:239
+}
+
+//line targetstatus.qtpl:239
+func errorNotification(err error) string {
+//line targetstatus.qtpl:239
+	qb422016 := qt422016.AcquireByteBuffer()
+//line targetstatus.qtpl:239
+	writeerrorNotification(qb422016, err)
+//line targetstatus.qtpl:239
+	qs422016 := string(qb422016.B)
+//line targetstatus.qtpl:239
+	qt422016.ReleaseByteBuffer(qb422016)
+//line targetstatus.qtpl:239
+	return qs422016
+//line targetstatus.qtpl:239
 }

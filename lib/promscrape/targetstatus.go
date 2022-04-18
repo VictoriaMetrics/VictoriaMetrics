@@ -16,16 +16,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"gopkg.in/yaml.v2"
 )
 
 var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
 	"Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. "+
 	"Note that the increased number of tracked dropped targets may result in increased memory usage")
 
-var (
-	tsmGlobal = newTargetStatusMap()
-	filterReg = regexp.MustCompile(`/(?:\W+)/g`)
-)
+var tsmGlobal = newTargetStatusMap()
 
 // WriteTargetResponse serves requests to /target_response?id=<id>
 //
@@ -49,10 +48,11 @@ func WriteTargetResponse(w http.ResponseWriter, r *http.Request) error {
 func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
 	showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 	showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
-	searchRequest := strings.TrimSpace(r.FormValue("search"))
+	endpointSearch := strings.TrimSpace(r.FormValue("endpoint_search"))
+	labelSearch := strings.TrimSpace(r.FormValue("label_search"))
 	if accept := r.Header.Get("Accept"); strings.Contains(accept, "text/html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, searchRequest)
+		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, endpointSearch, labelSearch)
 	} else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
@@ -360,23 +360,101 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 	return jts, emptyJobs
 }
 
-func filterJobs(jts []jobTargetsStatuses, searchQuery string) []jobTargetsStatuses {
-	regQuery := filterReg.ReplaceAllString(searchQuery, ")(?=.*")
-	finder := regexp.MustCompile(regQuery)
+func filterJobsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
+	if searchQuery == "" {
+		return jts, nil
+	}
+	finder, err := regexp.Compile(searchQuery)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse regexp for %s: %w", searchQuery, err)
+	}
 
 	var filteredJts []jobTargetsStatuses
-	var ts []targetStatus
 	for _, job := range jts {
+		var ts []targetStatus
 		for _, targetStatus := range job.targetsStatus {
-			if finder.FindString(targetStatus.sw.Config.ScrapeURL) != "" ||
-				finder.FindString(targetStatus.sw.Config.LabelsString()) != "" {
+			if finder.MatchString(targetStatus.sw.Config.ScrapeURL) {
 				ts = append(ts, targetStatus)
-				job.targetsStatus = ts
-				filteredJts = append(filteredJts, job)
 			}
 		}
+		job.targetsStatus = ts
+		filteredJts = append(filteredJts, job)
+		ts = ts[:0]
 	}
-	return filteredJts
+	return filteredJts, nil
+}
+
+func filterJobsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
+	if searchQuery == "" {
+		return jts, nil
+	}
+	searchQuery = strings.TrimRight(strings.TrimLeft(searchQuery, "'"), "'")
+
+	var ie promrelabel.IfExpression
+	if err := yaml.UnmarshalStrict([]byte("'"+searchQuery+"'"), &ie); err != nil {
+		return nil, fmt.Errorf("unexpected error during unmarshal search query: %s", err)
+	}
+
+	var filteredJts []jobTargetsStatuses
+	for _, job := range jts {
+		var ts []targetStatus
+		for _, targetStatus := range job.targetsStatus {
+			labels, err := parseMetricWithLabels(targetStatus.sw.Config.LabelsString())
+			if err != nil {
+				return nil, fmt.Errorf("unexpected error during parse search query: %s", err)
+			}
+			if ie.Match(labels) {
+				ts = append(ts, targetStatus)
+			}
+		}
+		job.targetsStatus = ts
+		filteredJts = append(filteredJts, job)
+		ts = ts[:0]
+	}
+	return filteredJts, nil
+}
+
+func filterJobs(jts []jobTargetsStatuses, endpointQuery, labelQuery string) ([]jobTargetsStatuses, error) {
+	jobsByEndpoint, err := filterJobsByEndpoint(jts, endpointQuery)
+	if err != nil {
+		return nil, err
+	}
+	jobsByLabels, err := filterJobsByLabels(jobsByEndpoint, labelQuery)
+	if err != nil {
+		return nil, err
+	}
+	return jobsByLabels, nil
+}
+
+func parseMetricWithLabels(labels string) ([]prompbmarshal.Label, error) {
+	// add metrics and a value to labels, so it could be parsed by prometheus protocol parser.
+	s := "vmagent" + labels + " 123"
+	var rows prometheus.Rows
+	var err error
+	rows.UnmarshalWithErrLogger(s, func(s string) {
+		err = fmt.Errorf("error during metric parse: %s", s)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(rows.Rows) != 1 {
+		return nil, fmt.Errorf("unexpected number of rows parsed; got %d; want 1", len(rows.Rows))
+	}
+	r := rows.Rows[0]
+	var lfs []prompbmarshal.Label
+	if r.Metric != "" {
+		lfs = append(lfs, prompbmarshal.Label{
+			Name:  "__name__",
+			Value: r.Metric,
+		})
+	}
+	for _, tag := range r.Tags {
+		lfs = append(lfs, prompbmarshal.Label{
+			Name:  tag.Key,
+			Value: tag.Value,
+		})
+	}
+	return lfs, nil
 }
 
 func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
@@ -397,12 +475,11 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
-func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, searchQuery string) {
+func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
 	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	if searchQuery != "" {
-		jss = filterJobs(jss, searchQuery)
-	}
-	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, searchQuery)
+	var err error
+	jss, err = filterJobs(jss, endpointSearch, labelSearch)
+	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, err)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
