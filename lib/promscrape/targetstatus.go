@@ -379,7 +379,6 @@ func filterTargetsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jo
 		}
 		job.targetsStatus = ts
 		filteredJts = append(filteredJts, job)
-		ts = ts[:0]
 	}
 	return filteredJts, nil
 }
@@ -409,7 +408,6 @@ func filterTargetsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobT
 		}
 		job.targetsStatus = ts
 		filteredJts = append(filteredJts, job)
-		ts = ts[:0]
 	}
 	return filteredJts, nil
 }
