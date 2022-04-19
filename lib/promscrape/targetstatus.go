@@ -16,8 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
-	"gopkg.in/yaml.v2"
 )
 
 var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
@@ -55,7 +53,7 @@ func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
 		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, endpointSearch, labelSearch)
 	} else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
+		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels, showOnlyUnhealthy, endpointSearch, labelSearch)
 	}
 }
 
@@ -323,7 +321,7 @@ type jobTargetsStatuses struct {
 	targetsStatus []targetStatus
 }
 
-func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []string) {
+func (tsm *targetStatusMap) getTargetsStatusByJob(endpointSearch, labelSearch string) ([]jobTargetsStatuses, []string, error) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
@@ -357,7 +355,13 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 		return jts[i].job < jts[j].job
 	})
 	emptyJobs := getEmptyJobs(jts, jobNames)
-	return jts, emptyJobs
+	var err error
+	jts, err = filterTargets(jts, endpointSearch, labelSearch)
+	if len(endpointSearch) > 0 || len(labelSearch) > 0 {
+		// Do not show empty jobs if target filters are set.
+		emptyJobs = nil
+	}
+	return jts, emptyJobs, err
 }
 
 func filterTargetsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
@@ -366,93 +370,64 @@ func filterTargetsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jo
 	}
 	finder, err := regexp.Compile(searchQuery)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse regexp for %s: %w", searchQuery, err)
+		return nil, fmt.Errorf("cannot parse %s: %w", searchQuery, err)
 	}
-
-	var filteredJts []jobTargetsStatuses
+	var jtsFiltered []jobTargetsStatuses
 	for _, job := range jts {
-		var ts []targetStatus
-		for _, targetStatus := range job.targetsStatus {
-			if finder.MatchString(targetStatus.sw.Config.ScrapeURL) {
-				ts = append(ts, targetStatus)
+		var tss []targetStatus
+		for _, ts := range job.targetsStatus {
+			if finder.MatchString(ts.sw.Config.ScrapeURL) {
+				tss = append(tss, ts)
 			}
 		}
-		job.targetsStatus = ts
-		filteredJts = append(filteredJts, job)
+		if len(tss) == 0 {
+			// Skip jobs with zero targets after filtering, so users could see only the requested targets
+			continue
+		}
+		job.targetsStatus = tss
+		jtsFiltered = append(jtsFiltered, job)
 	}
-	return filteredJts, nil
+	return jtsFiltered, nil
 }
 
 func filterTargetsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
 	if searchQuery == "" {
 		return jts, nil
 	}
-	searchQuery = strings.TrimRight(strings.TrimLeft(searchQuery, "'"), "'")
-
 	var ie promrelabel.IfExpression
-	if err := yaml.UnmarshalStrict([]byte("'"+searchQuery+"'"), &ie); err != nil {
-		return nil, fmt.Errorf("unexpected error during unmarshal search query: %s", err)
+	if err := ie.Parse(searchQuery); err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %w", searchQuery, err)
 	}
-
-	var filteredJts []jobTargetsStatuses
+	var jtsFiltered []jobTargetsStatuses
 	for _, job := range jts {
-		var ts []targetStatus
-		for _, targetStatus := range job.targetsStatus {
-			labels, err := parseMetricWithLabels(targetStatus.sw.Config.LabelsString())
-			if err != nil {
-				return nil, fmt.Errorf("unexpected error during parse search query: %s", err)
-			}
-			if ie.Match(labels) {
-				ts = append(ts, targetStatus)
+		var tss []targetStatus
+		for _, ts := range job.targetsStatus {
+			sw := ts.sw.Config
+			if ie.Match(sw.Labels) || ie.Match(sw.OriginalLabels) {
+				tss = append(tss, ts)
 			}
 		}
-		job.targetsStatus = ts
-		filteredJts = append(filteredJts, job)
+		if len(tss) > 0 {
+			// Skip jobs with zero targets after filtering, so users could see only the requested targets
+			continue
+		}
+		job.targetsStatus = tss
+		jtsFiltered = append(jtsFiltered, job)
 	}
-	return filteredJts, nil
+	return jtsFiltered, nil
 }
 
 func filterTargets(jts []jobTargetsStatuses, endpointQuery, labelQuery string) ([]jobTargetsStatuses, error) {
-	jobsByEndpoint, err := filterTargetsByEndpoint(jts, endpointQuery)
-	if err != nil {
-		return nil, err
-	}
-	jobsByLabels, err := filterTargetsByLabels(jobsByEndpoint, labelQuery)
-	if err != nil {
-		return nil, err
-	}
-	return jobsByLabels, nil
-}
-
-func parseMetricWithLabels(labels string) ([]prompbmarshal.Label, error) {
-	// add metrics and a value to labels, so it could be parsed by prometheus protocol parser.
-	s := "vmagent" + labels + " 123"
-	var rows prometheus.Rows
 	var err error
-	rows.UnmarshalWithErrLogger(s, func(s string) {
-		err = fmt.Errorf("error during metric parse: %s", s)
-	})
+	jts, err = filterTargetsByEndpoint(jts, endpointQuery)
 	if err != nil {
 		return nil, err
 	}
-	if len(rows.Rows) != 1 {
-		return nil, fmt.Errorf("unexpected number of rows parsed; got %d; want 1", len(rows.Rows))
+	jts, err = filterTargetsByLabels(jts, labelQuery)
+	if err != nil {
+		return nil, err
 	}
-	r := rows.Rows[0]
-	var lfs []prompbmarshal.Label
-	if r.Metric != "" {
-		lfs = append(lfs, prompbmarshal.Label{
-			Name:  "__name__",
-			Value: r.Metric,
-		})
-	}
-	for _, tag := range r.Tags {
-		lfs = append(lfs, prompbmarshal.Label{
-			Name:  tag.Key,
-			Value: tag.Value,
-		})
-	}
-	return lfs, nil
+	return jts, nil
 }
 
 func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
@@ -474,15 +449,13 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
 func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
-	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	var err error
-	jss, err = filterTargets(jss, endpointSearch, labelSearch)
+	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
 	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, err)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
 // accept filter to show original labels.
-func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, showOriginalLabels bool) {
-	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	WriteTargetsResponsePlain(w, jss, emptyJobs, showOriginalLabels)
+func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, showOriginalLabels, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
+	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
+	WriteTargetsResponsePlain(w, jss, emptyJobs, showOriginalLabels, showOnlyUnhealthy, err)
 }

@@ -6,25 +6,32 @@
 
 {% stripspace %}
 
-{% func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels bool) %}
+{% func TargetsResponsePlain(jts []jobTargetsStatuses, emptyJobs []string, showOriginLabels, showOnlyUnhealthy bool, err error) %}
+
+{% if err != nil %}
+	{%s= err.Error() %}
+	{% return %}
+{% endif %}
 
 {% for _, js := range jts %}
-job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
-{% newline %}
-{% for _, ts := range js.targetsStatus %}
-{%s= "\t" %}
-    state={% if ts.up %}up{% else %}down{% endif %},{% space %}
-    endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
-    labels={%s= promLabelsString(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %},{% space %}
-    {% if showOriginLabels %}originalLabels={%s= promLabelsString(ts.sw.Config.OriginalLabels) %},{% space %}{% endif %}
-    scrapes_total={%d ts.scrapesTotal %},{% space %}
-    scrapes_failed={%d ts.scrapesFailed %},{% space %}
-    last_scrape={%f.3 ts.getDurationFromLastScrape().Seconds() %}s ago,{% space %}
-    scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
-    samples_scraped={%d ts.samplesScraped %},{% space %}
-    error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
-    {% newline %}
-{% endfor %}
+	{% if showOnlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
+	job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)
+	{% newline %}
+	{% for _, ts := range js.targetsStatus %}
+		{% if showOnlyUnhealthy && ts.up %}{% continue %}{% endif %}
+		{%s= "\t" %}
+		state={% if ts.up %}up{% else %}down{% endif %},{% space %}
+		endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
+		labels={%s= promLabelsString(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %},{% space %}
+		{% if showOriginLabels %}originalLabels={%s= promLabelsString(ts.sw.Config.OriginalLabels) %},{% space %}{% endif %}
+		scrapes_total={%d ts.scrapesTotal %},{% space %}
+		scrapes_failed={%d ts.scrapesFailed %},{% space %}
+		last_scrape={%f.3 ts.getDurationFromLastScrape().Seconds() %}s ago,{% space %}
+		scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
+		samples_scraped={%d ts.samplesScraped %},{% space %}
+		error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
+		{% newline %}
+	{% endfor %}
 {% endfor %}
 
 {% for _, jobName := range emptyJobs %}
@@ -34,7 +41,7 @@ job={%q= jobName %} (0/0 up)
 
 {% endfunc %}
 
-{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, onlyUnhealthy bool, endpointSearch, labelSearch string, err error) %}
+{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, showOnlyUnhealthy bool, endpointSearch, labelSearch string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,6 +49,26 @@ job={%q= jobName %} (0/0 up)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <title>Scrape targets</title>
+<script>
+function collapse_all() {
+  for (var i = 0; i < {%d len(jts) %}; i++) {
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+        continue;
+    }
+    el.style.display = 'none';
+  }
+}
+function expand_all() {
+  for (var i = 0; i < {%d len(jts) %}; i++) {
+    let el = document.getElementById("table-" + i);
+    if (!el) {
+      continue;
+    }
+    el.style.display = 'block';
+  }
+}
+</script>
 </head>
 <body class="py-3">
     <div class="container-fluid">
@@ -70,12 +97,12 @@ job={%q= jobName %} (0/0 up)
                 </div>
                 <div class="row g-3 align-items-center mb-3">
                     <div class="col-auto">
-                        <button type="button" class="btn{% space %}{% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
+                        <button type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
                             All
                         </button>
                     </div>
                     <div class="col-auto">
-                        <button type="button" class="btn{% space %}{% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
+                        <button type="button" class="btn{% space %}{% if showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
                             Unhealthy
                         </button>
                     </div>
@@ -94,7 +121,7 @@ job={%q= jobName %} (0/0 up)
                 <div class="row">
                     <div class="col-12">
                         {% for i, js := range jts %}
-                        {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
+                        {% if showOnlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
                         <div class="row mb-4">
                             <div class="col-12">
                                 <h4>
@@ -132,7 +159,7 @@ job={%q= jobName %} (0/0 up)
                                         targetID := getTargetID(ts.sw)
                                         lastScrapeTime := ts.getDurationFromLastScrape()
                                         %}
-                                        {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
+                                        {% if showOnlyUnhealthy && ts.up %}{% continue %}{% endif %}
                                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                                             <td class="endpoint"><a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
                                                 <a href="target_response?id={%s targetID %}" target="_blank"
@@ -195,26 +222,6 @@ job={%q= jobName %} (0/0 up)
         </div>
     </div>
 </body>
-<script>
-function collapse_all() {
-  for (var i = 0; i < {%d len(jts) %}; i++) {
-    let el = document.getElementById("table-" + i);
-    if (!el) {
-        continue;
-    }
-    el.style.display = 'none';
-  }
-}
-function expand_all() {
-  for (var i = 0; i < {%d len(jts) %}; i++) {
-    let el = document.getElementById("table-" + i);
-    if (!el) {
-      continue;
-    }
-    el.style.display = 'block';
-  }
-}
-</script>
 </html>
 {% endfunc %}
 
