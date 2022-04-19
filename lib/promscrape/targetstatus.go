@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,12 +46,14 @@ func WriteTargetResponse(w http.ResponseWriter, r *http.Request) error {
 func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
 	showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 	showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
+	endpointSearch := strings.TrimSpace(r.FormValue("endpoint_search"))
+	labelSearch := strings.TrimSpace(r.FormValue("label_search"))
 	if accept := r.Header.Get("Accept"); strings.Contains(accept, "text/html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy)
+		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, endpointSearch, labelSearch)
 	} else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
+		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels, showOnlyUnhealthy, endpointSearch, labelSearch)
 	}
 }
 
@@ -318,7 +321,7 @@ type jobTargetsStatuses struct {
 	targetsStatus []targetStatus
 }
 
-func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []string) {
+func (tsm *targetStatusMap) getTargetsStatusByJob(endpointSearch, labelSearch string) ([]jobTargetsStatuses, []string, error) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
@@ -352,7 +355,78 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() ([]jobTargetsStatuses, []str
 		return jts[i].job < jts[j].job
 	})
 	emptyJobs := getEmptyJobs(jts, jobNames)
-	return jts, emptyJobs
+	var err error
+	jts, err = filterTargets(jts, endpointSearch, labelSearch)
+	if len(endpointSearch) > 0 || len(labelSearch) > 0 {
+		// Do not show empty jobs if target filters are set.
+		emptyJobs = nil
+	}
+	return jts, emptyJobs, err
+}
+
+func filterTargetsByEndpoint(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
+	if searchQuery == "" {
+		return jts, nil
+	}
+	finder, err := regexp.Compile(searchQuery)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %w", searchQuery, err)
+	}
+	var jtsFiltered []jobTargetsStatuses
+	for _, job := range jts {
+		var tss []targetStatus
+		for _, ts := range job.targetsStatus {
+			if finder.MatchString(ts.sw.Config.ScrapeURL) {
+				tss = append(tss, ts)
+			}
+		}
+		if len(tss) == 0 {
+			// Skip jobs with zero targets after filtering, so users could see only the requested targets
+			continue
+		}
+		job.targetsStatus = tss
+		jtsFiltered = append(jtsFiltered, job)
+	}
+	return jtsFiltered, nil
+}
+
+func filterTargetsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobTargetsStatuses, error) {
+	if searchQuery == "" {
+		return jts, nil
+	}
+	var ie promrelabel.IfExpression
+	if err := ie.Parse(searchQuery); err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %w", searchQuery, err)
+	}
+	var jtsFiltered []jobTargetsStatuses
+	for _, job := range jts {
+		var tss []targetStatus
+		for _, ts := range job.targetsStatus {
+			if ie.Match(ts.sw.Config.Labels) {
+				tss = append(tss, ts)
+			}
+		}
+		if len(tss) == 0 {
+			// Skip jobs with zero targets after filtering, so users could see only the requested targets
+			continue
+		}
+		job.targetsStatus = tss
+		jtsFiltered = append(jtsFiltered, job)
+	}
+	return jtsFiltered, nil
+}
+
+func filterTargets(jts []jobTargetsStatuses, endpointQuery, labelQuery string) ([]jobTargetsStatuses, error) {
+	var err error
+	jts, err = filterTargetsByEndpoint(jts, endpointQuery)
+	if err != nil {
+		return nil, err
+	}
+	jts, err = filterTargetsByLabels(jts, labelQuery)
+	if err != nil {
+		return nil, err
+	}
+	return jts, nil
 }
 
 func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
@@ -373,14 +447,14 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
-func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool) {
-	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy)
+func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
+	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
+	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, err)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
 // accept filter to show original labels.
-func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, showOriginalLabels bool) {
-	jss, emptyJobs := tsm.getTargetsStatusByJob()
-	WriteTargetsResponsePlain(w, jss, emptyJobs, showOriginalLabels)
+func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, showOriginalLabels, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
+	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
+	WriteTargetsResponsePlain(w, jss, emptyJobs, showOriginalLabels, showOnlyUnhealthy, err)
 }

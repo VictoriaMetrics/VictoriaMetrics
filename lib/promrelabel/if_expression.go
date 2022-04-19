@@ -17,26 +17,34 @@ type IfExpression struct {
 	lfs []*labelFilter
 }
 
+// Parse parses `if` expression from s and stores it to ie.
+func (ie *IfExpression) Parse(s string) error {
+	expr, err := metricsql.Parse(s)
+	if err != nil {
+		return err
+	}
+	me, ok := expr.(*metricsql.MetricExpr)
+	if !ok {
+		return fmt.Errorf("expecting series selector; got %q", expr.AppendString(nil))
+	}
+	lfs, err := metricExprToLabelFilters(me)
+	if err != nil {
+		return fmt.Errorf("cannot parse series selector: %w", err)
+	}
+	ie.s = s
+	ie.lfs = lfs
+	return nil
+}
+
 // UnmarshalYAML unmarshals ie from YAML passed to f.
 func (ie *IfExpression) UnmarshalYAML(f func(interface{}) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return fmt.Errorf("cannot unmarshal `if` option: %w", err)
 	}
-	expr, err := metricsql.Parse(s)
-	if err != nil {
+	if err := ie.Parse(s); err != nil {
 		return fmt.Errorf("cannot parse `if` series selector: %w", err)
 	}
-	me, ok := expr.(*metricsql.MetricExpr)
-	if !ok {
-		return fmt.Errorf("expecting `if` series selector; got %q", expr.AppendString(nil))
-	}
-	lfs, err := metricExprToLabelFilters(me)
-	if err != nil {
-		return fmt.Errorf("cannot parse `if` filters: %w", err)
-	}
-	ie.s = s
-	ie.lfs = lfs
 	return nil
 }
 
