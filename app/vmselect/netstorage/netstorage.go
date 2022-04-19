@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastrand"
 )
@@ -192,8 +193,10 @@ var resultPool sync.Pool
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
+func (rss *Results) RunParallel(ctx *tracer.Context, f func(rs *Result, workerID uint) error) error {
 	defer rss.mustClose()
+
+	subCtx := ctx.Add()
 
 	// Spin up local workers.
 	//
@@ -248,6 +251,11 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 
 	perQueryRowsProcessed.Update(float64(rowsProcessedTotal))
 	perQuerySeriesProcessed.Update(float64(seriesProcessedTotal))
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("RunParallel processed %d series, %d rows via %d workers",
+			seriesProcessedTotal, rowsProcessedTotal, workers)
+	})
 
 	// Shut down local workers
 	for _, workCh := range workChs {
@@ -631,7 +639,7 @@ func GetGraphiteTags(filter string, limit int, deadline searchutils.Deadline) ([
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := GetLabels(deadline)
+	labels, err := GetLabels(tracer.NewContext(nil), deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -672,10 +680,13 @@ func hasString(a []string, s string) bool {
 }
 
 // GetLabels returns labels until the given deadline.
-func GetLabels(deadline searchutils.Deadline) ([]string, error) {
+func GetLabels(ctx *tracer.Context, deadline searchutils.Deadline) ([]string, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
+
+	subCtx := ctx.Add()
+
 	labels, err := vmstorage.SearchTagKeys(*maxTagKeysPerSearch, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search: %w", err)
@@ -688,15 +699,23 @@ func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 	}
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("GetLabels returns %d labels", len(labels))
+	})
+
 	return labels, nil
 }
 
 // GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
 // until the given deadline.
-func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelValuesOnTimeRange(ctx *tracer.Context, labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
+
+	subCtx := ctx.Add()
+
 	if labelName == "__name__" {
 		labelName = ""
 	}
@@ -707,6 +726,11 @@ func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline 
 	}
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("GetLabelValuesOnTimeRange returns %d label values on range %q", len(labelValues), tr.Duration())
+	})
+
 	return labelValues, nil
 }
 
@@ -718,7 +742,7 @@ func GetGraphiteTagValues(tagName, filter string, limit int, deadline searchutil
 	if tagName == "name" {
 		tagName = ""
 	}
-	tagValues, err := GetLabelValues(tagName, deadline)
+	tagValues, err := GetLabelValues(tracer.NewContext(nil), tagName, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -736,10 +760,13 @@ func GetGraphiteTagValues(tagName, filter string, limit int, deadline searchutil
 
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
-func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelValues(ctx *tracer.Context, labelName string, deadline searchutils.Deadline) ([]string, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
+
+	subCtx := ctx.Add()
+
 	if labelName == "__name__" {
 		labelName = ""
 	}
@@ -750,6 +777,11 @@ func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, 
 	}
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("GetLabelValues returns %d label values", len(labelValues))
+	})
+
 	return labelValues, nil
 }
 
@@ -774,10 +806,13 @@ func GetTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix string, de
 }
 
 // GetLabelEntries returns all the label entries until the given deadline.
-func GetLabelEntries(deadline searchutils.Deadline) ([]storage.TagEntry, error) {
+func GetLabelEntries(ctx *tracer.Context, deadline searchutils.Deadline) ([]storage.TagEntry, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
+
+	subCtx := ctx.Add()
+
 	labelEntries, err := vmstorage.SearchTagEntries(*maxTagKeysPerSearch, *maxTagValuesPerSearch, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during label entries request: %w", err)
@@ -798,6 +833,10 @@ func GetLabelEntries(deadline searchutils.Deadline) ([]storage.TagEntry, error) 
 			return len(a) > len(b)
 		}
 		return labelEntries[i].Key > labelEntries[j].Key
+	})
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("GetLabelEntries returns %d entries", len(labelEntries))
 	})
 
 	return labelEntries, nil
@@ -871,7 +910,9 @@ var ssPool sync.Pool
 // Data processing is immediately stopped if f returns non-nil error.
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
-func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
+func ExportBlocks(ctx *tracer.Context, sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
+	subCtx := ctx.Add()
+
 	if deadline.Exceeded() {
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
@@ -893,7 +934,7 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
 	startTime := time.Now()
-	sr.Init(vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
+	sr.Init(subCtx, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
@@ -946,6 +987,10 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 	// Wait for workers to finish.
 	wg.Wait()
 
+	subCtx.Done(func() string {
+		return fmt.Sprintf("ExportBlocks read %d blocks on range %q", blocksRead, tr.Duration())
+	})
+
 	// Check errors.
 	err = sr.Error()
 	if err == nil {
@@ -977,16 +1022,19 @@ var exportWorkPool = &sync.Pool{
 }
 
 // SearchMetricNames returns all the metric names matching sq until the given deadline.
-func SearchMetricNames(sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, error) {
+func SearchMetricNames(ctx *tracer.Context, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
 	}
+
+	subCtx := ctx.Add()
 
 	// Setup search.
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
+
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
@@ -999,13 +1047,18 @@ func SearchMetricNames(sq *storage.SearchQuery, deadline searchutils.Deadline) (
 	if err != nil {
 		return nil, fmt.Errorf("cannot find metric names: %w", err)
 	}
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("SearchMetricNames found %d names on range %q", len(mns), tr.Duration())
+	})
+
 	return mns, nil
 }
 
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, error) {
+func ProcessSearchQuery(ctx *tracer.Context, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -1018,6 +1071,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
+
 	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1028,8 +1082,11 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 
 	sr := getStorageSearch()
 	startTime := time.Now()
-	maxSeriesCount := sr.Init(vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
+	maxSeriesCount := sr.Init(ctx, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
+
+	subCtx := ctx.Add()
+
 	m := make(map[string][]blockRef, maxSeriesCount)
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 	blocksRead := 0
@@ -1085,6 +1142,10 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 		putStorageSearch(sr)
 		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("ProcessSearchQuery scanned %d blocks, %d series, %d samples", blocksRead, len(orderedMetricNames), samples)
+	})
 
 	var rss Results
 	rss.tr = tr

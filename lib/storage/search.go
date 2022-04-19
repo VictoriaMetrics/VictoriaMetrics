@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 )
 
 // BlockRef references a Block.
@@ -138,10 +139,12 @@ func (s *Search) reset() {
 // MustClose must be called when the search is done.
 //
 // Init returns the upper bound on the number of found time series.
-func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+func (s *Search) Init(ctx *tracer.Context, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
+
+	subCtx := ctx.Add()
 
 	s.reset()
 	s.tr = tr
@@ -157,6 +160,10 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMet
 	// Init must be called before returning because it will fail
 	// on Seach.MustClose otherwise.
 	s.ts.Init(storage.tb, tsids, tr)
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("index search on time range %q returns estimation of %d series", tr.Duration(), len(tsids))
+	})
 
 	if err != nil {
 		s.err = err

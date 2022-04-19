@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	graphiteparser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -161,7 +162,7 @@ var (
 // TagsAutoCompleteValuesHandler implements /tags/autoComplete/values endpoint from Graphite Tags API.
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
-func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func TagsAutoCompleteValuesHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
@@ -200,7 +201,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		if err != nil {
 			return err
 		}
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(tracer.NewContext(nil), sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 		}
@@ -286,7 +287,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		if err != nil {
 			return err
 		}
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(tracer.NewContext(nil), sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 		}
@@ -353,7 +354,7 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return err
 	}
-	mns, err := netstorage.SearchMetricNames(sq, deadline)
+	mns, err := netstorage.SearchMetricNames(tracer.NewContext(nil), sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 	}

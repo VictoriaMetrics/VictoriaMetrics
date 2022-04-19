@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -26,7 +27,7 @@ var (
 )
 
 // Exec executes q for the given ec.
-func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
+func Exec(ctx *tracer.Context, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
@@ -39,12 +40,24 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		return nil, err
 	}
 
+	subCtx := ctx.Add()
 	qid := activeQueriesV.Add(ec, q)
-	rv, err := evalExpr(ec, e)
+	rv, err := evalExpr(subCtx, ec, e)
 	activeQueriesV.Remove(qid)
 	if err != nil {
 		return nil, err
 	}
+
+	var samplesTotal int
+	for _, s := range rv {
+		samplesTotal += len(s.Timestamps)
+	}
+
+	subCtx.Done(func() string {
+		tr := storage.TimeRange{MinTimestamp: ec.Start, MaxTimestamp: ec.End}
+		return fmt.Sprintf("Exec on range %q with step %vs returned %d series %d samples",
+			tr.Duration(), ec.Step/1000, len(rv), samplesTotal)
+	})
 
 	if isFirstPointOnly {
 		// Remove all the points except the first one from every time series.
@@ -53,6 +66,8 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 			ts.Timestamps = ts.Timestamps[:1]
 		}
 	}
+
+	subCtx = ctx.Add()
 
 	maySort := maySortResults(e, rv)
 	result, err := timeseriesToResult(rv, maySort)
@@ -67,6 +82,11 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 			}
 		}
 	}
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("Exec transforms %d series to result of %d series", len(rv), len(result))
+	})
+
 	return result, err
 }
 

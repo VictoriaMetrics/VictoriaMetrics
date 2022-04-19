@@ -5,9 +5,12 @@
 {% stripspace %}
 QueryResponse generates response for /api/v1/query.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-{% func QueryResponse(rs []netstorage.Result) %}
+{% func QueryResponse(rs []netstorage.Result, trace string) %}
 {
 	"status":"success",
+    {% if trace != "" %}
+    "trace":{%s= trace %},
+    {% endif %}
 	"data":{
 		"resultType":"vector",
 		"result":[

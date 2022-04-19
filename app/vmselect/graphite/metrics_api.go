@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -206,7 +207,7 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	jsonp := r.FormValue("jsonp")
-	metricNames, err := netstorage.GetLabelValues("__name__", deadline)
+	metricNames, err := netstorage.GetLabelValues(tracer.NewContext(nil), "__name__", deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}

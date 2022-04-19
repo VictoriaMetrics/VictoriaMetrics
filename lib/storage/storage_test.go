@@ -11,6 +11,7 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
@@ -635,7 +636,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	metricBlocksCount := func(tfs *TagFilters) int {
 		// Verify the number of blocks
 		n := 0
-		sr.Init(s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		sr.Init(tracer.NewContext(nil), s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		for sr.NextMetricBlock() {
 			n++
 		}

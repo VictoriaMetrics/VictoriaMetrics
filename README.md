@@ -1295,6 +1295,64 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
+## Query tracing
+
+*Warning: query tracing is an experimental feature and can be changed or removed in future*
+
+VictoriaMetrics single-node supports query tracing which could help identifying bottlenecks
+during the query processing.
+
+Query tracing can be enabled for a specific query by passing additional GET params:
+
+* `trace_query=true` - enables tracing;
+* `trace_query_id=<string>` - defines the trace ID for the query. If omitted, random ID will be generated;
+* `trace_query_color=true` - add colors to the printed into stdout query trace.
+
+When query tracing is enabled, VM prints the trace results to the stdout and also returns it in response. 
+For example, execution of the following query will produce the trace result to the stdout:
+```bash
+curl -g "127.0.0.1:8428/api/v1/query_range?trace_query=true&trace_query_color=true&step=2h&start=2022-05-03T05:50:00.000Z&query=sum(vm_cache_entries)" | jq .
+
+ 25ms: query trace "16EB9DB688613379"
+-- 24ms: Exec on range "8h21m40s" with step 7200s returned 1 series 5 samples
+---- 24ms: evaluating expression "sum(vm_cache_entries)"
+------ 24ms: evalRollupFuncWithMetricExpr 8 time series, 5 points each, total 40 samples at once, with estimated memory 640 bytes
+-------- 14ms: index search on time range "10h26m40s" returns estimation of 16 series
+-------- 5ms: ProcessSearchQuery scanned 256 blocks, 16 series, 255984 samples
+-------- 4ms: RunParallel processed 16 series, 195792 rows via 8 workers
+-- 0ms: Exec transforms 1 series to result of 1 series
+```
+
+The result of the trace will be also returned in request response:
+```json
+{
+  "status": "success",
+  "trace": {
+    "id": "16EB9DB688613379",
+    "elapsed": "24ms",
+    "subtrace": [
+      {
+        "msg": "Exec on range \"8h21m40s\" with step 7200s returned 1 series 5 samples",
+        "elapsed": "24ms",
+        "subtrace": [
+          {
+            "msg": "evaluating expression \"sum(vm_cache_entries)\"",
+            "elapsed": "24ms",
+            "subtrace": [...]
+          }
+        ]
+      },
+    ...
+    ]
+  },
+  "data": {
+    "resultType": "matrix",
+    "result": [...]
+  }
+}
+
+```
+
 ## Cardinality limiter
 
 By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:

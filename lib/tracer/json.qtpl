@@ -1,0 +1,26 @@
+{% stripspace %}
+{% func ctxToJson(ctx *Context) %}
+{
+    "id": "{%s= ctx.ID() %}",
+    "msg": {%q= ctx.msg %},
+    "elapsed": "{%d int(ctx.updated.Sub(ctx.start).Milliseconds()) %}ms",
+    "subtrace": [
+        {% for i, sub := range ctx.subContexts %}
+            {%= subCtxToJson(sub) %}{% if len(ctx.subContexts) != i+1 %},{% endif %}
+        {% endfor %}
+    ]
+}
+{% endfunc %}
+
+{% func subCtxToJson(ctx *Context) %}
+{
+    "msg": {%q= ctx.msg %},
+    "elapsed": "{%d int(ctx.updated.Sub(ctx.start).Milliseconds()) %}ms",
+    "subtrace": [
+        {% for i, sub := range ctx.subContexts %}
+            {%= subCtxToJson(sub) %}{% if len(ctx.subContexts) != i+1 %},{% endif %}
+        {% endfor %}
+    ]
+}
+{% endfunc %}
+{% endstripspace %}

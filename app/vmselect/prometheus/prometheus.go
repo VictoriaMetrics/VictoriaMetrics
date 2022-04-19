@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 	"github.com/valyala/quicktemplate"
@@ -54,7 +55,7 @@ var (
 const defaultStep = 5 * 60 * 1000
 
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
-func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func FederateHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer federateDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -85,7 +86,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		return err
 	}
 	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxFederateSeries)
-	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
+	rss, err := netstorage.ProcessSearchQuery(ctx, sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -93,7 +94,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+	err = rss.RunParallel(ctx, func(rs *netstorage.Result, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -115,7 +116,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
 
 // ExportCSVHandler exports data in CSV format from /api/v1/export/csv
-func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func ExportCSVHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer exportCSVDuration.UpdateDuration(startTime)
 
 	if err := r.ParseForm(); err != nil {
@@ -148,12 +149,12 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	}
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
-		rss, err := netstorage.ProcessSearchQuery(sq, true, ep.deadline)
+		rss, err := netstorage.ProcessSearchQuery(ctx, sq, true, ep.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		go func() {
-			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			err := rss.RunParallel(ctx, func(rs *netstorage.Result, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -171,7 +172,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 		}()
 	} else {
 		go func() {
-			err := netstorage.ExportBlocks(sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(ctx, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -209,7 +210,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/csv"}`)
 
 // ExportNativeHandler exports data in native format from /api/v1/export/native.
-func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func ExportNativeHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer exportNativeDuration.UpdateDuration(startTime)
 
 	if err := r.ParseForm(); err != nil {
@@ -232,7 +233,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+	err = netstorage.ExportBlocks(ctx, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -274,7 +275,7 @@ var exportNativeDuration = metrics.NewSummary(`vm_request_duration_seconds{path=
 var bbPool bytesutil.ByteBufferPool
 
 // ExportHandler exports data in raw format from /api/v1/export.
-func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func ExportHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer exportDuration.UpdateDuration(startTime)
 
 	if err := r.ParseForm(); err != nil {
@@ -287,7 +288,7 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
 	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
-	if err := exportHandler(w, ep, format, maxRowsPerLine, reduceMemUsage); err != nil {
+	if err := exportHandler(ctx, w, ep, format, maxRowsPerLine, reduceMemUsage); err != nil {
 		return fmt.Errorf("error when exporting data on the time range (start=%d, end=%d): %w", ep.start, ep.end, err)
 	}
 	return nil
@@ -295,7 +296,9 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(w http.ResponseWriter, ep *exportParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
+func exportHandler(ctx *tracer.Context, w http.ResponseWriter, ep *exportParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
+	subCtx := ctx.Add()
+
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
 		bb := quicktemplate.AcquireByteBuffer()
@@ -348,6 +351,12 @@ func exportHandler(w http.ResponseWriter, ep *exportParams, format string, maxRo
 		}
 	}
 
+	defer func() {
+		subCtx.Done(func() string {
+			return "exportHandler"
+		})
+	}()
+
 	sq := storage.NewSearchQuery(ep.start, ep.end, ep.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
@@ -356,12 +365,12 @@ func exportHandler(w http.ResponseWriter, ep *exportParams, format string, maxRo
 	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
-		rss, err := netstorage.ProcessSearchQuery(sq, true, ep.deadline)
+		rss, err := netstorage.ProcessSearchQuery(subCtx, sq, true, ep.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		go func() {
-			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			err := rss.RunParallel(subCtx, func(rs *netstorage.Result, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -379,7 +388,7 @@ func exportHandler(w http.ResponseWriter, ep *exportParams, format string, maxRo
 		}()
 	} else {
 		go func() {
-			err := netstorage.ExportBlocks(sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(subCtx, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -465,7 +474,7 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
-func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
+func LabelValuesHandler(ctx *tracer.Context, startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
@@ -481,7 +490,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	if len(matches) == 0 && len(etfs) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
-			labelValues, err = netstorage.GetLabelValues(labelName, deadline)
+			labelValues, err = netstorage.GetLabelValues(ctx, labelName, deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
 			}
@@ -499,7 +508,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 				MinTimestamp: start,
 				MaxTimestamp: end,
 			}
-			labelValues, err = netstorage.GetLabelValuesOnTimeRange(labelName, tr, deadline)
+			labelValues, err = netstorage.GetLabelValuesOnTimeRange(ctx, labelName, tr, deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
 			}
@@ -521,7 +530,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		labelValues, err = labelValuesWithMatches(labelName, matches, etfs, start, end, deadline)
+		labelValues, err = labelValuesWithMatches(ctx, labelName, matches, etfs, start, end, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %w", labelName, matches, start, end, err)
 		}
@@ -537,7 +546,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	return nil
 }
 
-func labelValuesWithMatches(labelName string, matches []string, etfs [][]storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, error) {
+func labelValuesWithMatches(ctx *tracer.Context, labelName string, matches []string, etfs [][]storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, err
@@ -566,7 +575,7 @@ func labelValuesWithMatches(labelName string, matches []string, etfs [][]storage
 	m := make(map[string]struct{})
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(ctx, sq, deadline)
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -578,12 +587,12 @@ func labelValuesWithMatches(labelName string, matches []string, etfs [][]storage
 			m[string(labelValue)] = struct{}{}
 		}
 	} else {
-		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+		rss, err := netstorage.ProcessSearchQuery(ctx, sq, false, deadline)
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		var mLock sync.Mutex
-		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		err = rss.RunParallel(ctx, func(rs *netstorage.Result, workerID uint) error {
 			labelValue := rs.MetricName.GetTagValue(labelName)
 			if len(labelValue) == 0 {
 				return nil
@@ -608,11 +617,11 @@ func labelValuesWithMatches(labelName string, matches []string, etfs [][]storage
 var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/label/{}/values"}`)
 
 // LabelsCountHandler processes /api/v1/labels/count request.
-func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func LabelsCountHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsCountDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	labelEntries, err := netstorage.GetLabelEntries(deadline)
+	labelEntries, err := netstorage.GetLabelEntries(ctx, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %w`, err)
 	}
@@ -635,7 +644,7 @@ const secsPerDay = 3600 * 24
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It can accept `match[]` filters in order to narrow down the search.
-func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func TSDBStatusHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer tsdbStatusDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
@@ -718,7 +727,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
-func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func LabelsHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
@@ -734,7 +743,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if len(matches) == 0 && len(etfs) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
-			labels, err = netstorage.GetLabels(deadline)
+			labels, err = netstorage.GetLabels(ctx, deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels: %w", err)
 			}
@@ -772,7 +781,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return err
 		}
-		labels, err = labelsWithMatches(matches, etfs, start, end, deadline)
+		labels, err = labelsWithMatches(ctx, matches, etfs, start, end, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %w", matches, start, end, err)
 		}
@@ -788,7 +797,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-func labelsWithMatches(matches []string, etfs [][]storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, error) {
+func labelsWithMatches(ctx *tracer.Context, matches []string, etfs [][]storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, err
@@ -804,7 +813,7 @@ func labelsWithMatches(matches []string, etfs [][]storage.TagFilter, start, end 
 	m := make(map[string]struct{})
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(ctx, sq, deadline)
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -817,12 +826,12 @@ func labelsWithMatches(matches []string, etfs [][]storage.TagFilter, start, end 
 			m["__name__"] = struct{}{}
 		}
 	} else {
-		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+		rss, err := netstorage.ProcessSearchQuery(ctx, sq, false, deadline)
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		var mLock sync.Mutex
-		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		err = rss.RunParallel(ctx, func(rs *netstorage.Result, workerID uint) error {
 			mLock.Lock()
 			for _, tag := range rs.MetricName.Tags {
 				m[string(tag.Key)] = struct{}{}
@@ -846,14 +855,21 @@ func labelsWithMatches(matches []string, etfs [][]storage.TagFilter, start, end 
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)
 
 // SeriesCountHandler processes /api/v1/series/count request.
-func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func SeriesCountHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesCountDuration.UpdateDuration(startTime)
+
+	subCtx := ctx.Add()
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	n, err := netstorage.GetSeriesCount(deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
+
+	subCtx.Done(func() string {
+		return fmt.Sprintf("SeriesCountHandler returns %d series", n)
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -861,6 +877,7 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send series count response to remote client: %w", err)
 	}
+
 	return nil
 }
 
@@ -869,7 +886,7 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // SeriesHandler processes /api/v1/series request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func SeriesHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -901,7 +918,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxSeriesLimit)
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(ctx, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -925,7 +942,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		seriesDuration.UpdateDuration(startTime)
 		return nil
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+	rss, err := netstorage.ProcessSearchQuery(ctx, sq, false, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -936,7 +953,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
 	doneCh := make(chan error)
 	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		err := rss.RunParallel(ctx, func(rs *netstorage.Result, workerID uint) error {
 			if err := bw.Error(); err != nil {
 				return err
 			}
@@ -965,7 +982,7 @@ var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // QueryHandler processes /api/v1/query request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer queryDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -993,6 +1010,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if len(query) > maxQueryLen.N {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
+
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
@@ -1021,7 +1039,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 			end:      end,
 			filterss: filterss,
 		}
-		if err := exportHandler(w, ep, "promapi", 0, false); err != nil {
+		if err := exportHandler(ctx, w, ep, "promapi", 0, false); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1037,7 +1055,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		start -= offset
 		end := start
 		start = end - window
-		if err := queryRangeHandler(startTime, w, childQuery, start, end, step, r, ct, etfs); err != nil {
+		if err := queryRangeHandler(ctx, startTime, w, childQuery, start, end, step, r, ct, etfs); err != nil {
 			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1065,7 +1083,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
 	}
-	result, err := promql.Exec(&ec, query, true)
+	result, err := promql.Exec(ctx, &ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
@@ -1081,7 +1099,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteQueryResponse(bw, result)
+	WriteQueryResponse(bw, result, ctx.PrintJSON())
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
@@ -1093,7 +1111,7 @@ var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryRangeHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer queryRangeDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -1117,13 +1135,13 @@ func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	if err := queryRangeHandler(startTime, w, query, start, end, step, r, ct, etfs); err != nil {
+	if err := queryRangeHandler(ctx, startTime, w, query, start, end, step, r, ct, etfs); err != nil {
 		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
 	return nil
 }
 
-func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
+func queryRangeHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	mayCache := !searchutils.GetBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
@@ -1157,7 +1175,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
 	}
-	result, err := promql.Exec(&ec, query, false)
+	result, err := promql.Exec(ctx, &ec, query, false)
 	if err != nil {
 		return fmt.Errorf("cannot execute query: %w", err)
 	}
@@ -1175,7 +1193,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteQueryRangeResponse(bw, result)
+	WriteQueryRangeResponse(bw, result, ctx.PrintJSON())
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
@@ -1320,7 +1338,7 @@ func getLatencyOffsetMilliseconds() int64 {
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
-func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryStatsHandler(ctx *tracer.Context, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer queryStatsDuration.UpdateDuration(startTime)
 
 	if err := r.ParseForm(); err != nil {

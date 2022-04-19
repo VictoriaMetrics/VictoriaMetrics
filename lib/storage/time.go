@@ -25,6 +25,14 @@ type TimeRange struct {
 	MaxTimestamp int64
 }
 
+// Duration returns a string representation of duration
+// between min and max timestamps.
+func (tr *TimeRange) Duration() string {
+	minTime := timestampToTime(tr.MinTimestamp)
+	maxTime := timestampToTime(tr.MaxTimestamp)
+	return fmt.Sprintf("%v", maxTime.Sub(minTime))
+}
+
 func (tr *TimeRange) String() string {
 	minTime := timestampToTime(tr.MinTimestamp)
 	maxTime := timestampToTime(tr.MaxTimestamp)

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tracer"
 )
 
 func TestSearchQueryMarshalUnmarshal(t *testing.T) {
@@ -202,7 +204,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 		}
 
 		// Search
-		s.Init(st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		s.Init(tracer.NewContext(nil), st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		var mbs []metricBlock
 		for s.NextMetricBlock() {
 			var b Block
