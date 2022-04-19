@@ -8,7 +8,6 @@ import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
 import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
-import Alert from "@mui/material/Alert";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -129,14 +128,12 @@ const GraphView: FC<GraphViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   return <>
-    {(data.length > 0) ?
-      <div style={{width: "100%"}} ref={containerRef}>
-        {containerRef?.current &&
+    <div style={{width: "100%"}} ref={containerRef}>
+      {containerRef?.current &&
           <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit}
             setPeriod={setPeriod} container={containerRef?.current}/>}
-        {showLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
-      </div>
-      : <Alert color="warning" severity="warning" sx={{mt: 2}}>No data to show</Alert>}
+      {showLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
+    </div>
   </>;
 };
 

@@ -12,8 +12,8 @@ type Duration struct {
 }
 
 // NewDuration returns Duration for given d.
-func NewDuration(d time.Duration) Duration {
-	return Duration{
+func NewDuration(d time.Duration) *Duration {
+	return &Duration{
 		d: d,
 	}
 }
@@ -38,7 +38,10 @@ func (pd *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Duration returns duration for pd.
-func (pd Duration) Duration() time.Duration {
+func (pd *Duration) Duration() time.Duration {
+	if pd == nil {
+		return 0
+	}
 	return pd.d
 }
 
