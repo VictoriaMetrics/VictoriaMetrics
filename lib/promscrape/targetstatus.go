@@ -402,12 +402,11 @@ func filterTargetsByLabels(jts []jobTargetsStatuses, searchQuery string) ([]jobT
 	for _, job := range jts {
 		var tss []targetStatus
 		for _, ts := range job.targetsStatus {
-			sw := ts.sw.Config
-			if ie.Match(sw.Labels) || ie.Match(sw.OriginalLabels) {
+			if ie.Match(ts.sw.Config.Labels) {
 				tss = append(tss, ts)
 			}
 		}
-		if len(tss) > 0 {
+		if len(tss) == 0 {
 			// Skip jobs with zero targets after filtering, so users could see only the requested targets
 			continue
 		}

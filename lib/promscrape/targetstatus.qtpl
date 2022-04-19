@@ -1,4 +1,5 @@
 {% import (
+	"net/url"
 	"time"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -49,7 +50,7 @@ job={%q= jobName %} (0/0 up)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <title>Scrape targets</title>
-<script>
+    <script>
 function collapse_all() {
   for (var i = 0; i < {%d len(jts) %}; i++) {
     let el = document.getElementById("table-" + i);
@@ -68,7 +69,7 @@ function expand_all() {
     el.style.display = 'block';
   }
 }
-</script>
+    </script>
 </head>
 <body class="py-3">
     <div class="container-fluid">
@@ -79,30 +80,46 @@ function expand_all() {
             <main class="col-12">
                 <h1>Scrape targets</h1>
                 <hr />
-                <div class="row mb-3">
-                    <h4> Endpoints and labels filter</h4>
-                    <div class="col-4">
-                        <form action="/targets" method="get" accept-charset="utf-8">
-                            <div class="mb-3">
-                                <label for="endpoint_search" class="form-label">Endpoint filter</label>
-                                <input type="text" id="endpoint_search" name="endpoint_search" placeholder="Search: enter text or regexp" class="form-control" value="{%s endpointSearch %}"/>
+                {% if endpointSearch == "" && labelSearch == "" %}
+                    <button type="button" class="btn btn-primary mb-3" onclick="document.getElementById('filters').style.display='block'">Filter targets</button>
+                {% endif %}
+                <div id="filters" {% if endpointSearch == "" && labelSearch == "" %}style="display:none"{% endif %}>
+                    <form class="form-horizontal">
+                        <div class="form-group mb-3">
+                            <label for="endpoint_search" class="col-sm-10 control-label">Endpoint filter (<a target="_blank" href="https://github.com/google/re2/wiki/Syntax">Regexp</a> is accepted)</label>
+                            <div class="col-sm-10">
+                                <input type="text" id="endpoint_search" name="endpoint_search"
+                                    placeholder="For example, 127.0.0.1" class="form-control" value="{%s endpointSearch %}"/>
                             </div>
-                            <div class="mb-3">
-                                <label for="label_search" class="form-label">Label filter</label>
-                                <input type="text" id="label_search" name="label_search" placeholder="Search: enter text or regexp" class="form-control" value="{%s labelSearch %}"/>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="label_search" class="col-sm-10 control-label">Labels filter (<a target="_blank" href="https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors">Arbitrary time series selectors</a> are accepted)</label>
+                            <div class="col-sm-10">
+                                <input type="text" id="label_search" name="label_search"
+                                    placeholder="For example, {instance=~'.+:9100'}" class="form-control" value="{%s labelSearch %}"/>
                             </div>
-                            <button type="submit" class="btn btn-success btn-md">Submit</button>
-                        </form>
-                    </div>
+                        </div>
+                        <input type="hidden" name="show_only_unhealthy" value="{%v showOnlyUnhealthy %}"/>
+                        <button type="submit" class="btn btn-success mb-3">Submit</button>
+                        <button type="button" class="btn btn-primary mb-3" onclick="location.href='?'">Clear target filters</button>
+                    </form>
                 </div>
                 <div class="row g-3 align-items-center mb-3">
                     <div class="col-auto">
-                        <button type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets'">
+                        <button type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
+	"show_only_unhealthy": "false",
+	"endpoint_search": endpointSearch,
+	"label_search": labelSearch,
+}) %}'">
                             All
                         </button>
                     </div>
                     <div class="col-auto">
-                        <button type="button" class="btn{% space %}{% if showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='targets?show_only_unhealthy=true'">
+                        <button type="button" class="btn{% space %}{% if showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
+	"show_only_unhealthy": "true",
+	"endpoint_search": endpointSearch,
+	"label_search": labelSearch,
+}) %}'">
                             Unhealthy
                         </button>
                     </div>
@@ -223,6 +240,16 @@ function expand_all() {
     </div>
 </body>
 </html>
+{% endfunc %}
+
+{% func queryArgs(m map[string]string) %}
+{% code
+	qa := make(url.Values, len(m))
+	for k, v := range m {
+		qa[k] = []string{v}
+	}
+%}
+	{%s qa.Encode() %}
 {% endfunc %}
 
 {% func formatLabel(labels []prompbmarshal.Label) %}
