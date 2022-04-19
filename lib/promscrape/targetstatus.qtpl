@@ -80,30 +80,6 @@ function expand_all() {
             <main class="col-12">
                 <h1>Scrape targets</h1>
                 <hr />
-                {% if endpointSearch == "" && labelSearch == "" %}
-                    <button type="button" class="btn btn-primary mb-3" onclick="document.getElementById('filters').style.display='block'">Filter targets</button>
-                {% endif %}
-                <div id="filters" {% if endpointSearch == "" && labelSearch == "" %}style="display:none"{% endif %}>
-                    <form class="form-horizontal">
-                        <div class="form-group mb-3">
-                            <label for="endpoint_search" class="col-sm-10 control-label">Endpoint filter (<a target="_blank" href="https://github.com/google/re2/wiki/Syntax">Regexp</a> is accepted)</label>
-                            <div class="col-sm-10">
-                                <input type="text" id="endpoint_search" name="endpoint_search"
-                                    placeholder="For example, 127.0.0.1" class="form-control" value="{%s endpointSearch %}"/>
-                            </div>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="label_search" class="col-sm-10 control-label">Labels filter (<a target="_blank" href="https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors">Arbitrary time series selectors</a> are accepted)</label>
-                            <div class="col-sm-10">
-                                <input type="text" id="label_search" name="label_search"
-                                    placeholder="For example, {instance=~'.+:9100'}" class="form-control" value="{%s labelSearch %}"/>
-                            </div>
-                        </div>
-                        <input type="hidden" name="show_only_unhealthy" value="{%v showOnlyUnhealthy %}"/>
-                        <button type="submit" class="btn btn-success mb-3">Submit</button>
-                        <button type="button" class="btn btn-primary mb-3" onclick="location.href='?'">Clear target filters</button>
-                    </form>
-                </div>
                 <div class="row g-3 align-items-center mb-3">
                     <div class="col-auto">
                         <button type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
@@ -133,6 +109,37 @@ function expand_all() {
                             Expand all
                         </button>
                     </div>
+                    <div class="col-auto">
+                    {% if endpointSearch == "" && labelSearch == "" %}
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('filters').style.display='block'">
+                            Filter targets
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-primary" onclick="location.href='?'">
+                            Clear target filters
+                        </button>
+                    {% endif %}
+                    </div>
+                </div>
+                <div id="filters" {% if endpointSearch == "" && labelSearch == "" %}style="display:none"{% endif %}>
+                    <form class="form-horizontal">
+                        <div class="form-group mb-3">
+                            <label for="endpoint_search" class="col-sm-10 control-label">Endpoint filter (<a target="_blank" href="https://github.com/google/re2/wiki/Syntax">Regexp</a> is accepted)</label>
+                            <div class="col-sm-10">
+                                <input type="text" id="endpoint_search" name="endpoint_search"
+                                    placeholder="For example, 127.0.0.1" class="form-control" value="{%s endpointSearch %}"/>
+                            </div>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="label_search" class="col-sm-10 control-label">Labels filter (<a target="_blank" href="https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors">Arbitrary time series selectors</a> are accepted)</label>
+                            <div class="col-sm-10">
+                                <input type="text" id="label_search" name="label_search"
+                                    placeholder="For example, {instance=~'.+:9100'}" class="form-control" value="{%s labelSearch %}"/>
+                            </div>
+                        </div>
+                        <input type="hidden" name="show_only_unhealthy" value="{%v showOnlyUnhealthy %}"/>
+                        <button type="submit" class="btn btn-success mb-3">Submit</button>
+                    </form>
                 </div>
                 <hr />
                 <div class="row">
