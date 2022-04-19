@@ -10,6 +10,32 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func TestIfExpressionParseFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var ie IfExpression
+		if err := ie.Parse(s); err == nil {
+			t.Fatalf("expecting non-nil error when parsing %q", s)
+		}
+	}
+	f(`{`)
+	f(`{foo`)
+	f(`foo{`)
+}
+
+func TestIfExpressionParseSuccess(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var ie IfExpression
+		if err := ie.Parse(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}
+	f(`foo`)
+	f(`{foo="bar"}`)
+	f(`foo{bar=~"baz", x!="y"}`)
+}
+
 func TestIfExpressionUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
