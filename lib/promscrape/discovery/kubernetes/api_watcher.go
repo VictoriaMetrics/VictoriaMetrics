@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kuberntes API server")
+var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
 //
@@ -45,7 +45,7 @@ type parseObjectFunc func(data []byte) (object, error)
 // parseObjectListFunc must parse objectList from the given r.
 type parseObjectListFunc func(r io.Reader) (map[string]object, ListMeta, error)
 
-// apiWatcher is used for watching for Kuberntes object changes and caching their latest states.
+// apiWatcher is used for watching for Kubernetes object changes and caching their latest states.
 type apiWatcher struct {
 	role string
 
@@ -597,7 +597,7 @@ func (uw *urlWatcher) watchForUpdates() {
 	}
 }
 
-// readObjectUpdateStream reads Kuberntes watch events from r and updates locally cached objects according to the received events.
+// readObjectUpdateStream reads Kubernetes watch events from r and updates locally cached objects according to the received events.
 func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 	d := json.NewDecoder(r)
 	var we WatchEvent
