@@ -1054,7 +1054,7 @@ func getLabelsContext() *labelsContext {
 }
 
 func putLabelsContext(lctx *labelsContext) {
-	labels := lctx.labels[:cap(lctx.labels)]
+	labels := lctx.labels
 	for i := range labels {
 		labels[i].Name = ""
 		labels[i].Value = ""
@@ -1316,6 +1316,12 @@ func mergeLabels(dst []prompbmarshal.Label, swc *scrapeWorkConfig, target string
 			tmp = append(tmp, label)
 			prevName = label.Name
 		}
+	}
+	tail := dst[len(tmp):]
+	for i := range tail {
+		label := &tail[i]
+		label.Name = ""
+		label.Value = ""
 	}
 	return tmp
 }
