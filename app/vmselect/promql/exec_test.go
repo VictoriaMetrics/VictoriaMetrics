@@ -2675,6 +2675,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`scalar default NaN`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 1400 default (time() < -100)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`vector default scalar`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(union(

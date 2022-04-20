@@ -16,12 +16,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kuberntes API server")
+var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
 //
@@ -45,7 +46,7 @@ type parseObjectFunc func(data []byte) (object, error)
 // parseObjectListFunc must parse objectList from the given r.
 type parseObjectListFunc func(r io.Reader) (map[string]object, ListMeta, error)
 
-// apiWatcher is used for watching for Kuberntes object changes and caching their latest states.
+// apiWatcher is used for watching for Kubernetes object changes and caching their latest states.
 type apiWatcher struct {
 	role string
 
@@ -107,7 +108,7 @@ func (aw *apiWatcher) reloadScrapeWorks(uw *urlWatcher, swosByKey map[string][]i
 }
 
 func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labels []map[string]string) {
-	swos := aw.getScrapeWorkObjectsForLabels(labels)
+	swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
 	aw.swosByURLWatcherLock.Lock()
 	swosByKey := aw.swosByURLWatcher[uw]
 	if swosByKey == nil {
@@ -133,10 +134,11 @@ func (aw *apiWatcher) removeScrapeWorks(uw *urlWatcher, key string) {
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func (aw *apiWatcher) getScrapeWorkObjectsForLabels(labelss []map[string]string) []interface{} {
-	swos := make([]interface{}, 0, len(labelss))
+func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
+	// Do not pre-allocate swos, since it is likely the swos will be empty because of relabeling
+	var swos []interface{}
 	for _, labels := range labelss {
-		swo := aw.swcFunc(labels)
+		swo := swcFunc(labels)
 		// The reflect check is needed because of https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
 		if swo != nil && !reflect.ValueOf(swo).IsNil() {
 			swos = append(swos, swo)
@@ -149,21 +151,14 @@ func (aw *apiWatcher) getScrapeWorkObjectsForLabels(labelss []map[string]string)
 func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 	aw.gw.registerPendingAPIWatchers()
 
+	swos := make([]interface{}, 0, aw.swosCount.Get())
 	aw.swosByURLWatcherLock.Lock()
-	defer aw.swosByURLWatcherLock.Unlock()
-
-	size := 0
-	for _, swosByKey := range aw.swosByURLWatcher {
-		for _, swosLocal := range swosByKey {
-			size += len(swosLocal)
-		}
-	}
-	swos := make([]interface{}, 0, size)
 	for _, swosByKey := range aw.swosByURLWatcher {
 		for _, swosLocal := range swosByKey {
 			swos = append(swos, swosLocal...)
 		}
 	}
+	aw.swosByURLWatcherLock.Unlock()
 	return swos
 }
 
@@ -295,18 +290,6 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 		if needStart {
 			uw.reloadObjects()
 			go uw.watchForUpdates()
-			if role == "endpoints" || role == "endpointslice" {
-				// Refresh endpoints and enpointslices targets in background, since they depend on other object types such as pod and service.
-				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
-				go func() {
-					for {
-						time.Sleep(5 * time.Second)
-						gw.mu.Lock()
-						uw.reloadScrapeWorksForAPIWatchersLocked(uw.aws)
-						gw.mu.Unlock()
-					}
-				}()
-			}
 		}
 	}
 }
@@ -377,7 +360,7 @@ type urlWatcher struct {
 	// Batch registering saves CPU time needed for registering big number of Kubernetes objects
 	// shared among big number of scrape jobs, since per-object labels are generated only once
 	// for all the scrape jobs (each scrape job is associated with a single apiWatcher).
-	// See reloadScrapeWorksForAPIWatchersLocked for details.
+	// See registerPendingAPIWatchersLocked for details.
 	awsPending map[*apiWatcher]struct{}
 
 	// aws contains registered apiWatcher objects
@@ -433,15 +416,45 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 	if len(uw.awsPending) == 0 {
 		return
 	}
-	awsPending := make([]*apiWatcher, 0, len(uw.awsPending))
+	aws := make([]*apiWatcher, 0, len(uw.awsPending))
 	for aw := range uw.awsPending {
-		awsPending = append(awsPending, aw)
 		uw.aws[aw] = struct{}{}
+		aws = append(aws, aw)
 	}
-	uw.reloadScrapeWorksForAPIWatchersLocked(uw.awsPending)
+	swosByKey := make([]map[string][]interface{}, len(aws))
+	for i := range aws {
+		swosByKey[i] = make(map[string][]interface{})
+	}
+
+	// Generate ScrapeWork objects in parallel on available CPU cores.
+	// This should reduce the time needed for their generation on systems with many CPU cores.
+	var swosByKeyLock sync.Mutex
+	var wg sync.WaitGroup
+	limiterCh := make(chan struct{}, cgroup.AvailableCPUs())
+	for key, o := range uw.objectsByKey {
+		labels := o.getTargetLabels(uw.gw)
+		wg.Add(1)
+		limiterCh <- struct{}{}
+		go func(key string, labels []map[string]string) {
+			for i, aw := range aws {
+				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
+				if len(swos) > 0 {
+					swosByKeyLock.Lock()
+					swosByKey[i][key] = swos
+					swosByKeyLock.Unlock()
+				}
+			}
+			wg.Done()
+			<-limiterCh
+		}(key, labels)
+	}
+	wg.Wait()
+	for i, aw := range aws {
+		aw.reloadScrapeWorks(uw, swosByKey[i])
+	}
 	uw.awsPending = make(map[*apiWatcher]struct{})
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Add(len(awsPending))
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Add(-len(awsPending))
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Add(len(aws))
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Add(-len(aws))
 }
 
 func (uw *urlWatcher) unsubscribeAPIWatcherLocked(aw *apiWatcher) {
@@ -484,19 +497,21 @@ func (uw *urlWatcher) reloadObjects() string {
 	uw.gw.mu.Lock()
 	var updated, removed, added int
 	for key := range uw.objectsByKey {
-		if _, ok := objectsByKey[key]; ok {
+		o, ok := objectsByKey[key]
+		if ok {
+			uw.updateObjectLocked(key, o)
 			updated++
 		} else {
+			uw.removeObjectLocked(key)
 			removed++
 		}
 	}
-	for key := range objectsByKey {
+	for key, o := range objectsByKey {
 		if _, ok := uw.objectsByKey[key]; !ok {
+			uw.updateObjectLocked(key, o)
 			added++
 		}
 	}
-	uw.objectsByKey = objectsByKey
-	uw.reloadScrapeWorksForAPIWatchersLocked(uw.aws)
 	uw.gw.mu.Unlock()
 
 	uw.objectsUpdated.Add(updated)
@@ -508,32 +523,6 @@ func (uw *urlWatcher) reloadObjects() string {
 	logger.Infof("reloaded %d objects from %q; updated=%d, removed=%d, added=%d, resourceVersion=%q",
 		len(objectsByKey), requestURL, updated, removed, added, uw.resourceVersion)
 	return uw.resourceVersion
-}
-
-func (uw *urlWatcher) reloadScrapeWorksForAPIWatchersLocked(awsMap map[*apiWatcher]struct{}) {
-	if len(awsMap) == 0 {
-		return
-	}
-	aws := make([]*apiWatcher, 0, len(awsMap))
-	for aw := range awsMap {
-		aws = append(aws, aw)
-	}
-	swosByKey := make([]map[string][]interface{}, len(aws))
-	for i := range aws {
-		swosByKey[i] = make(map[string][]interface{})
-	}
-	for key, o := range uw.objectsByKey {
-		labels := o.getTargetLabels(uw.gw)
-		for i, aw := range aws {
-			swos := aw.getScrapeWorkObjectsForLabels(labels)
-			if len(swos) > 0 {
-				swosByKey[i][key] = swos
-			}
-		}
-	}
-	for i, aw := range aws {
-		aw.reloadScrapeWorks(uw, swosByKey[i])
-	}
 }
 
 // watchForUpdates watches for object updates starting from uw.resourceVersion and updates the corresponding objects to the latest state.
@@ -597,7 +586,7 @@ func (uw *urlWatcher) watchForUpdates() {
 	}
 }
 
-// readObjectUpdateStream reads Kuberntes watch events from r and updates locally cached objects according to the received events.
+// readObjectUpdateStream reads Kubernetes watch events from r and updates locally cached objects according to the received events.
 func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 	d := json.NewDecoder(r)
 	var we WatchEvent
@@ -614,20 +603,12 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			key := o.key()
 			uw.gw.mu.Lock()
 			if _, ok := uw.objectsByKey[key]; !ok {
-				// if we.Type == "MODIFIED" is expected condition after recovering from the bookmarked resourceVersion.
 				uw.objectsCount.Inc()
 				uw.objectsAdded.Inc()
 			} else {
-				// if we.Type == "ADDED" is expected condition after recovering from the bookmarked resourceVersion.
 				uw.objectsUpdated.Inc()
 			}
-			uw.objectsByKey[key] = o
-			if len(uw.aws) > 0 {
-				labels := o.getTargetLabels(uw.gw)
-				for aw := range uw.aws {
-					aw.setScrapeWorks(uw, key, labels)
-				}
-			}
+			uw.updateObjectLocked(key, o)
 			uw.gw.mu.Unlock()
 		case "DELETED":
 			o, err := uw.parseObject(we.Object)
@@ -639,11 +620,8 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			if _, ok := uw.objectsByKey[key]; ok {
 				uw.objectsCount.Dec()
 				uw.objectsRemoved.Inc()
-				delete(uw.objectsByKey, key)
 			}
-			for aw := range uw.aws {
-				aw.removeScrapeWorks(uw, key)
-			}
+			uw.removeObjectLocked(key)
 			uw.gw.mu.Unlock()
 		case "BOOKMARK":
 			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
@@ -667,6 +645,29 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q: %q", we.Type, we.Object)
 		}
+	}
+}
+
+func (uw *urlWatcher) updateObjectLocked(key string, o object) {
+	oPrev, ok := uw.objectsByKey[key]
+	if ok && reflect.DeepEqual(oPrev, o) {
+		// Nothing to do, since the new object is equal to the previous one.
+		return
+	}
+	uw.objectsByKey[key] = o
+	if len(uw.aws) == 0 {
+		return
+	}
+	labels := o.getTargetLabels(uw.gw)
+	for aw := range uw.aws {
+		aw.setScrapeWorks(uw, key, labels)
+	}
+}
+
+func (uw *urlWatcher) removeObjectLocked(key string) {
+	delete(uw.objectsByKey, key)
+	for aw := range uw.aws {
+		aw.removeScrapeWorks(uw, key)
 	}
 }
 

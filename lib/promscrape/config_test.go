@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,142 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
+
+func TestInternStringSerial(t *testing.T) {
+	if err := testInternString(t); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestInternStringConcurrent(t *testing.T) {
+	concurrency := 5
+	resultCh := make(chan error, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			resultCh <- testInternString(t)
+		}()
+	}
+	timer := time.NewTimer(5 * time.Second)
+	for i := 0; i < concurrency; i++ {
+		select {
+		case err := <-resultCh:
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		case <-timer.C:
+			t.Fatalf("timeout")
+		}
+	}
+}
+
+func testInternString(t *testing.T) error {
+	for i := 0; i < 1000; i++ {
+		s := fmt.Sprintf("foo_%d", i)
+		s1 := internString(s)
+		if s != s1 {
+			return fmt.Errorf("unexpected string returned from internString; got %q; want %q", s1, s)
+		}
+	}
+	return nil
+}
+
+func TestMergeLabels(t *testing.T) {
+	f := func(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string, resultExpected string) {
+		t.Helper()
+		var labels []prompbmarshal.Label
+		labels = mergeLabels(labels[:0], swc, target, extraLabels, metaLabels)
+		result := promLabelsString(labels)
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+	f(&scrapeWorkConfig{}, "foo", nil, nil, `{__address__="foo",__metrics_path__="",__scheme__="",__scrape_interval__="",__scrape_timeout__="",job=""}`)
+	f(&scrapeWorkConfig{}, "foo", map[string]string{"foo": "bar"}, nil, `{__address__="foo",__metrics_path__="",__scheme__="",__scrape_interval__="",__scrape_timeout__="",foo="bar",job=""}`)
+	f(&scrapeWorkConfig{}, "foo", map[string]string{"job": "bar"}, nil, `{__address__="foo",__metrics_path__="",__scheme__="",__scrape_interval__="",__scrape_timeout__="",job="bar"}`)
+	f(&scrapeWorkConfig{
+		jobName:              "xyz",
+		scheme:               "https",
+		metricsPath:          "/foo/bar",
+		scrapeIntervalString: "15s",
+		scrapeTimeoutString:  "10s",
+		externalLabels: map[string]string{
+			"job": "bar",
+			"a":   "b",
+		},
+	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",a="b",job="xyz"}`)
+	f(&scrapeWorkConfig{
+		jobName:     "xyz",
+		scheme:      "https",
+		metricsPath: "/foo/bar",
+		externalLabels: map[string]string{
+			"job": "bar",
+			"a":   "b",
+		},
+	}, "foo", map[string]string{
+		"job": "extra_job",
+		"foo": "extra_foo",
+		"a":   "xyz",
+	}, map[string]string{
+		"__meta_x": "y",
+	}, `{__address__="foo",__meta_x="y",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="",__scrape_timeout__="",a="xyz",foo="extra_foo",job="extra_job"}`)
+}
+
+func TestScrapeConfigUnmarshalMarshal(t *testing.T) {
+	f := func(data string) {
+		t.Helper()
+		var cfg Config
+		data = strings.TrimSpace(data)
+		if err := cfg.unmarshal([]byte(data), true); err != nil {
+			t.Fatalf("parse error: %s\ndata:\n%s", err, data)
+		}
+		resultData := string(cfg.marshal())
+		result := strings.TrimSpace(resultData)
+		if result != data {
+			t.Fatalf("unexpected marshaled config:\ngot\n%s\nwant\n%s", result, data)
+		}
+	}
+	f(`
+global:
+  scrape_interval: 10s
+`)
+	f(`
+scrape_config_files:
+- foo
+- bar
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  scrape_timeout: 1.5s
+  static_configs:
+  - targets:
+    - foo
+    - bar
+    labels:
+      foo: bar
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  honor_labels: true
+  honor_timestamps: false
+  scheme: https
+  params:
+    foo:
+    - x
+  authorization:
+    type: foobar
+  relabel_configs:
+  - source_labels: [abc]
+  static_configs:
+  - targets:
+    - foo
+  relabel_debug: true
+  scrape_align_interval: 1h30m0s
+  proxy_bearer_token_file: file.txt
+`)
+
+}
 
 func TestNeedSkipScrapeWork(t *testing.T) {
 	f := func(key string, membersCount, replicationFactor, memberNum int, needSkipExpected bool) {

@@ -33,7 +33,7 @@ of Grafana dashboards if possible:
 
 See how to setup monitoring here:
 * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
-* [montioring for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+* [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
 
 **Version**
 The line returned when passing `--version` command line flag to the binary. For example:
