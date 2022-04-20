@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -1221,24 +1222,27 @@ func internLabelStrings(labels []prompbmarshal.Label) {
 }
 
 func internString(s string) string {
-	internStringsMapLock.Lock()
-	defer internStringsMapLock.Unlock()
-
-	if sInterned, ok := internStringsMap[s]; ok {
-		return sInterned
+	if sInterned, ok := internStringsMap.Load(s); ok {
+		return sInterned.(string)
+	}
+	isc := atomic.LoadUint64(&internStringCount)
+	if isc > 100e3 {
+		internStringsMapLock.Lock()
+		internStringsMap = sync.Map{}
+		atomic.AddUint64(&internStringCount, ^(isc - 1))
+		internStringsMapLock.Unlock()
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := string(append([]byte{}, s...))
-	internStringsMap[sCopy] = sCopy
-	if len(internStringsMap) > 100e3 {
-		internStringsMap = make(map[string]string, 100e3)
-	}
+	internStringsMap.Store(sCopy, sCopy)
+	atomic.AddUint64(&internStringCount, 1)
 	return sCopy
 }
 
 var (
+	internStringCount    = uint64(0)
 	internStringsMapLock sync.Mutex
-	internStringsMap     = make(map[string]string, 100e3)
+	internStringsMap     = sync.Map{}
 )
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {
