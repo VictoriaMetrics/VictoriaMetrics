@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	xxhash "github.com/cespare/xxhash/v2"
 )
 
 var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
@@ -245,7 +246,7 @@ func (st *targetStatus) getDurationFromLastScrape() time.Duration {
 
 type droppedTargets struct {
 	mu              sync.Mutex
-	m               map[string]droppedTarget
+	m               map[uint64]droppedTarget
 	lastCleanupTime uint64
 }
 
@@ -255,7 +256,8 @@ type droppedTarget struct {
 }
 
 func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
-	key := promLabelsString(originalLabels)
+	// It is better to have hash collisions instead of spending additional CPU on promLabelsString() call.
+	key := labelsHash(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
 	dt.mu.Lock()
 	if k, ok := dt.m[key]; ok {
@@ -276,6 +278,24 @@ func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
 		dt.lastCleanupTime = currentTime
 	}
 	dt.mu.Unlock()
+}
+
+func labelsHash(labels []prompbmarshal.Label) uint64 {
+	d := xxhashPool.Get().(*xxhash.Digest)
+	for _, label := range labels {
+		_, _ = d.WriteString(label.Name)
+		_, _ = d.WriteString(label.Value)
+	}
+	h := d.Sum64()
+	d.Reset()
+	xxhashPool.Put(d)
+	return h
+}
+
+var xxhashPool = &sync.Pool{
+	New: func() interface{} {
+		return xxhash.New()
+	},
 }
 
 // WriteDroppedTargetsJSON writes `droppedTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
@@ -311,7 +331,7 @@ func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
 }
 
 var droppedTargetsMap = &droppedTargets{
-	m: make(map[string]droppedTarget),
+	m: make(map[uint64]droppedTarget),
 }
 
 type jobTargetsStatuses struct {
