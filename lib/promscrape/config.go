@@ -833,7 +833,9 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
+		scrapeIntervalString: scrapeInterval.String(),
 		scrapeTimeout:        scrapeTimeout,
+		scrapeTimeoutString:  scrapeTimeout.String(),
 		jobName:              jobName,
 		metricsPath:          metricsPath,
 		scheme:               scheme,
@@ -860,7 +862,9 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 
 type scrapeWorkConfig struct {
 	scrapeInterval       time.Duration
+	scrapeIntervalString string
 	scrapeTimeout        time.Duration
+	scrapeTimeoutString  string
 	jobName              string
 	metricsPath          string
 	scheme               string
@@ -1036,20 +1040,46 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 	return true
 }
 
+type labelsContext struct {
+	labels []prompbmarshal.Label
+}
+
+func getLabelsContext() *labelsContext {
+	v := labelsContextPool.Get()
+	if v == nil {
+		return &labelsContext{}
+	}
+	return v.(*labelsContext)
+}
+
+func putLabelsContext(lctx *labelsContext) {
+	labels := lctx.labels
+	for i := range labels {
+		labels[i].Name = ""
+		labels[i].Value = ""
+	}
+	lctx.labels = lctx.labels[:0]
+	labelsContextPool.Put(lctx)
+}
+
+var labelsContextPool sync.Pool
+
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	labels := mergeLabels(swc, target, extraLabels, metaLabels)
+	lctx := getLabelsContext()
+	lctx.labels = mergeLabels(lctx.labels[:0], swc, target, extraLabels, metaLabels)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
-		originalLabels = append([]prompbmarshal.Label{}, labels...)
+		originalLabels = append([]prompbmarshal.Label{}, lctx.labels...)
 	}
-	labels = swc.relabelConfigs.Apply(labels, 0, false)
-	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	lctx.labels = swc.relabelConfigs.Apply(lctx.labels, 0, false)
+	lctx.labels = promrelabel.RemoveMetaLabels(lctx.labels[:0], lctx.labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	labels = append([]prompbmarshal.Label{}, labels...)
+	labels := append([]prompbmarshal.Label{}, lctx.labels...)
+	putLabelsContext(lctx)
 
 	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
 	// Perform the verification on labels after the relabeling in order to guarantee that targets with the same set of labels
@@ -1229,40 +1259,71 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 	return m
 }
 
-func mergeLabels(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) []prompbmarshal.Label {
-	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string, 6+len(swc.externalLabels)+len(swc.params)+len(extraLabels)+len(metaLabels))
-	for k, v := range swc.externalLabels {
-		m[k] = v
+func mergeLabels(dst []prompbmarshal.Label, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) []prompbmarshal.Label {
+	if len(dst) > 0 {
+		logger.Panicf("BUG: len(dst) must be 0; got %d", len(dst))
 	}
-	m["job"] = swc.jobName
-	m["__address__"] = target
-	m["__scheme__"] = swc.scheme
-	m["__metrics_path__"] = swc.metricsPath
-	m["__scrape_interval__"] = swc.scrapeInterval.String()
-	m["__scrape_timeout__"] = swc.scrapeTimeout.String()
+	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+	for k, v := range swc.externalLabels {
+		dst = appendLabel(dst, k, v)
+	}
+	dst = appendLabel(dst, "job", swc.jobName)
+	dst = appendLabel(dst, "__address__", target)
+	dst = appendLabel(dst, "__scheme__", swc.scheme)
+	dst = appendLabel(dst, "__metrics_path__", swc.metricsPath)
+	dst = appendLabel(dst, "__scrape_interval__", swc.scrapeIntervalString)
+	dst = appendLabel(dst, "__scrape_timeout__", swc.scrapeTimeoutString)
 	for k, args := range swc.params {
 		if len(args) == 0 {
 			continue
 		}
 		k = "__param_" + k
 		v := args[0]
-		m[k] = v
+		dst = appendLabel(dst, k, v)
 	}
 	for k, v := range extraLabels {
-		m[k] = v
+		dst = appendLabel(dst, k, v)
 	}
 	for k, v := range metaLabels {
-		m[k] = v
+		dst = appendLabel(dst, k, v)
 	}
-	result := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		result = append(result, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
+	if len(dst) < 2 {
+		return dst
 	}
-	return result
+	// Remove duplicate labels if any.
+	// Stable sorting is needed in order to preserve the order for labels with identical names.
+	// This is needed in order to remove labels with duplicate names other than the last one.
+	promrelabel.SortLabelsStable(dst)
+	prevName := dst[0].Name
+	hasDuplicateLabels := false
+	for _, label := range dst[1:] {
+		if label.Name == prevName {
+			hasDuplicateLabels = true
+			break
+		}
+		prevName = label.Name
+	}
+	if !hasDuplicateLabels {
+		return dst
+	}
+	prevName = dst[0].Name
+	tmp := dst[:1]
+	for _, label := range dst[1:] {
+		if label.Name == prevName {
+			tmp[len(tmp)-1] = label
+		} else {
+			tmp = append(tmp, label)
+			prevName = label.Name
+		}
+	}
+	return tmp
+}
+
+func appendLabel(dst []prompbmarshal.Label, name, value string) []prompbmarshal.Label {
+	return append(dst, prompbmarshal.Label{
+		Name:  name,
+		Value: value,
+	})
 }
 
 func addMissingPort(scheme, target string) string {

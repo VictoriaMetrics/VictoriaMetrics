@@ -14,6 +14,47 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
+func TestMergeLabels(t *testing.T) {
+	f := func(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string, resultExpected string) {
+		t.Helper()
+		var labels []prompbmarshal.Label
+		labels = mergeLabels(labels[:0], swc, target, extraLabels, metaLabels)
+		result := promLabelsString(labels)
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+	f(&scrapeWorkConfig{}, "foo", nil, nil, `{__address__="foo",__metrics_path__="",__scheme__="",__scrape_interval__="",__scrape_timeout__="",job=""}`)
+	f(&scrapeWorkConfig{}, "foo", map[string]string{"foo": "bar"}, nil, `{__address__="foo",__metrics_path__="",__scheme__="",__scrape_interval__="",__scrape_timeout__="",foo="bar",job=""}`)
+	f(&scrapeWorkConfig{}, "foo", map[string]string{"job": "bar"}, nil, `{__address__="foo",__metrics_path__="",__scheme__="",__scrape_interval__="",__scrape_timeout__="",job="bar"}`)
+	f(&scrapeWorkConfig{
+		jobName:              "xyz",
+		scheme:               "https",
+		metricsPath:          "/foo/bar",
+		scrapeIntervalString: "15s",
+		scrapeTimeoutString:  "10s",
+		externalLabels: map[string]string{
+			"job": "bar",
+			"a":   "b",
+		},
+	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",a="b",job="xyz"}`)
+	f(&scrapeWorkConfig{
+		jobName:     "xyz",
+		scheme:      "https",
+		metricsPath: "/foo/bar",
+		externalLabels: map[string]string{
+			"job": "bar",
+			"a":   "b",
+		},
+	}, "foo", map[string]string{
+		"job": "extra_job",
+		"foo": "extra_foo",
+		"a":   "xyz",
+	}, map[string]string{
+		"__meta_x": "y",
+	}, `{__address__="foo",__meta_x="y",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="",__scrape_timeout__="",a="xyz",foo="extra_foo",job="extra_job"}`)
+}
+
 func TestScrapeConfigUnmarshalMarshal(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
