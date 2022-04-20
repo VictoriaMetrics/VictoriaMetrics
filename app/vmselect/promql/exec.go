@@ -91,7 +91,7 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 }
 
 func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, error) {
-	tss = removeNaNs(tss)
+	tss = removeEmptySeries(tss)
 	result := make([]netstorage.Result, len(tss))
 	m := make(map[string]struct{}, len(tss))
 	bb := bbPool.Get()
@@ -144,7 +144,7 @@ func metricNameLess(a, b *storage.MetricName) bool {
 	return len(ats) < len(bts)
 }
 
-func removeNaNs(tss []*timeseries) []*timeseries {
+func removeEmptySeries(tss []*timeseries) []*timeseries {
 	rvs := tss[:0]
 	for _, ts := range tss {
 		allNans := true

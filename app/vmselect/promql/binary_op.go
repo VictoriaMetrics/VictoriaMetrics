@@ -322,7 +322,7 @@ func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 				}
 			}
 		}
-		tssLeft = removeNaNs(tssLeft)
+		tssLeft = removeEmptySeries(tssLeft)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
@@ -382,7 +382,7 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 				}
 			}
 		}
-		tssLeft = removeNaNs(tssLeft)
+		tssLeft = removeEmptySeries(tssLeft)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
