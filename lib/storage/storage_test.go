@@ -1106,6 +1106,40 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 	return nil
 }
 
+func TestStorageSnapshotsLifecycle(t *testing.T) {
+	path := "TestStorageSnapshotsLifecycle"
+	s, err := OpenStorage(path, 0, 1e5, 1e5)
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+	const rowsPerAdd = 1e3
+	const addsCount = 10
+	for i := 0; i < addsCount; i++ {
+		mrs := testGenerateMetricRows(rowsPerAdd, 0, 1e10)
+		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+			t.Fatalf("unexpected error when adding mrs: %s", err)
+		}
+	}
+	// Try creating a snapshot from the storage.
+	snapshotName, err := s.CreateSnapshot()
+	if err != nil {
+		t.Fatalf("cannot create snapshot from the storage: %s", err)
+	}
+	time.Sleep(2 * time.Nanosecond)
+	// Delete the snapshot which is older than 1 nanoseconds
+	if err := s.DeleteStaleSnapshots(time.Nanosecond); err != nil {
+		t.Fatalf("cannot delete snapshot %q: %s", snapshotName, err)
+	}
+	snapshots, err := s.ListSnapshots()
+	if err != nil {
+		t.Fatalf("cannot list snapshots: %s", err)
+	}
+	if containsString(snapshots, snapshotName) {
+		t.Fatalf("snapshot %q must be deleted, but is still visible in %q", snapshotName, snapshots)
+	}
+	s.MustClose()
+}
+
 func containsString(a []string, s string) bool {
 	for i := range a {
 		if a[i] == s {

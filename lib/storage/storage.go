@@ -418,7 +418,34 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 	return nil
 }
 
+// DeleteStaleSnapshots deletes snapshot older than given duration
+func (s *Storage) DeleteStaleSnapshots(threshold time.Duration) error {
+	list, err := s.ListSnapshots()
+	if err != nil {
+		return err
+	}
+	thresholdTime := time.Now().UTC().Add(-threshold)
+	for _, snapshot := range list {
+		sd, err := snapshotDate(snapshot)
+		if err != nil {
+			logger.Errorf("error parsing snapshot date from snapshot %s: %s", snapshot, err)
+			continue
+		}
+		if thresholdTime.After(sd) {
+			if err := s.DeleteSnapshot(snapshot); err != nil {
+				logger.Errorf("error delete snapshot %s: %s", snapshot, err)
+			}
+		}
+	}
+	return nil
+}
+
 var snapshotIdx = uint64(time.Now().UnixNano())
+
+func snapshotDate(snapshot string) (time.Time, error) {
+	snapshot = strings.Split(snapshot, "-")[0]
+	return time.Parse("20060102150405", snapshot)
+}
 
 func nextSnapshotIdx() uint64 {
 	return atomic.AddUint64(&snapshotIdx, 1)

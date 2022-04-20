@@ -22,10 +22,11 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
+	retentionPeriod   = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted")
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
+	snapshotsMaxAge   = flagutil.NewPromDuration("snapshotsMaxAge", "1w", "Snapshots outside the snapshotsMaxAge are automatically deleted. Check happens every hour.")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -74,6 +75,7 @@ func CheckTimeRange(tr storage.TimeRange) error {
 func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	InitWithoutMetrics(resetCacheIfNeeded)
 	registerStorageMetrics()
+	deleteStaleSnapshots()
 }
 
 // InitWithoutMetrics must be called instead of Init inside tests.
@@ -372,6 +374,22 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		return false
 	}
+}
+
+func deleteStaleSnapshots() {
+	if snapshotsMaxAge == nil || snapshotsMaxAge.Duration() == 0 {
+		return
+	}
+	go func() {
+		var err error
+		t := time.NewTicker(time.Hour)
+		defer t.Stop()
+		for range t.C {
+			if err = Storage.DeleteStaleSnapshots(snapshotsMaxAge.Duration()); err != nil {
+				logger.Errorf("error deleting stale snapshot %s", err)
+			}
+		}
+	}()
 }
 
 var activeForceMerges = metrics.NewCounter("vm_active_force_merges")
