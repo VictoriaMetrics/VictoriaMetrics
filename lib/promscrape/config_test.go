@@ -28,7 +28,7 @@ func TestInternStringConcurrent(t *testing.T) {
 			resultCh <- testInternString(t)
 		}()
 	}
-	timer := time.NewTimer(5*time.Second)
+	timer := time.NewTimer(5 * time.Second)
 	for i := 0; i < concurrency; i++ {
 		select {
 		case err := <-resultCh:

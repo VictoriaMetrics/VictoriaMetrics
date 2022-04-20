@@ -135,7 +135,8 @@ func (aw *apiWatcher) removeScrapeWorks(uw *urlWatcher, key string) {
 }
 
 func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
-	swos := make([]interface{}, 0, len(labelss))
+	// Do not pre-allocate swos, since it is likely the swos will be empty because of relabeling
+	var swos []interface{}
 	for _, labels := range labelss {
 		swo := swcFunc(labels)
 		// The reflect check is needed because of https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
