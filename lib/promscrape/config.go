@@ -1054,7 +1054,7 @@ func getLabelsContext() *labelsContext {
 }
 
 func putLabelsContext(lctx *labelsContext) {
-	labels := lctx.labels
+	labels := lctx.labels[:cap(lctx.labels)]
 	for i := range labels {
 		labels[i].Name = ""
 		labels[i].Value = ""
@@ -1222,27 +1222,24 @@ func internLabelStrings(labels []prompbmarshal.Label) {
 }
 
 func internString(s string) string {
-	if sInterned, ok := internStringsMap.Load(s); ok {
-		return sInterned.(string)
-	}
-	isc := atomic.LoadUint64(&internStringCount)
-	if isc > 100e3 {
-		internStringsMapLock.Lock()
-		internStringsMap = sync.Map{}
-		atomic.AddUint64(&internStringCount, ^(isc - 1))
-		internStringsMapLock.Unlock()
+	if v, ok := internStringsMap.Load(s); ok {
+		sp := v.(*string)
+		return *sp
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := string(append([]byte{}, s...))
-	internStringsMap.Store(sCopy, sCopy)
-	atomic.AddUint64(&internStringCount, 1)
+	internStringsMap.Store(sCopy, &sCopy)
+	n := atomic.AddUint64(&internStringsMapLen, 1)
+	if n > 100e3 {
+		atomic.StoreUint64(&internStringsMapLen, 0)
+		internStringsMap = &sync.Map{}
+	}
 	return sCopy
 }
 
 var (
-	internStringCount    = uint64(0)
-	internStringsMapLock sync.Mutex
-	internStringsMap     = sync.Map{}
+	internStringsMap    = &sync.Map{}
+	internStringsMapLen uint64
 )
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {

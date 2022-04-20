@@ -14,6 +14,44 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
+func TestInternStringSerial(t *testing.T) {
+	if err := testInternString(t); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestInternStringConcurrent(t *testing.T) {
+	concurrency := 5
+	resultCh := make(chan error, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			resultCh <- testInternString(t)
+		}()
+	}
+	timer := time.NewTimer(5*time.Second)
+	for i := 0; i < concurrency; i++ {
+		select {
+		case err := <-resultCh:
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		case <-timer.C:
+			t.Fatalf("timeout")
+		}
+	}
+}
+
+func testInternString(t *testing.T) error {
+	for i := 0; i < 1000; i++ {
+		s := fmt.Sprintf("foo_%d", i)
+		s1 := internString(s)
+		if s != s1 {
+			return fmt.Errorf("unexpected string returned from internString; got %q; want %q", s1, s)
+		}
+	}
+	return nil
+}
+
 func TestMergeLabels(t *testing.T) {
 	f := func(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string, resultExpected string) {
 		t.Helper()
