@@ -84,18 +84,22 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 	return func(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		left := bfa.left
 		right := bfa.right
-		switch bfa.be.Op {
-		case "ifnot":
+		op := bfa.be.Op
+		switch true {
+		case op == "ifnot":
 			left = removeEmptySeries(left)
 			// Do not remove empty series on the right side,
 			// so the left-side series could be matched against them.
-		case "default":
+		case op == "default":
 			// Do not remove empty series on the left and the right side,
-			// since this may result in missing result:
+			// since this may lead to missing result:
 			// - if empty time series are removed on the left side,
 			// then they won't be substituted by time series from the right side.
 			// - if empty time series are removed on the right side,
 			// then this may result in missing time series from the left side.
+		case metricsql.IsBinaryOpCmp(op):
+			// Do not remove empty series for comparison operations,
+			// since this may lead to missing result.
 		default:
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)

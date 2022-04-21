@@ -2625,6 +2625,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`compare_to_nan_right`, func(t *testing.T) {
+		t.Parallel()
+		q := `1 != nan`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values: []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_nan_left`, func(t *testing.T) {
+		t.Parallel()
+		q := `nan != 1`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`-1 < 2`, func(t *testing.T) {
 		t.Parallel()
 		q := `-1 < 2`
