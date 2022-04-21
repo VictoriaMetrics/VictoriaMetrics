@@ -713,6 +713,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 `alias(q, "name")` sets the given `name` to all the time series returned by `q`. For example, `alias(up, "foobar")` would rename `up` series to `foobar` series.
 
+
+#### drop_common_labels
+
+`drop_common_labels(q1, ...., qN)` drops common `label="value"` paris among time series returned from `q1, ..., qN`.
+
 #### label_copy
 
 `label_copy(q, "src_label1", "dst_label1", ..., "src_labelN", "dst_labelN")` copies label values from `src_label*` to `dst_label*` for all the time series returned by `q`. If `src_label` is empty, then the corresponding `dst_label` is left untouched.
