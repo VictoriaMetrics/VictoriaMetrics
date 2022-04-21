@@ -15,6 +15,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/golang/snappy v0.0.4
+	github.com/gosuri/uiprogress v0.0.1
 	github.com/influxdata/influxdb v1.9.6
 	github.com/klauspost/compress v1.15.1
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
@@ -47,6 +48,7 @@ require (
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.3.0 // indirect
 	github.com/googleapis/go-type-adapters v1.0.0 // indirect
+	github.com/gosuri/uilive v0.0.4 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

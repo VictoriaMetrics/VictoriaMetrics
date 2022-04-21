@@ -142,6 +142,13 @@ github.com/googleapis/gax-go/v2/apierror/internal/proto
 # github.com/googleapis/go-type-adapters v1.0.0
 ## explicit; go 1.11
 github.com/googleapis/go-type-adapters/adapters
+# github.com/gosuri/uilive v0.0.4
+## explicit; go 1.10
+github.com/gosuri/uilive
+# github.com/gosuri/uiprogress v0.0.1
+## explicit
+github.com/gosuri/uiprogress
+github.com/gosuri/uiprogress/util/strutil
 # github.com/influxdata/influxdb v1.9.6
 ## explicit; go 1.17
 github.com/influxdata/influxdb/client/v2

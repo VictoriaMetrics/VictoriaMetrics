@@ -7,7 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
+	"github.com/gosuri/uiprogress"
 	"github.com/prometheus/prometheus/tsdb"
 )
 
@@ -38,7 +38,12 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	bar := pb.StartNew(len(blocks))
+	uiprogress.Start()
+	bar := uiprogress.AddBar(len(blocks)).AppendCompleted().PrependElapsed()
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("Blocks (%d/%d)", b.Current(), len(blocks))
+	})
+
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)
 	pp.im.ResetStats()
@@ -53,7 +58,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
-				bar.Increment()
+				bar.Incr()
 			}
 		}()
 	}
@@ -81,7 +86,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
 	}
-	bar.Finish()
+	uiprogress.Stop()
 	log.Println("Import finished!")
 	log.Print(pp.im.Stats())
 	return nil

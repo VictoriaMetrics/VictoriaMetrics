@@ -15,7 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/cheggaaa/pb/v3"
+	"github.com/gosuri/uiprogress"
 )
 
 // Config contains list of params to configure
@@ -75,7 +75,7 @@ type Importer struct {
 
 	s *stats
 
-	bar *pb.ProgressBar
+	bar *uiprogress.Bar
 }
 
 // ResetStats resets im stats.
@@ -136,7 +136,6 @@ func NewImporter(cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
-		bar:        pb.New(cfg.BatchSize),
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -146,9 +145,12 @@ func NewImporter(cfg Config) (*Importer, error) {
 		cfg.BatchSize = 1e5
 	}
 
-	// start bar based on template
-	im.bar.SetTemplate(pb.ProgressBarTemplate(barTemplate()))
-	im.bar.SetMaxWidth(100)
+	if im.bar == nil {
+		im.bar = uiprogress.AddBar(cfg.BatchSize).PrependElapsed().AppendCompleted()
+		im.bar.PrependFunc(func(b *uiprogress.Bar) string {
+			return fmt.Sprintf("Datapoints (%d/%d)", b.Current(), cfg.BatchSize)
+		})
+	}
 
 	im.wg.Add(int(cfg.Concurrency))
 	for i := 0; i < int(cfg.Concurrency); i++ {
@@ -200,18 +202,16 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 			exitErr := &ImportError{
 				Batch: batch,
 			}
-			im.bar.Finish()
 			if err := im.Import(batch); err != nil {
 				exitErr.Err = err
 			}
+			_ = im.bar.Set(len(batch))
+			im.bar.Incr()
 			im.errors <- exitErr
 			return
 		case ts := <-im.input:
 			// init waitForBatch when first
 			// value was received
-			im.bar.SetMaxWidth(50)
-			im.bar.SetTotal(int64(batchSize))
-			im.bar.Start()
 			if waitForBatch.IsZero() {
 				waitForBatch = time.Now()
 			}
@@ -227,9 +227,10 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 				}
 			}
 
-			im.bar.Add(len(ts.Values))
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
+			_ = im.bar.Set(dataPoints)
+			im.bar.Incr()
 			if dataPoints < batchSize {
 				continue
 			}
@@ -245,7 +246,7 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 				// make a new batch, since old one was referenced as err
 				batch = make([]*TimeSeries, len(batch))
 			}
-			im.bar.SetCurrent(0)
+			_ = im.bar.Set(0)
 			batch = batch[:0]
 			dataPoints = 0
 			waitForBatch = time.Now()
