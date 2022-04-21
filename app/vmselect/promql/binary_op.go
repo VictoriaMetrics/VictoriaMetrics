@@ -136,7 +136,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
-		if isScalar(left) {
+		if isScalar(left) && be.Op != "default" && be.Op != "if" && be.Op != "ifnot" {
 			// Fast path: `scalar op vector`
 			rvsLeft := make([]*timeseries, len(right))
 			tsLeft := left[0]
