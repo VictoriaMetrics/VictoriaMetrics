@@ -90,12 +90,12 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			// Do not remove empty series on the right side,
 			// so the left-side series could be matched against them.
 		case "default":
-			// Do not remove empty series on the left side,
-			// so they could be replaced with the corresponding series on the right side.
-			right = removeEmptySeries(right)
-			if len(right) == 0 {
-				return left, nil
-			}
+			// Do not remove empty series on the left and the right side,
+			// since this may result in missing result:
+			// - if empty time series are removed on the left side,
+			// then they won't be substituted by time series from the right side.
+			// - if empty time series are removed on the right side,
+			// then this may result in missing time series from the left side.
 		default:
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
