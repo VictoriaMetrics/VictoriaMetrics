@@ -403,7 +403,7 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 
 func isLabelManipulationFunc(funcName string) bool {
 	switch strings.ToLower(funcName) {
-	case "alias", "label_copy", "label_del", "label_graphite_group", "label_join", "label_keep", "label_lowercase",
+	case "alias", "drop_common_labels", "label_copy", "label_del", "label_graphite_group", "label_join", "label_keep", "label_lowercase",
 		"label_map", "label_match", "label_mismatch", "label_move", "label_replace", "label_set", "label_transform",
 		"label_uppercase", "label_value":
 		return true

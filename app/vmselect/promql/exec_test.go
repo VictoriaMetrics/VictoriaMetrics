@@ -1832,6 +1832,65 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`drop_common_labels(single_series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `drop_common_labels(label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`drop_common_labels(multi_series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `drop_common_labels((
+			label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"),
+			label_set(time()/10, "foo", "bar", "__name__", "yyy"),
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("xxx")
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("q"),
+			Value: []byte("we"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("yyy")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`drop_common_labels(multi_args)`, func(t *testing.T) {
+		t.Parallel()
+		q := `drop_common_labels(
+			label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"),
+			label_set(time()/10, "foo", "bar", "__name__", "xxx"),
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("q"),
+			Value: []byte("we"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`label_keep(nolabels)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_keep(time(), "foo", "bar")`
