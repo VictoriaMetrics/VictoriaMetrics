@@ -103,26 +103,24 @@ func (p *Pod) getTargetLabels(gw *groupWatcher) []map[string]string {
 		return nil
 	}
 	var ms []map[string]string
-	ms = appendPodLabels(ms, p, p.Spec.Containers, "false")
-	ms = appendPodLabels(ms, p, p.Spec.InitContainers, "true")
+	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, "false")
+	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, "true")
 	return ms
 }
 
-func appendPodLabels(ms []map[string]string, p *Pod, cs []Container, isInit string) []map[string]string {
+func appendPodLabels(ms []map[string]string, gw *groupWatcher, p *Pod, cs []Container, isInit string) []map[string]string {
 	for _, c := range cs {
 		for _, cp := range c.Ports {
-			m := getPodLabels(p, c, &cp, isInit)
-			ms = append(ms, m)
+			ms = appendPodLabelsInternal(ms, gw, p, c, &cp, isInit)
 		}
 		if len(c.Ports) == 0 {
-			m := getPodLabels(p, c, nil, isInit)
-			ms = append(ms, m)
+			ms = appendPodLabelsInternal(ms, gw, p, c, nil, isInit)
 		}
 	}
 	return ms
 }
 
-func getPodLabels(p *Pod, c Container, cp *ContainerPort, isInit string) map[string]string {
+func appendPodLabelsInternal(ms []map[string]string, gw *groupWatcher, p *Pod, c Container, cp *ContainerPort, isInit string) []map[string]string {
 	addr := p.Status.PodIP
 	if cp != nil {
 		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
@@ -131,9 +129,13 @@ func getPodLabels(p *Pod, c Container, cp *ContainerPort, isInit string) map[str
 		"__address__":                          addr,
 		"__meta_kubernetes_pod_container_init": isInit,
 	}
-	p.appendCommonLabels(m)
+	if !p.appendCommonLabels(m, gw) {
+		// The corresponding node is filtered out with label or field selectors.
+		// Do not generate pod labels in this case.
+		return ms
+	}
 	p.appendContainerLabels(m, c, cp)
-	return m
+	return append(ms, m)
 }
 
 func (p *Pod) appendContainerLabels(m map[string]string, c Container, cp *ContainerPort) {
@@ -145,7 +147,18 @@ func (p *Pod) appendContainerLabels(m map[string]string, c Container, cp *Contai
 	}
 }
 
-func (p *Pod) appendCommonLabels(m map[string]string) {
+func (p *Pod) appendCommonLabels(m map[string]string, gw *groupWatcher) bool {
+	if gw.attachNodeMetadata {
+		o := gw.getObjectByRoleLocked("node", p.Metadata.Namespace, p.Spec.NodeName)
+		if o == nil {
+			// The node associated with the pod is filtered out with label or field selectors,
+			// so do not generate labels for the pod.
+			return false
+		}
+		n := o.(*Node)
+		m["__meta_kubernetes_node_name"] = p.Spec.NodeName
+		n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
+	}
 	m["__meta_kubernetes_pod_name"] = p.Metadata.Name
 	m["__meta_kubernetes_pod_ip"] = p.Status.PodIP
 	m["__meta_kubernetes_pod_ready"] = getPodReadyStatus(p.Status.Conditions)
@@ -163,6 +176,7 @@ func (p *Pod) appendCommonLabels(m map[string]string) {
 		}
 	}
 	p.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_pod", m)
+	return true
 }
 
 func getPodController(ors []OwnerReference) *OwnerReference {

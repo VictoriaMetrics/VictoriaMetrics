@@ -74,8 +74,9 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		}
 	}
 	selectors := sdc.Selectors
+	attachNodeMetadata := sdc.AttachMetadata.Node
 	proxyURL := sdc.ProxyURL.URL()
-	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, proxyURL)
+	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 	role := sdc.role()
 	return &apiWatcher{
 		role:             role,
@@ -163,7 +164,7 @@ func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 }
 
 // groupWatcher watches for Kubernetes objects on the given apiServer with the given namespaces,
-// selectors using the given client.
+// selectors and attachNodeMetadata using the given client.
 type groupWatcher struct {
 	// Old Kubernetes doesn't support /apis/networking.k8s.io/v1/, so /apis/networking.k8s.io/v1beta1/ must be used instead.
 	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
@@ -173,9 +174,11 @@ type groupWatcher struct {
 	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
 	useDiscoveryV1Beta1 uint32
 
-	apiServer     string
-	namespaces    []string
-	selectors     []Selector
+	apiServer          string
+	namespaces         []string
+	selectors          []Selector
+	attachNodeMetadata bool
+
 	getAuthHeader func() string
 	client        *http.Client
 
@@ -183,7 +186,7 @@ type groupWatcher struct {
 	m  map[string]*urlWatcher
 }
 
-func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, proxyURL *url.URL) *groupWatcher {
+func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
 	var proxy func(*http.Request) (*url.URL, error)
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
@@ -199,26 +202,28 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		Timeout: *apiServerTimeout,
 	}
 	return &groupWatcher{
-		apiServer:     apiServer,
+		apiServer:          apiServer,
+		namespaces:         namespaces,
+		selectors:          selectors,
+		attachNodeMetadata: attachNodeMetadata,
+
 		getAuthHeader: ac.GetAuthHeader,
-		namespaces:    namespaces,
-		selectors:     selectors,
 		client:        client,
 		m:             make(map[string]*urlWatcher),
 	}
 }
 
-func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, proxyURL *url.URL) *groupWatcher {
+func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
 	proxyURLStr := "<nil>"
 	if proxyURL != nil {
 		proxyURLStr = proxyURL.String()
 	}
-	key := fmt.Sprintf("apiServer=%s, namespaces=%s, selectors=%s, proxyURL=%s, authConfig=%s",
-		apiServer, namespaces, selectorsKey(selectors), proxyURLStr, ac.String())
+	key := fmt.Sprintf("apiServer=%s, namespaces=%s, selectors=%s, attachNodeMetadata=%v, proxyURL=%s, authConfig=%s",
+		apiServer, namespaces, selectorsKey(selectors), attachNodeMetadata, proxyURLStr, ac.String())
 	groupWatchersLock.Lock()
 	gw := groupWatchers[key]
 	if gw == nil {
-		gw = newGroupWatcher(apiServer, ac, namespaces, selectors, proxyURL)
+		gw = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 		groupWatchers[key] = gw
 	}
 	groupWatchersLock.Unlock()
@@ -246,9 +251,9 @@ var (
 )
 
 func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) object {
-	if gw == nil {
-		// this is needed for testing
-		return nil
+	if role == "node" {
+		// Node objects have no namespace
+		namespace = ""
 	}
 	key := namespace + "/" + name
 	for _, uw := range gw.m {
@@ -256,7 +261,7 @@ func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) obje
 			// Role mismatch
 			continue
 		}
-		if uw.namespace != "" && uw.namespace != namespace {
+		if namespace != "" && uw.namespace != "" && uw.namespace != namespace {
 			// Namespace mismatch
 			continue
 		}
@@ -272,6 +277,9 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
 		gw.startWatchersForRole("pod", nil)
 		gw.startWatchersForRole("service", nil)
+	}
+	if gw.attachNodeMetadata && role == "pod" {
+		gw.startWatchersForRole("node", nil)
 	}
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
 	for _, path := range paths {
@@ -290,8 +298,10 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 		if needStart {
 			uw.reloadObjects()
 			go uw.watchForUpdates()
-			if role == "endpoints" || role == "endpointslice" {
-				// Refresh endpoints and enpointslices targets in background, since they depend on other object types such as pod and service.
+			if role == "endpoints" || role == "endpointslice" || (gw.attachNodeMetadata && role == "pod") {
+				// Refresh targets in background, since they depend on other object types such as pod, service or node.
+				// This should guarantee that the ScrapeWork objects for these objects are properly updated
+				// as soon as the objects they depend on are updated.
 				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
 				go func() {
 					sleepTime := 20 * time.Second
@@ -562,7 +572,7 @@ func (uw *urlWatcher) reloadObjects() string {
 	uw.updateScrapeWorksLocked(objectsAdded, uw.aws)
 	uw.needUpdateScrapeWorks = false
 	if len(objectsRemoved) > 0 || len(objectsUpdated) > 0 || len(objectsAdded) > 0 {
-		uw.maybeUpdateEndpointsScrapeWorksLocked()
+		uw.maybeUpdateDependedScrapeWorksLocked()
 	}
 	uw.gw.mu.Unlock()
 
@@ -711,7 +721,7 @@ func (uw *urlWatcher) updateObjectLocked(key string, o object) {
 			aw.setScrapeWorks(uw, key, labels)
 		}
 	}
-	uw.maybeUpdateEndpointsScrapeWorksLocked()
+	uw.maybeUpdateDependedScrapeWorksLocked()
 }
 
 func (uw *urlWatcher) removeObjectLocked(key string) {
@@ -724,23 +734,32 @@ func (uw *urlWatcher) removeObjectLocked(key string) {
 	for aw := range uw.aws {
 		aw.removeScrapeWorks(uw, key)
 	}
-	uw.maybeUpdateEndpointsScrapeWorksLocked()
+	uw.maybeUpdateDependedScrapeWorksLocked()
 }
 
-func (uw *urlWatcher) maybeUpdateEndpointsScrapeWorksLocked() {
-	if uw.role != "pod" && uw.role != "service" {
+func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
+	role := uw.role
+	attachNodeMetadata := uw.gw.attachNodeMetadata
+	if !(role == "pod" || role == "service" || (attachNodeMetadata && role == "node")) {
 		// Nothing to update
 		return
 	}
 	namespace := uw.namespace
 	for _, uwx := range uw.gw.m {
-		if uwx.role != "endpoints" && uwx.role != "endpointslice" {
+		if namespace != "" && uwx.namespace != "" && uwx.namespace != namespace {
+			// Namespace mismatch
 			continue
 		}
-		if uwx.namespace != "" && uwx.namespace != namespace {
+		if (role == "pod" || role == "service") && (uwx.role == "endpoints" || uwx.role == "endpointslice") {
+			// endpoints and endpointslice objects depend on pods and service objects
+			uwx.needUpdateScrapeWorks = true
 			continue
 		}
-		uwx.needUpdateScrapeWorks = true
+		if attachNodeMetadata && role == "node" && uwx.role == "pod" {
+			// pod objects depend on node objects if attachNodeMetadata is set
+			uwx.needUpdateScrapeWorks = true
+			continue
+		}
 	}
 }
 
