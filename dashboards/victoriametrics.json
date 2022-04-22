@@ -1,5 +1,6 @@
 {
   "__inputs": [],
+  "__elements": [],
   "__requires": [
     {
       "type": "grafana",
@@ -57,7 +58,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1650627596620,
+  "iteration": 1650628185133,
   "links": [
     {
       "icon": "doc",
@@ -4213,6 +4214,17 @@
         "tagsQuery": "",
         "type": "query",
         "useTags": false
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "filters": [],
+        "hide": 0,
+        "name": "adhoc",
+        "skipUrlSync": false,
+        "type": "adhoc"
       }
     ]
   },
