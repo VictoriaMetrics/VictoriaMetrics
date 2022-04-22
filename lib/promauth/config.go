@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -72,6 +73,7 @@ type TLSConfig struct {
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
+	MinVersion         string `yaml:"min_version,omitempty"`
 }
 
 // Authorization represents generic authorization config.
@@ -229,6 +231,7 @@ type Config struct {
 	TLSRootCA             *x509.CertPool
 	TLSServerName         string
 	TLSInsecureSkipVerify bool
+	TLSMinVersion         uint16
 
 	getTLSCert    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	tlsCertDigest string
@@ -259,8 +262,8 @@ func (ac *Config) GetAuthHeader() string {
 
 // String returns human-readable representation for ac.
 func (ac *Config) String() string {
-	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v",
-		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify)
+	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v, TLSMinVersion=%d",
+		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify, ac.TLSMinVersion)
 }
 
 func (ac *Config) tlsRootCAString() string {
@@ -302,6 +305,7 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg.RootCAs = ac.TLSRootCA
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
+	tlsCfg.MinVersion = ac.TLSMinVersion
 	return tlsCfg
 }
 
@@ -439,6 +443,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 	tlsCertDigest := ""
 	tlsServerName := ""
 	tlsInsecureSkipVerify := false
+	tlsMinVersion := uint16(0)
 	if tlsConfig != nil {
 		tlsServerName = tlsConfig.ServerName
 		tlsInsecureSkipVerify = tlsConfig.InsecureSkipVerify
@@ -470,11 +475,19 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 				return nil, fmt.Errorf("cannot parse data from `ca_file` %q", tlsConfig.CAFile)
 			}
 		}
+		if tlsConfig.MinVersion != "" {
+			v, err := parseTLSVersion(tlsConfig.MinVersion)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse `min_version`: %w", err)
+			}
+			tlsMinVersion = v
+		}
 	}
 	ac := &Config{
 		TLSRootCA:             tlsRootCA,
 		TLSServerName:         tlsServerName,
 		TLSInsecureSkipVerify: tlsInsecureSkipVerify,
+		TLSMinVersion:         tlsMinVersion,
 
 		getTLSCert:    getTLSCert,
 		tlsCertDigest: tlsCertDigest,
@@ -483,4 +496,19 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		authDigest:    authDigest,
 	}
 	return ac, nil
+}
+
+func parseTLSVersion(s string) (uint16, error) {
+	switch strings.ToUpper(s) {
+	case "TLS13":
+		return tls.VersionTLS13, nil
+	case "TLS12":
+		return tls.VersionTLS12, nil
+	case "TLS11":
+		return tls.VersionTLS11, nil
+	case "TLS10":
+		return tls.VersionTLS10, nil
+	default:
+		return 0, fmt.Errorf("unsupported TLS version %q", s)
+	}
 }
