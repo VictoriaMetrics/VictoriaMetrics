@@ -57,7 +57,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1644936794057,
+  "iteration": 1650637429337,
   "links": [
     {
       "icon": "doc",
@@ -111,7 +111,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -143,7 +144,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -174,7 +175,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -206,7 +208,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -238,7 +240,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -270,7 +273,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -301,7 +304,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -333,7 +337,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -364,7 +368,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -396,7 +401,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -414,6 +419,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Total amount of used disk space",
@@ -427,7 +433,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -459,11 +466,15 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
-              "exemplar": true,
-              "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\", type!=\"indexdb\"})",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": false,
+              "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\"})",
               "format": "time_series",
               "instant": true,
               "interval": "",
@@ -490,7 +501,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -522,7 +534,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -553,7 +565,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -585,7 +598,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "exemplar": true,
@@ -622,7 +635,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -660,7 +674,8 @@
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "rgba(245, 54, 54, 0.9)"
+                          "color": "rgba(245, 54, 54, 0.9)",
+                          "value": null
                         },
                         {
                           "color": "rgba(237, 129, 40, 0.89)",
@@ -694,7 +709,7 @@
             },
             "showHeader": true
           },
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "targets": [
             {
               "datasource": {
@@ -794,7 +809,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
