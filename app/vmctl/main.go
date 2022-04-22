@@ -17,7 +17,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
-	"github.com/cheggaaa/pb/v3"
 	"github.com/urfave/cli/v2"
 )
 
@@ -56,7 +55,7 @@ func main() {
 					}
 
 					vmCfg := initConfigVM(c)
-					importer, err := vm.NewImporter(vmCfg, nil)
+					importer, err := vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -91,7 +90,7 @@ func main() {
 					}
 
 					vmCfg := initConfigVM(c)
-					importer, err = vm.NewImporter(vmCfg, nil)
+					importer, err = vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -108,10 +107,8 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
-					barsPool := pb.NewPool()
-
 					vmCfg := initConfigVM(c)
-					importer, err = vm.NewImporter(vmCfg, barsPool)
+					importer, err = vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -130,10 +127,9 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 					pp := prometheusProcessor{
-						cl:       cl,
-						im:       importer,
-						cc:       c.Int(promConcurrency),
-						barsPool: barsPool,
+						cl: cl,
+						im: importer,
+						cc: c.Int(promConcurrency),
 					}
 					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},

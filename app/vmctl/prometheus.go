@@ -5,9 +5,9 @@ import (
 	"log"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 	"github.com/prometheus/prometheus/tsdb"
 )
 
@@ -23,9 +23,6 @@ type prometheusProcessor struct {
 	// and defines number of concurrently
 	// running snapshot block readers
 	cc int
-
-	// pool of progress bars
-	barsPool *pb.Pool
 }
 
 func (pp *prometheusProcessor) run(silent, verbose bool) error {
@@ -41,10 +38,11 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	bar := pb.ProgressBarTemplate(progressTemplate()).New(len(blocks))
-	pp.barsPool.Add(bar)
+	bar := progressbar.AddWithTemplate(
+		progressbar.ProgressTemplate("Processing blocks"),
+		len(blocks))
 
-	err = pp.barsPool.Start()
+	err = progressbar.Start()
 	if err != nil {
 		log.Printf("error start process bars pool: %s", err)
 	}
@@ -91,7 +89,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
 	}
-	err = pp.barsPool.Stop()
+	err = progressbar.Stop()
 	if err != nil {
 		log.Printf("error stop process bars pool: %s", err)
 	}
@@ -143,8 +141,4 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		}
 	}
 	return ss.Err()
-}
-
-func progressTemplate() string {
-	return `{{ blue "Processing blocks:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 }
