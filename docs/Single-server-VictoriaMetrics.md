@@ -1107,7 +1107,7 @@ The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_inter
 
 The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
-`external_labels` section in their configs, so they write data to the same time series.
+`external_labels` section in their configs, so they write data to the same time series. See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
 
 ## Storage
 

@@ -166,6 +166,10 @@ func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 	return string(sa) == string(sb)
 }
 
+func (sc *ScrapeConfig) unmarshal(data []byte) error {
+	return yaml.UnmarshalStrict(data, sc)
+}
+
 func (sc *ScrapeConfig) marshal() []byte {
 	data, err := yaml.Marshal(sc)
 	if err != nil {
@@ -411,13 +415,27 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 
 	// Initialize cfg.ScrapeConfigs
 	for i, sc := range cfg.ScrapeConfigs {
+		// Make a copy of sc in order to remove references to `data` memory.
+		// This should prevent from memory leaks on config reload.
+		sc = sc.clone()
+		cfg.ScrapeConfigs[i] = sc
+
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
+			return nil, fmt.Errorf("cannot parse `scrape_config`: %w", err)
 		}
 		sc.swc = swc
 	}
 	return dataNew, nil
+}
+
+func (sc *ScrapeConfig) clone() *ScrapeConfig {
+	data := sc.marshal()
+	var scCopy ScrapeConfig
+	if err := scCopy.unmarshal(data); err != nil {
+		logger.Panicf("BUG: cannot unmarshal scrape config: %s", err)
+	}
+	return &scCopy
 }
 
 func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
@@ -1054,7 +1072,7 @@ func getLabelsContext() *labelsContext {
 }
 
 func putLabelsContext(lctx *labelsContext) {
-	labels := lctx.labels[:cap(lctx.labels)]
+	labels := lctx.labels
 	for i := range labels {
 		labels[i].Name = ""
 		labels[i].Value = ""
@@ -1222,25 +1240,30 @@ func internLabelStrings(labels []prompbmarshal.Label) {
 }
 
 func internString(s string) string {
-	if v, ok := internStringsMap.Load(s); ok {
+	m := internStringsMap.Load().(*sync.Map)
+	if v, ok := m.Load(s); ok {
 		sp := v.(*string)
 		return *sp
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := string(append([]byte{}, s...))
-	internStringsMap.Store(sCopy, &sCopy)
+	m.Store(sCopy, &sCopy)
 	n := atomic.AddUint64(&internStringsMapLen, 1)
 	if n > 100e3 {
 		atomic.StoreUint64(&internStringsMapLen, 0)
-		internStringsMap = &sync.Map{}
+		internStringsMap.Store(&sync.Map{})
 	}
 	return sCopy
 }
 
 var (
-	internStringsMap    = &sync.Map{}
+	internStringsMap    atomic.Value
 	internStringsMapLen uint64
 )
+
+func init() {
+	internStringsMap.Store(&sync.Map{})
+}
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {
 	// See https://www.robustperception.io/life-of-a-label
@@ -1316,6 +1339,12 @@ func mergeLabels(dst []prompbmarshal.Label, swc *scrapeWorkConfig, target string
 			tmp = append(tmp, label)
 			prevName = label.Name
 		}
+	}
+	tail := dst[len(tmp):]
+	for i := range tail {
+		label := &tail[i]
+		label.Name = ""
+		label.Value = ""
 	}
 	return tmp
 }

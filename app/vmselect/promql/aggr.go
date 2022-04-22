@@ -619,7 +619,7 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 				})
 				fillNaNsAtIdx(n, ks[n], tss)
 			}
-			tss = removeNaNs(tss)
+			tss = removeEmptySeries(tss)
 			reverseSeries(tss)
 			return tss
 		}
@@ -686,7 +686,7 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 	if remainingSumTS != nil {
 		tss = append(tss, remainingSumTS)
 	}
-	tss = removeNaNs(tss)
+	tss = removeEmptySeries(tss)
 	reverseSeries(tss)
 	return tss
 }
