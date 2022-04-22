@@ -7,7 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/gosuri/uiprogress"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/prometheus/prometheus/tsdb"
 )
 
@@ -23,6 +23,9 @@ type prometheusProcessor struct {
 	// and defines number of concurrently
 	// running snapshot block readers
 	cc int
+
+	// pool of progress bars
+	barsPool *pb.Pool
 }
 
 func (pp *prometheusProcessor) run(silent, verbose bool) error {
@@ -38,11 +41,13 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	uiprogress.Start()
-	bar := uiprogress.AddBar(len(blocks)).AppendCompleted().PrependElapsed()
-	bar.PrependFunc(func(b *uiprogress.Bar) string {
-		return fmt.Sprintf("Blocks (%d/%d)", b.Current(), len(blocks))
-	})
+	bar := pb.ProgressBarTemplate(progressTemplate()).New(len(blocks))
+	pp.barsPool.Add(bar)
+
+	err = pp.barsPool.Start()
+	if err != nil {
+		log.Printf("error start process bars pool: %s", err)
+	}
 
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)
@@ -58,7 +63,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
-				bar.Incr()
+				bar.Increment()
 			}
 		}()
 	}
@@ -86,7 +91,10 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
 	}
-	uiprogress.Stop()
+	err = pp.barsPool.Stop()
+	if err != nil {
+		log.Printf("error stop process bars pool: %s", err)
+	}
 	log.Println("Import finished!")
 	log.Print(pp.im.Stats())
 	return nil
@@ -135,4 +143,8 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		}
 	}
 	return ss.Err()
+}
+
+func progressTemplate() string {
+	return `{{ blue "Processing blocks:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 }

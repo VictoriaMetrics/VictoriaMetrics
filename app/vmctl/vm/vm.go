@@ -15,7 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/gosuri/uiprogress"
+	"github.com/cheggaaa/pb/v3"
 )
 
 // Config contains list of params to configure
@@ -75,7 +75,7 @@ type Importer struct {
 
 	s *stats
 
-	bar *uiprogress.Bar
+	barsPool *pb.Pool
 }
 
 // ResetStats resets im stats.
@@ -107,7 +107,7 @@ func AddExtraLabelsToImportPath(path string, extraLabels []string) (string, erro
 }
 
 // NewImporter creates new Importer for the given cfg.
-func NewImporter(cfg Config) (*Importer, error) {
+func NewImporter(cfg Config, barsPool *pb.Pool) (*Importer, error) {
 	if cfg.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency can't be lower than 1")
 	}
@@ -136,6 +136,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
+		barsPool:   barsPool,
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -145,19 +146,12 @@ func NewImporter(cfg Config) (*Importer, error) {
 		cfg.BatchSize = 1e5
 	}
 
-	if im.bar == nil {
-		im.bar = uiprogress.AddBar(cfg.BatchSize).PrependElapsed().AppendCompleted()
-		im.bar.PrependFunc(func(b *uiprogress.Bar) string {
-			return fmt.Sprintf("Datapoints (%d/%d)", b.Current(), cfg.BatchSize)
-		})
-	}
-
 	im.wg.Add(int(cfg.Concurrency))
 	for i := 0; i < int(cfg.Concurrency); i++ {
-		go func() {
+		go func(num int) {
 			defer im.wg.Done()
-			im.startWorker(cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
-		}()
+			im.startWorker(num, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
+		}(i)
 	}
 	im.ResetStats()
 	return im, nil
@@ -192,7 +186,9 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) {
+func (im *Importer) startWorker(num, batchSize, significantFigures, roundDigits int) {
+	bar := pb.ProgressBarTemplate(spinnerTemplate(num + 1)).New(batchSize)
+	im.barsPool.Add(bar)
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -205,8 +201,6 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 			if err := im.Import(batch); err != nil {
 				exitErr.Err = err
 			}
-			_ = im.bar.Set(len(batch))
-			im.bar.Incr()
 			im.errors <- exitErr
 			return
 		case ts := <-im.input:
@@ -229,8 +223,7 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
-			_ = im.bar.Set(dataPoints)
-			im.bar.Incr()
+			bar.Add(len(ts.Values))
 			if dataPoints < batchSize {
 				continue
 			}
@@ -246,9 +239,9 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 				// make a new batch, since old one was referenced as err
 				batch = make([]*TimeSeries, len(batch))
 			}
-			_ = im.bar.Set(0)
-			batch = batch[:0]
+			bar.SetCurrent(0)
 			dataPoints = 0
+			batch = batch[:0]
 			waitForBatch = time.Now()
 		}
 	}
@@ -409,6 +402,6 @@ func byteCountSI(b int64) string {
 		float64(b)/float64(div), "kMGTPE"[exp])
 }
 
-func barTemplate() string {
-	return `{{ red "Processing datapoints:" }} {{ bar . "<" (cycle . "█" ) ">"}} {{speed . | green}}`
+func spinnerTemplate(num int) string {
+	return fmt.Sprintf(`{{ green "Processing datapoints for worker %d:" }} {{ (cycle . "←" "↖" "↑" "↗" "→" "↘" "↓" "↙" ) }} {{speed . }}`, num)
 }
