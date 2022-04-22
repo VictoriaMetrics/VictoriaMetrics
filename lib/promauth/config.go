@@ -76,6 +76,15 @@ type TLSConfig struct {
 	MinVersion         string `yaml:"min_version,omitempty"`
 }
 
+// String returns human-readable representation of tlsConfig
+func (tlsConfig *TLSConfig) String() string {
+	if tlsConfig == nil {
+		return ""
+	}
+	return fmt.Sprintf("ca_file=%q, cert_file=%q, key_file=%q, server_name=%q, insecure_skip_verify=%v, min_version=%q",
+		tlsConfig.CAFile, tlsConfig.CertFile, tlsConfig.KeyFile, tlsConfig.ServerName, tlsConfig.InsecureSkipVerify, tlsConfig.MinVersion)
+}
+
 // Authorization represents generic authorization config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -125,8 +134,8 @@ type OAuth2Config struct {
 
 // String returns string representation of o.
 func (o *OAuth2Config) String() string {
-	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, Scopes=%q, tokenURL=%q, endpointParams=%q",
-		o.ClientID, o.ClientSecret, o.ClientSecretFile, o.Scopes, o.TokenURL, o.EndpointParams)
+	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, Scopes=%q, tokenURL=%q, endpointParams=%q, tlsConfig={%s}, proxyURL=%q",
+		o.ClientID, o.ClientSecret, o.ClientSecretFile, o.Scopes, o.TokenURL, o.EndpointParams, o.TLSConfig.String(), o.ProxyURL)
 }
 
 func (o *OAuth2Config) validate() error {
