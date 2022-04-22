@@ -9,11 +9,6 @@
           min-height: 75rem;
           padding-top: 4.5rem;
         }
-        pre {
-            overflow: scroll;
-            max-width: 600px;
-            min-height: 30px;
-        }
         .group-heading {
             cursor: pointer;
             padding: 5px;
