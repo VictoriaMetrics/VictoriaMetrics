@@ -57,7 +57,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1650637504927,
+  "iteration": 1650637504930,
   "links": [
     {
       "icon": "doc",
@@ -2769,7 +2769,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 102,
@@ -2874,7 +2874,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 107,
@@ -2967,7 +2967,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 108,
@@ -3070,7 +3070,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 116,
@@ -3171,7 +3171,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 142,
@@ -3274,7 +3274,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 144,
@@ -3343,115 +3343,6 @@
               "$$hashKey": "object:108",
               "format": "short",
               "logBase": 1,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Shows whether background merges were deferred because of not enough of disk space. \n\nBefore starting the data parts merge (improves compression and reduces number of files), VictoriaMetrics estimates if there is enough of disk space for the operation. If panel shows values higher than zero, it means no disk space left for merging operation.\n\nConsider extending the disk size or decreasing retention. ",
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 60
-          },
-          "hiddenSeries": false,
-          "id": 145,
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "max": true,
-            "min": false,
-            "show": true,
-            "sort": "current",
-            "sortDesc": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [
-            {
-              "targetBlank": true,
-              "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode"
-            }
-          ],
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.3.5",
-          "pointradius": 1,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "exemplar": true,
-              "expr": "sum(vm_merge_need_free_disk_space{job=~\"$job_storage\", instance=~\"$instance\"}) by(instance)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{ instance }}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeRegions": [],
-          "title": "Merges deferred by vmstorage ($instance)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "mode": "time",
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "$$hashKey": "object:536",
-              "format": "short",
-              "logBase": 1,
-              "min": "0",
-              "show": true
-            },
-            {
-              "$$hashKey": "object:537",
-              "format": "short",
-              "logBase": 1,
-              "min": "0",
               "show": true
             }
           ],
