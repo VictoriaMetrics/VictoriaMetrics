@@ -58,7 +58,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1650628185133,
+  "iteration": 1650628185136,
   "links": [
     {
       "icon": "doc",
@@ -2584,7 +2584,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 33
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2672,9 +2672,10 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Slow queries rate according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
+          "description": "Shows the rate of adding new items to the index. It should correlate with `Slow inserts` and `Churn rate` graphs and could help to determine the pressure on indexdb.",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -2687,10 +2688,10 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 33
+            "y": 5
           },
           "hiddenSeries": false,
-          "id": 60,
+          "id": 96,
           "legend": {
             "alignAsTable": true,
             "avg": true,
@@ -2705,7 +2706,6 @@
           },
           "lines": true,
           "linewidth": 1,
-          "links": [],
           "nullPointMode": "null",
           "options": {
             "alertThreshold": true
@@ -2715,23 +2715,44 @@
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [],
+          "seriesOverrides": [
+            {
+              "$$hashKey": "object:96",
+              "alias": "bytes",
+              "yaxis": 2
+            }
+          ],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "slow queries rate",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "sum(rate(vm_indexdb_items_added_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "interval": "",
+              "legendFormat": "items",
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "exemplar": true,
+              "expr": "sum(rate(vm_indexdb_items_added_size_bytes_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "bytes",
+              "refId": "C"
             }
           ],
           "thresholds": [],
           "timeRegions": [],
-          "title": "Slow queries rate ($instance)",
+          "title": "IndexDB items rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2745,13 +2766,15 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:76",
               "format": "short",
               "logBase": 1,
               "min": "0",
               "show": true
             },
             {
-              "format": "short",
+              "$$hashKey": "object:77",
+              "format": "bytes",
               "logBase": 1,
               "min": "0",
               "show": true
@@ -2779,10 +2802,10 @@
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
-            "h": 9,
+            "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2876,7 +2899,7 @@
           "datasource": {
             "uid": "$ds"
           },
-          "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
+          "description": "Slow queries rate according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -2886,20 +2909,22 @@
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
-            "h": 9,
+            "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 13
           },
           "hiddenSeries": false,
-          "id": 74,
+          "id": 60,
           "legend": {
             "alignAsTable": true,
             "avg": true,
             "current": true,
             "max": true,
             "min": false,
-            "show": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
             "total": false,
             "values": true
           },
@@ -2921,19 +2946,17 @@
           "steppedLine": false,
           "targets": [
             {
-              "exemplar": true,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
               "format": "time_series",
               "hide": false,
-              "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "limit exceeded",
+              "legendFormat": "slow queries rate",
               "refId": "A"
             }
           ],
           "thresholds": [],
           "timeRegions": [],
-          "title": "Labels limit exceeded ($instance)",
+          "title": "Slow queries rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2947,7 +2970,6 @@
           },
           "yaxes": [
             {
-              "decimals": 2,
               "format": "short",
               "logBase": 1,
               "min": "0",
@@ -2983,10 +3005,10 @@
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
-            "h": 9,
+            "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 88,
@@ -3071,6 +3093,102 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "uid": "$ds"
+          },
+          "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 21
+          },
+          "hiddenSeries": false,
+          "id": 74,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.3.5",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "limit exceeded",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Labels limit exceeded ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 2,
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
             "type": "prometheus",
             "uid": "$ds"
           },
@@ -3078,10 +3196,10 @@
           "fill": 0,
           "fillGradient": 0,
           "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 50
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 29
           },
           "hiddenSeries": false,
           "id": 90,
