@@ -118,6 +118,7 @@ type OAuth2Config struct {
 	TokenURL         string            `yaml:"token_url"`
 	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
 	TLSConfig        *TLSConfig        `yaml:"tls_config,omitempty"`
+	ProxyURL         string            `yaml:"proxy_url,omitempty"`
 }
 
 // String returns string representation of o.
@@ -175,9 +176,19 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize TLS config for OAuth2: %w", err)
 	}
+	tlsCfg := ac.NewTLSConfig()
+	var proxyURLFunc func(*http.Request) (*url.URL, error)
+	if o.ProxyURL != "" {
+		u, err := url.Parse(o.ProxyURL)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse proxy_url=%q: %w", o.ProxyURL, err)
+		}
+		proxyURLFunc = http.ProxyURL(u)
+	}
 	c := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: ac.NewTLSConfig(),
+			TLSClientConfig: tlsCfg,
+			Proxy:           proxyURLFunc,
 		},
 	}
 	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
