@@ -166,6 +166,10 @@ func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 	return string(sa) == string(sb)
 }
 
+func (sc *ScrapeConfig) unmarshal(data []byte) error {
+	return yaml.UnmarshalStrict(data, sc)
+}
+
 func (sc *ScrapeConfig) marshal() []byte {
 	data, err := yaml.Marshal(sc)
 	if err != nil {
@@ -411,13 +415,27 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 
 	// Initialize cfg.ScrapeConfigs
 	for i, sc := range cfg.ScrapeConfigs {
+		// Make a copy of sc in order to remove references to `data` memory.
+		// This should prevent from memory leaks on config reload.
+		sc = sc.clone()
+		cfg.ScrapeConfigs[i] = sc
+
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
+			return nil, fmt.Errorf("cannot parse `scrape_config`: %w", err)
 		}
 		sc.swc = swc
 	}
 	return dataNew, nil
+}
+
+func (sc *ScrapeConfig) clone() *ScrapeConfig {
+	data := sc.marshal()
+	var scCopy ScrapeConfig
+	if err := scCopy.unmarshal(data); err != nil {
+		logger.Panicf("BUG: cannot unmarshal scrape config: %s", err)
+	}
+	return &scCopy
 }
 
 func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
