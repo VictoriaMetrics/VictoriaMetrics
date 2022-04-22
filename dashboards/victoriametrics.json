@@ -924,7 +924,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type,accountID) > 0 ",
+          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type,accountID) > 0 ",
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
@@ -1017,7 +1017,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[5m])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -1111,7 +1111,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[5m])) by (path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -1299,21 +1299,21 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Connection",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Dial",
           "refId": "B"
         },
         {
-          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Handshake",
@@ -1408,7 +1408,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance.*\", level!=\"info\"}[5m])) by (job, level) ",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance.*\", level!=\"info\"}[$__rate_interval])) by (job, level) ",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -1907,7 +1907,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -2007,7 +2007,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance) / process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance) / process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -2224,7 +2224,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
+              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2419,7 +2419,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2428,7 +2428,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2695,7 +2695,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job, instance)",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
               "interval": "",
               "legendFormat": "{{instance}} ({{job}})",
               "refId": "A"
@@ -2808,7 +2808,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval]))",
               "interval": "",
               "legendFormat": "churn rate",
               "refId": "A"
@@ -2913,7 +2913,7 @@
                 "uid": "$ds"
               },
               "exemplar": true,
-              "expr": "sum(rate(vm_indexdb_items_added_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_indexdb_items_added_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval]))",
               "interval": "",
               "legendFormat": "items",
               "refId": "A"
@@ -3006,7 +3006,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_row_inserts_total{job=~\"$job_storage\"}[5m])) / sum(rate(vm_rows_inserted_total{job=~\"$job_insert\"}[5m]))",
+              "expr": "sum(rate(vm_slow_row_inserts_total{job=~\"$job_storage\"}[$__rate_interval])) / sum(rate(vm_rows_inserted_total{job=~\"$job_insert\"}[$__rate_interval]))",
               "interval": "",
               "legendFormat": "slow inserts",
               "refId": "A"
@@ -3109,7 +3109,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job_select\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval]))",
               "interval": "",
               "legendFormat": "slow queries rate",
               "refId": "A"
@@ -3313,7 +3313,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3623,21 +3623,21 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "Connection",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "Dial",
               "refId": "B"
             },
             {
-              "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "Handshake",
@@ -3731,7 +3731,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(vm_rpc_rows_rerouted_to_here_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(addr)",
+              "expr": "sum(rate(vm_rpc_rows_rerouted_to_here_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(addr)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -3826,7 +3826,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(vm_rpc_rows_rerouted_from_here_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(addr)",
+              "expr": "sum(rate(vm_rpc_rows_rerouted_from_here_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(addr)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -4021,7 +4021,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcpdialer_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[5m])) * 8",
+              "expr": "sum(rate(vm_tcpdialer_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) * 8",
               "legendFormat": "network usage",
               "refId": "A"
             }
@@ -4242,7 +4242,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "1 - (\n sum(rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) /\n sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type)\n)",
+              "expr": "1 - (\n sum(rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) /\n sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type)\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -4356,7 +4356,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_vminsert_metrics_read_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
+              "expr": "sum(rate(vm_vminsert_metrics_read_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -5028,7 +5028,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m])) by(type)",
+              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
               "legendFormat": "{{type}}",
               "refId": "A"
             }
@@ -5528,7 +5528,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[5m])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{path}}",
@@ -5739,14 +5739,14 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
+              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "read - {{instance}}",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
+              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance) * 8 > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -5856,7 +5856,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[5m])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{path}}",
@@ -6070,7 +6070,7 @@
                 "uid": "$ds"
               },
               "exemplar": true,
-              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
+              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])) by (instance) * 8 > 0",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -6164,7 +6164,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(increase(vm_rows_per_insert_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])) by (instance, vmrange))",
+              "expr": "histogram_quantile(0.99, sum(increase(vm_rows_per_insert_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
