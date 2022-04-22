@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 
@@ -116,6 +117,7 @@ type OAuth2Config struct {
 	Scopes           []string          `yaml:"scopes,omitempty"`
 	TokenURL         string            `yaml:"token_url"`
 	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
+	TLSConfig        *TLSConfig        `yaml:"tls_config,omitempty"`
 }
 
 // String returns string representation of o.
@@ -144,6 +146,7 @@ type oauth2ConfigInternal struct {
 	mu               sync.Mutex
 	cfg              *clientcredentials.Config
 	clientSecretFile string
+	ctx              context.Context
 	tokenSource      oauth2.TokenSource
 }
 
@@ -168,7 +171,17 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		}
 		oi.cfg.ClientSecret = secret
 	}
-	oi.tokenSource = oi.cfg.TokenSource(context.Background())
+	ac, err := o.NewConfig(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize TLS config for OAuth2: %w", err)
+	}
+	c := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: ac.NewTLSConfig(),
+		},
+	}
+	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
+	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
 	return oi, nil
 }
 
@@ -195,7 +208,7 @@ func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
 		return oi.tokenSource, nil
 	}
 	oi.cfg.ClientSecret = newSecret
-	oi.tokenSource = oi.cfg.TokenSource(context.Background())
+	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
 	return oi.tokenSource, nil
 }
 
@@ -289,6 +302,11 @@ func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
 	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken.String(), pcc.BearerTokenFile, nil, pcc.TLSConfig)
+}
+
+// NewConfig creates auth config for the given o.
+func (o *OAuth2Config) NewConfig(baseDir string) (*Config, error) {
+	return NewConfig(baseDir, nil, nil, "", "", nil, o.TLSConfig)
 }
 
 // NewConfig creates auth config from the given args.
