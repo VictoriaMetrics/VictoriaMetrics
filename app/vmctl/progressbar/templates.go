@@ -18,3 +18,7 @@ func ProgressTemplate(text string) pb.ProgressBarTemplate {
 			`{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`,
 			text))
 }
+
+func Template(text string) pb.ProgressBarTemplate {
+	return pb.ProgressBarTemplate(text)
+}

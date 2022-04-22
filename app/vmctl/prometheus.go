@@ -42,8 +42,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		progressbar.ProgressTemplate("Processing blocks"),
 		len(blocks))
 
-	err = progressbar.Start()
-	if err != nil {
+	if err := progressbar.Start(); err != nil {
 		log.Printf("error start process bars pool: %s", err)
 	}
 
@@ -89,8 +88,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
 	}
-	err = progressbar.Stop()
-	if err != nil {
+	if err := progressbar.Stop(); err != nil {
 		log.Printf("error stop process bars pool: %s", err)
 	}
 	log.Println("Import finished!")
