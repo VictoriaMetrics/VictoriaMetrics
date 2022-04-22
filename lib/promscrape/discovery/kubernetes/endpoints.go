@@ -132,7 +132,11 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
 				m := map[string]string{
 					"__address__": addr,
 				}
-				p.appendCommonLabels(m)
+				if !p.appendCommonLabels(m, gw) {
+					// The corresponding node is filtered out with label or field selectors.
+					// Do not generate endpoint labels in this case.
+					continue
+				}
 				p.appendContainerLabels(m, c, &cp)
 				if svc != nil {
 					svc.appendCommonLabels(m)
@@ -153,13 +157,16 @@ func appendEndpointLabelsForAddresses(ms []map[string]string, gw *groupWatcher, 
 				p = o.(*Pod)
 			}
 		}
-		m := getEndpointLabelsForAddressAndPort(podPortsSeen, eps, ea, epp, p, svc, ready)
-		ms = append(ms, m)
+		m := getEndpointLabelsForAddressAndPort(gw, podPortsSeen, eps, ea, epp, p, svc, ready)
+		if m != nil {
+			ms = append(ms, m)
+		}
 	}
 	return ms
 }
 
-func getEndpointLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, eps *Endpoints, ea EndpointAddress, epp EndpointPort, p *Pod, svc *Service, ready string) map[string]string {
+func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints, ea EndpointAddress, epp EndpointPort,
+	p *Pod, svc *Service, ready string) map[string]string {
 	m := getEndpointLabels(eps.Metadata, ea, epp, ready)
 	if svc != nil {
 		svc.appendCommonLabels(m)
@@ -169,7 +176,11 @@ func getEndpointLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, eps *Endpoi
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}
-	p.appendCommonLabels(m)
+	if !p.appendCommonLabels(m, gw) {
+		// The corresponding node is filtered out with label or field selectors.
+		// Do not generate endpoint labels in this case.
+		return nil
+	}
 	// always add pod targetRef, even if epp port doesn't match container port
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134
 	if _, ok := podPortsSeen[p]; !ok {

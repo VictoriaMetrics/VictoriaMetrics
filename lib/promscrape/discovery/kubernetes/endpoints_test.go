@@ -56,7 +56,7 @@ func TestParseEndpointsListSuccess(t *testing.T) {
           "addresses": [
             {
 	      "hostname": "aaa.bbb",
-	      "nodeName": "foobar",
+	      "nodeName": "test-node",
               "ip": "172.17.0.2",
               "targetRef": {
                 "kind": "Pod",
@@ -97,7 +97,7 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpoint_address_target_kind":  "Pod",
 			"__meta_kubernetes_endpoint_address_target_name":  "coredns-6955765f44-lnp6t",
 			"__meta_kubernetes_endpoint_hostname":             "aaa.bbb",
-			"__meta_kubernetes_endpoint_node_name":            "foobar",
+			"__meta_kubernetes_endpoint_node_name":            "test-node",
 			"__meta_kubernetes_endpoint_port_name":            "https",
 			"__meta_kubernetes_endpoint_port_protocol":        "TCP",
 			"__meta_kubernetes_endpoint_ready":                "true",
