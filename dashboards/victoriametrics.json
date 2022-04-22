@@ -57,7 +57,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1650637504930,
+  "iteration": 1650637504933,
   "links": [
     {
       "icon": "doc",
@@ -3375,7 +3375,7 @@
           "datasource": {
             "uid": "$ds"
           },
-          "description": "Shows number of pushed and sent rows. \n* `Pushed rows` - rows added to internal inserter buffers before send\n* `Sent rows` - successfully transmitted rows to storage nodes",
+          "description": "Shows number of pushed and sent rows. \n* `Pushed rows` - rows added to internal inserter buffers before send\n* `Sent rows` - successfully transmitted rows to storage nodes\n\nPlease note, it could be that `Sent > Pushed` because of the replication factor.",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -3412,7 +3412,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3514,7 +3514,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3621,7 +3621,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3716,7 +3716,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3811,7 +3811,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3912,7 +3912,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.2",
+          "pluginVersion": "8.3.5",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
