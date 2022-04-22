@@ -57,7 +57,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1645085513510,
+  "iteration": 1650627596620,
   "links": [
     {
       "icon": "doc",
@@ -189,6 +189,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Total amount of used disk space",
@@ -238,8 +239,12 @@
       "pluginVersion": "8.3.5",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "sum(vm_data_size_bytes{job=~\"$job\", type!=\"indexdb\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "exemplar": false,
+          "expr": "sum(vm_data_size_bytes{job=~\"$job\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
