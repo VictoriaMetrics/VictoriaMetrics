@@ -58,7 +58,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1650628185139,
+  "iteration": 1650637176348,
   "links": [
     {
       "icon": "doc",
@@ -2584,7 +2584,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 9
+            "y": 33
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2688,7 +2688,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 9
+            "y": 33
           },
           "hiddenSeries": false,
           "id": 96,
@@ -2715,13 +2715,7 @@
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "$$hashKey": "object:96",
-              "alias": "bytes",
-              "yaxis": 2
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
@@ -2736,18 +2730,6 @@
               "interval": "",
               "legendFormat": "items",
               "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "exemplar": true,
-              "expr": "sum(rate(vm_indexdb_items_added_size_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-              "hide": false,
-              "interval": "",
-              "legendFormat": "bytes",
-              "refId": "C"
             }
           ],
           "thresholds": [],
@@ -2774,7 +2756,7 @@
             },
             {
               "$$hashKey": "object:77",
-              "format": "bytes",
+              "format": "short",
               "logBase": 1,
               "min": "0",
               "show": true
@@ -2805,7 +2787,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 17
+            "y": 41
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2912,7 +2894,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 17
+            "y": 41
           },
           "hiddenSeries": false,
           "id": 60,
@@ -3002,7 +2984,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 25
+            "y": 49
           },
           "hiddenSeries": false,
           "id": 90,
@@ -3096,7 +3078,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 49
           },
           "hiddenSeries": false,
           "id": 74,
@@ -4246,7 +4228,7 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {
