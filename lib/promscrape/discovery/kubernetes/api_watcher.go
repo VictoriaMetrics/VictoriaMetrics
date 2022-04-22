@@ -304,7 +304,8 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 				// as soon as the objects they depend on are updated.
 				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
 				go func() {
-					sleepTime := 20 * time.Second
+					const minSleepTime = 5 * time.Second
+					sleepTime := minSleepTime
 					for {
 						time.Sleep(sleepTime)
 						startTime := time.Now()
@@ -312,9 +313,12 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 						if uw.needUpdateScrapeWorks {
 							uw.needUpdateScrapeWorks = false
 							uw.updateScrapeWorksLocked(uw.objectsByKey, uw.aws)
+							sleepTime = time.Since(startTime)
+							if sleepTime < minSleepTime {
+								sleepTime = minSleepTime
+							}
 						}
 						gw.mu.Unlock()
-						sleepTime = time.Since(startTime)
 					}
 				}()
 			}
