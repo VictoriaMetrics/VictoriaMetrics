@@ -9,8 +9,8 @@ interface SeriesItem extends Series {
   freeFormFields: {[key: string]: string};
 }
 
-export const getSeriesItem = (d: MetricResult, hideSeries: string[]): SeriesItem => {
-  const label = getNameForMetric(d);
+export const getSeriesItem = (d: MetricResult, hideSeries: string[], alias: string[]): SeriesItem => {
+  const label = getNameForMetric(d, alias[d.group - 1]);
   return {
     label,
     dash: getDashLine(d.group),

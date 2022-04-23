@@ -40,6 +40,7 @@ export interface PanelSettings {
   description?: string;
   unit?: string;
   expr: string[];
+  alias?: string[];
   showLegend?: boolean;
   width?: number
 }
