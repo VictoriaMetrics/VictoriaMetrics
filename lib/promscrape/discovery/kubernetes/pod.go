@@ -129,11 +129,7 @@ func appendPodLabelsInternal(ms []map[string]string, gw *groupWatcher, p *Pod, c
 		"__address__":                          addr,
 		"__meta_kubernetes_pod_container_init": isInit,
 	}
-	if !p.appendCommonLabels(m, gw) {
-		// The corresponding node is filtered out with label or field selectors.
-		// Do not generate pod labels in this case.
-		return ms
-	}
+	p.appendCommonLabels(m, gw)
 	p.appendContainerLabels(m, c, cp)
 	return append(ms, m)
 }
@@ -147,17 +143,14 @@ func (p *Pod) appendContainerLabels(m map[string]string, c Container, cp *Contai
 	}
 }
 
-func (p *Pod) appendCommonLabels(m map[string]string, gw *groupWatcher) bool {
+func (p *Pod) appendCommonLabels(m map[string]string, gw *groupWatcher) {
 	if gw.attachNodeMetadata {
-		o := gw.getObjectByRoleLocked("node", p.Metadata.Namespace, p.Spec.NodeName)
-		if o == nil {
-			// The node associated with the pod is filtered out with label or field selectors,
-			// so do not generate labels for the pod.
-			return false
-		}
-		n := o.(*Node)
 		m["__meta_kubernetes_node_name"] = p.Spec.NodeName
-		n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
+		o := gw.getObjectByRoleLocked("node", p.Metadata.Namespace, p.Spec.NodeName)
+		if o != nil {
+			n := o.(*Node)
+			n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
+		}
 	}
 	m["__meta_kubernetes_pod_name"] = p.Metadata.Name
 	m["__meta_kubernetes_pod_ip"] = p.Status.PodIP
@@ -176,7 +169,6 @@ func (p *Pod) appendCommonLabels(m map[string]string, gw *groupWatcher) bool {
 		}
 	}
 	p.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_pod", m)
-	return true
 }
 
 func getPodController(ors []OwnerReference) *OwnerReference {
