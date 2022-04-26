@@ -52,9 +52,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string 
 		for _, epp := range eps.Ports {
 			for _, addr := range ess.Addresses {
 				m := getEndpointSliceLabelsForAddressAndPort(gw, podPortsSeen, addr, eps, ess, epp, p, svc)
-				if m != nil {
-					ms = append(ms, m)
-				}
+				ms = append(ms, m)
 			}
 
 		}
@@ -79,11 +77,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string 
 				m := map[string]string{
 					"__address__": addr,
 				}
-				if !p.appendCommonLabels(m, gw) {
-					// The corresponding node is filtered out with label or field selectors.
-					// Do not generate endpointslice labels in this case.
-					continue
-				}
+				p.appendCommonLabels(m, gw)
 				p.appendContainerLabels(m, c, &cp)
 				if svc != nil {
 					svc.appendCommonLabels(m)
@@ -116,11 +110,7 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 	if _, ok := podPortsSeen[p]; !ok {
 		podPortsSeen[p] = []int{}
 	}
-	if !p.appendCommonLabels(m, gw) {
-		// The corresponding node is filtered out with label or field selectors.
-		// Do not generate endpointslice labels in this case.
-		return nil
-	}
+	p.appendCommonLabels(m, gw)
 	for _, c := range p.Spec.Containers {
 		for _, cp := range c.Ports {
 			if cp.ContainerPort == epp.Port {
