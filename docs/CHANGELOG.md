@@ -32,6 +32,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly show `scrape_timeout` and `scrape_interval` options at `http://vmagent:8429/config` page. Previously these options weren't displayed even if they were set in `-promscrape.config`.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle joins on time series filtered by values. For example, `kube_pod_container_resource_requests{resource="cpu"} * on (namespace,pod) group_left() (kube_pod_status_phase{phase=~"Pending|Running"}==1)`. This query could result in `duplicate time series on the right side` error even if `==1` filter leaves only a single time series per `(namespace,pod)` labels. Now such query is properly executed.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle `scalar default vector`, `scalar if vector` and `scalar ifnot vector` queries. Previously such queries could return unexpected results from the `vector` part.
+* BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): take into account `indexdb` when calculating disk space usage. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2368).
 
 
 ## [v1.76.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.1)
