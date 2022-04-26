@@ -55,3 +55,10 @@ export interface DashboardSettings {
   filename: string;
   rows: DashboardRow[];
 }
+
+export interface RelativeTimeOption {
+  id: string,
+  duration: string,
+  until: () => Date,
+  title: string,
+}
