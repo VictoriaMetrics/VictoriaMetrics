@@ -41,7 +41,7 @@ export const TimeSelector: FC = () => {
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
 
-  const {time: {period: {end, start}}} = useAppState();
+  const {time: {period: {end, start}, relativeTime}} = useAppState();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -52,10 +52,9 @@ export const TimeSelector: FC = () => {
     setFrom(formatDateForNativeInput(dateFromSeconds(start)));
   }, [start]);
 
-  const setDuration = (dur: string, from: Date) => {
-    dispatch({type: "SET_UNTIL", payload: from});
+  const setDuration = ({duration, until, id}: {duration: string, until: Date, id: string}) => {
+    dispatch({type: "SET_RELATIVE_TIME", payload: {duration, until, id}});
     setAnchorEl(null);
-    dispatch({type: "SET_DURATION", payload: dur});
   };
 
   const formatRange = useMemo(() => {
@@ -80,7 +79,9 @@ export const TimeSelector: FC = () => {
         }}
         startIcon={<QueryBuilderIcon/>}
         onClick={(e) => setAnchorEl(e.currentTarget)}>
-        {formatRange.start} - {formatRange.end}
+        {relativeTime
+          ? relativeTime.replace(/_/g, " ")
+          : `${formatRange.start} - ${formatRange.end}`}
       </Button>
     </Tooltip>
     <Popper
