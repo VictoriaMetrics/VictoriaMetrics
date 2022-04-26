@@ -481,6 +481,7 @@ per rule before giving up.
 (rules which depend on each other) rules. It is expected, that remote storage will be able to persist
 previously accepted data during the delay, so data will be available for the subsequent queries.
 Keep it equal or bigger than `-remoteWrite.flushInterval`.
+* `replay.disableProgressBar` - whether to disable progress bar which shows progress work.
 
 See full description for these flags in `./vmalert --help`.
 
