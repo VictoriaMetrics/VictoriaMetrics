@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import {SetupTooltip} from "./types";
-import {getColorLine,formatPrettyNumber} from "./helpers";
+import {getColorLine, formatPrettyNumber} from "./helpers";
 
 export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = ""}: SetupTooltip): void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
@@ -8,7 +8,8 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   const dataSeries = u.data[seriesIdx][dataIdx];
   const dataTime = u.data[0][dataIdx];
   const metric = metrics[seriesIdx - 1]?.metric || {};
-  const color = getColorLine(Number(series[seriesIdx].scale || 0), series[seriesIdx].label || "");
+  const selectedSeries = series[seriesIdx];
+  const color = getColorLine(Number(selectedSeries.scale || 0), selectedSeries.label || "");
 
   const {width, height} = u.over.getBoundingClientRect();
   const top = u.valToPos((dataSeries || 0), series[seriesIdx]?.scale || "1");
@@ -20,12 +21,13 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   tooltip.style.display = "grid";
   tooltip.style.top = `${tooltipOffset.top + top + 10 - (overflowY ? tooltipHeight + 10 : 0)}px`;
   tooltip.style.left = `${tooltipOffset.left + lft + 10 - (overflowX ? tooltipWidth + 20 : 0)}px`;
+  const name = (selectedSeries.label || "").replace(/{.+}/gmi, "");
   const date = dayjs(new Date(dataTime * 1000)).format("YYYY-MM-DD HH:mm:ss:SSS (Z)");
   const info = Object.keys(metric).filter(k => k !== "__name__").map(k => `<div><b>${k}</b>: ${metric[k]}</div>`).join("");
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
   tooltip.innerHTML = `<div>${date}</div>
                        <div class="u-tooltip-data">
-                         ${marker}${metric.__name__ || ""}: <b class="u-tooltip-data__value">${formatPrettyNumber(dataSeries)}</b> ${unit}
+                         ${marker}${name}: <b class="u-tooltip-data__value">${formatPrettyNumber(dataSeries)}</b> ${unit}
                        </div>
                        <div class="u-tooltip__info">${info}</div>`;
 };

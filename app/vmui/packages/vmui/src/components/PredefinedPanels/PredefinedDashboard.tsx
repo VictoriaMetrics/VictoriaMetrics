@@ -99,6 +99,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels
                   description={p.description}
                   unit={p.unit}
                   expr={p.expr}
+                  alias={p.alias}
                   filename={filename}
                   showLegend={p.showLegend}/>
                 <button style={{...resizerStyle, right: 0}}
