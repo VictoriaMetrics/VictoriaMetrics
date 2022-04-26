@@ -60,14 +60,30 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 
 	// any error breaks the import
 	for _, br := range blocks {
-		select {
-		case promErr := <-errCh:
-			close(blockReadersCh)
-			return fmt.Errorf("prometheus error: %s", promErr)
-		case vmErr := <-pp.im.Errors():
-			close(blockReadersCh)
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
-		case blockReadersCh <- br:
+		blockReadersCh <- br
+	}
+
+	errC := make(chan error)
+
+	// we should listen all errors
+	go func() {
+		for {
+			select {
+			case promErr := <-errCh:
+				close(blockReadersCh)
+				// return fmt.Errorf("prometheus error: %s", promErr)
+				errC <- fmt.Errorf("prometheus error: %s", promErr)
+			case vmErr := <-pp.im.Errors():
+				close(blockReadersCh)
+				// return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+				errC <- fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			}
+		}
+	}()
+
+	for err := range errC {
+		if err != nil {
+			return err
 		}
 	}
 
