@@ -40,7 +40,7 @@ var (
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flagutil.NewBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
-		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. "+
+		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
 	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", "The number of significant figures to leave in metric values before writing them "+
 		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
