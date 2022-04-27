@@ -66,27 +66,12 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 
 	// any error breaks the import
 	for _, s := range series {
-		seriesCh <- s
-	}
-
-	errC := make(chan error)
-
-	go func() {
-		for {
-			select {
-			case infErr := <-errCh:
-				close(seriesCh)
-				errC <- fmt.Errorf("influx error: %s", infErr)
-			case vmErr := <-ip.im.Errors():
-				close(seriesCh)
-				errC <- fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
-			}
-		}
-	}()
-
-	for err := range errC {
-		if err != nil {
-			return err
+		select {
+		case infErr := <-errCh:
+			return fmt.Errorf("influx error: %s", infErr)
+		case vmErr := <-ip.im.Errors():
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+		case seriesCh <- s:
 		}
 	}
 

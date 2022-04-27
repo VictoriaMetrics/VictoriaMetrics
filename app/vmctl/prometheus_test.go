@@ -16,19 +16,19 @@ import (
 
 const (
 	httpAddr     = "http://127.0.0.1:8428/"
-	testSnapshot = "./testdata/20220427T131803Z-15e475be99a4b06a"
+	testSnapshot = "./testdata/20220427T130947Z-70ba49b1093fd0bf"
 )
 
 // If you want to run this test just remove t.Skip()
 // This test simulate close process if user abort the
 func Test_prometheusProcessor_run(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 	type fields struct {
 		cfg    prometheus.Config
 		vmCfg  vm.Config
 		cl     func(prometheus.Config) *prometheus.Client
 		im     func(vm.Config) *vm.Importer
-		closer func(importer *vm.Importer)
+		closer func(importer *vm.Importer, quite chan struct{})
 		cc     int
 	}
 	type args struct {
@@ -63,14 +63,15 @@ func Test_prometheusProcessor_run(t *testing.T) {
 					}
 					return importer
 				},
-				closer: func(importer *vm.Importer) {
+				closer: func(importer *vm.Importer, quite chan struct{}) {
 					// simulate syscall.SIGINT
-					time.Sleep(time.Second * 2)
+					time.Sleep(time.Millisecond * 1)
 					if importer != nil {
+						close(quite)
 						importer.Close()
 					}
 				},
-				vmCfg: vm.Config{Addr: httpAddr, Concurrency: 5},
+				vmCfg: vm.Config{Addr: httpAddr, Concurrency: 1},
 				cc:    2,
 			},
 			args: args{
@@ -116,10 +117,13 @@ func Test_prometheusProcessor_run(t *testing.T) {
 			client := tt.fields.cl(tt.fields.cfg)
 			importer := tt.fields.im(tt.fields.vmCfg)
 
+			quite := make(chan struct{})
+
 			pp := &prometheusProcessor{
-				cl: client,
-				im: importer,
-				cc: tt.fields.cc,
+				cl:    client,
+				im:    importer,
+				cc:    tt.fields.cc,
+				quite: quite,
 			}
 
 			// we should answer on prompt
@@ -148,7 +152,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 
 			// simulate close if needed
 			if tt.fields.closer != nil {
-				go tt.fields.closer(importer)
+				go tt.fields.closer(importer, quite)
 			}
 
 			if err := pp.run(tt.args.silent, tt.args.verbose); (err != nil) != tt.wantErr {

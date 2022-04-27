@@ -26,6 +26,7 @@ func main() {
 		importer *vm.Importer
 	)
 
+	quite := make(chan struct{})
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
@@ -127,9 +128,10 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 					pp := prometheusProcessor{
-						cl: cl,
-						im: importer,
-						cc: c.Int(promConcurrency),
+						cl:    cl,
+						im:    importer,
+						cc:    c.Int(promConcurrency),
+						quite: quite,
 					}
 					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
@@ -209,6 +211,7 @@ func main() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
 		if importer != nil {
+			close(quite)
 			importer.Close()
 		}
 	}()

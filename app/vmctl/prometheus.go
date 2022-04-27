@@ -23,6 +23,8 @@ type prometheusProcessor struct {
 	// and defines number of concurrently
 	// running snapshot block readers
 	cc int
+
+	quite chan struct{}
 }
 
 func (pp *prometheusProcessor) run(silent, verbose bool) error {
@@ -57,36 +59,22 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			}
 		}()
 	}
-
 	// any error breaks the import
 	for _, br := range blocks {
-		blockReadersCh <- br
-	}
-
-	errC := make(chan error)
-
-	// we should listen all errors
-	go func() {
-		for {
-			select {
-			case promErr := <-errCh:
-				errC <- fmt.Errorf("prometheus error: %s", promErr)
-				return
-			case vmErr := <-pp.im.Errors():
-				errC <- fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
-				return
-			}
-		}
-	}()
-
-	for err := range errC {
-		if err != nil {
-			return err
+		select {
+		case promErr := <-errCh:
+			close(blockReadersCh)
+			return fmt.Errorf("prometheus error: %s", promErr)
+		case vmErr := <-pp.im.Errors():
+			close(blockReadersCh)
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+		case blockReadersCh <- br:
 		}
 	}
 
 	close(blockReadersCh)
 	wg.Wait()
+	close(errCh)
 	// wait for all buffers to flush
 	pp.im.Close()
 	// drain import errors channel
@@ -94,6 +82,9 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		if vmErr.Err != nil {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
+	}
+	for err := range errCh {
+		return err
 	}
 	bar.Finish()
 	log.Println("Import finished!")
@@ -107,6 +98,11 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
 	for ss.Next() {
+		select {
+		case <-pp.quite:
+			return fmt.Errorf("process quite during importing series with label: %s", ss.At().Labels().String())
+		default:
+		}
 		var name string
 		var labels []vm.LabelPair
 		series := ss.At()
