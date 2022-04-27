@@ -22,7 +22,7 @@ const (
 // If you want to run this test just remove t.Skip()
 // This test simulate close process if user abort the
 func Test_prometheusProcessor_run(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	type fields struct {
 		cfg    prometheus.Config
 		vmCfg  vm.Config
@@ -65,7 +65,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				},
 				closer: func(importer *vm.Importer, quite chan struct{}) {
 					// simulate syscall.SIGINT
-					time.Sleep(time.Millisecond * 1)
+					time.Sleep(time.Second * 1)
 					if importer != nil {
 						close(quite)
 						importer.Close()
