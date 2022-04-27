@@ -135,7 +135,10 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				if err != nil {
 					t.Error(err)
 				}
-				w.Close()
+				err = w.Close()
+				if err != nil {
+					t.Error(err)
+				}
 
 				stdin := os.Stdin
 				// Restore stdin right after the test.
