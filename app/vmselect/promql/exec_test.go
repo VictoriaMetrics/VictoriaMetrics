@@ -615,6 +615,40 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("tlast_change_over_time(hit_last)", func(t *testing.T) {
+		t.Parallel()
+		q := `tlast_change_over_time(
+			time()[1h]
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("tlast_change_over_time(hit_middle)", func(t *testing.T) {
+		t.Parallel()
+		q := `tlast_change_over_time(
+			(time() >=bool 1600)[1h]
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1600, 1600},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("tlast_change_over_time(miss)", func(t *testing.T) {
+		t.Parallel()
+		q := `tlast_change_over_time(
+			1[1h]
+		)`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run("timestamp_with_name(alias(time()>=1600))", func(t *testing.T) {
 		t.Parallel()
 		q := `timestamp_with_name(alias(time()>=1600,"foo"))`
