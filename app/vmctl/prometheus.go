@@ -70,11 +70,11 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		for {
 			select {
 			case promErr := <-errCh:
-				close(blockReadersCh)
 				errC <- fmt.Errorf("prometheus error: %s", promErr)
+				return
 			case vmErr := <-pp.im.Errors():
-				close(blockReadersCh)
 				errC <- fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+				return
 			}
 		}
 	}()
