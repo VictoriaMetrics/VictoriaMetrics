@@ -107,19 +107,37 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		for _, series := range serieslist {
 			for _, rt := range op.oc.Retentions {
 				for _, tr := range rt.QueryRanges {
-					select {
-					case otsdbErr := <-errCh:
-						return fmt.Errorf("opentsdb error: %s", otsdbErr)
-					case vmErr := <-op.im.Errors():
-						return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
-					case seriesCh <- queryObj{
+					seriesCh <- queryObj{
 						Tr: tr, StartTime: startTime,
 						Series: series, Rt: opentsdb.RetentionMeta{
-							FirstOrder: rt.FirstOrder, SecondOrder: rt.SecondOrder, AggTime: rt.AggTime}}:
+							FirstOrder:  rt.FirstOrder,
+							SecondOrder: rt.SecondOrder,
+							AggTime:     rt.AggTime,
+						},
 					}
 				}
 			}
 		}
+
+		errC := make(chan error)
+
+		go func() {
+			for {
+				select {
+				case otsdbErr := <-errCh:
+					errC <- fmt.Errorf("opentsdb error: %s", otsdbErr)
+				case vmErr := <-op.im.Errors():
+					errC <- fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+				}
+			}
+		}()
+
+		for err := range errC {
+			if err != nil {
+				return err
+			}
+		}
+
 		// Drain channels per metric
 		close(seriesCh)
 		wg.Wait()
