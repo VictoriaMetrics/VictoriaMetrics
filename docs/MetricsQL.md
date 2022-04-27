@@ -54,7 +54,7 @@ This functionality can be evaluated at [an editable Grafana dashboard](https://p
 
 ## keep_metric_names
 
-By default metric names are dropped after applying functions, which change the meaning of the original time series. This may result in `duplicate time series` error when the function is applied time series with multiple names. This error can be fixed by applying `keep_metric_names` modifier to the function. For example, `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+By default metric names are dropped after applying functions, which change the meaning of the original time series. This may result in `duplicate time series` error when the function is applied to multiple time series with different names. This error can be fixed by applying `keep_metric_names` modifier to the function. For example, `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 
 ## MetricsQL functions
 
