@@ -442,7 +442,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/status/buildinfo":
 		buildInfoRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}`)
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
 	default:
 		return false
