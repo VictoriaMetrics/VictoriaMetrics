@@ -17,8 +17,9 @@ type vmNativeProcessor struct {
 	filter    filter
 	rateLimit int64
 
-	dst *vmNativeClient
-	src *vmNativeClient
+	dst   *vmNativeClient
+	src   *vmNativeClient
+	quite chan struct{}
 }
 
 type vmNativeClient struct {
@@ -67,6 +68,17 @@ func (p *vmNativeProcessor) run() error {
 		return err
 	}
 
+	go func() {
+		for {
+			select {
+			case <-p.quite:
+				_ = pw.Close()
+				close(sync)
+				return
+			default:
+			}
+		}
+	}()
 	go func() {
 		defer func() { close(sync) }()
 		u := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)

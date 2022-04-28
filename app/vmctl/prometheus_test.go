@@ -114,6 +114,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			client := tt.fields.cl(tt.fields.cfg)
 			importer := tt.fields.im(tt.fields.vmCfg)
 

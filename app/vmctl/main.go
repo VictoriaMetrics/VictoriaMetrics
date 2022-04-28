@@ -165,6 +165,7 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
+						quite: quite,
 					}
 					return p.run()
 				},
@@ -210,8 +211,8 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
+		close(quite)
 		if importer != nil {
-			close(quite)
 			importer.Close()
 		}
 	}()
