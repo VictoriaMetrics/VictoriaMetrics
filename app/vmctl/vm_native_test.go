@@ -49,7 +49,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				},
 			},
 			closer: func(quite chan struct{}) {
-				time.Sleep(time.Second * 5)
+				time.Sleep(time.Second * 1)
 				close(quite)
 			},
 			wantErr: true,

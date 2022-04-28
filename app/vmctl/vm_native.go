@@ -75,7 +75,6 @@ func (p *vmNativeProcessor) run() error {
 				_ = pw.Close()
 				close(sync)
 				return
-			default:
 			}
 		}
 	}()
