@@ -69,14 +69,9 @@ func (p *vmNativeProcessor) run() error {
 	}
 
 	go func() {
-		for {
-			select {
-			case <-p.quite:
-				_ = pw.Close()
-				close(sync)
-				return
-			}
-		}
+		<-p.quite
+		_ = pw.Close()
+		close(sync)
 	}()
 	go func() {
 		defer func() { close(sync) }()
