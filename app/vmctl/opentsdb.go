@@ -87,6 +87,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 
 		if err := progressbar.Start(); err != nil {
 			log.Printf("error start process bars pool: %s", err)
+			return err
 		}
 		var wg sync.WaitGroup
 		wg.Add(op.otsdbcc)

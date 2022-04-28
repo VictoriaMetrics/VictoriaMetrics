@@ -47,6 +47,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	bar := progressbar.AddWithTemplate(progressbar.ProgressTemplate("Processing series"), len(series))
 	if err := progressbar.Start(); err != nil {
 		log.Printf("error start process bars pool: %s", err)
+		return err
 	}
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)

@@ -87,6 +87,7 @@ func (p *vmNativeProcessor) run() error {
 	barReader := bar.NewProxyReader(exportReader)
 	if err := progressbar.Start(); err != nil {
 		log.Printf("error start process bars pool: %s", err)
+		return err
 	}
 
 	w := io.Writer(pw)

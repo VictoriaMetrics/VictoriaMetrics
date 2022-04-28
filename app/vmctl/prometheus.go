@@ -44,6 +44,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 
 	if err := progressbar.Start(); err != nil {
 		log.Printf("error start process bars pool: %s", err)
+		return err
 	}
 
 	blockReadersCh := make(chan tsdb.BlockReader)
