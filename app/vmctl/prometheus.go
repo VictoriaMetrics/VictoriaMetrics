@@ -100,7 +100,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	for ss.Next() {
 		select {
 		case <-pp.quite:
-			return fmt.Errorf("process quite during importing series with label: %s", ss.At().Labels().String())
+			return fmt.Errorf("process aborting during importing series with label: %s", ss.At().Labels().String())
 		default:
 		}
 		var name string

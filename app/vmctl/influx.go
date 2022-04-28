@@ -16,9 +16,10 @@ type influxProcessor struct {
 	im        *vm.Importer
 	cc        int
 	separator string
+	quite     chan struct{}
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, quite chan struct{}) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
@@ -27,6 +28,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 		im:        im,
 		cc:        cc,
 		separator: separator,
+		quite:     quite,
 	}
 }
 
@@ -78,11 +80,15 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	close(seriesCh)
 	wg.Wait()
 	ip.im.Close()
+	close(errCh)
 	// drain import errors channel
 	for vmErr := range ip.im.Errors() {
 		if vmErr.Err != nil {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
+	}
+	for err := range errCh {
+		return err
 	}
 	bar.Finish()
 	log.Println("Import finished!")
@@ -127,6 +133,11 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	}
 
 	for {
+		select {
+		case <-ip.quite:
+			return fmt.Errorf("process aborting during importing")
+		default:
+		}
 		time, values, err := cr.Next()
 		if err != nil {
 			if err == io.EOF {

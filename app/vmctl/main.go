@@ -96,8 +96,12 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					processor := newInfluxProcessor(influxClient, importer,
-						c.Int(influxConcurrency), c.String(influxMeasurementFieldSeparator))
+					processor := newInfluxProcessor(
+						influxClient,
+						importer,
+						c.Int(influxConcurrency),
+						c.String(influxMeasurementFieldSeparator),
+						quite)
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
