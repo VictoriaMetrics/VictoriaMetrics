@@ -10,17 +10,17 @@ import (
 )
 
 // If you want to run this test:
-// 1. provide test snapshot path
+// 1. provide test snapshot path in const testSnapshot
 // 2. define httpAddr const with your victoriametrics address
 // 3. run victoria metrics with defined address
+// 4. remove t.Skip() from Test_prometheusProcessor_run
 
 const (
 	httpAddr     = "http://127.0.0.1:8428/"
 	testSnapshot = "./testdata/20220427T130947Z-70ba49b1093fd0bf"
 )
 
-// If you want to run this test just remove t.Skip()
-// This test simulate close process if user abort the
+// This test simulates close process if user abort it
 func Test_prometheusProcessor_run(t *testing.T) {
 	t.Skip()
 	type fields struct {
