@@ -6,6 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -31,6 +34,7 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional relative URL for proxy grafana rules and alerts requests to the vmalert, e.g. http://vmalert:8880.")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -57,6 +61,7 @@ func Init() {
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
+	initVMAlertProxy()
 }
 
 // Stop stops vmselect
@@ -404,14 +409,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/rules", "/rules":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
+		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"groups":[]}}`)
 		return true
 	case "/api/v1/alerts", "/alerts":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
+		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"alerts":[]}}`)
 		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
@@ -556,3 +559,54 @@ var (
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
 )
+
+func mayProxyVMAlertRequests(w http.ResponseWriter, r *http.Request, stubResponse string) {
+	if len(*vmalertProxyURL) == 0 {
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", stubResponse)
+		return
+	}
+	defer func() {
+		err := recover()
+		if err == nil || err == http.ErrAbortHandler {
+			// Suppress http.ErrAbortHandler panic.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353
+			return
+		}
+		// Forward other panics to the caller.
+		panic(err)
+	}()
+	vmalertReverseProxy.ServeHTTP(w, r)
+}
+
+var vmalertReverseProxy *httputil.ReverseProxy
+
+// initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
+func initVMAlertProxy() {
+	if len(*vmalertProxyURL) == 0 {
+		return
+	}
+	proxyURL, err := url.Parse(*vmalertProxyURL)
+	if err != nil {
+		logger.Fatalf("cannot parse vmalertProxyURL=%q : %s", *vmalertProxyURL, err)
+	}
+	vmalertReverseProxy = &httputil.ReverseProxy{
+		Director: func(r *http.Request) {
+			proxyURLCopy := *proxyURL
+			proxyURLCopy.Path = path.Join(proxyURL.Path, r.URL.Path)
+			r.URL = &proxyURLCopy
+			r.Host = proxyURLCopy.Host
+		},
+		Transport: func() *http.Transport {
+			tr := http.DefaultTransport.(*http.Transport).Clone()
+			// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
+			tr.DisableCompression = true
+			// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
+			tr.ForceAttemptHTTP2 = false
+			return tr
+		}(),
+		FlushInterval: time.Second,
+		ErrorLog:      logger.StdErrorLogger(),
+	}
+}
