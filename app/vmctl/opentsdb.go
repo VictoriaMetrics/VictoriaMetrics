@@ -15,6 +15,7 @@ type otsdbProcessor struct {
 	oc      *opentsdb.Client
 	im      *vm.Importer
 	otsdbcc int
+	quite   chan struct{}
 }
 
 type queryObj struct {
@@ -24,7 +25,7 @@ type queryObj struct {
 	StartTime int64
 }
 
-func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int) *otsdbProcessor {
+func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, quite chan struct{}) *otsdbProcessor {
 	if otsdbcc < 1 {
 		otsdbcc = 1
 	}
@@ -32,6 +33,7 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int) *otsdb
 		oc:      oc,
 		im:      im,
 		otsdbcc: otsdbcc,
+		quite:   quite,
 	}
 }
 
@@ -144,6 +146,11 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 }
 
 func (op *otsdbProcessor) do(s queryObj) error {
+	select {
+	case <-op.quite:
+		return fmt.Errorf("process aborting during processing query")
+	default:
+	}
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end, op.oc.MsecsTime)
