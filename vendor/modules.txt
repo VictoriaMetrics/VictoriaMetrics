@@ -236,7 +236,7 @@ github.com/valyala/fastrand
 # github.com/valyala/fasttemplate v1.2.1
 ## explicit; go 1.12
 github.com/valyala/fasttemplate
-# github.com/valyala/gozstd v1.16.0
+# github.com/valyala/gozstd v1.17.0
 ## explicit; go 1.12
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.2.0
