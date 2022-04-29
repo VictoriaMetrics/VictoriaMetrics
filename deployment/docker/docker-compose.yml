@@ -17,7 +17,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:8.3.5
+    image: grafana/grafana:8.5.1
     depends_on:
       - "vmselect"
     ports:
