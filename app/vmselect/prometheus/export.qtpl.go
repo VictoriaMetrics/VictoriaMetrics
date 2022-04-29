@@ -305,7 +305,7 @@ func StreamExportJSONLine(qw422016 *qt422016.Writer, xb *exportBlock) {
 //line app/vmselect/prometheus/export.qtpl:104
 			if math.IsNaN(v) {
 //line app/vmselect/prometheus/export.qtpl:104
-				qw422016.N().S(`,null`)
+				qw422016.N().S(`null`)
 //line app/vmselect/prometheus/export.qtpl:104
 			} else {
 //line app/vmselect/prometheus/export.qtpl:104
