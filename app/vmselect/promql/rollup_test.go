@@ -508,6 +508,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("tmin_over_time", 0.08)
 	f("tmax_over_time", 0.005)
 	f("tfirst_over_time", 0.005)
+	f("tlast_change_over_time", 0.12)
 	f("tlast_over_time", 0.13)
 	f("sum_over_time", 565)
 	f("sum2_over_time", 37951)

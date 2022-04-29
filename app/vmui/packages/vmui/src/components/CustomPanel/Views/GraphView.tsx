@@ -14,6 +14,7 @@ export interface GraphViewProps {
   period: TimeParams;
   customStep: CustomStep;
   query: string[];
+  alias?: string[],
   yaxis: YaxisState;
   unit?: string;
   showLegend?: boolean;
@@ -45,7 +46,8 @@ const GraphView: FC<GraphViewProps> = ({
   unit,
   showLegend= true,
   setYaxisLimits,
-  setPeriod
+  setPeriod,
+  alias = []
 }) => {
   const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
 
@@ -70,7 +72,7 @@ const GraphView: FC<GraphViewProps> = ({
     const tempSeries: uPlotSeries[] = [];
 
     data?.forEach((d) => {
-      const seriesItem = getSeriesItem(d, hideSeries);
+      const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
       let tmpValues = tempValues[d.group];
@@ -117,7 +119,7 @@ const GraphView: FC<GraphViewProps> = ({
     const tempLegend: LegendItem[] = [];
     const tempSeries: uPlotSeries[] = [];
     data?.forEach(d => {
-      const seriesItem = getSeriesItem(d, hideSeries);
+      const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
