@@ -78,6 +78,7 @@ type client struct {
 	requestsOKCount *metrics.Counter
 	errorsCount     *metrics.Counter
 	packetsDropped  *metrics.Counter
+	rateLimit       *metrics.Gauge
 	retriesCount    *metrics.Counter
 	sendDuration    *metrics.FloatCounter
 
@@ -135,6 +136,9 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 
 	c.bytesSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_bytes_sent_total{url=%q}`, c.sanitizedURL))
 	c.blocksSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_blocks_sent_total{url=%q}`, c.sanitizedURL))
+	c.rateLimit = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_rate_limit{url=%q}`, c.sanitizedURL), func() float64 {
+		return float64(rateLimit.GetOptionalArgOrDefault(argIdx, 0))
+	})
 	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.sanitizedURL))
 	c.requestsOKCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.sanitizedURL))
 	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
