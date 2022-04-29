@@ -419,6 +419,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
+	case "/api/v1/status/buildinfo":
+		buildInfoRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
+		return true
 	case "/api/v1/query_exemplars":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
 		queryExemplarsRequests.Inc()
@@ -438,11 +443,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
-		return true
-	case "/api/v1/status/buildinfo":
-		buildInfoRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
 	default:
 		return false
