@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 // If you want to run this test:
@@ -21,7 +22,7 @@ const (
 
 // This test simulates close process if user abort it
 func Test_vmNativeProcessor_run(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 	type fields struct {
 		filter    filter
 		rateLimit int64
@@ -29,10 +30,10 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		src       *vmNativeClient
 	}
 	tests := []struct {
-		name      string
-		fields    fields
-		needClose bool
-		wantErr   bool
+		name    string
+		fields  fields
+		closer  func(cancelFunc context.CancelFunc)
+		wantErr bool
 	}{
 		{
 			name: "simulate syscall.SIGINT",
@@ -49,8 +50,11 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 					addr: srcAddr,
 				},
 			},
-			needClose: true,
-			wantErr:   true,
+			closer: func(cancelFunc context.CancelFunc) {
+				time.Sleep(time.Second * 5)
+				cancelFunc()
+			},
+			wantErr: true,
 		},
 		{
 			name: "simulate correct work",
@@ -67,8 +71,8 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 					addr: srcAddr,
 				},
 			},
-			needClose: false,
-			wantErr:   false,
+			closer:  func(cancelFunc context.CancelFunc) { return },
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -81,9 +85,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				src:       tt.fields.src,
 			}
 
-			if tt.needClose {
-				cancelFn()
-			}
+			tt.closer(cancelFn)
 
 			if err := p.run(ctx); (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)

@@ -153,7 +153,7 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
-					p := &vmNativeProcessor{
+					p := vmNativeProcessor{
 						rateLimit: c.Int64(vmRateLimit),
 						filter: filter{
 							match:     c.String(vmNativeFilterMatch),
