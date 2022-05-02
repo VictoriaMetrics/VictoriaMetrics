@@ -77,9 +77,9 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 
 	close(blockReadersCh)
 	wg.Wait()
-	close(errCh)
 	// wait for all buffers to flush
 	pp.im.Close()
+	close(errCh)
 	// drain import errors channel
 	for vmErr := range pp.im.Errors() {
 		if vmErr.Err != nil {
