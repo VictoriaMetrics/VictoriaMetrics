@@ -36,6 +36,7 @@ const (
 	vmBatchSize          = "vm-batch-size"
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
+	vmDisableProgressBar = "vm-disable-progress-bar"
 
 	// also used in vm-native
 	vmExtraLabel = "vm-extra-label"
@@ -108,6 +109,10 @@ var (
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
 				"By default the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
+		},
+		&cli.BoolFlag{
+			Name:  vmDisableProgressBar,
+			Usage: "Whether to disable progress bar per each worker during the import.",
 		},
 	}
 )
