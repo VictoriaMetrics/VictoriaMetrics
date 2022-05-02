@@ -1097,7 +1097,12 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 
 VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-line flag is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2112#issuecomment-1032587618) for more details on how downsampling works.
 
-Deduplication happens on **storage** and **select** nodes. On storage nodes deduplication happens during background merges. On select nodes deduplication happens during query execution. This is also needed to cover the case when storage node was not available during insert and duplicate data was routed to different storage node.
+By default `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. In this case enabling deduplication on `vmstorage` would be enough. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
+* when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
+* when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
+* when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
+
+If data for a single time series is spread among multiple `vmstorage` nodes, then it is recommended enabling the same deduplication on vmselect in order to de-duplicate samples for a single time series obtained from multiple `vmstorage` nodes.
 
 The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. It is safe to use deduplication and downsampling simultaneously.
 
