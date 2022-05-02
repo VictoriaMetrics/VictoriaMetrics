@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/cheggaaa/pb/v3"
 )
 
 // Config contains list of params to configure
@@ -74,8 +74,6 @@ type Importer struct {
 	once sync.Once
 
 	s *stats
-
-	barsPool *pb.Pool
 }
 
 // ResetStats resets im stats.
@@ -107,7 +105,7 @@ func AddExtraLabelsToImportPath(path string, extraLabels []string) (string, erro
 }
 
 // NewImporter creates new Importer for the given cfg.
-func NewImporter(cfg Config, barsPool *pb.Pool) (*Importer, error) {
+func NewImporter(cfg Config) (*Importer, error) {
 	if cfg.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency can't be lower than 1")
 	}
@@ -136,7 +134,6 @@ func NewImporter(cfg Config, barsPool *pb.Pool) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
-		barsPool:   barsPool,
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -187,8 +184,8 @@ func (im *Importer) Close() {
 }
 
 func (im *Importer) startWorker(num, batchSize, significantFigures, roundDigits int) {
-	bar := pb.ProgressBarTemplate(spinnerTemplate(num + 1)).New(batchSize)
-	im.barsPool.Add(bar)
+	bar := progressbar.AddWithTemplate(
+		progressbar.SpinnerTemplate("Processing datapoints for worker", num), 0)
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -239,7 +236,6 @@ func (im *Importer) startWorker(num, batchSize, significantFigures, roundDigits 
 				// make a new batch, since old one was referenced as err
 				batch = make([]*TimeSeries, len(batch))
 			}
-			bar.SetCurrent(0)
 			dataPoints = 0
 			batch = batch[:0]
 			waitForBatch = time.Now()
@@ -400,8 +396,4 @@ func byteCountSI(b int64) string {
 	}
 	return fmt.Sprintf("%.1f %cB",
 		float64(b)/float64(div), "kMGTPE"[exp])
-}
-
-func spinnerTemplate(num int) string {
-	return fmt.Sprintf(`{{ green "Processing datapoints for worker %d:" }} {{ (cycle . "←" "↖" "↑" "↗" "→" "↘" "↓" "↙" ) }} {{speed . }}`, num)
 }

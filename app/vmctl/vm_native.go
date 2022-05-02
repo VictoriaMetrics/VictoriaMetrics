@@ -7,9 +7,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
@@ -84,8 +83,12 @@ func (p *vmNativeProcessor) run() error {
 	}()
 
 	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
-	bar := pb.ProgressBarTemplate(barTpl).Start64(0)
+	bar := progressbar.AddWithTemplate(progressbar.Template(barTpl), 0)
 	barReader := bar.NewProxyReader(exportReader)
+	if err := progressbar.Start(); err != nil {
+		log.Printf("error start process bars pool: %s", err)
+		return err
+	}
 
 	w := io.Writer(pw)
 	if p.rateLimit > 0 {
@@ -101,7 +104,9 @@ func (p *vmNativeProcessor) run() error {
 	}
 	<-sync
 
-	bar.Finish()
+	if err := progressbar.Stop(); err != nil {
+		log.Printf("error stop process bars pool: %s", err)
+	}
 	return nil
 }
 
