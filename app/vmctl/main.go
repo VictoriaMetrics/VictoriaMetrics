@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -22,11 +23,11 @@ import (
 
 func main() {
 	var (
-		err             error
-		importer        *vm.Importer
-		nativeProcessor *vmNativeProcessor
+		err      error
+		importer *vm.Importer
 	)
 
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
@@ -152,7 +153,7 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
-					nativeProcessor = &vmNativeProcessor{
+					p := &vmNativeProcessor{
 						rateLimit: c.Int64(vmRateLimit),
 						filter: filter{
 							match:     c.String(vmNativeFilterMatch),
@@ -172,7 +173,7 @@ func main() {
 						},
 						syncErr: make(chan error),
 					}
-					return nativeProcessor.run()
+					return p.run(ctx)
 				},
 			},
 			{
@@ -219,9 +220,7 @@ func main() {
 		if importer != nil {
 			importer.Close()
 		}
-		if nativeProcessor != nil {
-			nativeProcessor.Close()
-		}
+		cancelCtx()
 	}()
 
 	err = app.Run(os.Args)
