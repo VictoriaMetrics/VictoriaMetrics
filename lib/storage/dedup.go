@@ -10,28 +10,24 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
-	return deduplicateInternal(srcTimestamps, srcValues, dedupInterval)
-}
-
-func deduplicateInternal(srcTimestamps []int64, srcValues []float64, dedupInterval int64) ([]int64, []float64) {
-	tsNext := (srcTimestamps[0] - srcTimestamps[0]%dedupInterval) + dedupInterval
-	dstTimestamps := srcTimestamps[:1]
-	dstValues := srcValues[:1]
-	for i := 1; i < len(srcTimestamps); i++ {
-		ts := srcTimestamps[i]
-		if ts < tsNext {
+	tsNext := srcTimestamps[0] + dedupInterval - 1
+	tsNext -= tsNext % dedupInterval
+	dstTimestamps := srcTimestamps[:0]
+	dstValues := srcValues[:0]
+	for i, ts := range srcTimestamps[1:] {
+		if ts <= tsNext {
 			continue
 		}
-		dstTimestamps = append(dstTimestamps, ts)
+		dstTimestamps = append(dstTimestamps, srcTimestamps[i])
 		dstValues = append(dstValues, srcValues[i])
-
-		// Update tsNext
 		tsNext += dedupInterval
-		if ts >= tsNext {
-			// Slow path for updating ts.
-			tsNext = (ts - ts%dedupInterval) + dedupInterval
+		if tsNext < ts {
+			tsNext = ts + dedupInterval - 1
+			tsNext -= tsNext % dedupInterval
 		}
 	}
+	dstTimestamps = append(dstTimestamps, srcTimestamps[len(srcTimestamps)-1])
+	dstValues = append(dstValues, srcValues[len(srcValues)-1])
 	return dstTimestamps, dstValues
 }
 
@@ -40,43 +36,41 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64, dedupInterv
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
-	return deduplicateDuringMergeInternal(srcTimestamps, srcValues, dedupInterval)
-}
-
-func deduplicateDuringMergeInternal(srcTimestamps, srcValues []int64, dedupInterval int64) ([]int64, []int64) {
-	tsNext := (srcTimestamps[0] - srcTimestamps[0]%dedupInterval) + dedupInterval
-	dstTimestamps := srcTimestamps[:1]
-	dstValues := srcValues[:1]
-	for i := 1; i < len(srcTimestamps); i++ {
-		ts := srcTimestamps[i]
-		if ts < tsNext {
+	tsNext := srcTimestamps[0] + dedupInterval - 1
+	tsNext -= tsNext % dedupInterval
+	dstTimestamps := srcTimestamps[:0]
+	dstValues := srcValues[:0]
+	for i, ts := range srcTimestamps[1:] {
+		if ts <= tsNext {
 			continue
 		}
-		dstTimestamps = append(dstTimestamps, ts)
+		dstTimestamps = append(dstTimestamps, srcTimestamps[i])
 		dstValues = append(dstValues, srcValues[i])
-
-		// Update tsNext
 		tsNext += dedupInterval
-		if ts >= tsNext {
-			// Slow path for updating ts.
-			tsNext = (ts - ts%dedupInterval) + dedupInterval
+		if tsNext < ts {
+			tsNext = ts + dedupInterval - 1
+			tsNext -= tsNext % dedupInterval
 		}
 	}
+	dstTimestamps = append(dstTimestamps, srcTimestamps[len(srcTimestamps)-1])
+	dstValues = append(dstValues, srcValues[len(srcValues)-1])
 	return dstTimestamps, dstValues
 }
 
 func needsDedup(timestamps []int64, dedupInterval int64) bool {
-	if len(timestamps) == 0 || dedupInterval <= 0 {
+	if len(timestamps) < 2 || dedupInterval <= 0 {
 		return false
 	}
-	tsNext := (timestamps[0] - timestamps[0]%dedupInterval) + dedupInterval
+	tsNext := timestamps[0] + dedupInterval - 1
+	tsNext -= tsNext % dedupInterval
 	for _, ts := range timestamps[1:] {
-		if ts < tsNext {
+		if ts <= tsNext {
 			return true
 		}
 		tsNext += dedupInterval
-		if ts >= tsNext {
-			tsNext = (ts - ts%dedupInterval) + dedupInterval
+		if tsNext < ts {
+			tsNext = ts + dedupInterval - 1
+			tsNext -= tsNext % dedupInterval
 		}
 	}
 	return false

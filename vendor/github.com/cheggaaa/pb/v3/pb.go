@@ -408,6 +408,13 @@ func (pb *ProgressBar) IsStarted() bool {
 	return pb.finish != nil
 }
 
+// IsFinished indicates progress bar is finished
+func (pb *ProgressBar) IsFinished() bool {
+	pb.mu.RLock()
+	defer pb.mu.RUnlock()
+	return pb.finished
+}
+
 // SetTemplateString sets ProgressBar tempate string and parse it
 func (pb *ProgressBar) SetTemplateString(tmpl string) *ProgressBar {
 	pb.mu.Lock()

@@ -41,11 +41,6 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
           min-height: 75rem;
           padding-top: 4.5rem;
         }
-        pre {
-            overflow: scroll;
-            max-width: 600px;
-            min-height: 30px;
-        }
         .group-heading {
             cursor: pointer;
             padding: 5px;
@@ -71,37 +66,37 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
 </head>
 <body>
     `)
-//line app/vmalert/tpl/header.qtpl:41
+//line app/vmalert/tpl/header.qtpl:36
 	StreamPrintNavItems(qw422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:41
+//line app/vmalert/tpl/header.qtpl:36
 	qw422016.N().S(`
     <main class="px-2">
 `)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 }
 
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 func WriteHeader(qq422016 qtio422016.Writer, title string, pages []NavItem) {
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	StreamHeader(qw422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 }
 
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 func Header(title string, pages []NavItem) string {
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	WriteHeader(qb422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:38
 }

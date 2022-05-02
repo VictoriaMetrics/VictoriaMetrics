@@ -1,7 +1,6 @@
 import React, {FC, useEffect, useState, useMemo} from "preact/compat";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {dateFromSeconds, formatDateForNativeInput} from "../../../../utils/time";
-import makeStyles from "@mui/styles/makeStyles";
 import TimeDurationSelector from "./TimeDurationSelector";
 import dayjs from "dayjs";
 import QueryBuilderIcon from "@mui/icons-material/QueryBuilder";
@@ -17,7 +16,7 @@ import Tooltip from "@mui/material/Tooltip";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
-const useStyles = makeStyles({
+const classes = {
   container: {
     display: "grid",
     gridTemplateColumns: "200px auto 200px",
@@ -32,11 +31,9 @@ const useStyles = makeStyles({
   datePickerItem: {
     minWidth: "200px",
   },
-});
+};
 
 export const TimeSelector: FC = () => {
-
-  const classes = useStyles();
 
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
@@ -91,9 +88,9 @@ export const TimeSelector: FC = () => {
       modifiers={[{name: "offset", options: {offset: [0, 6]}}]}>
       <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
         <Paper elevation={3}>
-          <Box className={classes.container}>
-            <Box className={classes.timeControls}>
-              <Box className={classes.datePickerItem}>
+          <Box sx={classes.container}>
+            <Box sx={classes.timeControls}>
+              <Box sx={classes.datePickerItem}>
                 <DateTimePicker
                   label="From"
                   ampm={false}
@@ -106,7 +103,7 @@ export const TimeSelector: FC = () => {
                   maxDate={dayjs(until)}
                   PopperProps={{disablePortal: true}}/>
               </Box>
-              <Box className={classes.datePickerItem}>
+              <Box sx={classes.datePickerItem}>
                 <DateTimePicker
                   label="To"
                   ampm={false}

@@ -9,6 +9,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
+const barTpl = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
+
 func prompt(question string) bool {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(question, " [Y/n] ")
