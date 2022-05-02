@@ -419,6 +419,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
+	case "/api/v1/status/buildinfo":
+		buildInfoRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
+		return true
 	case "/api/v1/query_exemplars":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
 		queryExemplarsRequests.Inc()
@@ -554,5 +559,6 @@ var (
 	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
+	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
 )

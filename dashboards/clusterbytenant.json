@@ -172,7 +172,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_tenant_select_requests_total{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$accountID\", projectID=~\"$projectID\"}[5m])) by (accountID,projectID) ",
+          "expr": "sum(rate(vm_tenant_select_requests_total{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$accountID\", projectID=~\"$projectID\"}[$__rate_interval])) by (accountID,projectID) ",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,

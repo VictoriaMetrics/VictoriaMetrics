@@ -107,7 +107,7 @@ func (f *IntSliceFlag) IsSet() bool {
 // String returns a readable representation of this value
 // (for usage defaults)
 func (f *IntSliceFlag) String() string {
-	return FlagStringer(f)
+	return withEnvHint(f.GetEnvVars(), stringifyIntSliceFlag(f))
 }
 
 // Names returns the names of the flag
@@ -144,6 +144,19 @@ func (f *IntSliceFlag) IsVisible() bool {
 	return !f.Hidden
 }
 
+// GetDefaultText returns the default text for this flag
+func (f *IntSliceFlag) GetDefaultText() string {
+	if f.DefaultText != "" {
+		return f.DefaultText
+	}
+	return f.GetValue()
+}
+
+// GetEnvVars returns the env vars for this flag
+func (f *IntSliceFlag) GetEnvVars() []string {
+	return f.EnvVars
+}
+
 // Apply populates the flag given the flag set and environment
 func (f *IntSliceFlag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
@@ -174,8 +187,8 @@ func (f *IntSliceFlag) Apply(set *flag.FlagSet) error {
 
 // IntSlice looks up the value of a local IntSliceFlag, returns
 // nil if not found
-func (c *Context) IntSlice(name string) []int {
-	if fs := c.lookupFlagSet(name); fs != nil {
+func (cCtx *Context) IntSlice(name string) []int {
+	if fs := cCtx.lookupFlagSet(name); fs != nil {
 		return lookupIntSlice(name, fs)
 	}
 	return nil

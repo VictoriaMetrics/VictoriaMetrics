@@ -5,6 +5,7 @@ const stateToUrlParams = {
   "time.duration": "range_input",
   "time.period.date": "end_input",
   "time.period.step": "step_input",
+  "time.relativeTime": "relative_time",
   "displayType": "tab"
 };
 

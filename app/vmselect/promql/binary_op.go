@@ -84,18 +84,22 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 	return func(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		left := bfa.left
 		right := bfa.right
-		switch bfa.be.Op {
-		case "ifnot":
+		op := bfa.be.Op
+		switch true {
+		case op == "ifnot":
 			left = removeEmptySeries(left)
 			// Do not remove empty series on the right side,
 			// so the left-side series could be matched against them.
-		case "default":
-			// Do not remove empty series on the left side,
-			// so they could be replaced with the corresponding series on the right side.
-			right = removeEmptySeries(right)
-			if len(right) == 0 {
-				return left, nil
-			}
+		case op == "default":
+			// Do not remove empty series on the left and the right side,
+			// since this may lead to missing result:
+			// - if empty time series are removed on the left side,
+			// then they won't be substituted by time series from the right side.
+			// - if empty time series are removed on the right side,
+			// then this may result in missing time series from the left side.
+		case metricsql.IsBinaryOpCmp(op):
+			// Do not remove empty series for comparison operations,
+			// since this may lead to missing result.
 		default:
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
@@ -132,7 +136,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
-		if isScalar(left) {
+		if isScalar(left) && be.Op != "default" && be.Op != "if" && be.Op != "ifnot" {
 			// Fast path: `scalar op vector`
 			rvsLeft := make([]*timeseries, len(right))
 			tsLeft := left[0]

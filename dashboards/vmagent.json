@@ -1306,7 +1306,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (level) ",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (level) ",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3247,7 +3247,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "topk(5, sum(sum_over_time(scrape_series_added[5m])) by (job))",
+              "expr": "topk(5, sum(sum_over_time(scrape_series_added[$__rate_interval])) by (job))",
               "interval": "",
               "legendFormat": "{{ job }}",
               "refId": "A"
@@ -3336,7 +3336,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "topk(5, sum(sum_over_time(scrape_series_added[5m])) by (instance))",
+              "expr": "topk(5, sum(sum_over_time(scrape_series_added[$__rate_interval])) by (instance))",
               "interval": "",
               "legendFormat": "{{ instance }}",
               "refId": "A"
@@ -3900,7 +3900,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3909,7 +3909,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "interval": "",

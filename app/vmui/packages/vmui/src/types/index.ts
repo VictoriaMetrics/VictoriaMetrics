@@ -40,6 +40,7 @@ export interface PanelSettings {
   description?: string;
   unit?: string;
   expr: string[];
+  alias?: string[];
   showLegend?: boolean;
   width?: number
 }
@@ -53,4 +54,11 @@ export interface DashboardSettings {
   title?: string;
   filename: string;
   rows: DashboardRow[];
+}
+
+export interface RelativeTimeOption {
+  id: string,
+  duration: string,
+  until: () => Date,
+  title: string,
 }

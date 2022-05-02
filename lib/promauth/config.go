@@ -7,7 +7,9 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -71,6 +73,16 @@ type TLSConfig struct {
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
+	MinVersion         string `yaml:"min_version,omitempty"`
+}
+
+// String returns human-readable representation of tlsConfig
+func (tlsConfig *TLSConfig) String() string {
+	if tlsConfig == nil {
+		return ""
+	}
+	return fmt.Sprintf("ca_file=%q, cert_file=%q, key_file=%q, server_name=%q, insecure_skip_verify=%v, min_version=%q",
+		tlsConfig.CAFile, tlsConfig.CertFile, tlsConfig.KeyFile, tlsConfig.ServerName, tlsConfig.InsecureSkipVerify, tlsConfig.MinVersion)
 }
 
 // Authorization represents generic authorization config.
@@ -116,12 +128,14 @@ type OAuth2Config struct {
 	Scopes           []string          `yaml:"scopes,omitempty"`
 	TokenURL         string            `yaml:"token_url"`
 	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
+	TLSConfig        *TLSConfig        `yaml:"tls_config,omitempty"`
+	ProxyURL         string            `yaml:"proxy_url,omitempty"`
 }
 
 // String returns string representation of o.
 func (o *OAuth2Config) String() string {
-	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, Scopes=%q, tokenURL=%q, endpointParams=%q",
-		o.ClientID, o.ClientSecret, o.ClientSecretFile, o.Scopes, o.TokenURL, o.EndpointParams)
+	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, Scopes=%q, tokenURL=%q, endpointParams=%q, tlsConfig={%s}, proxyURL=%q",
+		o.ClientID, o.ClientSecret, o.ClientSecretFile, o.Scopes, o.TokenURL, o.EndpointParams, o.TLSConfig.String(), o.ProxyURL)
 }
 
 func (o *OAuth2Config) validate() error {
@@ -144,6 +158,7 @@ type oauth2ConfigInternal struct {
 	mu               sync.Mutex
 	cfg              *clientcredentials.Config
 	clientSecretFile string
+	ctx              context.Context
 	tokenSource      oauth2.TokenSource
 }
 
@@ -168,7 +183,27 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		}
 		oi.cfg.ClientSecret = secret
 	}
-	oi.tokenSource = oi.cfg.TokenSource(context.Background())
+	ac, err := o.NewConfig(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize TLS config for OAuth2: %w", err)
+	}
+	tlsCfg := ac.NewTLSConfig()
+	var proxyURLFunc func(*http.Request) (*url.URL, error)
+	if o.ProxyURL != "" {
+		u, err := url.Parse(o.ProxyURL)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse proxy_url=%q: %w", o.ProxyURL, err)
+		}
+		proxyURLFunc = http.ProxyURL(u)
+	}
+	c := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsCfg,
+			Proxy:           proxyURLFunc,
+		},
+	}
+	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
+	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
 	return oi, nil
 }
 
@@ -195,7 +230,7 @@ func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
 		return oi.tokenSource, nil
 	}
 	oi.cfg.ClientSecret = newSecret
-	oi.tokenSource = oi.cfg.TokenSource(context.Background())
+	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
 	return oi.tokenSource, nil
 }
 
@@ -205,6 +240,7 @@ type Config struct {
 	TLSRootCA             *x509.CertPool
 	TLSServerName         string
 	TLSInsecureSkipVerify bool
+	TLSMinVersion         uint16
 
 	getTLSCert    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	tlsCertDigest string
@@ -235,8 +271,8 @@ func (ac *Config) GetAuthHeader() string {
 
 // String returns human-readable representation for ac.
 func (ac *Config) String() string {
-	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v",
-		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify)
+	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v, TLSMinVersion=%d",
+		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify, ac.TLSMinVersion)
 }
 
 func (ac *Config) tlsRootCAString() string {
@@ -278,6 +314,7 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg.RootCAs = ac.TLSRootCA
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
+	tlsCfg.MinVersion = ac.TLSMinVersion
 	return tlsCfg
 }
 
@@ -289,6 +326,11 @@ func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
 	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken.String(), pcc.BearerTokenFile, nil, pcc.TLSConfig)
+}
+
+// NewConfig creates auth config for the given o.
+func (o *OAuth2Config) NewConfig(baseDir string) (*Config, error) {
+	return NewConfig(baseDir, nil, nil, "", "", nil, o.TLSConfig)
 }
 
 // NewConfig creates auth config from the given args.
@@ -410,6 +452,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 	tlsCertDigest := ""
 	tlsServerName := ""
 	tlsInsecureSkipVerify := false
+	tlsMinVersion := uint16(0)
 	if tlsConfig != nil {
 		tlsServerName = tlsConfig.ServerName
 		tlsInsecureSkipVerify = tlsConfig.InsecureSkipVerify
@@ -441,11 +484,19 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 				return nil, fmt.Errorf("cannot parse data from `ca_file` %q", tlsConfig.CAFile)
 			}
 		}
+		if tlsConfig.MinVersion != "" {
+			v, err := parseTLSVersion(tlsConfig.MinVersion)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse `min_version`: %w", err)
+			}
+			tlsMinVersion = v
+		}
 	}
 	ac := &Config{
 		TLSRootCA:             tlsRootCA,
 		TLSServerName:         tlsServerName,
 		TLSInsecureSkipVerify: tlsInsecureSkipVerify,
+		TLSMinVersion:         tlsMinVersion,
 
 		getTLSCert:    getTLSCert,
 		tlsCertDigest: tlsCertDigest,
@@ -454,4 +505,19 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		authDigest:    authDigest,
 	}
 	return ac, nil
+}
+
+func parseTLSVersion(s string) (uint16, error) {
+	switch strings.ToUpper(s) {
+	case "TLS13":
+		return tls.VersionTLS13, nil
+	case "TLS12":
+		return tls.VersionTLS12, nil
+	case "TLS11":
+		return tls.VersionTLS11, nil
+	case "TLS10":
+		return tls.VersionTLS10, nil
+	default:
+		return 0, fmt.Errorf("unsupported TLS version %q", s)
+	}
 }
