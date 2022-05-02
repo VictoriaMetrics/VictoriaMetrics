@@ -21,7 +21,7 @@ const (
 
 // This test simulates close process if user abort it
 func Test_vmNativeProcessor_run(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	type fields struct {
 		filter    filter
 		rateLimit int64
