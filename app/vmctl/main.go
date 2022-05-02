@@ -171,7 +171,6 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
-						syncErr: make(chan error),
 					}
 					return p.run(ctx)
 				},
