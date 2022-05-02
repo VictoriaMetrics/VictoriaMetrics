@@ -1,6 +1,7 @@
 FROM node:18-alpine3.15
 
-RUN apk update && apk add --no-cache bash bash-doc bash-completion libtool autoconf automake nasm pkgconfig libpng gcc make g++ zlib-dev gawk
+RUN apk update && apk upgrade
+RUN apk add --no-cache bash bash-doc bash-completion libtool autoconf automake nasm pkgconfig libpng gcc make g++ zlib-dev gawk
 
 RUN mkdir -p /app
 WORKDIR /app
