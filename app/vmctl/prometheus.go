@@ -87,7 +87,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		}
 	}
 	for err := range errCh {
-		return err
+		return fmt.Errorf("import process failed: %s", err)
 	}
 	barpool.Stop()
 	log.Println("Import finished!")

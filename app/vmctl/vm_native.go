@@ -90,7 +90,7 @@ func (p *vmNativeProcessor) run() error {
 
 	for err := range p.syncErr {
 		if err != nil {
-			return err
+			return fmt.Errorf("import process failed: %s", err)
 		}
 	}
 
