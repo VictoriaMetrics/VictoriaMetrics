@@ -485,6 +485,9 @@ per rule before giving up.
 (rules which depend on each other) rules. It is expected, that remote storage will be able to persist
 previously accepted data during the delay, so data will be available for the subsequent queries.
 Keep it equal or bigger than `-remoteWrite.flushInterval`.
+* `replay.disableProgressBar` - whether to disable progress bar which shows progress work.
+Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
+It could break logs parsing by external system and generate additional load on it.
 
 See full description for these flags in `./vmalert --help`.
 
