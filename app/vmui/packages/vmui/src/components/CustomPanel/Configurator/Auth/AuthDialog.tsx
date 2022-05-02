@@ -19,11 +19,9 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import DialogTitle from "@mui/material/DialogTitle";
 import Dialog from "@mui/material/Dialog";
-import createStyles from "@mui/styles/createStyles";
 import TabPanel from "./AuthTabPanel";
 import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
-import makeStyles from "@mui/styles/makeStyles";
 import {useAuthDispatch, useAuthState} from "../../../../state/auth/AuthStateContext";
 import {AUTH_METHOD, WithCheckbox} from "../../../../state/auth/reducer";
 import {ChangeEvent, ClipboardEvent} from "react";
@@ -39,14 +37,6 @@ export interface AuthTab {
   id: AUTH_METHOD;
 }
 
-const useStyles = makeStyles(() =>
-  createStyles({
-    tabsContent: {
-      height: "200px"
-    },
-  }),
-);
-
 const BEARER_PREFIX = "Bearer ";
 
 const tabs: AuthTab[] = [
@@ -57,7 +47,6 @@ const tabs: AuthTab[] = [
 
 export const AuthDialog: React.FC<DialogProps> = (props) => {
 
-  const classes = useStyles();
   const {onClose, open} = props;
 
   const {saveAuthLocally, basicData, bearerData, authMethod} = useAuthState();
@@ -133,7 +122,7 @@ export const AuthDialog: React.FC<DialogProps> = (props) => {
             tabs.map(t => <Tab key={t.id} label={t.title} />)
           }
         </Tabs>
-        <Box p={0} display="flex" flexDirection="column" className={classes.tabsContent}>
+        <Box p={0} display="flex" flexDirection="column" sx={{height: "200px"}}>
           <Box flexGrow={1}>
             <TabPanel value={tabIndex} index={0}>
               <Typography style={{fontStyle: "italic"}}>
