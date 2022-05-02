@@ -13,6 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
@@ -51,6 +54,8 @@ type Config struct {
 	// RateLimit defines a data transfer speed in bytes per second.
 	// Is applied to each worker (see Concurrency) independently.
 	RateLimit int64
+	// Whether to disable progress bar per VM worker
+	DisableProgressBar bool
 }
 
 // Importer performs insertion of timeseries
@@ -144,14 +149,21 @@ func NewImporter(cfg Config) (*Importer, error) {
 
 	im.wg.Add(int(cfg.Concurrency))
 	for i := 0; i < int(cfg.Concurrency); i++ {
-		go func() {
+		var bar *pb.ProgressBar
+		if !cfg.DisableProgressBar {
+			pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
+			bar = barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
+		}
+		go func(bar *pb.ProgressBar) {
 			defer im.wg.Done()
-			im.startWorker(cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
-		}()
+			im.startWorker(bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
+		}(bar)
 	}
 	im.ResetStats()
 	return im, nil
 }
+
+const pbTpl = `{{ (cycle . "←" "↖" "↑" "↗" "→" "↘" "↓" "↙" ) }} {{speed . "%s samples/s"}}`
 
 // ImportError is type of error generated
 // in case of unsuccessful import request
@@ -182,7 +194,7 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) {
+func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -217,6 +229,11 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
+
+			if bar != nil {
+				bar.Add(len(ts.Values))
+			}
+
 			if dataPoints < batchSize {
 				continue
 			}
@@ -232,8 +249,8 @@ func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) 
 				// make a new batch, since old one was referenced as err
 				batch = make([]*TimeSeries, len(batch))
 			}
-			batch = batch[:0]
 			dataPoints = 0
+			batch = batch[:0]
 			waitForBatch = time.Now()
 		}
 	}
