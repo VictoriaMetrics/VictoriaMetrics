@@ -27,7 +27,6 @@ func main() {
 		nativeProcessor *vmNativeProcessor
 	)
 
-	shouldStop := make(chan struct{})
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
@@ -217,7 +216,6 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
-		close(shouldStop)
 		if importer != nil {
 			importer.Close()
 		}
