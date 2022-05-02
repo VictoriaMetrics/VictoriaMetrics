@@ -774,7 +774,7 @@ sum by (__name__) (
 
 #### label_replace
 
-`label_replace(q, "dst_label", "replacement", "src_label", "regex")` applies the given `regex` to `src_label` and stores the `replacement` in `dst_label` if the given `regex` matches `src_label`. The `replacement` may contain references to regex captures such as `$1`, `$2`, etc. These references are substituted by the corresponding regex captures. For example, `label_replace(up{job="node-exporter"}, "foo", "bar-$1", "job", "node-(.+)")` would store `bar-node-exporter` label value into `foo` label. This function is supported by PromQL.
+`label_replace(q, "dst_label", "replacement", "src_label", "regex")` applies the given `regex` to `src_label` and stores the `replacement` in `dst_label` if the given `regex` matches `src_label`. The `replacement` may contain references to regex captures such as `$1`, `$2`, etc. These references are substituted by the corresponding regex captures. For example, `label_replace(up{job="node-exporter"}, "foo", "bar-$1", "job", "node-(.+)")` would store `bar-exporter` label value into `foo` label. This function is supported by PromQL.
 
 #### label_set
 

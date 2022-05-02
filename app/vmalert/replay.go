@@ -29,6 +29,8 @@ var (
 		"Max number of data points expected in one request. The higher the value, the less requests will be made during replay.")
 	replayRuleRetryAttempts = flag.Int("replay.ruleRetryAttempts", 5,
 		"Defines how many retries to make before giving up on rule if request for it returns an error.")
+	disableProgressBar = flag.Bool("replay.disableProgressBar", false, "Whether to disable rendering progress bars during the replay. "+
+		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
 )
 
 func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewrite.Client) error {
@@ -88,7 +90,10 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 		g.Name, g.Interval, iterations, step)
 	for _, rule := range g.Rules {
 		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
-		bar := pb.StartNew(iterations)
+		var bar *pb.ProgressBar
+		if !*disableProgressBar {
+			bar = pb.StartNew(iterations)
+		}
 		ri.reset()
 		for ri.next() {
 			n, err := replayRule(rule, ri.s, ri.e, rw)
@@ -96,9 +101,13 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 				logger.Fatalf("rule %q: %s", rule, err)
 			}
 			total += n
-			bar.Increment()
+			if bar != nil {
+				bar.Increment()
+			}
 		}
-		bar.Finish()
+		if bar != nil {
+			bar.Finish()
+		}
 		// sleep to let remote storage to flush data on-disk
 		// so chained rules could be calculated correctly
 		time.Sleep(*replayRulesDelay)

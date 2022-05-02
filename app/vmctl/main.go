@@ -55,6 +55,9 @@ func main() {
 					}
 
 					vmCfg := initConfigVM(c)
+					// disable progress bars since openTSDB implementation
+					// does not use progress bar pool
+					vmCfg.DisableProgressBar = true
 					importer, err := vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -233,5 +236,6 @@ func initConfigVM(c *cli.Context) vm.Config {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
+		DisableProgressBar: c.Bool(vmDisableProgressBar),
 	}
 }

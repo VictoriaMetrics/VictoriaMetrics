@@ -7,8 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cheggaaa/pb/v3"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
@@ -49,7 +48,7 @@ const (
 	nativeExportAddr = "api/v1/export/native"
 	nativeImportAddr = "api/v1/import/native"
 
-	barTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
+	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run() error {
@@ -84,8 +83,12 @@ func (p *vmNativeProcessor) run() error {
 	}()
 
 	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
-	bar := pb.ProgressBarTemplate(barTpl).Start64(0)
+	bar := barpool.AddWithTemplate(nativeBarTpl, 0)
 	barReader := bar.NewProxyReader(exportReader)
+	if err := barpool.Start(); err != nil {
+		log.Printf("error start process bars pool: %s", err)
+		return err
+	}
 
 	w := io.Writer(pw)
 	if p.rateLimit > 0 {
@@ -101,7 +104,7 @@ func (p *vmNativeProcessor) run() error {
 	}
 	<-sync
 
-	bar.Finish()
+	barpool.Stop()
 	return nil
 }
 
