@@ -22,8 +22,9 @@ import (
 
 func main() {
 	var (
-		err      error
-		importer *vm.Importer
+		err             error
+		importer        *vm.Importer
+		nativeProcessor *vmNativeProcessor
 	)
 
 	shouldStop := make(chan struct{})
@@ -64,7 +65,7 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), shouldStop)
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
 					return otsdbProcessor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
@@ -103,8 +104,7 @@ func main() {
 						influxClient,
 						importer,
 						c.Int(influxConcurrency),
-						c.String(influxMeasurementFieldSeparator),
-						shouldStop)
+						c.String(influxMeasurementFieldSeparator))
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
@@ -135,10 +135,9 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 					pp := prometheusProcessor{
-						cl:         cl,
-						im:         importer,
-						cc:         c.Int(promConcurrency),
-						shouldStop: shouldStop,
+						cl: cl,
+						im: importer,
+						cc: c.Int(promConcurrency),
 					}
 					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
@@ -154,7 +153,7 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
-					p := vmNativeProcessor{
+					nativeProcessor = &vmNativeProcessor{
 						rateLimit: c.Int64(vmRateLimit),
 						filter: filter{
 							match:     c.String(vmNativeFilterMatch),
@@ -172,9 +171,9 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
-						shouldStop: shouldStop,
+						syncErr: make(chan error),
 					}
-					return p.run()
+					return nativeProcessor.run()
 				},
 			},
 			{
@@ -221,6 +220,9 @@ func main() {
 		close(shouldStop)
 		if importer != nil {
 			importer.Close()
+		}
+		if nativeProcessor != nil {
+			nativeProcessor.Close()
 		}
 	}()
 

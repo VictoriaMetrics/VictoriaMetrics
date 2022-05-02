@@ -14,6 +14,7 @@ import (
 // 2. define httpAddr const with your victoriametrics address
 // 3. run victoria metrics with defined address
 // 4. remove t.Skip() from Test_prometheusProcessor_run
+// 5. run tests one by one not all at one time
 
 const (
 	httpAddr     = "http://127.0.0.1:8428/"
@@ -28,7 +29,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 		vmCfg  vm.Config
 		cl     func(prometheus.Config) *prometheus.Client
 		im     func(vm.Config) *vm.Importer
-		closer func(importer *vm.Importer, shouldStop chan struct{})
+		closer func(importer *vm.Importer)
 		cc     int
 	}
 	type args struct {
@@ -63,11 +64,10 @@ func Test_prometheusProcessor_run(t *testing.T) {
 					}
 					return importer
 				},
-				closer: func(importer *vm.Importer, shouldStop chan struct{}) {
+				closer: func(importer *vm.Importer) {
 					// simulate syscall.SIGINT
-					time.Sleep(time.Second * 1)
+					time.Sleep(time.Second * 5)
 					if importer != nil {
-						close(shouldStop)
 						importer.Close()
 					}
 				},
@@ -75,7 +75,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				cc:    2,
 			},
 			args: args{
-				silent:  true,
+				silent:  false,
 				verbose: false,
 			},
 			wantErr: true,
@@ -114,17 +114,13 @@ func Test_prometheusProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			client := tt.fields.cl(tt.fields.cfg)
 			importer := tt.fields.im(tt.fields.vmCfg)
 
-			shouldStop := make(chan struct{})
-
 			pp := &prometheusProcessor{
-				cl:         client,
-				im:         importer,
-				cc:         tt.fields.cc,
-				shouldStop: shouldStop,
+				cl: client,
+				im: importer,
+				cc: tt.fields.cc,
 			}
 
 			// we should answer on prompt
@@ -147,13 +143,17 @@ func Test_prometheusProcessor_run(t *testing.T) {
 
 				stdin := os.Stdin
 				// Restore stdin right after the test.
-				defer func() { os.Stdin = stdin }()
+				defer func() {
+					os.Stdin = stdin
+					_ = r.Close()
+					_ = w.Close()
+				}()
 				os.Stdin = r
 			}
 
 			// simulate close if needed
 			if tt.fields.closer != nil {
-				go tt.fields.closer(importer, shouldStop)
+				go tt.fields.closer(importer)
 			}
 
 			if err := pp.run(tt.args.silent, tt.args.verbose); (err != nil) != tt.wantErr {

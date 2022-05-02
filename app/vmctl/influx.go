@@ -12,23 +12,21 @@ import (
 )
 
 type influxProcessor struct {
-	ic         *influx.Client
-	im         *vm.Importer
-	cc         int
-	separator  string
-	shouldStop chan struct{}
+	ic        *influx.Client
+	im        *vm.Importer
+	cc        int
+	separator string
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, shouldStop chan struct{}) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
 	return &influxProcessor{
-		ic:         ic,
-		im:         im,
-		cc:         cc,
-		separator:  separator,
-		shouldStop: shouldStop,
+		ic:        ic,
+		im:        im,
+		cc:        cc,
+		separator: separator,
 	}
 }
 
@@ -137,11 +135,6 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	}
 
 	for {
-		select {
-		case <-ip.shouldStop:
-			return fmt.Errorf("process aborting during importing")
-		default:
-		}
 		time, values, err := cr.Next()
 		if err != nil {
 			if err == io.EOF {
@@ -153,11 +146,14 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 		if len(time) < 1 {
 			continue
 		}
-		ip.im.Input() <- &vm.TimeSeries{
+		ts := vm.TimeSeries{
 			Name:       name,
 			LabelPairs: labels,
 			Timestamps: time,
 			Values:     values,
+		}
+		if err := ip.im.Input(&ts); err != nil {
+			return err
 		}
 	}
 }

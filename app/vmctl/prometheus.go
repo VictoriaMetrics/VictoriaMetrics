@@ -23,8 +23,6 @@ type prometheusProcessor struct {
 	// and defines number of concurrently
 	// running snapshot block readers
 	cc int
-
-	shouldStop chan struct{}
 }
 
 func (pp *prometheusProcessor) run(silent, verbose bool) error {
@@ -103,11 +101,6 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
 	for ss.Next() {
-		select {
-		case <-pp.shouldStop:
-			return fmt.Errorf("process aborting during importing series with label: %s", ss.At().Labels().String())
-		default:
-		}
 		var name string
 		var labels []vm.LabelPair
 		series := ss.At()
@@ -137,11 +130,14 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		if err := it.Err(); err != nil {
 			return err
 		}
-		pp.im.Input() <- &vm.TimeSeries{
+		ts := vm.TimeSeries{
 			Name:       name,
 			LabelPairs: labels,
 			Timestamps: timestamps,
 			Values:     values,
+		}
+		if err := pp.im.Input(&ts); err != nil {
+			return err
 		}
 	}
 	return ss.Err()

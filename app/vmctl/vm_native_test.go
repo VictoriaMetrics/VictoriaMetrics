@@ -10,6 +10,7 @@ import (
 // 2. define srcAddr and dstAddr const with your victoriametrics addresses
 // 3. define matchFilter const with your importing data
 // 4. define timeStartFilter
+// 5. run each test one by one
 
 const (
 	matchFilter     = `{job="avalanche"}`
@@ -20,7 +21,7 @@ const (
 
 // This test simulates close process if user abort it
 func Test_vmNativeProcessor_run(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 	type fields struct {
 		filter    filter
 		rateLimit int64
@@ -30,7 +31,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		closer  func(shouldStop chan struct{})
+		closer  func(processor *vmNativeProcessor)
 		wantErr bool
 	}{
 		{
@@ -48,9 +49,9 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 					addr: srcAddr,
 				},
 			},
-			closer: func(shouldStop chan struct{}) {
-				time.Sleep(time.Second * 1)
-				close(shouldStop)
+			closer: func(processor *vmNativeProcessor) {
+				time.Sleep(time.Second * 5)
+				processor.Close()
 			},
 			wantErr: true,
 		},
@@ -75,18 +76,17 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			shouldStop := make(chan struct{})
 
 			p := &vmNativeProcessor{
-				filter:     tt.fields.filter,
-				rateLimit:  tt.fields.rateLimit,
-				dst:        tt.fields.dst,
-				src:        tt.fields.src,
-				shouldStop: shouldStop,
+				filter:    tt.fields.filter,
+				rateLimit: tt.fields.rateLimit,
+				dst:       tt.fields.dst,
+				src:       tt.fields.src,
+				syncErr:   make(chan error),
 			}
 
 			if tt.closer != nil {
-				go tt.closer(shouldStop)
+				go tt.closer(p)
 			}
 
 			if err := p.run(); (err != nil) != tt.wantErr {

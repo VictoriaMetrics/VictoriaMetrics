@@ -16,9 +16,9 @@ type vmNativeProcessor struct {
 	filter    filter
 	rateLimit int64
 
-	dst        *vmNativeClient
-	src        *vmNativeClient
-	shouldStop chan struct{}
+	dst     *vmNativeClient
+	src     *vmNativeClient
+	syncErr chan error
 }
 
 type vmNativeClient struct {
@@ -52,6 +52,10 @@ const (
 	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
+func (p *vmNativeProcessor) Close() {
+	p.syncErr <- fmt.Errorf("process aborted")
+}
+
 func (p *vmNativeProcessor) run() error {
 	pr, pw := io.Pipe()
 
@@ -61,32 +65,12 @@ func (p *vmNativeProcessor) run() error {
 		return fmt.Errorf("failed to init export pipe: %s", err)
 	}
 
-	sync := make(chan struct{})
 	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
 	if err != nil {
 		return err
 	}
 
-	go func() {
-		<-p.shouldStop
-		_ = pw.Close()
-		close(sync)
-	}()
-	go func() {
-		defer func() { close(sync) }()
-		u := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
-		req, err := http.NewRequest("POST", u, pr)
-		if err != nil {
-			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
-		}
-		importResp, err := p.dst.do(req, http.StatusNoContent)
-		if err != nil {
-			log.Fatalf("import request failed: %s", err)
-		}
-		if err := importResp.Body.Close(); err != nil {
-			log.Fatalf("cannot close import response body: %s", err)
-		}
-	}()
+	go p.prepareImport(nativeImportAddr, pr)
 
 	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
 	bar := barpool.AddWithTemplate(nativeBarTpl, 0)
@@ -101,14 +85,14 @@ func (p *vmNativeProcessor) run() error {
 		rl := limiter.NewLimiter(p.rateLimit)
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
-	_, err = io.Copy(w, barReader)
-	if err != nil {
-		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
+
+	go p.copyData(w, barReader, pw)
+
+	for err := range p.syncErr {
+		if err != nil {
+			return err
+		}
 	}
-	if err := pw.Close(); err != nil {
-		return err
-	}
-	<-sync
 
 	barpool.Stop()
 	return nil
@@ -138,6 +122,32 @@ func (p *vmNativeProcessor) exportPipe() (io.ReadCloser, error) {
 		return nil, fmt.Errorf("export request failed: %s", err)
 	}
 	return resp.Body, nil
+}
+
+func (p *vmNativeProcessor) prepareImport(nativeImportAddr string, reader io.Reader) {
+	u := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
+	req, err := http.NewRequest("POST", u, reader)
+	if err != nil {
+		p.syncErr <- fmt.Errorf("cannot create import request to %q: %s", p.dst.addr, err)
+	}
+	importResp, err := p.dst.do(req, http.StatusNoContent)
+	if err != nil {
+		p.syncErr <- fmt.Errorf("import request failed: %s", err)
+	} else if err := importResp.Body.Close(); err != nil {
+		p.syncErr <- fmt.Errorf("cannot close import response body: %s", err)
+	}
+}
+
+func (p *vmNativeProcessor) copyData(dst io.Writer, src io.Reader, writer *io.PipeWriter) {
+	// io.Copy blocks, so we need close channel when all data is copied
+	defer func() { close(p.syncErr) }()
+	_, err := io.Copy(dst, src)
+	if err != nil {
+		p.syncErr <- fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
+	}
+	if err := writer.Close(); err != nil {
+		p.syncErr <- err
+	}
 }
 
 func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error) {

@@ -12,10 +12,9 @@ import (
 )
 
 type otsdbProcessor struct {
-	oc         *opentsdb.Client
-	im         *vm.Importer
-	otsdbcc    int
-	shouldStop chan struct{}
+	oc      *opentsdb.Client
+	im      *vm.Importer
+	otsdbcc int
 }
 
 type queryObj struct {
@@ -25,15 +24,14 @@ type queryObj struct {
 	StartTime int64
 }
 
-func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, shouldStop chan struct{}) *otsdbProcessor {
+func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int) *otsdbProcessor {
 	if otsdbcc < 1 {
 		otsdbcc = 1
 	}
 	return &otsdbProcessor{
-		oc:         oc,
-		im:         im,
-		otsdbcc:    otsdbcc,
-		shouldStop: shouldStop,
+		oc:      oc,
+		im:      im,
+		otsdbcc: otsdbcc,
 	}
 }
 
@@ -146,11 +144,6 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 }
 
 func (op *otsdbProcessor) do(s queryObj) error {
-	select {
-	case <-op.shouldStop:
-		return fmt.Errorf("process aborting during processing query")
-	default:
-	}
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end, op.oc.MsecsTime)
@@ -164,11 +157,14 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	for k, v := range data.Tags {
 		labels = append(labels, vm.LabelPair{Name: k, Value: v})
 	}
-	op.im.Input() <- &vm.TimeSeries{
+	ts := vm.TimeSeries{
 		Name:       data.Metric,
 		LabelPairs: labels,
 		Timestamps: data.Timestamps,
 		Values:     data.Values,
+	}
+	if err := op.im.Input(&ts); err != nil {
+		return err
 	}
 	return nil
 }
