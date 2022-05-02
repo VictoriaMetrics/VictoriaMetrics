@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/prometheus/prometheus/tsdb"
@@ -38,12 +38,9 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	bar := progressbar.AddWithTemplate(
-		progressbar.ProgressTemplate("Processing blocks"),
-		len(blocks))
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
 
-	if err := progressbar.Start(); err != nil {
-		log.Printf("error start process bars pool: %s", err)
+	if err := barpool.Start(); err != nil {
 		return err
 	}
 
@@ -89,9 +86,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
 	}
-	if err := progressbar.Stop(); err != nil {
-		log.Printf("error stop process bars pool: %s", err)
-	}
+	barpool.Stop()
 	log.Println("Import finished!")
 	log.Print(pp.im.Stats())
 	return nil

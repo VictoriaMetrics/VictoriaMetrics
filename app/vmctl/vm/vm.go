@@ -13,8 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
@@ -52,6 +54,8 @@ type Config struct {
 	// RateLimit defines a data transfer speed in bytes per second.
 	// Is applied to each worker (see Concurrency) independently.
 	RateLimit int64
+	// Whether to disable progress bar per VM worker
+	DisableProgressBar bool
 }
 
 // Importer performs insertion of timeseries
@@ -145,14 +149,21 @@ func NewImporter(cfg Config) (*Importer, error) {
 
 	im.wg.Add(int(cfg.Concurrency))
 	for i := 0; i < int(cfg.Concurrency); i++ {
-		go func(num int) {
+		var bar *pb.ProgressBar
+		if !cfg.DisableProgressBar {
+			pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
+			bar = barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
+		}
+		go func(bar *pb.ProgressBar) {
 			defer im.wg.Done()
-			im.startWorker(num, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
-		}(i)
+			im.startWorker(bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
+		}(bar)
 	}
 	im.ResetStats()
 	return im, nil
 }
+
+const pbTpl = `{{ (cycle . "←" "↖" "↑" "↗" "→" "↘" "↓" "↙" ) }} {{speed . "%s samples/s"}}`
 
 // ImportError is type of error generated
 // in case of unsuccessful import request
@@ -183,9 +194,7 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(num, batchSize, significantFigures, roundDigits int) {
-	bar := progressbar.AddWithTemplate(
-		progressbar.SpinnerTemplate("Processing datapoints for worker", num), 0)
+func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -220,7 +229,11 @@ func (im *Importer) startWorker(num, batchSize, significantFigures, roundDigits 
 
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
-			bar.Add(len(ts.Values))
+
+			if bar != nil {
+				bar.Add(len(ts.Values))
+			}
+
 			if dataPoints < batchSize {
 				continue
 			}

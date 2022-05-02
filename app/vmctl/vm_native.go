@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
@@ -48,7 +48,7 @@ const (
 	nativeExportAddr = "api/v1/export/native"
 	nativeImportAddr = "api/v1/import/native"
 
-	barTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
+	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run() error {
@@ -83,9 +83,9 @@ func (p *vmNativeProcessor) run() error {
 	}()
 
 	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
-	bar := progressbar.AddWithTemplate(progressbar.Template(barTpl), 0)
+	bar := barpool.AddWithTemplate(nativeBarTpl, 0)
 	barReader := bar.NewProxyReader(exportReader)
-	if err := progressbar.Start(); err != nil {
+	if err := barpool.Start(); err != nil {
 		log.Printf("error start process bars pool: %s", err)
 		return err
 	}
@@ -104,9 +104,7 @@ func (p *vmNativeProcessor) run() error {
 	}
 	<-sync
 
-	if err := progressbar.Stop(); err != nil {
-		log.Printf("error stop process bars pool: %s", err)
-	}
+	barpool.Stop()
 	return nil
 }
 

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/progressbar"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type otsdbProcessor struct {
@@ -81,14 +81,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		seriesCh := make(chan queryObj, op.otsdbcc)
 		errCh := make(chan error)
 		// we're going to make serieslist * queryRanges queries, so we should represent that in the progress bar
-		bar := progressbar.AddWithTemplate(
-			progressbar.ProgressTemplate("Processing queries"),
-			len(serieslist)*queryRanges)
-
-		if err := progressbar.Start(); err != nil {
-			log.Printf("error start process bars pool: %s", err)
-			return err
-		}
+		bar := pb.StartNew(len(serieslist) * queryRanges)
 		var wg sync.WaitGroup
 		wg.Add(op.otsdbcc)
 		for i := 0; i < op.otsdbcc; i++ {
@@ -135,9 +128,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		for otsdbErr := range errCh {
 			return fmt.Errorf("Import process failed: \n%s", otsdbErr)
 		}
-		if err = progressbar.Stop(); err != nil {
-			log.Printf("error stop process bars pool: %s", err)
-		}
+		bar.Finish()
 		log.Print(op.im.Stats())
 	}
 	op.im.Close()
