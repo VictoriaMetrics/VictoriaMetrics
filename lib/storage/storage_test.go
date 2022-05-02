@@ -1106,8 +1106,8 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 	return nil
 }
 
-func TestStorageSnapshotsLifecycle(t *testing.T) {
-	path := "TestStorageSnapshotsLifecycle"
+func TestStorageDeleteStaleSnapshots(t *testing.T) {
+	path := "TestStorageDeleteStaleSnapshots"
 	s, err := OpenStorage(path, 0, 1e5, 1e5)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
@@ -1125,19 +1125,37 @@ func TestStorageSnapshotsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create snapshot from the storage: %s", err)
 	}
-	time.Sleep(2 * time.Nanosecond)
-	// Delete the snapshot which is older than 1 nanoseconds
-	if err := s.DeleteStaleSnapshots(time.Nanosecond); err != nil {
-		t.Fatalf("cannot delete snapshot %q: %s", snapshotName, err)
+	// Delete snapshots older than 1 month
+	if err := s.DeleteStaleSnapshots(30 * 24 * time.Hour); err != nil {
+		t.Fatalf("error in DeleteStaleSnapshots(1 month): %s", err)
 	}
 	snapshots, err := s.ListSnapshots()
 	if err != nil {
 		t.Fatalf("cannot list snapshots: %s", err)
 	}
-	if containsString(snapshots, snapshotName) {
-		t.Fatalf("snapshot %q must be deleted, but is still visible in %q", snapshotName, snapshots)
+	if len(snapshots) != 1 {
+		t.Fatalf("expecting one snapshot; got %q", snapshots)
+	}
+	if snapshots[0] != snapshotName {
+		t.Fatalf("snapshot %q is missing in %q", snapshotName, snapshots)
+	}
+
+	// Delete the snapshot which is older than 1 nanoseconds
+	time.Sleep(2 * time.Nanosecond)
+	if err := s.DeleteStaleSnapshots(time.Nanosecond); err != nil {
+		t.Fatalf("cannot delete snapshot %q: %s", snapshotName, err)
+	}
+	snapshots, err = s.ListSnapshots()
+	if err != nil {
+		t.Fatalf("cannot list snapshots: %s", err)
+	}
+	if len(snapshots) != 0 {
+		t.Fatalf("expecting zero snapshots; got %q", snapshots)
 	}
 	s.MustClose()
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
 }
 
 func containsString(a []string, s string) bool {

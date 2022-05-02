@@ -418,34 +418,40 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 	return nil
 }
 
-// DeleteStaleSnapshots deletes snapshot older than given duration
-func (s *Storage) DeleteStaleSnapshots(threshold time.Duration) error {
+// DeleteStaleSnapshots deletes snapshot older than given maxAge
+func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 	list, err := s.ListSnapshots()
 	if err != nil {
 		return err
 	}
-	thresholdTime := time.Now().UTC().Add(-threshold)
-	for _, snapshot := range list {
-		sd, err := snapshotDate(snapshot)
+	expireDeadline := time.Now().UTC().Add(-maxAge)
+	for _, snapshotName := range list {
+		t, err := snapshotTime(snapshotName)
 		if err != nil {
-			logger.Errorf("error parsing snapshot date from snapshot %s: %s", snapshot, err)
-			continue
+			return fmt.Errorf("cannot parse snapshot date from %q: %w", snapshotName, err)
 		}
-		if thresholdTime.After(sd) {
-			if err := s.DeleteSnapshot(snapshot); err != nil {
-				logger.Errorf("error delete snapshot %s: %s", snapshot, err)
+		if t.Before(expireDeadline) {
+			if err := s.DeleteSnapshot(snapshotName); err != nil {
+				return fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 			}
 		}
 	}
 	return nil
 }
 
-var snapshotIdx = uint64(time.Now().UnixNano())
-
-func snapshotDate(snapshot string) (time.Time, error) {
-	snapshot = strings.Split(snapshot, "-")[0]
-	return time.Parse("20060102150405", snapshot)
+func snapshotTime(snapshotName string) (time.Time, error) {
+	if !snapshotNameRegexp.MatchString(snapshotName) {
+		return time.Time{}, fmt.Errorf("unexpected snapshotName must be in the format `YYYYMMDDhhmmss-idx`; got %q", snapshotName)
+	}
+	n := strings.IndexByte(snapshotName, '-')
+	if n < 0 {
+		return time.Time{}, fmt.Errorf("cannot find `-` in snapshotName=%q", snapshotName)
+	}
+	s := snapshotName[:n]
+	return time.Parse("20060102150405", s)
 }
+
+var snapshotIdx = uint64(time.Now().UnixNano())
 
 func nextSnapshotIdx() uint64 {
 	return atomic.AddUint64(&snapshotIdx, 1)
