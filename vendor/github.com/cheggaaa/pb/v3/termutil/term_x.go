@@ -35,6 +35,12 @@ func init() {
 
 // TerminalWidth returns width of the terminal.
 func TerminalWidth() (int, error) {
+	_, c, err := TerminalSize()
+	return c, err
+}
+
+// TerminalSize returns size of the terminal.
+func TerminalSize() (rows, cols int, err error) {
 	w := new(window)
 	res, _, err := syscall.Syscall(sysIoctl,
 		tty.Fd(),
@@ -42,9 +48,9 @@ func TerminalWidth() (int, error) {
 		uintptr(unsafe.Pointer(w)),
 	)
 	if int(res) == -1 {
-		return 0, err
+		return 0, 0, err
 	}
-	return int(w.Col), nil
+	return int(w.Row), int(w.Col), nil
 }
 
 var oldState syscall.Termios

@@ -6,9 +6,9 @@ import (
 	"log"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type influxProcessor struct {
@@ -44,7 +44,11 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	bar := pb.StartNew(len(series))
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
+	if err := barpool.Start(); err != nil {
+		return err
+	}
+
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)
 	ip.im.ResetStats()
@@ -84,7 +88,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
 	}
-	bar.Finish()
+	barpool.Stop()
 	log.Println("Import finished!")
 	log.Print(ip.im.Stats())
 	return nil
