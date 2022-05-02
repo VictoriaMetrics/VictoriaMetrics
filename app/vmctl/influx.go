@@ -16,10 +16,10 @@ type influxProcessor struct {
 	im        *vm.Importer
 	cc        int
 	separator string
-	quite     chan struct{}
+	quit      chan struct{}
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, quite chan struct{}) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, quit chan struct{}) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
@@ -28,7 +28,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 		im:        im,
 		cc:        cc,
 		separator: separator,
-		quite:     quite,
+		quit:      quit,
 	}
 }
 
@@ -134,7 +134,7 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 
 	for {
 		select {
-		case <-ip.quite:
+		case <-ip.quit:
 			return fmt.Errorf("process aborting during importing")
 		default:
 		}

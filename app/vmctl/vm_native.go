@@ -17,9 +17,9 @@ type vmNativeProcessor struct {
 	filter    filter
 	rateLimit int64
 
-	dst   *vmNativeClient
-	src   *vmNativeClient
-	quite chan struct{}
+	dst  *vmNativeClient
+	src  *vmNativeClient
+	quit chan struct{}
 }
 
 type vmNativeClient struct {
@@ -69,7 +69,7 @@ func (p *vmNativeProcessor) run() error {
 	}
 
 	go func() {
-		<-p.quite
+		<-p.quit
 		_ = pw.Close()
 		close(sync)
 	}()
