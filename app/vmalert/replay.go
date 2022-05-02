@@ -29,7 +29,11 @@ var (
 		"Max number of data points expected in one request. The higher the value, the less requests will be made during replay.")
 	replayRuleRetryAttempts = flag.Int("replay.ruleRetryAttempts", 5,
 		"Defines how many retries to make before giving up on rule if request for it returns an error.")
-	disableProgressBar = flag.Bool("replay.disableProgressBar", false, "Whether to disable progress bar which shows progress work.")
+	disableProgressBar = flag.Bool("replay.disableProgressBar", false,
+		`Whether to disable progress bar which shows progress work. 
+				Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger. 
+				It could break logs parsing by external system and generate additional load on it.
+	`)
 )
 
 func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewrite.Client) error {
