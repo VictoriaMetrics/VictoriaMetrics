@@ -26,7 +26,7 @@ var (
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
-	snapshotsMaxAge   = flagutil.NewPromDuration("snapshotsMaxAge", "1w", "Snapshots outside the snapshotsMaxAge are automatically deleted. Check happens every hour.")
+	snapshotsMaxAge   = flag.Duration("snapshotsMaxAge", 0, "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that vmbackup has enough time to finish backup process before the snapshot is automatically deleted")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -377,7 +377,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func deleteStaleSnapshots() {
-	if snapshotsMaxAge == nil || snapshotsMaxAge.Duration() == 0 {
+	if *snapshotsMaxAge <= 0 {
 		return
 	}
 	go func() {
@@ -385,7 +385,7 @@ func deleteStaleSnapshots() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()
 		for range t.C {
-			if err = Storage.DeleteStaleSnapshots(snapshotsMaxAge.Duration()); err != nil {
+			if err = Storage.DeleteStaleSnapshots(*snapshotsMaxAge); err != nil {
 				logger.Errorf("error deleting stale snapshot %s", err)
 			}
 		}
