@@ -9,7 +9,7 @@ vmui-build: vmui-package-base-image
          --mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
          -w /build/packages/vmui \
          --entrypoint=/bin/bash \
-         vmui-builder-image -c "npm install --force && npm run build"
+         vmui-builder-image -c "npm install && npm run build"
 
 vmui-release: vmui-build
 	docker build -t ${DOCKER_NAMESPACE}/vmui:latest -f app/vmui/Dockerfile-web ./app/vmui/packages/vmui
