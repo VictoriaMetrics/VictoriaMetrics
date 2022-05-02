@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
+	retentionPeriod   = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted")
 	httpListenAddr    = flag.String("httpListenAddr", ":8482", "Address to listen for http connections")
 	storageDataPath   = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
 	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
