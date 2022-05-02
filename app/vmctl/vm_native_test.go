@@ -71,7 +71,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 					addr: srcAddr,
 				},
 			},
-			closer:  func(cancelFunc context.CancelFunc) { return },
+			closer:  func(cancelFunc context.CancelFunc) {},
 			wantErr: false,
 		},
 	}
