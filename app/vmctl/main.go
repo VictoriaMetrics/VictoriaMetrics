@@ -26,7 +26,7 @@ func main() {
 		importer *vm.Importer
 	)
 
-	quit := make(chan struct{})
+	shouldStop := make(chan struct{})
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
@@ -61,7 +61,7 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), quit)
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), shouldStop)
 					return otsdbProcessor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
@@ -101,7 +101,7 @@ func main() {
 						importer,
 						c.Int(influxConcurrency),
 						c.String(influxMeasurementFieldSeparator),
-						quit)
+						shouldStop)
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
@@ -132,10 +132,10 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 					pp := prometheusProcessor{
-						cl:   cl,
-						im:   importer,
-						cc:   c.Int(promConcurrency),
-						quit: quit,
+						cl:         cl,
+						im:         importer,
+						cc:         c.Int(promConcurrency),
+						shouldStop: shouldStop,
 					}
 					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
@@ -169,7 +169,7 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
-						quit: quit,
+						shouldStop: shouldStop,
 					}
 					return p.run()
 				},
@@ -215,7 +215,7 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
-		close(quit)
+		close(shouldStop)
 		if importer != nil {
 			importer.Close()
 		}

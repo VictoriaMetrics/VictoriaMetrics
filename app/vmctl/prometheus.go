@@ -24,7 +24,7 @@ type prometheusProcessor struct {
 	// running snapshot block readers
 	cc int
 
-	quit chan struct{}
+	shouldStop chan struct{}
 }
 
 func (pp *prometheusProcessor) run(silent, verbose bool) error {
@@ -99,7 +99,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	}
 	for ss.Next() {
 		select {
-		case <-pp.quit:
+		case <-pp.shouldStop:
 			return fmt.Errorf("process aborting during importing series with label: %s", ss.At().Labels().String())
 		default:
 		}

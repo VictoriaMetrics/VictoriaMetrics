@@ -28,7 +28,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 		vmCfg  vm.Config
 		cl     func(prometheus.Config) *prometheus.Client
 		im     func(vm.Config) *vm.Importer
-		closer func(importer *vm.Importer, quit chan struct{})
+		closer func(importer *vm.Importer, shouldStop chan struct{})
 		cc     int
 	}
 	type args struct {
@@ -63,11 +63,11 @@ func Test_prometheusProcessor_run(t *testing.T) {
 					}
 					return importer
 				},
-				closer: func(importer *vm.Importer, quit chan struct{}) {
+				closer: func(importer *vm.Importer, shouldStop chan struct{}) {
 					// simulate syscall.SIGINT
 					time.Sleep(time.Second * 1)
 					if importer != nil {
-						close(quit)
+						close(shouldStop)
 						importer.Close()
 					}
 				},
@@ -118,13 +118,13 @@ func Test_prometheusProcessor_run(t *testing.T) {
 			client := tt.fields.cl(tt.fields.cfg)
 			importer := tt.fields.im(tt.fields.vmCfg)
 
-			quit := make(chan struct{})
+			shouldStop := make(chan struct{})
 
 			pp := &prometheusProcessor{
-				cl:   client,
-				im:   importer,
-				cc:   tt.fields.cc,
-				quit: quit,
+				cl:         client,
+				im:         importer,
+				cc:         tt.fields.cc,
+				shouldStop: shouldStop,
 			}
 
 			// we should answer on prompt
@@ -153,7 +153,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 
 			// simulate close if needed
 			if tt.fields.closer != nil {
-				go tt.fields.closer(importer, quit)
+				go tt.fields.closer(importer, shouldStop)
 			}
 
 			if err := pp.run(tt.args.silent, tt.args.verbose); (err != nil) != tt.wantErr {

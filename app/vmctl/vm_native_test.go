@@ -30,7 +30,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		closer  func(quit chan struct{})
+		closer  func(shouldStop chan struct{})
 		wantErr bool
 	}{
 		{
@@ -48,9 +48,9 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 					addr: srcAddr,
 				},
 			},
-			closer: func(quit chan struct{}) {
+			closer: func(shouldStop chan struct{}) {
 				time.Sleep(time.Second * 1)
-				close(quit)
+				close(shouldStop)
 			},
 			wantErr: true,
 		},
@@ -75,18 +75,18 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			quit := make(chan struct{})
+			shouldStop := make(chan struct{})
 
 			p := &vmNativeProcessor{
-				filter:    tt.fields.filter,
-				rateLimit: tt.fields.rateLimit,
-				dst:       tt.fields.dst,
-				src:       tt.fields.src,
-				quit:      quit,
+				filter:     tt.fields.filter,
+				rateLimit:  tt.fields.rateLimit,
+				dst:        tt.fields.dst,
+				src:        tt.fields.src,
+				shouldStop: shouldStop,
 			}
 
 			if tt.closer != nil {
-				go tt.closer(quit)
+				go tt.closer(shouldStop)
 			}
 
 			if err := p.run(); (err != nil) != tt.wantErr {
