@@ -5,9 +5,9 @@ import (
 	"log"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 	"github.com/prometheus/prometheus/tsdb"
 )
 
@@ -40,7 +40,12 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	bar := pb.StartNew(len(blocks))
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
+
+	if err := barpool.Start(); err != nil {
+		return err
+	}
+
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)
 	pp.im.ResetStats()
@@ -86,7 +91,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	for err := range errCh {
 		return err
 	}
-	bar.Finish()
+	barpool.Stop()
 	log.Println("Import finished!")
 	log.Print(pp.im.Stats())
 	return nil

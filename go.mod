@@ -10,10 +10,10 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.1
-	github.com/VictoriaMetrics/metricsql v0.42.0
+	github.com/VictoriaMetrics/metricsql v0.43.0
 	github.com/aws/aws-sdk-go v1.44.0
 	github.com/cespare/xxhash/v2 v2.1.2
-	github.com/cheggaaa/pb/v3 v3.0.8
+	github.com/cheggaaa/pb/v3 v3.0.9-0.20211222075416-90c02fa07ea4
 	github.com/golang/snappy v0.0.4
 	github.com/influxdata/influxdb v1.9.6
 	github.com/klauspost/compress v1.15.1
@@ -22,7 +22,7 @@ require (
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
-	github.com/valyala/gozstd v1.16.0
+	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5

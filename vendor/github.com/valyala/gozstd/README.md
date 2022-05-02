@@ -79,18 +79,18 @@ env CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm CGO_ENABLED=1 go build ./main
 
 ## FAQ
 
-  * Q: _Which go version is supported?_  
+  * Q: _Which go version is supported?_
     A: `go1.10` and newer. Pull requests for older go versions are accepted.
 
-  * Q: _Which platforms/architectures are supported?_  
+  * Q: _Which platforms/architectures are supported?_
     A: `linux/amd64`, `linux/arm`, `linux/arm64`, `freebsd/amd64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`. Pull requests for other platforms/architectures
        are accepted.
-       
+
   * Q: _I don't trust `libzstd*.a` binary files from the repo or these files dont't work on my OS/ARCH. How to rebuild them?_
     A: Just run `make clean libzstd.a` if your OS/ARCH is supported.
-    
+
   * Q: _How do I specify custom build flags when recompiling `libzstd*.a`?_
     A: You can specify MOREFLAGS=... variable when running `make` like this: `MOREFLAGS=-fPIC make clean libzstd.a`.
 
   * Q: _Why the repo contains `libzstd*.a` binary files?_  
-    A: This simplifies package installation to usual `go get` without additional steps for building the `libzstd*.a`
+    A: This simplifies package installation with `go get` without the need to perform additional steps for building the `libzstd*.a`.
