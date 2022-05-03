@@ -34,7 +34,7 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
-	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional relative URL for proxy grafana rules and alerts requests to the vmalert, e.g. http://vmalert:8880.")
+	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
