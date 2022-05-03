@@ -289,9 +289,28 @@ func TestParseNodeListSuccess(t *testing.T) {
 }
 
 func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
+	var gw groupWatcher
+	gw.m = map[string]*urlWatcher{
+		"node": {
+			role: "node",
+			objectsByKey: map[string]object{
+				"/test-node": &Node{
+					Metadata: ObjectMeta{
+						Labels: []prompbmarshal.Label{
+							{
+								Name:  "node-label",
+								Value: "xyz",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	gw.attachNodeMetadata = true
 	var result [][]prompbmarshal.Label
 	for _, o := range objectsByKey {
-		labelss := o.getTargetLabels(nil)
+		labelss := o.getTargetLabels(&gw)
 		for _, labels := range labelss {
 			result = append(result, discoveryutils.GetSortedLabels(labels))
 		}

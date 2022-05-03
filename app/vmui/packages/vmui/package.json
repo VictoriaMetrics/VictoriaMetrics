@@ -9,7 +9,6 @@
     "@mui/icons-material": "^5.6.0",
     "@mui/lab": "^5.0.0-alpha.73",
     "@mui/material": "^5.5.1",
-    "@mui/styles": "^5.5.1",
     "@testing-library/jest-dom": "^5.16.2",
     "@testing-library/react": "^13.0.0",
     "@testing-library/user-event": "^14.0.4",

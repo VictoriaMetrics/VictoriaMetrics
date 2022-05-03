@@ -22,10 +22,11 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
+	retentionPeriod   = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted")
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
+	snapshotsMaxAge   = flag.Duration("snapshotsMaxAge", 0, "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -102,6 +103,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *DataPath, retentionPeriod, err)
 	}
 	Storage = strg
+	initStaleSnapshotsRemover()
 
 	var m storage.Metrics
 	Storage.UpdateMetrics(&m)
@@ -255,6 +257,7 @@ func Stop() {
 	logger.Infof("gracefully closing the storage at %s", *DataPath)
 	startTime := time.Now()
 	WG.WaitAndBlock()
+	stopStaleSnapshotsRemover()
 	Storage.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -373,6 +376,40 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 }
+
+func initStaleSnapshotsRemover() {
+	staleSnapshotsRemoverCh = make(chan struct{})
+	if *snapshotsMaxAge <= 0 {
+		return
+	}
+	staleSnapshotsRemoverWG.Add(1)
+	go func() {
+		defer staleSnapshotsRemoverWG.Done()
+		t := time.NewTicker(11 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-staleSnapshotsRemoverCh:
+				return
+			case <-t.C:
+			}
+			if err := Storage.DeleteStaleSnapshots(*snapshotsMaxAge); err != nil {
+				// Use logger.Errorf instead of logger.Fatalf in the hope the error is temporary.
+				logger.Errorf("cannot delete stale snapshots: %s", err)
+			}
+		}
+	}()
+}
+
+func stopStaleSnapshotsRemover() {
+	close(staleSnapshotsRemoverCh)
+	staleSnapshotsRemoverWG.Wait()
+}
+
+var (
+	staleSnapshotsRemoverCh chan struct{}
+	staleSnapshotsRemoverWG sync.WaitGroup
+)
 
 var activeForceMerges = metrics.NewCounter("vm_active_force_merges")
 

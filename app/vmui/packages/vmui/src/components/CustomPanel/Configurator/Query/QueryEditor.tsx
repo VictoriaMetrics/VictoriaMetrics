@@ -63,7 +63,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
     const hasAutocomplete = openAutocomplete && actualOptions.length;
 
-    if ((arrowUp || arrowDown || enter) && (hasAutocomplete || ctrlMetaKey)) {
+    if (((arrowUp || arrowDown) && (hasAutocomplete || ctrlMetaKey)) || (enter && (hasAutocomplete || ctrlMetaKey || !shiftKey))) {
       e.preventDefault();
     }
 
@@ -84,7 +84,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     // Enter
     if (enter && hasAutocomplete && !shiftKey && !ctrlMetaKey) {
       setQuery(actualOptions[focusOption], index);
-    } else if (enter && ctrlKey) {
+    } else if (enter && !shiftKey) {
       runQuery();
     }
   };

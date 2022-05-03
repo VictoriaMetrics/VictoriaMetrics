@@ -19,19 +19,26 @@ func TestNeedsDedup(t *testing.T) {
 	f(0, []int64{1, 2}, false)
 	f(10, []int64{1}, false)
 	f(10, []int64{1, 2}, true)
-	f(10, []int64{9, 10}, false)
-	f(10, []int64{9, 10, 19}, true)
+	f(10, []int64{9, 11}, false)
+	f(10, []int64{10, 11}, false)
+	f(10, []int64{0, 10, 11}, false)
+	f(10, []int64{9, 10}, true)
+	f(10, []int64{0, 10, 19}, false)
 	f(10, []int64{9, 19}, false)
-	f(10, []int64{0, 9, 19}, true)
+	f(10, []int64{0, 11, 19}, true)
+	f(10, []int64{0, 11, 20}, true)
+	f(10, []int64{0, 11, 21}, false)
 	f(10, []int64{0, 19}, false)
-	f(10, []int64{0, 35, 40}, false)
-	f(10, []int64{0, 35, 40, 41}, true)
+	f(10, []int64{0, 30, 40}, false)
+	f(10, []int64{0, 31, 40}, true)
+	f(10, []int64{0, 31, 41}, false)
+	f(10, []int64{0, 31, 49}, false)
 }
 
 func TestDeduplicateSamples(t *testing.T) {
 	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
 
-	f := func(scrapeInterval time.Duration, timestamps, timestampsExpected []int64) {
+	f := func(scrapeInterval time.Duration, timestamps, timestampsExpected []int64, valuesExpected []float64) {
 		t.Helper()
 		timestampsCopy := make([]int64, len(timestamps))
 		values := make([]float64, len(timestamps))
@@ -42,30 +49,10 @@ func TestDeduplicateSamples(t *testing.T) {
 		dedupInterval := scrapeInterval.Milliseconds()
 		timestampsCopy, values = DeduplicateSamples(timestampsCopy, values, dedupInterval)
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
-			t.Fatalf("invalid DeduplicateSamples(%v) result;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
+			t.Fatalf("invalid DeduplicateSamples(%v) timestamps;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
-		// Verify values
-		if len(timestampsCopy) == 0 {
-			if len(values) != 0 {
-				t.Fatalf("values must be empty; got %v", values)
-			}
-			return
-		}
-		j := 0
-		for i, ts := range timestamps {
-			if ts != timestampsCopy[j] {
-				continue
-			}
-			if values[j] != float64(i) {
-				t.Fatalf("unexpected value at index %d; got %v; want %v; values: %v", j, values[j], i, values)
-			}
-			j++
-			if j == len(timestampsCopy) {
-				break
-			}
-		}
-		if j != len(timestampsCopy) {
-			t.Fatalf("superfluous timestamps found starting from index %d: %v", j, timestampsCopy[j:])
+		if !reflect.DeepEqual(values, valuesExpected) {
+			t.Fatalf("invalid DeduplicateSamples(%v) values;\ngot\n%v\nwant\n%v", timestamps, values, valuesExpected)
 		}
 
 		// Verify that the second call to DeduplicateSamples doesn't modify samples.
@@ -78,19 +65,19 @@ func TestDeduplicateSamples(t *testing.T) {
 			t.Fatalf("invalid DeduplicateSamples(%v) values for the second call;\ngot\n%v\nwant\n%v", timestamps, values, valuesCopy)
 		}
 	}
-	f(time.Millisecond, nil, []int64{})
-	f(time.Millisecond, []int64{123}, []int64{123})
-	f(time.Millisecond, []int64{123, 456}, []int64{123, 456})
-	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 1, 2, 3, 4})
-	f(0, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4})
-	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 205, 300, 1000}, []int64{0, 100, 205, 300, 1000})
-	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 21e3, 30e3, 45e3})
+	f(time.Millisecond, nil, []int64{}, []float64{})
+	f(time.Millisecond, []int64{123}, []int64{123}, []float64{0})
+	f(time.Millisecond, []int64{123, 456}, []int64{123, 456}, []float64{0, 1})
+	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 1, 2, 3, 4}, []float64{2, 4, 5, 8, 9})
+	f(0, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 205, 300, 1000}, []int64{0, 100, 180, 300, 1000}, []float64{0, 2, 5, 7, 8})
+	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 13e3, 30e3, 39e3, 45e3}, []float64{0, 1, 4, 6, 7})
 }
 
 func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
 
-	f := func(scrapeInterval time.Duration, timestamps, timestampsExpected []int64) {
+	f := func(scrapeInterval time.Duration, timestamps, timestampsExpected, valuesExpected []int64) {
 		t.Helper()
 		timestampsCopy := make([]int64, len(timestamps))
 		values := make([]int64, len(timestamps))
@@ -101,30 +88,10 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 		dedupInterval := scrapeInterval.Milliseconds()
 		timestampsCopy, values = deduplicateSamplesDuringMerge(timestampsCopy, values, dedupInterval)
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
-			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) result;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
+			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) timestamps;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
-		// Verify values
-		if len(timestampsCopy) == 0 {
-			if len(values) != 0 {
-				t.Fatalf("values must be empty; got %v", values)
-			}
-			return
-		}
-		j := 0
-		for i, ts := range timestamps {
-			if ts != timestampsCopy[j] {
-				continue
-			}
-			if values[j] != int64(i) {
-				t.Fatalf("unexpected value at index %d; got %v; want %v; values: %v", j, values[j], i, values)
-			}
-			j++
-			if j == len(timestampsCopy) {
-				break
-			}
-		}
-		if j != len(timestampsCopy) {
-			t.Fatalf("superfluous timestamps found starting from index %d: %v", j, timestampsCopy[j:])
+		if !reflect.DeepEqual(values, valuesExpected) {
+			t.Fatalf("invalid DeduplicateSamples(%v) values;\ngot\n%v\nwant\n%v", timestamps, values, valuesExpected)
 		}
 
 		// Verify that the second call to DeduplicateSamples doesn't modify samples.
@@ -137,21 +104,10 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 			t.Fatalf("invalid deduplicateSamplesDuringMerge(%v) values for the second call;\ngot\n%v\nwant\n%v", timestamps, values, valuesCopy)
 		}
 	}
-	f(time.Millisecond, nil, []int64{})
-	f(time.Millisecond, []int64{123}, []int64{123})
-	f(time.Millisecond, []int64{123, 456}, []int64{123, 456})
-	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 1, 2, 3, 4})
-	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 200, 300, 1000})
-	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 21e3, 30e3, 45e3})
-
-	var timestamps, timestampsExpected []int64
-	for i := 0; i < 40; i++ {
-		timestamps = append(timestamps, int64(i*1000))
-		if i%2 == 0 {
-			timestampsExpected = append(timestampsExpected, int64(i*1000))
-		}
-	}
-	f(0, timestamps, timestamps)
-	f(time.Second, timestamps, timestamps)
-	f(2*time.Second, timestamps, timestampsExpected)
+	f(time.Millisecond, nil, []int64{}, []int64{})
+	f(time.Millisecond, []int64{123}, []int64{123}, []int64{0})
+	f(time.Millisecond, []int64{123, 456}, []int64{123, 456}, []int64{0, 1})
+	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 1, 2, 3, 4}, []int64{2, 4, 5, 8, 9})
+	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 200, 300, 1000}, []int64{0, 2, 6, 7, 8})
+	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 13e3, 30e3, 39e3, 45e3}, []int64{0, 1, 4, 6, 7})
 }

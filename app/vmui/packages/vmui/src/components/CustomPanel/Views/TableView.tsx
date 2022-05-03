@@ -8,7 +8,6 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
-import makeStyles from "@mui/styles/makeStyles";
 import {useSortedCategories} from "../../../hooks/useSortedCategories";
 import Alert from "@mui/material/Alert";
 
@@ -16,15 +15,7 @@ export interface GraphViewProps {
   data: InstantMetricResult[];
 }
 
-const useStyles = makeStyles({
-  deemphasized: {
-    opacity: 0.4
-  }
-});
-
 const TableView: FC<GraphViewProps> = ({data}) => {
-
-  const classes = useStyles();
 
   const sortedColumns = useSortedCategories(data);
 
@@ -88,7 +79,7 @@ const TableView: FC<GraphViewProps> = ({data}) => {
                   {row.metadata.map((rowMeta, index2) => {
                     const prevRowValue = rows[index - 1] && rows[index - 1].metadata[index2];
                     return (
-                      <TableCell className={prevRowValue === rowMeta ? classes.deemphasized : undefined}
+                      <TableCell sx={prevRowValue === rowMeta ? {opacity: 0.4} : {}}
                         key={index2}>{rowMeta}</TableCell>
                     );
                   }

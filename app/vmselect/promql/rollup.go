@@ -86,12 +86,13 @@ var rollupFuncs = map[string]newRollupFunc{
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
-	"timestamp":           newRollupFuncOneArg(rollupTlast),
-	"timestamp_with_name": newRollupFuncOneArg(rollupTlast), // + rollupFuncsKeepMetricName
-	"tlast_over_time":     newRollupFuncOneArg(rollupTlast),
-	"tmax_over_time":      newRollupFuncOneArg(rollupTmax),
-	"tmin_over_time":      newRollupFuncOneArg(rollupTmin),
-	"zscore_over_time":    newRollupFuncOneArg(rollupZScoreOverTime),
+	"timestamp":              newRollupFuncOneArg(rollupTlast),
+	"timestamp_with_name":    newRollupFuncOneArg(rollupTlast), // + rollupFuncsKeepMetricName
+	"tlast_change_over_time": newRollupFuncOneArg(rollupTlastChange),
+	"tlast_over_time":        newRollupFuncOneArg(rollupTlast),
+	"tmax_over_time":         newRollupFuncOneArg(rollupTmax),
+	"tmin_over_time":         newRollupFuncOneArg(rollupTmin),
+	"zscore_over_time":       newRollupFuncOneArg(rollupZScoreOverTime),
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -137,6 +138,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"tfirst_over_time":        rollupTfirst,
 	"timestamp":               rollupTlast,
 	"timestamp_with_name":     rollupTlast,
+	"tlast_change_over_time":  rollupTlastChange,
 	"tlast_over_time":         rollupTlast,
 	"tmax_over_time":          rollupTmax,
 	"tmin_over_time":          rollupTmin,
@@ -1274,6 +1276,27 @@ func rollupTlast(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return float64(timestamps[len(timestamps)-1]) / 1e3
+}
+
+func rollupTlastChange(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	if len(values) == 0 {
+		return nan
+	}
+	timestamps := rfa.timestamps
+	lastValue := values[len(values)-1]
+	values = values[:len(values)-1]
+	for i := len(values) - 1; i >= 0; i-- {
+		if values[i] != lastValue {
+			return float64(timestamps[i+1]) / 1e3
+		}
+	}
+	if math.IsNaN(rfa.prevValue) || rfa.prevValue != lastValue {
+		return float64(timestamps[0]) / 1e3
+	}
+	return nan
 }
 
 func rollupSum(rfa *rollupFuncArg) float64 {
