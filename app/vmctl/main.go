@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -26,6 +27,7 @@ func main() {
 		importer *vm.Importer
 	)
 
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
@@ -98,8 +100,11 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					processor := newInfluxProcessor(influxClient, importer,
-						c.Int(influxConcurrency), c.String(influxMeasurementFieldSeparator))
+					processor := newInfluxProcessor(
+						influxClient,
+						importer,
+						c.Int(influxConcurrency),
+						c.String(influxMeasurementFieldSeparator))
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
@@ -167,7 +172,7 @@ func main() {
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
 					}
-					return p.run()
+					return p.run(ctx)
 				},
 			},
 			{
@@ -214,6 +219,7 @@ func main() {
 		if importer != nil {
 			importer.Close()
 		}
+		cancelCtx()
 	}()
 
 	err = app.Run(os.Args)
