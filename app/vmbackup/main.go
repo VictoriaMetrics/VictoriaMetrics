@@ -119,6 +119,9 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
+	if !snapshot.Validate(*snapshotName) {
+		return nil, fmt.Errorf("-snapshotName should have correct format")
+	}
 	if len(*snapshotName) == 0 {
 		return nil, fmt.Errorf("`-snapshotName` or `-snapshot.createURL` must be provided")
 	}

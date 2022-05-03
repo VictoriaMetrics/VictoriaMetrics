@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -89,4 +90,12 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	} else {
 		return fmt.Errorf("Unkown status: %v", snap.Status)
 	}
+}
+
+func Validate(snapshotName string) bool {
+	compile, err := regexp.Compile(`^\d{14}-[\dA-Fa-f]+$`)
+	if err != nil {
+		return false
+	}
+	return compile.MatchString(snapshotName)
 }
