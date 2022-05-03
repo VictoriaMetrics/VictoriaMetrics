@@ -62,41 +62,56 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
         .table .error-cell{
             word-break: break-word;
         }
+        pre {
+            overflow: scroll;
+            max-width: 600px;
+            min-height: 30px;
+        }
+        pre::-webkit-scrollbar {
+          -webkit-appearance: none;
+          width: 0px;
+          height: 5px;
+        }
+        pre::-webkit-scrollbar-thumb {
+          border-radius: 5px;
+          background-color: rgba(0,0,0,.5);
+          -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+        }
     </style>
 </head>
 <body>
     `)
-//line tpl/header.qtpl:36
+//line tpl/header.qtpl:51
 	StreamPrintNavItems(qw422016, title, pages)
-//line tpl/header.qtpl:36
+//line tpl/header.qtpl:51
 	qw422016.N().S(`
     <main class="px-2">
 `)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 }
 
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 func WriteHeader(qq422016 qtio422016.Writer, title string, pages []NavItem) {
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	StreamHeader(qw422016, title, pages)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	qt422016.ReleaseWriter(qw422016)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 }
 
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 func Header(title string, pages []NavItem) string {
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	qb422016 := qt422016.AcquireByteBuffer()
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	WriteHeader(qb422016, title, pages)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	qs422016 := string(qb422016.B)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	qt422016.ReleaseByteBuffer(qb422016)
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 	return qs422016
-//line tpl/header.qtpl:38
+//line tpl/header.qtpl:53
 }

@@ -240,10 +240,10 @@ func StreamListGroups(qw422016 *qt422016.Writer, groups []APIGroup) {
                 <table class="table table-striped table-hover table-sm">
                     <thead>
                         <tr>
-                            <th scope="col">Rule</th>
-                            <th scope="col" title="Shows if rule's execution ended with error">Error</th>
-                            <th scope="col" title="How many samples were produced by the rule">Samples</th>
-                            <th scope="col" title="How many seconds ago rule was executed">Updated</th>
+                            <th scope="col" style="width: 40%">Rule</th>
+                            <th scope="col" style="width: 30%" title="Shows if rule's execution ended with error">Error</th>
+                            <th scope="col" style="width: 10%" title="How many samples were produced by the rule">Samples</th>
+                            <th scope="col" style="width: 20%" title="How many seconds ago rule was executed">Updated</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -288,7 +288,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, groups []APIGroup) {
 //line web.qtpl:78
 				qw422016.N().S(`
                                 <br>
-                                <code><pre class="text-wrap">`)
+                                <code><pre>`)
 //line web.qtpl:80
 				qw422016.E().S(r.Query)
 //line web.qtpl:80
