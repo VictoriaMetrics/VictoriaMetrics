@@ -68,8 +68,11 @@ func (s *Secret) String() string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
 type TLSConfig struct {
+	CA                 []byte `yaml:"ca,omitempty"`
 	CAFile             string `yaml:"ca_file,omitempty"`
+	Cert               []byte `yaml:"cert,omitempty"`
 	CertFile           string `yaml:"cert_file,omitempty"`
+	Key                []byte `yaml:"key,omitempty"`
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
@@ -456,16 +459,24 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 	if tlsConfig != nil {
 		tlsServerName = tlsConfig.ServerName
 		tlsInsecureSkipVerify = tlsConfig.InsecureSkipVerify
-		if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
+		if (tlsConfig.CertFile != "" || tlsConfig.KeyFile != "") || (len(tlsConfig.Key) != 0 || len(tlsConfig.Cert) != 0) {
 			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 				// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
-				certPath := fs.GetFilepath(baseDir, tlsConfig.CertFile)
-				keyPath := fs.GetFilepath(baseDir, tlsConfig.KeyFile)
-				cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-				if err != nil {
-					return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+				if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
+					certPath := fs.GetFilepath(baseDir, tlsConfig.CertFile)
+					keyPath := fs.GetFilepath(baseDir, tlsConfig.KeyFile)
+					cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+					if err != nil {
+						return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+					}
+					return &cert, nil
+				} else {
+					cert, err := tls.X509KeyPair(tlsConfig.Cert, tlsConfig.Key)
+					if err != nil {
+						return nil, fmt.Errorf("cannot load TLS certificate: %w", err)
+					}
+					return &cert, nil
 				}
-				return &cert, nil
 			}
 			// Check whether the configured TLS cert can be loaded.
 			if _, err := getTLSCert(nil); err != nil {
@@ -479,8 +490,11 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			if err != nil {
 				return nil, fmt.Errorf("cannot read `ca_file` %q: %w", tlsConfig.CAFile, err)
 			}
+			tlsConfig.CA = data
+		}
+		if len(tlsConfig.CA) != 0 {
 			tlsRootCA = x509.NewCertPool()
-			if !tlsRootCA.AppendCertsFromPEM(data) {
+			if !tlsRootCA.AppendCertsFromPEM(tlsConfig.CA) {
 				return nil, fmt.Errorf("cannot parse data from `ca_file` %q", tlsConfig.CAFile)
 			}
 		}

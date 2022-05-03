@@ -21,7 +21,8 @@ type SDConfig struct {
 	APIServer string `yaml:"api_server,omitempty"`
 
 	// Use role() function for accessing the Role field
-	Role string `yaml:"role"`
+	Role       string `yaml:"role"`
+	KubeConfig string `yaml:"kubeconfig_file"`
 
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
 	ProxyURL         *proxy.URL                `yaml:"proxy_url,omitempty"`
