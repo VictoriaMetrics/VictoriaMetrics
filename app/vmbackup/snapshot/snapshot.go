@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -97,5 +99,11 @@ func Validate(snapshotName string) bool {
 	if err != nil {
 		return false
 	}
-	return compile.MatchString(snapshotName)
+	n := strings.IndexByte(snapshotName, '-')
+	if n < 0 {
+		return false
+	}
+	s := snapshotName[:n]
+	_, err = time.Parse("20060102150405", s)
+	return err == nil && compile.MatchString(snapshotName)
 }
