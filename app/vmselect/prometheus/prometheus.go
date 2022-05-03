@@ -44,7 +44,7 @@ var (
 		"See also '-search.maxLookback' flag, which has the same meaning due to historical reasons")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArray("selectNode", "Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
+	selectNodes = flagutil.NewArray("selectNode", "Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
 
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
 	maxFederateSeries   = flag.Int("search.maxFederateSeries", 300e3, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
