@@ -82,11 +82,15 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	close(seriesCh)
 	wg.Wait()
 	ip.im.Close()
+	close(errCh)
 	// drain import errors channel
 	for vmErr := range ip.im.Errors() {
 		if vmErr.Err != nil {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
+	}
+	for err := range errCh {
+		return fmt.Errorf("import process failed: %s", err)
 	}
 	barpool.Stop()
 	log.Println("Import finished!")
@@ -142,11 +146,14 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 		if len(time) < 1 {
 			continue
 		}
-		ip.im.Input() <- &vm.TimeSeries{
+		ts := vm.TimeSeries{
 			Name:       name,
 			LabelPairs: labels,
 			Timestamps: time,
 			Values:     values,
+		}
+		if err := ip.im.Input(&ts); err != nil {
+			return err
 		}
 	}
 }
