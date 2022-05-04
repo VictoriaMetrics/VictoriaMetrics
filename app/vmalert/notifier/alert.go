@@ -92,12 +92,12 @@ var tplHeaders = []string{
 // requires a queryFunction as an argument.
 func (a *Alert) ExecTemplate(q QueryFn, labels, annotations map[string]string) (map[string]string, error) {
 	tplData := AlertTplData{Value: a.Value, Labels: labels, Expr: a.Expr}
-	return templateAnnotations(annotations, tplData, funcsWithQuery(q))
+	return templateAnnotations(annotations, tplData, funcsWithQuery(q), true)
 }
 
 // ExecTemplate executes the given template for given annotations map.
 func ExecTemplate(q QueryFn, annotations map[string]string, tpl AlertTplData) (map[string]string, error) {
-	return templateAnnotations(annotations, tpl, funcsWithQuery(q))
+	return templateAnnotations(annotations, tpl, funcsWithQuery(q), true)
 }
 
 // ValidateTemplates validate annotations for possible template error, uses empty data for template population
@@ -105,11 +105,11 @@ func ValidateTemplates(annotations map[string]string) error {
 	_, err := templateAnnotations(annotations, AlertTplData{
 		Labels: map[string]string{},
 		Value:  0,
-	}, tmplFunc)
+	}, tmplFunc, false)
 	return err
 }
 
-func templateAnnotations(annotations map[string]string, data AlertTplData, funcs template.FuncMap) (map[string]string, error) {
+func templateAnnotations(annotations map[string]string, data AlertTplData, funcs template.FuncMap, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
 	eg := new(utils.ErrGroup)
@@ -122,7 +122,7 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, funcs
 		builder.Grow(len(header) + len(text))
 		builder.WriteString(header)
 		builder.WriteString(text)
-		if err := templateAnnotation(&buf, builder.String(), tData, funcs); err != nil {
+		if err := templateAnnotation(&buf, builder.String(), tData, funcs, execute); err != nil {
 			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
@@ -138,11 +138,14 @@ type tplData struct {
 	ExternalURL    string
 }
 
-func templateAnnotation(dst io.Writer, text string, data tplData, funcs template.FuncMap) error {
+func templateAnnotation(dst io.Writer, text string, data tplData, funcs template.FuncMap, execute bool) error {
 	t := template.New("").Funcs(funcs).Option("missingkey=zero")
 	tpl, err := t.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation: %w", err)
+	}
+	if !execute {
+		return nil
 	}
 	if err = tpl.Execute(dst, data); err != nil {
 		return fmt.Errorf("error evaluating annotation template: %w", err)

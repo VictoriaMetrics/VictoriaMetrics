@@ -26,7 +26,8 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
   unit,
   expr,
   showLegend,
-  filename
+  filename,
+  alias
 }) => {
 
   const {time: {period}} = useAppState();
@@ -43,7 +44,7 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
     }
   });
 
-  const validExpr = useMemo(() => Array.isArray(expr) && expr.every(q => typeof q === "string"), [expr]);
+  const validExpr = useMemo(() => Array.isArray(expr) && expr.every(q => q), [expr]);
 
   const {isLoading, graphData, error} = useFetchQuery({
     predefinedQuery: validExpr ? expr : [],
@@ -121,6 +122,7 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
         query={expr}
         yaxis={yaxis}
         unit={unit}
+        alias={alias}
         showLegend={showLegend}
         setYaxisLimits={setYaxisLimits}
         setPeriod={setPeriod}/>

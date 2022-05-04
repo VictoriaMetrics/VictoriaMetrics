@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -29,6 +30,10 @@ type Config struct {
 	// ConsulSDConfigs contains list of settings for service discovery via Consul
 	// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 	ConsulSDConfigs []consul.SDConfig `yaml:"consul_sd_configs,omitempty"`
+	// DNSSDConfigs ontains list of settings for service discovery via DNS.
+	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+	DNSSDConfigs []dns.SDConfig `yaml:"dns_sd_configs,omitempty"`
+
 	// StaticConfigs contains list of static targets
 	StaticConfigs []StaticConfig `yaml:"static_configs,omitempty"`
 
@@ -39,7 +44,7 @@ type Config struct {
 	// AlertRelabelConfigs contains list of relabeling rules alert labels
 	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 	// The timeout used when sending alerts.
-	Timeout promutils.Duration `yaml:"timeout,omitempty"`
+	Timeout *promutils.Duration `yaml:"timeout,omitempty"`
 
 	// Checksum stores the hash of yaml definition for the config.
 	// May be used to detect any changes to the config file.

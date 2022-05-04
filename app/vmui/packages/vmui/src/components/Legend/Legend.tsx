@@ -47,7 +47,7 @@ const Legend: FC<LegendProps> = ({labels, query, onChange}) => {
                   backgroundColor: `rgba(${hexToRGB(legendItem.color)}, 0.1)`
                 }}/>
               <div className="legendLabel">
-                {legendItem.freeFormFields.__name__ || `Query ${legendItem.group} result`}
+                {legendItem.label.replace(/{.+}/gmi, "")}
                 {!!Object.keys(legendItem.freeFormFields).length && <>
                   &#160;&#123;
                   {Object.keys(legendItem.freeFormFields).filter(f => f !== "__name__").map((f) => {

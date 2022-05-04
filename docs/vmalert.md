@@ -52,7 +52,7 @@ To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
-aggregating alerts, and sending notifications. Please note, notifier address also supports Consul Service Discovery via
+aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
 [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
@@ -485,6 +485,9 @@ per rule before giving up.
 (rules which depend on each other) rules. It is expected, that remote storage will be able to persist
 previously accepted data during the delay, so data will be available for the subsequent queries.
 Keep it equal or bigger than `-remoteWrite.flushInterval`.
+* `replay.disableProgressBar` - whether to disable progress bar which shows progress work.
+Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
+It could break logs parsing by external system and generate additional load on it.
 
 See full description for these flags in `./vmalert --help`.
 
@@ -692,6 +695,8 @@ The shortlist of configuration flags is the following:
      The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
+  -promscrape.dnsSDCheckInterval duration
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
   -remoteRead.basicAuth.password string
      Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.passwordFile string
@@ -802,11 +807,14 @@ The shortlist of configuration flags is the following:
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
 ```
@@ -850,8 +858,9 @@ Notifier also supports configuration via file specified with flag `notifier.conf
   -notifier.config=app/vmalert/notifier/testdata/consul.good.yaml
 ```
 
-The configuration file allows to configure static notifiers or discover notifiers via
-[Consul](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config).
+The configuration file allows to configure static notifiers, discover notifiers via
+[Consul](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
+and [DNS](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config):
 For example:
 
 ```
@@ -864,6 +873,12 @@ consul_sd_configs:
   - server: localhost:8500
     services:
       - alertmanager
+      
+dns_sd_configs:
+  - names:
+      - my.domain.com
+    type: 'A'
+    port: 9093
 ```
 
 The list of configured or discovered Notifiers can be explored via [UI](#Web).
@@ -914,6 +929,11 @@ static_configs:
 # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 consul_sd_configs:
   [ - <consul_sd_config> ... ]
+
+# List of DNS service discovery configurations.
+# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+dns_sd_configs:
+  [ - <dns_sd_config> ... ]
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.

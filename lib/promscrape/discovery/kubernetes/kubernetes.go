@@ -27,6 +27,7 @@ type SDConfig struct {
 	ProxyURL         *proxy.URL                `yaml:"proxy_url,omitempty"`
 	Namespaces       Namespaces                `yaml:"namespaces,omitempty"`
 	Selectors        []Selector                `yaml:"selectors,omitempty"`
+	AttachMetadata   AttachMetadata            `yaml:"attach_metadata,omitempty"`
 
 	cfg      *apiConfig
 	startErr error
@@ -39,6 +40,13 @@ func (sdc *SDConfig) role() string {
 		return "endpointslice"
 	}
 	return sdc.Role
+}
+
+// AttachMetadata represents `attach_metadata` option at `kuberentes_sd_config`.
+//
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
+type AttachMetadata struct {
+	Node bool `yaml:"node"`
 }
 
 // Namespaces represents namespaces for SDConfig

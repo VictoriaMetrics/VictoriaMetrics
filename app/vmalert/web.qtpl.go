@@ -288,7 +288,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, groups []APIGroup) {
 //line app/vmalert/web.qtpl:78
 				qw422016.N().S(`
                                 <br>
-                                <code><pre>`)
+                                <code><pre class="text-wrap">`)
 //line app/vmalert/web.qtpl:80
 				qw422016.E().S(r.Query)
 //line app/vmalert/web.qtpl:80

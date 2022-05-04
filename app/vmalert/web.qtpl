@@ -77,7 +77,7 @@
                                 <b>record:</b> {%s r.Name %}
                                 {% endif %}
                                 <br>
-                                <code><pre>{%s r.Query %}</pre></code><br>
+                                <code><pre class="text-wrap">{%s r.Query %}</pre></code><br>
                                 {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
                                 {% for k, v := range r.Labels %}
                                         <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>

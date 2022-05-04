@@ -6,7 +6,6 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import {ExecutionControls} from "../CustomPanel/Configurator/Time/ExecutionControls";
 import Logo from "../common/Logo";
-import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
 import {TimeSelector} from "../CustomPanel/Configurator/Time/TimeSelector";
 import GlobalSettings from "../CustomPanel/Configurator/Settings/GlobalSettings";
@@ -15,7 +14,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import router from "../../router/index";
 
-const useStyles = makeStyles({
+const classes = {
   logo: {
     position: "relative",
     display: "flex",
@@ -51,11 +50,10 @@ const useStyles = makeStyles({
       boxShadow: "rgba(0, 0, 0, 0.15) 0px 2px 8px"
     }
   }
-});
+};
 
 const Header: FC = () => {
 
-  const classes = useStyles();
   const {search, pathname} = useLocation();
   const navigate = useNavigate();
 
@@ -74,14 +72,14 @@ const Header: FC = () => {
   return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
     <Toolbar>
       <Box display="grid" alignItems="center" justifyContent="center">
-        <Box onClick={onClickLogo} className={classes.logo}>
+        <Box onClick={onClickLogo} sx={classes.logo}>
           <Logo style={{color: "inherit", marginRight: "6px"}}/>
           <Typography variant="h5">
             <span style={{fontWeight: "bolder"}}>VM</span>
             <span style={{fontWeight: "lighter"}}>UI</span>
           </Typography>
         </Box>
-        <Link className={classes.issueLink} target="_blank"
+        <Link sx={classes.issueLink} target="_blank"
           href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
           create an issue
         </Link>

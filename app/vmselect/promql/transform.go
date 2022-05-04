@@ -42,6 +42,7 @@ var transformFuncs = map[string]transformFunc{
 	"day_of_week":          newTransformFuncDateTime(transformDayOfWeek),
 	"days_in_month":        newTransformFuncDateTime(transformDaysInMonth),
 	"deg":                  newTransformFuncOneArg(transformDeg),
+	"drop_common_labels":   transformDropCommonLabels,
 	"end":                  newTransformFuncZeroArgs(transformEnd),
 	"exp":                  newTransformFuncOneArg(transformExp),
 	"floor":                newTransformFuncOneArg(transformFloor),
@@ -1481,6 +1482,43 @@ func transformLabelMap(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 		if len(*dstValue) == 0 {
 			mn.RemoveTag(label)
+		}
+	}
+	return rvs, nil
+}
+
+func transformDropCommonLabels(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 1 {
+		return nil, fmt.Errorf(`not enough args; got %d; want at least %d`, len(args), 1)
+	}
+	rvs := args[0]
+	for _, tss := range args[1:] {
+		rvs = append(rvs, tss...)
+	}
+	m := make(map[string]map[string]int)
+	countLabel := func(name, value string) {
+		x := m[name]
+		if x == nil {
+			x = make(map[string]int)
+			m[name] = x
+		}
+		x[value]++
+	}
+	for _, ts := range rvs {
+		countLabel("__name__", string(ts.MetricName.MetricGroup))
+		for _, tag := range ts.MetricName.Tags {
+			countLabel(string(tag.Key), string(tag.Value))
+		}
+	}
+	for labelName, x := range m {
+		for _, count := range x {
+			if count != len(rvs) {
+				continue
+			}
+			for _, ts := range rvs {
+				ts.MetricName.RemoveTag(labelName)
+			}
 		}
 	}
 	return rvs, nil

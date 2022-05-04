@@ -129,8 +129,9 @@ A minimal cluster must contain the following nodes:
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
-It is recommended to run at least two nodes for each service
-for high availability purposes.
+It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
+
+It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
 
 An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes. It must contain the following routing configs according to [the url format](#url-format):
 
@@ -151,10 +152,6 @@ It is possible manualy setting up a toy cluster on a single host. In this case e
 - `-vminsertAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting data from `vminsert` nodes.
 - `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
 
-## mTLS protection
-
-By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`. An optional `-cluster.tlsCAFile` command-line flag can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority).
-
 ### Environment variables
 
 Each flag values can be set thru environment variables by following these rules:
@@ -163,6 +160,20 @@ Each flag values can be set thru environment variables by following these rules:
 - Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
 - For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 - It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+
+## mTLS protection
+
+By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
+
+The following optional command-line flags related to mTLS are supported:
+
+- `-cluster.tlsInsecureSkipVerify` can be set at `vminsert`, `vmselect` and `vmstorage` in order to disable peer certificate verification. Note that this breaks security.
+- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default system-wide certificate authority is used for peer certificate verification.
+- `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
+
+See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
+
+[Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Monitoring
 
@@ -220,7 +231,7 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)
   - `<suffix>` may have the following values:
-    - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html). This functionality is available in [Enterprise package](https://victoriametrics.com/products/enterprise/).
+    - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html). This functionality is available in [Enterprise package](https://victoriametrics.com/products/enterprise/). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
     - `metrics/find` - searches Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find).
     - `metrics/expand` - expands Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand).
     - `metrics/index.json` - returns all the metric names. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json).
@@ -255,15 +266,18 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
 
 ## Cluster resizing and scalability
 
-Cluster performance and capacity scales with adding new nodes.
+Cluster performance and capacity can be scaled up in two ways:
 
-- `vminsert` and `vmselect` nodes are stateless and may be added / removed at any time.
-  Do not forget updating the list of these nodes on http load balancer.
-  Adding more `vminsert` nodes scales data ingestion rate. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/175#issuecomment-536925841)
-  about ingestion rate scalability.
-  Adding more `vmselect` nodes scales select queries rate.
-- `vmstorage` nodes own the ingested data, so they cannot be removed without data loss.
-  Adding more `vmstorage` nodes scales cluster capacity.
+- By adding more resources (CPU, RAM, disk IO, disk space, network bandwidth) to existing nodes in the cluster (aka vertical scalability).
+- By adding more nodes to the cluster (aka horizontal scalability).
+
+General recommendations for cluster scalability:
+
+- Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
+- Adding more `vmstorage` nodes increases the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload when some of `vmstorage` nodes become unavailable.
+- Adding more CPU and RAM to existing `vmstorage` nodes increases the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle. It is preferred to add more `vmstorage` nodes over adding more CPU and RAM to existing `vmstorage` nodes, since higher number of `vmstorage` nodes increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+- Adding more `vminsert` nodes increases the maximum possible data ingestion speed, since the ingested data may be split among bigger number of `vminsert` nodes.
+- Adding more `vmselect` nodes increases the maximum possible queries rate, since the incoming concurrent requests may be split among bigger number of `vmselect` nodes.
 
 Steps to add `vmstorage` node:
 
@@ -334,9 +348,14 @@ Then [promxy](https://github.com/jacksontj/promxy) could be used for querying th
 
 ## Multi-level cluster setup
 
-`vminsert` nodes can accept data from another `vminsert` nodes starting from [v1.60.0](https://docs.victoriametrics.com/CHANGELOG.html#v1600) if `-clusternativeListenAddr` command-line flag is set. For example, if `vminsert` is started with `-clusternativeListenAddr=:8400` command-line flag, then it can accept data from another `vminsert` nodes at TCP port 8400 in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies with flexible configs. For example, the top level of `vminsert` nodes can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ), while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes located in the same AZ. Such setup guarantees cluster availability if some AZ becomes unavailable. The data from all the `vmstorage` nodes in all the AZs can be read via `vmselect` nodes, which are configured to query all the `vmstorage` nodes in all the availability zones (e.g. all the `vmstorage` addresses are passed via `-storageNode` command-line flag to `vmselect` nodes). Additionally, `-replicationFactor=k+1` must be passed to `vmselect` nodes, where `k` is the lowest number of `vmstorage` nodes in a single AZ. See [replication docs](#replication-and-data-safety) for more details.
+`vminsert` nodes can accept data from another `vminsert` nodes starting from [v1.60.0](https://docs.victoriametrics.com/CHANGELOG.html#v1600) if `-clusternativeListenAddr` command-line flag is set. For example, if `vminsert` is started with `-clusternativeListenAddr=:8400` command-line flag, then it can accept data from another `vminsert` nodes at TCP port 8400 in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies with flexible configs. For example, the top level of `vminsert` nodes can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ), while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes located in the same AZ. Such setup guarantees cluster availability if some AZ becomes unavailable. The data from all the `vmstorage` nodes in all the AZs can be read via `vmselect` nodes, which are configured to query all the `vmstorage` nodes in all the availability zones (e.g. all the `vmstorage` addresses are passed via `-storageNode` command-line flag to `vmselect` nodes).
 
-Another option is to set up [vmagent](https://docs.victoriametrics.com/vmagent.html) for replicating the data among multiple VictoriaMetrics clusters. See [these docs](https://docs.victoriametrics.com/vmagent.html#multitenancy) for details.
+The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
+
+* Data ingestion speed is limited by the slowest link to AZ.
+* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporariliy unavailable. This results in data gaps at AZs which were temporarily unavailable.
+
+These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent.html) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent.html#multitenancy). `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
 ## Helm
 
@@ -361,7 +380,7 @@ the remaining 3 `vmstorage` nodes could provide the `-replicationFactor=3` for n
 
 When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
 Optional `-replicationFactor=N` command-line flag can be passed to `vmselect` for improving query performance when up to `N-1` vmstorage nodes respond slowly and/or temporarily unavailable, since `vmselect` doesn't wait for responses from up to `N-1` `vmstorage` nodes. Sometimes `-replicationFactor` at `vmselect` nodes can result in partial responses. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
-The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to bigger values according to [deduplication docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
+The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to bigger values according to [deduplication docs](#deduplication).
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
 so it is recommended performing regular backups. See [these docs](#backups) for details.
@@ -373,6 +392,16 @@ and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-
 HDD-based persistent disks should be enough for the majority of use cases.
 
 It is recommended using durable replicated persistent volumes in Kubernetes.
+
+## Deduplication
+
+Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
+
+By default `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
+* when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
+* when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
+* when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
+
 
 ## Backups
 
@@ -397,6 +426,8 @@ Restoring from backup:
 ## Downsampling
 
 Downsampling is available in [enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
+
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Profiling
 
@@ -467,11 +498,13 @@ Below is the output for `/path/to/vminsert -help`:
   -cluster.tls
      Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by -storageNode. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCertFile string
-     Path to client-side TLS certificate file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
-     Path to client-side TLS key file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -clusternativeListenAddr string
      TCP address to listen for data from other vminsert nodes in multi-level cluster setup. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8400 must be set. Doesn't work if empty
   -csvTrimTimestamp duration
@@ -587,11 +620,14 @@ Below is the output for `/path/to/vminsert -help`:
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
      Supports an array of values separated by comma or specified via multiple flags.
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
 ```
@@ -606,13 +642,15 @@ Below is the output for `/path/to/vmselect -help`:
   -cluster.tls
      Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by -storageNode. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCertFile string
-     Path to client-side TLS certificate file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
-     Path to client-side TLS key file to use when connecting to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
-     Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
      Supports an array of values separated by comma or specified via multiple flags.
@@ -727,19 +765,24 @@ Below is the output for `/path/to/vmselect -help`:
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
-     Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
+     Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
      Supports an array of values separated by comma or specified via multiple flags.
   -storageNode array
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
      Supports an array of values separated by comma or specified via multiple flags.
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
+  -vmalert.proxyURL string
+     Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules
 ```
 
 ### List of command-line flags for vmstorage
@@ -752,13 +795,18 @@ Below is the output for `/path/to/vmstorage -help`:
   -cluster.tls
      Whether to use TLS when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by vminsert and vmselect. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to TLS CA file to use for verifying certificates provided by vminsert and vmselect if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCertFile string
-     Path to server-side TLS certificate file to use when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to server-side TLS certificate file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsCipherSuites array
+     Optional list of TLS cipher suites used for connections from vminsert and vmselect if -cluster.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
+  -cluster.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by vminsert and vmselect if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
-     Path to server-side TLS key file to use when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+     Path to server-side TLS key file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
-     Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueriesOutsideRetention
      Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -downsampling.period array
@@ -834,6 +882,8 @@ Below is the output for `/path/to/vmstorage -help`:
      The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
+  -snapshotsMaxAge duration
+     Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
@@ -853,11 +903,14 @@ Below is the output for `/path/to/vmstorage -help`:
   -storageDataPath string
      Path to storage data (default "vmstorage-data")
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
   -vminsertAddr string

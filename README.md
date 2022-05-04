@@ -597,6 +597,8 @@ The UI allows exploring query results via graphs and tables. Graphs support scro
 
 Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
+Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
+
 When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
@@ -1095,7 +1097,7 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 
 ## Deduplication
 
-VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-line flag is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2112#issuecomment-1032587618) for more details on how downsampling works.
+VictoriaMetrics leaves a single raw sample with the biggest timestamp per each `-dedup.minScrapeInterval` discrete interval if `-dedup.minScrapeInterval` is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with the biggest timestamp per each discrete 60s interval. If multiple raw samples have the same biggest timestamp on the given `-dedup.minScrapeInterval` discrete interval, then an arbitrary sample out of these samples is left. This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
 The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. It is safe to use deduplication and downsampling simultaneously.
 
@@ -1103,7 +1105,7 @@ The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_inter
 
 The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
-`external_labels` section in their configs, so they write data to the same time series.
+`external_labels` section in their configs, so they write data to the same time series. See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
 
 ## Storage
 
@@ -1620,7 +1622,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
   -dedup.minScrapeInterval duration
-     Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
   -deleteAuthKey string
      authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
@@ -1738,8 +1740,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
-  -promscrape.cluster.memberNum int
-     The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster
+  -promscrape.cluster.memberNum string
+     The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
      The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
   -promscrape.cluster.replicationFactor int
@@ -1785,7 +1787,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.httpSDCheckInterval duration
      Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
-     How frequently to reload the full state from Kuberntes API server (default 30m0s)
+     How frequently to reload the full state from Kubernetes API server (default 30m0s)
   -promscrape.kubernetesSDCheckInterval duration
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
   -promscrape.maxDroppedTargets int
@@ -1897,6 +1899,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
+  -snapshotsMaxAge duration
+     Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storage.cacheSizeIndexDBDataBlocks size
@@ -1918,11 +1922,16 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -storageDataPath string
      Path to storage data (default "victoria-metrics-data")
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
+  -vmalert.proxyURL string
+     Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules
 ```

@@ -5,8 +5,13 @@ on:
       - 'docs/*'
     branches:
       - master
+permissions:
+  contents: read
+
 jobs:
   build:
+    permissions:
+      contents: write  # for Git to git push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master

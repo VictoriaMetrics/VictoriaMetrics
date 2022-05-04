@@ -10,6 +10,16 @@ import (
 var echoLocked bool
 var echoLockMutex sync.Mutex
 var errLocked = errors.New("terminal locked")
+var autoTerminate = true
+
+// AutoTerminate enables or disables automatic terminate signal catching.
+// It's needed to restore the terminal state after the pool was used.
+// By default, it's enabled.
+func AutoTerminate(enable bool) {
+	echoLockMutex.Lock()
+	defer echoLockMutex.Unlock()
+	autoTerminate = enable
+}
 
 // RawModeOn switches terminal to raw mode
 func RawModeOn() (quit chan struct{}, err error) {
@@ -45,8 +55,10 @@ func RawModeOff() (err error) {
 // listen exit signals and restore terminal state
 func catchTerminate(quit chan struct{}) {
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, unlockSignals...)
-	defer signal.Stop(sig)
+	if autoTerminate {
+		signal.Notify(sig, unlockSignals...)
+		defer signal.Stop(sig)
+	}
 	select {
 	case <-quit:
 		RawModeOff()

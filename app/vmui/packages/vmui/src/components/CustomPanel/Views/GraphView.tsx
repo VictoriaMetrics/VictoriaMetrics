@@ -8,13 +8,13 @@ import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
 import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
-import Alert from "@mui/material/Alert";
 
 export interface GraphViewProps {
   data?: MetricResult[];
   period: TimeParams;
   customStep: CustomStep;
   query: string[];
+  alias?: string[],
   yaxis: YaxisState;
   unit?: string;
   showLegend?: boolean;
@@ -46,7 +46,8 @@ const GraphView: FC<GraphViewProps> = ({
   unit,
   showLegend= true,
   setYaxisLimits,
-  setPeriod
+  setPeriod,
+  alias = []
 }) => {
   const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
 
@@ -71,7 +72,7 @@ const GraphView: FC<GraphViewProps> = ({
     const tempSeries: uPlotSeries[] = [];
 
     data?.forEach((d) => {
-      const seriesItem = getSeriesItem(d, hideSeries);
+      const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
       let tmpValues = tempValues[d.group];
@@ -118,7 +119,7 @@ const GraphView: FC<GraphViewProps> = ({
     const tempLegend: LegendItem[] = [];
     const tempSeries: uPlotSeries[] = [];
     data?.forEach(d => {
-      const seriesItem = getSeriesItem(d, hideSeries);
+      const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
@@ -129,14 +130,12 @@ const GraphView: FC<GraphViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   return <>
-    {(data.length > 0) ?
-      <div style={{width: "100%"}} ref={containerRef}>
-        {containerRef?.current &&
+    <div style={{width: "100%"}} ref={containerRef}>
+      {containerRef?.current &&
           <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit}
             setPeriod={setPeriod} container={containerRef?.current}/>}
-        {showLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
-      </div>
-      : <Alert color="warning" severity="warning" sx={{mt: 2}}>No data to show</Alert>}
+      {showLegend && <Legend labels={legend} query={query} onChange={onChangeLegend}/>}
+    </div>
   </>;
 };
 

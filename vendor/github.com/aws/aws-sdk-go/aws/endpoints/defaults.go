@@ -5674,6 +5674,9 @@ var awsPartition = partition{
 					Region: "ap-southeast-2",
 				}: endpoint{},
 				endpointKey{
+					Region: "ap-southeast-3",
+				}: endpoint{},
+				endpointKey{
 					Region: "ca-central-1",
 				}: endpoint{},
 				endpointKey{
@@ -11227,6 +11230,28 @@ var awsPartition = partition{
 				}: endpoint{},
 			},
 		},
+		"iottwinmaker": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "ap-southeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{},
+			},
+		},
 		"iotwireless": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -15371,6 +15396,12 @@ var awsPartition = partition{
 					Region: "ca-central-1",
 				}: endpoint{},
 				endpointKey{
+					Region:  "ca-central-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname: "qldb-fips.ca-central-1.amazonaws.com",
+				},
+				endpointKey{
 					Region: "eu-central-1",
 				}: endpoint{},
 				endpointKey{
@@ -15379,6 +15410,15 @@ var awsPartition = partition{
 				endpointKey{
 					Region: "eu-west-2",
 				}: endpoint{},
+				endpointKey{
+					Region: "fips-ca-central-1",
+				}: endpoint{
+					Hostname: "qldb-fips.ca-central-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ca-central-1",
+					},
+					Deprecated: boxedTrue,
+				},
 				endpointKey{
 					Region: "fips-us-east-1",
 				}: endpoint{
@@ -19165,6 +19205,40 @@ var awsPartition = partition{
 				}: endpoint{
 					Hostname: "sms-fips.us-west-2.amazonaws.com",
 				},
+			},
+		},
+		"sms-voice": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "ap-northeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "ca-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{},
 			},
 		},
 		"snowball": service{
@@ -28035,6 +28109,13 @@ var awsusgovPartition = partition{
 				},
 			},
 		},
+		"sms-voice": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "us-gov-west-1",
+				}: endpoint{},
+			},
+		},
 		"snowball": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -29037,6 +29118,18 @@ var awsisoPartition = partition{
 				}: endpoint{},
 			},
 		},
+		"eks": service{
+			Defaults: endpointDefaults{
+				defaultKey{}: endpoint{
+					Protocols: []string{"http", "https"},
+				},
+			},
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "us-iso-east-1",
+				}: endpoint{},
+			},
+		},
 		"elasticache": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -29700,6 +29793,18 @@ var awsisobPartition = partition{
 			},
 		},
 		"ecs": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "us-isob-east-1",
+				}: endpoint{},
+			},
+		},
+		"eks": service{
+			Defaults: endpointDefaults{
+				defaultKey{}: endpoint{
+					Protocols: []string{"http", "https"},
+				},
+			},
 			Endpoints: serviceEndpoints{
 				endpointKey{
 					Region: "us-isob-east-1",
