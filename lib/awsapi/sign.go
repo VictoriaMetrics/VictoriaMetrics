@@ -1,4 +1,4 @@
-package aws
+package awsapi
 
 import (
 	"crypto/hmac"
@@ -15,10 +15,14 @@ import (
 // for get requests there is no need to calculate payload hash each time.
 var emptyPayloadHash = hashHex("")
 
-// NewSignedGetRequestWithTime creates signed http get request for apiURL according to aws signature algorithm.
+// newSignedGetRequest creates signed http get request for apiURL according to aws signature algorithm.
 //
 // See the algorithm at https://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
-func NewSignedGetRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
+func newSignedGetRequest(apiURL, service, region string, creds *credentials) (*http.Request, error) {
+	return newSignedGetRequestWithTime(apiURL, service, region, creds, time.Now().UTC())
+}
+
+func newSignedGetRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create http request with given apiURL: %s, err: %w", apiURL, err)
@@ -27,15 +31,6 @@ func NewSignedGetRequestWithTime(apiURL, service, region string, creds *credenti
 		return nil, err
 	}
 	return req, nil
-}
-
-// SignRequestWithConfig - signs request with given config for service access and payloadHash.
-func SignRequestWithConfig(req *http.Request, cfg *Config, service string, payloadHash string) error {
-	ac, err := cfg.getFreshAPICredentials()
-	if err != nil {
-		return err
-	}
-	return signRequestWithTime(req, service, cfg.region, payloadHash, ac, time.Now().UTC())
 }
 
 // signRequestWithTime - signs http request with AWS API credentials for given payload

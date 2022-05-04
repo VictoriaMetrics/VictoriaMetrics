@@ -6,15 +6,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/aws"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 type apiConfig struct {
-	awsConfig *aws.Config
-
-	filters string
-	port    int
+	awsConfig *awsapi.Config
+	port      int
 
 	// A map from AZ name to AZ id.
 	azMap     map[string]string
@@ -32,23 +30,19 @@ func getAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
-
-	filters := getFiltersQueryString(sdc.Filters)
+	fqs := getFiltersQueryString(sdc.Filters)
 	port := 80
 	if sdc.Port != nil {
 		port = *sdc.Port
 	}
-	awsCfg, err := aws.NewConfig(sdc.Region, sdc.RoleARN, sdc.AccessKey, sdc.SecretKey)
+	awsCfg, err := awsapi.NewConfig(sdc.Region, sdc.RoleARN, sdc.AccessKey, sdc.SecretKey.String(), fqs)
 	if err != nil {
 		return nil, err
 	}
-	awsCfg.SetFilters(filters)
 	cfg := &apiConfig{
 		awsConfig: awsCfg,
-		filters:   filters,
 		port:      port,
 	}
-
 	return cfg, nil
 }
 

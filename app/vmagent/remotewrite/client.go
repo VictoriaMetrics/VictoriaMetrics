@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/aws"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -82,7 +82,7 @@ type client struct {
 
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
-	awsConfig *aws.Config
+	awsCfg    *awsapi.Config
 
 	rl rateLimiter
 
@@ -103,12 +103,12 @@ type client struct {
 func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
-		logger.Panicf("FATAL: cannot initialize auth config: %s", err)
+		logger.Panicf("FATAL: cannot initialize auth config for remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tlsCfg := authCfg.NewTLSConfig()
-	awsCfg, err := getAwsConfig(argIdx)
+	awsCfg, err := getAWSAPIConfig(argIdx)
 	if err != nil {
-		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite idx: %d, err: %s", argIdx, err)
+		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tr := &http.Transport{
 		DialContext:         statDial,
@@ -134,7 +134,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authCfg:        authCfg,
-		awsConfig:      awsCfg,
+		awsCfg:         awsCfg,
 		fq:             fq,
 		hc: &http.Client{
 			Transport: tr,
@@ -224,15 +224,17 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	return authCfg, nil
 }
 
-func getAwsConfig(argIdx int) (*aws.Config, error) {
-
+func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	if !useSigV4.GetOptionalArg(argIdx) {
 		return nil, nil
 	}
-
-	cfg, err := aws.NewConfig(awsRegion.GetOptionalArg(argIdx), awsRoleARN.GetOptionalArg(argIdx), awsAccessKey.GetOptionalArg(argIdx), promauth.NewSecret(awsSecretKey.GetOptionalArg(argIdx)))
+	region := awsRegion.GetOptionalArg(argIdx)
+	roleARN := awsRoleARN.GetOptionalArg(argIdx)
+	accessKey := awsAccessKey.GetOptionalArg(argIdx)
+	secretKey := awsSecretKey.GetOptionalArg(argIdx)
+	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey, "")
 	if err != nil {
-		return nil, fmt.Errorf("cannot create aws Config for remoteWrite idx: %d, err: %w", argIdx, err)
+		return nil, err
 	}
 	return cfg, nil
 }
@@ -286,10 +288,9 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	retriesCount := 0
 	c.bytesSent.Add(len(block))
 	c.blocksSent.Inc()
-	var payloadHash string
-	// calculate payloadHash if needed.
-	if c.awsConfig != nil {
-		payloadHash = aws.HashHex(block)
+	sigv4Hash := ""
+	if c.awsCfg != nil {
+		sigv4Hash = awsapi.HashHex(block)
 	}
 
 again:
@@ -305,11 +306,10 @@ again:
 	if ah := c.authCfg.GetAuthHeader(); ah != "" {
 		req.Header.Set("Authorization", ah)
 	}
-
-	if c.awsConfig != nil {
-		if err := aws.SignRequestWithConfig(req, c.awsConfig, "aps", payloadHash); err != nil {
+	if c.awsCfg != nil {
+		if err := c.awsCfg.SignRequest(req, "aps", sigv4Hash); err != nil {
 			// there is no need in retry, request will be rejected by client.Do and retried by code below
-			logger.Warnf("cannot sign remoteWrite request with AWS sigV4 provider: %s", err)
+			logger.Warnf("cannot sign remoteWrite request with AWS sigv4: %s", err)
 		}
 	}
 	startTime := time.Now()
