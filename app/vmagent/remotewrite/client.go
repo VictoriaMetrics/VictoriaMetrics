@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -62,15 +61,16 @@ var (
 	oauth2Scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 
-	useSigV4 = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing to use for -remoteWrite.url. "+
+	awsUseSigv4 = flagutil.NewArrayBool("remoteWrite.aws.useSigv4", "Enables SigV4 request signing for -remoteWrite.url. "+
+		"It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional AWS region to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
+	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional AWS region to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
+	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
@@ -225,7 +225,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 }
 
 func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
-	if !useSigV4.GetOptionalArg(argIdx) {
+	if !awsUseSigv4.GetOptionalArg(argIdx) {
 		return nil, nil
 	}
 	region := awsRegion.GetOptionalArg(argIdx)
