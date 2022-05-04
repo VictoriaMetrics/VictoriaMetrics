@@ -32,6 +32,7 @@
         }
         .table .error-cell{
             word-break: break-word;
+            font-size: 14px;
         }
         pre {
             overflow: scroll;

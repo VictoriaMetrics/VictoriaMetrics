@@ -64,6 +64,7 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
         }
         .table .error-cell{
             word-break: break-word;
+            font-size: 14px;
         }
         pre {
             overflow: scroll;
@@ -84,37 +85,37 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
 </head>
 <body>
     `)
-//line tpl/header.qtpl:54
+//line tpl/header.qtpl:55
 	StreamPrintNavItems(qw422016, title, pages)
-//line tpl/header.qtpl:54
+//line tpl/header.qtpl:55
 	qw422016.N().S(`
     <main class="px-2">
 `)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 }
 
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 func WriteHeader(qq422016 qtio422016.Writer, title string, pages []NavItem) {
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	StreamHeader(qw422016, title, pages)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	qt422016.ReleaseWriter(qw422016)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 }
 
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 func Header(title string, pages []NavItem) string {
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	qb422016 := qt422016.AcquireByteBuffer()
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	WriteHeader(qb422016, title, pages)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	qs422016 := string(qb422016.B)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	qt422016.ReleaseByteBuffer(qb422016)
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 	return qs422016
-//line tpl/header.qtpl:56
+//line tpl/header.qtpl:57
 }
