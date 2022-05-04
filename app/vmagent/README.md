@@ -914,6 +914,21 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
+  -remoteWrite.aws.accessKey array
+     Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.region array
+     Optional AWS region to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.roleARN array
+     Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.secretKey array
+     Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.useSigv4 array
+     Enables SigV4 request signing for -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.password array
      Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
