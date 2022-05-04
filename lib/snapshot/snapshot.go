@@ -9,9 +9,15 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+)
+
+var (
+	snapshotNameRegexp = regexp.MustCompile(`^\d{14}-[\dA-Fa-f]+$`)
+	snapshotIdx        = uint64(time.Now().UnixNano())
 )
 
 type snapshot struct {
@@ -95,15 +101,31 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 }
 
 func Validate(snapshotName string) bool {
-	compile, err := regexp.Compile(`^\d{14}-[\dA-Fa-f]+$`)
-	if err != nil {
-		return false
-	}
 	n := strings.IndexByte(snapshotName, '-')
 	if n < 0 {
 		return false
 	}
 	s := snapshotName[:n]
-	_, err = time.Parse("20060102150405", s)
-	return err == nil && compile.MatchString(snapshotName)
+	_, err := time.Parse("20060102150405", s)
+	return err == nil && snapshotNameRegexp.MatchString(snapshotName)
+}
+
+func Match(snapshotName string) bool {
+	return snapshotNameRegexp.MatchString(snapshotName)
+}
+
+func Time(snapshotName string) (time.Time, error) {
+	if !snapshotNameRegexp.MatchString(snapshotName) {
+		return time.Time{}, fmt.Errorf("unexpected snapshotName must be in the format `YYYYMMDDhhmmss-idx`; got %q", snapshotName)
+	}
+	n := strings.IndexByte(snapshotName, '-')
+	if n < 0 {
+		return time.Time{}, fmt.Errorf("cannot find `-` in snapshotName=%q", snapshotName)
+	}
+	s := snapshotName[:n]
+	return time.Parse("20060102150405", s)
+}
+
+func NextSnapshotIdx() uint64 {
+	return atomic.AddUint64(&snapshotIdx, 1)
 }
