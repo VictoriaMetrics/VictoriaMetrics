@@ -318,7 +318,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	s.snapshotLock.Lock()
 	defer s.snapshotLock.Unlock()
 
-	snapshotName := fmt.Sprintf("%s-%08X", time.Now().UTC().Format("20060102150405"), snapshot.NextSnapshotIdx())
+	snapshotName := snapshot.NewName()
 	srcDir := s.path
 	dstDir := fmt.Sprintf("%s/snapshots/%s", srcDir, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
@@ -388,7 +388,7 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
-		if !snapshot.Match(fname) {
+		if err := snapshot.Validate(fname); err != nil {
 			continue
 		}
 		snapshotNames = append(snapshotNames, fname)
@@ -399,8 +399,8 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 
 // DeleteSnapshot deletes the given snapshot.
 func (s *Storage) DeleteSnapshot(snapshotName string) error {
-	if !snapshot.Match(snapshotName) {
-		return fmt.Errorf("invalid snapshotName %q", snapshotName)
+	if err := snapshot.Validate(snapshotName); err != nil {
+		return fmt.Errorf("invalid snapshotName %q: %w", snapshotName, err)
 	}
 	snapshotPath := s.path + "/snapshots/" + snapshotName
 

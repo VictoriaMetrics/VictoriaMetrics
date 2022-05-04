@@ -149,8 +149,8 @@ func Test_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Validate(tt.snapshotName); got != tt.want {
-				t.Errorf("checkSnapshotName() = %v, want %v", got, tt.want)
+			if err := Validate(tt.snapshotName); (err == nil) != tt.want {
+				t.Errorf("checkSnapshotName() = %v, want %v", err, tt.want)
 			}
 		})
 	}

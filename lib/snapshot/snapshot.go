@@ -15,10 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var (
-	snapshotNameRegexp = regexp.MustCompile(`^\d{14}-[\dA-Fa-f]+$`)
-	snapshotIdx        = uint64(time.Now().UnixNano())
-)
+var snapshotNameRegexp = regexp.MustCompile(`^[0-9]{14}-[0-9A-Fa-f]+$`)
 
 type snapshot struct {
 	Status   string `json:"status"`
@@ -26,8 +23,7 @@ type snapshot struct {
 	Msg      string `json:"msg"`
 }
 
-// Create creates a snapshot and the provided api endpoint and returns
-// the snapshot name
+// Create creates a snapshot via the provided api endpoint and returns the snapshot name
 func Create(createSnapshotURL string) (string, error) {
 	logger.Infof("Creating snapshot")
 	u, err := url.Parse(createSnapshotURL)
@@ -62,7 +58,7 @@ func Create(createSnapshotURL string) (string, error) {
 	}
 }
 
-// Delete deletes a snapshot and the provided api endpoint returns any failure
+// Delete deletes a snapshot via the provided api endpoint
 func Delete(deleteSnapshotURL string, snapshotName string) error {
 	logger.Infof("Deleting snapshot %s", snapshotName)
 	formData := url.Values{
@@ -100,36 +96,36 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	}
 }
 
-// Validate checks snapshot name for using pattern
-func Validate(snapshotName string) bool {
-	n := strings.IndexByte(snapshotName, '-')
-	if n < 0 {
-		return false
-	}
-	s := snapshotName[:n]
-	_, err := time.Parse("20060102150405", s)
-	return err == nil && snapshotNameRegexp.MatchString(snapshotName)
+// Validate validates the snapshotName
+func Validate(snapshotName string) error {
+	_, err := Time(snapshotName)
+	return err
 }
 
-// Match checks whether snapshot matches using pattern
-func Match(snapshotName string) bool {
-	return snapshotNameRegexp.MatchString(snapshotName)
-}
-
-// Time returns snapshot time from snapshot name
+// Time returns snapshot creation time from the given snapshotName
 func Time(snapshotName string) (time.Time, error) {
 	if !snapshotNameRegexp.MatchString(snapshotName) {
-		return time.Time{}, fmt.Errorf("unexpected snapshotName must be in the format `YYYYMMDDhhmmss-idx`; got %q", snapshotName)
+		return time.Time{}, fmt.Errorf("unexpected snapshot name=%q; it must match %q regexp", snapshotName, snapshotNameRegexp.String())
 	}
 	n := strings.IndexByte(snapshotName, '-')
 	if n < 0 {
-		return time.Time{}, fmt.Errorf("cannot find `-` in snapshotName=%q", snapshotName)
+		logger.Panicf("BUG: cannot find `-` in snapshotName=%q", snapshotName)
 	}
 	s := snapshotName[:n]
-	return time.Parse("20060102150405", s)
+	t, err := time.Parse("20060102150405", s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unexpected timestamp=%q in snapshot name: %w; it must match YYYYMMDDhhmmss pattern", s, err)
+	}
+	return t, nil
 }
 
-// NextSnapshotIdx generates next snapshot index
-func NextSnapshotIdx() uint64 {
+// NewName returns new name for new snapshot
+func NewName() string {
+	return fmt.Sprintf("%s-%08X", time.Now().UTC().Format("20060102150405"), nextSnapshotIdx())
+}
+
+func nextSnapshotIdx() uint64 {
 	return atomic.AddUint64(&snapshotIdx, 1)
 }
+
+var snapshotIdx = uint64(time.Now().UnixNano())

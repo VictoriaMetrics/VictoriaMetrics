@@ -74,9 +74,8 @@ func main() {
 	} else if len(*snapshotName) == 0 {
 		logger.Fatalf("`-snapshotName` or `-snapshot.createURL` must be provided")
 	}
-
-	if !snapshot.Validate(*snapshotName) {
-		logger.Fatalf("-snapshotName not valid. it should have correct format")
+	if err := snapshot.Validate(*snapshotName); err != nil {
+		logger.Fatalf("invalid -snapshotName=%q: %s", *snapshotName, err)
 	}
 
 	go httpserver.Serve(*httpListenAddr, nil)

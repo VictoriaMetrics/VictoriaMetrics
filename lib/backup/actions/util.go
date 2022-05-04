@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
@@ -175,15 +174,6 @@ func getPartsSize(parts []common.Part) uint64 {
 		n += p.Size
 	}
 	return n
-}
-
-func removeIgnoreFile(parts []common.Part) []common.Part {
-	for i, part := range parts {
-		if strings.HasSuffix(part.Path, fscommon.BackupCompleteFilename) {
-			return append(parts[:i], parts[i+1:]...)
-		}
-	}
-	return parts
 }
 
 // NewRemoteFS returns new remote fs from the given path.
