@@ -26,15 +26,15 @@ Using this schema, you can achieve:
 
 ### How to write the data to Ground Control regions
 
-* You need to specify two remote write URLs in vmagent configuration
+* You need to pass two `-remoteWrite.url` command-line options to `vmagent`:
 
 ```bash
-/vmagent-prod
--remoteWrite.url=<ground-control-1-remote-write>
--remoteWrite.url=<ground-control-2-remote-write>
+/path/to/vmagent-prod \
+  -remoteWrite.url=<ground-control-1-remote-write> \
+  -remoteWrite.url=<ground-control-2-remote-write>
 ```
 
-* If you use the Pull model for data collection, please specify -promscrape.config parameter as well
+* If you scrape data from Prometheus-compatible targets, then please specify `-promscrape.config` parameter as well.
 
 Here is a Quickstart guide for [vmagent](https://docs.victoriametrics.com/vmagent.html#quick-start)
 

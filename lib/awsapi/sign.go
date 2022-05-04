@@ -1,4 +1,4 @@
-package ec2
+package awsapi
 
 import (
 	"crypto/hmac"
@@ -6,37 +6,46 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// newSignedRequest signed request for apiURL according to aws signature algorithm.
+// for get requests there is no need to calculate payload hash each time.
+var emptyPayloadHash = hashHex("")
+
+// newSignedGetRequest creates signed http get request for apiURL according to aws signature algorithm.
 //
 // See the algorithm at https://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
-func newSignedRequest(apiURL, service, region string, creds *apiCredentials) (*http.Request, error) {
-	t := time.Now().UTC()
-	return newSignedRequestWithTime(apiURL, service, region, creds, t)
+func newSignedGetRequest(apiURL, service, region string, creds *credentials) (*http.Request, error) {
+	return newSignedGetRequestWithTime(apiURL, service, region, creds, time.Now().UTC())
 }
 
-func newSignedRequestWithTime(apiURL, service, region string, creds *apiCredentials, t time.Time) (*http.Request, error) {
-	uri, err := url.Parse(apiURL)
+func newSignedGetRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %w", apiURL, err)
+		return nil, fmt.Errorf("cannot create http request with given apiURL: %s, err: %w", apiURL, err)
 	}
+	if err := signRequestWithTime(req, service, region, emptyPayloadHash, creds, t); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
 
+// signRequestWithTime - signs http request with AWS API credentials for given payload
+func signRequestWithTime(req *http.Request, service, region, payloadHash string, creds *credentials, t time.Time) error {
+	uri := req.URL
 	// Create canonicalRequest
 	amzdate := t.Format("20060102T150405Z")
 	datestamp := t.Format("20060102")
 	canonicalURL := uri.Path
 	canonicalQS := uri.Query().Encode()
+
 	canonicalHeaders := fmt.Sprintf("host:%s\nx-amz-date:%s\n", uri.Host, amzdate)
 	signedHeaders := "host;x-amz-date"
-	payloadHash := hashHex("")
 	tmp := []string{
-		"GET",
+		req.Method,
 		canonicalURL,
 		canonicalQS,
 		canonicalHeaders,
@@ -45,7 +54,6 @@ func newSignedRequestWithTime(apiURL, service, region string, creds *apiCredenti
 	}
 	canonicalRequest := strings.Join(tmp, "\n")
 
-	// Create stringToSign
 	algorithm := "AWS4-HMAC-SHA256"
 	credentialScope := fmt.Sprintf("%s/%s/%s/aws4_request", datestamp, region, service)
 	tmp = []string{
@@ -63,16 +71,13 @@ func newSignedRequestWithTime(apiURL, service, region string, creds *apiCredenti
 	// Calculate autheader
 	authHeader := fmt.Sprintf("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s", algorithm, creds.AccessKeyID, credentialScope, signedHeaders, signature)
 
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create request from %q: %w", apiURL, err)
-	}
 	req.Header.Set("x-amz-date", amzdate)
 	req.Header.Set("Authorization", authHeader)
+	// special case for token auth
 	if creds.Token != "" {
 		req.Header.Set("X-Amz-Security-Token", creds.Token)
 	}
-	return req, nil
+	return nil
 }
 
 func getSignatureKey(key, datestamp, region, service string) string {
@@ -83,7 +88,12 @@ func getSignatureKey(key, datestamp, region, service string) string {
 }
 
 func hashHex(s string) string {
-	h := sha256.Sum256([]byte(s))
+	return HashHex([]byte(s))
+}
+
+// HashHex hashes given s
+func HashHex(s []byte) string {
+	h := sha256.Sum256(s)
 	return hex.EncodeToString(h[:])
 }
 
