@@ -64,13 +64,13 @@ var (
 
 	useSigV4 = flagutil.NewArrayBool("remoteWrite.useSigv4", "Enables SigV4 request signing to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional aws region to use for -remoteWrite.url."+
+	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional AWS region to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional roleARN to use for -remoteWrite.url."+
+	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AccessKey  to use for -remoteWrite.url."+
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
-	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional SecretKey to use for -remoteWrite.url."+
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
