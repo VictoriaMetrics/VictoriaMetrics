@@ -100,6 +100,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	}
 }
 
+// Validate check snapshot name for using pattern
 func Validate(snapshotName string) bool {
 	n := strings.IndexByte(snapshotName, '-')
 	if n < 0 {
@@ -110,10 +111,12 @@ func Validate(snapshotName string) bool {
 	return err == nil && snapshotNameRegexp.MatchString(snapshotName)
 }
 
+// Match check does snapshot match using pattern
 func Match(snapshotName string) bool {
 	return snapshotNameRegexp.MatchString(snapshotName)
 }
 
+// Time return snapshot time from snapshot name
 func Time(snapshotName string) (time.Time, error) {
 	if !snapshotNameRegexp.MatchString(snapshotName) {
 		return time.Time{}, fmt.Errorf("unexpected snapshotName must be in the format `YYYYMMDDhhmmss-idx`; got %q", snapshotName)
@@ -126,6 +129,7 @@ func Time(snapshotName string) (time.Time, error) {
 	return time.Parse("20060102150405", s)
 }
 
+// NextSnapshotIdx generate next snapshot index
 func NextSnapshotIdx() uint64 {
 	return atomic.AddUint64(&snapshotIdx, 1)
 }
