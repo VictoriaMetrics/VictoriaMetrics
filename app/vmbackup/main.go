@@ -71,6 +71,12 @@ func main() {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
 		}()
+	} else if len(*snapshotName) == 0 {
+		logger.Fatalf("`-snapshotName` or `-snapshot.createURL` must be provided")
+	}
+
+	if !snapshot.Validate(*snapshotName) {
+		logger.Fatalf("-snapshotName not valid. it should have correct format")
 	}
 
 	go httpserver.Serve(*httpListenAddr, nil)
@@ -119,12 +125,6 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
-	if !snapshot.Validate(*snapshotName) {
-		return nil, fmt.Errorf("-snapshotName should have correct format")
-	}
-	if len(*snapshotName) == 0 {
-		return nil, fmt.Errorf("`-snapshotName` or `-snapshot.createURL` must be provided")
-	}
 	snapshotPath := *storageDataPath + "/snapshots/" + *snapshotName
 
 	// Verify the snapshot exists.
