@@ -74,7 +74,7 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 * Run the following command once a day:
 
 ```bash
-vmbackup -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
+vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
