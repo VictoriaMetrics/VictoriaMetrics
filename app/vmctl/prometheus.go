@@ -62,7 +62,6 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			}
 		}()
 	}
-
 	// any error breaks the import
 	for _, br := range blocks {
 		select {
@@ -80,11 +79,15 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	wg.Wait()
 	// wait for all buffers to flush
 	pp.im.Close()
+	close(errCh)
 	// drain import errors channel
 	for vmErr := range pp.im.Errors() {
 		if vmErr.Err != nil {
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		}
+	}
+	for err := range errCh {
+		return fmt.Errorf("import process failed: %s", err)
 	}
 	barpool.Stop()
 	log.Println("Import finished!")
@@ -127,11 +130,14 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		if err := it.Err(); err != nil {
 			return err
 		}
-		pp.im.Input() <- &vm.TimeSeries{
+		ts := vm.TimeSeries{
 			Name:       name,
 			LabelPairs: labels,
 			Timestamps: timestamps,
 			Values:     values,
+		}
+		if err := pp.im.Input(&ts); err != nil {
+			return err
 		}
 	}
 	return ss.Err()

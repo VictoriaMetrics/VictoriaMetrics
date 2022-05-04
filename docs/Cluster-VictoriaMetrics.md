@@ -152,17 +152,6 @@ It is possible manualy setting up a toy cluster on a single host. In this case e
 - `-vminsertAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting data from `vminsert` nodes.
 - `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
 
-## mTLS protection
-
-By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
-
-The following optional command-line flags related to mTLS are supported:
-
-- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default system-wide certificate authority is used for peer certificate verification.
-- `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
-
-[Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-
 ### Environment variables
 
 Each flag values can be set thru environment variables by following these rules:
@@ -171,6 +160,20 @@ Each flag values can be set thru environment variables by following these rules:
 - Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
 - For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 - It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+
+## mTLS protection
+
+By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
+
+The following optional command-line flags related to mTLS are supported:
+
+- `-cluster.tlsInsecureSkipVerify` can be set at `vminsert`, `vmselect` and `vmstorage` in order to disable peer certificate verification. Note that this breaks security.
+- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default system-wide certificate authority is used for peer certificate verification.
+- `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
+
+See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
+
+[Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Monitoring
 
@@ -498,6 +501,8 @@ Below is the output for `/path/to/vminsert -help`:
      Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCertFile string
      Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -clusternativeListenAddr string
@@ -640,10 +645,12 @@ Below is the output for `/path/to/vmselect -help`:
      Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -cluster.tlsCertFile string
      Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -cluster.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
-     Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
      Supports an array of values separated by comma or specified via multiple flags.
@@ -758,7 +765,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
-     Comma-serparated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
+     Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
      Supports an array of values separated by comma or specified via multiple flags.
   -storageNode array
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
@@ -774,6 +781,8 @@ Below is the output for `/path/to/vmselect -help`:
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
+  -vmalert.proxyURL string
+     Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules
 ```
 
 ### List of command-line flags for vmstorage
@@ -792,10 +801,12 @@ Below is the output for `/path/to/vmstorage -help`:
   -cluster.tlsCipherSuites array
      Optional list of TLS cipher suites used for connections from vminsert and vmselect if -cluster.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
+  -cluster.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by vminsert and vmselect if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
      Path to server-side TLS key file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
-     Leave only the first sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueriesOutsideRetention
      Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -downsampling.period array
@@ -871,6 +882,8 @@ Below is the output for `/path/to/vmstorage -help`:
      The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
+  -snapshotsMaxAge duration
+     Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)

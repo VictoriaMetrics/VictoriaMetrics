@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmbackup/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
@@ -17,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 )
 
 var (
@@ -71,6 +71,11 @@ func main() {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
 		}()
+	} else if len(*snapshotName) == 0 {
+		logger.Fatalf("`-snapshotName` or `-snapshot.createURL` must be provided")
+	}
+	if err := snapshot.Validate(*snapshotName); err != nil {
+		logger.Fatalf("invalid -snapshotName=%q: %s", *snapshotName, err)
 	}
 
 	go httpserver.Serve(*httpListenAddr, nil)
@@ -119,9 +124,6 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
-	if len(*snapshotName) == 0 {
-		return nil, fmt.Errorf("`-snapshotName` or `-snapshot.createURL` must be provided")
-	}
 	snapshotPath := *storageDataPath + "/snapshots/" + *snapshotName
 
 	// Verify the snapshot exists.

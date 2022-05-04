@@ -75,7 +75,7 @@ func CheckTimeRange(tr storage.TimeRange) error {
 // Init initializes vmstorage.
 func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	InitWithoutMetrics(resetCacheIfNeeded)
-	registerStorageMetrics()
+	registerStorageMetrics(Storage)
 }
 
 // InitWithoutMetrics must be called instead of Init inside tests.
@@ -104,10 +104,10 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *DataPath, retentionPeriod, err)
 	}
 	Storage = strg
-	initStaleSnapshotsRemover()
+	initStaleSnapshotsRemover(strg)
 
 	var m storage.Metrics
-	Storage.UpdateMetrics(&m)
+	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
 	partsCount := tm.SmallPartsCount + tm.BigPartsCount
 	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
@@ -381,7 +381,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-func initStaleSnapshotsRemover() {
+func initStaleSnapshotsRemover(strg *storage.Storage) {
 	staleSnapshotsRemoverCh = make(chan struct{})
 	if *snapshotsMaxAge <= 0 {
 		return
@@ -397,7 +397,7 @@ func initStaleSnapshotsRemover() {
 				return
 			case <-t.C:
 			}
-			if err := Storage.DeleteStaleSnapshots(*snapshotsMaxAge); err != nil {
+			if err := strg.DeleteStaleSnapshots(*snapshotsMaxAge); err != nil {
 				// Use logger.Errorf instead of logger.Fatalf in the hope the error is temporary.
 				logger.Errorf("cannot delete stale snapshots: %s", err)
 			}
@@ -417,7 +417,7 @@ var (
 
 var activeForceMerges = metrics.NewCounter("vm_active_force_merges")
 
-func registerStorageMetrics() {
+func registerStorageMetrics(strg *storage.Storage) {
 	mCache := &storage.Metrics{}
 	var mCacheLock sync.Mutex
 	var lastUpdateTime time.Time
@@ -429,7 +429,7 @@ func registerStorageMetrics() {
 			return mCache
 		}
 		var mc storage.Metrics
-		Storage.UpdateMetrics(&mc)
+		strg.UpdateMetrics(&mc)
 		mCache = &mc
 		lastUpdateTime = time.Now()
 		return mCache
@@ -450,7 +450,7 @@ func registerStorageMetrics() {
 		return float64(minFreeDiskSpaceBytes.N)
 	})
 	metrics.NewGauge(fmt.Sprintf(`vm_storage_is_read_only{path=%q}`, *DataPath), func() float64 {
-		if Storage.IsReadOnly() {
+		if strg.IsReadOnly() {
 			return 1
 		}
 		return 0

@@ -63,7 +63,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
     const hasAutocomplete = openAutocomplete && actualOptions.length;
 
-    if ((arrowUp || arrowDown || enter) && (hasAutocomplete || ctrlMetaKey || !shiftKey)) {
+    if (((arrowUp || arrowDown) && (hasAutocomplete || ctrlMetaKey)) || (enter && (hasAutocomplete || ctrlMetaKey || !shiftKey))) {
       e.preventDefault();
     }
 

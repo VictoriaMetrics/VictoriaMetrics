@@ -1,5 +1,12 @@
 # Changes
 
+### [0.101.1](https://github.com/googleapis/google-cloud-go/compare/v0.101.0...v0.101.1) (2022-05-03)
+
+
+### Bug Fixes
+
+* **internal/gapicgen:** properly update modules that have no gapic changes ([#5945](https://github.com/googleapis/google-cloud-go/issues/5945)) ([de2befc](https://github.com/googleapis/google-cloud-go/commit/de2befcaa2a886499db9da6d4d04d28398c8d44b))
+
 ## [0.101.0](https://github.com/googleapis/google-cloud-go/compare/v0.100.2...v0.101.0) (2022-04-20)
 
 

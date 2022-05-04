@@ -29,12 +29,12 @@ creation of hourly, daily, weekly and monthly backups.
 Regular backup can be performed with the following command:
 
 ```bash
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/new/backup>
+vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
   There is no need to stop VictoriaMetrics for creating backups since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
-* `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots). `vmbackup` can create the snapshot on itself if `-snapshot.createURL` command-line flag is set to an url for creating snapshots. In this case `-snapshotName` flag isn't needed.
+* `http://victoriametrics:8428/snapshot/create` is the url for creating snapshots according to [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots). `vmbackup` creates a snapshot by querying the provided `-snapshot.createURL`, then performs the backup and then automatically removes the created snapshot.
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
@@ -44,7 +44,7 @@ If the destination GCS bucket already contains the previous backup at `-origin` 
 with the following command:
 
 ```bash
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
@@ -55,7 +55,7 @@ Incremental backups are performed if `-dst` points to an already existing backup
 It saves time and network bandwidth costs when working with big backups:
 
 ```bash
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gs://<bucket>/<path/to/existing/backup>
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/existing/backup>
 ```
 
 ### Smart backups
@@ -65,7 +65,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 * Run the following command every hour:
 
 ```bash
-vmbackup -snapshotName=<latest-snapshot> -dst=gs://<bucket>/latest
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
 Where `<latest-snapshot>` is the latest [snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
@@ -74,7 +74,7 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 * Run the following command once a day:
 
 ```bash
-vmbackup -snapshotName=<daily-snapshot> -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
+vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
@@ -82,7 +82,7 @@ Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
 This apporach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
 or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when creating daily backup.
 
-Do not forget to remove old snapshots and backups when they are no longer needed in order to save storage costs.
+Do not forget to remove old backups when they are no longer needed in order to save storage costs.
 
 See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) for automating smart backups.
 
@@ -90,15 +90,17 @@ See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager
 
 The backup algorithm is the following:
 
-1. Collect information about files in the `-snapshotName`, in the `-dst` and in the `-origin`.
-2. Determine which files in `-dst` are missing in `-snapshotName`, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
-3. Determine which files in `-snapshotName` are missing in `-dst`. These are usually small new files and bigger merged files.
-4. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
+1. Create a snapshot by querying the provided `-snapshot.createURL`
+2. Collect information about files in the created snapshot, in the `-dst` and in the `-origin`.
+3. Determine which files in `-dst` are missing in the created snapshot, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
+4. Determine which files in the created snapshot are missing in `-dst`. These are usually small new files and bigger merged files.
+5. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
    These are usually the biggest and the oldest files, which are shared between backups.
-5. Upload the remaining files from step 3 from `-snapshotName` to `-dst`.
+6. Upload the remaining files from step 3 from the created snapshot to `-dst`.
+7. Delete the created snapshot.
 
 The algorithm splits source files into 1 GiB chunks in the backup. Each chunk is stored as a separate file in the backup.
-Such splitting minimizes the amounts of data to re-transfer after temporary errors.
+Such splitting balances between the number of files in the backup and the amounts of data that needs to be re-transfered after temporary errors.
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:
 
