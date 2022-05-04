@@ -1,4 +1,4 @@
-package ec2
+package awsapi
 
 import (
 	"fmt"
@@ -37,7 +37,7 @@ func TestParseMetadataSecurityCredentialsSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	credsExpected := &apiCredentials{
+	credsExpected := &credentials{
 		AccessKeyID:     "ASIAIOSFODNN7EXAMPLE",
 		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 		Token:           "token",
@@ -64,7 +64,7 @@ func TestParseARNCredentialsFailure(t *testing.T) {
 }
 
 func TestParseARNCredentialsSuccess(t *testing.T) {
-	f := func(data, role string, credsExpected *apiCredentials) {
+	f := func(data, role string, credsExpected *credentials) {
 		t.Helper()
 		creds, err := parseARNCredentials([]byte(data), role)
 		if err != nil {
@@ -102,7 +102,7 @@ func TestParseARNCredentialsSuccess(t *testing.T) {
   </ResponseMetadata>
 </AssumeRoleResponse>
 `
-	credsExpected := &apiCredentials{
+	credsExpected := &credentials{
 		AccessKeyID:     "ASIAIOSFODNN7EXAMPLE",
 		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY",
 		Token: `
@@ -134,7 +134,7 @@ func TestParseARNCredentialsSuccess(t *testing.T) {
     <RequestId>1214124-7bb0-4673-ad6d-af9e67fc1141</RequestId>
   </ResponseMetadata>
 </AssumeRoleWithWebIdentityResponse>`
-	credsExpected2 := &apiCredentials{
+	credsExpected2 := &credentials{
 		AccessKeyID:     "ASIABYASSDASF",
 		SecretAccessKey: "asffasfasf/RvxIQpCid4iRMGm56nnRs2oKgV",
 		Token:           "asfafsassssssssss/MlyKUPOYAiEAq5HgS19Mf8SJ3kIKU3NCztDeZW5EUW4NrPrPyXQ8om0q/AQIjv//////////",
