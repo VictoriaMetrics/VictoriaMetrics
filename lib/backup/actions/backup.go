@@ -89,6 +89,10 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 	}
 	logger.Infof("obtained %d parts from origin %s", len(originParts), origin)
 
+	// we should remove backup_complete.ignore file because it is just help file
+	// which indicates that we complete backup
+	srcParts = removeIgnoreFile(srcParts)
+
 	backupSize := getPartsSize(srcParts)
 
 	partsToDelete := common.PartsDifference(dstParts, srcParts)
