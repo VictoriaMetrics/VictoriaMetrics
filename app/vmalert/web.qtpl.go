@@ -240,238 +240,263 @@ func StreamListGroups(qw422016 *qt422016.Writer, groups []APIGroup) {
                 <table class="table table-striped table-hover table-sm">
                     <thead>
                         <tr>
-                            <th scope="col" style="width: 40%">Rule</th>
-                            <th scope="col" style="width: 30%" title="Shows if rule's execution ended with error">Error</th>
-                            <th scope="col" style="width: 10%" title="How many samples were produced by the rule">Samples</th>
-                            <th scope="col" style="width: 20%" title="How many seconds ago rule was executed">Updated</th>
+                            <th scope="col" style="width: 60%">Rule</th>
+                            <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
+                            <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                         </tr>
                     </thead>
                     <tbody>
                     `)
-//line web.qtpl:71
+//line web.qtpl:70
 			for _, r := range g.Rules {
-//line web.qtpl:71
+//line web.qtpl:70
 				qw422016.N().S(`
                         <tr`)
-//line web.qtpl:72
+//line web.qtpl:71
 				if r.LastError != "" {
-//line web.qtpl:72
+//line web.qtpl:71
 					qw422016.N().S(` class="alert-danger"`)
-//line web.qtpl:72
+//line web.qtpl:71
 				}
-//line web.qtpl:72
+//line web.qtpl:71
 				qw422016.N().S(`>
                             <td>
-                                `)
-//line web.qtpl:74
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        `)
+//line web.qtpl:75
 				if r.Type == "alerting" {
-//line web.qtpl:74
-					qw422016.N().S(`
-                                <b>alert:</b> (for: `)
 //line web.qtpl:75
-					qw422016.E().V(r.Duration)
-//line web.qtpl:75
-					qw422016.N().S(`)
-                                `)
-//line web.qtpl:76
-				} else {
-//line web.qtpl:76
 					qw422016.N().S(`
-                                <b>record:</b> `)
-//line web.qtpl:77
+                                        <b>alert:</b> `)
+//line web.qtpl:76
 					qw422016.E().S(r.Name)
+//line web.qtpl:76
+					qw422016.N().S(` (for: `)
+//line web.qtpl:76
+					qw422016.E().V(r.Duration)
+//line web.qtpl:76
+					qw422016.N().S(` seconds)
+                                        `)
+//line web.qtpl:77
+				} else {
 //line web.qtpl:77
 					qw422016.N().S(`
-                                `)
+                                        <b>record:</b> `)
 //line web.qtpl:78
-				}
+					qw422016.E().S(r.Name)
 //line web.qtpl:78
-				qw422016.N().S(`
-                                <br>
-                                <code><pre>`)
-//line web.qtpl:80
-				qw422016.E().S(r.Query)
-//line web.qtpl:80
-				qw422016.N().S(`</pre></code><br>
-                                `)
-//line web.qtpl:81
-				if len(r.Labels) > 0 {
-//line web.qtpl:81
-					qw422016.N().S(` <b>Labels:</b>`)
-//line web.qtpl:81
-				}
-//line web.qtpl:81
-				qw422016.N().S(`
-                                `)
-//line web.qtpl:82
-				for k, v := range r.Labels {
-//line web.qtpl:82
 					qw422016.N().S(`
-                                        <span class="ms-1 badge bg-primary">`)
-//line web.qtpl:83
-					qw422016.E().S(k)
-//line web.qtpl:83
-					qw422016.N().S(`=`)
-//line web.qtpl:83
-					qw422016.E().S(v)
-//line web.qtpl:83
-					qw422016.N().S(`</span>
-                                `)
-//line web.qtpl:84
+                                        `)
+//line web.qtpl:79
 				}
-//line web.qtpl:84
+//line web.qtpl:79
 				qw422016.N().S(`
+                                    </div>
+                                    <div class="col-12">
+                                        <code><pre>`)
+//line web.qtpl:82
+				qw422016.E().S(r.Query)
+//line web.qtpl:82
+				qw422016.N().S(`</pre></code>
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        `)
+//line web.qtpl:85
+				if len(r.Labels) > 0 {
+//line web.qtpl:85
+					qw422016.N().S(` <b>Labels:</b>`)
+//line web.qtpl:85
+				}
+//line web.qtpl:85
+				qw422016.N().S(`
+                                        `)
+//line web.qtpl:86
+				for k, v := range r.Labels {
+//line web.qtpl:86
+					qw422016.N().S(`
+                                                <span class="ms-1 badge bg-primary">`)
+//line web.qtpl:87
+					qw422016.E().S(k)
+//line web.qtpl:87
+					qw422016.N().S(`=`)
+//line web.qtpl:87
+					qw422016.E().S(v)
+//line web.qtpl:87
+					qw422016.N().S(`</span>
+                                        `)
+//line web.qtpl:88
+				}
+//line web.qtpl:88
+				qw422016.N().S(`
+                                    </div>
+                                    `)
+//line web.qtpl:90
+				if r.LastError != "" {
+//line web.qtpl:90
+					qw422016.N().S(`
+                                    <div class="col-12">
+                                        <b>Error:</b>
+                                        <div class="error-cell">
+                                        `)
+//line web.qtpl:94
+					qw422016.E().S(r.LastError)
+//line web.qtpl:94
+					qw422016.N().S(`
+                                        </div>
+                                    </div>
+                                    `)
+//line web.qtpl:97
+				}
+//line web.qtpl:97
+				qw422016.N().S(`
+                                </div>
                             </td>
-                            <td><div class="error-cell">`)
-//line web.qtpl:86
-				qw422016.E().S(r.LastError)
-//line web.qtpl:86
-				qw422016.N().S(`</div></td>
-                            <td>`)
-//line web.qtpl:87
+                            <td class="text-center">`)
+//line web.qtpl:100
 				qw422016.N().D(r.LastSamples)
-//line web.qtpl:87
+//line web.qtpl:100
 				qw422016.N().S(`</td>
-                            <td>`)
-//line web.qtpl:88
+                            <td class="text-center">`)
+//line web.qtpl:101
 				qw422016.N().FPrec(time.Since(r.LastEvaluation).Seconds(), 3)
-//line web.qtpl:88
+//line web.qtpl:101
 				qw422016.N().S(`s ago</td>
                         </tr>
                     `)
-//line web.qtpl:90
+//line web.qtpl:103
 			}
-//line web.qtpl:90
+//line web.qtpl:103
 			qw422016.N().S(`
                  </tbody>
                 </table>
             </div>
         `)
-//line web.qtpl:94
+//line web.qtpl:107
 		}
-//line web.qtpl:94
+//line web.qtpl:107
 		qw422016.N().S(`
 
     `)
-//line web.qtpl:96
+//line web.qtpl:109
 	} else {
-//line web.qtpl:96
+//line web.qtpl:109
 		qw422016.N().S(`
         <div>
             <p>No items...</p>
         </div>
     `)
-//line web.qtpl:100
+//line web.qtpl:113
 	}
-//line web.qtpl:100
+//line web.qtpl:113
 	qw422016.N().S(`
 
     `)
-//line web.qtpl:102
+//line web.qtpl:115
 	tpl.StreamFooter(qw422016)
-//line web.qtpl:102
+//line web.qtpl:115
 	qw422016.N().S(`
 
 `)
-//line web.qtpl:104
+//line web.qtpl:117
 }
 
-//line web.qtpl:104
+//line web.qtpl:117
 func WriteListGroups(qq422016 qtio422016.Writer, groups []APIGroup) {
-//line web.qtpl:104
+//line web.qtpl:117
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line web.qtpl:104
+//line web.qtpl:117
 	StreamListGroups(qw422016, groups)
-//line web.qtpl:104
+//line web.qtpl:117
 	qt422016.ReleaseWriter(qw422016)
-//line web.qtpl:104
+//line web.qtpl:117
 }
 
-//line web.qtpl:104
+//line web.qtpl:117
 func ListGroups(groups []APIGroup) string {
-//line web.qtpl:104
+//line web.qtpl:117
 	qb422016 := qt422016.AcquireByteBuffer()
-//line web.qtpl:104
+//line web.qtpl:117
 	WriteListGroups(qb422016, groups)
-//line web.qtpl:104
+//line web.qtpl:117
 	qs422016 := string(qb422016.B)
-//line web.qtpl:104
+//line web.qtpl:117
 	qt422016.ReleaseByteBuffer(qb422016)
-//line web.qtpl:104
+//line web.qtpl:117
 	return qs422016
-//line web.qtpl:104
+//line web.qtpl:117
 }
 
-//line web.qtpl:107
+//line web.qtpl:120
 func StreamListAlerts(qw422016 *qt422016.Writer, pathPrefix string, groupAlerts []GroupAlerts) {
-//line web.qtpl:107
+//line web.qtpl:120
 	qw422016.N().S(`
     `)
-//line web.qtpl:108
+//line web.qtpl:121
 	tpl.StreamHeader(qw422016, "Alerts", navItems)
-//line web.qtpl:108
+//line web.qtpl:121
 	qw422016.N().S(`
     `)
-//line web.qtpl:109
+//line web.qtpl:122
 	if len(groupAlerts) > 0 {
-//line web.qtpl:109
+//line web.qtpl:122
 		qw422016.N().S(`
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
          `)
-//line web.qtpl:112
+//line web.qtpl:125
 		for _, ga := range groupAlerts {
-//line web.qtpl:112
+//line web.qtpl:125
 			qw422016.N().S(`
             `)
-//line web.qtpl:113
+//line web.qtpl:126
 			g := ga.Group
 
-//line web.qtpl:113
+//line web.qtpl:126
 			qw422016.N().S(`
             <div class="group-heading alert-danger" data-bs-target="rules-`)
-//line web.qtpl:114
+//line web.qtpl:127
 			qw422016.E().S(g.ID)
-//line web.qtpl:114
+//line web.qtpl:127
 			qw422016.N().S(`">
                 <span class="anchor" id="group-`)
-//line web.qtpl:115
+//line web.qtpl:128
 			qw422016.E().S(g.ID)
-//line web.qtpl:115
+//line web.qtpl:128
 			qw422016.N().S(`"></span>
                 <a href="#group-`)
-//line web.qtpl:116
+//line web.qtpl:129
 			qw422016.E().S(g.ID)
-//line web.qtpl:116
+//line web.qtpl:129
 			qw422016.N().S(`">`)
-//line web.qtpl:116
+//line web.qtpl:129
 			qw422016.E().S(g.Name)
-//line web.qtpl:116
+//line web.qtpl:129
 			if g.Type != "prometheus" {
-//line web.qtpl:116
+//line web.qtpl:129
 				qw422016.N().S(` (`)
-//line web.qtpl:116
+//line web.qtpl:129
 				qw422016.E().S(g.Type)
-//line web.qtpl:116
+//line web.qtpl:129
 				qw422016.N().S(`)`)
-//line web.qtpl:116
+//line web.qtpl:129
 			}
-//line web.qtpl:116
+//line web.qtpl:129
 			qw422016.N().S(`</a>
                 <span class="badge bg-danger" title="Number of active alerts">`)
-//line web.qtpl:117
+//line web.qtpl:130
 			qw422016.N().D(len(ga.Alerts))
-//line web.qtpl:117
+//line web.qtpl:130
 			qw422016.N().S(`</span>
                 <br>
                 <p class="fs-6 fw-lighter">`)
-//line web.qtpl:119
+//line web.qtpl:132
 			qw422016.E().S(g.File)
-//line web.qtpl:119
+//line web.qtpl:132
 			qw422016.N().S(`</p>
             </div>
             `)
-//line web.qtpl:122
+//line web.qtpl:135
 			var keys []string
 			alertsByRule := make(map[string][]*APIAlert)
 			for _, alert := range ga.Alerts {
@@ -482,20 +507,20 @@ func StreamListAlerts(qw422016 *qt422016.Writer, pathPrefix string, groupAlerts 
 			}
 			sort.Strings(keys)
 
-//line web.qtpl:131
+//line web.qtpl:144
 			qw422016.N().S(`
             <div class="collapse" id="rules-`)
-//line web.qtpl:132
+//line web.qtpl:145
 			qw422016.E().S(g.ID)
-//line web.qtpl:132
+//line web.qtpl:145
 			qw422016.N().S(`">
                 `)
-//line web.qtpl:133
+//line web.qtpl:146
 			for _, ruleID := range keys {
-//line web.qtpl:133
+//line web.qtpl:146
 				qw422016.N().S(`
                     `)
-//line web.qtpl:135
+//line web.qtpl:148
 				defaultAR := alertsByRule[ruleID][0]
 				var labelKeys []string
 				for k := range defaultAR.Labels {
@@ -503,28 +528,28 @@ func StreamListAlerts(qw422016 *qt422016.Writer, pathPrefix string, groupAlerts 
 				}
 				sort.Strings(labelKeys)
 
-//line web.qtpl:141
+//line web.qtpl:154
 				qw422016.N().S(`
                     <br>
                     <b>alert:</b> `)
-//line web.qtpl:143
+//line web.qtpl:156
 				qw422016.E().S(defaultAR.Name)
-//line web.qtpl:143
+//line web.qtpl:156
 				qw422016.N().S(` (`)
-//line web.qtpl:143
+//line web.qtpl:156
 				qw422016.N().D(len(alertsByRule[ruleID]))
-//line web.qtpl:143
+//line web.qtpl:156
 				qw422016.N().S(`)
                      | <span><a target="_blank" href="`)
-//line web.qtpl:144
+//line web.qtpl:157
 				qw422016.E().S(defaultAR.SourceLink)
-//line web.qtpl:144
+//line web.qtpl:157
 				qw422016.N().S(`">Source</a></span>
                     <br>
                     <b>expr:</b><code><pre>`)
-//line web.qtpl:146
+//line web.qtpl:159
 				qw422016.E().S(defaultAR.Expression)
-//line web.qtpl:146
+//line web.qtpl:159
 				qw422016.N().S(`</pre></code>
                     <table class="table table-striped table-hover table-sm">
                         <thead>
@@ -538,204 +563,204 @@ func StreamListAlerts(qw422016 *qt422016.Writer, pathPrefix string, groupAlerts 
                         </thead>
                         <tbody>
                         `)
-//line web.qtpl:158
+//line web.qtpl:171
 				for _, ar := range alertsByRule[ruleID] {
-//line web.qtpl:158
+//line web.qtpl:171
 					qw422016.N().S(`
                             <tr>
                                 <td>
                                     `)
-//line web.qtpl:161
+//line web.qtpl:174
 					for _, k := range labelKeys {
-//line web.qtpl:161
+//line web.qtpl:174
 						qw422016.N().S(`
                                         <span class="ms-1 badge bg-primary">`)
-//line web.qtpl:162
+//line web.qtpl:175
 						qw422016.E().S(k)
-//line web.qtpl:162
+//line web.qtpl:175
 						qw422016.N().S(`=`)
-//line web.qtpl:162
+//line web.qtpl:175
 						qw422016.E().S(ar.Labels[k])
-//line web.qtpl:162
+//line web.qtpl:175
 						qw422016.N().S(`</span>
                                     `)
-//line web.qtpl:163
+//line web.qtpl:176
 					}
-//line web.qtpl:163
+//line web.qtpl:176
 					qw422016.N().S(`
                                 </td>
                                 <td>`)
-//line web.qtpl:165
+//line web.qtpl:178
 					streambadgeState(qw422016, ar.State)
-//line web.qtpl:165
+//line web.qtpl:178
 					qw422016.N().S(`</td>
                                 <td>
                                     `)
-//line web.qtpl:167
+//line web.qtpl:180
 					qw422016.E().S(ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00"))
-//line web.qtpl:167
+//line web.qtpl:180
 					qw422016.N().S(`
                                     `)
-//line web.qtpl:168
+//line web.qtpl:181
 					if ar.Restored {
-//line web.qtpl:168
+//line web.qtpl:181
 						streambadgeRestored(qw422016)
-//line web.qtpl:168
+//line web.qtpl:181
 					}
-//line web.qtpl:168
+//line web.qtpl:181
 					qw422016.N().S(`
                                 </td>
                                 <td>`)
-//line web.qtpl:170
+//line web.qtpl:183
 					qw422016.E().S(ar.Value)
-//line web.qtpl:170
+//line web.qtpl:183
 					qw422016.N().S(`</td>
                                 <td>
                                     <a href="`)
-//line web.qtpl:172
+//line web.qtpl:185
 					qw422016.E().S(path.Join(pathPrefix, g.ID, ar.ID, "status"))
-//line web.qtpl:172
+//line web.qtpl:185
 					qw422016.N().S(`">Details</a>
                                 </td>
                             </tr>
                         `)
-//line web.qtpl:175
+//line web.qtpl:188
 				}
-//line web.qtpl:175
+//line web.qtpl:188
 				qw422016.N().S(`
                      </tbody>
                     </table>
                 `)
-//line web.qtpl:178
+//line web.qtpl:191
 			}
-//line web.qtpl:178
+//line web.qtpl:191
 			qw422016.N().S(`
             </div>
             <br>
         `)
-//line web.qtpl:181
+//line web.qtpl:194
 		}
-//line web.qtpl:181
+//line web.qtpl:194
 		qw422016.N().S(`
 
     `)
-//line web.qtpl:183
+//line web.qtpl:196
 	} else {
-//line web.qtpl:183
+//line web.qtpl:196
 		qw422016.N().S(`
         <div>
             <p>No items...</p>
         </div>
     `)
-//line web.qtpl:187
+//line web.qtpl:200
 	}
-//line web.qtpl:187
+//line web.qtpl:200
 	qw422016.N().S(`
 
     `)
-//line web.qtpl:189
+//line web.qtpl:202
 	tpl.StreamFooter(qw422016)
-//line web.qtpl:189
+//line web.qtpl:202
 	qw422016.N().S(`
 
 `)
-//line web.qtpl:191
+//line web.qtpl:204
 }
 
-//line web.qtpl:191
+//line web.qtpl:204
 func WriteListAlerts(qq422016 qtio422016.Writer, pathPrefix string, groupAlerts []GroupAlerts) {
-//line web.qtpl:191
+//line web.qtpl:204
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line web.qtpl:191
+//line web.qtpl:204
 	StreamListAlerts(qw422016, pathPrefix, groupAlerts)
-//line web.qtpl:191
+//line web.qtpl:204
 	qt422016.ReleaseWriter(qw422016)
-//line web.qtpl:191
+//line web.qtpl:204
 }
 
-//line web.qtpl:191
+//line web.qtpl:204
 func ListAlerts(pathPrefix string, groupAlerts []GroupAlerts) string {
-//line web.qtpl:191
+//line web.qtpl:204
 	qb422016 := qt422016.AcquireByteBuffer()
-//line web.qtpl:191
+//line web.qtpl:204
 	WriteListAlerts(qb422016, pathPrefix, groupAlerts)
-//line web.qtpl:191
+//line web.qtpl:204
 	qs422016 := string(qb422016.B)
-//line web.qtpl:191
+//line web.qtpl:204
 	qt422016.ReleaseByteBuffer(qb422016)
-//line web.qtpl:191
+//line web.qtpl:204
 	return qs422016
-//line web.qtpl:191
+//line web.qtpl:204
 }
 
-//line web.qtpl:193
+//line web.qtpl:206
 func StreamListTargets(qw422016 *qt422016.Writer, targets map[notifier.TargetType][]notifier.Target) {
-//line web.qtpl:193
+//line web.qtpl:206
 	qw422016.N().S(`
     `)
-//line web.qtpl:194
+//line web.qtpl:207
 	tpl.StreamHeader(qw422016, "Notifiers", navItems)
-//line web.qtpl:194
+//line web.qtpl:207
 	qw422016.N().S(`
     `)
-//line web.qtpl:195
+//line web.qtpl:208
 	if len(targets) > 0 {
-//line web.qtpl:195
+//line web.qtpl:208
 		qw422016.N().S(`
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
 
          `)
-//line web.qtpl:200
+//line web.qtpl:213
 		var keys []string
 		for key := range targets {
 			keys = append(keys, string(key))
 		}
 		sort.Strings(keys)
 
-//line web.qtpl:205
+//line web.qtpl:218
 		qw422016.N().S(`
 
          `)
-//line web.qtpl:207
+//line web.qtpl:220
 		for i := range keys {
-//line web.qtpl:207
+//line web.qtpl:220
 			qw422016.N().S(`
            `)
-//line web.qtpl:208
+//line web.qtpl:221
 			typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
 			count := len(ns)
 
-//line web.qtpl:210
+//line web.qtpl:223
 			qw422016.N().S(`
            <div class="group-heading data-bs-target="rules-`)
-//line web.qtpl:211
+//line web.qtpl:224
 			qw422016.E().S(typeK)
-//line web.qtpl:211
+//line web.qtpl:224
 			qw422016.N().S(`">
              <span class="anchor" id="notifiers-`)
-//line web.qtpl:212
+//line web.qtpl:225
 			qw422016.E().S(typeK)
-//line web.qtpl:212
+//line web.qtpl:225
 			qw422016.N().S(`"></span>
              <a href="#notifiers-`)
-//line web.qtpl:213
+//line web.qtpl:226
 			qw422016.E().S(typeK)
-//line web.qtpl:213
+//line web.qtpl:226
 			qw422016.N().S(`">`)
-//line web.qtpl:213
+//line web.qtpl:226
 			qw422016.E().S(typeK)
-//line web.qtpl:213
+//line web.qtpl:226
 			qw422016.N().S(` (`)
-//line web.qtpl:213
+//line web.qtpl:226
 			qw422016.N().D(count)
-//line web.qtpl:213
+//line web.qtpl:226
 			qw422016.N().S(`)</a>
          </div>
          <div class="collapse show" id="notifiers-`)
-//line web.qtpl:215
+//line web.qtpl:228
 			qw422016.E().S(typeK)
-//line web.qtpl:215
+//line web.qtpl:228
 			qw422016.N().S(`">
              <table class="table table-striped table-hover table-sm">
                  <thead>
@@ -746,113 +771,113 @@ func StreamListTargets(qw422016 *qt422016.Writer, targets map[notifier.TargetTyp
                  </thead>
                  <tbody>
                  `)
-//line web.qtpl:224
+//line web.qtpl:237
 			for _, n := range ns {
-//line web.qtpl:224
+//line web.qtpl:237
 				qw422016.N().S(`
                      <tr>
                          <td>
                               `)
-//line web.qtpl:227
+//line web.qtpl:240
 				for _, l := range n.Labels {
-//line web.qtpl:227
+//line web.qtpl:240
 					qw422016.N().S(`
                                       <span class="ms-1 badge bg-primary">`)
-//line web.qtpl:228
+//line web.qtpl:241
 					qw422016.E().S(l.Name)
-//line web.qtpl:228
+//line web.qtpl:241
 					qw422016.N().S(`=`)
-//line web.qtpl:228
+//line web.qtpl:241
 					qw422016.E().S(l.Value)
-//line web.qtpl:228
+//line web.qtpl:241
 					qw422016.N().S(`</span>
                               `)
-//line web.qtpl:229
+//line web.qtpl:242
 				}
-//line web.qtpl:229
+//line web.qtpl:242
 				qw422016.N().S(`
                           </td>
                          <td>`)
-//line web.qtpl:231
+//line web.qtpl:244
 				qw422016.E().S(n.Notifier.Addr())
-//line web.qtpl:231
+//line web.qtpl:244
 				qw422016.N().S(`</td>
                      </tr>
                  `)
-//line web.qtpl:233
+//line web.qtpl:246
 			}
-//line web.qtpl:233
+//line web.qtpl:246
 			qw422016.N().S(`
               </tbody>
              </table>
          </div>
      `)
-//line web.qtpl:237
+//line web.qtpl:250
 		}
-//line web.qtpl:237
+//line web.qtpl:250
 		qw422016.N().S(`
 
     `)
-//line web.qtpl:239
+//line web.qtpl:252
 	} else {
-//line web.qtpl:239
+//line web.qtpl:252
 		qw422016.N().S(`
         <div>
             <p>No items...</p>
         </div>
     `)
-//line web.qtpl:243
+//line web.qtpl:256
 	}
-//line web.qtpl:243
+//line web.qtpl:256
 	qw422016.N().S(`
 
     `)
-//line web.qtpl:245
+//line web.qtpl:258
 	tpl.StreamFooter(qw422016)
-//line web.qtpl:245
+//line web.qtpl:258
 	qw422016.N().S(`
 
 `)
-//line web.qtpl:247
+//line web.qtpl:260
 }
 
-//line web.qtpl:247
+//line web.qtpl:260
 func WriteListTargets(qq422016 qtio422016.Writer, targets map[notifier.TargetType][]notifier.Target) {
-//line web.qtpl:247
+//line web.qtpl:260
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line web.qtpl:247
+//line web.qtpl:260
 	StreamListTargets(qw422016, targets)
-//line web.qtpl:247
+//line web.qtpl:260
 	qt422016.ReleaseWriter(qw422016)
-//line web.qtpl:247
+//line web.qtpl:260
 }
 
-//line web.qtpl:247
+//line web.qtpl:260
 func ListTargets(targets map[notifier.TargetType][]notifier.Target) string {
-//line web.qtpl:247
+//line web.qtpl:260
 	qb422016 := qt422016.AcquireByteBuffer()
-//line web.qtpl:247
+//line web.qtpl:260
 	WriteListTargets(qb422016, targets)
-//line web.qtpl:247
+//line web.qtpl:260
 	qs422016 := string(qb422016.B)
-//line web.qtpl:247
+//line web.qtpl:260
 	qt422016.ReleaseByteBuffer(qb422016)
-//line web.qtpl:247
+//line web.qtpl:260
 	return qs422016
-//line web.qtpl:247
+//line web.qtpl:260
 }
 
-//line web.qtpl:249
+//line web.qtpl:262
 func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) {
-//line web.qtpl:249
+//line web.qtpl:262
 	qw422016.N().S(`
     `)
-//line web.qtpl:250
+//line web.qtpl:263
 	tpl.StreamHeader(qw422016, "", navItems)
-//line web.qtpl:250
+//line web.qtpl:263
 	qw422016.N().S(`
     `)
-//line web.qtpl:252
+//line web.qtpl:265
 	var labelKeys []string
 	for k := range alert.Labels {
 		labelKeys = append(labelKeys, k)
@@ -865,28 +890,28 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
 	}
 	sort.Strings(annotationKeys)
 
-//line web.qtpl:263
+//line web.qtpl:276
 	qw422016.N().S(`
     <div class="display-6 pb-3 mb-3">`)
-//line web.qtpl:264
+//line web.qtpl:277
 	qw422016.E().S(alert.Name)
-//line web.qtpl:264
+//line web.qtpl:277
 	qw422016.N().S(`<span class="ms-2 badge `)
-//line web.qtpl:264
+//line web.qtpl:277
 	if alert.State == "firing" {
-//line web.qtpl:264
+//line web.qtpl:277
 		qw422016.N().S(`bg-danger`)
-//line web.qtpl:264
+//line web.qtpl:277
 	} else {
-//line web.qtpl:264
+//line web.qtpl:277
 		qw422016.N().S(` bg-warning text-dark`)
-//line web.qtpl:264
+//line web.qtpl:277
 	}
-//line web.qtpl:264
+//line web.qtpl:277
 	qw422016.N().S(`">`)
-//line web.qtpl:264
+//line web.qtpl:277
 	qw422016.E().S(alert.State)
-//line web.qtpl:264
+//line web.qtpl:277
 	qw422016.N().S(`</span></div>
     <div class="container border-bottom p-2">
       <div class="row">
@@ -895,9 +920,9 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
         </div>
         <div class="col">
           `)
-//line web.qtpl:271
+//line web.qtpl:284
 	qw422016.E().S(alert.ActiveAt.Format("2006-01-02T15:04:05Z07:00"))
-//line web.qtpl:271
+//line web.qtpl:284
 	qw422016.N().S(`
         </div>
       </div>
@@ -909,9 +934,9 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
         </div>
         <div class="col">
           <code><pre>`)
-//line web.qtpl:281
+//line web.qtpl:294
 	qw422016.E().S(alert.Expression)
-//line web.qtpl:281
+//line web.qtpl:294
 	qw422016.N().S(`</pre></code>
         </div>
       </div>
@@ -923,23 +948,23 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
         </div>
         <div class="col">
            `)
-//line web.qtpl:291
+//line web.qtpl:304
 	for _, k := range labelKeys {
-//line web.qtpl:291
+//line web.qtpl:304
 		qw422016.N().S(`
                 <span class="m-1 badge bg-primary">`)
-//line web.qtpl:292
+//line web.qtpl:305
 		qw422016.E().S(k)
-//line web.qtpl:292
+//line web.qtpl:305
 		qw422016.N().S(`=`)
-//line web.qtpl:292
+//line web.qtpl:305
 		qw422016.E().S(alert.Labels[k])
-//line web.qtpl:292
+//line web.qtpl:305
 		qw422016.N().S(`</span>
           `)
-//line web.qtpl:293
+//line web.qtpl:306
 	}
-//line web.qtpl:293
+//line web.qtpl:306
 	qw422016.N().S(`
         </div>
       </div>
@@ -951,24 +976,24 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
         </div>
         <div class="col">
            `)
-//line web.qtpl:303
+//line web.qtpl:316
 	for _, k := range annotationKeys {
-//line web.qtpl:303
+//line web.qtpl:316
 		qw422016.N().S(`
                 <b>`)
-//line web.qtpl:304
+//line web.qtpl:317
 		qw422016.E().S(k)
-//line web.qtpl:304
+//line web.qtpl:317
 		qw422016.N().S(`:</b><br>
                 <p>`)
-//line web.qtpl:305
+//line web.qtpl:318
 		qw422016.E().S(alert.Annotations[k])
-//line web.qtpl:305
+//line web.qtpl:318
 		qw422016.N().S(`</p>
           `)
-//line web.qtpl:306
+//line web.qtpl:319
 	}
-//line web.qtpl:306
+//line web.qtpl:319
 	qw422016.N().S(`
         </div>
       </div>
@@ -980,17 +1005,17 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
         </div>
         <div class="col">
            <a target="_blank" href="`)
-//line web.qtpl:316
+//line web.qtpl:329
 	qw422016.E().S(path.Join(pathPrefix, "groups"))
-//line web.qtpl:316
+//line web.qtpl:329
 	qw422016.N().S(`#group-`)
-//line web.qtpl:316
+//line web.qtpl:329
 	qw422016.E().S(alert.GroupID)
-//line web.qtpl:316
+//line web.qtpl:329
 	qw422016.N().S(`">`)
-//line web.qtpl:316
+//line web.qtpl:329
 	qw422016.E().S(alert.GroupID)
-//line web.qtpl:316
+//line web.qtpl:329
 	qw422016.N().S(`</a>
         </div>
       </div>
@@ -1002,132 +1027,132 @@ func StreamAlert(qw422016 *qt422016.Writer, pathPrefix string, alert *APIAlert) 
         </div>
         <div class="col">
            <a target="_blank" href="`)
-//line web.qtpl:326
+//line web.qtpl:339
 	qw422016.E().S(alert.SourceLink)
-//line web.qtpl:326
+//line web.qtpl:339
 	qw422016.N().S(`">Link</a>
         </div>
       </div>
     </div>
     `)
-//line web.qtpl:330
+//line web.qtpl:343
 	tpl.StreamFooter(qw422016)
-//line web.qtpl:330
+//line web.qtpl:343
 	qw422016.N().S(`
 
 `)
-//line web.qtpl:332
+//line web.qtpl:345
 }
 
-//line web.qtpl:332
+//line web.qtpl:345
 func WriteAlert(qq422016 qtio422016.Writer, pathPrefix string, alert *APIAlert) {
-//line web.qtpl:332
+//line web.qtpl:345
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line web.qtpl:332
+//line web.qtpl:345
 	StreamAlert(qw422016, pathPrefix, alert)
-//line web.qtpl:332
+//line web.qtpl:345
 	qt422016.ReleaseWriter(qw422016)
-//line web.qtpl:332
+//line web.qtpl:345
 }
 
-//line web.qtpl:332
+//line web.qtpl:345
 func Alert(pathPrefix string, alert *APIAlert) string {
-//line web.qtpl:332
+//line web.qtpl:345
 	qb422016 := qt422016.AcquireByteBuffer()
-//line web.qtpl:332
+//line web.qtpl:345
 	WriteAlert(qb422016, pathPrefix, alert)
-//line web.qtpl:332
+//line web.qtpl:345
 	qs422016 := string(qb422016.B)
-//line web.qtpl:332
+//line web.qtpl:345
 	qt422016.ReleaseByteBuffer(qb422016)
-//line web.qtpl:332
+//line web.qtpl:345
 	return qs422016
-//line web.qtpl:332
+//line web.qtpl:345
 }
 
-//line web.qtpl:334
+//line web.qtpl:347
 func streambadgeState(qw422016 *qt422016.Writer, state string) {
-//line web.qtpl:334
+//line web.qtpl:347
 	qw422016.N().S(`
 `)
-//line web.qtpl:336
+//line web.qtpl:349
 	badgeClass := "bg-warning text-dark"
 	if state == "firing" {
 		badgeClass = "bg-danger"
 	}
 
-//line web.qtpl:340
+//line web.qtpl:353
 	qw422016.N().S(`
 <span class="badge `)
-//line web.qtpl:341
+//line web.qtpl:354
 	qw422016.E().S(badgeClass)
-//line web.qtpl:341
+//line web.qtpl:354
 	qw422016.N().S(`">`)
-//line web.qtpl:341
+//line web.qtpl:354
 	qw422016.E().S(state)
-//line web.qtpl:341
+//line web.qtpl:354
 	qw422016.N().S(`</span>
 `)
-//line web.qtpl:342
+//line web.qtpl:355
 }
 
-//line web.qtpl:342
+//line web.qtpl:355
 func writebadgeState(qq422016 qtio422016.Writer, state string) {
-//line web.qtpl:342
+//line web.qtpl:355
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line web.qtpl:342
+//line web.qtpl:355
 	streambadgeState(qw422016, state)
-//line web.qtpl:342
+//line web.qtpl:355
 	qt422016.ReleaseWriter(qw422016)
-//line web.qtpl:342
+//line web.qtpl:355
 }
 
-//line web.qtpl:342
+//line web.qtpl:355
 func badgeState(state string) string {
-//line web.qtpl:342
+//line web.qtpl:355
 	qb422016 := qt422016.AcquireByteBuffer()
-//line web.qtpl:342
+//line web.qtpl:355
 	writebadgeState(qb422016, state)
-//line web.qtpl:342
+//line web.qtpl:355
 	qs422016 := string(qb422016.B)
-//line web.qtpl:342
+//line web.qtpl:355
 	qt422016.ReleaseByteBuffer(qb422016)
-//line web.qtpl:342
+//line web.qtpl:355
 	return qs422016
-//line web.qtpl:342
+//line web.qtpl:355
 }
 
-//line web.qtpl:344
+//line web.qtpl:357
 func streambadgeRestored(qw422016 *qt422016.Writer) {
-//line web.qtpl:344
+//line web.qtpl:357
 	qw422016.N().S(`
 <span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 `)
-//line web.qtpl:346
+//line web.qtpl:359
 }
 
-//line web.qtpl:346
+//line web.qtpl:359
 func writebadgeRestored(qq422016 qtio422016.Writer) {
-//line web.qtpl:346
+//line web.qtpl:359
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line web.qtpl:346
+//line web.qtpl:359
 	streambadgeRestored(qw422016)
-//line web.qtpl:346
+//line web.qtpl:359
 	qt422016.ReleaseWriter(qw422016)
-//line web.qtpl:346
+//line web.qtpl:359
 }
 
-//line web.qtpl:346
+//line web.qtpl:359
 func badgeRestored() string {
-//line web.qtpl:346
+//line web.qtpl:359
 	qb422016 := qt422016.AcquireByteBuffer()
-//line web.qtpl:346
+//line web.qtpl:359
 	writebadgeRestored(qb422016)
-//line web.qtpl:346
+//line web.qtpl:359
 	qs422016 := string(qb422016.B)
-//line web.qtpl:346
+//line web.qtpl:359
 	qt422016.ReleaseByteBuffer(qb422016)
-//line web.qtpl:346
+//line web.qtpl:359
 	return qs422016
-//line web.qtpl:346
+//line web.qtpl:359
 }

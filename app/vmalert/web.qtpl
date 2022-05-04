@@ -61,31 +61,44 @@
                 <table class="table table-striped table-hover table-sm">
                     <thead>
                         <tr>
-                            <th scope="col" style="width: 40%">Rule</th>
-                            <th scope="col" style="width: 30%" title="Shows if rule's execution ended with error">Error</th>
-                            <th scope="col" style="width: 10%" title="How many samples were produced by the rule">Samples</th>
-                            <th scope="col" style="width: 20%" title="How many seconds ago rule was executed">Updated</th>
+                            <th scope="col" style="width: 60%">Rule</th>
+                            <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
+                            <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for _, r := range g.Rules %}
                         <tr{% if r.LastError != "" %} class="alert-danger"{% endif %}>
                             <td>
-                                {% if r.Type == "alerting" %}
-                                <b>alert:</b> (for: {%v r.Duration %})
-                                {% else %}
-                                <b>record:</b> {%s r.Name %}
-                                {% endif %}
-                                <br>
-                                <code><pre>{%s r.Query %}</pre></code><br>
-                                {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
-                                {% for k, v := range r.Labels %}
-                                        <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
-                                {% endfor %}
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        {% if r.Type == "alerting" %}
+                                        <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
+                                        {% else %}
+                                        <b>record:</b> {%s r.Name %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-12">
+                                        <code><pre>{%s r.Query %}</pre></code>
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
+                                        {% for k, v := range r.Labels %}
+                                                <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% if r.LastError != "" %}
+                                    <div class="col-12">
+                                        <b>Error:</b>
+                                        <div class="error-cell">
+                                        {%s r.LastError %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td><div class="error-cell">{%s r.LastError %}</div></td>
-                            <td>{%d r.LastSamples %}</td>
-                            <td>{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
+                            <td class="text-center">{%d r.LastSamples %}</td>
+                            <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
                         </tr>
                     {% endfor %}
                  </tbody>

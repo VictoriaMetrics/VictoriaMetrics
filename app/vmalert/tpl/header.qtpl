@@ -27,13 +27,16 @@
          .group-heading:hover {
             background-color: #f8f9fa!important;
         }
+        .table {
+            table-layout: fixed;
+        }
         .table .error-cell{
             word-break: break-word;
         }
         pre {
             overflow: scroll;
-            max-width: 600px;
             min-height: 30px;
+            max-width: 100%;
         }
         pre::-webkit-scrollbar {
           -webkit-appearance: none;
