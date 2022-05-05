@@ -22,8 +22,6 @@ type Config struct {
 	roleARN      string
 	webTokenPath string
 
-	filtersQueryString string
-
 	ec2Endpoint string
 	stsEndpoint string
 
@@ -45,17 +43,13 @@ type credentials struct {
 }
 
 // NewConfig returns new AWS Config.
-//
-// filtersQueryString must contain an optional percent-encoded query string for aws filters.
-// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html for examples.
-func NewConfig(region, roleARN, accessKey, secretKey, filtersQueryString string) (*Config, error) {
+func NewConfig(region, roleARN, accessKey, secretKey string) (*Config, error) {
 	cfg := &Config{
-		client:             http.DefaultClient,
-		region:             region,
-		roleARN:            roleARN,
-		filtersQueryString: filtersQueryString,
-		defaultAccessKey:   os.Getenv("AWS_ACCESS_KEY_ID"),
-		defaultSecretKey:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		client:           http.DefaultClient,
+		region:           region,
+		roleARN:          roleARN,
+		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
+		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
 	cfg.region = region
 	if cfg.region == "" {
@@ -91,14 +85,18 @@ func NewConfig(region, roleARN, accessKey, secretKey, filtersQueryString string)
 }
 
 // GetEC2APIResponse performs EC2 API request with ghe given action.
-func (cfg *Config) GetEC2APIResponse(action, nextPageToken string) ([]byte, error) {
+//
+// filtersQueryString must contain an optional percent-encoded query string for aws filters.
+// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html for examples.
+// See also https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
+func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken string) ([]byte, error) {
 	ac, err := cfg.getFreshAPICredentials()
 	if err != nil {
 		return nil, err
 	}
 	apiURL := fmt.Sprintf("%s?Action=%s", cfg.ec2Endpoint, url.QueryEscape(action))
-	if len(cfg.filtersQueryString) > 0 {
-		apiURL += "&" + cfg.filtersQueryString
+	if len(filtersQueryString) > 0 {
+		apiURL += "&" + filtersQueryString
 	}
 	if len(nextPageToken) > 0 {
 		apiURL += fmt.Sprintf("&NextToken=%s", url.QueryEscape(nextPageToken))
