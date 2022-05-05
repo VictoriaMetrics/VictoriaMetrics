@@ -29,7 +29,7 @@ func getAZMap(cfg *apiConfig) map[string]string {
 
 func getAvailabilityZones(cfg *apiConfig) ([]AvailabilityZone, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
-	data, err := cfg.awsConfig.GetEC2APIResponse("DescribeAvailabilityZones", "")
+	data, err := cfg.awsConfig.GetEC2APIResponse("DescribeAvailabilityZones", "", "")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain availability zones: %w", err)
 	}

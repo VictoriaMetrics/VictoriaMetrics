@@ -11,8 +11,9 @@ import (
 )
 
 type apiConfig struct {
-	awsConfig *awsapi.Config
-	port      int
+	awsConfig          *awsapi.Config
+	filtersQueryString string
+	port               int
 
 	// A map from AZ name to AZ id.
 	azMap     map[string]string
@@ -35,13 +36,14 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if sdc.Port != nil {
 		port = *sdc.Port
 	}
-	awsCfg, err := awsapi.NewConfig(sdc.Region, sdc.RoleARN, sdc.AccessKey, sdc.SecretKey.String(), fqs)
+	awsCfg, err := awsapi.NewConfig(sdc.Region, sdc.RoleARN, sdc.AccessKey, sdc.SecretKey.String())
 	if err != nil {
 		return nil, err
 	}
 	cfg := &apiConfig{
-		awsConfig: awsCfg,
-		port:      port,
+		awsConfig:          awsCfg,
+		filtersQueryString: fqs,
+		port:               port,
 	}
 	return cfg, nil
 }
