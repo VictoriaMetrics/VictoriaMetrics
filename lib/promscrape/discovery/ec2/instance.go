@@ -29,7 +29,7 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	var rs []Reservation
 	pageToken := ""
 	for {
-		data, err := cfg.awsConfig.GetEC2APIResponse("DescribeInstances", pageToken)
+		data, err := cfg.awsConfig.GetEC2APIResponse("DescribeInstances", cfg.filtersQueryString, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
