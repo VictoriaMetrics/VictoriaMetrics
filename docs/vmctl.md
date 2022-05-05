@@ -501,15 +501,18 @@ Total: 336.75 KiB ↖ Speed: 454.46 KiB p/s
 
 Importing tips:
 
-1. Migrating all the metrics from one VM to another may collide with existing application metrics
+1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
+Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
+proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+2. Migrating all the metrics from one VM to another may collide with existing application metrics
 (prefixed with `vm_`) at destination and lead to confusion when using
 [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match` flag.
-2. Migration is a backfilling process, so it is recommended to read
+3. Migration is a backfilling process, so it is recommended to read
 [Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
-3. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
+4. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
-4. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
+5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 and specify `accountID` param.
 
 ## Verifying exported blocks from VictoriaMetrics
