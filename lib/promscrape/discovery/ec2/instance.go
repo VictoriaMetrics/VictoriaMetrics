@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -28,8 +29,9 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
 	var rs []Reservation
 	pageToken := ""
+	instanceFilters := awsapi.GetFiltersQueryString(cfg.filters, nil)
 	for {
-		data, err := cfg.awsConfig.GetEC2APIResponse("DescribeInstances", cfg.filtersQueryString, pageToken)
+		data, err := cfg.awsConfig.GetEC2APIResponse("DescribeInstances", instanceFilters, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
