@@ -87,6 +87,7 @@ func NewConfig(region, roleARN, accessKey, secretKey string) (*Config, error) {
 // GetEC2APIResponse performs EC2 API request with ghe given action.
 //
 // filtersQueryString must contain an optional percent-encoded query string for aws filters.
+// This string can be obtained by calling GetFiltersQueryString().
 // See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html for examples.
 // See also https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
 func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken string) ([]byte, error) {
@@ -423,4 +424,31 @@ func buildAPIEndpoint(customEndpoint, region, service string) string {
 		endpoint += "/"
 	}
 	return endpoint
+}
+
+// GetFiltersQueryString returns query string formed from the given filters.
+//
+// If whitelist isn't nil, then filters which don't fall into whitelist isn't returned.
+func GetFiltersQueryString(filters []Filter, whitelist map[string]bool) string {
+	// See how to build filters query string at examples at https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
+	var args []string
+	for i, f := range filters {
+		if whitelist != nil && !whitelist[f.Name] {
+			continue
+		}
+		args = append(args, fmt.Sprintf("Filter.%d.Name=%s", i+1, url.QueryEscape(f.Name)))
+		for j, v := range f.Values {
+			args = append(args, fmt.Sprintf("Filter.%d.Value.%d=%s", i+1, j+1, url.QueryEscape(v)))
+		}
+	}
+	return strings.Join(args, "&")
+}
+
+// Filter is ec2 filter.
+//
+// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
+// and https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
+type Filter struct {
+	Name   string   `yaml:"name"`
+	Values []string `yaml:"values"`
 }

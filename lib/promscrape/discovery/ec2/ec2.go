@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -26,17 +27,8 @@ type SDConfig struct {
 	RoleARN string `yaml:"role_arn,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
-	Port    *int     `yaml:"port,omitempty"`
-	Filters []Filter `yaml:"filters,omitempty"`
-}
-
-// Filter is ec2 filter.
-//
-// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
-// and https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
-type Filter struct {
-	Name   string   `yaml:"name"`
-	Values []string `yaml:"values"`
+	Port    *int            `yaml:"port,omitempty"`
+	Filters []awsapi.Filter `yaml:"filters,omitempty"`
 }
 
 // GetLabels returns ec2 labels according to sdc.
