@@ -56,9 +56,11 @@ export type Action =
     | { type: "TOGGLE_AUTOCOMPLETE"}
     | { type: "NO_CACHE"}
 
-const {relativeDuration, relativeUntil, relativeTimeId} = getRelativeTime();
-const duration = relativeDuration || getQueryStringValue("g0.range_input", "1h") as string;
-const endInput = relativeUntil || formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date);
+
+const {duration, endInput, relativeTimeId} = getRelativeTime({
+  defaultDuration: getQueryStringValue("g0.range_input", "1h") as string,
+  defaultEndInput: new Date(formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date)),
+});
 const query = getQueryArray();
 
 export const initialState: AppState = {
@@ -68,7 +70,7 @@ export const initialState: AppState = {
   queryHistory: query.map(q => ({index: 0, values: [q]})),
   time: {
     duration,
-    period: getTimeperiodForDuration(duration, new Date(endInput)),
+    period: getTimeperiodForDuration(duration, endInput),
     relativeTime: relativeTimeId,
   },
   queryControls: {
@@ -152,7 +154,7 @@ export function reducer(state: AppState, action: Action): AppState {
       };
     case "SET_PERIOD":
       // eslint-disable-next-line no-case-declarations
-      const duration = getDurationFromPeriod(action.payload);
+      const durationPeriod = getDurationFromPeriod(action.payload);
       return {
         ...state,
         queryControls: {
@@ -161,8 +163,8 @@ export function reducer(state: AppState, action: Action): AppState {
         },
         time: {
           ...state.time,
-          duration,
-          period: getTimeperiodForDuration(duration, action.payload.to),
+          duration: durationPeriod,
+          period: getTimeperiodForDuration(durationPeriod, action.payload.to),
           relativeTime: ""
         }
       };
@@ -191,11 +193,17 @@ export function reducer(state: AppState, action: Action): AppState {
         }
       };
     case "RUN_QUERY":
+      // eslint-disable-next-line no-case-declarations
+      const {duration: durationRunQuery, endInput} = getRelativeTime({
+        relativeTimeId: state.time.relativeTime,
+        defaultDuration: state.time.duration,
+        defaultEndInput: dateFromSeconds(state.time.period.end),
+      });
       return {
         ...state,
         time: {
           ...state.time,
-          period: getTimeperiodForDuration(state.time.duration, dateFromSeconds(state.time.period.end))
+          period: getTimeperiodForDuration(durationRunQuery, endInput)
         }
       };
     case "RUN_QUERY_TO_NOW":
