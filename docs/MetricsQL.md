@@ -724,7 +724,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### drop_common_labels
 
-`drop_common_labels(q1, ...., qN)` drops common `label="value"` paris among time series returned from `q1, ..., qN`.
+`drop_common_labels(q1, ...., qN)` drops common `label="value"` pairs among time series returned from `q1, ..., qN`.
 
 #### label_copy
 
