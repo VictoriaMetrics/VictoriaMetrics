@@ -52,7 +52,7 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.73.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.77.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
