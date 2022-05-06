@@ -27,7 +27,7 @@ var (
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
-	snapshotsMaxAge   = flag.Duration("snapshotsMaxAge", 0, "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
+	snapshotsMaxAge   = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -96,6 +96,9 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
 
+	if retentionPeriod.Msecs < 24*3600*1000 {
+		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
+	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
@@ -383,9 +386,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func initStaleSnapshotsRemover(strg *storage.Storage) {
 	staleSnapshotsRemoverCh = make(chan struct{})
-	if *snapshotsMaxAge <= 0 {
+	if snapshotsMaxAge.Msecs <= 0 {
 		return
 	}
+	snapshotsMaxAgeDur := time.Duration(snapshotsMaxAge.Msecs) * time.Millisecond
 	staleSnapshotsRemoverWG.Add(1)
 	go func() {
 		defer staleSnapshotsRemoverWG.Done()
@@ -397,7 +401,7 @@ func initStaleSnapshotsRemover(strg *storage.Storage) {
 				return
 			case <-t.C:
 			}
-			if err := strg.DeleteStaleSnapshots(*snapshotsMaxAge); err != nil {
+			if err := strg.DeleteStaleSnapshots(snapshotsMaxAgeDur); err != nil {
 				// Use logger.Errorf instead of logger.Fatalf in the hope the error is temporary.
 				logger.Errorf("cannot delete stale snapshots: %s", err)
 			}

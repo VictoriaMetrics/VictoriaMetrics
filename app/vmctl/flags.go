@@ -201,6 +201,7 @@ const (
 	influxFilterTimeStart           = "influx-filter-time-start"
 	influxFilterTimeEnd             = "influx-filter-time-end"
 	influxMeasurementFieldSeparator = "influx-measurement-field-separator"
+	influxSkipDatabaseLabel         = "influx-skip-database-label"
 )
 
 var (
@@ -257,6 +258,11 @@ var (
 			Name:  influxMeasurementFieldSeparator,
 			Usage: "The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}.",
 			Value: "_",
+		},
+		&cli.BoolFlag{
+			Name:  influxSkipDatabaseLabel,
+			Usage: "Wether to skip adding the label 'db' to timeseries.",
+			Value: false,
 		},
 	}
 )

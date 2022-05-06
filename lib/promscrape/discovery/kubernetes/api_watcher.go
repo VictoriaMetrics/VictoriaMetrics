@@ -75,7 +75,7 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	}
 	selectors := sdc.Selectors
 	attachNodeMetadata := sdc.AttachMetadata.Node
-	proxyURL := sdc.ProxyURL.URL()
+	proxyURL := sdc.ProxyURL.GetURL()
 	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 	role := sdc.role()
 	return &apiWatcher{

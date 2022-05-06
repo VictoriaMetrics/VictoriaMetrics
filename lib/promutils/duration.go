@@ -8,19 +8,19 @@ import (
 
 // Duration is duration, which must be used in Prometheus-compatible yaml configs.
 type Duration struct {
-	d time.Duration
+	D time.Duration
 }
 
 // NewDuration returns Duration for given d.
 func NewDuration(d time.Duration) *Duration {
 	return &Duration{
-		d: d,
+		D: d,
 	}
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
 func (pd Duration) MarshalYAML() (interface{}, error) {
-	return pd.d.String(), nil
+	return pd.D.String(), nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
@@ -33,7 +33,7 @@ func (pd *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	pd.d = time.Duration(ms) * time.Millisecond
+	pd.D = time.Duration(ms) * time.Millisecond
 	return nil
 }
 
@@ -42,7 +42,7 @@ func (pd *Duration) Duration() time.Duration {
 	if pd == nil {
 		return 0
 	}
-	return pd.d
+	return pd.D
 }
 
 // ParseDuration parses duration string in Prometheus format

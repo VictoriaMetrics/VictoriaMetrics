@@ -324,11 +324,13 @@ It is recommended leaving the following amounts of spare resources:
 
 Some capacity planning tips for VictoriaMetrics cluster:
 
-- The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor.
-- Cluster capacity for [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) can be increased by adding more `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmstorage` node.
-- Query latency can be reduced by increasing the number of `vmstorage` nodes and/or by increasing RAM and CPU resources per each `vmselect` node.
-- The total number of CPU cores needed for all the `vminsert` nodes can be calculated from the ingestion rate: `CPUs = ingestion_rate / 100K`.
-- The `-rpc.disableCompression` command-line flag at `vminsert` nodes can increase ingestion capacity at the cost of higher network bandwidth usage between `vminsert` and `vmstorage`.
+- The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. These copies are de-duplicated by `vmselect` during querying. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
+- It is recommended to run a cluster with big number of small `vmstorage` nodes instead of a cluster with small number of big `vmstorage` nodes. This increases chances that the cluster remains available and stable when some of `vmstorage` nodes are temporarily unavailable during maintenance events such as upgrades, configuration changes or migrations. For example, when a cluster contains 10 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 9 nodes increases by `1/9=11%`. When a cluster contains 3 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 2 nodes increases by `1/2=50%`. The remaining `vmstorage` nodes may have no enough free capacity for handling the increased workload. In this case the cluster may become overloaded, which may result to decreased availability and stability.
+- Cluster capacity for [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) can be increased by increasing RAM and CPU resources per each `vmstorage` node or by by adding new `vmstorage` nodes.
+- Query latency can be reduced by increasing CPU resources per each `vmselect` node, since each incoming query is processed by a single `vmselect` node. Performance for heavy queries scales with the number of available CPU cores at `vmselect` node, since `vmselect` processes time series referred by the query on all the available CPU cores.
+- If the cluster needs to process incoming queries at a high rate, then its capacity can be increased by adding more `vmselect` nodes, so incoming queries could be spread among bigger number of `vmselect` nodes.
+- By default `vminsert` compresses the data it sends to `vmstorage` in order to reduce network bandwidth usage. The compression takes additional CPU resources at `vminsert`. If `vminsert` nodes have limited CPU, then the compression can be disabled by passing `-rpc.disableCompression` command-line flag at `vminsert` nodes.
+- By default `vmstorage` compresses the data it sends to `vmselect` during queries in order to reduce network bandwidth usage. The compression takes additional CPU resources at `vmstorage`. If `vmstorage` nodes have limited CPU, then the compression can be disabled by passing `-rpc.disableCompression` command-line flag at `vmstorage` nodes.
 
 ## High availability
 
@@ -368,30 +370,17 @@ It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-cha
 
 ## Replication and data safety
 
-By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
+By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs), which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
 
-The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`.
-This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
-The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N`
-is replication factor, in order to maintain the given replication factor for newly ingested data when `N-1` of storage nodes are lost.
-For example, when `-replicationFactor=3` is passed to `vminsert`, then it replicates all the ingested data to 3 distinct `vmstorage` nodes,
-so up to 2 `vmstorage` nodes can be lost without data loss. The minimum number of `vmstorage` nodes should be equal to `2*3-1 = 5`, so when 2 `vmstorage` nodes are lost,
-the remaining 3 `vmstorage` nodes could provide the `-replicationFactor=3` for newly ingested data.
+The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
 
-When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
-Optional `-replicationFactor=N` command-line flag can be passed to `vmselect` for improving query performance when up to `N-1` vmstorage nodes respond slowly and/or temporarily unavailable, since `vmselect` doesn't wait for responses from up to `N-1` `vmstorage` nodes. Sometimes `-replicationFactor` at `vmselect` nodes can result in partial responses. See [this issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207) for details.
-The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to bigger values according to [deduplication docs](#deduplication).
+The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain the given replication factor for newly ingested data when `N-1` of storage nodes are unavailable.
 
-Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
-so it is recommended performing regular backups. See [these docs](#backups) for details.
+When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes, so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to bigger values according to [deduplication docs](#deduplication).
 
-Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor` times. So it may be worth
-offloading the replication to underlying storage pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs),
-which is protected from data loss and data corruption. It also provide consistently high performance
-and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
-HDD-based persistent disks should be enough for the majority of use cases.
+Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883), so it is recommended performing regular backups. See [these docs](#backups) for details.
 
-It is recommended using durable replicated persistent volumes in Kubernetes.
+Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor=N` times, because `vminsert` stores `N` copies of incoming data to distinct `vmstorage` nodes and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying. So it is more cost-effective to offload the replication to underlying replicated durable storage pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), which is protected from data loss and data corruption. It also provide consistently high performance and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime. HDD-based persistent disks should be enough for the majority of use cases. It is recommended using durable replicated persistent volumes in Kubernetes.
 
 ## Deduplication
 
@@ -613,7 +602,7 @@ Below is the output for `/path/to/vminsert -help`:
   -replicationFactor int
      Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)
   -rpc.disableCompression
-     Whether to disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage
+     Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storageNode array
@@ -869,7 +858,7 @@ Below is the output for `/path/to/vmstorage -help`:
      Data with timestamps outside the retentionPeriod is automatically deleted
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -rpc.disableCompression
-     Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage
+     Whether to disable compression of the data sent from vmstorage to vmselect. This reduces CPU usage at the cost of higher network bandwidth usage
   -search.maxTagKeys int
      The maximum number of tag keys returned per search (default 100000)
   -search.maxTagValueSuffixesPerSearch int
@@ -882,8 +871,9 @@ Below is the output for `/path/to/vmstorage -help`:
      The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
-  -snapshotsMaxAge duration
+  -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
+     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)

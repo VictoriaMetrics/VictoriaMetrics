@@ -71,7 +71,7 @@ func newClient(sw *ScrapeWork) *client {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
-		pu := proxyURL.URL()
+		pu := proxyURL.GetURL()
 		host = pu.Host
 		requestURI = sw.ScrapeURL
 		isTLS = pu.Scheme == "https"
@@ -110,7 +110,7 @@ func newClient(sw *ScrapeWork) *client {
 	}
 	var sc *http.Client
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
-	if pu := sw.ProxyURL.URL(); pu != nil {
+	if pu := sw.ProxyURL.GetURL(); pu != nil {
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 	sc = &http.Client{

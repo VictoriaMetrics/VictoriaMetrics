@@ -1,7 +1,9 @@
 import React from "preact/compat";
 import Box from "@mui/material/Box";
+import {ReactNode} from "react";
 
 interface TabPanelProps {
+  children?: ReactNode;
   index: number;
   value: number;
 }
