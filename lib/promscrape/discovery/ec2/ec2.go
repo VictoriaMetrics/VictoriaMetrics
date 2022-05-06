@@ -27,8 +27,9 @@ type SDConfig struct {
 	RoleARN string `yaml:"role_arn,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
-	Port    *int            `yaml:"port,omitempty"`
-	Filters []awsapi.Filter `yaml:"filters,omitempty"`
+	Port            *int            `yaml:"port,omitempty"`
+	InstanceFilters []awsapi.Filter `yaml:"filters,omitempty"`
+	AZFilters       []awsapi.Filter `yaml:"az_filters,omitempty"`
 }
 
 // GetLabels returns ec2 labels according to sdc.

@@ -15,9 +15,14 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to specify filters for Availability Zones in [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) via `az_filters` section. This section can contain AZ-specific set of filters in the same way as the existing `filters` section, which is used for filtering EC2 instances. The list of supported AZ-specific filters is available [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `vmagent_remotewrite_global_rows_pushed_before_relabel_total` and `vmagent_remotewrite_rows_pushed_after_relabel_total` metrics at `http://vmagent:8429/metrics`, which can be used for monitoring the rate of rows (aka samples) pushed to remote storage before and after the relabeling via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`. See [relabeling docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for details.
+
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): properly import InfluxDB measurements if they contain `db` tag. Previously this could result in incomplete import of measurmenet tags. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2536). Thanks to @mback2k for the bugfix.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not reset the selected relative time range when entering new query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115817302).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): rename `vmagent_remote_write_rate_limit_reached_total` metric to `vmagent_remotewrite_rate_limit_reached_total`, so its name is consistent with the rest of `vmagent_remotewrite_` metrics.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): rename `promscrape_stale_samples_created_total` metric to `vm_promscrape_stale_samples_created_total`, so its name is consistent with the rest of `vm_promscrape_` metrics.
 
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): disable write snapshots to the TSDB storage data path. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2503).
 

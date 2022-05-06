@@ -29,7 +29,7 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
 	var rs []Reservation
 	pageToken := ""
-	instanceFilters := awsapi.GetFiltersQueryString(cfg.filters, nil)
+	instanceFilters := awsapi.GetFiltersQueryString(cfg.instanceFilters, nil)
 	for {
 		data, err := cfg.awsConfig.GetEC2APIResponse("DescribeInstances", instanceFilters, pageToken)
 		if err != nil {
