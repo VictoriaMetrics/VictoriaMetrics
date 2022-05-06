@@ -104,7 +104,8 @@ func main() {
 						influxClient,
 						importer,
 						c.Int(influxConcurrency),
-						c.String(influxMeasurementFieldSeparator))
+						c.String(influxMeasurementFieldSeparator),
+						c.Bool(influxSkipDatabaseLabel))
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
