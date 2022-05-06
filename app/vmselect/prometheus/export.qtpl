@@ -1,5 +1,6 @@
 {% import (
 	"bytes"
+	"math"
 	"strings"
 	"time"
 
@@ -100,7 +101,7 @@
 				{%f= values[0] %}
 				{% code values = values[1:] %}
 				{% for _, v := range values %}
-					,{%f= v %}
+				  ,{% if math.IsNaN(v) %}null{% else %}{%f= v %}{% endif %}
 				{% endfor %}
 			{% endif %}
 		],

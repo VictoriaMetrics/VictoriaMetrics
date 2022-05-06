@@ -14,7 +14,7 @@ func MarshalUint16(dst []byte, u uint16) []byte {
 // UnmarshalUint16 returns unmarshaled uint32 from src.
 func UnmarshalUint16(src []byte) uint16 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint16(src)
+	return binary.BigEndian.Uint16(src[:2])
 }
 
 // MarshalUint32 appends marshaled v to dst and returns the result.
@@ -25,7 +25,7 @@ func MarshalUint32(dst []byte, u uint32) []byte {
 // UnmarshalUint32 returns unmarshaled uint32 from src.
 func UnmarshalUint32(src []byte) uint32 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint32(src)
+	return binary.BigEndian.Uint32(src[:4])
 }
 
 // MarshalUint64 appends marshaled v to dst and returns the result.
@@ -36,7 +36,7 @@ func MarshalUint64(dst []byte, u uint64) []byte {
 // UnmarshalUint64 returns unmarshaled uint64 from src.
 func UnmarshalUint64(src []byte) uint64 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint64(src)
+	return binary.BigEndian.Uint64(src[:8])
 }
 
 // MarshalInt16 appends marshaled v to dst and returns the result.
@@ -50,7 +50,7 @@ func MarshalInt16(dst []byte, v int16) []byte {
 // UnmarshalInt16 returns unmarshaled int16 from src.
 func UnmarshalInt16(src []byte) int16 {
 	// This is faster than the manual conversion.
-	u := binary.BigEndian.Uint16(src)
+	u := binary.BigEndian.Uint16(src[:2])
 	v := int16(u>>1) ^ (int16(u<<15) >> 15) // zig-zag decoding without branching.
 	return v
 }
@@ -66,7 +66,7 @@ func MarshalInt64(dst []byte, v int64) []byte {
 // UnmarshalInt64 returns unmarshaled int64 from src.
 func UnmarshalInt64(src []byte) int64 {
 	// This is faster than the manual conversion.
-	u := binary.BigEndian.Uint64(src)
+	u := binary.BigEndian.Uint64(src[:8])
 	v := int64(u>>1) ^ (int64(u<<63) >> 63) // zig-zag decoding without branching.
 	return v
 }

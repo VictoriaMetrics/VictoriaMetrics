@@ -61,6 +61,7 @@ func TestExecSuccess(t *testing.T) {
 			Start:       start,
 			End:         end,
 			Step:        step,
+			MaxSeries:   1000,
 			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits: 100,
 		}
@@ -602,6 +603,40 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("tlast_change_over_time(hit_last)", func(t *testing.T) {
+		t.Parallel()
+		q := `tlast_change_over_time(
+			time()[1h]
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("tlast_change_over_time(hit_middle)", func(t *testing.T) {
+		t.Parallel()
+		q := `tlast_change_over_time(
+			(time() >=bool 1600)[1h]
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1600, 1600},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("tlast_change_over_time(miss)", func(t *testing.T) {
+		t.Parallel()
+		q := `tlast_change_over_time(
+			1[1h]
+		)`
+		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
 	t.Run("timestamp_with_name(alias(time()>=1600))", func(t *testing.T) {
@@ -1831,6 +1866,65 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`drop_common_labels(single_series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `drop_common_labels(label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`drop_common_labels(multi_series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(drop_common_labels((
+			label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"),
+			label_set(time()/10, "foo", "bar", "__name__", "yyy"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("xxx")
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("q"),
+			Value: []byte("we"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("yyy")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`drop_common_labels(multi_args)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(drop_common_labels(
+			label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"),
+			label_set(time()/10, "foo", "bar", "__name__", "xxx"),
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("q"),
+			Value: []byte("we"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`label_keep(nolabels)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_keep(time(), "foo", "bar")`
@@ -2565,6 +2659,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`compare_to_nan_right`, func(t *testing.T) {
+		t.Parallel()
+		q := `1 != nan`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_nan_left`, func(t *testing.T) {
+		t.Parallel()
+		q := `nan != 1`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`-1 < 2`, func(t *testing.T) {
 		t.Parallel()
 		q := `-1 < 2`
@@ -2669,6 +2780,48 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{123, 123, 123, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar default scalar_from_vector`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 1400 default scalar(label_set(123, "foo", "bar"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123, 123, 123, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar default vector1`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 1400 default label_set(123, "foo", "bar")`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar default vector2`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 1400 default (
+			label_set(123, "foo", "bar"),
+			label_set(456, "__name__", "xxx"),
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{456, 456, 456, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar default NaN`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 1400 default (time() < -100)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -5825,6 +5978,80 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
+	t.Run(`vector2 if vector1`, func(t *testing.T) {
+		t.Parallel()
+		q := `(
+			label_set(time()/10, "x", "y"),
+			label_set(time(), "foo", "bar", "__name__", "x"),
+		) if (
+			label_set(time()>1400, "foo", "bar"),
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("x")
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`vector2 if vector2`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort((
+			label_set(time()/10, "x", "y"),
+			label_set(time(), "foo", "bar", "__name__", "x"),
+		) if (
+			label_set(time()>1400, "foo", "bar"),
+			label_set(time()<1400, "x", "y"),
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, nan, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("x"),
+			Value: []byte("y"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("x")
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar if vector1`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() if (
+			label_set(123, "foo", "bar"),
+		)`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar if vector2`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() if (
+			label_set(123, "foo", "bar"),
+			alias(time() > 1400, "xxx"),
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`if-default`, func(t *testing.T) {
 		t.Parallel()
 		q := `time() if time() > 1400 default -time()`
@@ -7496,6 +7723,7 @@ func TestExecError(t *testing.T) {
 			Start:       1000,
 			End:         2000,
 			Step:        100,
+			MaxSeries:   1000,
 			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits: 100,
 		}

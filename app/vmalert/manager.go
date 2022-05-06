@@ -37,7 +37,7 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 
 	g, ok := m.groups[gID]
 	if !ok {
-		return nil, fmt.Errorf("can't find group with id %q", gID)
+		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
 	for _, rule := range g.Rules {
 		ar, ok := rule.(*AlertingRule)
@@ -48,7 +48,7 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 			return apiAlert, nil
 		}
 	}
-	return nil, fmt.Errorf("can't find alert with id %q in group %q", aID, g.Name)
+	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
 }
 
 func (m *manager) start(ctx context.Context, groupsCfg []config.Group) error {
@@ -163,21 +163,17 @@ func (g *Group) toAPI() APIGroup {
 		// encode as string to avoid rounding
 		ID: fmt.Sprintf("%d", g.ID()),
 
-		Name:        g.Name,
-		Type:        g.Type.String(),
-		File:        g.File,
-		Interval:    g.Interval.String(),
-		Concurrency: g.Concurrency,
-		Params:      urlValuesToStrings(g.Params),
-		Labels:      g.Labels,
+		Name:           g.Name,
+		Type:           g.Type.String(),
+		File:           g.File,
+		Interval:       g.Interval.Seconds(),
+		LastEvaluation: g.LastEvaluation,
+		Concurrency:    g.Concurrency,
+		Params:         urlValuesToStrings(g.Params),
+		Labels:         g.Labels,
 	}
 	for _, r := range g.Rules {
-		switch v := r.(type) {
-		case *AlertingRule:
-			ag.AlertingRules = append(ag.AlertingRules, v.RuleAPI())
-		case *RecordingRule:
-			ag.RecordingRules = append(ag.RecordingRules, v.RuleAPI())
-		}
+		ag.Rules = append(ag.Rules, r.ToAPI())
 	}
 	return ag
 }

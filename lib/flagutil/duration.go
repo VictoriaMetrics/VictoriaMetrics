@@ -12,14 +12,14 @@ import (
 // NewDuration returns new `duration` flag with the given name, defaultValue and description.
 //
 // DefaultValue is in months.
-func NewDuration(name string, defaultValue float64, description string) *Duration {
+func NewDuration(name string, defaultValue string, description string) *Duration {
 	description += "\nThe following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months"
-	d := Duration{
-		Msecs:       int64(defaultValue * msecsPerMonth),
-		valueString: fmt.Sprintf("%g", defaultValue),
+	d := &Duration{}
+	if err := d.Set(defaultValue); err != nil {
+		panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))
 	}
-	flag.Var(&d, name, description)
-	return &d
+	flag.Var(d, name, description)
+	return d
 }
 
 // Duration is a flag for holding duration.

@@ -82,14 +82,39 @@ func newBinaryOpArithFunc(af func(left, right float64) float64) binaryOpFunc {
 
 func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOpFunc {
 	return func(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-		isBool := bfa.be.Bool
-		left, right, dst, err := adjustBinaryOpTags(bfa.be, bfa.left, bfa.right)
+		left := bfa.left
+		right := bfa.right
+		op := bfa.be.Op
+		switch true {
+		case op == "ifnot":
+			left = removeEmptySeries(left)
+			// Do not remove empty series on the right side,
+			// so the left-side series could be matched against them.
+		case op == "default":
+			// Do not remove empty series on the left and the right side,
+			// since this may lead to missing result:
+			// - if empty time series are removed on the left side,
+			// then they won't be substituted by time series from the right side.
+			// - if empty time series are removed on the right side,
+			// then this may result in missing time series from the left side.
+		case metricsql.IsBinaryOpCmp(op):
+			// Do not remove empty series for comparison operations,
+			// since this may lead to missing result.
+		default:
+			left = removeEmptySeries(left)
+			right = removeEmptySeries(right)
+		}
+		if len(left) == 0 || len(right) == 0 {
+			return nil, nil
+		}
+		left, right, dst, err := adjustBinaryOpTags(bfa.be, left, right)
 		if err != nil {
 			return nil, err
 		}
 		if len(left) != len(right) || len(left) != len(dst) {
 			logger.Panicf("BUG: len(left) must match len(right) and len(dst); got %d vs %d vs %d", len(left), len(right), len(dst))
 		}
+		isBool := bfa.be.Bool
 		for i, tsLeft := range left {
 			leftValues := tsLeft.Values
 			rightValues := right[i].Values
@@ -111,7 +136,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
-		if isScalar(left) {
+		if isScalar(left) && be.Op != "default" && be.Op != "if" && be.Op != "ifnot" {
 			// Fast path: `scalar op vector`
 			rvsLeft := make([]*timeseries, len(right))
 			tsLeft := left[0]
@@ -206,7 +231,11 @@ func ensureSingleTimeseries(side string, be *metricsql.BinaryOpExpr, tss []*time
 
 func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
 	joinTags := be.JoinModifier.Args
-	var m map[string]*timeseries
+	type tsPair struct {
+		left  *timeseries
+		right *timeseries
+	}
+	m := make(map[string]*tsPair)
 	for _, tsLeft := range tssLeft {
 		resetMetricGroupIfRequired(be, tsLeft)
 		if len(tssRight) == 1 {
@@ -219,12 +248,8 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 
 		// Hard case - right part contains multiple matching time series.
 		// Verify it doesn't result in duplicate MetricName values after adding missing tags.
-		if m == nil {
-			m = make(map[string]*timeseries, len(tssRight))
-		} else {
-			for k := range m {
-				delete(m, k)
-			}
+		for k := range m {
+			delete(m, k)
 		}
 		bb := bbPool.Get()
 		for _, tsRight := range tssRight {
@@ -232,20 +257,29 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 			tsCopy.CopyFromShallowTimestamps(tsLeft)
 			tsCopy.MetricName.SetTags(joinTags, &tsRight.MetricName)
 			bb.B = marshalMetricTagsSorted(bb.B[:0], &tsCopy.MetricName)
-			if tsExisting := m[string(bb.B)]; tsExisting != nil {
-				// Try merging tsExisting with tsRight if they don't overlap.
-				if mergeNonOverlappingTimeseries(tsExisting, tsRight) {
-					continue
+			pair, ok := m[string(bb.B)]
+			if !ok {
+				m[string(bb.B)] = &tsPair{
+					left:  &tsCopy,
+					right: tsRight,
 				}
+				continue
+			}
+			// Try merging pair.right with tsRight if they don't overlap.
+			var tmp timeseries
+			tmp.CopyFromShallowTimestamps(pair.right)
+			if !mergeNonOverlappingTimeseries(&tmp, tsRight) {
 				return nil, nil, fmt.Errorf("duplicate time series on the %s side of `%s %s %s`: %s and %s",
 					singleTimeseriesSide, be.Op, be.GroupModifier.AppendString(nil), be.JoinModifier.AppendString(nil),
-					stringMetricTags(&tsExisting.MetricName), stringMetricTags(&tsRight.MetricName))
+					stringMetricTags(&tmp.MetricName), stringMetricTags(&tsRight.MetricName))
 			}
-			m[string(bb.B)] = tsRight
-			rvsLeft = append(rvsLeft, &tsCopy)
-			rvsRight = append(rvsRight, tsRight)
+			pair.right = &tmp
 		}
 		bbPool.Put(bb)
+		for _, pair := range m {
+			rvsLeft = append(rvsLeft, pair.left)
+			rvsRight = append(rvsRight, pair.right)
+		}
 	}
 	return rvsLeft, rvsRight, nil
 }
@@ -322,7 +356,7 @@ func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 				}
 			}
 		}
-		tssLeft = removeNaNs(tssLeft)
+		tssLeft = removeEmptySeries(tssLeft)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
@@ -382,7 +416,7 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 				}
 			}
 		}
-		tssLeft = removeNaNs(tssLeft)
+		tssLeft = removeEmptySeries(tssLeft)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil

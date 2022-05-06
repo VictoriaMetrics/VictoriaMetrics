@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -14,11 +15,15 @@ var (
 	allowedBytes   = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage`)
 )
 
+var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
+	return float64(memoryLimit)
+})
+
 var (
 	allowedMemory   int
 	remainingMemory int
+	memoryLimit     int
 )
-
 var once sync.Once
 
 func initOnce() {
@@ -26,18 +31,18 @@ func initOnce() {
 		// Do not use logger.Panicf here, since logger may be uninitialized yet.
 		panic(fmt.Errorf("BUG: memory.Allowed must be called only after flag.Parse call"))
 	}
-	mem := sysTotalMemory()
+	memoryLimit = sysTotalMemory()
 	if allowedBytes.N <= 0 {
 		if *allowedPercent < 1 || *allowedPercent > 200 {
 			logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %g", *allowedPercent)
 		}
 		percent := *allowedPercent / 100
-		allowedMemory = int(float64(mem) * percent)
-		remainingMemory = mem - allowedMemory
+		allowedMemory = int(float64(memoryLimit) * percent)
+		remainingMemory = memoryLimit - allowedMemory
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g", allowedMemory, remainingMemory, *allowedPercent)
 	} else {
 		allowedMemory = allowedBytes.N
-		remainingMemory = mem - allowedMemory
+		remainingMemory = memoryLimit - allowedMemory
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
 	}
 }

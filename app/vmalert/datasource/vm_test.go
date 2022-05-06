@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -88,26 +89,27 @@ func TestVMInstantQuery(t *testing.T) {
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
+	ts := time.Now()
 
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected invalid response status error got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected response body error got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected error status got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected unknown status got nil")
 	}
-	if _, err := pq.Query(ctx, query); err == nil {
+	if _, err := pq.Query(ctx, query, ts); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
 	}
-	m, err := pq.Query(ctx, query)
+	m, err := pq.Query(ctx, query, ts)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -133,7 +135,7 @@ func TestVMInstantQuery(t *testing.T) {
 	g := NewGraphiteType()
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
 
-	m, err = gq.Query(ctx, queryRender)
+	m, err = gq.Query(ctx, queryRender, ts)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -513,6 +515,59 @@ func TestRequestParams(t *testing.T) {
 				tc.vm.setGraphiteReqParams(req, query, timestamp)
 			}
 			tc.checkFn(t, req)
+		})
+	}
+}
+
+func TestAuthConfig(t *testing.T) {
+	var testCases = []struct {
+		name    string
+		vmFn    func() *VMStorage
+		checkFn func(t *testing.T, r *http.Request)
+	}{
+		{
+			name: "basic auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{authCfg: cfg}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				u, p, _ := r.BasicAuth()
+				checkEqualString(t, "foo", u)
+				checkEqualString(t, "bar", p)
+			},
+		},
+		{
+			name: "bearer auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBearer("foo", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{authCfg: cfg}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				reqToken := r.Header.Get("Authorization")
+				splitToken := strings.Split(reqToken, "Bearer ")
+				if len(splitToken) != 2 {
+					t.Errorf("expected two items got %d", len(splitToken))
+				}
+				token := splitToken[1]
+				checkEqualString(t, "foo", token)
+			},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			vm := tt.vmFn()
+			req, err := vm.newRequestPOST()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			tt.checkFn(t, req)
 		})
 	}
 }

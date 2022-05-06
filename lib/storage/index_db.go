@@ -724,7 +724,7 @@ func (is *indexSearch) searchTagKeysOnTimeRange(tks map[string]struct{}, tr Time
 		return is.searchTagKeys(tks, maxTagKeys)
 	}
 	var mu sync.Mutex
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
@@ -752,6 +752,7 @@ func (is *indexSearch) searchTagKeysOnTimeRange(tks map[string]struct{}, tr Time
 		}(date)
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	return errGlobal
 }
 
@@ -926,7 +927,7 @@ func (is *indexSearch) searchTagValuesOnTimeRange(tvs map[string]struct{}, tagKe
 		return is.searchTagValues(tvs, tagKey, maxTagValues)
 	}
 	var mu sync.Mutex
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
@@ -954,6 +955,7 @@ func (is *indexSearch) searchTagValuesOnTimeRange(tvs map[string]struct{}, tagKe
 		}(date)
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	return errGlobal
 }
 
@@ -1141,7 +1143,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 	// Query over multiple days in parallel.
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	for minDate <= maxDate {
@@ -1171,6 +1173,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 		minDate++
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	return errGlobal
 }
 
@@ -1315,9 +1318,9 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 }
 
 // GetTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
-func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	is := db.getIndexSearch(deadline)
-	status, err := is.getTSDBStatusWithFiltersForDate(tfss, date, topN)
+	status, err := is.getTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
@@ -1327,7 +1330,7 @@ func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint
 	}
 	ok := db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
-		status, err = is.getTSDBStatusWithFiltersForDate(tfss, date, topN)
+		status, err = is.getTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -1337,14 +1340,14 @@ func (db *indexDB) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint
 }
 
 // getTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
-func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN int) (*TSDBStatus, error) {
+func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN, maxMetrics int) (*TSDBStatus, error) {
 	var filter *uint64set.Set
 	if len(tfss) > 0 {
 		tr := TimeRange{
 			MinTimestamp: int64(date) * msecPerDay,
 			MaxTimestamp: int64(date+1) * msecPerDay,
 		}
-		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, 2e9)
+		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -2152,14 +2155,20 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			tagMatched = true
 			break
 		}
-		if !tagSeen && tf.isNegative && !tf.isEmptyMatch {
+		if !tagSeen && (!tf.isNegative && tf.isEmptyMatch || tf.isNegative && !tf.isEmptyMatch) {
+			// tf contains positive empty-match filter for non-existing tag key, i.e.
+			// {non_existing_tag_key=~"foobar|"}
+			//
+			// OR
+			//
 			// tf contains negative filter for non-exsisting tag key
 			// and this filter doesn't match empty string, i.e. {non_existing_tag_key!="foobar"}
 			// Such filter matches anything.
 			//
 			// Note that the filter `{non_existing_tag_key!~"|foobar"}` shouldn't match anything,
 			// since it is expected that it matches non-empty `non_existing_tag_key`.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 for details.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 and
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2255 for details.
 			continue
 		}
 		if tagMatched {
@@ -2218,7 +2227,8 @@ func (is *indexSearch) searchMetricIDsInternal(tfss []*TagFilters, tr TimeRange,
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+			return nil, fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
+				"or increase -search.max* command-line flag values at vmselect", maxMetrics)
 		}
 	}
 	return metricIDs, nil
@@ -2238,6 +2248,10 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 	atomic.AddUint64(&is.db.globalSearchCalls, 1)
 	m, err := is.getMetricIDsForDateAndFilters(0, tfs, maxMetrics)
 	if err != nil {
+		if errors.Is(err, errFallbackToGlobalSearch) {
+			return fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
+				"or increase -search.max* command-line flag values at vmselect", maxMetrics)
+		}
 		return err
 	}
 	metricIDs.UnionMayOwn(m)
@@ -2440,7 +2454,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 	}
 
 	// Slower path - search for metricIDs for each day in parallel.
-	var wg sync.WaitGroup
+	wg := getWaitGroup()
 	var errGlobal error
 	var mu sync.Mutex // protects metricIDs + errGlobal vars from concurrent access below
 	for minDate <= maxDate {
@@ -2467,6 +2481,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 		minDate++
 	}
 	wg.Wait()
+	putWaitGroup(wg)
 	if errGlobal != nil {
 		return errGlobal
 	}

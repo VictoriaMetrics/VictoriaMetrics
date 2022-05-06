@@ -12,6 +12,7 @@ func TestConfigParseGood(t *testing.T) {
 	}
 	f("testdata/mixed.good.yaml")
 	f("testdata/consul.good.yaml")
+	f("testdata/dns.good.yaml")
 	f("testdata/static.good.yaml")
 }
 

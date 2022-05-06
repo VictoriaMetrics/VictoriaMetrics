@@ -6,6 +6,7 @@ export interface SetupTooltip {
     metrics: MetricResult[],
     series: Series[],
     tooltip: HTMLDivElement,
+    unit?: string,
     tooltipOffset: {
         left: number,
         top: number

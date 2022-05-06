@@ -14,7 +14,7 @@ import (
 
 func TestAlertManager_Addr(t *testing.T) {
 	const addr = "http://localhost"
-	am, err := NewAlertManager(addr, nil, promauth.HTTPClientConfig{}, 0)
+	am, err := NewAlertManager(addr, nil, promauth.HTTPClientConfig{}, nil, 0)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
@@ -89,7 +89,7 @@ func TestAlertManager_Send(t *testing.T) {
 	}
 	am, err := NewAlertManager(srv.URL+alertManagerPath, func(alert Alert) string {
 		return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
-	}, aCfg, 0)
+	}, aCfg, nil, 0)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}

@@ -1,10 +1,11 @@
 ---
-sort: 15
+sort: 16
 ---
 
 # CHANGELOG
 
 The following tip changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
+
 * [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-build-from-sources)
 * [How to build cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#building-from-sources)
 * [How to build vmagent](https://docs.victoriametrics.com/vmagent.html#how-to-build-from-sources)
@@ -14,10 +15,137 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to specify filters for Availability Zones in [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) via `az_filters` section. This section can contain AZ-specific set of filters in the same way as the existing `filters` section, which is used for filtering EC2 instances. The list of supported AZ-specific filters is available [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `vmagent_remotewrite_global_rows_pushed_before_relabel_total` and `vmagent_remotewrite_rows_pushed_after_relabel_total` metrics at `http://vmagent:8429/metrics`, which can be used for monitoring the rate of rows (aka samples) pushed to remote storage before and after the relabeling via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`. See [relabeling docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for details.
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): properly import InfluxDB measurements if they contain `db` tag. Previously this could result in incomplete import of measurmenet tags. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2536). Thanks to @mback2k for the bugfix.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not reset the selected relative time range when entering new query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115817302).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): rename `vmagent_remote_write_rate_limit_reached_total` metric to `vmagent_remotewrite_rate_limit_reached_total`, so its name is consistent with the rest of `vmagent_remotewrite_` metrics.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): rename `promscrape_stale_samples_created_total` metric to `vm_promscrape_stale_samples_created_total`, so its name is consistent with the rest of `vm_promscrape_` metrics.
+
+
+## [v1.77.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.0)
+
+Released at 05-05-2022
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for sending data to remote storage with AWS sigv4 authorization. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1287).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow filtering targets by target url and by target labels with [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) on `http://vmagent:8429/targets` page. This may be useful when `vmagent` scrapes big number of targets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1796).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): reduce `-promscrape.config` reload duration when the config contains big number of jobs (aka [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) sections) and only a few of them are changed. Previously all the jobs were restarted. Now only the jobs with changed configs are restarted. This should reduce the probability of data miss because of slow config reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2270).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): improve service discovery speed for big number of scrape targets. This should help when `vmagent` discovers big number of targets (e.g. thousands) in Kubernetes cluster. The service discovery speed now should scale with the number of CPU cores available to `vmagent`.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to attach node-level labels and annotations to discovered Kubernetes pod targets in the same way as Prometheus 2.35 does. See [this feature request](https://github.com/prometheus/prometheus/issues/9510) and [this pull request](https://github.com/prometheus/prometheus/pull/10080).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `tls_config` and `proxy_url` options at `oauth2` section in the same way as Prometheus does. See [oauth2 docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `min_version` option at `tls_config` section in the same way as Prometheus does. See [tls_config docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
+* FEATURE: [vmagent](): expose `vmagent_remotewrite_rate_limit` metric at `http://vmagent:8429/metrics`, which can be used for alerting rules such as `rate(vmagent_remotewrite_conn_bytes_written_total) / vmagent_remotewrite_rate_limit > 0.8` when `-remoteWrite.rateLimit` command-line flag is set. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2521).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for DNS-based discovery for notifiers in the same way as Prometheus does (aka `dns_sd_configs`). See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2460).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `-replay.disableProgressBar` command-line flag, which allows disabling progressbar in [rules' backfilling mode](https://docs.victoriametrics.com/vmalert.html#rules-backfilling). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1761).
+* FEATURE: allow specifying TLS cipher suites for incoming https requests via `-tlsCipherSuites` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2404).
+* FEATURE: allow specifying TLS cipher suites for mTLS connections between cluster components via `-cluster.tlsCipherSuites` command-line flag. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
+* FEATURE: vmstorage: add `-snapshotsMaxAge` command-line flag for automatic removal of snapshots older than the given age.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show an empty graph on the selected time range when there is no data on it. Previously `No data to show` placeholder was shown instead of the graph in this case. This prevented from zooming and scrolling of such a graph.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show the selected `last N minutes/hours/days` in the top right corner. Previously the `start - end` duration was shown instead, which could be hard to interpret. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): execute the query when `enter` button is pressed in the same way as Prometheus does. Multi-line query can be entered by pressing `shift-enter` in the query input field.
+* FEATURE: expose `vm_indexdb_items_added_total` and `vm_indexdb_items_added_size_bytes_total` counters at `/metrics` page, which can be used for monitoring the rate for addition of new entries in `indexdb` (aka `inverted index`) alongside the total size in bytes for the added entries. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2471).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): show data pocessing speed during data migration.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `drop_common_labels()` function, which drops common `label="name"` pairs from the passed time series. See [these docs](https://docs.victoriametrics.com/MetricsQL.html#drop_common_labels).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `tlast_change_over_time(m[d])` function, which returns the timestamp of the last change of `m` on the given lookbehind window `d`. See [these docs](https://docs.victoriametrics.com/MetricsQL.html#tlast_change_over_time).
+* FEATURE: leave the last raw sample per each `-dedup.minScrapeInterval` discrete interval when the [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled. This aligns better with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness) comparing to the previous behaviour when the first sample per each `-dedup.minScrapeInterval` was left.
+* FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add ability to disable peer TLS certificate verification with `-cluster.tlsInsecureSkipVerify` command-line flag. See [mTLS docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection) for details. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2490).
+* FEATURE: add a handler for `/api/v1/status/buildinfo` endpoint, which is used by Grafana starting from v8.5.0 . See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2515).
+* FEATURE: add ability to proxy alerting API requests from Grafana to vmalert by passing `-vmalert.proxyURL` command-line flag to single-node VictoriaMetrics or to `vmselect` at cluster version of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1739).
+
+* BUGFIX: export staleness markers as `null` values from [JSON export API](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format). Previously they were exported as `NaN` values. This could break the exported JSON parsing, since `NaN` values aren't supported by [JSON specification](https://www.json.org/).
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): close `vmselect->vmstorage` connections if they were idle for more than 30 seconds. Expose `vm_tcpdialer_conns_idle` metric at `http://vmselect:8481/metrics` with the number of idle connections to `vmstorage`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2508).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): return non-zero exit code on error. This allows handling `vmctl` errors in shell scripts. Previously `vmctl` was returning 0 exit code on error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2322).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): prevent from indefinite hang on `Ctrl+C`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2491).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly show `scrape_timeout` and `scrape_interval` options at `http://vmagent:8429/config` page. Previously these options weren't displayed even if they were set in `-promscrape.config`.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): handle non-standard http redirect status codes, which may be returned by scrape targets, in the same way as Prometheus does. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2482).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): skip template execution during rules' validation. This should prevent from `error evaluating annotation template` errors when some template functions expect non-empty args. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2514).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fixed truncating alerts expression in table, updated table cell layout. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2484).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle joins on time series filtered by values. For example, `kube_pod_container_resource_requests{resource="cpu"} * on (namespace,pod) group_left() (kube_pod_status_phase{phase=~"Pending|Running"}==1)`. This query could result in `duplicate time series on the right side` error even if `==1` filter leaves only a single time series per `(namespace,pod)` labels. Now such query is properly executed.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle `scalar default vector`, `scalar if vector` and `scalar ifnot vector` queries. Previously such queries could return unexpected results from the `vector` part.
+* BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): take into account `indexdb` when calculating disk space usage. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2368).
+
+
+## [v1.76.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.1)
+
+Released at 12-04-2022
+
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes may log communication errors during the upgrade. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release. It is safe to downgrade to previous releases.
+
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for `alert_relabel_configs` option at `-notifier.config`. This option allows configuring relabeling rules for alerts before sending them to configured notifiers. See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmalert.html): allow passing StatefulSet pod names to `-promscrape.cluster.memberNum` command-line flag. In this case the member number is automatically extracted from the pod name, which must end with the number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `vmagent-0`, `vmagent-1`, etc. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2359) and [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly propagate limits at `-search.max*` command-line flags from `vminsert` to `vmstorage`. The limits are `-search.maxUniqueTimeseries`, `-search.maxSeries`, `-search.maxFederateSeries`, `-search.maxExportSeries`, `-search.maxGraphiteSeries` and `-search.maxTSDBStatusSeries`. They weren't propagated to `vmstorage` because of the bug. These limits were introduced in [v1.76.0](https://docs.victoriametrics.com/CHANGELOG.html#v1760). See [this bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2450).
+* BUGFIX: fix goroutine leak and possible deadlock when importing invalid data via [native binary format](https://docs.victoriametrics.com/#how-to-import-data-in-native-format). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2423).
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): properly calculate [hitCount](https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.hitcount) function. Previously it could return empty results if there were no original samples in some parts of the selected time range.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow overriding built-in function names inside [WITH templates](https://play.victoriametrics.com/promql/expand-with-exprs). For example, `WITH (sum(a,b) = a + b + 1) sum(x,y)` now expands into `x + y + 1`. Previously such a query would fail with `cannot use reserved name` error. See [this bugreport](https://github.com/VictoriaMetrics/metricsql/issues/5).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display values greater than 1000 on Y axis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2409).
+
+
+## [v1.76.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.0)
+
+Released at 07-04-2022
+
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes may log communication errors during the upgrade. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release.
+
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add ability to verify files obtained via [native export](https://docs.victoriametrics.com/#how-to-export-data-in-native-format). See [these docs](https://docs.victoriametrics.com/vmctl.html#verifying-exported-blocks-from-victoriametrics) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2362).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add pre-defined dashboards for per-job CPU usage, memory usage and disk IO usage. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2243) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): improve compatibility with [Prometheus Alert Generator specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2340).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `-datasource.disableKeepAlive` command-line flag, which can be used for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) to datasources. This option can be useful for distributing load among multiple datasources behind TCP proxy such as [HAProxy](http://www.haproxy.org/).
+* FEATURE: [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): reduce memory usage by up to 50% for `vminsert` and `vmstorage` under high ingestion rate.
+* FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): Allow to read `-ratelimit.config` file from URL. Also add `-ratelimit.configCheckInterval` command-line option. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2241).
+* FEATURE: add the following command-line flags, which can be used for fine-grained limiting of CPU and memory usage during various API calls:
+
+  * `-search.maxFederateSeries` for limiting the number of time series, which can be returned from [/federate](https://docs.victoriametrics.com/#federation).
+  * `-search.maxExportSeries` for limiting the number of time series, which can be returned from [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-time-series).
+  * `-search.maxSeries` for limiting the number of time series, which can be returned from [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series).
+  * `-search.maxTSDBStatusSeries` for limiting the number of time series, which can be scanned during the request to [/api/v1/status/tsdb](https://docs.victoriametrics.com/#tsdb-stats).
+  * `-search.maxGraphiteSeries` for limiting the number of time series, which can be scanned during the request to [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage).
+
+Previously the `-search.maxUniqueTimeseries` command-line flag was used as a global limit for all these APIs. Now the `-search.maxUniqueTimeseries` is used only for limiting the number of time series, which can be scanned during requests to [/api/v1/query](https://docs.victoriametrics.com/url-examples.html#apiv1query) and [/api/v1/query_range](https://docs.victoriametrics.com/url-examples.html#apiv1query_range).
+
+When using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html), these command-line flags (including `-search.maxUniqueTimeseries`) must be passed to `vmselect` instead of `vmstorage`.
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html) and [vmauth](https://docs.victoriametrics.com/vmauth.html): reduce the probability of `TLS handshake error from XX.XX.XX.XX: EOF` errors when `-remoteWrite.url` points to HTTPS url at `vmauth`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1699).
+* BUGFIX: return `Content-Type: text/html` response header when requesting `/` HTTP path at VictoriaMetrics components. Previously `text/plain` response header was returned, which could lead to broken page formatting. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2323).
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): accept floating-point values for [maxDataPoints](https://graphite.readthedocs.io/en/stable/render_api.html#maxdatapoints) query arg, since some clients send floating-point values instead of integer values for this arg.
+
+## [v1.75.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.75.1)
+
+Released at 28-03-2022
+
+* BUGFIX: update base image for VictoriaMetrics from `alpine-3.15.0` to `alpine-3.15.2`. This fixes [CVE-2022-0778](https://nvd.nist.gov/vuln/detail/CVE-2022-0778). See [alpine 3.15.2 release docs](https://alpinelinux.org/posts/Alpine-3.15.2-released.html).
+
+## [v1.75.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.75.0)
+
+Released at 18-03-2022
+
+**Update notes:** release contains breaking change to vmalert's API introduced in [ee396b5](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2320/commits/ee396b5750d0bcb98233d624f88fa6cf92a8253b).
+It replaces the `api/v1/groups` API handler with `api/v1/rules` handler in order to become compatible
+with [alerts generator specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md).
+See other changes introduced to vmalert [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2320).
+
+* FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add support for mTLS communications between cluster components. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/550).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add ability to use OAuth2 for `-datasource.url`, `-notifier.url` and `-remoteRead.url`. See the corresponding command-line flags containing `oauth2` in their names [here](https://docs.victoriametrics.com/vmalert.html#flags).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add ability to use Bearer Token for `-notifier.url` via `-notifier.bearerToken` and `-notifier.bearerTokenFile` command-line flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1824).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `sortByLabel` template function in order to be consistent with Prometheus. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/template_reference/#functions) for more details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): improve compliance with [Prometheus Alert Generator Specification](https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `-rule.resendDelay` command-line flag, which specifies the minumum amount of time to wait before resending an alert to Alertmanager (e.g. this is equivalent to `-rules.alert.resend-delay` option from Prometheus. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1665).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): transparently treat `Authorization: Token ...` request headers as `Authorization: Bearer ...` request headers. This allows sending requests to `vmauth` from InfluxDB clients. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897). Thanks to @dcircelli for the pull request.
+* FEATURE: do not log trivial network errors such as `broken pipe` and `connection reset by peer`. This error could occur when writing data to the client, which closes the connection to VictoriaMetrics due to request timeout or similar reason. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2334).
+
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): return an additional point after `until` timestamp in the same way as Graphite does. Previously VictoriaMetrics didn't return this point, which could result in missing last point on the graph.
+* BUGFIX: properly locate series with the given `name` and without the given `label` when using the `name{label=~"foo|"}` series selector. Previously such series could be skipped. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2255). Thanks to @jduncan0000 for discovering and fixing the issue.
+* BUGFIX: properly free up memory occupied by deleted cache entries for the following caches: `indexdb/dataBlocks`, `indexdb/indexBlocks`, `storage/indexBlocks`. This should reduce the increased memory usage starting from v1.73.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007) issue.
+* BUGFIX: reduce the interval for checking for free disk space from 30 seconds to 1 second. This should reduce the probability of `no space left on device` panics when `-storage.minFreeDiskSpaceBytes` is set to too low values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2305).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): prevent from panic at vmagent when importing a time series with big number of samples. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2335). Thanks to @bleedfish for discovering and fixing the issue.
 
 ## [v1.74.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.74.0)
 
 Released at 03-03-2022
+
+**Update notes:** In this release VictoriaMetrics may use some extra memory due to issues [#2242](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [#2007](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007). These issues were addressed in [v1.75.0](#v1750), so we recommend updating straight to it.
 
 * FEATURE: add support for conditional relabeling via `if` filter. The `if` filter can contain arbitrary [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following rule drops targets matching `foo{bar="baz"}` series selector:
 
@@ -44,10 +172,11 @@ This rule is equivalent to less clear traditional one:
 * BUGFIX: properly handle [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) containing a filter for multiple metric names plus a negative filter. For example, `{__name__=~"foo|bar",job!="baz"}` . Previously VictoriaMetrics could return series with `foo` or `bar` names and with `job="baz"`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2238).
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): properly parse JWT tokens if they are encoded with [URL-safe base64 encoding](https://datatracker.ietf.org/doc/html/rfc4648#section-5).
 
-
 ## [v1.73.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.1)
 
 Released at 22-02-2022
+
+**Update notes:** In this release VictoriaMetrics may use some extra memory due to issues [#2242](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [#2007](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007). These issues were addressed in [v1.75.0](#v1750), so we recommend updating straight to it.
 
 * FEATURE: allow overriding default limits for the following in-memory caches, which usually occupy the most memory:
   * `storage/tsid` - the cache speeds up lookups of internal metric ids by `metric_name{labels...}` during data ingestion. The size for this cache can be tuned with `-storage.cacheSizeStorageTSID` command-line flag.
@@ -64,10 +193,11 @@ Released at 22-02-2022
 * BUGFIX: update default value for `-promscrape.fileSDCheckInterval`, so it matches default duration used by Prometheus for checking for updates in `file_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2187). Thanks to @corporate-gadfly for the fix.
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): do not return partial responses from `vmselect` if at least a single `vmstorage` node was reachable and returned an app-level error. Such errors are usually related to cluster mis-configuration, so they must be returned to the caller instead of being masked by [partial responses](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability). Partial responses can be returned only if some of `vmstorage` nodes are unreachable during the query. This may help the following issues: [one](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1941), [two](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/678).
 
-
 ## [v1.73.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.0)
 
 Released at 14-02-2022
+
+**Update notes:** In this release VictoriaMetrics may use some extra memory described in issues [#2242](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2242) and [#2007](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2007). These issues were addressed in [v1.75.0](#v1750), so we recommend updating straight to it.
 
 * FEATURE: publish VictoriaMetrics binaries for MacOS amd64 and MacOS arm64 (aka MacBook M1) at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1896) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1851).
 * FEATURE: reduce CPU and disk IO usage during `indexdb` rotation once per `-retentionPeriod`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401).
@@ -103,7 +233,6 @@ Released at 14-02-2022
 * BUGFIX: vmagent: properly discover pods without exposed ports for the given service for `role: endpoints` and `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134).
 * BUGFIX: vmagent: properly display `zone` contents for `gce_sd_configs` section at `http://vmagent:8429/config` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2179). Thanks to @artifactori for the bugfix.
 * BUGFIX: vmagent: properly handle `all_tenants: true` config option at `openstack_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2182).
-
 
 ## [v1.72.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.72.0)
 
@@ -146,10 +275,16 @@ Released at 18-01-2022
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix incorrect calculations for graph limits on y axis. This could result in incorrect graph rendering in some cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2037).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix handling for multi-line queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2039).
 
-
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)
 
 Released at 20-12-2021
+
+**Update notes:** deduplication logic was slightly changed on the release, which may cause extra
+[background merges](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+for already existing data parts for installations with `-dedup.minScrapeInterval` flag value greater than 0. This process is intentionally limited by one CPU core, but still can result
+into increase of CPU usage until merges are finished.
+
+We recommend updating in "off-peak" time when load on the VictoriaMetrics is on its minimum.
 
 * FEATURE: [VictoriaMetrics enterprise](https://victoriametrics.com/products/enterprise/): add multi-level downsampling support. See [these docs](https://docs.victoriametrics.com/#downsampling) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to analyze the correlation between two queries on a single graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1916).
@@ -172,7 +307,6 @@ Released at 20-12-2021
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): follow up to 5 redirects when `follow_redirects: true` is set for a particular scrape config. Previously only a single redirect was performed in this case. It is expected these redirects are performed to the original hostname. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1945).
 * BUGFIX: de-duplicate data exported via [/api/v1/export/csv](https://docs.victoriametrics.com/#how-to-export-csv-data) by default if [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled. The de-duplication can be disabled by passing `reduce_mem_usage=1` query arg to `/api/v1/export/csv`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1837).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly store [historical data](https://docs.victoriametrics.com/vmalert.html#rules-backfilling) to old Prometheus versions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943).
-
 
 ## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
 
@@ -203,7 +337,6 @@ Released at 02-12-2021
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not store the last query across vmui page reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1694).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `Cannot read properties of undefined` error at table view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1797).
 
-
 ## [v1.69.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.69.0)
 
 Released at 08-11-2021
@@ -225,7 +358,6 @@ Released at 08-11-2021
 * BUGFIX: vmagent: reduce the increased memory usage when scraping targets with big number of metrics which periodically change. The memory usage has been increased in v1.68.0 after vmagent started generating staleness markers in [stream parse mode](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1745).
 * BUGFIX: vmagent: properly display `proxy_url` config option at `http://vmagent:8429/config` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1755).
 * BUGFIX: fix tests for Apple M1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1653).
-
 
 ## [v1.68.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.68.0)
 
@@ -255,7 +387,6 @@ Released at 22-10-2021
 * BUGFIX: vmagent: group scrape targets by the original job names at `http://vmagent:8429/targets` page like Prometheus does. Previously they were grouped by the job name after relabeling, which may result in unexpected empty target groups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1707).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix importing boolean fields from InfluxDB line protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1709).
 
-
 ## [v1.67.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.67.0)
 
 Released at 08-10-2021
@@ -273,7 +404,6 @@ Released at 08-10-2021
 * BUGFIX: return proper values (zeroes) from [stddev_over_time](https://docs.victoriametrics.com/MetricsQL.html#stddev_over_time) and [stdvar_over_time](https://docs.victoriametrics.com/MetricsQL.html#stdvar_over_time) functions when the lookbehind window in square brackets contains only a single sample. Previously the sample value was incorrectly returned in this case.
 * BUGFIX: vminsert: fix uneven distribution of time series among storage nodes in [multi-level cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1672).
 
-
 ## [v1.66.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.2)
 
 Released at 23-09-2021
@@ -283,7 +413,6 @@ Released at 23-09-2021
 * BUGFIX: vmalert: properly reload rule groups if only the `interval` config option is changed. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1641).
 * BUGFIX: properly handle `{__name__=~"prefix(suffix1|suffix2)",other_label="..."}` queries. They may return unexpected empty responses since v1.66.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1644).
 
-
 ## [v1.66.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.1)
 
 Released at 22-09-2021
@@ -292,7 +421,6 @@ Released at 22-09-2021
 
 * BUGFIX: vmselect: fix accessing [Graphite APIs](https://docs.victoriametrics.com/#graphite-api-usage). The access has been broken in v1.66.0, because `/graphite/*` path prefix accidentally clashed with `/graph*` path prefix used for VictoriaMetrics UI (aka `vmui`).
 * BUGFIX: fix parsing `regex: <bool_or_number>` in relabeling rules (for example, `regex: true` or `regex: 123`). The bug has been introduced in v1.66.0.
-
 
 ## [v1.66.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.0)
 
@@ -331,7 +459,6 @@ Released at 20-09-2021
 * BUGFIX: fix non-repeatable results from `quantile_over_time()` function when the number of input samples exceeds 1000. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1612).
 * BUGFIX: vmagent: fix EC2 zone discovery when `filters` are specified in [ec2_sc_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1626).
 
-
 ## [v1.65.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.65.0)
 
 Released at 01-09-2021
@@ -356,7 +483,6 @@ Released at 01-09-2021
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix timeout error when snapshot takes longer than 10 seconds. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1571).
 * BUGFIX: properly parse OpenTSDB `put` messages with multiple spaces between message elements. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1574). Thanks to @envzhu for the fix.
 
-
 ## [v1.64.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.64.1)
 
 Released at 19-08-2021
@@ -370,7 +496,6 @@ Released at 19-08-2021
 * BUGFIX: vmagent: send Prometheus stale markers for the previously scraped metrics on failed scrapes like Prometheus does. See [this article](https://www.robustperception.io/staleness-and-promql).
 * BUGFIX: upgrade base Docker image from Alpine 3.14.0 to Alpine 3.14.1 . This fixes potential security issues - see [Alpine 3.14.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.14.1-released.html).
 * BUGFIX: disable overriding the lookbehind window `[d]` at `last_over_time(m[d])` if `d` is smaller than the interval between samples, since users don't expect implicit overriding of explicitly set `[d]` in `last_over_time(m[d])`.
-
 
 ## [v1.64.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.64.0)
 
@@ -398,7 +523,6 @@ Released at 15-08-2021
 * BUGFIX: vmui: fix layout when the query selects more than 27 time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1497).
 * BUGFIX: vmagent: restore highlighting in red for DOWN targets at `/targets` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1461).
 
-
 ## [v1.63.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.63.0)
 
 Released at 15-07-2021
@@ -420,7 +544,6 @@ Released at 15-07-2021
 * BUGFIX: vmalert: accept Prometheus-like durations in `interval` config option inside `group` section. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1444).
 * BUGFIX: properly update `vm_merge_need_free_disk_space` metric at `/metrics` page when there is no enough free disk space for performing optimal merges. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1373).
 
-
 ## [v1.62.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.62.0)
 
 Released at 25-06-2021
@@ -439,11 +562,10 @@ Released at 25-06-2021
 * FEATURE: vmstorage: reduce memory usage on a system with many CPU cores under high ingestion rate.
 
 * BUGFIX: prevent from adding new samples to deleted time series after the rotation of the inverted index (the rotation is performed once per `-retentionPeriod`). See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347#issuecomment-861232136) for details.
-* BUGFIX: vmstorage: reduce high disk write IO usage on systems with big number of CPU cores. The issue has been introduced in the release [v1.59.0](#v1590). See [this commit](aa9b56a046b6ae8083fa659df35dd5e994bf9115) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1338#issuecomment-863046999) for details.
+* BUGFIX: vmstorage: reduce high disk write IO usage on systems with big number of CPU cores. The issue has been introduced in the release [v1.59.0](#v1590). See [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/aa9b56a046b6ae8083fa659df35dd5e994bf9115) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1338#issuecomment-863046999) for details.
 * BUGFIX: vmstorage: prevent from incorrect stats collection when multiple concurrent queries execute the same tag filter. This may help reducing CPU usage under certain workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1338).
 * BUGFIX: vmselect: return the last timestamp for the max / min value from `tmax_over_time(m[d])` and `tmin_over_time(m[d])` [MetricsQL functions](https://docs.victoriametrics.com/MetricsQL.html) as most users expect. See also [this issue](https://github.com/prometheus/prometheus/issues/8966).
 * BUGFIX: vmselect: return the expected value for `increase_pure()` [MetricsQL function](https://docs.victoriametrics.com/MetricsQL.html) after a gap in a time series. Previously incorrect too big value could be returned after the gap from `increase_pure()`.
-
 
 ## [v1.61.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.61.1)
 
@@ -451,7 +573,6 @@ Released at 11-06-2021
 
 * BUGFIX: vmalert: fix recording rules, which were broken in v1.61.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1369).
 * BUGFIX: reset the on-disk cache for mapping from the full metric name to an internal metric id (e.g. `metric_name{labels} -> internal_metric_id`) after deleting metrics via [delete API](https://docs.victoriametrics.com/#how-to-delete-time-series). This should prevent from possible inconsistent state after unclean shutdown. This [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347).
-
 
 ## [v1.61.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.61.0)
 
@@ -470,7 +591,6 @@ Released at 09-06-2021
 * BUGFIX: vmagent: properly apply auth and tls configs in `eureka_sd_configs`. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1350).
 * BUGFIX: vmauth: do not panic on aborted http requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353).
 * BUGFIX: properly generate `target` property for `*Series(foo.*.bar)` responses returned from [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage). Previously the `target` contained the expanded list of series for `foo.*.bar`, e.g. `sumSeries(foo.a.bar,foo.b.bar,...foo.z.bar)`. Now VictoriaMetrics returns `sumSeries(foo.*.bar)` as a target in the same way as Graphite does.
-
 
 ## [v1.60.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.60.0)
 
@@ -508,7 +628,6 @@ Released at 24-05-2021
 * BUGFIX: vmalert: properly import default rules from OpenShift. See [this issue](https://github.com/VictoriaMetrics/operator/issues/243).
 * BUGFIX: reduce the probability of `the removal queue is full` panic when highly loaded VictoriaMetrics stores data on NFS. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1313).
 
-
 ## [v1.59.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.59.0)
 
 Released at 01-05-2021
@@ -525,7 +644,6 @@ Thanks to @johnseekins!
 * BUGFIX: vmagent: apply `scrape_timeout` on receiving the first response byte from `stream_parse: true` scrape targets. Previously it was applied to receiving and *processing* the full response stream. This could result in false timeout errors when scrape target exposes millions of metrics as described [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047).
 * BUGFIX: vmagent: eliminate possible data race when obtaining value for the metric `vm_persistentqueue_bytes_pending`. The data race could result in incorrect value for this metric.
 * BUGFIX: vmstorage: remove empty directories on startup. Such directories can be left after unclean shutdown on NFS storage. Previously such directories could lead to crashloop until manually removed. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1142).
-
 
 ## [v1.58.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.58.0)
 
@@ -554,7 +672,6 @@ Released at 08-04-2021
 * BUGFIX: vmagent: properly discover `role: endpoints` and `role: endpointslices` targets in `kubernetes_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1182).
 * BUGFIX: properly generate filename for `*.tar.gz` archive inside `_checksums.txt` file posted at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1171).
 
-
 ## [v1.57.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.57.1)
 
 Released at 30-03-2021
@@ -564,7 +681,6 @@ Released at 30-03-2021
 * BUGFIX: prevent from possible incomplete query results after timed out query.
 * BUGFIX: vmselect: remove `-search.storageTimeout` command-line flag, since it has the same meaning as `-search.maxQueryDuration`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711#issuecomment-808884995).
 * BUGFIX: vminsert: return back `type` label to per-tenant metric `vm_tenant_inserted_rows_total`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/932).
-
 
 ## [v1.57.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.57.0)
 
@@ -585,20 +701,19 @@ Released at 29-03-2021
 
 * BUGFIX: prevent from infinite loop on `{__graphite__="..."}` filters when a metric name contains `*`, `{` or `[` chars.
 * BUGFIX: prevent from infinite loop in `/metrics/find` and `/metrics/expand` [Graphite Metrics API handlers](https://docs.victoriametrics.com/#graphite-metrics-api-usage) when they match metric names or labels with `*`, `{` or `[` chars.
-* BUGFIX: do not merge duplicate time series during requests to `/api/v1/query`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1141
-* BUGFIX: vmagent: properly handle `too old resource version` error messages from Kubernetes watch API. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1150
-* BUGFIX: vmagent: do not retry sending data blocks if remote storage returns `400 Bad Request` error. The number of dropped blocks due to such errors can be monitored with `vmagent_remotewrite_packets_dropped_total` metrics. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
+* BUGFIX: do not merge duplicate time series during requests to `/api/v1/query`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1141>
+* BUGFIX: vmagent: properly handle `too old resource version` error messages from Kubernetes watch API. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1150>
+* BUGFIX: vmagent: do not retry sending data blocks if remote storage returns `400 Bad Request` error. The number of dropped blocks due to such errors can be monitored with `vmagent_remotewrite_packets_dropped_total` metrics. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149>
 * BUGFIX: properly calculate `summarize` and `*Series` functions in [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage).
-
 
 ## [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0)
 
 Released at 17-03-2021
 
 * FEATURE: add the following functions to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html):
-  - `histogram_avg(buckets)` - returns the average value for the given buckets.
-  - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
-  - `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
+  * `histogram_avg(buckets)` - returns the average value for the given buckets.
+  * `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
+  * `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
 * FEATURE: export `vm_available_memory_bytes` and `vm_available_cpu_cores` metrics, which show the number of available RAM and available CPU cores for VictoriaMetrics apps.
 * FEATURE: export `vm_index_search_duration_seconds` histogram, which can be used for troubleshooting time series search performance.
 * FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
@@ -612,23 +727,21 @@ Released at 17-03-2021
 * FEATURE: listen for IPv6 UDP if `-enableTCP6` command-line flag is passed to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1131).
 
 * BUGFIX: vmagent: prevent from high CPU usage bug during failing scrapes with small `scrape_timeout` (less than a few seconds).
-* BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct scrape config jobs by sharing Kubernetes object cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
+* BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct scrape config jobs by sharing Kubernetes object cache. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113>
 * BUGFIX: vmagent: apply `sample_limit` only after `metric_relabel_configs` are applied as Prometheus does. Previously the `sample_limit` was applied before metrics relabeling.
-* BUGFIX: vmagent: properly apply `tls_config`, `basic_auth` and `bearer_token` to proxy connections if `proxy_url` option is set. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116
-* BUGFIX: vmagent: properly scrape targets via https proxy specified in `proxy_url` if `insecure_skip_verify` flag isn't set in `tls_config` section. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116
+* BUGFIX: vmagent: properly apply `tls_config`, `basic_auth` and `bearer_token` to proxy connections if `proxy_url` option is set. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116>
+* BUGFIX: vmagent: properly scrape targets via https proxy specified in `proxy_url` if `insecure_skip_verify` flag isn't set in `tls_config` section. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116>
 * BUGFUX: avoid `duplicate time series` error if `prometheus_buckets()` covers a time range with distinct set of buckets.
-* BUGFIX: prevent exponent overflow when processing extremely small values close to zero such as `2.964393875E-314`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1114
+* BUGFIX: prevent exponent overflow when processing extremely small values close to zero such as `2.964393875E-314`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1114>
 * BUGFIX: do not include datapoints with a timestamp `t-d` when returning results from `/api/v1/query?query=m[d]&time=t` as Prometheus does.
 * BUGFIX: do not crash if a query contains `histogram_over_time()` function name with uppercase chars. For example, `Histogram_Over_Time(m[5m])`.
-
 
 ## [v1.55.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.1)
 
 Released at 03-03-2021
 
-* BUGFIX: vmagent: fix a panic in Kubernetes service discovery when a target is filtered out with relabeling. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1107
-* BUGFIX: vmagent: fix Kubernetes service discovery for `role: ingress`. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1110
-
+* BUGFIX: vmagent: fix a panic in Kubernetes service discovery when a target is filtered out with relabeling. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1107>
+* BUGFIX: vmagent: fix Kubernetes service discovery for `role: ingress`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1110>
 
 ## [v1.55.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.0)
 
@@ -644,7 +757,7 @@ Released at 02-03-2021
   * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
   * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
 * FEATURE: vmagent: add ability to spread scrape targets among multiple `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1084) for details.
-* FEATURE: vmagent: use watch API for Kuberntes service discovery. This should reduce load on Kuberntes API server when it tracks big number of objects (for example, 10K pods). This should also reduce the time needed for k8s targets discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1057) for details.
+* FEATURE: vmagent: use watch API for Kubernetes service discovery. This should reduce load on Kubernetes API server when it tracks big number of objects (for example, 10K pods). This should also reduce the time needed for k8s targets discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1057) for details.
 * FEATURE: vmagent: export `vm_promscrape_target_relabel_duration_seconds` metric, which can be used for monitoring the time spend on relabeling for discovered targets.
 * FEATURE: vmagent: optimize [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) performance for common cases.
 * FEATURE: add `increase_pure(m[d])` function to MetricsQL. It works the same as `increase(m[d])` except of various edge cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.
@@ -654,25 +767,23 @@ Released at 02-03-2021
 * FEATURE: vmalert: properly process query params in `-datasource.url` and `-remoteRead.url` command-line flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1087) for details.
 
 * BUGFIX: vmagent: properly apply `-remoteWrite.rateLimit` when `-remoteWrite.queues` is greater than 1. Previously there was a data race, which could prevent from proper rate limiting.
-* BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065
+* BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065>
 * BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
 * BUGFIX: properly calculate `histogram_quantile()` over time series with only a single non-zero bucket with `{le="+Inf"}`. Previously `NaN` was returned, now the value for the last bucket before `{le="+Inf"}` is returned like Prometheus does.
-* BUGFIX: vmselect: do not cache partial query results on timeout when receiving data from `vmstorage` nodes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1085
+* BUGFIX: vmselect: do not cache partial query results on timeout when receiving data from `vmstorage` nodes. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1085>
 * BUGFIX: properly handle `stale NFS file handle` error.
-* BUGFIX: properly cache query results when `extra_label` query arg is used. Previously the cached results could clash for different `extra_label` values. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1095
-* BUGFIX: fix `http: superfluous response.WriteHeader call` issue. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1078
-* BUGFIX: fix arm64 builds due to the issue in `github.com/golang/snappy`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1074
-* BUGFIX: fix `index out of range [1024819115206086200] with length 27` panic, which could occur when `1e-9` value is passed to VictoriaMetrics histogram. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1096
-* BUGFIX: fix parsing for Graphite line with empty tags such as `foo; 123 456`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
+* BUGFIX: properly cache query results when `extra_label` query arg is used. Previously the cached results could clash for different `extra_label` values. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1095>
+* BUGFIX: fix `http: superfluous response.WriteHeader call` issue. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1078>
+* BUGFIX: fix arm64 builds due to the issue in `github.com/golang/snappy`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1074>
+* BUGFIX: fix `index out of range [1024819115206086200] with length 27` panic, which could occur when `1e-9` value is passed to VictoriaMetrics histogram. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1096>
+* BUGFIX: fix parsing for Graphite line with empty tags such as `foo; 123 456`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100>
 * BUGFIX: unescape only `\\`, `\n` and `\"` in label names when parsing Prometheus text exposition format as Prometheus does. Previously other escape sequences could be improperly unescaped.
-
 
 ## [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)
 
 Released at 18-02-2021
 
 * BUGFIX: properly handle queries containing a filter on metric name plus any number of negative filters and zero non-negative filters. For example, `node_cpu_seconds_total{mode!="idle"}`. The bug was introduced in [v1.54.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.0).
-
 
 ## [v1.54.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.0)
 
@@ -682,27 +793,25 @@ Released at 18-02-2021
 * FEATURE: reduce execution times for `q1 <binary_op> q2` queries by executing `q1` and `q2` in parallel.
 * FEATURE: switch from Go1.15 to [Go1.16](https://golang.org/doc/go1.16) for building prod binaries.
 * FEATURE: single-node VictoriaMetrics now accepts requests to handlers with `/prometheus` and `/graphite` prefixes such as `/prometheus/api/v1/query`. This improves compatibility with [handlers from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
-* FEATURE: expose `process_open_fds` and `process_max_fds` metrics. These metrics can be used for alerting when `process_open_fds` reaches `process_max_fds`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/402 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1037
+* FEATURE: expose `process_open_fds` and `process_max_fds` metrics. These metrics can be used for alerting when `process_open_fds` reaches `process_max_fds`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/402> and <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1037>
 * FEATURE: vmalert: add `-datasource.appendTypePrefix` command-line option for querying both Prometheus and Graphite datasource in cluster version of VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/vmalert.html#graphite) for details.
-* FEATURE: vmauth: add ability to route requests from a single user to multiple destinations depending on the requested paths. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1064
+* FEATURE: vmauth: add ability to route requests from a single user to multiple destinations depending on the requested paths. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1064>
 * FEATURE: remove dependency on external programs such as `cat`, `grep` and `cut` when detecting cpu and memory limits inside Docker or LXC container.
 * FEATURE: vmagent: add `__meta_kubernetes_endpoints_label_*`, `__meta_kubernetes_endpoints_labelpresent_*`, `__meta_kubernetes_endpoints_annotation_*` and `__meta_kubernetes_endpoints_annotationpresent_*` labels for `role: endpoints` in Kubernetes service discovery. These labels where added in Prometheus 2.25.
 * FEATURE: reduce the minimum supported retention period for inverted index (aka `indexdb`) from one month to one day. This should reduce disk space usage for `<-storageDataPath>/indexdb` folder if `-retentionPeriod` is set to values smaller than one month.
-* FEATURE: vmselect: export per-tenant metrics `vm_vmselect_http_requests_total` and `vm_vmselect_http_requests_duration_ms_total` . Other per-tenant metrics are available as a part of [enterprise package](https://victoriametrics.com/products/enterprise/). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/932 for details.
+* FEATURE: vmselect: export per-tenant metrics `vm_vmselect_http_requests_total` and `vm_vmselect_http_requests_duration_ms_total` . Other per-tenant metrics are available as a part of [enterprise package](https://victoriametrics.com/products/enterprise/). See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/932> for details.
 
 * BUGFIX: properly convert regexp tag filters containing escaped dots to non-regexp tag filters. For example, `{foo=~"bar\.baz"}` should be converted to `{foo="bar.baz"}`. Previously it was incorrectly converted to `{foo="bar\.baz"}`, which could result in missing time series for this tag filter.
-* BUGFIX: do not spam error logs when discovering Docker Swarm targets without dedicated IP. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1028 .
+* BUGFIX: do not spam error logs when discovering Docker Swarm targets without dedicated IP. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1028> .
 * BUGFIX: properly embed timezone data into VictoriaMetrics apps. This should fix `-loggerTimezone` usage inside Docker containers.
 * BUGFIX: properly build Docker images for non-amd64 architectures (arm, arm64, ppc64le, 386) on [Docker hub](https://hub.docker.com/u/victoriametrics/). Previously these images were incorrectly based on amd64 base image, so they didn't work.
-* BUGFIX: vmagent: return back unsent block to the queue during graceful shutdown. Previously this block could be dropped if remote storage is unavailable during vmagent shutdown. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065 .
-
+* BUGFIX: vmagent: return back unsent block to the queue during graceful shutdown. Previously this block could be dropped if remote storage is unavailable during vmagent shutdown. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065> .
 
 ## [v1.53.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.1)
 
 Released at 03-02-2021
 
 * BUGFIX: vmselect: fix the bug peventing from proper searching by Graphite filter with wildcards such as `{__graphite__="foo.*.bar"}`.
-
 
 ## [v1.53.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.0)
 
@@ -713,23 +822,22 @@ Released at 03-02-2021
 * FEATURE: added `-search.maxStepForPointsAdjustment` command-line flag, which can be used for disabling adjustment for points returned by `/api/v1/query_range` handler if such points have timestamps closer than `-search.latencyOffset` to the current time. Such points may contain incomplete data, so they are substituted by the previous values for `step` query args smaller than one minute by default.
 * FEATURE: vmselect: added ability to use Graphite-compatible filters in MetricsQL via `{__graphite__="foo.*.bar"}` syntax. This expression is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. This feature deprecates the usage of `-search.treatDotsAsIsInRegexps` command-line flag.
 * FEATURE: vmselect: added ability to set additional label filters, which must be applied during queries. Such label filters can be set via optional `extra_label` query arg, which is accepted by [querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage) handlers. For example, the request to `/api/v1/query_range?extra_label=tenant_id=123&query=<query>` adds `{tenant_id="123"}` label filter to the given `<query>`. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
-in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1021 .
-* FEATURE: vmalert: added `-datasource.queryStep` command-line flag for passing optional `step` query arg to `/api/v1/query` endpoint. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1025
+in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1021> .
+* FEATURE: vmalert: added `-datasource.queryStep` command-line flag for passing optional `step` query arg to `/api/v1/query` endpoint. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1025>
 * FEATURE: vmalert: added ability to query Graphite datasource when evaluating alerting and recording rules. See [these docs](https://docs.victoriametrics.com/vmalert.html#graphite) for details.
 * FEATURE: vmagent: added `-remoteWrite.roundDigits` command-line option for rounding metric values to the given number of decimal digits after the point before sending the metric to the corresponding `-remoteWrite.url`. This option can be used for improving data compression on the remote storage, because values with lower number of decimal digits can be compressed better than values with bigger number of decimal digits.
-* FEATURE: vmagent: added `-remoteWrite.rateLimit` command-line flag for limiting data transfer rate to `-remoteWrite.url`. This may be useful when big amounts of buffered data is sent after temporarily unavailability of the remote storage. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1035
+* FEATURE: vmagent: added `-remoteWrite.rateLimit` command-line flag for limiting data transfer rate to `-remoteWrite.url`. This may be useful when big amounts of buffered data is sent after temporarily unavailability of the remote storage. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1035>
 * FEATURE: vmagent: export the following additional metrics, which may be useful during troubleshooting:
-  - `vm_promscrape_scrapes_failed_per_url_total`
-  - `vm_promscrape_scrapes_skipped_by_sample_limit_per_url_total`
-  - `vm_promscrape_discovery_requests_total`
-  - `vm_promscrape_discovery_retries_total`
-  - `vm_promscrape_scrape_retries_total`
-  - `vm_promscrape_service_discovery_duration_seconds`
+  * `vm_promscrape_scrapes_failed_per_url_total`
+  * `vm_promscrape_scrapes_skipped_by_sample_limit_per_url_total`
+  * `vm_promscrape_discovery_requests_total`
+  * `vm_promscrape_discovery_retries_total`
+  * `vm_promscrape_scrape_retries_total`
+  * `vm_promscrape_service_discovery_duration_seconds`
 * FEATURE: vmselect: initial implementation for [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage).
 
 * BUGFIX: vmagent: reduce HTTP reconnection rate for scrape targets. Previously vmagent could errorneusly close HTTP keep-alive connections more frequently than needed.
 * BUGFIX: vmagent: retry scrape and service discovery requests when the remote server closes HTTP keep-alive connection. Previously `disable_keepalive: true` option could be used under `scrape_configs` section when working with such servers.
-
 
 ## [v1.52.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.52.0)
 
@@ -738,34 +846,32 @@ Released at 13-01-2021
 * FEATURE: provide a sample list of alerting rules for VictoriaMetrics components. It is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 * FEATURE: disable final merge for data for the previous month at the beginning of new month, since it may result in high disk IO and CPU usage. Final merge can be enabled by setting `-finalMergeDelay` command-line flag to positive duration.
 * FEATURE: add `tfirst_over_time(m[d])` and `tlast_over_time(m[d])` functions to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for returning timestamps for the first and the last data point in `m` over `d` duration.
-* FEATURE: add ability to pass multiple labels to `sort_by_label()` and `sort_by_label_desc()` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/992 .
+* FEATURE: add ability to pass multiple labels to `sort_by_label()` and `sort_by_label_desc()` functions. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/992> .
 * FEATURE: enforce at least TLS v1.2 when accepting HTTPS requests if `-tls`, `-tlsCertFile` and `-tlsKeyFile` command-line flags are set, because older TLS protocols such as v1.0 and v1.1 have been deprecated due to security vulnerabilities.
 * FEATURE: support `extra_label` query arg for all HTTP-based [data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data). This query arg can be used for specifying extra labels which should be added for the ingested data.
-* FEATURE: vmbackup: increase backup chunk size from 128MB to 1GB. This should reduce the number of Object storage API calls during backups by 8x. This may also reduce costs, since object storage API calls usually have non-zero costs. See https://aws.amazon.com/s3/pricing/ and https://cloud.google.com/storage/pricing#operations-pricing .
+* FEATURE: vmbackup: increase backup chunk size from 128MB to 1GB. This should reduce the number of Object storage API calls during backups by 8x. This may also reduce costs, since object storage API calls usually have non-zero costs. See <https://aws.amazon.com/s3/pricing/> and <https://cloud.google.com/storage/pricing#operations-pricing> .
 
-* BUGFIX: properly parse escaped unicode chars in MetricsQL metric names, label names and function names. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/990
+* BUGFIX: properly parse escaped unicode chars in MetricsQL metric names, label names and function names. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/990>
 * BUGFIX: override user-provided labels with labels set in `extra_label` query args during data ingestion over HTTP-based protocols.
-* BUGFIX: vmagent: prevent from `dialing to the given TCP address time out` error when scraping big number of unavailable targets. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
+* BUGFIX: vmagent: prevent from `dialing to the given TCP address time out` error when scraping big number of unavailable targets. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987>
 * BUGFIX: vmagent: properly show scrape duration on `/targets` page. Previously it was incorrectly shown as 0.000s.
-* BUGFIX: vmagent: properly log errors when `-promscrape.streamParse` command-line flag is set. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009
-* BUGFIX: vmagent: properly suppress errors when both `-promscrape.suppressScrapeErrors` and `-promscrape.streamParse` command-line flags are set. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009 .
-* BUGFIX: vmalert: return non-empty result in template func `query` stub to pass validation. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/989 .
-* BUGFIX: upgrade base image for Docker packages from Alpine 3.12.1 to Alpine 3.12.3 in order to fix potential security issues. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1010
-
+* BUGFIX: vmagent: properly log errors when `-promscrape.streamParse` command-line flag is set. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009>
+* BUGFIX: vmagent: properly suppress errors when both `-promscrape.suppressScrapeErrors` and `-promscrape.streamParse` command-line flags are set. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009> .
+* BUGFIX: vmalert: return non-empty result in template func `query` stub to pass validation. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/989> .
+* BUGFIX: upgrade base image for Docker packages from Alpine 3.12.1 to Alpine 3.12.3 in order to fix potential security issues. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1010>
 
 ## [v1.51.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.51.0)
 
 Released at 27-12-2020
 
-* FEATURE: add `/api/v1/status/top_queries` handler, which returns the most frequently executed queries and queries that took the most time for execution. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/907
-* FEATURE: vmagent: add support for `proxy_url` config option in Prometheus scrape configs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/503
+* FEATURE: add `/api/v1/status/top_queries` handler, which returns the most frequently executed queries and queries that took the most time for execution. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/907>
+* FEATURE: vmagent: add support for `proxy_url` config option in Prometheus scrape configs. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/503>
 * FEATURE: remove parts with stale data as soon as they go outside the configured `-retentionPeriod`. Previously such parts may remain active for long periods of time. This should help reducing disk usage for `-retentionPeriod` smaller than one month.
 * FEATURE: vmalert: allow setting multiple values for `-notifier.tlsInsecureSkipVerify` command-line flag per each `-notifier.url`.
 
-* BUGFIX: vmalert: properly escape multiline queries when passing them to Grafana. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890
-* BUGFIX: vmagent: set missing `__meta_kubernetes_service_*` labels in `kubernetes_sd_config` for `endpoints` and `endpointslices` roles. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/982
-* BUGFIX: do not adjust `offset` value provided in MetricsQL query. Previously it could be modified in order to improve response cache hit ratio. This is unneeded, since cache hit ratio should remain good because the query time range should be already aligned to multiple of `step` values. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/976
-
+* BUGFIX: vmalert: properly escape multiline queries when passing them to Grafana. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890>
+* BUGFIX: vmagent: set missing `__meta_kubernetes_service_*` labels in `kubernetes_sd_config` for `endpoints` and `endpointslices` roles. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/982>
+* BUGFIX: do not adjust `offset` value provided in MetricsQL query. Previously it could be modified in order to improve response cache hit ratio. This is unneeded, since cache hit ratio should remain good because the query time range should be already aligned to multiple of `step` values. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/976>
 
 ## [v1.50.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.2)
 
@@ -773,10 +879,9 @@ Released at 19-12-2020
 
 * FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html), [vmauth](https://docs.victoriametrics.com/vmauth.html), [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html), since they are identical to images without `-cluster` tag suffix.
 
-* BUGFIX: vmalert: properly populate template variables. This has been broken in v1.50.0. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/974
+* BUGFIX: vmalert: properly populate template variables. This has been broken in v1.50.0. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/974>
 * BUGFIX: properly parse negative combined duration in MetricsQL such as `-1h3m4s`. It must be parsed as `-(1h + 3m + 4s)`. Prevsiously it was parsed as `-1h + 3m + 4s`.
-* BUGFIX: properly parse lines in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md) with whitespace after the timestamp. For example, `foo 123 456 ## some comment here`. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/970
-
+* BUGFIX: properly parse lines in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md) with whitespace after the timestamp. For example, `foo 123 456 ## some comment here`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/970>
 
 ## [v1.50.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.1)
 
@@ -786,13 +891,12 @@ Released at 15-12-2020
 
 * BUGFIX: vmagent: properly delete unregistered scrape targets from `/targets` and `/api/v1/targets` pages. They weren't deleted due to the bug in `v1.50.0`.
 
-
 ## [v1.50.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.0)
 
 Released at 15-12-2020
 
 * FEATURE: automatically reset response cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to VictoriaMetrics. This makes unnecessary disabling response cache during data backfilling or resetting it after backfilling is complete as described [in these docs](https://docs.victoriametrics.com/#backfilling). This feature applies only to single-node VictoriaMetrics. It doesn't apply to cluster version of VictoriaMetrics because `vminsert` nodes don't know about `vmselect` nodes where the response cache must be reset.
-* FEATURE: vmalert: add `query`, `first` and `value` functions to alert templates. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/539
+* FEATURE: vmalert: add `query`, `first` and `value` functions to alert templates. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/539>
 * FEATURE: vmagent: return user-friendly HTML page when requesting `/targets` page from web browser. The page is returned in the old plaintext format when requesting via curl or similar tool.
 * FEATURE: allow multiple whitespace chars between measurements, fields and timestamp when parsing InfluxDB line protocol.
   Though [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.8/write_protocols/line_protocol_tutorial/) denies multiple whitespace chars between these entities,
@@ -802,25 +906,24 @@ Released at 15-12-2020
   per each service discovery type.
 * FEATURE: vmagent: allow setting per-`-remoteWrite.url` command-line flags for `-remoteWrite.sendTimeout` and `-remoteWrite.tlsInsecureSkipVerify`.
 
-* BUGFIX: properly handle `*` and `[...]` inside curly braces in query passed to Graphite Metrics API. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/952
+* BUGFIX: properly handle `*` and `[...]` inside curly braces in query passed to Graphite Metrics API. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/952>
 * BUGFIX: vmagent: fix memory leak when big number of targets is discovered via service discovery.
-* BUGFIX: vmagent: properly pass `datacenter` filter to Consul API server. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574#issuecomment-740454170
-* BUGFIX: properly handle CPU limits set on the host system or host container. The bugfix may result in lower memory usage on systems with CPU limits. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/946
-* BUGFIX: prevent from duplicate `name` tag returned from `/tags/autoComplete/tags` handler. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/942
-* BUGFIX: do not enable strict parsing for `-promscrape.config` if `-promscrape.config.dryRun` comand-line flag is set. Strict parsing can be enabled with `-promscrape.config.strictParse` command-line flag. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/944
-* BUGFIX: vminsert: properly update `vm_rpc_rerouted_rows_processed_total` metric. Previously it wasn't updated. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/955
-* BUGFIX: vmagent: properly recover when opening incorrectly stored persistent queue. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/964
-* BUGFIX: vmagent: properly handle scrape errors when stream parsing is enabled with `-promscrape.streamParse` command-line flag or with `stream_parse: true` per-target config option. Previously such errors weren't reported at `/targets` page. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/967
-* BUGFIX: assume the previous value is 0 when calculating `increase()` for the first point on the graph if its value doesn't exceed 100 and the delta between two first points equals to 0. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962
-
+* BUGFIX: vmagent: properly pass `datacenter` filter to Consul API server. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574#issuecomment-740454170>
+* BUGFIX: properly handle CPU limits set on the host system or host container. The bugfix may result in lower memory usage on systems with CPU limits. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/946>
+* BUGFIX: prevent from duplicate `name` tag returned from `/tags/autoComplete/tags` handler. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/942>
+* BUGFIX: do not enable strict parsing for `-promscrape.config` if `-promscrape.config.dryRun` comand-line flag is set. Strict parsing can be enabled with `-promscrape.config.strictParse` command-line flag. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/944>
+* BUGFIX: vminsert: properly update `vm_rpc_rerouted_rows_processed_total` metric. Previously it wasn't updated. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/955>
+* BUGFIX: vmagent: properly recover when opening incorrectly stored persistent queue. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/964>
+* BUGFIX: vmagent: properly handle scrape errors when stream parsing is enabled with `-promscrape.streamParse` command-line flag or with `stream_parse: true` per-target config option. Previously such errors weren't reported at `/targets` page. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/967>
+* BUGFIX: assume the previous value is 0 when calculating `increase()` for the first point on the graph if its value doesn't exceed 100 and the delta between two first points equals to 0. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962>
 
 ## [v1.49.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.49.0)
 
 Released at 05-12-2020
 
-* FEATURE: optimize Consul service discovery speed when discovering big number of services. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574
+* FEATURE: optimize Consul service discovery speed when discovering big number of services. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574>
 * FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html)
-  for uppercasing and lowercasing values for the given labels. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/936
+  for uppercasing and lowercasing values for the given labels. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/936>
 * FEATURE: add `count_eq_over_time(m[d], N)` and `count_ne_over_time(m[d], N)` for counting the number of samples for `m` over `d` that (equal / not equal) to `N`.
 * FEATURE: do not print usage info for all the command-line flags when incorrect command-line flag is passed. Previously it could be hard reading the error message
   about incorrect command-line flag because of too big usage info for all the flags.
@@ -835,55 +938,55 @@ Released at 05-12-2020
 * BUGFIX: return `nan` for `minute(m)` query when `m` equals to `nan` like Prometheus does. This applies to all the time-related functions such as `day_of_month`, `day_of_week`,
   `days_in_month`, `hour`, `month` and `year`.
 
-
 ## [v1.48.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.48.0)
 
 Released at 26-11-2020
 
 * FEATURE: added [Snap package for single-node VictoriaMetrics](https://snapcraft.io/victoriametrics). This simplifies installation under Ubuntu to a single command:
+
   ```bash
   snap install victoriametrics
   ```
+
 * FEATURE: vmselect: add `-replicationFactor` command-line flag for reducing query duration when replication is enabled and a part of vmstorage nodes
-  are temporarily slow and/or temporarily unavailable. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+  are temporarily slow and/or temporarily unavailable. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711>
 * FEATURE: vminsert: export `vm_rpc_vmstorage_is_reachable` metric, which can be used for monitoring reachability of vmstorage nodes from vminsert nodes.
-* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
-* FEATURE: add `filters` option to `dockerswarm_sd_config` like Prometheus did in v2.23.0 - see https://github.com/prometheus/prometheus/pull/8074
+* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)). See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851>
+* FEATURE: add `filters` option to `dockerswarm_sd_config` like Prometheus did in v2.23.0 - see <https://github.com/prometheus/prometheus/pull/8074>
 * FEATURE: expose `__meta_ec2_ipv6_addresses` label for `ec2_sd_config` like Prometheus will do in the next release.
-* FEATURE: add `-loggerWarnsPerSecondLimit` command-line flag for rate limiting of WARN messages in logs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905
+* FEATURE: add `-loggerWarnsPerSecondLimit` command-line flag for rate limiting of WARN messages in logs. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905>
 * FEATURE: apply `loggerErrorsPerSecondLimit` and `-loggerWarnsPerSecondLimit` rate limit per caller. I.e. log messages are suppressed if the same caller logs the same message
-  at the rate exceeding the given limit. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905#issuecomment-729395855
+  at the rate exceeding the given limit. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905#issuecomment-729395855>
 * FEATURE: add remoteAddr to slow query log in order to simplify identifying the client that sends slow queries to VictoriaMetrics.
   Slow query logging is controlled with `-search.logSlowQueryDuration` command-line flag.
-* FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See https://docs.victoriametrics.com/#graphite-tags-api-usage
+* FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See <https://docs.victoriametrics.com/#graphite-tags-api-usage>
 * FEATURE: log metric name plus all its labels when the metric timestamp is out of the configured retention. This should simplify detecting the source of metrics with unexpected timestamps.
 * FEATURE: add `-dryRun` command-line flag to single-node VictoriaMetrics in order to check config file pointed by `-promscrape.config`.
 
 * BUGFIX: properly parse Prometheus metrics with [exemplars](https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1) such as `foo 123 ## {bar="baz"} 1`.
 * BUGFIX: properly parse "infinity" values in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#abnf).
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924
-
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924>
 
 ## [v1.47.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.47.0)
 
 Released at 16-11-2020
 
 * FEATURE: vmselect: return the original error from `vmstorage` node in query response if `-search.denyPartialResponse` is set.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/891
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/891>
 * FEATURE: vmselect: add `"isPartial":{true|false}` field in JSON output for `/api/v1/*` functions
   from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/). `"isPartial":true` is set if the response contains partial data
   because of a part of `vmstorage` nodes were unavailable during query processing.
 * FEATURE: improve performance for `/api/v1/series`, `/api/v1/labels` and `/api/v1/label/<labelName>/values` on time ranges exceeding one day.
 * FEATURE: vmagent: reduce memory usage when service discovery detects big number of scrape targets and the set of discovered targets changes over time.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825>
 * FEATURE: vmagent: add `-promscrape.dropOriginalLabels` command-line option, which can be used for reducing memory usage when scraping big number of targets.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-724308361 for details.
-* FEATURE: vmalert: explicitly set extra labels to alert entities. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-724308361> for details.
+* FEATURE: vmalert: explicitly set extra labels to alert entities. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870>
 * FEATURE: add `-search.treatDotsAsIsInRegexps` command-line flag, which can be used for automatic escaping of dots in regexp label filters used in queries.
   For example, if `-search.treatDotsAsIsInRegexps` is set, then the query `foo{bar=~"aaa.bb.cc|dd.eee"}` is automatically converted to `foo{bar=~"aaa\\.bb\\.cc|dd\\.eee"}`.
   This may be useful for querying Graphite data.
 * FEATURE: consistently return text-based HTTP responses such as `plain/text` and `application/json` with `charset=utf-8`.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/897
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/897>
 * FEATURE: update Go builder from v1.15.4 to v1.15.5. This should fix [these issues in Go](https://github.com/golang/go/issues?q=milestone%3AGo1.15.5+label%3ACherryPickApproved).
 * FEATURE: added `/internal/force_flush` http handler for flushing recently ingested data from in-memory buffers to persistent storage.
   See [troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting) for more details.
@@ -891,10 +994,9 @@ Released at 16-11-2020
   See [these docs](https://docs.victoriametrics.com/#graphite-tags-api-usage) for details.
 
 * BUGFIX: do not return data points in the end of the selected time range for time series ending in the middle of the selected time range.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
-* BUGFIX: remove spikes at the end of time series gaps for `increase()` or `delta()` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
-* BUGFIX: vminsert: properly return HTTP 503 status code when all the vmstorage nodes are unavailable. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
-
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887> and <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845>
+* BUGFIX: remove spikes at the end of time series gaps for `increase()` or `delta()` functions. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894>
+* BUGFIX: vminsert: properly return HTTP 503 status code when all the vmstorage nodes are unavailable. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896>
 
 ## [v1.46.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.46.0)
 
@@ -904,73 +1006,73 @@ Released at 07-11-2020
 * FEATURE: reduce memory usage when query touches big number of time series.
 * FEATURE: vmagent: reduce memory usage when `kubernetes_sd_config` discovers big number of scrape targets (e.g. hundreds of thousands) and the majority of these targets (99%)
   are dropped during relabeling. Previously labels for all the dropped targets were displayed at `/api/v1/targets` page. Now only up to `-promscrape.maxDroppedTargets` such
-  targets are displayed. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/878 for details.
+  targets are displayed. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/878> for details.
 * FEATURE: vmagent: reduce memory usage when scraping big number of targets with big number of temporary labels starting with `__`.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825>
 * FEATURE: vmagent: add `/ready` HTTP endpoint, which returns 200 OK status code when all the service discovery has been initialized.
-  This may be useful during rolling upgrades. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/875
+  This may be useful during rolling upgrades. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/875>
 
 * BUGFIX: vmagent: eliminate data race when `-promscrape.streamParse` command-line is set. Previously this mode could result in scraped metrics with garbage labels.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247 for details.
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247> for details.
 * BUGFIX: properly calculate `topk_*` and `bottomk_*` functions from [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for time series with gaps.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/883
-
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/883>
 
 ## [v1.45.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.45.0)
 
 Released at 02-11-2020
 
 * FEATURE: allow setting `-retentionPeriod` smaller than one month. I.e. `-retentionPeriod=3d`, `-retentionPeriod=2w`, etc. is supported now.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/173
-* FEATURE: optimize more cases according to https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization . Now the following cases are optimized too:
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/173>
+* FEATURE: optimize more cases according to <https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization> . Now the following cases are optimized too:
   * `rollup_func(foo{filters}[d]) op bar` -> `rollup_func(foo{filters}[d]) op bar{filters}`
   * `transform_func(foo{filters}) op bar` -> `transform_func(foo{filters}) op bar{filters}`
   * `num_or_scalar op foo{filters} op bar` -> `num_or_scalar op foo{filters} op bar{filters}`
 * FEATURE: improve time series search for queries with multiple label filters. I.e. `foo{label1="value", label2=~"regexp"}`.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/781
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/781>
 * FEATURE: vmagent: add `stream parse` mode. This mode allows reducing memory usage when individual scrape targets expose tens of millions of metrics.
   For example, during scraping Prometheus in [federation](https://prometheus.io/docs/prometheus/latest/federation/) mode.
   See `-promscrape.streamParse` command-line option and `stream_parse: true` config option for `scrape_config` section in `-promscrape.config`.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 and [troubleshooting docs for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting).
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825> and [troubleshooting docs for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting).
 * FEATURE: vmalert: add `-dryRun` command-line option for validating the provided config files without the need to start `vmalert` service.
 * FEATURE: accept optional third argument of string type at `topk_*` and `bottomk_*` functions. This is label name for additional time series to return with the sum of time series outside top/bottom K. See [MetricsQL docs](https://docs.victoriametrics.com/MetricsQL.html) for more details.
 * FEATURE: vmagent: expose `/api/v1/targets` page according to [the corresponding Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/643
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/643>
 
 * BUGFIX: vmagent: properly handle OpenStack endpoint ending with `v3.0` such as `https://ostack.example.com:5000/v3.0`
-  in the same way as Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728#issuecomment-709914803
-* BUGFIX: drop trailing data points for time series with a single raw sample. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
-* BUGFIX: do not drop trailing data points for instant queries to `/api/v1/query`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
-* BUGFIX: vmbackup: fix panic when `-origin` isn't specified. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/856
+  in the same way as Prometheus does. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728#issuecomment-709914803>
+* BUGFIX: drop trailing data points for time series with a single raw sample. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748>
+* BUGFIX: do not drop trailing data points for instant queries to `/api/v1/query`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845>
+* BUGFIX: vmbackup: fix panic when `-origin` isn't specified. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/856>
 * BUGFIX: vmalert: skip automatically added labels on alerts restore. Label `alertgroup` was introduced in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/611)
   and automatically added to generated time series. By mistake, this new label wasn't correctly purged on restore event and affected alert's ID uniqueness.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870
-* BUGFIX: vmagent: fix panic at scrape error body formating. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/864
-* BUGFIX: vmagent: add leading missing slash to metrics path like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/835
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870>
+* BUGFIX: vmagent: fix panic at scrape error body formating. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/864>
+* BUGFIX: vmagent: add leading missing slash to metrics path like Prometheus does. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/835>
 * BUGFIX: vmagent: drop packet if remote storage returns 4xx status code. This make the behaviour consistent with Prometheus.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
-* BUGFIX: vmagent: properly handle 301 redirects. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/869
-
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873>
+* BUGFIX: vmagent: properly handle 301 redirects. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/869>
 
 ## [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
 
 Released at 13-10-2020
 
-* FEATURE: automatically add missing label filters to binary operands as described at https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization .
+* FEATURE: automatically add missing label filters to binary operands as described at <https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization> .
   This should improve performance for queries with missing label filters in binary operands. For example, the following query should work faster now, because it shouldn't
   fetch and discard time series for `node_filesystem_files_free` metric without matching labels for the left side of the expression:
+
   ```
      node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
   ```
+
 * FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)).
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/656
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/656>
 * FEATURE: add ability to export data in CSV format. See [these docs](https://docs.victoriametrics.com/#how-to-export-csv-data) for details.
 * FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651 and https://docs.victoriametrics.com/vmagent.html#troubleshooting .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651> and <https://docs.victoriametrics.com/vmagent.html#troubleshooting> .
 * FEATURE: vmagent: show original labels before relabeling is applied on `duplicate scrape target` errors. This should simplify debugging for incorrect relabeling.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651>
 * FEATURE: vmagent: `/targets` page now accepts optional `show_original_labels=1` query arg for displaying original labels for each target before relabeling is applied.
-  This should simplify debugging for target relabeling configs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
+  This should simplify debugging for target relabeling configs. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651>
 * FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
   The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
 * FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
@@ -979,40 +1081,39 @@ Released at 13-10-2020
   than `sum(rate(vm_rows_inserted_total))` if [replication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
 * FEATURE: keep metric name after applying [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions, which don't change time series meaning.
   The list of such functions:
-   * `keep_last_value`
-   * `keep_next_value`
-   * `interpolate`
-   * `running_min`
-   * `running_max`
-   * `running_avg`
-   * `range_min`
-   * `range_max`
-   * `range_avg`
-   * `range_first`
-   * `range_last`
-   * `range_quantile`
-   * `smooth_exponential`
-   * `ceil`
-   * `floor`
-   * `round`
-   * `clamp_min`
-   * `clamp_max`
-   * `max_over_time`
-   * `min_over_time`
-   * `avg_over_time`
-   * `quantile_over_time`
-   * `mode_over_time`
-   * `geomean_over_time`
-   * `holt_winters`
-   * `predict_linear`
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674
+  * `keep_last_value`
+  * `keep_next_value`
+  * `interpolate`
+  * `running_min`
+  * `running_max`
+  * `running_avg`
+  * `range_min`
+  * `range_max`
+  * `range_avg`
+  * `range_first`
+  * `range_last`
+  * `range_quantile`
+  * `smooth_exponential`
+  * `ceil`
+  * `floor`
+  * `round`
+  * `clamp_min`
+  * `clamp_max`
+  * `max_over_time`
+  * `min_over_time`
+  * `avg_over_time`
+  * `quantile_over_time`
+  * `mode_over_time`
+  * `geomean_over_time`
+  * `holt_winters`
+  * `predict_linear`
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674>
 
 * BUGFIX: properly handle stale time series after K8S deployment. Previously such time series could be double-counted.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748>
 * BUGFIX: return a single time series at max from `absent()` function like Prometheus does.
-* BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
+* BUGFIX: vmalert: accept days, weeks and years in `for:` part of config like Prometheus does. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817>
 * BUGFIX: fix `mode_over_time(m[d])` calculations. Previously the function could return incorrect results.
-
 
 ## [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
 
@@ -1021,19 +1122,18 @@ Released at 06-10-2020
 * FEATURE: reduce CPU usage for repeated queries over sliding time window when no new time series are added to the database.
   Typical use cases: repeated evaluation of alerting rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) or dashboard auto-refresh in Grafana.
 * FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config).
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728 .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728> .
 * FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795 .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795> .
 * FEATURE: add `-influx.maxLineSize` command-line flag for configuring the maximum size for a single InfluxDB line during parsing.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807>
 
 * BUGFIX: properly handle `inf` values during [background merge of LSM parts](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-  Previously `Inf` values could result in `NaN` values for adjacent samples in time series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805 .
-* BUGFIX: fill gaps on graphs for `range_*` and `running_*` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/806 .
+  Previously `Inf` values could result in `NaN` values for adjacent samples in time series. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805> .
+* BUGFIX: fill gaps on graphs for `range_*` and `running_*` functions. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/806> .
 * BUGFIX: make a copy of label with new name during relabeling with `action: labelmap` in the same way as Prometheus does.
-  Previously the original label name has been replaced. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/812 .
+  Previously the original label name has been replaced. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/812> .
 * BUGFIX: support parsing floating-point timestamp like Graphite Carbon does. Such timestmaps are truncated to seconds.
-
 
 ## [v1.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
 
@@ -1046,26 +1146,25 @@ Released at 30-09-2020
   connections to VictoriaMetrics or [vmagent](https://docs.victoriametrics.com/vmagent.html) in order to achieve the maximum data ingestion speed.
 * FEATURE: cluster: improve performance for data ingestion path from `vminsert` to `vmstorage` nodes. The maximum data ingestion performance
   for a single connection between `vminsert` and `vmstorage` node scales with the number of available CPU cores on `vmstorage` side.
-  This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/791 .
+  This should help with <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/791> .
 * FEATURE: add ability to export / import data in native format via `/api/v1/export/native` and `/api/v1/import/native`.
   This is the most optimized approach for data migration between VictoriaMetrics instances. Both single-node and cluster instances are supported.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/787#issuecomment-700632551 .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/787#issuecomment-700632551> .
 * FEATURE: add `reduce_mem_usage` query option to `/api/v1/export` in order to reduce memory usage during data export / import.
   See [these docs](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) for details.
 * FEATURE: improve performance for `/api/v1/series` handler when it returns big number of time series.
 * FEATURE: add `vm_merge_need_free_disk_space` metric, which can be used for estimating the number of deferred background data merges due to the lack of free disk space.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/686 .
-* FEATURE: add OpenBSD support. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/785 .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/686> .
+* FEATURE: add OpenBSD support. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/785> .
 
-* BUGFIX: properly apply `-search.maxStalenessInterval` command-line flag value. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784 .
-* BUGFIX: fix displaying data in Grafana tables. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720 .
+* BUGFIX: properly apply `-search.maxStalenessInterval` command-line flag value. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784> .
+* BUGFIX: fix displaying data in Grafana tables. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720> .
 * BUGFIX: do not adjust the number of detected CPU cores found at `/sys/devices/system/cpu/online`.
   The adjustment was increasing the resulting GOMAXPROC by 1, which looked confusing to users.
-  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-698595309 .
-* BUGFIX: vmagent: do not show `-remoteWrite.url` in initial logs if `-remoteWrite.showURL` isn't set. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/773 .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-698595309> .
+* BUGFIX: vmagent: do not show `-remoteWrite.url` in initial logs if `-remoteWrite.showURL` isn't set. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/773> .
 * BUGFIX: properly handle case when [/metrics/find](https://docs.victoriametrics.com/#graphite-metrics-api-usage) finds both a leaf and a node for the given `query=prefix.*`.
   In this case only the node must be returned with stripped dot in the end of id as carbonapi does.
-
 
 ## Previous releases
 

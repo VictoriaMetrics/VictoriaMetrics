@@ -214,7 +214,17 @@ since you read it. Here is how to express that:
 Signed URLs
 
 You can obtain a URL that lets anyone read or write an object for a limited time.
-You don't need to create a client to do this. See the documentation of
+Signing a URL requires credentials authorized to sign a URL. To use the same
+authentication that was used when instantiating the Storage client, use the
+BucketHandle.SignedURL method.
+
+    url, err := client.Bucket(bucketName).SignedURL(objectName, opts)
+    if err != nil {
+        // TODO: Handle error.
+    }
+    fmt.Println(url)
+
+You can also sign a URL wihout creating a client. See the documentation of
 SignedURL for details.
 
     url, err := storage.SignedURL(bucketName, "shared-object", opts)
@@ -230,9 +240,9 @@ temporary permission. Conditions can be applied to restrict how the HTML form is
 by a user.
 
 For more information, please see https://cloud.google.com/storage/docs/xml-api/post-object as well
-as the documentation of GenerateSignedPostPolicyV4.
+as the documentation of BucketHandle.GenerateSignedPostPolicyV4.
 
-    pv4, err := storage.GenerateSignedPostPolicyV4(bucketName, objectName, opts)
+    pv4, err := client.Bucket(bucketName).GenerateSignedPostPolicyV4(objectName, opts)
     if err != nil {
         // TODO: Handle error.
     }

@@ -15,10 +15,14 @@ var (
 	configPath                    = flag.String("notifier.config", "", "Path to configuration file for notifiers")
 	suppressDuplicateTargetErrors = flag.Bool("notifier.suppressDuplicateTargetErrors", false, "Whether to suppress 'duplicate target' errors during discovery")
 
-	addrs                 = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
+	addrs = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
+
 	basicAuthUsername     = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword     = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
 	basicAuthPasswordFile = flagutil.NewArray("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
+
+	bearerToken     = flagutil.NewArray("notifier.bearerToken", "Optional bearer token for -notifier.url")
+	bearerTokenFile = flagutil.NewArray("notifier.bearerTokenFile", "Optional path to bearer token file for -notifier.url")
 
 	tlsInsecureSkipVerify = flagutil.NewArrayBool("notifier.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to -notifier.url")
 	tlsCertFile           = flagutil.NewArray("notifier.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
@@ -27,6 +31,17 @@ var (
 		"By default system CA is used")
 	tlsServerName = flagutil.NewArray("notifier.tlsServerName", "Optional TLS server name to use for connections to -notifier.url. "+
 		"By default the server name from -notifier.url is used")
+
+	oauth2ClientID = flagutil.NewArray("notifier.oauth2.clientID", "Optional OAuth2 clientID to use for -notifier.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
+	oauth2ClientSecret = flagutil.NewArray("notifier.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for -notifier.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
+	oauth2ClientSecretFile = flagutil.NewArray("notifier.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -notifier.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
+	oauth2TokenURL = flagutil.NewArray("notifier.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for -notifier.url. "+
+		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
+	oauth2Scopes = flagutil.NewArray("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
+		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 )
 
 // cw holds a configWatcher for configPath configuration file
@@ -111,9 +126,19 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 				Password:     promauth.NewSecret(basicAuthPassword.GetOptionalArg(i)),
 				PasswordFile: basicAuthPasswordFile.GetOptionalArg(i),
 			},
+			BearerToken:     promauth.NewSecret(bearerToken.GetOptionalArg(i)),
+			BearerTokenFile: bearerTokenFile.GetOptionalArg(i),
+			OAuth2: &promauth.OAuth2Config{
+				ClientID:         oauth2ClientID.GetOptionalArg(i),
+				ClientSecret:     promauth.NewSecret(oauth2ClientSecret.GetOptionalArg(i)),
+				ClientSecretFile: oauth2ClientSecretFile.GetOptionalArg(i),
+				Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(i), ";"),
+				TokenURL:         oauth2TokenURL.GetOptionalArg(i),
+			},
 		}
+
 		addr = strings.TrimSuffix(addr, "/")
-		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, time.Minute)
+		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, time.Minute)
 		if err != nil {
 			return nil, err
 		}
@@ -137,6 +162,8 @@ const (
 	TargetStatic TargetType = "static"
 	// TargetConsul is for targets discovered via Consul
 	TargetConsul TargetType = "consulSD"
+	// TargetDNS is for targets discovered via DNS
+	TargetDNS TargetType = "DNSSD"
 )
 
 // GetTargets returns list of static or discovered targets

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -49,20 +50,51 @@ var (
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 0, "The number of members in a cluster of scrapers. "+
 		"Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
-	clusterMemberNum = flag.Int("promscrape.cluster.memberNum", 0, "The number of number in the cluster of scrapers. "+
-		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster")
+	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of number in the cluster of scrapers. "+
+		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
+		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
 )
 
+var clusterMemberID int
+
+func mustInitClusterMemberID() {
+	s := *clusterMemberNum
+	// special case for kubernetes deployment, where pod-name formatted at some-pod-name-1
+	// obtain memberNum from last segment
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2359
+	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
+		s = s[idx+1:]
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
+	}
+	clusterMemberID = int(n)
+}
+
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
-	Global            GlobalConfig   `yaml:"global,omitempty"`
-	ScrapeConfigs     []ScrapeConfig `yaml:"scrape_configs,omitempty"`
-	ScrapeConfigFiles []string       `yaml:"scrape_config_files,omitempty"`
+	Global            GlobalConfig    `yaml:"global,omitempty"`
+	ScrapeConfigs     []*ScrapeConfig `yaml:"scrape_configs,omitempty"`
+	ScrapeConfigFiles []string        `yaml:"scrape_config_files,omitempty"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
+}
+
+func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
+	data = envtemplate.Replace(data)
+	var err error
+	if isStrict {
+		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
+			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
+		}
+	} else {
+		err = yaml.Unmarshal(data, cfg)
+	}
+	return err
 }
 
 func (cfg *Config) marshal() []byte {
@@ -76,19 +108,81 @@ func (cfg *Config) marshal() []byte {
 func (cfg *Config) mustStart() {
 	startTime := time.Now()
 	logger.Infof("starting service discovery routines...")
-	for i := range cfg.ScrapeConfigs {
-		cfg.ScrapeConfigs[i].mustStart(cfg.baseDir)
+	for _, sc := range cfg.ScrapeConfigs {
+		sc.mustStart(cfg.baseDir)
 	}
 	jobNames := cfg.getJobNames()
 	tsmGlobal.registerJobNames(jobNames)
 	logger.Infof("started service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
 }
 
+func (cfg *Config) mustRestart(prevCfg *Config) {
+	startTime := time.Now()
+	logger.Infof("restarting service discovery routines...")
+
+	prevScrapeCfgByName := make(map[string]*ScrapeConfig, len(prevCfg.ScrapeConfigs))
+	for _, scPrev := range prevCfg.ScrapeConfigs {
+		prevScrapeCfgByName[scPrev.JobName] = scPrev
+	}
+
+	// Loop over the the new jobs, start new ones and restart updated ones.
+	var started, stopped, restarted int
+	currentJobNames := make(map[string]struct{}, len(cfg.ScrapeConfigs))
+	for i, sc := range cfg.ScrapeConfigs {
+		currentJobNames[sc.JobName] = struct{}{}
+		scPrev := prevScrapeCfgByName[sc.JobName]
+		if scPrev == nil {
+			// New scrape config has been appeared. Start it.
+			sc.mustStart(cfg.baseDir)
+			started++
+			continue
+		}
+		if areEqualScrapeConfigs(scPrev, sc) {
+			// The scrape config didn't change, so no need to restart it.
+			// Use the reference to the previous job, so it could be stopped properly later.
+			cfg.ScrapeConfigs[i] = scPrev
+		} else {
+			// The scrape config has been changed. Stop the previous scrape config and start new one.
+			scPrev.mustStop()
+			sc.mustStart(cfg.baseDir)
+			restarted++
+		}
+	}
+	// Stop preious jobs which weren't found in the current configuration.
+	for _, scPrev := range prevCfg.ScrapeConfigs {
+		if _, ok := currentJobNames[scPrev.JobName]; !ok {
+			scPrev.mustStop()
+			stopped++
+		}
+	}
+	jobNames := cfg.getJobNames()
+	tsmGlobal.registerJobNames(jobNames)
+	logger.Infof("restarted service discovery routines in %.3f seconds, stopped=%d, started=%d, restarted=%d", time.Since(startTime).Seconds(), stopped, started, restarted)
+}
+
+func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
+	sa := a.marshal()
+	sb := b.marshal()
+	return string(sa) == string(sb)
+}
+
+func (sc *ScrapeConfig) unmarshal(data []byte) error {
+	return yaml.UnmarshalStrict(data, sc)
+}
+
+func (sc *ScrapeConfig) marshal() []byte {
+	data, err := yaml.Marshal(sc)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal ScrapeConfig: %s", err)
+	}
+	return data
+}
+
 func (cfg *Config) mustStop() {
 	startTime := time.Now()
 	logger.Infof("stopping service discovery routines...")
-	for i := range cfg.ScrapeConfigs {
-		cfg.ScrapeConfigs[i].mustStop()
+	for _, sc := range cfg.ScrapeConfigs {
+		sc.mustStop()
 	}
 	logger.Infof("stopped service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
 }
@@ -96,8 +190,8 @@ func (cfg *Config) mustStop() {
 // getJobNames returns all the scrape job names from the cfg.
 func (cfg *Config) getJobNames() []string {
 	a := make([]string, 0, len(cfg.ScrapeConfigs))
-	for i := range cfg.ScrapeConfigs {
-		a = append(a, cfg.ScrapeConfigs[i].JobName)
+	for _, sc := range cfg.ScrapeConfigs {
+		a = append(a, sc.JobName)
 	}
 	return a
 }
@@ -106,9 +200,9 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels map[string]string  `yaml:"external_labels,omitempty"`
+	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels map[string]string   `yaml:"external_labels,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -116,8 +210,8 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       promutils.Duration          `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout        promutils.Duration          `yaml:"scrape_timeout,omitempty"`
+	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
@@ -150,8 +244,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval promutils.Duration         `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        promutils.Duration         `yaml:"scrape_offset,omitempty"`
+	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -253,8 +347,8 @@ func loadConfig(path string) (*Config, []byte, error) {
 	return &c, dataNew, nil
 }
 
-func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]ScrapeConfig, []byte, error) {
-	var scrapeConfigs []ScrapeConfig
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]*ScrapeConfig, []byte, error) {
+	var scrapeConfigs []*ScrapeConfig
 	var scsData []byte
 	for _, filePath := range scrapeConfigFiles {
 		filePath := fs.GetFilepath(baseDir, filePath)
@@ -273,7 +367,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]Scrape
 				return nil, nil, fmt.Errorf("cannot load %q: %w", path, err)
 			}
 			data = envtemplate.Replace(data)
-			var scs []ScrapeConfig
+			var scs []*ScrapeConfig
 			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
 				return nil, nil, fmt.Errorf("cannot parse %q: %w", path, err)
 			}
@@ -291,7 +385,7 @@ func IsDryRun() bool {
 }
 
 func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
-	if err := unmarshalMaybeStrict(data, cfg); err != nil {
+	if err := cfg.unmarshal(data, *strictParse); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal data: %w", err)
 	}
 	absPath, err := filepath.Abs(path)
@@ -311,8 +405,8 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 
 	// Check that all the scrape configs have unique JobName
 	m := make(map[string]struct{}, len(cfg.ScrapeConfigs))
-	for i := range cfg.ScrapeConfigs {
-		jobName := cfg.ScrapeConfigs[i].JobName
+	for _, sc := range cfg.ScrapeConfigs {
+		jobName := sc.JobName
 		if _, ok := m[jobName]; ok {
 			return nil, fmt.Errorf("duplicate `job_name` in `scrape_configs` loaded from %q: %q", path, jobName)
 		}
@@ -320,28 +414,28 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 	}
 
 	// Initialize cfg.ScrapeConfigs
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for i, sc := range cfg.ScrapeConfigs {
+		// Make a copy of sc in order to remove references to `data` memory.
+		// This should prevent from memory leaks on config reload.
+		sc = sc.clone()
+		cfg.ScrapeConfigs[i] = sc
+
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
+			return nil, fmt.Errorf("cannot parse `scrape_config`: %w", err)
 		}
 		sc.swc = swc
 	}
 	return dataNew, nil
 }
 
-func unmarshalMaybeStrict(data []byte, dst interface{}) error {
-	data = envtemplate.Replace(data)
-	var err error
-	if *strictParse {
-		if err = yaml.UnmarshalStrict(data, dst); err != nil {
-			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
-		}
-	} else {
-		err = yaml.Unmarshal(data, dst)
+func (sc *ScrapeConfig) clone() *ScrapeConfig {
+	data := sc.marshal()
+	var scCopy ScrapeConfig
+	if err := scCopy.unmarshal(data); err != nil {
+		logger.Panicf("BUG: cannot unmarshal scrape config: %s", err)
 	}
-	return err
+	return &scCopy
 }
 
 func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
@@ -356,8 +450,7 @@ func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
 func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.ConsulSDConfigs {
@@ -384,8 +477,7 @@ func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.DigitaloceanSDConfigs {
@@ -412,8 +504,7 @@ func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.DNSSDConfigs {
@@ -440,8 +531,7 @@ func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getDockerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.DockerSDConfigs {
@@ -468,8 +558,7 @@ func (cfg *Config) getDockerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.DockerSwarmSDConfigs {
@@ -496,8 +585,7 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.EC2SDConfigs {
@@ -524,8 +612,7 @@ func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.EurekaSDConfigs {
@@ -561,8 +648,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		for j := range sc.FileSDConfigs {
 			sdc := &sc.FileSDConfigs[j]
 			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
@@ -575,8 +661,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.GCESDConfigs {
@@ -603,8 +688,7 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.HTTPSDConfigs {
@@ -631,8 +715,7 @@ func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.KubernetesSDConfigs {
@@ -664,8 +747,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.OpenStackSDConfigs {
@@ -691,8 +773,7 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 // getStaticScrapeWork returns `static_configs` ScrapeWork from from cfg.
 func (cfg *Config) getStaticScrapeWork() []*ScrapeWork {
 	var dst []*ScrapeWork
-	for i := range cfg.ScrapeConfigs {
-		sc := &cfg.ScrapeConfigs[i]
+	for _, sc := range cfg.ScrapeConfigs {
 		for j := range sc.StaticConfigs {
 			stc := &sc.StaticConfigs[j]
 			dst = stc.appendScrapeWork(dst, sc.swc, nil)
@@ -771,7 +852,9 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
+		scrapeIntervalString: scrapeInterval.String(),
 		scrapeTimeout:        scrapeTimeout,
+		scrapeTimeoutString:  scrapeTimeout.String(),
 		jobName:              jobName,
 		metricsPath:          metricsPath,
 		scheme:               scheme,
@@ -798,7 +881,9 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 
 type scrapeWorkConfig struct {
 	scrapeInterval       time.Duration
+	scrapeIntervalString string
 	scrapeTimeout        time.Duration
+	scrapeTimeoutString  string
 	jobName              string
 	metricsPath          string
 	scheme               string
@@ -974,20 +1059,46 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 	return true
 }
 
+type labelsContext struct {
+	labels []prompbmarshal.Label
+}
+
+func getLabelsContext() *labelsContext {
+	v := labelsContextPool.Get()
+	if v == nil {
+		return &labelsContext{}
+	}
+	return v.(*labelsContext)
+}
+
+func putLabelsContext(lctx *labelsContext) {
+	labels := lctx.labels
+	for i := range labels {
+		labels[i].Name = ""
+		labels[i].Value = ""
+	}
+	lctx.labels = lctx.labels[:0]
+	labelsContextPool.Put(lctx)
+}
+
+var labelsContextPool sync.Pool
+
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	labels := mergeLabels(swc, target, extraLabels, metaLabels)
+	lctx := getLabelsContext()
+	lctx.labels = mergeLabels(lctx.labels[:0], swc, target, extraLabels, metaLabels)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
-		originalLabels = append([]prompbmarshal.Label{}, labels...)
+		originalLabels = append([]prompbmarshal.Label{}, lctx.labels...)
 	}
-	labels = swc.relabelConfigs.Apply(labels, 0, false)
-	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	lctx.labels = swc.relabelConfigs.Apply(lctx.labels, 0, false)
+	lctx.labels = promrelabel.RemoveMetaLabels(lctx.labels[:0], lctx.labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	labels = append([]prompbmarshal.Label{}, labels...)
+	labels := append([]prompbmarshal.Label{}, lctx.labels...)
+	putLabelsContext(lctx)
 
 	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
 	// Perform the verification on labels after the relabeling in order to guarantee that targets with the same set of labels
@@ -996,7 +1107,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
 		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
-		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
+		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, clusterMemberID)
 		scrapeWorkKeyBufPool.Put(bb)
 		if needSkip {
 			return nil, nil
@@ -1129,25 +1240,30 @@ func internLabelStrings(labels []prompbmarshal.Label) {
 }
 
 func internString(s string) string {
-	internStringsMapLock.Lock()
-	defer internStringsMapLock.Unlock()
-
-	if sInterned, ok := internStringsMap[s]; ok {
-		return sInterned
+	m := internStringsMap.Load().(*sync.Map)
+	if v, ok := m.Load(s); ok {
+		sp := v.(*string)
+		return *sp
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := string(append([]byte{}, s...))
-	internStringsMap[sCopy] = sCopy
-	if len(internStringsMap) > 100e3 {
-		internStringsMap = make(map[string]string, 100e3)
+	m.Store(sCopy, &sCopy)
+	n := atomic.AddUint64(&internStringsMapLen, 1)
+	if n > 100e3 {
+		atomic.StoreUint64(&internStringsMapLen, 0)
+		internStringsMap.Store(&sync.Map{})
 	}
 	return sCopy
 }
 
 var (
-	internStringsMapLock sync.Mutex
-	internStringsMap     = make(map[string]string, 100e3)
+	internStringsMap    atomic.Value
+	internStringsMapLen uint64
 )
+
+func init() {
+	internStringsMap.Store(&sync.Map{})
+}
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {
 	// See https://www.robustperception.io/life-of-a-label
@@ -1167,40 +1283,77 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 	return m
 }
 
-func mergeLabels(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) []prompbmarshal.Label {
-	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string, 6+len(swc.externalLabels)+len(swc.params)+len(extraLabels)+len(metaLabels))
-	for k, v := range swc.externalLabels {
-		m[k] = v
+func mergeLabels(dst []prompbmarshal.Label, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) []prompbmarshal.Label {
+	if len(dst) > 0 {
+		logger.Panicf("BUG: len(dst) must be 0; got %d", len(dst))
 	}
-	m["job"] = swc.jobName
-	m["__address__"] = target
-	m["__scheme__"] = swc.scheme
-	m["__metrics_path__"] = swc.metricsPath
-	m["__scrape_interval__"] = swc.scrapeInterval.String()
-	m["__scrape_timeout__"] = swc.scrapeTimeout.String()
+	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+	for k, v := range swc.externalLabels {
+		dst = appendLabel(dst, k, v)
+	}
+	dst = appendLabel(dst, "job", swc.jobName)
+	dst = appendLabel(dst, "__address__", target)
+	dst = appendLabel(dst, "__scheme__", swc.scheme)
+	dst = appendLabel(dst, "__metrics_path__", swc.metricsPath)
+	dst = appendLabel(dst, "__scrape_interval__", swc.scrapeIntervalString)
+	dst = appendLabel(dst, "__scrape_timeout__", swc.scrapeTimeoutString)
 	for k, args := range swc.params {
 		if len(args) == 0 {
 			continue
 		}
 		k = "__param_" + k
 		v := args[0]
-		m[k] = v
+		dst = appendLabel(dst, k, v)
 	}
 	for k, v := range extraLabels {
-		m[k] = v
+		dst = appendLabel(dst, k, v)
 	}
 	for k, v := range metaLabels {
-		m[k] = v
+		dst = appendLabel(dst, k, v)
 	}
-	result := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		result = append(result, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
+	if len(dst) < 2 {
+		return dst
 	}
-	return result
+	// Remove duplicate labels if any.
+	// Stable sorting is needed in order to preserve the order for labels with identical names.
+	// This is needed in order to remove labels with duplicate names other than the last one.
+	promrelabel.SortLabelsStable(dst)
+	prevName := dst[0].Name
+	hasDuplicateLabels := false
+	for _, label := range dst[1:] {
+		if label.Name == prevName {
+			hasDuplicateLabels = true
+			break
+		}
+		prevName = label.Name
+	}
+	if !hasDuplicateLabels {
+		return dst
+	}
+	prevName = dst[0].Name
+	tmp := dst[:1]
+	for _, label := range dst[1:] {
+		if label.Name == prevName {
+			tmp[len(tmp)-1] = label
+		} else {
+			tmp = append(tmp, label)
+			prevName = label.Name
+		}
+	}
+	tail := dst[len(tmp):]
+	for i := range tail {
+		label := &tail[i]
+		label.Name = ""
+		label.Value = ""
+	}
+	return tmp
+}
+
+func appendLabel(dst []prompbmarshal.Label, name, value string) []prompbmarshal.Label {
+	return append(dst, prompbmarshal.Label{
+		Name:  name,
+		Value: value,
+	})
 }
 
 func addMissingPort(scheme, target string) string {

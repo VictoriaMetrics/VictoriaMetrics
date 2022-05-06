@@ -18,6 +18,17 @@ func SortLabels(labels []prompbmarshal.Label) {
 	labelsSorterPool.Put(ls)
 }
 
+// SortLabelsStable sorts labels using stable sort.
+func SortLabelsStable(labels []prompbmarshal.Label) {
+	ls := labelsSorterPool.Get().(*labelsSorter)
+	*ls = labels
+	if !sort.IsSorted(ls) {
+		sort.Stable(ls)
+	}
+	*ls = nil
+	labelsSorterPool.Put(ls)
+}
+
 var labelsSorterPool = &sync.Pool{
 	New: func() interface{} {
 		return &labelsSorter{}

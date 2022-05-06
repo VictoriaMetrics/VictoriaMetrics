@@ -1,17 +1,20 @@
-import React, {FC} from "preact/compat";
+import React, {FC, useState} from "preact/compat";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import {ExecutionControls} from "../Home/Configurator/Time/ExecutionControls";
+import {ExecutionControls} from "../CustomPanel/Configurator/Time/ExecutionControls";
 import Logo from "../common/Logo";
-import makeStyles from "@mui/styles/makeStyles";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
-import {TimeSelector} from "../Home/Configurator/Time/TimeSelector";
-import GlobalSettings from "../Home/Configurator/Settings/GlobalSettings";
+import {TimeSelector} from "../CustomPanel/Configurator/Time/TimeSelector";
+import GlobalSettings from "../CustomPanel/Configurator/Settings/GlobalSettings";
+import {Link as RouterLink, useLocation, useNavigate} from "react-router-dom";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import router from "../../router/index";
 
-const useStyles = makeStyles({
+const classes = {
   logo: {
     position: "relative",
     display: "flex",
@@ -32,32 +35,61 @@ const useStyles = makeStyles({
     "&:hover": {
       opacity: ".8",
     }
+  },
+  menuLink: {
+    display: "block",
+    padding: "16px 8px",
+    color: "white",
+    fontSize: "11px",
+    textDecoration: "none",
+    cursor: "pointer",
+    textTransform: "uppercase",
+    borderRadius: "4px",
+    transition: ".2s background",
+    "&:hover": {
+      boxShadow: "rgba(0, 0, 0, 0.15) 0px 2px 8px"
+    }
   }
-});
+};
 
 const Header: FC = () => {
 
-  const classes = useStyles();
+  const {search, pathname} = useLocation();
+  const navigate = useNavigate();
+
+  const [activeMenu, setActiveMenu] = useState(pathname);
 
   const onClickLogo = () => {
+    navigateHandler(router.home);
     setQueryStringWithoutPageReload("");
     window.location.reload();
+  };
+
+  const navigateHandler = (pathname: string) => {
+    navigate({pathname, search: search});
   };
 
   return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
     <Toolbar>
       <Box display="grid" alignItems="center" justifyContent="center">
-        <Box onClick={onClickLogo} className={classes.logo}>
+        <Box onClick={onClickLogo} sx={classes.logo}>
           <Logo style={{color: "inherit", marginRight: "6px"}}/>
           <Typography variant="h5">
             <span style={{fontWeight: "bolder"}}>VM</span>
             <span style={{fontWeight: "lighter"}}>UI</span>
           </Typography>
         </Box>
-        <Link className={classes.issueLink} target="_blank"
+        <Link sx={classes.issueLink} target="_blank"
           href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
           create an issue
         </Link>
+      </Box>
+      <Box sx={{ml: 8}}>
+        <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
+          onChange={(e, val) => setActiveMenu(val)}>
+          <Tab label="Custom panel" value={router.home} component={RouterLink} to={`${router.home}${search}`}/>
+          <Tab label="Dashboards" value={router.dashboards} component={RouterLink} to={`${router.dashboards}${search}`}/>
+        </Tabs>
       </Box>
       <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>
         <TimeSelector/>

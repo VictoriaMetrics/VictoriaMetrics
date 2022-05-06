@@ -93,6 +93,10 @@ type EvalConfig struct {
 	End   int64
 	Step  int64
 
+	// MaxSeries is the maximum number of time series, which can be scanned by the query.
+	// Zero means 'no limit'
+	MaxSeries int
+
 	// QuotedRemoteAddr contains quoted remote address.
 	QuotedRemoteAddr string
 
@@ -113,12 +117,13 @@ type EvalConfig struct {
 	timestampsOnce sync.Once
 }
 
-// newEvalConfig returns new EvalConfig copy from src.
-func newEvalConfig(src *EvalConfig) *EvalConfig {
+// copyEvalConfig returns src copy.
+func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
 	ec.Start = src.Start
 	ec.End = src.End
 	ec.Step = src.Step
+	ec.MaxSeries = src.MaxSeries
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
@@ -575,7 +580,7 @@ func evalRollupFunc(ec *EvalConfig, funcName string, rf rollupFunc, expr metrics
 		return nil, fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt))
 	}
 	atTimestamp := int64(tssAt[0].Values[0] * 1000)
-	ecNew := newEvalConfig(ec)
+	ecNew := copyEvalConfig(ec)
 	ecNew.Start = atTimestamp
 	ecNew.End = atTimestamp
 	tss, err := evalRollupFuncWithoutAt(ecNew, funcName, rf, expr, re, iafc)
@@ -602,7 +607,7 @@ func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, exp
 	var offset int64
 	if re.Offset != nil {
 		offset = re.Offset.Duration(ec.Step)
-		ecNew = newEvalConfig(ecNew)
+		ecNew = copyEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset
 		// There is no need in calling AdjustStartEnd() on ecNew if ecNew.MayCache is set to true,
@@ -615,7 +620,7 @@ func evalRollupFuncWithoutAt(ec *EvalConfig, funcName string, rf rollupFunc, exp
 		// in order to obtain expected OHLC results.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/309#issuecomment-582113462
 		step := ecNew.Step
-		ecNew = newEvalConfig(ecNew)
+		ecNew = copyEvalConfig(ecNew)
 		ecNew.Start += step
 		ecNew.End += step
 		offset -= step
@@ -679,7 +684,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, funcName string, rf rollupFunc, 
 	}
 	window := re.Window.Duration(ec.Step)
 
-	ecSQ := newEvalConfig(ec)
+	ecSQ := copyEvalConfig(ec)
 	ecSQ.Start -= window + maxSilenceInterval + step
 	ecSQ.End += step
 	ecSQ.Step = step
@@ -834,7 +839,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, funcName string, rf rollupFunc
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss)
+	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, err := netstorage.ProcessSearchQuery(sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err

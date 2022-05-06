@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -29,16 +30,21 @@ type Config struct {
 	// ConsulSDConfigs contains list of settings for service discovery via Consul
 	// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 	ConsulSDConfigs []consul.SDConfig `yaml:"consul_sd_configs,omitempty"`
+	// DNSSDConfigs ontains list of settings for service discovery via DNS.
+	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+	DNSSDConfigs []dns.SDConfig `yaml:"dns_sd_configs,omitempty"`
+
 	// StaticConfigs contains list of static targets
 	StaticConfigs []StaticConfig `yaml:"static_configs,omitempty"`
 
 	// HTTPClientConfig contains HTTP configuration for Notifier clients
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
-	// RelabelConfigs contains list of relabeling rules
+	// RelabelConfigs contains list of relabeling rules for entities discovered via SD
 	RelabelConfigs []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
-
+	// AlertRelabelConfigs contains list of relabeling rules alert labels
+	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 	// The timeout used when sending alerts.
-	Timeout promutils.Duration `yaml:"timeout,omitempty"`
+	Timeout *promutils.Duration `yaml:"timeout,omitempty"`
 
 	// Checksum stores the hash of yaml definition for the config.
 	// May be used to detect any changes to the config file.
@@ -52,6 +58,8 @@ type Config struct {
 
 	// stores already parsed RelabelConfigs object
 	parsedRelabelConfigs *promrelabel.ParsedConfigs
+	// stores already parsed AlertRelabelConfigs object
+	parsedAlertRelabelConfigs *promrelabel.ParsedConfigs
 }
 
 // StaticConfig contains list of static targets in the following form:
@@ -78,6 +86,11 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return fmt.Errorf("failed to parse relabeling config: %w", err)
 	}
 	cfg.parsedRelabelConfigs = rCfg
+	arCfg, err := promrelabel.ParseRelabelConfigs(cfg.AlertRelabelConfigs, false)
+	if err != nil {
+		return fmt.Errorf("failed to parse alert relabeling config: %w", err)
+	}
+	cfg.parsedAlertRelabelConfigs = arCfg
 
 	b, err := yaml.Marshal(cfg)
 	if err != nil {

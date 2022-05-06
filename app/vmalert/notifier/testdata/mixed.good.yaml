@@ -11,8 +11,18 @@ consul_sd_configs:
   - server: localhost:8500
     services:
       - consul
+
+dns_sd_configs:
+  - names:
+      - cloudflare.com
+    type: 'A'
+    port: 9093
+
 relabel_configs:
   - source_labels: [__meta_consul_tags]
     regex: .*,__scheme__=([^,]+),.*
     replacement: '${1}'
     target_label: __scheme__
+  - source_labels: [__meta_dns_name]
+    replacement: '${1}'
+    target_label: dns_name

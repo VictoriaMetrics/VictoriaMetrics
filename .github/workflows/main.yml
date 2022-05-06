@@ -8,6 +8,8 @@
 #    paths-ignore:
 #      - 'docs/**'
 #      - '**.md'
+#permissions:
+#  contents: read
 #jobs:
 #  build:
 #    name: Build
@@ -16,15 +18,15 @@
 #      - name: Setup Go
 #        uses: actions/setup-go@main
 #        with:
-#          go-version: 1.16
+#          go-version: 1.17
 #        id: go
-#      - name: Dependencies
-#        run: |
-#          go get -u golang.org/x/lint/golint
-#          go get -u github.com/kisielk/errcheck
-#          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.29.0
 #      - name: Code checkout
 #        uses: actions/checkout@master
+#      - name: Dependencies
+#        run: |
+#          make install-golint
+#          make install-errcheck
+#          make install-golangci-lint
 #      - name: Build
 #        env:
 #          GO111MODULE: on
@@ -63,4 +65,3 @@
 #        uses: codecov/codecov-action@v1.5.0
 #        with:
 #          file: ./coverage.txt
-#

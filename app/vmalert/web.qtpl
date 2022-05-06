@@ -31,14 +31,7 @@
             rOk := make(map[string]int)
             rNotOk := make(map[string]int)
             for _, g := range groups {
-                for _, r := range g.AlertingRules{
-                    if r.LastError != "" {
-                        rNotOk[g.Name]++
-                    } else {
-                        rOk[g.Name]++
-                    }
-                }
-                 for _, r := range g.RecordingRules{
+                for _, r := range g.Rules {
                     if r.LastError != "" {
                         rNotOk[g.Name]++
                     } else {
@@ -52,7 +45,7 @@
         {% for _, g := range groups  %}
               <div class="group-heading{% if rNotOk[g.Name] > 0 %} alert-danger{% endif %}"  data-bs-target="rules-{%s g.ID %}">
                 <span class="anchor" id="group-{%s g.ID %}"></span>
-                <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%s g.Interval %})</a>
+                <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s)</a>
                  {% if rNotOk[g.Name] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.Name] %}</span> {% endif %}
                 <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.Name] %}</span>
                 <p class="fs-6 fw-lighter">{%s g.File %}</p>
@@ -68,41 +61,44 @@
                 <table class="table table-striped table-hover table-sm">
                     <thead>
                         <tr>
-                            <th scope="col">Rule</th>
-                            <th scope="col" title="Shows if rule's execution ended with error">Error</th>
-                            <th scope="col" title="How many samples were produced by the rule">Samples</th>
-                            <th scope="col" title="How many seconds ago rule was executed">Updated</th>
+                            <th scope="col" style="width: 60%">Rule</th>
+                            <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
+                            <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                         </tr>
                     </thead>
                     <tbody>
-                    {% for _, ar := range g.AlertingRules %}
-                        <tr{% if ar.LastError != "" %} class="alert-danger"{% endif %}>
+                    {% for _, r := range g.Rules %}
+                        <tr{% if r.LastError != "" %} class="alert-danger"{% endif %}>
                             <td>
-                                <b>alert:</b> {%s ar.Name %} (for: {%v ar.For %})<br>
-                                <code><pre>{%s ar.Expression %}</pre></code><br>
-                                {% if len(ar.Labels) > 0 %} <b>Labels:</b>{% endif %}
-                                {% for k, v := range ar.Labels %}
-                                        <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
-                                {% endfor %}
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        {% if r.Type == "alerting" %}
+                                        <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
+                                        {% else %}
+                                        <b>record:</b> {%s r.Name %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-12">
+                                        <code><pre>{%s r.Query %}</pre></code>
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
+                                        {% for k, v := range r.Labels %}
+                                                <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% if r.LastError != "" %}
+                                    <div class="col-12">
+                                        <b>Error:</b>
+                                        <div class="error-cell">
+                                        {%s r.LastError %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td><div class="error-cell">{%s ar.LastError %}</div></td>
-                            <td>{%d ar.LastSamples %}</td>
-                            <td>{%f.3 time.Since(ar.LastExec).Seconds() %}s ago</td>
-                        </tr>
-                    {% endfor %}
-                    {% for _, rr := range g.RecordingRules  %}
-                        <tr>
-                            <td>
-                                <b>record:</b> {%s rr.Name %}<br>
-                                <code><pre>{%s rr.Expression %}</pre></code>
-                                {% if len(rr.Labels) > 0 %} <b>Labels:</b>{% endif %}
-                                {% for k, v := range rr.Labels %}
-                                        <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
-                                {% endfor %}
-                            </td>
-                            <td><div class="error-cell">{%s rr.LastError %}</div></td>
-                            <td>{%d rr.LastSamples %}</td>
-                            <td>{%f.3 time.Since(rr.LastExec).Seconds() %}s ago</td>
+                            <td class="text-center">{%d r.LastSamples %}</td>
+                            <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
                         </tr>
                     {% endfor %}
                  </tbody>

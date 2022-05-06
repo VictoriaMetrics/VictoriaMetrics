@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   vmagent:
     container_name: vmagent
@@ -11,8 +11,8 @@ services:
       - vmagentdata:/vmagentdata
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     command:
-      - '--promscrape.config=/etc/prometheus/prometheus.yml'
-      - '--remoteWrite.url=http://victoriametrics:8428/api/v1/write'
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
     networks:
       - vm_net
     restart: always
@@ -29,17 +29,18 @@ services:
     volumes:
       - vmdata:/storage
     command:
-      - '--storageDataPath=/storage'
-      - '--graphiteListenAddr=:2003'
-      - '--opentsdbListenAddr=:4242'
-      - '--httpListenAddr=:8428'
-      - '--influxListenAddr=:8089'
+      - "--storageDataPath=/storage"
+      - "--graphiteListenAddr=:2003"
+      - "--opentsdbListenAddr=:4242"
+      - "--httpListenAddr=:8428"
+      - "--influxListenAddr=:8089"
+      - "--vmalert.proxyURL=http://vmalert:8880"
     networks:
       - vm_net
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:8.3.5
+    image: grafana/grafana:8.5.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -64,24 +65,24 @@ services:
     volumes:
       - ./alerts.yml:/etc/alerts/alerts.yml
     command:
-      - '--datasource.url=http://victoriametrics:8428/'
-      - '--remoteRead.url=http://victoriametrics:8428/'
-      - '--remoteWrite.url=http://victoriametrics:8428/'
-      - '--notifier.url=http://alertmanager:9093/'
-      - '--rule=/etc/alerts/*.yml'
+      - "--datasource.url=http://victoriametrics:8428/"
+      - "--remoteRead.url=http://victoriametrics:8428/"
+      - "--remoteWrite.url=http://victoriametrics:8428/"
+      - "--notifier.url=http://alertmanager:9093/"
+      - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
-      - '-external.url=http://127.0.0.1:3000' #grafana outside container
-      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":"{{$$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' ## when copypaste the line be aware of '$$' for escaping in '$expr'    networks:
+      - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":"{{$$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' ## when copypaste the line be aware of '$$' for escaping in '$expr'
     networks:
       - vm_net
     restart: always
   alertmanager:
     container_name: alertmanager
-    image:  prom/alertmanager
+    image: prom/alertmanager
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
-      - '--config.file=/config/alertmanager.yml'
+      - "--config.file=/config/alertmanager.yml"
     ports:
       - 9093:9093
     networks:

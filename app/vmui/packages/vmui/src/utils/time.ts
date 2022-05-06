@@ -1,7 +1,8 @@
-import {TimeParams, TimePeriod} from "../types";
+import {RelativeTimeOption, TimeParams, TimePeriod} from "../types";
 import dayjs, {UnitTypeShort} from "dayjs";
 import duration from "dayjs/plugin/duration";
 import utc from "dayjs/plugin/utc";
+import {getQueryStringValue} from "./query-string";
 
 dayjs.extend(duration);
 dayjs.extend(utc);
@@ -105,5 +106,38 @@ export const checkDurationLimit = (dur: string): string => {
   return dur;
 };
 
-export const dateFromSeconds = (epochTimeInSeconds: number): Date =>
-  new Date(epochTimeInSeconds * 1000);
+export const dateFromSeconds = (epochTimeInSeconds: number): Date => new Date(epochTimeInSeconds * 1000);
+
+export const relativeTimeOptions: RelativeTimeOption[] = [
+  {title: "Last 5 minutes", duration: "5m"},
+  {title: "Last 15 minutes", duration: "15m"},
+  {title: "Last 30 minutes", duration: "30m"},
+  {title: "Last 1 hour", duration: "1h"},
+  {title: "Last 3 hours", duration: "3h"},
+  {title: "Last 6 hours", duration: "6h"},
+  {title: "Last 12 hours", duration: "12h"},
+  {title: "Last 24 hours", duration: "24h"},
+  {title: "Last 2 days", duration: "2d"},
+  {title: "Last 7 days", duration: "7d"},
+  {title: "Last 30 days", duration: "30d"},
+  {title: "Last 90 days", duration: "90d"},
+  {title: "Last 180 days", duration: "180d"},
+  {title: "Last 1 year", duration: "1y"},
+  {title: "Yesterday", duration: "1d", until: () => dayjs().subtract(1, "day").endOf("day").toDate()},
+  {title: "Today", duration: "1d", until: () => dayjs().endOf("day").toDate()},
+].map(o => ({
+  id: o.title.replace(/\s/g, "_").toLocaleLowerCase(),
+  until: o.until ? o.until : () => dayjs().toDate(),
+  ...o
+}));
+
+export const getRelativeTime = ({relativeTimeId, defaultDuration, defaultEndInput}:
+                                  { relativeTimeId?: string, defaultDuration: string, defaultEndInput: Date }) => {
+  const id = relativeTimeId || getQueryStringValue("g0.relative_time", "") as string;
+  const target = relativeTimeOptions.find(d => d.id === id);
+  return {
+    relativeTimeId: id,
+    duration: target ? target.duration : defaultDuration,
+    endInput: target ? target.until() : defaultEndInput
+  };
+};

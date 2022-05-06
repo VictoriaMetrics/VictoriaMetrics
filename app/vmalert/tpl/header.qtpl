@@ -9,11 +9,6 @@
           min-height: 75rem;
           padding-top: 4.5rem;
         }
-        pre {
-            overflow: scroll;
-            max-width: 600px;
-            min-height: 30px;
-        }
         .group-heading {
             cursor: pointer;
             padding: 5px;
@@ -32,8 +27,27 @@
          .group-heading:hover {
             background-color: #f8f9fa!important;
         }
+        .table {
+            table-layout: fixed;
+        }
         .table .error-cell{
             word-break: break-word;
+            font-size: 14px;
+        }
+        pre {
+            overflow: scroll;
+            min-height: 30px;
+            max-width: 100%;
+        }
+        pre::-webkit-scrollbar {
+          -webkit-appearance: none;
+          width: 0px;
+          height: 5px;
+        }
+        pre::-webkit-scrollbar-thumb {
+          border-radius: 5px;
+          background-color: rgba(0,0,0,.5);
+          -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
         }
     </style>
 </head>

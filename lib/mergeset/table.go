@@ -75,10 +75,12 @@ type Table struct {
 	// aligned to 8 bytes on 32-bit architectures.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
 
-	activeMerges   uint64
-	mergesCount    uint64
-	itemsMerged    uint64
-	assistedMerges uint64
+	activeMerges        uint64
+	mergesCount         uint64
+	itemsMerged         uint64
+	assistedMerges      uint64
+	itemsAdded          uint64
+	itemsAddedSizeBytes uint64
 
 	mergeIdx uint64
 
@@ -125,9 +127,16 @@ type rawItemsShards struct {
 // The number of shards for rawItems per table.
 //
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
-var rawItemsShardsPerTable = cgroup.AvailableCPUs()
+var rawItemsShardsPerTable = func() int {
+	cpus := cgroup.AvailableCPUs()
+	multiplier := cpus
+	if multiplier > 16 {
+		multiplier = 16
+	}
+	return (cpus*multiplier + 1) / 2
+}()
 
-const maxBlocksPerShard = 512
+const maxBlocksPerShard = 256
 
 func (riss *rawItemsShards) init() {
 	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)
@@ -389,10 +398,12 @@ func (tb *Table) Path() string {
 
 // TableMetrics contains essential metrics for the Table.
 type TableMetrics struct {
-	ActiveMerges   uint64
-	MergesCount    uint64
-	ItemsMerged    uint64
-	AssistedMerges uint64
+	ActiveMerges        uint64
+	MergesCount         uint64
+	ItemsMerged         uint64
+	AssistedMerges      uint64
+	ItemsAdded          uint64
+	ItemsAddedSizeBytes uint64
 
 	PendingItems uint64
 
@@ -423,6 +434,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.MergesCount += atomic.LoadUint64(&tb.mergesCount)
 	m.ItemsMerged += atomic.LoadUint64(&tb.itemsMerged)
 	m.AssistedMerges += atomic.LoadUint64(&tb.assistedMerges)
+	m.ItemsAdded += atomic.LoadUint64(&tb.itemsAdded)
+	m.ItemsAddedSizeBytes += atomic.LoadUint64(&tb.itemsAddedSizeBytes)
 
 	m.PendingItems += uint64(tb.rawItems.Len())
 
@@ -457,6 +470,12 @@ func (tb *Table) AddItems(items [][]byte) error {
 	if err := tb.rawItems.addItems(tb, items); err != nil {
 		return fmt.Errorf("cannot insert data into %q: %w", tb.path, err)
 	}
+	atomic.AddUint64(&tb.itemsAdded, uint64(len(items)))
+	n := 0
+	for _, item := range items {
+		n += len(item)
+	}
+	atomic.AddUint64(&tb.itemsAddedSizeBytes, uint64(n))
 	return nil
 }
 

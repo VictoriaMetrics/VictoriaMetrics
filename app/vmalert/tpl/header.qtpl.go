@@ -41,11 +41,6 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
           min-height: 75rem;
           padding-top: 4.5rem;
         }
-        pre {
-            overflow: scroll;
-            max-width: 600px;
-            min-height: 30px;
-        }
         .group-heading {
             cursor: pointer;
             padding: 5px;
@@ -64,44 +59,63 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
          .group-heading:hover {
             background-color: #f8f9fa!important;
         }
+        .table {
+            table-layout: fixed;
+        }
         .table .error-cell{
             word-break: break-word;
+            font-size: 14px;
+        }
+        pre {
+            overflow: scroll;
+            min-height: 30px;
+            max-width: 100%;
+        }
+        pre::-webkit-scrollbar {
+          -webkit-appearance: none;
+          width: 0px;
+          height: 5px;
+        }
+        pre::-webkit-scrollbar-thumb {
+          border-radius: 5px;
+          background-color: rgba(0,0,0,.5);
+          -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
         }
     </style>
 </head>
 <body>
     `)
-//line app/vmalert/tpl/header.qtpl:41
+//line app/vmalert/tpl/header.qtpl:55
 	StreamPrintNavItems(qw422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:41
+//line app/vmalert/tpl/header.qtpl:55
 	qw422016.N().S(`
     <main class="px-2">
 `)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 }
 
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 func WriteHeader(qq422016 qtio422016.Writer, title string, pages []NavItem) {
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	StreamHeader(qw422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 }
 
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 func Header(title string, pages []NavItem) string {
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	WriteHeader(qb422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:57
 }

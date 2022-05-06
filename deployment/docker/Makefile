@@ -2,9 +2,9 @@
 
 DOCKER_NAMESPACE := victoriametrics
 
-ROOT_IMAGE ?= alpine:3.15.0
-CERTS_IMAGE := alpine:3.15.0
-GO_BUILDER_IMAGE := golang:1.17.7-alpine
+ROOT_IMAGE ?= alpine:3.15.4
+CERTS_IMAGE := alpine:3.15.4
+GO_BUILDER_IMAGE := golang:1.18.1-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
@@ -186,4 +186,4 @@ package-via-docker-386:
 	GOARCH=386 $(MAKE) package-via-docker-goarch-nocgo
 
 remove-docker-images:
-	docker image ls --format '{{.Repository}}\t{{.ID}}' | grep $(DOCKER_NAMESPACE)/ | awk '{print $$2}' | xargs docker image rm -f
+	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f

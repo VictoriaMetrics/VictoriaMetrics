@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // Alert the triggered alert
@@ -26,10 +28,16 @@ type Alert struct {
 	State AlertState
 	// Expr contains expression that was executed to generate the Alert
 	Expr string
-	// Start defines the moment of time when Alert has triggered
+	// ActiveAt defines the moment of time when Alert has become active
+	ActiveAt time.Time
+	// Start defines the moment of time when Alert has become firing
 	Start time.Time
 	// End defines the moment of time when Alert supposed to expire
 	End time.Time
+	// ResolvedAt defines the moment when Alert was switched from Firing to Inactive
+	ResolvedAt time.Time
+	// LastSent defines the moment when Alert was sent last time
+	LastSent time.Time
 	// Value stores the value returned from evaluating expression from Expr field
 	Value float64
 	// ID is the unique identifer for the Alert
@@ -82,14 +90,14 @@ var tplHeaders = []string{
 // map of annotations.
 // Every alert could have a different datasource, so function
 // requires a queryFunction as an argument.
-func (a *Alert) ExecTemplate(q QueryFn, annotations map[string]string) (map[string]string, error) {
-	tplData := AlertTplData{Value: a.Value, Labels: a.Labels, Expr: a.Expr}
-	return templateAnnotations(annotations, tplData, funcsWithQuery(q))
+func (a *Alert) ExecTemplate(q QueryFn, labels, annotations map[string]string) (map[string]string, error) {
+	tplData := AlertTplData{Value: a.Value, Labels: labels, Expr: a.Expr}
+	return templateAnnotations(annotations, tplData, funcsWithQuery(q), true)
 }
 
 // ExecTemplate executes the given template for given annotations map.
 func ExecTemplate(q QueryFn, annotations map[string]string, tpl AlertTplData) (map[string]string, error) {
-	return templateAnnotations(annotations, tpl, funcsWithQuery(q))
+	return templateAnnotations(annotations, tpl, funcsWithQuery(q), true)
 }
 
 // ValidateTemplates validate annotations for possible template error, uses empty data for template population
@@ -97,11 +105,11 @@ func ValidateTemplates(annotations map[string]string) error {
 	_, err := templateAnnotations(annotations, AlertTplData{
 		Labels: map[string]string{},
 		Value:  0,
-	}, tmplFunc)
+	}, tmplFunc, false)
 	return err
 }
 
-func templateAnnotations(annotations map[string]string, data AlertTplData, funcs template.FuncMap) (map[string]string, error) {
+func templateAnnotations(annotations map[string]string, data AlertTplData, funcs template.FuncMap, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
 	eg := new(utils.ErrGroup)
@@ -114,7 +122,7 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, funcs
 		builder.Grow(len(header) + len(text))
 		builder.WriteString(header)
 		builder.WriteString(text)
-		if err := templateAnnotation(&buf, builder.String(), tData, funcs); err != nil {
+		if err := templateAnnotation(&buf, builder.String(), tData, funcs, execute); err != nil {
 			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
@@ -130,14 +138,32 @@ type tplData struct {
 	ExternalURL    string
 }
 
-func templateAnnotation(dst io.Writer, text string, data tplData, funcs template.FuncMap) error {
+func templateAnnotation(dst io.Writer, text string, data tplData, funcs template.FuncMap, execute bool) error {
 	t := template.New("").Funcs(funcs).Option("missingkey=zero")
 	tpl, err := t.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation: %w", err)
 	}
+	if !execute {
+		return nil
+	}
 	if err = tpl.Execute(dst, data); err != nil {
 		return fmt.Errorf("error evaluating annotation template: %w", err)
 	}
 	return nil
+}
+
+func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {
+	var labels []prompbmarshal.Label
+	for k, v := range a.Labels {
+		labels = append(labels, prompbmarshal.Label{
+			Name:  k,
+			Value: v,
+		})
+	}
+	promrelabel.SortLabels(labels)
+	if relabelCfg != nil {
+		return relabelCfg.Apply(labels, 0, false)
+	}
+	return labels
 }

@@ -4,3 +4,25 @@
 #    directory: "/"
 #    schedule:
 #      interval: "daily"
+#  - package-ecosystem: "gomod"
+#    directory: "/"
+#    schedule:
+#      interval: "weekly"
+#  - package-ecosystem: "bundler"
+#    directory: "/docs"
+#    schedule:
+#      interval: "daily"
+#  - package-ecosystem: "gomod"
+#    directory: "/app/vmui/packages/vmui/web"
+#    schedule:
+#      interval: "weekly"
+#    open-pull-requests-limit: 0
+#  - package-ecosystem: "docker"
+#    directory: "/"
+#    schedule:
+#      interval: "daily"
+#  - package-ecosystem: "npm"
+#    directory: "/app/vmui/packages/vmui"
+#    schedule:
+#      interval: "weekly"
+#    open-pull-requests-limit: 0

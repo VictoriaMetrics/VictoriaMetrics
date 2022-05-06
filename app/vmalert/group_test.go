@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -158,10 +161,11 @@ func TestGroupStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
-	const evalInterval = time.Millisecond
+
 	fs := &fakeQuerier{}
 	fn := &fakeNotifier{}
 
+	const evalInterval = time.Millisecond
 	g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
@@ -170,7 +174,7 @@ func TestGroupStart(t *testing.T) {
 	m2 := metricWithLabels(t, "instance", inst2, "job", job)
 
 	r := g.Rules[0].(*AlertingRule)
-	alert1, err := r.newAlert(m1, time.Now(), nil)
+	alert1, err := r.newAlert(m1, nil, time.Now(), nil)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
@@ -183,13 +187,9 @@ func TestGroupStart(t *testing.T) {
 	// add service labels
 	alert1.Labels[alertNameLabel] = alert1.Name
 	alert1.Labels[alertGroupNameLabel] = g.Name
-	var labels1 []string
-	for k, v := range alert1.Labels {
-		labels1 = append(labels1, k, v)
-	}
-	alert1.ID = hash(metricWithLabels(t, labels1...))
+	alert1.ID = hash(alert1.Labels)
 
-	alert2, err := r.newAlert(m2, time.Now(), nil)
+	alert2, err := r.newAlert(m2, nil, time.Now(), nil)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
@@ -202,11 +202,7 @@ func TestGroupStart(t *testing.T) {
 	// add service labels
 	alert2.Labels[alertNameLabel] = alert2.Name
 	alert2.Labels[alertGroupNameLabel] = g.Name
-	var labels2 []string
-	for k, v := range alert2.Labels {
-		labels2 = append(labels2, k, v)
-	}
-	alert2.ID = hash(metricWithLabels(t, labels2...))
+	alert2.ID = hash(alert2.Labels)
 
 	finished := make(chan struct{})
 	fs.add(m1)
@@ -223,6 +219,12 @@ func TestGroupStart(t *testing.T) {
 	expectedAlerts := []notifier.Alert{*alert1, *alert2}
 	compareAlerts(t, expectedAlerts, gotAlerts)
 
+	gotAlertsNum := fn.getCounter()
+	if gotAlertsNum < len(expectedAlerts)*2 {
+		t.Fatalf("expected to receive at least %d alerts; got %d instead",
+			len(expectedAlerts)*2, gotAlertsNum)
+	}
+
 	// reset previous data
 	fs.reset()
 	// and set only one datapoint for response
@@ -232,7 +234,8 @@ func TestGroupStart(t *testing.T) {
 	time.Sleep(20 * evalInterval)
 
 	gotAlerts = fn.getAlerts()
-	expectedAlerts = []notifier.Alert{*alert1}
+	alert2.State = notifier.StateInactive
+	expectedAlerts = []notifier.Alert{*alert1, *alert2}
 	compareAlerts(t, expectedAlerts, gotAlerts)
 
 	g.close()
@@ -243,22 +246,112 @@ func TestResolveDuration(t *testing.T) {
 	testCases := []struct {
 		groupInterval time.Duration
 		maxDuration   time.Duration
+		resendDelay   time.Duration
 		expected      time.Duration
 	}{
-		{time.Minute, 0, 3 * time.Minute},
-		{3 * time.Minute, 0, 9 * time.Minute},
-		{time.Minute, 2 * time.Minute, 2 * time.Minute},
-		{0, 0, 0},
+		{time.Minute, 0, 0, 4 * time.Minute},
+		{time.Minute, 0, 2 * time.Minute, 8 * time.Minute},
+		{time.Minute, 4 * time.Minute, 4 * time.Minute, 4 * time.Minute},
+		{2 * time.Minute, time.Minute, 2 * time.Minute, time.Minute},
+		{time.Minute, 2 * time.Minute, 1 * time.Minute, 2 * time.Minute},
+		{2 * time.Minute, 0, 1 * time.Minute, 8 * time.Minute},
+		{0, 0, 0, 0},
 	}
-	defaultResolveDuration := *maxResolveDuration
-	defer func() { *maxResolveDuration = defaultResolveDuration }()
+
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%v-%v-%v", tc.groupInterval, tc.expected, tc.maxDuration), func(t *testing.T) {
-			*maxResolveDuration = tc.maxDuration
-			got := getResolveDuration(tc.groupInterval)
+			got := getResolveDuration(tc.groupInterval, tc.resendDelay, tc.maxDuration)
 			if got != tc.expected {
 				t.Errorf("expected to have %v; got %v", tc.expected, got)
 			}
 		})
 	}
+}
+
+func TestGetStaleSeries(t *testing.T) {
+	ts := time.Now()
+	e := &executor{
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+	}
+	f := func(rule Rule, labels, expLabels [][]prompbmarshal.Label) {
+		t.Helper()
+		var tss []prompbmarshal.TimeSeries
+		for _, l := range labels {
+			tss = append(tss, newTimeSeriesPB([]float64{1}, []int64{ts.Unix()}, l))
+		}
+		staleS := e.getStaleSeries(rule, tss, ts)
+		if staleS == nil && expLabels == nil {
+			return
+		}
+		if len(staleS) != len(expLabels) {
+			t.Fatalf("expected to get %d stale series, got %d",
+				len(expLabels), len(staleS))
+		}
+		for i, exp := range expLabels {
+			got := staleS[i]
+			if !reflect.DeepEqual(exp, got.Labels) {
+				t.Fatalf("expected to get labels: \n%v;\ngot instead: \n%v",
+					exp, got.Labels)
+			}
+			if len(got.Samples) != 1 {
+				t.Fatalf("expected to have 1 sample; got %d", len(got.Samples))
+			}
+			if !decimal.IsStaleNaN(got.Samples[0].Value) {
+				t.Fatalf("expected sample value to be %v; got %v", decimal.StaleNaN, got.Samples[0].Value)
+			}
+		}
+	}
+
+	// warn: keep in mind, that executor holds the state, so sequence of f calls matters
+
+	// single series
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		nil,
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
+	f(&AlertingRule{RuleID: 1},
+		nil,
+		nil)
+
+	// multiple series
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{
+			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
+			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
+		},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		nil,
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")})
+
+	// multiple rules and series
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{
+			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
+			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
+		},
+		nil)
+	f(&AlertingRule{RuleID: 2},
+		[][]prompbmarshal.Label{
+			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
+			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
+		},
+		nil)
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
+	f(&AlertingRule{RuleID: 1},
+		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
+		nil)
 }

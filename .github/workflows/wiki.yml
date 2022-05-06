@@ -5,8 +5,12 @@
 #      - 'docs/*'
 #    branches:
 #      - master
+#permissions:
+#  contents: read
 #jobs:
 #  build:
+#    permissions:
+#      contents: write  # for Git to git push
 #    runs-on: ubuntu-latest
 #    steps:
 #      - uses: actions/checkout@master
@@ -16,7 +20,7 @@
 #          TOKEN: ${{secrets.CI_TOKEN}}
 #        run: |
 #          git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
-#          cp docs/* wiki
+#          cp -r docs/* wiki
 #          cd wiki
 #          git config --local user.email "info@victoriametrics.com"
 #          git config --local user.name "Vika"

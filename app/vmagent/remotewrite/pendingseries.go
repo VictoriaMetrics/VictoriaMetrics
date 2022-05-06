@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -210,7 +211,22 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		writeRequestBufPool.Put(bb)
 	}
 
-	// Too big block. Recursively split it into smaller parts.
+	// Too big block. Recursively split it into smaller parts if possible.
+	if len(wr.Timeseries) == 1 {
+		// A single time series left. Recursively split its samples into smaller parts if possible.
+		samples := wr.Timeseries[0].Samples
+		if len(samples) == 1 {
+			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
+			return
+		}
+		n := len(samples) / 2
+		wr.Timeseries[0].Samples = samples[:n]
+		pushWriteRequest(wr, pushBlock)
+		wr.Timeseries[0].Samples = samples[n:]
+		pushWriteRequest(wr, pushBlock)
+		wr.Timeseries[0].Samples = samples
+		return
+	}
 	timeseries := wr.Timeseries
 	n := len(timeseries) / 2
 	wr.Timeseries = timeseries[:n]

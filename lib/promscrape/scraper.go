@@ -52,6 +52,7 @@ func CheckConfig() error {
 //
 // Scraped data is passed to pushData.
 func Init(pushData func(wr *prompbmarshal.WriteRequest)) {
+	mustInitClusterMemberID()
 	globalStopChan = make(chan struct{})
 	scraperWG.Add(1)
 	go func() {
@@ -144,8 +145,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
-			cfg.mustStop()
-			cfgNew.mustStart()
+			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
 			data = dataNew
 			marshaledData = cfgNew.marshal()
@@ -160,8 +160,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
 			}
-			cfg.mustStop()
-			cfgNew.mustStart()
+			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
 			data = dataNew
 			configData.Store(&marshaledData)

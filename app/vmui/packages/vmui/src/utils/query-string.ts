@@ -5,6 +5,7 @@ const stateToUrlParams = {
   "time.duration": "range_input",
   "time.period.date": "end_input",
   "time.period.step": "step_input",
+  "time.relativeTime": "relative_time",
   "displayType": "tab"
 };
 
@@ -31,7 +32,7 @@ const stateToUrlParams = {
 export const setQueryStringWithoutPageReload = (qsValue: string): void => {
   const w = window;
   if (w) {
-    const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}?${qsValue}`;
+    const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}?${qsValue}${w.location.hash}`;
     w.history.pushState({ path: newurl }, "", newurl);
   }
 };
