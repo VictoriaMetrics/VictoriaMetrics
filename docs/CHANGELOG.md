@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to specify filters for Availability Zones in [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) via `az_filters` section. This section can contain AZ-specific set of filters in the same way as the existing `filters` section, which is used for filtering EC2 instances. The list of supported AZ-specific filters is available [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html).
+
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): properly import InfluxDB measurements if they contain `db` tag. Previously this could result in incomplete import of measurmenet tags. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2536). Thanks to @mback2k for the bugfix.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not reset the selected relative time range when entering new query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115817302).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
