@@ -20,6 +20,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): properly import InfluxDB measurements if they contain `db` tag. Previously this could result in incomplete import of measurmenet tags. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2536). Thanks to @mback2k for the bugfix.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not reset the selected relative time range when entering new query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115817302).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): rename `vmagent_remote_write_rate_limit_reached_total` metric to `vmagent_remotewrite_rate_limit_reached_total`, so its name is consistent with the rest of `vmagent_remotewrite_` metrics.
 
 
 ## [v1.77.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.0)
