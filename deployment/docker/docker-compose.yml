@@ -75,6 +75,7 @@ services:
     command:
       - '--storageNode=vmstorage-1:8401'
       - '--storageNode=vmstorage-2:8401'
+      - '--vmalert.proxyURL=http://vmalert:8880'
     ports:
       - 8481:8481
     restart: always
