@@ -27,6 +27,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): disallow writing backups to `-storageDataPath` directory, since this directory is managed solely by VictoriaMetrics or `vmstorage`. Other apps shouldn't write into this directory. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2503).
 * BUGFIX: do not allow setting `-retentionPeriod` smaller than one day, since VictoriaMetrics doesn't support properly such small retention periods. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2496).
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): do not drop samples routed to readonly `vmstorage` nodes if `-dropSamplesOnOverload` command-line flag is set. Try re-routing them to healthy `vmstorage` nodes instead. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2478).
 
 
 ## [v1.77.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.0)
