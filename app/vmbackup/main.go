@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -155,10 +156,26 @@ func newDstFS() (common.RemoteFS, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-dst`=%q: %w", *dst, err)
 	}
-	if strings.HasPrefix(*dst, "fs:") && strings.Contains(*dst, *storageDataPath) {
-		return nil, fmt.Errorf("-dst can not point to the directory with VictoriaMetrics data (aka -storageDataPath)")
+	if hasFilepathPrefix(*dst, *storageDataPath) {
+		return nil, fmt.Errorf("-dst=%q can not point to the directory with VictoriaMetrics data (aka -storageDataPath=%q)", *dst, *storageDataPath)
 	}
 	return fs, nil
+}
+
+func hasFilepathPrefix(path, prefix string) bool {
+	if !strings.HasPrefix(path, "fs://") {
+		return false
+	}
+	path = path[len("fs://"):]
+	pathAbs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	prefixAbs, err := filepath.Abs(prefix)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(pathAbs, prefixAbs)
 }
 
 func newOriginFS() (common.OriginFS, error) {

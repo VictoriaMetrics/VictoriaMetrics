@@ -1,69 +1,29 @@
 package main
 
 import (
-	"flag"
+	"path/filepath"
 	"testing"
 )
 
-func Test_newDstFS(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr bool
-	}{
-		{
-			name:    "empty dst flag",
-			args:    []string{"-dst", "", "-storageDataPath", "victoria-metrics-data"},
-			wantErr: true,
-		},
-		{
-			name:    "wrong dst flag",
-			args:    []string{"-dst", "123123", "-storageDataPath", "victoria-metrics-data"},
-			wantErr: true,
-		},
-		{
-			name:    "empty path for dst flag",
-			args:    []string{"-dst", "fs://", "-storageDataPath", "victoria-metrics-data"},
-			wantErr: true,
-		},
-		{
-			name:    "dst flag has the same dir as storageDataPath flag",
-			args:    []string{"-dst", "fs:///path/to/local/backup/victoria-metrics-data", "-storageDataPath", "victoria-metrics-data"},
-			wantErr: true,
-		},
-		{
-			name:    "dst flag is s3 file system",
-			args:    []string{"-dst", "s3://bucket/path/to/backup/dir", "-storageDataPath", "victoria-metrics-data"},
-			wantErr: false,
-		},
-		{
-			name:    "dst flag do not contain storageDataPath",
-			args:    []string{"-dst", "fs:///bucket/path/to/backup/dir", "-storageDataPath", "victoria-metrics-data"},
-			wantErr: false,
-		},
+func TestHasFilepathPrefix(t *testing.T) {
+	f := func(dst, storageDataPath string, resultExpected bool) {
+		t.Helper()
+		result := hasFilepathPrefix(dst, storageDataPath)
+		if result != resultExpected {
+			t.Errorf("unexpected hasFilepathPrefix(%q, %q); got: %v; want: %v", dst, storageDataPath, result, resultExpected)
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := parseFlags(tt.args); err != nil {
-				t.Fatalf("error parse flags : %s", err)
-			}
-			_, err := newDstFS()
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newDstFS() error = %#v, wantErr %v", err, tt.wantErr)
-				return
-			}
-		})
+	pwd, err := filepath.Abs("")
+	if err != nil {
+		t.Fatalf("cannot determine working directory: %s", err)
 	}
-}
-
-func parseFlags(args []string) error {
-	flags := flag.NewFlagSet("test_program", flag.ContinueOnError)
-	flags.StringVar(dst, "dst", "", "")
-	flags.StringVar(storageDataPath, "storageDataPath", "", "")
-
-	if err := flags.Parse(args); err != nil {
-		return err
-	}
-	return nil
+	f("s3://foo/bar", "foo", false)
+	f("fs://"+pwd+"/foo", "foo", true)
+	f("fs://"+pwd+"/foo", "foo/bar", false)
+	f("fs://"+pwd+"/foo/bar", "foo", true)
+	f("fs://"+pwd+"/foo", "bar", false)
+	f("fs://"+pwd+"/foo", pwd+"/foo", true)
+	f("fs://"+pwd+"/foo", pwd+"/foo/bar", false)
+	f("fs://"+pwd+"/foo/bar", pwd+"/foo", true)
+	f("fs://"+pwd+"/foo", pwd+"/bar", false)
 }
