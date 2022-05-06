@@ -19,6 +19,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not reset the selected relative time range when entering new query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115817302).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
 
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): disable write snapshots to the TSDB storage data path. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2503).
+
 
 ## [v1.77.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.0)
 

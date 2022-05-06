@@ -7,7 +7,7 @@ Supported storage systems for backups:
 * [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
-* Local filesystem. Example: `fs://</absolute/path/to/backup>`
+* Local filesystem. Example: `fs://</absolute/path/to/backup>`. In this case we can't write backups to the same directory where is the VictoriaMetrics save data. Because it may produce incorrect work of database
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be sped up with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
