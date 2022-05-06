@@ -58,7 +58,7 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 		// Fast path - the buffer is successfully sent to sn.
 		return nil
 	}
-	if *dropSamplesOnOverload {
+	if *dropSamplesOnOverload && atomic.LoadUint32(&sn.isReadOnly) == 0 {
 		sn.rowsDroppedOnOverload.Add(rows)
 		logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second).Warnf(
 			"some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
