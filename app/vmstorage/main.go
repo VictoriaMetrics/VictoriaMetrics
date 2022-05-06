@@ -74,6 +74,9 @@ func main() {
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
 
+	if retentionPeriod.Msecs < 24*3600*1000 {
+		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
+	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
 	strg, err := storage.OpenStorage(*storageDataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
