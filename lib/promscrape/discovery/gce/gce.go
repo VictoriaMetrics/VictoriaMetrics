@@ -26,7 +26,7 @@ type SDConfig struct {
 
 // ZoneYAML holds info about zones.
 type ZoneYAML struct {
-	zones []string
+	Zones []string
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler
@@ -50,13 +50,13 @@ func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	default:
 		return fmt.Errorf("unexpected type unmarshaled for ZoneYAML: %T; contents: %#v", v, v)
 	}
-	z.zones = zones
+	z.Zones = zones
 	return nil
 }
 
 // MarshalYAML implements yaml.Marshaler
 func (z ZoneYAML) MarshalYAML() (interface{}, error) {
-	return z.zones, nil
+	return z.Zones, nil
 }
 
 // GetLabels returns gce labels according to sdc.

@@ -26,7 +26,7 @@ import (
 // This is needed for hiding secret strings in /config page output.
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1764
 type Secret struct {
-	s string
+	S string
 }
 
 // NewSecret returns new secret for s.
@@ -35,7 +35,7 @@ func NewSecret(s string) *Secret {
 		return nil
 	}
 	return &Secret{
-		s: s,
+		S: s,
 	}
 }
 
@@ -52,7 +52,7 @@ func (s *Secret) UnmarshalYAML(f func(interface{}) error) error {
 	if err := f(&secret); err != nil {
 		return fmt.Errorf("cannot parse secret: %w", err)
 	}
-	s.s = secret
+	s.S = secret
 	return nil
 }
 
@@ -61,7 +61,7 @@ func (s *Secret) String() string {
 	if s == nil {
 		return ""
 	}
-	return s.s
+	return s.S
 }
 
 // TLSConfig represents TLS config.
