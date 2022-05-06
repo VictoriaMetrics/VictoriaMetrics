@@ -733,7 +733,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	sw.pushData(&wc.writeRequest)
 }
 
-var staleSamplesCreated = metrics.NewCounter(`promscrape_stale_samples_created_total`)
+var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)
 
 func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
