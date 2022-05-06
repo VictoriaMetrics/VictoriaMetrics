@@ -120,7 +120,6 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	for i, lp := range s.LabelPairs {
 		if lp.Name == dbLabel {
 			containsDBLabel = true
-			break
 		}
 		labels[i] = vm.LabelPair{
 			Name:  lp.Name,

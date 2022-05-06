@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -583,10 +582,14 @@ func mayProxyVMAlertRequests(w http.ResponseWriter, r *http.Request, stubRespons
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	vmalertReverseProxy.ServeHTTP(w, r)
+	r.Host = vmalertProxyHost
+	vmalertProxy.ServeHTTP(w, r)
 }
 
-var vmalertReverseProxy *httputil.ReverseProxy
+var (
+	vmalertProxyHost string
+	vmalertProxy     *httputil.ReverseProxy
+)
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
 func initVMAlertProxy() {
@@ -595,24 +598,8 @@ func initVMAlertProxy() {
 	}
 	proxyURL, err := url.Parse(*vmalertProxyURL)
 	if err != nil {
-		logger.Fatalf("cannot parse vmalertProxyURL=%q : %s", *vmalertProxyURL, err)
+		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
 	}
-	vmalertReverseProxy = &httputil.ReverseProxy{
-		Director: func(r *http.Request) {
-			proxyURLCopy := *proxyURL
-			proxyURLCopy.Path = path.Join(proxyURL.Path, r.URL.Path)
-			r.URL = &proxyURLCopy
-			r.Host = proxyURLCopy.Host
-		},
-		Transport: func() *http.Transport {
-			tr := http.DefaultTransport.(*http.Transport).Clone()
-			// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
-			tr.DisableCompression = true
-			// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
-			tr.ForceAttemptHTTP2 = false
-			return tr
-		}(),
-		FlushInterval: time.Second,
-		ErrorLog:      logger.StdErrorLogger(),
-	}
+	vmalertProxyHost = proxyURL.Host
+	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
 }

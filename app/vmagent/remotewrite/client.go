@@ -232,7 +232,7 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	roleARN := awsRoleARN.GetOptionalArg(argIdx)
 	accessKey := awsAccessKey.GetOptionalArg(argIdx)
 	secretKey := awsSecretKey.GetOptionalArg(argIdx)
-	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey, "")
+	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey)
 	if err != nil {
 		return nil, err
 	}

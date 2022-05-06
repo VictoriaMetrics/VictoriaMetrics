@@ -15,6 +15,17 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): properly import InfluxDB measurements if they contain `db` tag. Previously this could result in incomplete import of measurmenet tags. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2536). Thanks to @mback2k for the bugfix.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): do not reset the selected relative time range when entering new query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115817302).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the graph when clicking on `Prometheus` link in Grafana graph editor. Previously the graph wasn't shown until clicking on the `Graph` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2402#issuecomment-1115830648).
+
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): disable write snapshots to the TSDB storage data path. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2503).
+
+
+## [v1.77.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.0)
+
+Released at 05-05-2022
+
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for sending data to remote storage with AWS sigv4 authorization. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1287).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow filtering targets by target url and by target labels with [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) on `http://vmagent:8429/targets` page. This may be useful when `vmagent` scrapes big number of targets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1796).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): reduce `-promscrape.config` reload duration when the config contains big number of jobs (aka [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) sections) and only a few of them are changed. Previously all the jobs were restarted. Now only the jobs with changed configs are restarted. This should reduce the probability of data miss because of slow config reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2270).
