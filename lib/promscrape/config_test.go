@@ -11,6 +11,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -1852,4 +1855,70 @@ func equalStaticConfigForScrapeWorks(a, b []*ScrapeWork) bool {
 		}
 	}
 	return true
+}
+
+func TestScrapeConfigClone(t *testing.T) {
+	f := func(sc *ScrapeConfig) {
+		t.Helper()
+		scCopy := sc.clone()
+		if !reflect.DeepEqual(sc, scCopy) {
+			t.Fatalf("unexpected result after unmarshalJSON() for JSON:\n%s", sc.marshalJSON())
+		}
+	}
+
+	f(&ScrapeConfig{})
+
+	bFalse := false
+	var ie promrelabel.IfExpression
+	if err := ie.Parse(`{foo=~"bar",baz!="z"}`); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	f(&ScrapeConfig{
+		JobName:         "foo",
+		ScrapeInterval:  promutils.NewDuration(time.Second * 47),
+		HonorLabels:     true,
+		HonorTimestamps: &bFalse,
+		Params: map[string][]string{
+			"foo": {"bar", "baz"},
+		},
+		HTTPClientConfig: promauth.HTTPClientConfig{
+			Authorization: &promauth.Authorization{
+				Credentials: promauth.NewSecret("foo"),
+			},
+			BasicAuth: &promauth.BasicAuthConfig{
+				Username: "user_x",
+				Password: promauth.NewSecret("pass_x"),
+			},
+			BearerToken: promauth.NewSecret("zx"),
+			OAuth2: &promauth.OAuth2Config{
+				ClientSecret: promauth.NewSecret("aa"),
+				Scopes:       []string{"foo", "bar"},
+				TLSConfig: &promauth.TLSConfig{
+					CertFile: "foo",
+				},
+			},
+			TLSConfig: &promauth.TLSConfig{
+				KeyFile: "aaa",
+			},
+		},
+		ProxyURL: proxy.MustNewURL("https://foo.bar:3434/assdf/dsfd?sdf=dsf"),
+		RelabelConfigs: []promrelabel.RelabelConfig{{
+			SourceLabels: []string{"foo", "aaa"},
+			Regex: &promrelabel.MultiLineRegex{
+				S: "foo\nbar",
+			},
+			If: &ie,
+		}},
+		SampleLimit: 10,
+		GCESDConfigs: []gce.SDConfig{{
+			Project: "foo",
+			Zone: gce.ZoneYAML{
+				Zones: []string{"a", "b"},
+			},
+		}},
+		StreamParse: true,
+		ProxyClientConfig: promauth.ProxyClientConfig{
+			BearerTokenFile: "foo",
+		},
+	})
 }

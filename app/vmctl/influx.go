@@ -12,21 +12,23 @@ import (
 )
 
 type influxProcessor struct {
-	ic        *influx.Client
-	im        *vm.Importer
-	cc        int
-	separator string
+	ic          *influx.Client
+	im          *vm.Importer
+	cc          int
+	separator   string
+	skipDbLabel bool
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel bool) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
 	return &influxProcessor{
-		ic:        ic,
-		im:        im,
-		cc:        cc,
-		separator: separator,
+		ic:          ic,
+		im:          im,
+		cc:          cc,
+		separator:   separator,
+		skipDbLabel: skipDbLabel,
 	}
 }
 
@@ -126,7 +128,7 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 			Value: lp.Value,
 		}
 	}
-	if !containsDBLabel {
+	if !containsDBLabel && !ip.skipDbLabel {
 		labels = append(labels, vm.LabelPair{
 			Name:  dbLabel,
 			Value: ip.ic.Database(),
