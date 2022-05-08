@@ -7,8 +7,6 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
-
-	"golang.org/x/term"
 )
 
 var (
@@ -17,7 +15,7 @@ var (
 	unlockSignals = []os.Signal{
 		os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGKILL,
 	}
-	termState *term.State
+	oldState syscall.Termios
 )
 
 type window struct {
@@ -58,16 +56,23 @@ func TerminalSize() (rows, cols int, err error) {
 func lockEcho() error {
 	fd := tty.Fd()
 
-	var err error
-	if termState, err = term.MakeRaw(int(fd)); err != nil {
+	if _, _, err := syscall.Syscall(sysIoctl, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&oldState))); err != 0 {
 		return fmt.Errorf("error when puts the terminal connected to the given file descriptor: %v", err)
+	}
+
+	newState := oldState
+	newState.Lflag &^= syscall.ECHO
+	newState.Lflag |= syscall.ICANON | syscall.ISIG
+	newState.Iflag |= syscall.ICRNL
+	if _, _, e := syscall.Syscall(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&newState))); e != 0 {
+		return fmt.Errorf("error update terminal settings: %v", e)
 	}
 	return nil
 }
 
 func unlockEcho() error {
 	fd := tty.Fd()
-	if err := term.Restore(int(fd), termState); err != nil {
+	if _, _, err := syscall.Syscall(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&oldState))); err != 0 {
 		return fmt.Errorf("error restores the terminal connected to the given file descriptor: %w", err)
 	}
 	return nil
