@@ -1,3 +1,4 @@
+//go:build linux || darwin || freebsd || netbsd || openbsd || solaris || dragonfly || windows || plan9 || aix
 // +build linux darwin freebsd netbsd openbsd solaris dragonfly windows plan9 aix
 
 package pb
@@ -7,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3/termutil"
+	"github.com/dmitryk-dk/pb/v3/termutil"
 )
 
 // Create and start new pool with given bars

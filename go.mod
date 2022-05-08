@@ -13,7 +13,7 @@ require (
 	github.com/VictoriaMetrics/metricsql v0.43.0
 	github.com/aws/aws-sdk-go v1.44.9
 	github.com/cespare/xxhash/v2 v2.1.2
-	github.com/cheggaaa/pb/v3 v3.0.9-0.20211222075416-90c02fa07ea4
+	github.com/dmitryk-dk/pb/v3 v3.0.9-0.20220508115919-2222f8a13ec0
 	github.com/golang/snappy v0.0.4
 	github.com/influxdata/influxdb v1.9.6
 	github.com/klauspost/compress v1.15.3
@@ -66,6 +66,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/goleak v1.1.11-0.20210813005559-691160354723 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
+	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
