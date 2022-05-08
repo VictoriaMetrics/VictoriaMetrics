@@ -323,7 +323,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 			}
 			continue
 		}
-		if a.State == notifier.StatePending && time.Since(a.ActiveAt) >= ar.For {
+		if a.State == notifier.StatePending && ts.Sub(a.ActiveAt) >= ar.For {
 			a.State = notifier.StateFiring
 			a.Start = ts
 			alertsFired.Inc()
