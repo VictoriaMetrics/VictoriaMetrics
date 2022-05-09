@@ -237,8 +237,6 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		notifiers:                nts,
 		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
 
-	evalTS := time.Now()
-
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
 	if !skipRandSleepOnGroupStart {
 		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
@@ -258,6 +256,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		case <-sleepTimer.C:
 		}
 	}
+
+	evalTS := time.Now()
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 
