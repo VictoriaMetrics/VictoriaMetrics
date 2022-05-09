@@ -96,7 +96,7 @@ github.com/cespare/xxhash/v2
 # github.com/cpuguy83/go-md2man/v2 v2.0.2
 ## explicit; go 1.11
 github.com/cpuguy83/go-md2man/v2/md2man
-# github.com/dmitryk-dk/pb/v3 v3.0.9-0.20220508123432-76a9566be882
+# github.com/dmitryk-dk/pb/v3 v3.0.9
 ## explicit; go 1.18
 github.com/dmitryk-dk/pb/v3
 github.com/dmitryk-dk/pb/v3/termutil

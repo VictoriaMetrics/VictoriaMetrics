@@ -242,8 +242,8 @@ github.com/dgryski/go-sip13 v0.0.0-20190329191031-25c5027a8c7b/go.mod h1:vAd38F8
 github.com/dgryski/go-sip13 v0.0.0-20200911182023-62edffca9245/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/digitalocean/godo v1.52.0/go.mod h1:p7dOjjtSBqCTUksqtA5Fd3uaKs9kyTq2xcz76ulEJRU=
 github.com/dimchansky/utfbom v1.1.0/go.mod h1:rO41eb7gLfo8SF1jd9F8HplJm1Fewwi4mQvIirEdv+8=
-github.com/dmitryk-dk/pb/v3 v3.0.9-0.20220508123432-76a9566be882 h1:9G64lRLLmRN3AMwcbqUjC5rHfv5R6kBKhJqt2tozfUI=
-github.com/dmitryk-dk/pb/v3 v3.0.9-0.20220508123432-76a9566be882/go.mod h1:o9xpZcwYZHNdNaAlJVvWTA+YH+IlPciBs1myroBOxyM=
+github.com/dmitryk-dk/pb/v3 v3.0.9 h1:wpWkldo8V6NeONVgmuCvsDIDjSRkJfbTbdoVigKYJ2I=
+github.com/dmitryk-dk/pb/v3 v3.0.9/go.mod h1:o9xpZcwYZHNdNaAlJVvWTA+YH+IlPciBs1myroBOxyM=
 github.com/docker/distribution v2.7.1+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v17.12.0-ce-rc1.0.20200706150819-a40b877fbb9e+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
