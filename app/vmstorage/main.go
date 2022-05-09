@@ -95,7 +95,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
 
-	if retentionPeriod.Msecs < 24 * 3600 * 1000 {
+	if retentionPeriod.Msecs < 24*3600*1000 {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)

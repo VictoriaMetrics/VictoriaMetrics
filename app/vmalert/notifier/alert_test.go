@@ -11,7 +11,7 @@ import (
 )
 
 func TestAlert_ExecTemplate(t *testing.T) {
-	extLabels := make(map[string]string, 0)
+	extLabels := make(map[string]string)
 	const (
 		extCluster = "prod"
 		extDC      = "east"
