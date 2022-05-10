@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/otlpcollector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prompush"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
@@ -190,6 +191,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		datadogIntakeRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
+		return true
+	case "/otlp/api/v1/push":
+		if err := otlpcollector.InsertHandler(r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()

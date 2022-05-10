@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/otlpcollector"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
@@ -258,6 +260,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		datadogIntakeRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
+		return true
+	case "/otlp/api/v1/push":
+		if err := otlpcollector.InsertHandler(nil, r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
