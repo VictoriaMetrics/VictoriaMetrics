@@ -49,6 +49,10 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 		wr.baseLabels = wr.baseLabels[:0]
 
 		rm := rms.At(i)
+		// add base labels
+		// victoria metrics keeps last label value
+		// it's ok to have duplicates
+		// it allows labels hierarchy
 		rm.Resource().Attributes().Range(func(k string, v pcommon.Value) bool {
 			wr.baseLabels = append(wr.baseLabels, prompb.Label{Name: []byte(k), Value: []byte(v.AsString())})
 			return true
@@ -59,7 +63,6 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 
 			for k := 0; k < metricSlice.Len(); k++ {
 				metric := metricSlice.At(k)
-
 				switch metric.DataType() {
 				case pmetric.MetricDataTypeGauge:
 					points := metric.Gauge().DataPoints()
@@ -69,6 +72,10 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 						wr.tss = append(wr.tss, ts)
 					}
 				case pmetric.MetricDataTypeSum:
+					if metric.Sum().AggregationTemporality() != pmetric.MetricAggregationTemporalityCumulative {
+						// todo add metric
+						continue
+					}
 					points := metric.Sum().DataPoints()
 					for p := 0; p < points.Len(); p++ {
 						point := points.At(p)
@@ -77,8 +84,7 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 					}
 				case pmetric.MetricDataTypeHistogram:
 					if metric.Histogram().AggregationTemporality() != pmetric.MetricAggregationTemporalityCumulative {
-						// todo add some context
-						logger.Warnf("unsupported aggregation family")
+						// todo add metric
 						continue
 					}
 					points := metric.Histogram().DataPoints()
@@ -93,6 +99,7 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 						wr.tss = append(wr.tss, tssFromSummaryPoint(metric.Name(), &point, wr.baseLabels)...)
 					}
 				default:
+					// todo add metric
 					logger.Warnf("unsupported type: %s", metric.DataType())
 				}
 			}
@@ -112,6 +119,7 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 	return nil
 }
 
+// converts single datapoint into prompb.Series
 func tsFromNumericPoint(metricName string, point pmetric.NumberDataPoint, baseLabels []prompb.Label) prompb.TimeSeries {
 	var value float64
 	switch point.ValueType() {
@@ -133,7 +141,7 @@ func tsFromNumericPoint(metricName string, point pmetric.NumberDataPoint, baseLa
 // creates multiple timeseries with sum, count and quantile labels
 func tssFromSummaryPoint(metricName string, point *pmetric.SummaryDataPoint, baseLabels []prompb.Label) []prompb.TimeSeries {
 	var tss []prompb.TimeSeries
-	var pointLabels []prompb.Label
+	pointLabels := append([]prompb.Label{}, baseLabels...)
 	point.Attributes().Range(func(k string, v pcommon.Value) bool {
 		pointLabels = append(pointLabels, prompb.Label{Name: []byte(k), Value: []byte(v.AsString())})
 		return true
@@ -149,14 +157,25 @@ func tssFromSummaryPoint(metricName string, point *pmetric.SummaryDataPoint, bas
 		qValue := []byte(strconv.FormatFloat(quantile.Quantile(), 'f', -1, 64))
 		ts := newPromPBTs(metricName, t, quantile.Value(), isStale, pointLabels...)
 		ts.Labels = append(ts.Labels, prompb.Label{Name: quantileLabel, Value: qValue})
+		tss = append(tss, ts)
 	}
 	return tss
 }
 
 // converts openTelemetry histogram to prometheus format
 // adds additional sum and count timeseries
+// it supports only cumulative histograms
 func tsFromHistogramPoint(metricName string, point *pmetric.HistogramDataPoint, baseLabels []prompb.Label) []prompb.TimeSeries {
 	var tss []prompb.TimeSeries
+	if len(point.BucketCounts()) == 0 {
+		// fast path
+		return tss
+	}
+	// fast path, broken data format
+	if len(point.BucketCounts()) != len(point.ExplicitBounds())+1 {
+		logger.Warnf("open telemetry bad histogram format: %q, size of buckets: %d, size of bounds: %d", metricName, len(point.BucketCounts()), len(point.ExplicitBounds()))
+		return tss
+	}
 	pointLabels := make([]prompb.Label, 0, len(baseLabels))
 	pointLabels = append(pointLabels, baseLabels...)
 	point.Attributes().Range(func(k string, v pcommon.Value) bool {
@@ -171,18 +190,15 @@ func tsFromHistogramPoint(metricName string, point *pmetric.HistogramDataPoint, 
 	countTs := newPromPBTs(metricName+"_count", t, float64(point.Count()), isStale, pointLabels...)
 
 	tss = append(tss, countTs, sumTs)
-
 	var cumulative uint64
 	for index, bound := range point.ExplicitBounds() {
-		if index >= len(point.BucketCounts()) {
-			break
-		}
 		cumulative += point.BucketCounts()[index]
 		boundLabelValue := []byte(strconv.FormatFloat(bound, 'f', -1, 64))
 		ts := newPromPBTs(metricName+"_bucket", t, float64(cumulative), isStale, pointLabels...)
 		ts.Labels = append(ts.Labels, prompb.Label{Name: []byte(`le`), Value: boundLabelValue})
 		tss = append(tss, ts)
 	}
+	// adds last bucket value as +Inf
 	cumulative += point.BucketCounts()[len(point.BucketCounts())-1]
 	infTs := newPromPBTs(metricName+"_bucket", t, float64(cumulative), isStale, pointLabels...)
 	infTs.Labels = append(infTs.Labels, prompb.Label{Name: boundLabel, Value: infLabelValue})
