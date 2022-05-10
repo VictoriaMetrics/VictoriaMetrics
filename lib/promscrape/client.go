@@ -71,7 +71,7 @@ func newClient(sw *ScrapeWork) *client {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
-		pu := proxyURL.URL()
+		pu := proxyURL.GetURL()
 		host = pu.Host
 		requestURI = sw.ScrapeURL
 		isTLS = pu.Scheme == "https"
@@ -110,7 +110,7 @@ func newClient(sw *ScrapeWork) *client {
 	}
 	var sc *http.Client
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
-	if pu := sw.ProxyURL.URL(); pu != nil {
+	if pu := sw.ProxyURL.GetURL(); pu != nil {
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 	sc = &http.Client{
@@ -201,6 +201,15 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	}, nil
 }
 
+// checks fasthttp status code for redirect as standard http/client does.
+func isStatusRedirect(statusCode int) bool {
+	switch statusCode {
+	case 301, 302, 303, 307, 308:
+		return true
+	}
+	return false
+}
+
 func (c *client) ReadData(dst []byte) ([]byte, error) {
 	deadline := time.Now().Add(c.hc.ReadTimeout)
 	req := fasthttp.AcquireRequest()
@@ -237,7 +246,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
-	for err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
+	for err == nil && isStatusRedirect(statusCode) {
 		if redirectsCount > 5 {
 			err = fmt.Errorf("too many redirects")
 			break

@@ -75,7 +75,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		// Send full urls in requests to a proxy host for non-TLS apiServer
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
-		pu := proxyURL.URL()
+		pu := proxyURL.GetURL()
 		hostPort = pu.Host
 		isTLS = pu.Scheme == "https"
 		if isTLS {

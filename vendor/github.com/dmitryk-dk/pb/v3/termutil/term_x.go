@@ -1,5 +1,4 @@
-// +build linux darwin freebsd netbsd openbsd solaris dragonfly
-// +build !appengine
+//go:build (linux || darwin || freebsd || netbsd || openbsd || solaris || dragonfly) && !appengine
 
 package termutil
 
@@ -16,6 +15,7 @@ var (
 	unlockSignals = []os.Signal{
 		os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGKILL,
 	}
+	oldState syscall.Termios
 )
 
 type window struct {
@@ -53,30 +53,27 @@ func TerminalSize() (rows, cols int, err error) {
 	return int(w.Row), int(w.Col), nil
 }
 
-var oldState syscall.Termios
-
-func lockEcho() (err error) {
+func lockEcho() error {
 	fd := tty.Fd()
-	if _, _, e := syscall.Syscall6(sysIoctl, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); e != 0 {
-		err = fmt.Errorf("Can't get terminal settings: %v", e)
-		return
+
+	if _, _, err := syscall.Syscall(sysIoctl, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&oldState))); err != 0 {
+		return fmt.Errorf("error when puts the terminal connected to the given file descriptor: %v", err)
 	}
 
 	newState := oldState
 	newState.Lflag &^= syscall.ECHO
 	newState.Lflag |= syscall.ICANON | syscall.ISIG
 	newState.Iflag |= syscall.ICRNL
-	if _, _, e := syscall.Syscall6(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&newState)), 0, 0, 0); e != 0 {
-		err = fmt.Errorf("Can't set terminal settings: %v", e)
-		return
+	if _, _, e := syscall.Syscall(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&newState))); e != 0 {
+		return fmt.Errorf("error update terminal settings: %v", e)
 	}
-	return
+	return nil
 }
 
-func unlockEcho() (err error) {
+func unlockEcho() error {
 	fd := tty.Fd()
-	if _, _, e := syscall.Syscall6(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); e != 0 {
-		err = fmt.Errorf("Can't set terminal settings")
+	if _, _, err := syscall.Syscall(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&oldState))); err != 0 {
+		return fmt.Errorf("error restores the terminal connected to the given file descriptor: %w", err)
 	}
-	return
+	return nil
 }

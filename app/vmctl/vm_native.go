@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -51,25 +52,25 @@ const (
 	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
-func (p *vmNativeProcessor) run() error {
+func (p *vmNativeProcessor) run(ctx context.Context) error {
 	pr, pw := io.Pipe()
 
 	fmt.Printf("Initing export pipe from %q with filters: %s\n", p.src.addr, p.filter)
-	exportReader, err := p.exportPipe()
+	exportReader, err := p.exportPipe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %s", err)
 	}
 
-	sync := make(chan struct{})
 	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
 	if err != nil {
 		return err
 	}
 
+	sync := make(chan struct{})
 	go func() {
 		defer func() { close(sync) }()
 		u := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
-		req, err := http.NewRequest("POST", u, pr)
+		req, err := http.NewRequestWithContext(ctx, "POST", u, pr)
 		if err != nil {
 			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
 		}
@@ -95,22 +96,25 @@ func (p *vmNativeProcessor) run() error {
 		rl := limiter.NewLimiter(p.rateLimit)
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
+
 	_, err = io.Copy(w, barReader)
 	if err != nil {
 		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
 	}
+
 	if err := pw.Close(); err != nil {
 		return err
 	}
 	<-sync
 
 	barpool.Stop()
+	log.Println("Import finished!")
 	return nil
 }
 
-func (p *vmNativeProcessor) exportPipe() (io.ReadCloser, error) {
+func (p *vmNativeProcessor) exportPipe(ctx context.Context) (io.ReadCloser, error) {
 	u := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %s", p.src.addr, err)
 	}

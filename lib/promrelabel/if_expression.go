@@ -1,6 +1,7 @@
 package promrelabel
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -34,6 +35,20 @@ func (ie *IfExpression) Parse(s string) error {
 	ie.s = s
 	ie.lfs = lfs
 	return nil
+}
+
+// UnmarshalJSON unmarshals ie from JSON data.
+func (ie *IfExpression) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	return ie.Parse(s)
+}
+
+// MarshalJSON marshals ie to JSON.
+func (ie *IfExpression) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ie.s)
 }
 
 // UnmarshalYAML unmarshals ie from YAML passed to f.

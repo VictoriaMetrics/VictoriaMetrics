@@ -128,7 +128,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 				SourceLabels: []string{"aaa"},
 				TargetLabel:  "xxx",
 				Regex: &MultiLineRegex{
-					s: "foo[bar",
+					S: "foo[bar",
 				},
 			},
 		})
@@ -248,7 +248,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 				Action:       "drop_metrics",
 				SourceLabels: []string{"foo"},
 				Regex: &MultiLineRegex{
-					s: "bar",
+					S: "bar",
 				},
 			},
 		})
@@ -266,7 +266,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 				Action:       "keep_metrics",
 				SourceLabels: []string{"foo"},
 				Regex: &MultiLineRegex{
-					s: "bar",
+					S: "bar",
 				},
 			},
 		})

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -59,6 +60,18 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	oauth2Scopes = flagutil.NewArray("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+
+	awsUseSigv4 = flagutil.NewArrayBool("remoteWrite.aws.useSigv4", "Enables SigV4 request signing for -remoteWrite.url. "+
+		"It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRegion = flagutil.NewArray("remoteWrite.aws.region", "Optional AWS region to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsRoleARN = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
 
 type client struct {
@@ -69,6 +82,7 @@ type client struct {
 
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
+	awsCfg    *awsapi.Config
 
 	rl rateLimiter
 
@@ -78,6 +92,7 @@ type client struct {
 	requestsOKCount *metrics.Counter
 	errorsCount     *metrics.Counter
 	packetsDropped  *metrics.Counter
+	rateLimit       *metrics.Gauge
 	retriesCount    *metrics.Counter
 	sendDuration    *metrics.FloatCounter
 
@@ -88,9 +103,13 @@ type client struct {
 func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
-		logger.Panicf("FATAL: cannot initialize auth config: %s", err)
+		logger.Panicf("FATAL: cannot initialize auth config for remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tlsCfg := authCfg.NewTLSConfig()
+	awsCfg, err := getAWSAPIConfig(argIdx)
+	if err != nil {
+		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite.url=%q: %s", remoteWriteURL, err)
+	}
 	tr := &http.Transport{
 		DialContext:         statDial,
 		TLSClientConfig:     tlsCfg,
@@ -115,6 +134,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authCfg:        authCfg,
+		awsCfg:         awsCfg,
 		fq:             fq,
 		hc: &http.Client{
 			Transport: tr,
@@ -131,10 +151,13 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
 		c.rl.perSecondLimit = int64(bytesPerSec)
 	}
-	c.rl.limitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remote_write_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
+	c.rl.limitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
 
 	c.bytesSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_bytes_sent_total{url=%q}`, c.sanitizedURL))
 	c.blocksSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_blocks_sent_total{url=%q}`, c.sanitizedURL))
+	c.rateLimit = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_rate_limit{url=%q}`, c.sanitizedURL), func() float64 {
+		return float64(rateLimit.GetOptionalArgOrDefault(argIdx, 0))
+	})
 	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.sanitizedURL))
 	c.requestsOKCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.sanitizedURL))
 	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
@@ -201,6 +224,21 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	return authCfg, nil
 }
 
+func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
+	if !awsUseSigv4.GetOptionalArg(argIdx) {
+		return nil, nil
+	}
+	region := awsRegion.GetOptionalArg(argIdx)
+	roleARN := awsRoleARN.GetOptionalArg(argIdx)
+	accessKey := awsAccessKey.GetOptionalArg(argIdx)
+	secretKey := awsSecretKey.GetOptionalArg(argIdx)
+	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
 func (c *client) runWorker() {
 	var ok bool
 	var block []byte
@@ -250,6 +288,10 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	retriesCount := 0
 	c.bytesSent.Add(len(block))
 	c.blocksSent.Inc()
+	sigv4Hash := ""
+	if c.awsCfg != nil {
+		sigv4Hash = awsapi.HashHex(block)
+	}
 
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
@@ -264,7 +306,12 @@ again:
 	if ah := c.authCfg.GetAuthHeader(); ah != "" {
 		req.Header.Set("Authorization", ah)
 	}
-
+	if c.awsCfg != nil {
+		if err := c.awsCfg.SignRequest(req, "aps", sigv4Hash); err != nil {
+			// there is no need in retry, request will be rejected by client.Do and retried by code below
+			logger.Warnf("cannot sign remoteWrite request with AWS sigv4: %s", err)
+		}
+	}
 	startTime := time.Now()
 	resp, err := c.hc.Do(req)
 	c.requestDuration.UpdateDuration(startTime)

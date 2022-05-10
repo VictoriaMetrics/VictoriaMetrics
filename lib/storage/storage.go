@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
@@ -317,7 +318,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	s.snapshotLock.Lock()
 	defer s.snapshotLock.Unlock()
 
-	snapshotName := fmt.Sprintf("%s-%08X", time.Now().UTC().Format("20060102150405"), nextSnapshotIdx())
+	snapshotName := snapshot.NewName()
 	srcDir := s.path
 	dstDir := fmt.Sprintf("%s/snapshots/%s", srcDir, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
@@ -372,8 +373,6 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	return snapshotName, nil
 }
 
-var snapshotNameRegexp = regexp.MustCompile("^[0-9]{14}-[0-9A-Fa-f]+$")
-
 // ListSnapshots returns sorted list of existing snapshots for s.
 func (s *Storage) ListSnapshots() ([]string, error) {
 	snapshotsPath := s.path + "/snapshots"
@@ -389,7 +388,7 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
-		if !snapshotNameRegexp.MatchString(fname) {
+		if err := snapshot.Validate(fname); err != nil {
 			continue
 		}
 		snapshotNames = append(snapshotNames, fname)
@@ -400,8 +399,8 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 
 // DeleteSnapshot deletes the given snapshot.
 func (s *Storage) DeleteSnapshot(snapshotName string) error {
-	if !snapshotNameRegexp.MatchString(snapshotName) {
-		return fmt.Errorf("invalid snapshotName %q", snapshotName)
+	if err := snapshot.Validate(snapshotName); err != nil {
+		return fmt.Errorf("invalid snapshotName %q: %w", snapshotName, err)
 	}
 	snapshotPath := s.path + "/snapshots/" + snapshotName
 
@@ -426,7 +425,7 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 	}
 	expireDeadline := time.Now().UTC().Add(-maxAge)
 	for _, snapshotName := range list {
-		t, err := snapshotTime(snapshotName)
+		t, err := snapshot.Time(snapshotName)
 		if err != nil {
 			return fmt.Errorf("cannot parse snapshot date from %q: %w", snapshotName, err)
 		}
@@ -437,24 +436,6 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 		}
 	}
 	return nil
-}
-
-func snapshotTime(snapshotName string) (time.Time, error) {
-	if !snapshotNameRegexp.MatchString(snapshotName) {
-		return time.Time{}, fmt.Errorf("unexpected snapshotName must be in the format `YYYYMMDDhhmmss-idx`; got %q", snapshotName)
-	}
-	n := strings.IndexByte(snapshotName, '-')
-	if n < 0 {
-		return time.Time{}, fmt.Errorf("cannot find `-` in snapshotName=%q", snapshotName)
-	}
-	s := snapshotName[:n]
-	return time.Parse("20060102150405", s)
-}
-
-var snapshotIdx = uint64(time.Now().UnixNano())
-
-func nextSnapshotIdx() uint64 {
-	return atomic.AddUint64(&snapshotIdx, 1)
 }
 
 func (s *Storage) idb() *indexDB {
