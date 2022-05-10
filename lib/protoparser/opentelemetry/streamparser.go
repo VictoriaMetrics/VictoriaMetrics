@@ -29,7 +29,7 @@ var (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb.TimeSeries) error) error {
+func ParseStream(r io.Reader, isJSON, isGzipped bool, callback func(tss []prompb.TimeSeries) error) error {
 
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
@@ -41,8 +41,8 @@ func ParseStream(r io.Reader, isJson, isGzipped bool, callback func(tss []prompb
 	}
 	wr := getWriteContext()
 	defer putWriteContext(wr)
-	if err := wr.unpackFrom(r, isJson); err != nil {
-
+	if err := wr.unpackFrom(r, isJSON); err != nil {
+		return fmt.Errorf("cannot unpack opentelemetry metrics: %w", err)
 	}
 	rms := wr.req.Metrics().ResourceMetrics()
 	for i := 0; i < rms.Len(); i++ {
@@ -235,12 +235,12 @@ type writeContext struct {
 	baseLabels []prompb.Label
 }
 
-func (wr *writeContext) unpackFrom(r io.Reader, isJson bool) error {
+func (wr *writeContext) unpackFrom(r io.Reader, isJSON bool) error {
 	if _, err := wr.bb.ReadFrom(r); err != nil {
 		return err
 	}
 	parseFunc := wr.req.UnmarshalProto
-	if isJson {
+	if isJSON {
 		parseFunc = wr.req.UnmarshalJSON
 	}
 	return parseFunc(wr.bb.B)
