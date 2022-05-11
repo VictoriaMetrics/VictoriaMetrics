@@ -43,6 +43,7 @@ const (
 	testOpenTSDBWriteHTTPPath = "http://127.0.0.1" + testOpenTSDBHTTPListenAddr + "/api/put"
 	testPromWriteHTTPPath     = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/write"
 	testHealthHTTPPath        = "http://127.0.0.1" + testHTTPListenAddr + "/health"
+	testOTLPWriteHTTPPath     = "http://127.0.0.1" + testHTTPListenAddr + "/opentelemetry/api/v1/push"
 )
 
 const (
@@ -209,7 +210,7 @@ func testWrite(t *testing.T) {
 				t.Errorf("error compressing %v %s", r, err)
 				t.Fail()
 			}
-			httpWrite(t, testPromWriteHTTPPath, test.InsertQuery, bytes.NewBuffer(data))
+			httpWrite(t, testPromWriteHTTPPath, test.InsertQuery, bytes.NewBuffer(data), 204)
 		}
 	})
 
@@ -218,7 +219,7 @@ func testWrite(t *testing.T) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
-				httpWrite(t, testWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")))
+				httpWrite(t, testWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")), 204)
 			})
 		}
 	})
@@ -246,14 +247,25 @@ func testWrite(t *testing.T) {
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
 				logger.Infof("writing %s", test.Data)
-				httpWrite(t, testOpenTSDBWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")))
+				httpWrite(t, testOpenTSDBWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")), 204)
+			})
+		}
+	})
+	t.Run("opentelemetry", func(t *testing.T) {
+		for _, x := range readIn("opentelemetry", t, insertionTime) {
+			test := x
+			t.Run(test.Name, func(t *testing.T) {
+				t.Parallel()
+				httpWrite(t, testOTLPWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")), 200, func(r *http.Request) {
+					r.Header.Set("Content-Type", "application/json")
+				})
 			})
 		}
 	})
 }
 
 func testRead(t *testing.T) {
-	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
+	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp", "opentelemetry"} {
 		t.Run(engine, func(t *testing.T) {
 			for _, x := range readIn(engine, t, insertionTime) {
 				test := x
@@ -324,13 +336,18 @@ func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 	return tt
 }
 
-func httpWrite(t *testing.T, address, query string, r io.Reader) {
+func httpWrite(t *testing.T, address, query string, r io.Reader, wantCode int, reqOptions ...func(r *http.Request)) {
 	t.Helper()
 	s := newSuite(t)
-	resp, err := http.Post(address+query, "", r)
+	req, err := http.NewRequest("POST", address+query, r)
+	s.noError(err)
+	for _, reqOption := range reqOptions {
+		reqOption(req)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	s.noError(err)
 	s.noError(resp.Body.Close())
-	s.equalInt(resp.StatusCode, 204)
+	s.equalInt(resp.StatusCode, wantCode)
 }
 
 func tcpWrite(t *testing.T, address string, data string) {

@@ -9,10 +9,10 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
-	v11 "go.opentelemetry.io/proto/otlp/common/v1"
+	common "go.opentelemetry.io/proto/otlp/common/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/metrics/v1"
-	v1 "go.opentelemetry.io/proto/otlp/resource/v1"
+	resource "go.opentelemetry.io/proto/otlp/resource/v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -95,12 +95,12 @@ func TestParseStream(t *testing.T) {
 		[]prompb.TimeSeries{newPromPBTs("my-gauge", 15000, 15.0, false, jobLabelValue, kvLabel("label1", "value1"))})
 }
 
-func attributesFromKV(kvs ...[2]string) []*v11.KeyValue {
-	var r []*v11.KeyValue
+func attributesFromKV(kvs ...[2]string) []*common.KeyValue {
+	var r []*common.KeyValue
 	for _, kv := range kvs {
-		r = append(r, &v11.KeyValue{
+		r = append(r, &common.KeyValue{
 			Key:   kv[0],
-			Value: &v11.AnyValue{Value: &v11.AnyValue_StringValue{StringValue: kv[1]}},
+			Value: &common.AnyValue{Value: &common.AnyValue_StringValue{StringValue: kv[1]}},
 		})
 	}
 	return r
@@ -214,7 +214,7 @@ func generateSummary(name string, points ...*metricpb.SummaryDataPoint) *metrics
 
 func generateOTLPSamples(srcs ...*metricsv1.Metric) *metricpb.ResourceMetrics {
 	otlpMetrics := &metricpb.ResourceMetrics{
-		Resource: &v1.Resource{Attributes: attributesFromKV([2]string{"job", "vm"})},
+		Resource: &resource.Resource{Attributes: attributesFromKV([2]string{"job", "vm"})},
 	}
 	otlpMetrics.ScopeMetrics = []*metricsv1.ScopeMetrics{
 		{

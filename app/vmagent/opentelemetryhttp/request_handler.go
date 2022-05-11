@@ -1,4 +1,4 @@
-package otlpcollector
+package opentelemetryhttp
 
 import (
 	"net/http"
@@ -17,21 +17,21 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="otlp"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="otlp"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="otlp"}`)
+	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentelemetry"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="opentelemetry"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
 
-// InsertHandler processes otlp metrics.
+// InsertHandler processes opentelemetry metrics.
 func InsertHandler(at *auth.Token, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isJson := req.Header.Get("Content-Type") == "application/json"
+	isJSON := req.Header.Get("Content-Type") == "application/json"
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req.Body, isJson, isGzipped, func(tss []prompb.TimeSeries) error {
+		return parser.ParseStream(req.Body, isJSON, isGzipped, func(tss []prompb.TimeSeries) error {
 			return insertRows(at, tss, extraLabels)
 		})
 	})

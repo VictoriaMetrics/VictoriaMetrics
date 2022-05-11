@@ -63,6 +63,10 @@ func ParseStream(r io.Reader, isJSON, isGzipped bool, callback func(tss []prompb
 
 			for k := 0; k < metricSlice.Len(); k++ {
 				metric := metricSlice.At(k)
+				if len(metric.Name()) == 0 {
+					// fast path metric without name
+					continue
+				}
 				switch metric.DataType() {
 				case pmetric.MetricDataTypeGauge:
 					points := metric.Gauge().DataPoints()
@@ -73,7 +77,7 @@ func ParseStream(r io.Reader, isJSON, isGzipped bool, callback func(tss []prompb
 					}
 				case pmetric.MetricDataTypeSum:
 					if metric.Sum().AggregationTemporality() != pmetric.MetricAggregationTemporalityCumulative {
-						// todo add metric
+						rowsDroppedUnsupportedSum.Inc()
 						continue
 					}
 					points := metric.Sum().DataPoints()
@@ -84,13 +88,13 @@ func ParseStream(r io.Reader, isJSON, isGzipped bool, callback func(tss []prompb
 					}
 				case pmetric.MetricDataTypeHistogram:
 					if metric.Histogram().AggregationTemporality() != pmetric.MetricAggregationTemporalityCumulative {
-						// todo add metric
+						rowsDroppedUnsupportedHistogram.Inc()
 						continue
 					}
 					points := metric.Histogram().DataPoints()
 					for p := 0; p < points.Len(); p++ {
 						point := points.At(p)
-						wr.tss = append(wr.tss, tsFromHistogramPoint(metric.Name(), &point, wr.baseLabels)...)
+						wr.tss = append(wr.tss, tssFromHistogramPoint(metric.Name(), &point, wr.baseLabels)...)
 					}
 				case pmetric.MetricDataTypeSummary:
 					points := metric.Summary().DataPoints()
@@ -99,8 +103,8 @@ func ParseStream(r io.Reader, isJSON, isGzipped bool, callback func(tss []prompb
 						wr.tss = append(wr.tss, tssFromSummaryPoint(metric.Name(), &point, wr.baseLabels)...)
 					}
 				default:
-					// todo add metric
-					logger.Warnf("unsupported type: %s", metric.DataType())
+					rowsDroppedUnsupportedMetricType.Inc()
+					logger.Warnf("unsupported type: %s for metric name: %s", metric.DataType(), metric.Name())
 				}
 			}
 		}
@@ -133,8 +137,9 @@ func tsFromNumericPoint(metricName string, point pmetric.NumberDataPoint, baseLa
 		pointLabels = append(pointLabels, prompb.Label{Name: []byte(k), Value: []byte(v.AsString())})
 		return true
 	})
+	isStale := point.Flags().HasFlag(pmetric.MetricDataPointFlagNoRecordedValue)
 
-	return newPromPBTs(metricName, point.Timestamp().AsTime().UnixMilli(), value, false, pointLabels...)
+	return newPromPBTs(metricName, point.Timestamp().AsTime().UnixMilli(), value, isStale, pointLabels...)
 }
 
 // convert openTelemetry summary data point to prometheus summary
@@ -165,14 +170,14 @@ func tssFromSummaryPoint(metricName string, point *pmetric.SummaryDataPoint, bas
 // converts openTelemetry histogram to prometheus format
 // adds additional sum and count timeseries
 // it supports only cumulative histograms
-func tsFromHistogramPoint(metricName string, point *pmetric.HistogramDataPoint, baseLabels []prompb.Label) []prompb.TimeSeries {
+func tssFromHistogramPoint(metricName string, point *pmetric.HistogramDataPoint, baseLabels []prompb.Label) []prompb.TimeSeries {
 	var tss []prompb.TimeSeries
 	if len(point.BucketCounts()) == 0 {
 		// fast path
 		return tss
 	}
-	// fast path, broken data format
 	if len(point.BucketCounts()) != len(point.ExplicitBounds())+1 {
+		// fast path, broken data format
 		logger.Warnf("open telemetry bad histogram format: %q, size of buckets: %d, size of bounds: %d", metricName, len(point.BucketCounts()), len(point.ExplicitBounds()))
 		return tss
 	}
@@ -281,5 +286,8 @@ func putWriteContext(wr *writeContext) {
 }
 
 var (
-	rowsRead = metrics.NewCounter(`vm_protoparser_rows_read_total{type="otlp"}`)
+	rowsRead                         = metrics.NewCounter(`vm_protoparser_rows_read_total{type="opentelemetry"}`)
+	rowsDroppedUnsupportedHistogram  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
+	rowsDroppedUnsupportedSum        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
+	rowsDroppedUnsupportedMetricType = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
 )

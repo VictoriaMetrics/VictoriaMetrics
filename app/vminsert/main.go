@@ -13,9 +13,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentelemetryhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/otlpcollector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prompush"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
@@ -192,8 +192,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
-	case "/otlp/api/v1/push":
-		if err := otlpcollector.InsertHandler(r); err != nil {
+	case "/opentelemetry/api/v1/push":
+		if err := opentelemetryhttp.InsertHandler(r); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
