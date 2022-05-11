@@ -13,6 +13,10 @@ require (
 	github.com/VictoriaMetrics/metricsql v0.43.0
 	github.com/aws/aws-sdk-go v1.44.9
 	github.com/cespare/xxhash/v2 v2.1.2
+
+	// TODO: switch back to https://github.com/cheggaaa/pb/v3 when v3-pooling branch
+	// is merged into main branch.
+	// See https://github.com/cheggaaa/pb/pull/192#issuecomment-1121285954 for details.
 	github.com/dmitryk-dk/pb/v3 v3.0.9
 	github.com/golang/snappy v0.0.4
 	github.com/influxdata/influxdb v1.9.6
