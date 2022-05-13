@@ -31,6 +31,7 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
+	scrapeErrorAggrTime = flag.Int("promscrape.errorAggrTime", 600, "Time in seconds to just collect/aggregate scrape errors before reporting them. If <= 0, report immediately, which may result in huge logs.")
 	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
 	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
@@ -265,6 +266,9 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 	if scrapeOffset > 0 {
 		scrapeAlignInterval = scrapeInterval
 	}
+	if *scrapeErrorAggrTime < 1 {
+		*scrapeErrorAggrTime = 0
+	}
 	if scrapeAlignInterval <= 0 {
 		// Calculate start time for the first scrape from ScrapeURL and labels.
 		// This should spread load when scraping many targets with different
@@ -350,9 +354,50 @@ func (sw *scrapeWork) logError(s string) {
 	}
 }
 
+type ScrapeError struct {
+	reportTime uint64
+	fail uint
+	success uint
+}
+
+var scrapeErrors map[string]*ScrapeError = map[string]*ScrapeError{}
+
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
-	if err := sw.scrapeInternal(scrapeTimestamp, realTimestamp); err != nil && !*suppressScrapeErrors {
-		logger.Errorf("error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
+	err := sw.scrapeInternal(scrapeTimestamp, realTimestamp)
+	if *suppressScrapeErrors {
+		return
+	}
+
+	se, found := scrapeErrors[sw.Config.ScrapeURL]
+	if err == nil {
+		if !found {
+			return
+		}
+		se.success++
+		return
+	}
+
+	rts := uint64(realTimestamp)
+	if !found {
+		// or should we simply use the addr of sw.Config as hash ?
+		scrapeErrors[sw.Config.ScrapeURL] = &ScrapeError{ reportTime: rts + uint64(*scrapeErrorAggrTime) * 1000, fail: 1, success: 0, }
+		return
+	}
+	se.fail++
+	if se.reportTime == 0 {
+		se.reportTime = rts + uint64(*scrapeErrorAggrTime) * 1000
+		//logger.Debugf("%d consecutive scrapes ok for job %q (%s)", sw.Config.Job(), sw.Config.ScrapeURL)
+		se.success = 0
+	} else if se.reportTime < rts {
+		t := (rts - se.reportTime + uint64(sw.Config.ScrapeInterval/1e6) + 500)/1000 + uint64(*scrapeErrorAggrTime)
+		if (se.success == 0) {
+			logger.Errorf("%s (job with labels %s failed %d times within the last %ds).", err, sw.Config.LabelsString(), se.fail, t)
+		} else {
+			logger.Warnf("%s (job with labels %s failed %d/%d times within the last %ds).", err, sw.Config.LabelsString(), se.fail, se.fail + se.success, t)
+		}
+		se.reportTime = 0
+		se.fail = 0
+		se.success = 0
 	}
 }
 
