@@ -33,9 +33,10 @@ import (
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. "+
-		"See also -promscrape.suppressScrapeErrorsDelay")
-	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
-		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
+		"See also -promscrape.suppressScrapeErrorsDelay.")
+	suppressScrapeErrorsDelay = flag.Duration("promscrape.uppressScrapeErrorsDelay", 600, "Time in seconds to just collect/aggregate scrape errors before reporting them. "+
+		"If <= 0, report immediately, which may result in huge logs. "+
+		"See also -promscrape.suppressScrapeErrors.")
 	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
@@ -237,11 +238,14 @@ type scrapeWork struct {
 	// equals to or exceeds -promscrape.minResponseSizeForStreamParse
 	lastScrapeCompressed []byte
 
-	// lastErrLogTimestamp is the timestamp in unix seconds of the last logged scrape error
-	lastErrLogTimestamp uint64
+	// time when the next suppressed errors message should be logged
+	errsReportTime int64
 
 	// errsSuppressedCount is the number of suppressed scrape errors since lastErrLogTimestamp
 	errsSuppressedCount int
+
+	// succSuppressedCount is the number of suppressed scrape errors since lastErrLogTimestamp
+	succSuppressedCount int
 }
 
 func (sw *scrapeWork) loadLastScrape() string {
@@ -285,6 +289,9 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 	scrapeOffset := sw.Config.ScrapeOffset
 	if scrapeOffset > 0 {
 		scrapeAlignInterval = scrapeInterval
+	}
+	if *suppressScrapeErrorsDelay < 1 {
+		*suppressScrapeErrorsDelay = 0
 	}
 	if scrapeAlignInterval <= 0 {
 		// Calculate start time for the first scrape from ScrapeURL and labels.
@@ -373,23 +380,35 @@ func (sw *scrapeWork) logError(s string) {
 	}
 }
 
+// scrapeTimestamp and realTimestamp in ms
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 	err := sw.scrapeInternal(scrapeTimestamp, realTimestamp)
+
+	if *suppressScrapeErrors {
+		return
+	}
+
 	if err == nil {
+		sw.succSuppressedCount++
 		return
 	}
-	d := time.Duration(fasttime.UnixTimestamp()-sw.lastErrLogTimestamp) * time.Second
-	if *suppressScrapeErrors || d < *suppressScrapeErrorsDelay {
-		sw.errsSuppressedCount++
-		return
+
+	sw.errsSuppressedCount++
+	rts := realTimestamp
+	if sw.errsReportTime == 0 {
+		sw.errsReportTime = rts + (*suppressScrapeErrorsDelay).Milliseconds()
+		sw.succSuppressedCount = 0
+	} else if sw.errsReportTime < rts {
+		t := (rts - sw.errsReportTime + (*suppressScrapeErrorsDelay).Milliseconds() + 500)/1000
+		if (sw.succSuppressedCount == 0) {
+			logger.Errorf("%s (job with labels %s failed %d times within the last %ds).", err, sw.Config.LabelsString(), sw.errsSuppressedCount, t)
+		} else {
+			logger.Warnf("%s (job with labels %s failed %d/%d times within the last %ds).", err, sw.Config.LabelsString(), sw.errsSuppressedCount, sw.errsSuppressedCount + sw.succSuppressedCount, t)
+		}
+		sw.errsReportTime = 0
+		sw.errsSuppressedCount = 0
+		sw.succSuppressedCount = 0
 	}
-	err = fmt.Errorf("cannot scrape %q (job %q, labels %s): %w", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
-	if sw.errsSuppressedCount > 0 {
-		err = fmt.Errorf("%w; %d similar errors suppressed during the last %.1f seconds", err, sw.errsSuppressedCount, d.Seconds())
-	}
-	logger.Warnf("%s", err)
-	sw.lastErrLogTimestamp = fasttime.UnixTimestamp()
-	sw.errsSuppressedCount = 0
 }
 
 var (
