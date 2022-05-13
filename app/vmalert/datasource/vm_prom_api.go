@@ -2,10 +2,16 @@ package datasource
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+)
+
+var (
+	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
+		"to the configured -datasource.url and -remoteRead.url")
 )
 
 type promResponse struct {
@@ -108,18 +114,12 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, 
 	}
 }
 
-const (
-	prometheusInstantPath = "/api/v1/query"
-	prometheusRangePath   = "/api/v1/query_range"
-	prometheusPrefix      = "/prometheus"
-)
-
 func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
 	if s.appendTypePrefix {
-		r.URL.Path += prometheusPrefix
+		r.URL.Path += "/prometheus"
 	}
-	if !s.disablePathAppend {
-		r.URL.Path += prometheusInstantPath
+	if !*disablePathAppend {
+		r.URL.Path += "/api/v1/query"
 	}
 	q := r.URL.Query()
 	if s.lookBack > 0 {
@@ -136,10 +136,10 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 
 func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
 	if s.appendTypePrefix {
-		r.URL.Path += prometheusPrefix
+		r.URL.Path += "/prometheus"
 	}
-	if !s.disablePathAppend {
-		r.URL.Path += prometheusRangePath
+	if !*disablePathAppend {
+		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
 	q.Add("start", fmt.Sprintf("%d", start.Unix()))
