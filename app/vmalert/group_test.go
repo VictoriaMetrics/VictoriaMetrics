@@ -157,7 +157,7 @@ func TestUpdateWith(t *testing.T) {
 
 func TestGroupStart(t *testing.T) {
 	// TODO: make parsing from string instead of file
-	groups, err := config.Parse([]string{"config/testdata/rules1-good.rules"}, true, true)
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, true, true)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}

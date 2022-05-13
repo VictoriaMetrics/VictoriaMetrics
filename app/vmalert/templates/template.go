@@ -11,25 +11,116 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package notifier
+package templates
 
 import (
 	"errors"
 	"fmt"
+	htmlTpl "html/template"
+	"io/ioutil"
 	"math"
 	"net"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
-	htmlTpl "html/template"
 	textTpl "text/template"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
+
+// go template execution fails when it's tree is empty
+const defaultTemplate = `{{- define "default.template" -}}{{- end -}}`
+
+var tplMu sync.RWMutex
+
+type textTemplate struct {
+	current     *textTpl.Template
+	replacement *textTpl.Template
+}
+
+var masterTmpl textTemplate
+
+func newTemplate() *textTpl.Template {
+	tmpl := textTpl.New("").Option("missingkey=zero").Funcs(templateFuncs())
+	return textTpl.Must(tmpl.Parse(defaultTemplate))
+}
+
+// Load func loads templates from multiple globs specified in pathPatterns and either
+// sets them directly to current template if it's undefined or with overwrite=true
+// or sets replacement templates and adds templates with new names to a current
+func Load(pathPatterns []string, overwrite bool) error {
+	var err error
+	tmpl := newTemplate()
+	for _, tp := range pathPatterns {
+		p, err := filepath.Glob(tp)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve a template glob %q: %w", tp, err)
+		}
+		if len(p) > 0 {
+			tmpl, err = tmpl.ParseGlob(tp)
+			if err != nil {
+				return fmt.Errorf("failed to parse template glob %q: %w", tp, err)
+			}
+		}
+	}
+	if len(tmpl.Templates()) > 0 {
+		err := tmpl.Execute(ioutil.Discard, nil)
+		if err != nil {
+			return fmt.Errorf("failed to execute template: %w", err)
+		}
+	}
+	tplMu.Lock()
+	defer tplMu.Unlock()
+	if masterTmpl.current == nil || overwrite {
+		masterTmpl.replacement = nil
+		masterTmpl.current = newTemplate()
+	} else {
+		masterTmpl.replacement = newTemplate()
+		if err = copyTemplates(tmpl, masterTmpl.replacement, overwrite); err != nil {
+			return err
+		}
+	}
+	return copyTemplates(tmpl, masterTmpl.current, overwrite)
+}
+
+func copyTemplates(from *textTpl.Template, to *textTpl.Template, overwrite bool) error {
+	if from == nil {
+		return nil
+	}
+	if to == nil {
+		to = newTemplate()
+	}
+	tmpl, err := from.Clone()
+	if err != nil {
+		return err
+	}
+	for _, t := range tmpl.Templates() {
+		if to.Lookup(t.Name()) == nil || overwrite {
+			to, err = to.AddParseTree(t.Name(), t.Tree)
+			if err != nil {
+				return fmt.Errorf("failed to add template %q: %w", t.Name(), err)
+			}
+		}
+	}
+	return nil
+}
+
+// Reload func replaces current template with a replacement template
+// which was set by Load with override=false
+func Reload() {
+	tplMu.Lock()
+	defer tplMu.Unlock()
+	if masterTmpl.replacement != nil {
+		masterTmpl.current = masterTmpl.replacement
+		masterTmpl.replacement = nil
+	}
+}
 
 // metric is private copy of datasource.Metric,
 // it is used for templating annotations,
@@ -60,12 +151,62 @@ func datasourceMetricsToTemplateMetrics(ms []datasource.Metric) []metric {
 // for templating functions.
 type QueryFn func(query string) ([]datasource.Metric, error)
 
-var tmplFunc textTpl.FuncMap
+// UpdateWithFuncs updates existing or sets a new function map for a template
+func UpdateWithFuncs(funcs textTpl.FuncMap) {
+	tplMu.Lock()
+	defer tplMu.Unlock()
+	masterTmpl.current = masterTmpl.current.Funcs(funcs)
+}
 
-// InitTemplateFunc initiates template helper functions
-func InitTemplateFunc(externalURL *url.URL) {
+// GetWithFuncs returns a copy of current template with additional FuncMap
+// provided with funcs argument
+func GetWithFuncs(funcs textTpl.FuncMap) (*textTpl.Template, error) {
+	tplMu.RLock()
+	defer tplMu.RUnlock()
+	tmpl, err := masterTmpl.current.Clone()
+	if err != nil {
+		return nil, err
+	}
+	return tmpl.Funcs(funcs), nil
+}
+
+// Get returns a copy of a template
+func Get() (*textTpl.Template, error) {
+	tplMu.RLock()
+	defer tplMu.RUnlock()
+	return masterTmpl.current.Clone()
+}
+
+// FuncsWithQuery returns a function map that depends on metric data
+func FuncsWithQuery(query QueryFn) textTpl.FuncMap {
+	return textTpl.FuncMap{
+		"query": func(q string) ([]metric, error) {
+			result, err := query(q)
+			if err != nil {
+				return nil, err
+			}
+			return datasourceMetricsToTemplateMetrics(result), nil
+		},
+	}
+}
+
+// FuncsWithExternalURL returns a function map that depends on externalURL value
+func FuncsWithExternalURL(externalURL *url.URL) textTpl.FuncMap {
+	return textTpl.FuncMap{
+		"externalURL": func() string {
+			return externalURL.String()
+		},
+
+		"pathPrefix": func() string {
+			return externalURL.Path
+		},
+	}
+}
+
+// templateFuncs initiates template helper functions
+func templateFuncs() textTpl.FuncMap {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/template_reference/
-	tmplFunc = textTpl.FuncMap{
+	return textTpl.FuncMap{
 		/* Strings */
 
 		// reReplaceAll ReplaceAllString returns a copy of src, replacing matches of the Regexp with
@@ -219,12 +360,22 @@ func InitTemplateFunc(externalURL *url.URL) {
 
 		// externalURL returns value of `external.url` flag
 		"externalURL": func() string {
-			return externalURL.String()
+			// externalURL function supposed to be substituted at FuncsWithExteralURL().
+			// it is present here only for validation purposes, when there is no
+			// provided datasource.
+			//
+			// return non-empty slice to pass validation with chained functions in template
+			return ""
 		},
 
 		// pathPrefix returns a Path segment from the URL value in `external.url` flag
 		"pathPrefix": func() string {
-			return externalURL.Path
+			// pathPrefix function supposed to be substituted at FuncsWithExteralURL().
+			// it is present here only for validation purposes, when there is no
+			// provided datasource.
+			//
+			// return non-empty slice to pass validation with chained functions in template
+			return ""
 		},
 
 		// pathEscape escapes the string so it can be safely placed inside a URL path segment,
@@ -259,7 +410,7 @@ func InitTemplateFunc(externalURL *url.URL) {
 		// execute "/api/v1/query?query=foo" request and will return
 		// the first value in response.
 		"query": func(q string) ([]metric, error) {
-			// query function supposed to be substituted at funcsWithQuery().
+			// query function supposed to be substituted at FuncsWithQuery().
 			// it is present here only for validation purposes, when there is no
 			// provided datasource.
 			//
@@ -314,21 +465,6 @@ func InitTemplateFunc(externalURL *url.URL) {
 			return htmlTpl.HTML(text)
 		},
 	}
-}
-
-func funcsWithQuery(query QueryFn) textTpl.FuncMap {
-	fm := make(textTpl.FuncMap)
-	for k, fn := range tmplFunc {
-		fm[k] = fn
-	}
-	fm["query"] = func(q string) ([]metric, error) {
-		result, err := query(q)
-		if err != nil {
-			return nil, err
-		}
-		return datasourceMetricsToTemplateMetrics(result), nil
-	}
-	return fm
 }
 
 // Time is the number of milliseconds since the epoch

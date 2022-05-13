@@ -1,13 +1,14 @@
 package notifier
 
 import (
-	"net/url"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"os"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	u, _ := url.Parse("https://victoriametrics.com/path")
-	InitTemplateFunc(u)
+	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, true); err != nil {
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
