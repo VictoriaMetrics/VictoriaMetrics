@@ -427,15 +427,10 @@ func buildAPIEndpoint(customEndpoint, region, service string) string {
 }
 
 // GetFiltersQueryString returns query string formed from the given filters.
-//
-// If whitelist isn't nil, then filters which don't fall into whitelist isn't returned.
-func GetFiltersQueryString(filters []Filter, whitelist map[string]bool) string {
+func GetFiltersQueryString(filters []Filter) string {
 	// See how to build filters query string at examples at https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
 	var args []string
 	for i, f := range filters {
-		if whitelist != nil && !whitelist[f.Name] {
-			continue
-		}
 		args = append(args, fmt.Sprintf("Filter.%d.Name=%s", i+1, url.QueryEscape(f.Name)))
 		for j, v := range f.Values {
 			args = append(args, fmt.Sprintf("Filter.%d.Value.%d=%s", i+1, j+1, url.QueryEscape(v)))

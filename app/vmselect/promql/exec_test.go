@@ -2069,7 +2069,7 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `with (
 			x = (
-				label_set(time(), "foo", "123.456", "__name__", "aaa"),
+				label_set(time() > 1500, "foo", "123.456", "__name__", "aaa"),
 				label_set(-time(), "foo", "bar", "__name__", "bbb"),
 				label_set(-time(), "__name__", "bxs"),
 				label_set(-time(), "foo", "45", "bar", "xs"),
@@ -2093,7 +2093,7 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1123.456, 1323.456, 1523.456, 1723.456, 1923.456, 2123.456},
+			Values:     []float64{nan, nan, nan, 1723.456, 1923.456, 2123.456},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{

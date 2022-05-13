@@ -15,6 +15,12 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add `influx-prometheus-mode` command-line flag, which allows to restore the original time series written from Prometheus into InfluxDB during data migration from InfluxDB to VictoriaMetrics. See [this feature request](https://github.com/VictoriaMetrics/vmctl/issues/8). Thanks to @mback2k for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2545).
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): do not return values from [label_value()](https://docs.victoriametrics.com/MetricsQL.html#label_value) function if the original time series has no values at the selected timestamps.
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): limit the number of concurrently established connections from vmselect to vmstorage. This should prevent from potentially high spikes in the number of established connections after temporary slowdown in connection handshake procedure between vmselect and vmstorage because of spikes in workload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix build for Solaris / SmartOS. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1322#issuecomment-1120276146).
+
 ## [v1.77.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.1)
 
 Released at 07-05-2022
@@ -44,7 +50,7 @@ Released at 05-05-2022
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to attach node-level labels and annotations to discovered Kubernetes pod targets in the same way as Prometheus 2.35 does. See [this feature request](https://github.com/prometheus/prometheus/issues/9510) and [this pull request](https://github.com/prometheus/prometheus/pull/10080).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `tls_config` and `proxy_url` options at `oauth2` section in the same way as Prometheus does. See [oauth2 docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `min_version` option at `tls_config` section in the same way as Prometheus does. See [tls_config docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
-* FEATURE: [vmagent](): expose `vmagent_remotewrite_rate_limit` metric at `http://vmagent:8429/metrics`, which can be used for alerting rules such as `rate(vmagent_remotewrite_conn_bytes_written_total) / vmagent_remotewrite_rate_limit > 0.8` when `-remoteWrite.rateLimit` command-line flag is set. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2521).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `vmagent_remotewrite_rate_limit` metric at `http://vmagent:8429/metrics`, which can be used for alerting rules such as `rate(vmagent_remotewrite_conn_bytes_written_total) / vmagent_remotewrite_rate_limit > 0.8` when `-remoteWrite.rateLimit` command-line flag is set. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2521).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for DNS-based discovery for notifiers in the same way as Prometheus does (aka `dns_sd_configs`). See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2460).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `-replay.disableProgressBar` command-line flag, which allows disabling progressbar in [rules' backfilling mode](https://docs.victoriametrics.com/vmalert.html#rules-backfilling). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1761).
 * FEATURE: allow specifying TLS cipher suites for incoming https requests via `-tlsCipherSuites` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2404).

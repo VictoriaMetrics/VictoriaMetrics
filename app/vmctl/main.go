@@ -105,7 +105,8 @@ func main() {
 						importer,
 						c.Int(influxConcurrency),
 						c.String(influxMeasurementFieldSeparator),
-						c.Bool(influxSkipDatabaseLabel))
+						c.Bool(influxSkipDatabaseLabel),
+						c.Bool(influxPrometheusMode))
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},

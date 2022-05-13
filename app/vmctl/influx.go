@@ -17,9 +17,10 @@ type influxProcessor struct {
 	cc          int
 	separator   string
 	skipDbLabel bool
+	promMode    bool
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel bool) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel bool, promMode bool) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
@@ -29,6 +30,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 		cc:          cc,
 		separator:   separator,
 		skipDbLabel: skipDbLabel,
+		promMode:    promMode,
 	}
 }
 
@@ -101,6 +103,8 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 }
 
 const dbLabel = "db"
+const nameLabel = "__name__"
+const valueField = "value"
 
 func (ip *influxProcessor) do(s *influx.Series) error {
 	cr, err := ip.ic.FetchDataPoints(s)
@@ -122,6 +126,8 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	for i, lp := range s.LabelPairs {
 		if lp.Name == dbLabel {
 			containsDBLabel = true
+		} else if lp.Name == nameLabel && s.Field == valueField && ip.promMode {
+			name = lp.Value
 		}
 		labels[i] = vm.LabelPair{
 			Name:  lp.Name,
