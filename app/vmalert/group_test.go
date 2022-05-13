@@ -355,3 +355,61 @@ func TestGetStaleSeries(t *testing.T) {
 		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
 		nil)
 }
+
+func TestPurgeStaleSeries(t *testing.T) {
+	ts := time.Now()
+	labels := toPromLabels(t, "__name__", "job:foo", "job", "foo")
+	tss := []prompbmarshal.TimeSeries{newTimeSeriesPB([]float64{1}, []int64{ts.Unix()}, labels)}
+
+	f := func(curRules, newRules, expStaleRules []Rule) {
+		t.Helper()
+		e := &executor{
+			previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		}
+		// seed executor with series for
+		// current rules
+		for _, rule := range curRules {
+			e.getStaleSeries(rule, tss, ts)
+		}
+
+		e.purgeStaleSeries(newRules)
+
+		if len(e.previouslySentSeriesToRW) != len(expStaleRules) {
+			t.Fatalf("expected to get %d stale series, got %d",
+				len(expStaleRules), len(e.previouslySentSeriesToRW))
+		}
+
+		for _, exp := range expStaleRules {
+			if _, ok := e.previouslySentSeriesToRW[exp.ID()]; !ok {
+				t.Fatalf("expected to have rule %d; got nil instead", exp.ID())
+			}
+		}
+	}
+
+	f(nil, nil, nil)
+	f(
+		nil,
+		[]Rule{&AlertingRule{RuleID: 1}},
+		nil,
+	)
+	f(
+		[]Rule{&AlertingRule{RuleID: 1}},
+		nil,
+		nil,
+	)
+	f(
+		[]Rule{&AlertingRule{RuleID: 1}},
+		[]Rule{&AlertingRule{RuleID: 2}},
+		nil,
+	)
+	f(
+		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
+		[]Rule{&AlertingRule{RuleID: 2}},
+		[]Rule{&AlertingRule{RuleID: 2}},
+	)
+	f(
+		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
+		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
+		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
+	)
+}

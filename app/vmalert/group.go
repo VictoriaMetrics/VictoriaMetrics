@@ -303,6 +303,10 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 				g.mu.Unlock()
 				continue
 			}
+
+			// ensure that staleness is tracked or existing rules only
+			e.purgeStaleSeries(g.Rules)
+
 			if g.Interval != ng.Interval {
 				g.Interval = ng.Interval
 				t.Stop()
@@ -455,6 +459,30 @@ func (e *executor) getStaleSeries(rule Rule, tss []prompbmarshal.TimeSeries, tim
 	e.previouslySentSeriesToRWMu.Unlock()
 
 	return staleS
+}
+
+// purgeStaleSeries deletes references in tracked
+// previouslySentSeriesToRW list to Rules which aren't present
+// in the given activeRules list. The method is used when the list
+// of loaded rules has changed and executor has to remove
+// references to non-existing rules.
+func (e *executor) purgeStaleSeries(activeRules []Rule) {
+	newPreviouslySentSeriesToRW := make(map[uint64]map[string][]prompbmarshal.Label)
+
+	e.previouslySentSeriesToRWMu.Lock()
+
+	for _, rule := range activeRules {
+		id := rule.ID()
+		prev, ok := e.previouslySentSeriesToRW[id]
+		if ok {
+			// keep previous series for staleness detection
+			newPreviouslySentSeriesToRW[id] = prev
+		}
+	}
+	e.previouslySentSeriesToRW = nil
+	e.previouslySentSeriesToRW = newPreviouslySentSeriesToRW
+
+	e.previouslySentSeriesToRWMu.Unlock()
 }
 
 func labelsToString(labels []prompbmarshal.Label) string {
