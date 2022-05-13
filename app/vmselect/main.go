@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 	"time"
 
@@ -31,6 +33,7 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -57,6 +60,7 @@ func Init() {
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
+	initVMAlertProxy()
 }
 
 // Stop stops vmselect
@@ -404,14 +408,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/rules", "/rules":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
+		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"groups":[]}}`)
 		return true
 	case "/api/v1/alerts", "/alerts":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
+		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"alerts":[]}}`)
 		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
@@ -562,3 +564,42 @@ var (
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
 )
+
+func mayProxyVMAlertRequests(w http.ResponseWriter, r *http.Request, stubResponse string) {
+	if len(*vmalertProxyURL) == 0 {
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", stubResponse)
+		return
+	}
+	defer func() {
+		err := recover()
+		if err == nil || err == http.ErrAbortHandler {
+			// Suppress http.ErrAbortHandler panic.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353
+			return
+		}
+		// Forward other panics to the caller.
+		panic(err)
+	}()
+	r.Host = vmalertProxyHost
+	vmalertProxy.ServeHTTP(w, r)
+}
+
+var (
+	vmalertProxyHost string
+	vmalertProxy     *httputil.ReverseProxy
+)
+
+// initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
+func initVMAlertProxy() {
+	if len(*vmalertProxyURL) == 0 {
+		return
+	}
+	proxyURL, err := url.Parse(*vmalertProxyURL)
+	if err != nil {
+		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
+	}
+	vmalertProxyHost = proxyURL.Host
+	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+}

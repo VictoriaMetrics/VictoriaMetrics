@@ -10,7 +10,7 @@ func TestMarshallingSDConfigWithZoneYAML(t *testing.T) {
 	sdConfig := SDConfig{
 		Project: "test-project",
 		Zone: ZoneYAML{
-			zones: []string{"zone-a", "zone-b"},
+			Zones: []string{"zone-a", "zone-b"},
 		},
 	}
 

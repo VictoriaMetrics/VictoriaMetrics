@@ -38,7 +38,7 @@ type RelabelConfig struct {
 //
 // regex: "foo|bar"
 type MultiLineRegex struct {
-	s string
+	S string
 }
 
 // UnmarshalYAML unmarshals mlr from YAML passed to f.
@@ -51,7 +51,7 @@ func (mlr *MultiLineRegex) UnmarshalYAML(f func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	mlr.s = s
+	mlr.S = s
 	return nil
 }
 
@@ -88,7 +88,7 @@ func stringValue(v interface{}) (string, error) {
 
 // MarshalYAML marshals mlr to YAML.
 func (mlr *MultiLineRegex) MarshalYAML() (interface{}, error) {
-	a := strings.Split(mlr.s, "|")
+	a := strings.Split(mlr.S, "|")
 	if len(a) == 1 {
 		return a[0], nil
 	}
@@ -179,7 +179,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	regexCompiled := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
 	if rc.Regex != nil {
-		regex := rc.Regex.s
+		regex := rc.Regex.S
 		regexOrig := regex
 		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
 			regex = "^(?:" + regex + ")$"
@@ -243,7 +243,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("unexpected `modulus` for `action=hashmod`: %d; must be greater than 0", modulus)
 		}
 	case "keep_metrics":
-		if (rc.Regex == nil || rc.Regex.s == "") && rc.If == nil {
+		if (rc.Regex == nil || rc.Regex.S == "") && rc.If == nil {
 			return nil, fmt.Errorf("`regex` must be non-empty for `action=keep_metrics`")
 		}
 		if len(sourceLabels) > 0 {
@@ -252,7 +252,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		sourceLabels = []string{"__name__"}
 		action = "keep"
 	case "drop_metrics":
-		if (rc.Regex == nil || rc.Regex.s == "") && rc.If == nil {
+		if (rc.Regex == nil || rc.Regex.S == "") && rc.If == nil {
 			return nil, fmt.Errorf("`regex` must be non-empty for `action=drop_metrics`")
 		}
 		if len(sourceLabels) > 0 {

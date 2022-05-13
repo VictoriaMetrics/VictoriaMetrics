@@ -769,7 +769,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
-     TCP and UDP address to listen for InfluxDB line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
+     TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
   -influxMeasurementFieldSeparator string
      Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol (default "_")
   -influxSkipMeasurement
@@ -850,7 +850,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.cluster.membersCount int
      The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
   -promscrape.cluster.replicationFactor int
-     The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
+     The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
      Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
@@ -918,6 +918,21 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
+  -remoteWrite.aws.accessKey array
+     Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.region array
+     Optional AWS region to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.roleARN array
+     Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.secretKey array
+     Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.useSigv4 array
+     Enables SigV4 request signing for -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.password array
      Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.

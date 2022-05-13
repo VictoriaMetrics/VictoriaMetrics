@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
+	"github.com/dmitryk-dk/pb/v3"
 )
 
 type otsdbProcessor struct {
@@ -67,7 +67,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		queryRanges += len(rt.QueryRanges)
 	}
 	for _, metric := range metrics {
-		log.Println(fmt.Sprintf("Starting work on %s", metric))
+		log.Printf("Starting work on %s", metric)
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
 			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
@@ -120,6 +120,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 				}
 			}
 		}
+
 		// Drain channels per metric
 		close(seriesCh)
 		wg.Wait()
@@ -156,11 +157,14 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	for k, v := range data.Tags {
 		labels = append(labels, vm.LabelPair{Name: k, Value: v})
 	}
-	op.im.Input() <- &vm.TimeSeries{
+	ts := vm.TimeSeries{
 		Name:       data.Metric,
 		LabelPairs: labels,
 		Timestamps: data.Timestamps,
 		Values:     data.Values,
+	}
+	if err := op.im.Input(&ts); err != nil {
+		return err
 	}
 	return nil
 }

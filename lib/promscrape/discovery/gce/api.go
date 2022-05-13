@@ -47,7 +47,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		project = proj
 		logger.Infof("autodetected the current GCE project: %q", project)
 	}
-	zones := sdc.Zone.zones
+	zones := sdc.Zone.Zones
 	if len(zones) == 0 {
 		// Autodetect the current zone.
 		zone, err := getCurrentZone()

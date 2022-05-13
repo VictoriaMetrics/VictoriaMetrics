@@ -178,7 +178,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
 
-	labels := make(map[string]string, 0)
+	labels := make(map[string]string)
 	for _, s := range *externalLabels {
 		if len(s) == 0 {
 			continue

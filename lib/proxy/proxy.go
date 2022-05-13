@@ -19,7 +19,7 @@ import (
 
 // URL implements YAML.Marshaler and yaml.Unmarshaler interfaces for url.URL.
 type URL struct {
-	url *url.URL
+	URL *url.URL
 }
 
 // MustNewURL returns new URL for the given u.
@@ -29,31 +29,31 @@ func MustNewURL(u string) *URL {
 		logger.Panicf("BUG: cannot parse u=%q: %s", u, err)
 	}
 	return &URL{
-		url: pu,
+		URL: pu,
 	}
 }
 
-// URL return the underlying url.
-func (u *URL) URL() *url.URL {
-	if u == nil || u.url == nil {
+// GetURL return the underlying url.
+func (u *URL) GetURL() *url.URL {
+	if u == nil || u.URL == nil {
 		return nil
 	}
-	return u.url
+	return u.URL
 }
 
 // IsHTTPOrHTTPS returns true if u is http or https
 func (u *URL) IsHTTPOrHTTPS() bool {
-	pu := u.URL()
+	pu := u.GetURL()
 	if pu == nil {
 		return false
 	}
-	scheme := u.url.Scheme
+	scheme := u.URL.Scheme
 	return scheme == "http" || scheme == "https"
 }
 
 // String returns string representation of u.
 func (u *URL) String() string {
-	pu := u.URL()
+	pu := u.GetURL()
 	if pu == nil {
 		return ""
 	}
@@ -66,10 +66,10 @@ func (u *URL) GetAuthHeader(ac *promauth.Config) string {
 	if ac != nil {
 		authHeader = ac.GetAuthHeader()
 	}
-	if u == nil || u.url == nil {
+	if u == nil || u.URL == nil {
 		return authHeader
 	}
-	pu := u.url
+	pu := u.URL
 	if pu.User != nil && len(pu.User.Username()) > 0 {
 		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
 		authHeader = "Basic " + userPasswordEncoded
@@ -79,10 +79,10 @@ func (u *URL) GetAuthHeader(ac *promauth.Config) string {
 
 // MarshalYAML implements yaml.Marshaler interface.
 func (u *URL) MarshalYAML() (interface{}, error) {
-	if u.url == nil {
+	if u.URL == nil {
 		return nil, nil
 	}
-	return u.url.String(), nil
+	return u.URL.String(), nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
@@ -95,16 +95,16 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse proxy_url=%q as *url.URL: %w", s, err)
 	}
-	u.url = parsedURL
+	u.URL = parsedURL
 	return nil
 }
 
 // NewDialFunc returns dial func for the given u and ac.
 func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
-	if u == nil || u.url == nil {
+	if u == nil || u.URL == nil {
 		return defaultDialFunc, nil
 	}
-	pu := u.url
+	pu := u.URL
 	switch pu.Scheme {
 	case "http", "https", "socks5", "tls+socks5":
 	default:

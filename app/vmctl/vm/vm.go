@@ -13,11 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/dmitryk-dk/pb/v3"
 )
 
 // Config contains list of params to configure
@@ -182,7 +181,17 @@ func (im *Importer) Errors() chan *ImportError { return im.errors }
 
 // Input returns a channel for sending timeseries
 // that need to be imported
-func (im *Importer) Input() chan<- *TimeSeries { return im.input }
+func (im *Importer) Input(ts *TimeSeries) error {
+	select {
+	case im.input <- ts:
+		return nil
+	case err := <-im.errors:
+		if err != nil && err.Err != nil {
+			return err.Err
+		}
+		return fmt.Errorf("process aborted")
+	}
+}
 
 // Close sends signal to all goroutines to exit
 // and waits until they are finished

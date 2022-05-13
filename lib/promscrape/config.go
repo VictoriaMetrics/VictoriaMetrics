@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
@@ -54,7 +55,7 @@ var (
 		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
-		"If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
+		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
 )
 
 var clusterMemberID int
@@ -161,17 +162,17 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 }
 
 func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
-	sa := a.marshal()
-	sb := b.marshal()
+	sa := a.marshalJSON()
+	sb := b.marshalJSON()
 	return string(sa) == string(sb)
 }
 
-func (sc *ScrapeConfig) unmarshal(data []byte) error {
-	return yaml.UnmarshalStrict(data, sc)
+func (sc *ScrapeConfig) unmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, sc)
 }
 
-func (sc *ScrapeConfig) marshal() []byte {
-	data, err := yaml.Marshal(sc)
+func (sc *ScrapeConfig) marshalJSON() []byte {
+	data, err := json.Marshal(sc)
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal ScrapeConfig: %s", err)
 	}
@@ -430,9 +431,9 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 }
 
 func (sc *ScrapeConfig) clone() *ScrapeConfig {
-	data := sc.marshal()
+	data := sc.marshalJSON()
 	var scCopy ScrapeConfig
-	if err := scCopy.unmarshal(data); err != nil {
+	if err := scCopy.unmarshalJSON(data); err != nil {
 		logger.Panicf("BUG: cannot unmarshal scrape config: %s", err)
 	}
 	return &scCopy

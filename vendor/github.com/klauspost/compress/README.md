@@ -17,6 +17,19 @@ This package provides various compression algorithms.
 
 # changelog
 
+* Apr 26, 2022 (v1.15.2)
+	* zstd: Add x86-64 assembly for decompression on streams and blocks. Contributed by [@WojciechMula](https://github.com/WojciechMula). Typically 2x faster.  [#528](https://github.com/klauspost/compress/pull/528) [#531](https://github.com/klauspost/compress/pull/531) [#545](https://github.com/klauspost/compress/pull/545) [#537](https://github.com/klauspost/compress/pull/537)
+	* zstd: Add options to ZipDecompressor and fixes [#539](https://github.com/klauspost/compress/pull/539)
+	* s2: Use sorted search for index [#555](https://github.com/klauspost/compress/pull/555)
+	* Minimum version is Go 1.16, added CI test on 1.18.
+
+* Mar 11, 2022 (v1.15.1)
+	* huff0: Add x86 assembly of Decode4X by @WojciechMula in [#512](https://github.com/klauspost/compress/pull/512)
+	* zstd: Reuse zip decoders in [#514](https://github.com/klauspost/compress/pull/514)
+	* zstd: Detect extra block data and report as corrupted in [#520](https://github.com/klauspost/compress/pull/520)
+	* zstd: Handle zero sized frame content size stricter in [#521](https://github.com/klauspost/compress/pull/521)
+	* zstd: Add stricter block size checks in [#523](https://github.com/klauspost/compress/pull/523)
+
 * Mar 3, 2022 (v1.15.0)
 	* zstd: Refactor decoder by @klauspost in [#498](https://github.com/klauspost/compress/pull/498)
 	* zstd: Add stream encoding without goroutines by @klauspost in [#505](https://github.com/klauspost/compress/pull/505)

@@ -274,6 +274,8 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries
+	rowsCount := getRowsCount(tss)
+	globalRowsPushedBeforeRelabel.Add(rowsCount)
 	maxSamplesPerBlock := *maxRowsPerBlock
 	// Allow up to 10x of labels per each block on average.
 	maxLabelsPerBlock := 10 * maxSamplesPerBlock
@@ -298,9 +300,10 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 			tss = nil
 		}
 		if rctx != nil {
-			tssBlockLen := len(tssBlock)
+			rowsCountBeforeRelabel := getRowsCount(tssBlock)
 			tssBlock = rctx.applyRelabeling(tssBlock, labelsGlobal, pcsGlobal)
-			globalRelabelMetricsDropped.Add(tssBlockLen - len(tssBlock))
+			rowsCountAfterRelabel := getRowsCount(tssBlock)
+			rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
@@ -414,7 +417,10 @@ func labelsToString(labels []prompbmarshal.Label) string {
 	return string(b)
 }
 
-var globalRelabelMetricsDropped = metrics.NewCounter("vmagent_remotewrite_global_relabel_metrics_dropped_total")
+var (
+	globalRowsPushedBeforeRelabel = metrics.NewCounter("vmagent_remotewrite_global_rows_pushed_before_relabel_total")
+	rowsDroppedByGlobalRelabel    = metrics.NewCounter("vmagent_remotewrite_global_relabel_metrics_dropped_total")
+)
 
 type remoteWriteCtx struct {
 	idx        int
@@ -423,7 +429,8 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx uint64
 
-	relabelMetricsDropped *metrics.Counter
+	rowsPushedAfterRelabel *metrics.Counter
+	rowsDroppedByRelabel   *metrics.Counter
 }
 
 func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
@@ -467,7 +474,8 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 		c:   c,
 		pss: pss,
 
-		relabelMetricsDropped: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 	}
 }
 
@@ -483,7 +491,8 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.fq.MustClose()
 	rwctx.fq = nil
 
-	rwctx.relabelMetricsDropped = nil
+	rwctx.rowsPushedAfterRelabel = nil
+	rwctx.rowsDroppedByRelabel = nil
 }
 
 func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
@@ -499,12 +508,15 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
 		v = tssRelabelPool.Get().(*[]prompbmarshal.TimeSeries)
 		tss = append(*v, tss...)
-		tssLen := len(tss)
+		rowsCountBeforeRelabel := getRowsCount(tss)
 		tss = rctx.applyRelabeling(tss, nil, pcs)
-		rwctx.relabelMetricsDropped.Add(tssLen - len(tss))
+		rowsCountAfterRelabel := getRowsCount(tss)
+		rwctx.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 	}
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
+	rowsCount := getRowsCount(tss)
+	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 	pss[idx].Push(tss)
 	if rctx != nil {
 		*v = prompbmarshal.ResetTimeSeries(tss)
@@ -518,4 +530,12 @@ var tssRelabelPool = &sync.Pool{
 		a := []prompbmarshal.TimeSeries{}
 		return &a
 	},
+}
+
+func getRowsCount(tss []prompbmarshal.TimeSeries) int {
+	rowsCount := 0
+	for _, ts := range tss {
+		rowsCount += len(ts.Samples)
+	}
+	return rowsCount
 }

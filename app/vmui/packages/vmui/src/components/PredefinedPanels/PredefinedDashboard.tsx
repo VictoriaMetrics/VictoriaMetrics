@@ -1,4 +1,5 @@
 import React, {FC, useEffect, useMemo, useState} from "preact/compat";
+import {CSSProperties} from "react";
 import {MouseEvent as ReactMouseEvent} from "react";
 import {DashboardRow} from "../../types";
 import Box from "@mui/material/Box";
@@ -10,7 +11,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import PredefinedPanels from "./PredefinedPanels";
 import Alert from "@mui/material/Alert";
-import {CSSProperties} from "@mui/styles";
 import useResize from "../../hooks/useResize";
 
 export interface PredefinedDashboardProps extends DashboardRow {

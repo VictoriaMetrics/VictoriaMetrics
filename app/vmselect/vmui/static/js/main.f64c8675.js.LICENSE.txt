@@ -1,12 +1,4 @@
 /**
- * A better abstraction over CSS.
- *
- * @copyright Oleg Isonen (Slobodskoi) / Isonen 2014-present
- * @website https://github.com/cssinjs/jss
- * @license MIT
- */
-
-/**
  * React Router DOM v6.3.0
  *
  * Copyright (c) Remix Software Inc.

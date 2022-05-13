@@ -131,13 +131,13 @@ export const relativeTimeOptions: RelativeTimeOption[] = [
   ...o
 }));
 
-export const getRelativeTime = (relativeTimeId?: string) => {
+export const getRelativeTime = ({relativeTimeId, defaultDuration, defaultEndInput}:
+                                  { relativeTimeId?: string, defaultDuration: string, defaultEndInput: Date }) => {
   const id = relativeTimeId || getQueryStringValue("g0.relative_time", "") as string;
   const target = relativeTimeOptions.find(d => d.id === id);
-  if (!target) return {};
   return {
     relativeTimeId: id,
-    relativeDuration: target.duration,
-    relativeUntil: target.until()
+    duration: target ? target.duration : defaultDuration,
+    endInput: target ? target.until() : defaultEndInput
   };
 };

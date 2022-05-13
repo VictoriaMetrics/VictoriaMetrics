@@ -1715,8 +1715,10 @@ func transformLabelValue(tfa *transformFuncArg) ([]*timeseries, error) {
 			v = nan
 		}
 		values := ts.Values
-		for i := range values {
-			values[i] = v
+		for i, vOrig := range values {
+			if !math.IsNaN(vOrig) {
+				values[i] = v
+			}
 		}
 	}
 	// Do not remove timeseries with only NaN values, so `default` could be applied to them:

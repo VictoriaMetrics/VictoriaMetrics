@@ -347,18 +347,20 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) {
 			}
 			frame.history.setDict(&dict)
 		}
-
-		if frame.FrameContentSize != fcsUnknown && frame.FrameContentSize > d.o.maxDecodedSize-uint64(len(dst)) {
-			return dst, ErrDecoderSizeExceeded
+		if frame.WindowSize > d.o.maxWindowSize {
+			return dst, ErrWindowSizeExceeded
 		}
-		if frame.FrameContentSize < 1<<30 {
-			// Never preallocate more than 1 GB up front.
+		if frame.FrameContentSize != fcsUnknown {
+			if frame.FrameContentSize > d.o.maxDecodedSize-uint64(len(dst)) {
+				return dst, ErrDecoderSizeExceeded
+			}
 			if cap(dst)-len(dst) < int(frame.FrameContentSize) {
-				dst2 := make([]byte, len(dst), len(dst)+int(frame.FrameContentSize))
+				dst2 := make([]byte, len(dst), len(dst)+int(frame.FrameContentSize)+compressedBlockOverAlloc)
 				copy(dst2, dst)
 				dst = dst2
 			}
 		}
+
 		if cap(dst) == 0 {
 			// Allocate len(input) * 2 by default if nothing is provided
 			// and we didn't get frame content size.
@@ -437,7 +439,7 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) {
 		println("got", len(d.current.b), "bytes, error:", d.current.err, "data crc:", tmp)
 	}
 
-	if len(next.b) > 0 {
+	if !d.o.ignoreChecksum && len(next.b) > 0 {
 		n, err := d.current.crc.Write(next.b)
 		if err == nil {
 			if n != len(next.b) {
@@ -449,7 +451,7 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) {
 		got := d.current.crc.Sum64()
 		var tmp [4]byte
 		binary.LittleEndian.PutUint32(tmp[:], uint32(got))
-		if !bytes.Equal(tmp[:], next.d.checkCRC) && !ignoreCRC {
+		if !d.o.ignoreChecksum && !bytes.Equal(tmp[:], next.d.checkCRC) && !ignoreCRC {
 			if debugDecoder {
 				println("CRC Check Failed:", tmp[:], " (got) !=", next.d.checkCRC, "(on stream)")
 			}
@@ -532,7 +534,7 @@ func (d *Decoder) nextBlockSync() (ok bool) {
 		}
 
 		// Update/Check CRC
-		if d.frame.HasCheckSum {
+		if !d.o.ignoreChecksum && d.frame.HasCheckSum {
 			d.frame.crc.Write(d.current.b)
 			if d.current.d.Last {
 				d.current.err = d.frame.checkCRC()
