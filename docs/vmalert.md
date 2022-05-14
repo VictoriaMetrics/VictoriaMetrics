@@ -199,9 +199,7 @@ Like in Alertmanager you can define [reusable templates](https://prometheus.io/d
 to share same templates across annotations. Just define the templates in a file and 
 set the path via `-rule.templates` flag.
 
-For example, the template can be defined as following:
-
-`/etc/vmalert/templates/global/common.tpl`
+For example, template `grafana.filter` can be defined as following:
 
 ```
 {{ define "grafana.filter" -}}
@@ -214,9 +212,7 @@ For example, the template can be defined as following:
 {{- end -}}
 ```
 
-And used in annotations:
-
-`/etc/vmalert/rules/project/rule.yaml`
+And then used in annotations:
 
 ```yaml
 groups:
