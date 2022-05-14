@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"math/rand"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -14,11 +13,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 )
 
 func TestMain(m *testing.M) {
-	u, _ := url.Parse("https://victoriametrics.com/path")
-	notifier.InitTemplateFunc(u)
+	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, true); err != nil {
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
@@ -47,9 +48,9 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 		"config/testdata/dir/rules0-bad.rules",
 		"config/testdata/dir/rules1-good.rules",
 		"config/testdata/dir/rules1-bad.rules",
-		"config/testdata/rules0-good.rules",
-		"config/testdata/rules1-good.rules",
-		"config/testdata/rules2-good.rules",
+		"config/testdata/rules/rules0-good.rules",
+		"config/testdata/rules/rules1-good.rules",
+		"config/testdata/rules/rules2-good.rules",
 	}
 	evalInterval := *evaluationInterval
 	defer func() { *evaluationInterval = evalInterval }()
@@ -125,7 +126,7 @@ func TestManagerUpdate(t *testing.T) {
 	}{
 		{
 			name:       "update good rules",
-			initPath:   "config/testdata/rules0-good.rules",
+			initPath:   "config/testdata/rules/rules0-good.rules",
 			updatePath: "config/testdata/dir/rules1-good.rules",
 			want: []*Group{
 				{
@@ -150,18 +151,18 @@ func TestManagerUpdate(t *testing.T) {
 		},
 		{
 			name:       "update good rules from 1 to 2 groups",
-			initPath:   "config/testdata/dir/rules1-good.rules",
-			updatePath: "config/testdata/rules0-good.rules",
+			initPath:   "config/testdata/dir/rules/rules1-good.rules",
+			updatePath: "config/testdata/rules/rules0-good.rules",
 			want: []*Group{
 				{
-					File:     "config/testdata/rules0-good.rules",
+					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
 					Type:     datasource.NewPrometheusType(),
 					Rules:    []Rule{VMRows},
 					Interval: defaultEvalInterval,
 				},
 				{
-					File:     "config/testdata/rules0-good.rules",
+					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
 					Type:     datasource.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
@@ -172,18 +173,18 @@ func TestManagerUpdate(t *testing.T) {
 		},
 		{
 			name:       "update with one bad rule file",
-			initPath:   "config/testdata/rules0-good.rules",
+			initPath:   "config/testdata/rules/rules0-good.rules",
 			updatePath: "config/testdata/dir/rules2-bad.rules",
 			want: []*Group{
 				{
-					File:     "config/testdata/rules0-good.rules",
+					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
 					Type:     datasource.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
 				{
-					File:     "config/testdata/rules0-good.rules",
+					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
 					Name:     "TestGroup",
 					Type:     datasource.NewPrometheusType(),
@@ -196,17 +197,17 @@ func TestManagerUpdate(t *testing.T) {
 		{
 			name:       "update empty dir rules from 0 to 2 groups",
 			initPath:   "config/testdata/empty/*",
-			updatePath: "config/testdata/rules0-good.rules",
+			updatePath: "config/testdata/rules/rules0-good.rules",
 			want: []*Group{
 				{
-					File:     "config/testdata/rules0-good.rules",
+					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
 					Type:     datasource.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
 				{
-					File:     "config/testdata/rules0-good.rules",
+					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
 					Type:     datasource.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
