@@ -10,18 +10,19 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestMain(m *testing.M) {
-	u, _ := url.Parse("https://victoriametrics.com/path")
-	notifier.InitTemplateFunc(u)
+	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, true); err != nil {
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
 func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/*good.rules", "testdata/dir/*good.*"}, true, true); err != nil {
+	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, true, true); err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 }
@@ -32,7 +33,7 @@ func TestParseBad(t *testing.T) {
 		expErr string
 	}{
 		{
-			[]string{"testdata/rules0-bad.rules"},
+			[]string{"testdata/rules/rules0-bad.rules"},
 			"unexpected token",
 		},
 		{
@@ -56,7 +57,7 @@ func TestParseBad(t *testing.T) {
 			"either `record` or `alert` must be set",
 		},
 		{
-			[]string{"testdata/rules1-bad.rules"},
+			[]string{"testdata/rules/rules1-bad.rules"},
 			"bad graphite expr",
 		},
 	}

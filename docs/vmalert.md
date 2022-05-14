@@ -25,6 +25,7 @@ implementation and aims to be compatible with its syntax.
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight without extra dependencies.
+* Supports [reusable templates](#reusable-templates) for annotations.
 
 ## Limitations
 
@@ -188,10 +189,53 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations
-to format data, iterate over it or execute expressions.
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over it or execute expressions.
 Additionally, `vmalert` provides some extra templating functions
-listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go).
+listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go) and [reusable templates](#reusable-templates).
+
+#### Reusable templates
+
+Like in Alertmanager you can use reusable templates to share same templates across anotations. Path to files with templates is provided with `-rule.templates` cli argument. E.g:
+
+`/etc/vmalert/templates/global/common.tpl`
+
+```
+{{ define "grafana.filter" -}}
+  {{- $labels := .arg0 -}}
+  {{- range $name, $label := . -}}
+    {{- if (ne $name "arg0") -}}
+      {{- ( or (index $labels $label) "All" ) | printf "&var-%s=%s" $label -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+```
+
+`/etc/vmalert/rules/project/rule.yaml`
+
+```yaml
+groups:
+  - name: AlertGroupName
+    rules:
+      - alert: AlertName
+        expr: any_metric > 100
+        for: 30s
+        labels:
+          alertname: 'Any metric is too high'
+          severity: 'warning'
+        annotations:
+          dashboard: '{{ $externalURL }}/d/dashboard?orgId=1{{ template "grafana.filter" (args .CommonLabels "account_id" "any_label") }}'
+```
+
+`vmalert` configuration flags:
+
+```
+./bin/vmalert -rule=/etc/vmalert/rules/**/*.yaml \    # Path to the fules with rules configuration
+    -rule.templates=/etc/vmalert/templates/**/*.tpl \ # Path to the files with rule templates
+    -datasource.url=http://victoriametrics:8428 \     # VM-single addr for executing rules expressions
+    -remoteWrite.url=http://victoriametrics:8428 \    # VM-single addr to persist alerts state and recording rules results
+    -remoteRead.url=http://victoriametrics:8428 \     # VM-single addr for restoring alerts state after restart
+    -notifier.url=http://alertmanager:9093            # AlertManager addr to send alerts when they trigger
+```
 
 #### Recording rules
 
@@ -796,6 +840,11 @@ The shortlist of configuration flags is the following:
      absolute path to all .yaml files in root.
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
      Supports an array of values separated by comma or specified via multiple flags.
+  -rule.templates
+     Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
+     Examples:
+      -rule.templates="/path/to/file". Path to a single file with go templates
+      -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder, absolute path to all .tpl files in root.
   -rule.configCheckInterval duration
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
