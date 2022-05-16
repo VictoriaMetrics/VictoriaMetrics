@@ -197,6 +197,7 @@ set the path via `-rule.templates` flag.
 
 For example, template `grafana.filter` can be defined as following:
 
+{% raw  %}
 ```
 {{ define "grafana.filter" -}}
   {{- $labels := .arg0 -}}
@@ -207,9 +208,11 @@ For example, template `grafana.filter` can be defined as following:
   {{- end -}}
 {{- end -}}
 ```
+{% endraw %}
 
 And then used in annotations:
 
+{% raw  %}
 ```yaml
 groups:
   - name: AlertGroupName
@@ -223,6 +226,7 @@ groups:
         annotations:
           dashboard: '{{ $externalURL }}/d/dashboard?orgId=1{{ template "grafana.filter" (args .CommonLabels "account_id" "any_label") }}'
 ```
+{% endraw %}
 
 The `-rule.templates` flag supports wildcards so multiple files with templates can be loaded.
 The content of `-rule.templates` can be also [hot reloaded](#hot-config-reload).
