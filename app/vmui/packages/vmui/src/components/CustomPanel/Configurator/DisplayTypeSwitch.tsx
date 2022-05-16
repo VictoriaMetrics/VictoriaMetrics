@@ -9,10 +9,10 @@ import {SyntheticEvent} from "react";
 
 export type DisplayType = "table" | "chart" | "code";
 
-const tabs = [
-  {value: "chart", icon: <ShowChartIcon/>, label: "Graph"},
+export const displayTypeTabs = [
+  {value: "chart", icon: <ShowChartIcon/>, label: "Graph", prometheusCode: 0},
   {value: "code", icon: <CodeIcon/>, label: "JSON"},
-  {value: "table", icon: <TableChartIcon/>, label: "Table"}
+  {value: "table", icon: <TableChartIcon/>, label: "Table", prometheusCode: 1}
 ];
 
 export const DisplayTypeSwitch: FC = () => {
@@ -29,7 +29,7 @@ export const DisplayTypeSwitch: FC = () => {
     onChange={handleChange}
     sx={{minHeight: "0", marginBottom: "-1px"}}
   >
-    {tabs.map(t =>
+    {displayTypeTabs.map(t =>
       <Tab key={t.value}
         icon={t.icon}
         iconPosition="start"
