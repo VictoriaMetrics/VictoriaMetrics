@@ -17,12 +17,12 @@
           "title": "Per-job disk read",
           "width": 6,
           "expr": ["sum(rate(process_io_storage_read_bytes_total)) by (job)"]
-        },{
+        },
+        {
           "title": "Per-job disk write",
           "width": 6,
           "expr": ["sum(rate(process_io_storage_written_bytes_total)) by (job)"]
         }
-
       ]
     }
   ]
