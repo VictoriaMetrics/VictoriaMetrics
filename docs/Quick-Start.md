@@ -148,7 +148,8 @@ It represents a cumulative metric which value never goes down and always shows t
 events. In other words, `counter` always shows the number of observed events since the application has started.
 In programming, `counter` is a variable that you **increment** each time something happens.
 
-<img alt="Example of a counter metric" src="Quick-Start_counter.png">
+{% include img.html href="Quick-Start_counter.png" %}
+
 
 `vm_http_requests_total` is a typical example of a counter - a metric which only grows. 
 The interpretation of a graph above is that time series 
@@ -166,7 +167,9 @@ served over `1h` interval.
 #### Gauge
 
 Gauge is used for measuring a value which can go up and down:
-![img.png](Quick-Start_gauge.png)
+
+{% include img.html href="Quick-Start_gauge.png" %}
+
 
 The metric `process_resident_memory_anon_bytes` on the graph shows the number of bytes of memory
 used by application during the runtime. It is changing frequently, going up and down showing how 
@@ -214,7 +217,8 @@ the range (`bucket`) defined in `vmrange`.
 
 Such combination of `counter` metrics allows plotting [Heatmaps in Grafana](https://grafana.com/docs/grafana/latest/visualizations/heatmap/)
 and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles):
-![img.png](Quick-Start_histogram.png)
+
+{% include img.html href="Quick-Start_histogram.png" %}
 
 Histograms are usually used for measuring latency, sizes of elements (batch size, for example) etc.
  There are two implementations of a histogram supported by VictoriaMetrics:
@@ -249,7 +253,8 @@ go_gc_duration_seconds_count 83
 ```
 
 The visualisation of summaries is pretty straightforward:
-![img.png](Quick-Start_summary.png)
+
+{% include img.html href="Quick-Start_summary.png" %}
 
 Such approach makes summaries easier to use but also puts significant limitation - summaries can't be aggregated.
 The [histogram](#histogram) exposes the raw values via counters. It means user can aggregate these counters
@@ -287,7 +292,7 @@ Both are used in modern monitoring and both are supported by VictoriaMetrics.
 
 Push model is a traditional model of client sending data to the server:
 
-![img.png](Quick-Start_push_model.png)
+{% include img.html href="Quick-Start_push_model.png" %}
 
 Client (application) decides when and where to send/ingest its metrics. 
 VictoriaMetrics supports following protocols for ingesting:
@@ -340,7 +345,7 @@ too many metrics.
 Pull model is an approach popularized by [Prometheus](https://prometheus.io/),
 where monitoring system decides when and where to pull metrics from:
 
-![Quick-Start_pull_model.png](Quick-Start_pull_model.png)
+{% include img.html href="Quick-Start_pull_model.png" %}
 
 In pull model, monitoring system needs to be aware of all the applications it needs
 to monitor. The metrics are scraped (pulled) with fixed intervals via HTTP protocol. 
@@ -377,7 +382,7 @@ exclusively one or second model, or both at once.
 
 The most common approach for data collection is using both models:
 
-![Start_data_collection](Quick-Start_data_collection.png)
+{% include img.html href="Quick-Start_data_collection.png" %}
 
 In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent.html).
 Vmagent is a lightweight agent which main purpose is to collect and deliver metrics.
@@ -392,7 +397,8 @@ installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. 
 For example, vmagents pushing metrics from separate datacenters to the central VictoriaMetrics:
-![img.png](Quick-Start_two_dcs.png)
+
+{% include img.html href="Quick-Start_two_dcs.png" %}
 
 VictoriaMetrics in example may be [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
@@ -440,7 +446,11 @@ foo_bar 4.00 1652170560000 # 2022-05-10 10:16:00
 The data sample contains a list of samples for one time series with time intervals between 
 samples from 1m to 3m. If we plot this data sample on the system of coordinates, it will have the following form:
 
-<img alt="Data sample visualization" width="500" src="Quick-Start_data_samples.png">
+<p style="text-align: center">
+    <a href="Quick-Start_data_samples.png" target="_blank">
+        <img src="Quick-Start_data_samples.png" width="500">
+    </a>
+</p>
 
 To get the value of `foo_bar` metric at some specific moment of time, for example `2022-05-10 10:03:00`, 
 in VictoriaMetrics we need to issue an **instant query**:
@@ -456,7 +466,12 @@ In response, VictoriaMetrics returns a single sample-timestamp pair with value o
 we'll see that there is no data point at `2022-05-10 10:03`. What happens here is if there is no data point at the 
 requested timestamp, VictoriaMetrics will try to locate the closest sample on the left to the requested timestamp:
 
-<img alt="Instant query" width="500" src="Quick-Start_instant_query.png">
+<p style="text-align: center">
+    <a href="Quick-Start_instant_query.png" target="_blank">
+        <img src="Quick-Start_instant_query.png" width="500">
+    </a>
+</p>
+
 
 The time range at which VictoriaMetrics will try to locate a missing data sample is equal to `5m` 
 by default and can be overridden via `step` parameter.
@@ -496,7 +511,12 @@ we'll see that it contains only 13 data points. What happens here is that the ra
 an [instant query](#instant-query) executed `(start-end)/step` times on the time range from `start` to `end`. 
 If we plot this request in VictoriaMetrics the graph will be showed as the following:
 
-<img alt="Range query" width="500" src="Quick-Start_range_query.png">
+<p style="text-align: center">
+    <a href="Quick-Start_range_query.png" target="_blank">
+        <img src="Quick-Start_range_query.png" width="500">
+    </a>
+</p>
+
 
 The blue dotted lines on the pic are the moments when instant query was executed. 
 Since instant query retains the ability to locate the missing point, the graph contains two types of 
@@ -662,7 +682,7 @@ VictoriaMetrics has built-in graphical User Interface for querying and visualizi
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui). 
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
-<img alt="VMUI" width="500" src="Quick-Start_vmui.png">
+{% include img.html href="Quick-Start_vmui.png" %}
 
 
 VictoriaMetrics supports [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/)
