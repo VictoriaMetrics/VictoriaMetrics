@@ -1,12 +1,18 @@
 import qs from "qs";
 import get from "lodash.get";
+import router from "../router";
 
-const stateToUrlParams = {
+const graphStateToUrlParams = {
   "time.duration": "range_input",
   "time.period.date": "end_input",
   "time.period.step": "step_input",
   "time.relativeTime": "relative_time",
-  "displayType": "tab"
+  "displayType": "tab",
+};
+
+const stateToUrlParams = {
+  [router.home]: graphStateToUrlParams,
+  [router.dashboards]: graphStateToUrlParams,
 };
 
 // TODO need function for detect types.
@@ -32,14 +38,23 @@ const stateToUrlParams = {
 export const setQueryStringWithoutPageReload = (qsValue: string): void => {
   const w = window;
   if (w) {
-    const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}?${qsValue}${w.location.hash}`;
+    const qs = qsValue ? `?${qsValue}` : "";
+    const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}${qs}${w.location.hash}`;
     w.history.pushState({ path: newurl }, "", newurl);
   }
 };
 
 export const setQueryStringValue = (newValue: Record<string, unknown>): void => {
-  const queryMap = new Map(Object.entries(stateToUrlParams));
-  const query = get(newValue, "query", "") as string[];
+  const route = window.location.hash.replace("#", "");
+  const params = stateToUrlParams[route] || {};
+  const queryMap = new Map(Object.entries(params));
+  const isGraphRoute = route === router.home || route === router.dashboards;
+  const newQsValue = isGraphRoute ? getGraphQsValue(newValue, queryMap) : getQsValue(newValue, queryMap);
+  setQueryStringWithoutPageReload(newQsValue.join("&"));
+};
+
+const getGraphQsValue = (newValue: Record<string, unknown>, queryMap: Map<string, string>): string[] => {
+  const query = get(newValue, "query", []) as string[];
   const newQsValue: string[] = [];
   query.forEach((q, i) => {
     queryMap.forEach((queryKey, stateKey) => {
@@ -52,7 +67,20 @@ export const setQueryStringValue = (newValue: Record<string, unknown>): void => 
     newQsValue.push(`g${i}.expr=${encodeURIComponent(q)}`);
   });
 
-  setQueryStringWithoutPageReload(newQsValue.join("&"));
+  return newQsValue;
+};
+
+const getQsValue = (newValue: Record<string, unknown>, queryMap: Map<string, string>): string[] => {
+  const newQsValue: string[] = [];
+  queryMap.forEach((queryKey, stateKey) => {
+    const value = get(newValue, stateKey, "") as string;
+    if (value) {
+      const valueEncoded = encodeURIComponent(value);
+      newQsValue.push(`${queryKey}=${valueEncoded}`);
+    }
+  });
+
+  return newQsValue;
 };
 
 export const getQueryStringValue = (
