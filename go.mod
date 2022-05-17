@@ -19,7 +19,7 @@ require (
 	// See https://github.com/cheggaaa/pb/pull/192#issuecomment-1121285954 for details.
 	github.com/dmitryk-dk/pb/v3 v3.0.9
 	github.com/golang/snappy v0.0.4
-	github.com/influxdata/influxdb v1.9.6
+	github.com/influxdata/influxdb v1.9.7
 	github.com/klauspost/compress v1.15.3
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
 	github.com/urfave/cli/v2 v2.6.0
