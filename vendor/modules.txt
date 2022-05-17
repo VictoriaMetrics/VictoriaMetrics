@@ -143,7 +143,7 @@ github.com/googleapis/gax-go/v2/apierror/internal/proto
 # github.com/googleapis/go-type-adapters v1.0.0
 ## explicit; go 1.11
 github.com/googleapis/go-type-adapters/adapters
-# github.com/influxdata/influxdb v1.9.6
+# github.com/influxdata/influxdb v1.9.7
 ## explicit; go 1.17
 github.com/influxdata/influxdb/client/v2
 github.com/influxdata/influxdb/models
