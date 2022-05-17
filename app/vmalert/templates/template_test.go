@@ -23,7 +23,7 @@ func mkTemplate(current, replacement interface{}) textTemplate {
 	return tmpl
 }
 
-func equalTemplates(t *testing.T, tmpls ...*textTpl.Template) bool {
+func equalTemplates(tmpls ...*textTpl.Template) bool {
 	var cmp *textTpl.Template
 	for i, tmpl := range tmpls {
 		if i == 0 {
@@ -191,10 +191,10 @@ func TestTemplates_Load(t *testing.T) {
 				t.Error("%+w", err)
 				t.Error("expected string doesn't exist in error message")
 			}
-			if !equalTemplates(t, masterTmpl.replacement, tc.expectedTemplate.replacement) {
+			if !equalTemplates(masterTmpl.replacement, tc.expectedTemplate.replacement) {
 				t.Fatalf("replacement template is not as expected")
 			}
-			if !equalTemplates(t, masterTmpl.current, tc.expectedTemplate.current) {
+			if !equalTemplates(masterTmpl.current, tc.expectedTemplate.current) {
 				t.Fatalf("current template is not as expected")
 			}
 		})
@@ -264,10 +264,10 @@ func TestTemplates_Reload(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			masterTmpl = tc.initialTemplate
 			Reload()
-			if !equalTemplates(t, masterTmpl.replacement, tc.expectedTemplate.replacement) {
+			if !equalTemplates(masterTmpl.replacement, tc.expectedTemplate.replacement) {
 				t.Fatalf("replacement template is not as expected")
 			}
-			if !equalTemplates(t, masterTmpl.current, tc.expectedTemplate.current) {
+			if !equalTemplates(masterTmpl.current, tc.expectedTemplate.current) {
 				t.Fatalf("current template is not as expected")
 			}
 		})
