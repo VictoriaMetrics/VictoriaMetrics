@@ -122,7 +122,9 @@ are two different time series.
 
 The number of all unique labels combinations for one metric defines its `cardinality`. 
 For example, if `requests_total` has 3 unique `path` values and 5 unique `code` values, 
-then its cardinality will be `3*5=15` of unique time series.
+then its cardinality will be `3*5=15` of unique time series. If you add a one more
+unique `path` value, cardinality will bump to `20`. See more in 
+[What is cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality).
 
 Every time series consists of `datapoints` (also called `samples`). 
 A `datapoint` is value-timestamp pair associated with the specific series:
@@ -131,7 +133,7 @@ requests_total{path="/", code="200"} <float64 value> <unixtimestamp>
 ```
 
 In VictoriaMetrics data model, datapoint's value is of type `float64`. 
-And timestamp is unixtime with milliseconds precision. Each series can contain infinite number of datapoints.
+And timestamp is unix time with milliseconds precision. Each series can contain infinite number of datapoints.
 
 
 ### Types of metrics
@@ -520,8 +522,8 @@ If we plot this request in VictoriaMetrics the graph will be showed as the follo
 
 The blue dotted lines on the pic are the moments when instant query was executed. 
 Since instant query retains the ability to locate the missing point, the graph contains two types of 
-points: `real` and `ephemeral` data points. The `ephemeral` data point always repeats the left closest `real` 
-data point (red arrow).
+points: `real` and `ephemeral` data points. `ephemeral` data point always repeats the left closest 
+`real` data point (see red arrow on the pic above).
 
 This behaviour of adding ephemeral data points comes from the specifics of the [Pull model](#pull-model):
 * Metrics are scraped at fixed intervals;
@@ -697,8 +699,8 @@ based on PromQL and MetricsQL queries that will send a notification when such co
 
 ## Data migration
 
-Migrating data from other TSDBs to VictoriaMetrics as simple as import data in any of 
-[supported formats][#push-model].
+Migrating data from other TSDBs to VictoriaMetrics as simple as import data via any of 
+[supported formats](#push-model).
 
 The migration might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl.html) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:
@@ -707,3 +709,55 @@ command line tool. It supports the following databases for migration to Victoria
 * [InfluxDB](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-1x);
 * [OpenTSDB](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-opentsdb);
 * [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
+
+## Productionisation
+
+When going to production with VictoriaMetrics we recommend following the recommendations.
+
+### Monitoring
+
+Each VictoriaMetrics component emits its own metrics with various details regarding performance
+and health state. Docs for the components also contain a `Monitoring` section with explanation
+what and how should be monitored. For example,
+[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring).
+
+VictoriaMetric team prepared a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards)
+for the main components. Each dashboard contains a lot of useful information and tips. It is recommended
+to have these dashboards installed and up to date.
+
+The list of alerts for [single](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
+and [cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml)
+versions would also help to identify and notify about issues with the system.
+
+The rule of the thumb is to have a separate installation of VictoriaMetrics or any other monitoring system
+to monitor the production installation of VictoriaMetrics. This would make monitoring independent and
+will help identifying problems with the main monitoring installation.
+
+
+### Capacity planning
+
+See capacity planning sections in [docs](https://docs.victoriametrics.com) for
+[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning).
+and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning).
+
+Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
+Understanding of resource usage and performance of VictoriaMetrics also requires knowing the tech terms
+[active series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series),
+[churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate),
+[cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality),
+[slow inserts](https://docs.victoriametrics.com/FAQ.html#what-is-a-slow-insert).
+All of them are present in [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
+
+
+### Data safety
+
+It is recommended reading [Replication and data safety](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety),
+[Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
+and [backups](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backups).
+
+
+### Configuring limits
+
+In order to avoid excessive resource usage or performance degradation limits must be in place:
+* [Resource usage limits](https://docs.victoriametrics.com/FAQ.html#how-to-set-a-memory-limit-for-victoriametrics-components);
+* [Cardinality limiter](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cardinality-limiter).
