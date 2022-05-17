@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -258,9 +259,13 @@ func templateFuncs() textTpl.FuncMap {
 
 		// humanize converts given number to a human readable format
 		// by adding metric prefixes https://en.wikipedia.org/wiki/Metric_prefix
-		"humanize": func(v float64) string {
+		"humanize": func(i interface{}) (string, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", err
+			}
 			if v == 0 || math.IsNaN(v) || math.IsInf(v, 0) {
-				return fmt.Sprintf("%.4g", v)
+				return fmt.Sprintf("%.4g", v), nil
 			}
 			if math.Abs(v) >= 1 {
 				prefix := ""
@@ -271,7 +276,7 @@ func templateFuncs() textTpl.FuncMap {
 					prefix = p
 					v /= 1000
 				}
-				return fmt.Sprintf("%.4g%s", v, prefix)
+				return fmt.Sprintf("%.4g%s", v, prefix), nil
 			}
 			prefix := ""
 			for _, p := range []string{"m", "u", "n", "p", "f", "a", "z", "y"} {
@@ -281,13 +286,17 @@ func templateFuncs() textTpl.FuncMap {
 				prefix = p
 				v *= 1000
 			}
-			return fmt.Sprintf("%.4g%s", v, prefix)
+			return fmt.Sprintf("%.4g%s", v, prefix), nil
 		},
 
 		// humanize1024 converts given number to a human readable format with 1024 as base
-		"humanize1024": func(v float64) string {
+		"humanize1024": func(i interface{}) (string, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", err
+			}
 			if math.Abs(v) <= 1 || math.IsNaN(v) || math.IsInf(v, 0) {
-				return fmt.Sprintf("%.4g", v)
+				return fmt.Sprintf("%.4g", v), nil
 			}
 			prefix := ""
 			for _, p := range []string{"ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"} {
@@ -297,16 +306,20 @@ func templateFuncs() textTpl.FuncMap {
 				prefix = p
 				v /= 1024
 			}
-			return fmt.Sprintf("%.4g%s", v, prefix)
+			return fmt.Sprintf("%.4g%s", v, prefix), nil
 		},
 
 		// humanizeDuration converts given seconds to a human readable duration
-		"humanizeDuration": func(v float64) string {
+		"humanizeDuration": func(i interface{}) (string, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", err
+			}
 			if math.IsNaN(v) || math.IsInf(v, 0) {
-				return fmt.Sprintf("%.4g", v)
+				return fmt.Sprintf("%.4g", v), nil
 			}
 			if v == 0 {
-				return fmt.Sprintf("%.4gs", v)
+				return fmt.Sprintf("%.4gs", v), nil
 			}
 			if math.Abs(v) >= 1 {
 				sign := ""
@@ -320,16 +333,16 @@ func templateFuncs() textTpl.FuncMap {
 				days := int64(v) / 60 / 60 / 24
 				// For days to minutes, we display seconds as an integer.
 				if days != 0 {
-					return fmt.Sprintf("%s%dd %dh %dm %ds", sign, days, hours, minutes, seconds)
+					return fmt.Sprintf("%s%dd %dh %dm %ds", sign, days, hours, minutes, seconds), nil
 				}
 				if hours != 0 {
-					return fmt.Sprintf("%s%dh %dm %ds", sign, hours, minutes, seconds)
+					return fmt.Sprintf("%s%dh %dm %ds", sign, hours, minutes, seconds), nil
 				}
 				if minutes != 0 {
-					return fmt.Sprintf("%s%dm %ds", sign, minutes, seconds)
+					return fmt.Sprintf("%s%dm %ds", sign, minutes, seconds), nil
 				}
 				// For seconds, we display 4 significant digits.
-				return fmt.Sprintf("%s%.4gs", sign, v)
+				return fmt.Sprintf("%s%.4gs", sign, v), nil
 			}
 			prefix := ""
 			for _, p := range []string{"m", "u", "n", "p", "f", "a", "z", "y"} {
@@ -339,21 +352,29 @@ func templateFuncs() textTpl.FuncMap {
 				prefix = p
 				v *= 1000
 			}
-			return fmt.Sprintf("%.4g%ss", v, prefix)
+			return fmt.Sprintf("%.4g%ss", v, prefix), nil
 		},
 
 		// humanizePercentage converts given ratio value to a fraction of 100
-		"humanizePercentage": func(v float64) string {
-			return fmt.Sprintf("%.4g%%", v*100)
+		"humanizePercentage": func(i interface{}) (string, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("%.4g%%", v*100), nil
 		},
 
 		// humanizeTimestamp converts given timestamp to a human readable time equivalent
-		"humanizeTimestamp": func(v float64) string {
+		"humanizeTimestamp": func(i interface{}) (string, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", err
+			}
 			if math.IsNaN(v) || math.IsInf(v, 0) {
-				return fmt.Sprintf("%.4g", v)
+				return fmt.Sprintf("%.4g", v), nil
 			}
 			t := TimeFromUnixNano(int64(v * 1e9)).Time().UTC()
-			return fmt.Sprint(t)
+			return fmt.Sprint(t), nil
 		},
 
 		/* URLs */
@@ -490,4 +511,29 @@ const second = int64(time.Second / minimumTick)
 // Time returns the time.Time representation of t.
 func (t Time) Time() time.Time {
 	return time.Unix(int64(t)/second, (int64(t)%second)*nanosPerTick)
+}
+
+func toFloat64(v interface{}) (float64, error) {
+	switch i := v.(type) {
+	case float64:
+		return i, nil
+	case float32:
+		return float64(i), nil
+	case int64:
+		return float64(i), nil
+	case int32:
+		return float64(i), nil
+	case int:
+		return float64(i), nil
+	case uint64:
+		return float64(i), nil
+	case uint32:
+		return float64(i), nil
+	case uint:
+		return float64(i), nil
+	case string:
+		return strconv.ParseFloat(i, 64)
+	default:
+		return 0, fmt.Errorf("unexpected value type %v", i)
+	}
 }
