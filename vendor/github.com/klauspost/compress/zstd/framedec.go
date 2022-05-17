@@ -310,7 +310,7 @@ func (d *frameDec) checkCRC() error {
 	tmp[2] = byte(got >> 16)
 	tmp[3] = byte(got >> 24)
 
-	if !bytes.Equal(tmp[:], want) && !ignoreCRC {
+	if !bytes.Equal(tmp[:], want) {
 		if debugDecoder {
 			println("CRC Check Failed:", tmp[:], "!=", want)
 		}

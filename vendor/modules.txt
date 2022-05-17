@@ -151,7 +151,7 @@ github.com/influxdata/influxdb/pkg/escape
 # github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
-# github.com/klauspost/compress v1.15.3
+# github.com/klauspost/compress v1.15.4
 ## explicit; go 1.16
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
