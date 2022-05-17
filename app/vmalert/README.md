@@ -384,6 +384,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
+The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
 all `vmalert`s are having the same config.
