@@ -80,7 +80,7 @@ It represents a cumulative metric whose value never goes down and always shows t
 events. In other words, `counter` always shows the number of observed events since the application has started.
 In programming, `counter` is a variable that you **increment** each time something happens.
 
-{% include img.html href="KeyConcepts_counter.png" %}
+{% include img.html href="keyConcepts_counter.png" %}
 
 
 `vm_http_requests_total` is a typical example of a counter - a metric which only grows.
@@ -100,7 +100,7 @@ The most common [MetricsQL](#metricsql) functions used with counters are:
 
 Gauge is used for measuring a value that can go up and down:
 
-{% include img.html href="KeyConcepts_gauge.png" %}
+{% include img.html href="keyConcepts_gauge.png" %}
 
 
 The metric `process_resident_memory_anon_bytes` on the graph shows the number of bytes of memory
@@ -150,7 +150,7 @@ Now let's see what happens each time when `perQueryRowsProcessed.Update` is call
 Such a combination of `counter` metrics allows plotting [Heatmaps in Grafana](https://grafana.com/docs/grafana/latest/visualizations/heatmap/)
 and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles):
 
-{% include img.html href="KeyConcepts_histogram.png" %}
+{% include img.html href="keyConcepts_histogram.png" %}
 
 Histograms are usually used for measuring latency, sizes of elements (batch size, for example) etc.
 There are two implementations of a histogram supported by VictoriaMetrics:
@@ -186,7 +186,7 @@ go_gc_duration_seconds_count 83
 
 The visualisation of summaries is pretty straightforward:
 
-{% include img.html href="KeyConcepts_summary.png" %}
+{% include img.html href="keyConcepts_summary.png" %}
 
 Such an approach makes summaries easier to use but also puts significant limitations - summaries can't be aggregated.
 The [histogram](#histogram) exposes the raw values via counters. It means a user can aggregate these counters
@@ -224,7 +224,7 @@ Both are used in modern monitoring and both are supported by VictoriaMetrics.
 
 Push model is a traditional model of the client sending data to the server:
 
-{% include img.html href="KeyConcepts_push_model.png" %}
+{% include img.html href="keyConcepts_push_model.png" %}
 
 The client (application) decides when and where to send/ingest its metrics.
 VictoriaMetrics supports following protocols for ingesting:
@@ -277,7 +277,7 @@ The cons of push protocol:
 Pull model is an approach popularized by [Prometheus](https://prometheus.io/),
 where the monitoring system decides when and where to pull metrics from:
 
-{% include img.html href="KeyConcepts_pull_model.png" %}
+{% include img.html href="keyConcepts_pull_model.png" %}
 
 In pull model, the monitoring system needs to be aware of all the applications it needs
 to monitor. The metrics are scraped (pulled) with fixed intervals via HTTP protocol.
@@ -314,7 +314,7 @@ exclusively one or second model, or both at once.
 
 The most common approach for data collection is using both models:
 
-{% include img.html href="KeyConcepts_data_collection.png" %}
+{% include img.html href="keyConcepts_data_collection.png" %}
 
 In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent.html).
 Vmagent is a lightweight agent whose main purpose is to collect and deliver metrics.
@@ -330,7 +330,7 @@ installation for querying collected data.
 VictoriaMetrics components allow building more advanced topologies.
 For example, vmagents pushing metrics from separate datacenters to the central VictoriaMetrics:
 
-{% include img.html href="KeyConcepts_two_dcs.png" %}
+{% include img.html href="keyConcepts_two_dcs.png" %}
 
 VictoriaMetrics in example may be [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
@@ -380,8 +380,8 @@ The data sample contains a list of samples for one time series with time interva
 samples from 1m to 3m. If we plot this data sample on the system of coordinates, it will have the following form:
 
 <p style="text-align: center">
-    <a href="KeyConcepts_data_samples.png" target="_blank">
-        <img src="KeyConcepts_data_samples.png" width="500">
+    <a href="keyConcepts_data_samples.png" target="_blank">
+        <img src="keyConcepts_data_samples.png" width="500">
     </a>
 </p>
 
@@ -400,8 +400,8 @@ we'll see that there is no data point at `2022-05-10 10:03`. What happens here i
 requested timestamp, VictoriaMetrics will try to locate the closest sample on the left to the requested timestamp:
 
 <p style="text-align: center">
-    <a href="KeyConcepts_instant_query.png" target="_blank">
-        <img src="KeyConcepts_instant_query.png" width="500">
+    <a href="keyConcepts_instant_query.png" target="_blank">
+        <img src="keyConcepts_instant_query.png" width="500">
     </a>
 </p>
 
@@ -445,8 +445,8 @@ an [instant query](#instant-query) executed `(start-end)/step` times on the time
 If we plot this request in VictoriaMetrics the graph will be shown as the following:
 
 <p style="text-align: center">
-    <a href="KeyConcepts_range_query.png" target="_blank">
-        <img src="KeyConcepts_range_query.png" width="500">
+    <a href="keyConcepts_range_query.png" target="_blank">
+        <img src="keyConcepts_range_query.png" width="500">
     </a>
 </p>
 
@@ -616,7 +616,7 @@ VictoriaMetrics has a built-in graphical User Interface for querying and visuali
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui).
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
-{% include img.html href="KeyConcepts_vmui.png" %}
+{% include img.html href="keyConcepts_vmui.png" %}
 
 VictoriaMetrics supports [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/)
 which makes it possible to [use with Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup).
