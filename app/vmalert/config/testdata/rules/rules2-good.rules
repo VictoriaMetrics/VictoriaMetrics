@@ -2,8 +2,6 @@ groups:
   - name: TestGroup
     interval: 2s
     concurrency: 2
-    extra_filter_labels: # deprecated param, use `params` instead
-        job: victoriametrics
     params:
       denyPartialResponse: ["true"]
       extra_label: ["env=dev"]
@@ -50,3 +48,11 @@ groups:
             sum(code:requests:rate5m{code="200"})
           /
             sum(code:requests:rate5m)
+      - record: code:requests:slo
+        labels:
+           recording: true
+        expr: 0.95
+      - record: time:current
+        labels:
+           recording: true
+        expr: time()
