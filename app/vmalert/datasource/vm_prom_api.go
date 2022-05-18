@@ -129,7 +129,6 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, 
 		}
 		return ps.metrics()
 	default:
-		fmt.Println(string(r.Data.Result))
 		return nil, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
 }
