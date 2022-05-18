@@ -24,6 +24,7 @@ type Config struct {
 
 	ec2Endpoint string
 	stsEndpoint string
+	service     string
 
 	// these keys are needed for obtaining creds.
 	defaultAccessKey string
@@ -43,13 +44,18 @@ type credentials struct {
 }
 
 // NewConfig returns new AWS Config.
-func NewConfig(region, roleARN, accessKey, secretKey string) (*Config, error) {
+func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, error) {
 	cfg := &Config{
 		client:           http.DefaultClient,
 		region:           region,
 		roleARN:          roleARN,
+		service:          service,
 		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+	}
+	cfg.service = service
+	if cfg.service == "" {
+		cfg.service = "aps"
 	}
 	cfg.region = region
 	if cfg.region == "" {
@@ -115,12 +121,12 @@ func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken s
 }
 
 // SignRequest signs request for service access and payloadHash.
-func (cfg *Config) SignRequest(req *http.Request, service string, payloadHash string) error {
+func (cfg *Config) SignRequest(req *http.Request, payloadHash string) error {
 	ac, err := cfg.getFreshAPICredentials()
 	if err != nil {
 		return err
 	}
-	return signRequestWithTime(req, service, cfg.region, payloadHash, ac, time.Now().UTC())
+	return signRequestWithTime(req, cfg.service, cfg.region, payloadHash, ac, time.Now().UTC())
 }
 
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
