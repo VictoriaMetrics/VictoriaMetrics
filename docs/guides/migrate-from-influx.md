@@ -33,7 +33,8 @@ from similarities and differences:
 * there are
   no [measurements](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#measurement)
   or [fields](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#field-key) in
-  VictoriaMetrics, metric name contains it all;
+  VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics 
+  it will be multiple metrics;
 * there are no [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
   or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization), all
   data in VictoriaMetrics is stored in global namespace or within
@@ -62,6 +63,7 @@ In VictoriaMetrics data model this sample will have the following form:
 Actually, metric name for VictoriaMetrics is also a label with static name `__name__`, and example above can be
 converted to `{__name__="census_bees", location="klamath", scientist="anderson"}`. All labels are indexed by
 VictoriaMetrics, so lookups by names or labels have the same query speed.
+
 
 ## Write data
 
@@ -103,6 +105,10 @@ The expected response is the following:
 }
 ```
 
+Please note, VictoriaMetrics performed additional
+[data mapping](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+to the data ingested via InfluxDB line protocol.
+
 Support of InfluxDB line protocol also means VictoriaMetrics is compatible with
 [Telegraf](https://github.com/influxdata/telegraf). To configure Telegraf, simply
 add `http://<victoriametric-addr>:8428` URL to Telegraf configs:
@@ -111,10 +117,6 @@ add `http://<victoriametric-addr>:8428` URL to Telegraf configs:
 [[outputs.influxdb]]
   urls = ["http://<victoriametrics-addr>:8428"]
 ```
-
-Please note, VictoriaMetrics will perform additional
-[data mapping](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-to the ingested InfluxDB data.
 
 In addition to InfluxDB line protocol, VictoriaMetrics supports many other ways for
 [metrics collection](https://docs.victoriametrics.com/keyConcepts.html#write-data).
@@ -137,7 +139,8 @@ See more about [how to query data in VictoriaMetrics](https://docs.victoriametri
 Let's take a closer look on querying specific with the following data sample:
 
 ```sql
-foo,instance=localhost bar=1.00 1652169600000000000
+foo
+,instance=localhost bar=1.00 1652169600000000000
 foo,instance=localhost bar=2.00 1652169660000000000
 foo,instance=localhost bar=3.00 1652169720000000000
 foo,instance=localhost bar=5.00 1652169840000000000
@@ -248,9 +251,10 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than actual data resolution. See
       more about this [here](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
 * How do I get the `real` last data point, not `ephemeral`?
-    * _[last_over_time](https://docs.victoriametrics.com/MetricsQL.html#last_over_time) function can be used for limiting
-      the lookbehind window for calculated data. For example, `last_over_time(metric[10s])` would return calculated
-      samples only if the real samples are located closer than 10 seconds to the calculated timestamps according to
+    * _[last_over_time](https://docs.victoriametrics.com/MetricsQL.html#last_over_time) function can be used for
+      limiting the lookbehind window for calculated data. For example, `last_over_time(metric[10s])` would return
+      calculated samples only if the real samples are located closer than 10 seconds to the calculated timestamps
+      according to
       `start`, `end` and `step` query args passed
       to [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
 * How do I get raw data points with MetricsQL?
