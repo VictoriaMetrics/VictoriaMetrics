@@ -248,16 +248,16 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than actual data resolution. See
       more about this [here](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
 * How do I get the `real` last data point, not `ephemeral`?
-    * [last_over_time](https://docs.victoriametrics.com/MetricsQL.html#last_over_time) function can be used for limiting
+    * _[last_over_time](https://docs.victoriametrics.com/MetricsQL.html#last_over_time) function can be used for limiting
       the lookbehind window for calculated data. For example, `last_over_time(metric[10s])` would return calculated
       samples only if the real samples are located closer than 10 seconds to the calculated timestamps according to
       `start`, `end` and `step` query args passed
-      to [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+      to [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
 * How do I get raw data points with MetricsQL?
-    * For getting raw data points specify the interval at which you want them in square brackets and send
+    * _For getting raw data points specify the interval at which you want them in square brackets and send
       as [instant query](https://docs.victoriametrics.com/keyConcepts.html#instant-query). For
       example, `GET api/v1/query?query="my_metric[5m]"&time=<time>` will return raw samples for `my_metric` in interval
-      from `<time>` to `<time>-5m`.
+      from `<time>` to `<time>-5m`._
 * Can you have multiple aggregators in a MetricsQL query, e.g. `SELECT MAX(field), MIN(field) ...`?
     * _Yes, try the following query `( alias(max(field), "max"), alias(min(field), "min") )`._
 * How to translate Influx `percentile` function to MetricsQL?
