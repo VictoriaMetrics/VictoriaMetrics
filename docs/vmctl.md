@@ -20,7 +20,7 @@ To see the full list of supported modes
 run the following command:
 
 ```bash
-./vmctl --help                                        
+$ ./vmctl --help                                        
 NAME:
    vmctl - VictoriaMetrics command-line tool
 
@@ -39,7 +39,7 @@ Each mode has its own unique set of flags specific (e.g. prefixed with `influx` 
 to the data source and common list of flags for destination (prefixed with `vm` for VictoriaMetrics):
 
 ```
-./vmctl influx --help
+$ ./vmctl influx --help
 OPTIONS:
    --influx-addr value              InfluxDB server addr (default: "http://localhost:8086")
    --influx-user value              InfluxDB user [$INFLUX_USERNAME]
@@ -59,7 +59,7 @@ them below in corresponding sections.
 For the destination flags see the full description by running the following command:
 
 ```
-./vmctl influx --help | grep vm-
+$ ./vmctl influx --help | grep vm-
 ```
 
 Some flags like [--vm-extra-label](#adding-extra-labels) or [--vm-significant-figures](#significant-figures)
@@ -81,11 +81,11 @@ forget to specify the `--vm-account-id` flag. See more details for cluster versi
 
 See `./vmctl opentsdb --help` for details and full list of flags.
 
-*OpenTSDB migration is not possible without a functioning [meta](http://opentsdb.net/docs/build/html/user_guide/metadata.html) table to search for metrics/series.*
+**Important:** OpenTSDB migration is not possible without a functioning [meta](http://opentsdb.net/docs/build/html/user_guide/metadata.html) table to search for metrics/series. Check in OpenTSDB config that appropriate options are [activated]( https://github.com/OpenTSDB/opentsdb/issues/681#issuecomment-177359563) and HBase meta tables are present. W/o them migration won't work.
 
 OpenTSDB migration works like so:
 
-1. Find metrics based on selected filters (or the default filter set ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'])
+1. Find metrics based on selected filters (or the default filter set `['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']`)
 
 - e.g. `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
 
@@ -93,9 +93,11 @@ OpenTSDB migration works like so:
 
 - e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
 
+Here `results` return field should not be empty. Otherwise it means that meta tables are absent and needs to be turned on previously.
+
 3. Download data for each series in chunks defined in the CLI switches
 
-- e.g. `-retention=sum-1m-avg:1h:90d` ==
+- e.g. `-retention=sum-1m-avg:1h:90d` means
   - `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
   - `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
   - `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
@@ -105,7 +107,7 @@ OpenTSDB migration works like so:
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
 ```
-$ bin/vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria/
+$ ./vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria:8428/
 OpenTSDB import mode
 2021/04/09 11:52:50 Will collect data starting at TS 1617990770
 2021/04/09 11:52:50 Loading all metrics from OpenTSDB for filters:  [system]
@@ -113,6 +115,14 @@ Found 9 metrics to import. Continue? [Y/n]
 2021/04/09 11:52:51 Starting work on system.load1
 23 / 402200 [>____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________] 0.01% 2 p/s
 ```
+Where `:8428` is Prometheus port of VictoriaMetrics.
+
+For clustered VictoriaMetrics setup `--vm-account-id` flag needs to be added, for example:
+
+```
+$ ./vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria:8480/ --vm-account-id 0
+```
+This time `:8480` port is vminsert/Prometheus input port.
 
 ### Retention strings
 
