@@ -101,11 +101,18 @@ func (aw *apiWatcher) mustStop() {
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func (aw *apiWatcher) reloadScrapeWorks(uw *urlWatcher, swosByKey map[string][]interface{}) {
+func (aw *apiWatcher) reloadScrapeWorks(uw *urlWatcher, swosByKey map[string][]interface{}, mustReplace bool) {
 	aw.swosByURLWatcherLock.Lock()
+	defer aw.swosByURLWatcherLock.Unlock()
 	aw.swosCount.Add(len(swosByKey) - len(aw.swosByURLWatcher[uw]))
-	aw.swosByURLWatcher[uw] = swosByKey
-	aw.swosByURLWatcherLock.Unlock()
+	if mustReplace {
+		// fast path
+		aw.swosByURLWatcher[uw] = swosByKey
+		return
+	}
+	for k := range swosByKey {
+		aw.swosByURLWatcher[uw][k] = swosByKey[k]
+	}
 }
 
 func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labels []map[string]string) {
@@ -312,7 +319,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 						gw.mu.Lock()
 						if uw.needUpdateScrapeWorks {
 							uw.needUpdateScrapeWorks = false
-							uw.updateScrapeWorksLocked(uw.objectsByKey, uw.aws)
+							uw.updateScrapeWorksLocked(uw.objectsByKey, uw.aws, true)
 							sleepTime = time.Since(startTime)
 							if sleepTime < minSleepTime {
 								sleepTime = minSleepTime
@@ -450,7 +457,7 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 	if len(uw.awsPending) == 0 {
 		return
 	}
-	uw.updateScrapeWorksLocked(uw.objectsByKey, uw.awsPending)
+	uw.updateScrapeWorksLocked(uw.objectsByKey, uw.awsPending, true)
 	for aw := range uw.awsPending {
 		uw.aws[aw] = struct{}{}
 	}
@@ -460,7 +467,7 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Add(-awsPendingLen)
 }
 
-func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
+func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}, mustReplace bool) {
 	if len(objectsByKey) == 0 || len(awsMap) == 0 {
 		return
 	}
@@ -497,7 +504,7 @@ func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, aw
 	}
 	wg.Wait()
 	for i, aw := range aws {
-		aw.reloadScrapeWorks(uw, swosByKey[i])
+		aw.reloadScrapeWorks(uw, swosByKey[i], mustReplace)
 	}
 }
 
@@ -572,8 +579,8 @@ func (uw *urlWatcher) reloadObjects() string {
 		}
 	}
 	uw.removeScrapeWorksLocked(objectsRemoved)
-	uw.updateScrapeWorksLocked(objectsUpdated, uw.aws)
-	uw.updateScrapeWorksLocked(objectsAdded, uw.aws)
+	uw.updateScrapeWorksLocked(objectsUpdated, uw.aws, false)
+	uw.updateScrapeWorksLocked(objectsAdded, uw.aws, false)
 	uw.needUpdateScrapeWorks = false
 	if len(objectsRemoved) > 0 || len(objectsUpdated) > 0 || len(objectsAdded) > 0 {
 		uw.maybeUpdateDependedScrapeWorksLocked()
