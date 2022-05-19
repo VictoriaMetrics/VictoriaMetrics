@@ -287,8 +287,7 @@ and needs to be configured with `-promscrape.config` flag pointing to the file w
 This configuration may include list of static `targets` (applications or services)
 or `targets` discovered via various service discoveries.
 
-Metrics scraping is supported by [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html),
-[cluster component vmselect](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview)
+Metrics scraping is supported by [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 and [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
 The pros of the pull model:
