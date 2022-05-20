@@ -6,42 +6,6 @@ import (
 	"strconv"
 )
 
-// IntFlag is a flag with type int
-type IntFlag struct {
-	Name        string
-	Aliases     []string
-	Usage       string
-	EnvVars     []string
-	FilePath    string
-	Required    bool
-	Hidden      bool
-	Value       int
-	DefaultText string
-	Destination *int
-	HasBeenSet  bool
-}
-
-// IsSet returns whether or not the flag has been set through env or file
-func (f *IntFlag) IsSet() bool {
-	return f.HasBeenSet
-}
-
-// String returns a readable representation of this value
-// (for usage defaults)
-func (f *IntFlag) String() string {
-	return FlagStringer(f)
-}
-
-// Names returns the names of the flag
-func (f *IntFlag) Names() []string {
-	return flagNames(f.Name, f.Aliases)
-}
-
-// IsRequired returns whether or not the flag is required
-func (f *IntFlag) IsRequired() bool {
-	return f.Required
-}
-
 // TakesValue returns true of the flag takes a value, otherwise false
 func (f *IntFlag) TakesValue() bool {
 	return true
@@ -56,11 +20,6 @@ func (f *IntFlag) GetUsage() string {
 // string if the flag takes no value at all.
 func (f *IntFlag) GetValue() string {
 	return fmt.Sprintf("%d", f.Value)
-}
-
-// IsVisible returns true if the flag is not hidden, otherwise false
-func (f *IntFlag) IsVisible() bool {
-	return !f.Hidden
 }
 
 // GetDefaultText returns the default text for this flag

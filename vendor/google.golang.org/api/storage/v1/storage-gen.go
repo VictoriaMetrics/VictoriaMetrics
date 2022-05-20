@@ -827,11 +827,21 @@ type BucketLifecycleRuleCondition struct {
 	// ways and that it is not guaranteed to be released.
 	MatchesPattern string `json:"matchesPattern,omitempty"`
 
+	// MatchesPrefix: List of object name prefixes. This condition will be
+	// satisfied when at least one of the prefixes exactly matches the
+	// beginning of the object name.
+	MatchesPrefix []string `json:"matchesPrefix,omitempty"`
+
 	// MatchesStorageClass: Objects having any of the storage classes
 	// specified by this condition will be matched. Values include
 	// MULTI_REGIONAL, REGIONAL, NEARLINE, COLDLINE, ARCHIVE, STANDARD, and
 	// DURABLE_REDUCED_AVAILABILITY.
 	MatchesStorageClass []string `json:"matchesStorageClass,omitempty"`
+
+	// MatchesSuffix: List of object name suffixes. This condition will be
+	// satisfied when at least one of the suffixes exactly matches the end
+	// of the object name.
+	MatchesSuffix []string `json:"matchesSuffix,omitempty"`
 
 	// NoncurrentTimeBefore: A date in RFC 3339 format with only the date
 	// part (for instance, "2013-01-15"). This condition is satisfied when

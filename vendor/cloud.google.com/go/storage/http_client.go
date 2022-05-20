@@ -21,10 +21,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	raw "google.golang.org/api/storage/v1"
@@ -136,7 +138,18 @@ func (c *httpStorageClient) Close() error {
 // Top-level methods.
 
 func (c *httpStorageClient) GetServiceAccount(ctx context.Context, project string, opts ...storageOption) (string, error) {
-	return "", errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	call := c.raw.Projects.ServiceAccount.Get(project)
+	var res *raw.ServiceAccount
+	err := run(ctx, func() error {
+		var err error
+		res, err = call.Context(ctx).Do()
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(call))
+	if err != nil {
+		return "", err
+	}
+	return res.EmailAddress, nil
 }
 
 func (c *httpStorageClient) CreateBucket(ctx context.Context, project string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error) {
@@ -169,12 +182,50 @@ func (c *httpStorageClient) CreateBucket(ctx context.Context, project string, at
 		}
 		battrs, err = newBucket(b)
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
 	return battrs, err
 }
 
-func (c *httpStorageClient) ListBuckets(ctx context.Context, project string, opts ...storageOption) (*BucketIterator, error) {
-	return nil, errMethodNotSupported
+func (c *httpStorageClient) ListBuckets(ctx context.Context, project string, opts ...storageOption) *BucketIterator {
+	s := callSettings(c.settings, opts...)
+	it := &BucketIterator{
+		ctx:       ctx,
+		projectID: project,
+	}
+
+	fetch := func(pageSize int, pageToken string) (token string, err error) {
+		req := c.raw.Buckets.List(it.projectID)
+		setClientHeader(req.Header())
+		req.Projection("full")
+		req.Prefix(it.Prefix)
+		req.PageToken(pageToken)
+		if pageSize > 0 {
+			req.MaxResults(int64(pageSize))
+		}
+		var resp *raw.Buckets
+		err = run(it.ctx, func() error {
+			resp, err = req.Context(it.ctx).Do()
+			return err
+		}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
+		if err != nil {
+			return "", err
+		}
+		for _, item := range resp.Items {
+			b, err := newBucket(item)
+			if err != nil {
+				return "", err
+			}
+			it.buckets = append(it.buckets, b)
+		}
+		return resp.NextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
+		fetch,
+		func() int { return len(it.buckets) },
+		func() interface{} { b := it.buckets; it.buckets = nil; return b })
+
+	return it
 }
 
 // Bucket methods.
@@ -190,7 +241,7 @@ func (c *httpStorageClient) DeleteBucket(ctx context.Context, bucket string, con
 		req.UserProject(s.userProject)
 	}
 
-	return run(ctx, func() error { return req.Context(ctx).Do() }, s.retry, s.idempotent)
+	return run(ctx, func() error { return req.Context(ctx).Do() }, s.retry, s.idempotent, setRetryHeaderHTTP(req))
 }
 
 func (c *httpStorageClient) GetBucket(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
@@ -209,7 +260,7 @@ func (c *httpStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 	err = run(ctx, func() error {
 		resp, err = req.Context(ctx).Do()
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
 
 	var e *googleapi.Error
 	if ok := errors.As(err, &e); ok && e.Code == http.StatusNotFound {
@@ -220,14 +271,109 @@ func (c *httpStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 	}
 	return newBucket(resp)
 }
-func (c *httpStorageClient) UpdateBucket(ctx context.Context, uattrs *BucketAttrsToUpdate, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
-	return nil, errMethodNotSupported
+func (c *httpStorageClient) UpdateBucket(ctx context.Context, bucket string, uattrs *BucketAttrsToUpdate, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
+	s := callSettings(c.settings, opts...)
+	rb := uattrs.toRawBucket()
+	req := c.raw.Buckets.Patch(bucket, rb).Projection("full")
+	setClientHeader(req.Header())
+	err := applyBucketConds("httpStorageClient.UpdateBucket", conds, req)
+	if err != nil {
+		return nil, err
+	}
+	if s.userProject != "" {
+		req.UserProject(s.userProject)
+	}
+	if uattrs != nil && uattrs.PredefinedACL != "" {
+		req.PredefinedAcl(uattrs.PredefinedACL)
+	}
+	if uattrs != nil && uattrs.PredefinedDefaultObjectACL != "" {
+		req.PredefinedDefaultObjectAcl(uattrs.PredefinedDefaultObjectACL)
+	}
+
+	var rawBucket *raw.Bucket
+	err = run(ctx, func() error {
+		rawBucket, err = req.Context(ctx).Do()
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
+	if err != nil {
+		return nil, err
+	}
+	return newBucket(rawBucket)
 }
+
 func (c *httpStorageClient) LockBucketRetentionPolicy(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) error {
-	return errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+
+	var metageneration int64
+	if conds != nil {
+		metageneration = conds.MetagenerationMatch
+	}
+	req := c.raw.Buckets.LockRetentionPolicy(bucket, metageneration)
+
+	return run(ctx, func() error {
+		_, err := req.Context(ctx).Do()
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
 }
-func (c *httpStorageClient) ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) (*ObjectIterator, error) {
-	return nil, errMethodNotSupported
+func (c *httpStorageClient) ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) *ObjectIterator {
+	s := callSettings(c.settings, opts...)
+	it := &ObjectIterator{
+		ctx: ctx,
+	}
+	if q != nil {
+		it.query = *q
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		req := c.raw.Objects.List(bucket)
+		setClientHeader(req.Header())
+		projection := it.query.Projection
+		if projection == ProjectionDefault {
+			projection = ProjectionFull
+		}
+		req.Projection(projection.String())
+		req.Delimiter(it.query.Delimiter)
+		req.Prefix(it.query.Prefix)
+		req.StartOffset(it.query.StartOffset)
+		req.EndOffset(it.query.EndOffset)
+		req.Versions(it.query.Versions)
+		req.IncludeTrailingDelimiter(it.query.IncludeTrailingDelimiter)
+		if len(it.query.fieldSelection) > 0 {
+			req.Fields("nextPageToken", googleapi.Field(it.query.fieldSelection))
+		}
+		req.PageToken(pageToken)
+		if s.userProject != "" {
+			req.UserProject(s.userProject)
+		}
+		if pageSize > 0 {
+			req.MaxResults(int64(pageSize))
+		}
+		var resp *raw.Objects
+		var err error
+		err = run(it.ctx, func() error {
+			resp, err = req.Context(it.ctx).Do()
+			return err
+		}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
+		if err != nil {
+			var e *googleapi.Error
+			if ok := errors.As(err, &e); ok && e.Code == http.StatusNotFound {
+				err = ErrBucketNotExist
+			}
+			return "", err
+		}
+		for _, item := range resp.Items {
+			it.items = append(it.items, newObject(item))
+		}
+		for _, prefix := range resp.Prefixes {
+			it.items = append(it.items, &ObjectAttrs{Prefix: prefix})
+		}
+		return resp.NextPageToken, nil
+	}
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
+		fetch,
+		func() int { return len(it.items) },
+		func() interface{} { b := it.items; it.items = nil; return b })
+
+	return it
 }
 
 // Object metadata methods.
@@ -245,10 +391,26 @@ func (c *httpStorageClient) UpdateObject(ctx context.Context, bucket, object str
 // Default Object ACL methods.
 
 func (c *httpStorageClient) DeleteDefaultObjectACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error {
-	return errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	req := c.raw.DefaultObjectAccessControls.Delete(bucket, string(entity))
+	configureACLCall(ctx, s.userProject, req)
+	return run(ctx, func() error { return req.Context(ctx).Do() }, s.retry, s.idempotent, setRetryHeaderHTTP(req))
 }
+
 func (c *httpStorageClient) ListDefaultObjectACLs(ctx context.Context, bucket string, opts ...storageOption) ([]ACLRule, error) {
-	return nil, errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	var acls *raw.ObjectAccessControls
+	var err error
+	req := c.raw.DefaultObjectAccessControls.List(bucket)
+	configureACLCall(ctx, s.userProject, req)
+	err = run(ctx, func() error {
+		acls, err = req.Do()
+		return err
+	}, s.retry, true, setRetryHeaderHTTP(req))
+	if err != nil {
+		return nil, err
+	}
+	return toObjectACLRules(acls.Items), nil
 }
 func (c *httpStorageClient) UpdateDefaultObjectACL(ctx context.Context, opts ...storageOption) (*ACLRule, error) {
 	return nil, errMethodNotSupported
@@ -257,13 +419,59 @@ func (c *httpStorageClient) UpdateDefaultObjectACL(ctx context.Context, opts ...
 // Bucket ACL methods.
 
 func (c *httpStorageClient) DeleteBucketACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error {
-	return errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	req := c.raw.BucketAccessControls.Delete(bucket, string(entity))
+	configureACLCall(ctx, s.userProject, req)
+	return run(ctx, func() error { return req.Context(ctx).Do() }, s.retry, s.idempotent, setRetryHeaderHTTP(req))
 }
+
 func (c *httpStorageClient) ListBucketACLs(ctx context.Context, bucket string, opts ...storageOption) ([]ACLRule, error) {
-	return nil, errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	var acls *raw.BucketAccessControls
+	var err error
+	req := c.raw.BucketAccessControls.List(bucket)
+	configureACLCall(ctx, s.userProject, req)
+	err = run(ctx, func() error {
+		acls, err = req.Do()
+		return err
+	}, s.retry, true, setRetryHeaderHTTP(req))
+	if err != nil {
+		return nil, err
+	}
+	return toBucketACLRules(acls.Items), nil
 }
+
 func (c *httpStorageClient) UpdateBucketACL(ctx context.Context, bucket string, entity ACLEntity, role ACLRole, opts ...storageOption) (*ACLRule, error) {
-	return nil, errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	acl := &raw.BucketAccessControl{
+		Bucket: bucket,
+		Entity: string(entity),
+		Role:   string(role),
+	}
+	req := c.raw.BucketAccessControls.Update(bucket, string(entity), acl)
+	configureACLCall(ctx, s.userProject, req)
+	var aclRule ACLRule
+	var err error
+	err = run(ctx, func() error {
+		acl, err = req.Do()
+		aclRule = toBucketACLRule(acl)
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(req))
+	if err != nil {
+		return nil, err
+	}
+	return &aclRule, nil
+}
+
+// configureACLCall sets the context, user project and headers on the apiary library call.
+// This will panic if the call does not have the correct methods.
+func configureACLCall(ctx context.Context, userProject string, call interface{ Header() http.Header }) {
+	vc := reflect.ValueOf(call)
+	vc.MethodByName("Context").Call([]reflect.Value{reflect.ValueOf(ctx)})
+	if userProject != "" {
+		vc.MethodByName("UserProject").Call([]reflect.Value{reflect.ValueOf(userProject)})
+	}
+	setClientHeader(call.Header())
 }
 
 // Object ACL methods.
@@ -308,7 +516,7 @@ func (c *httpStorageClient) GetIamPolicy(ctx context.Context, resource string, v
 		var err error
 		rp, err = call.Context(ctx).Do()
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +536,7 @@ func (c *httpStorageClient) SetIamPolicy(ctx context.Context, resource string, p
 	return run(ctx, func() error {
 		_, err := call.Context(ctx).Do()
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(call))
 }
 
 func (c *httpStorageClient) TestIamPermissions(ctx context.Context, resource string, permissions []string, opts ...storageOption) ([]string, error) {
@@ -343,7 +551,7 @@ func (c *httpStorageClient) TestIamPermissions(ctx context.Context, resource str
 		var err error
 		res, err = call.Context(ctx).Do()
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}

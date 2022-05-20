@@ -87,39 +87,10 @@ func (i *IntSlice) Get() interface{} {
 	return *i
 }
 
-// IntSliceFlag is a flag with type *IntSlice
-type IntSliceFlag struct {
-	Name        string
-	Aliases     []string
-	Usage       string
-	EnvVars     []string
-	FilePath    string
-	Required    bool
-	Hidden      bool
-	Value       *IntSlice
-	DefaultText string
-	HasBeenSet  bool
-}
-
-// IsSet returns whether or not the flag has been set through env or file
-func (f *IntSliceFlag) IsSet() bool {
-	return f.HasBeenSet
-}
-
 // String returns a readable representation of this value
 // (for usage defaults)
 func (f *IntSliceFlag) String() string {
 	return withEnvHint(f.GetEnvVars(), stringifyIntSliceFlag(f))
-}
-
-// Names returns the names of the flag
-func (f *IntSliceFlag) Names() []string {
-	return flagNames(f.Name, f.Aliases)
-}
-
-// IsRequired returns whether or not the flag is required
-func (f *IntSliceFlag) IsRequired() bool {
-	return f.Required
 }
 
 // TakesValue returns true of the flag takes a value, otherwise false
@@ -139,11 +110,6 @@ func (f *IntSliceFlag) GetValue() string {
 		return f.Value.String()
 	}
 	return ""
-}
-
-// IsVisible returns true if the flag is not hidden, otherwise false
-func (f *IntSliceFlag) IsVisible() bool {
-	return !f.Hidden
 }
 
 // GetDefaultText returns the default text for this flag
