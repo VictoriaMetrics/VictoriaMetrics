@@ -69,7 +69,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/alerts":
 		WriteListAlerts(w, pathPrefix, rh.groupAlerts())
 		return true
-	case "/groups":
+	case "/groups", "/rules":
 		WriteListGroups(w, rh.groups())
 		return true
 	case "/notifiers":

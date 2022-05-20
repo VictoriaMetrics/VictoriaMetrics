@@ -2,6 +2,7 @@ import React, {createContext, FC, useContext, useEffect, useMemo, useReducer} fr
 import {Action, AppState, initialState, reducer} from "./reducer";
 import {getQueryStringValue, setQueryStringValue} from "../../utils/query-string";
 import {Dispatch} from "react";
+import {useLocation} from "react-router-dom";
 
 type StateContextType = { state: AppState, dispatch: Dispatch<Action> };
 
@@ -17,12 +18,13 @@ export const initialPrepopulatedState = Object.entries(initialState)
   }), {}) as AppState;
 
 export const StateProvider: FC = ({children}) => {
+  const location = useLocation();
 
   const [state, dispatch] = useReducer(reducer, initialPrepopulatedState);
 
   useEffect(() => {
     setQueryStringValue(state as unknown as Record<string, unknown>);
-  }, [state]);
+  }, [state, location]);
 
   const contextValue = useMemo(() => {
     return { state, dispatch };

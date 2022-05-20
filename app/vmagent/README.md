@@ -926,6 +926,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.aws.secretKey array
      Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.serice array
+     Optional AWS Service to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url. Defaults to "aps".
+     Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.useSigv4 array
      Enables SigV4 request signing for -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.

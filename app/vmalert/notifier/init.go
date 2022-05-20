@@ -3,9 +3,11 @@ package notifier
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -83,6 +85,12 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 
 	externalURL = extURL
 	externalLabels = extLabels
+	eu, err := url.Parse(externalURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse external URL: %s", err)
+	}
+
+	templates.UpdateWithFuncs(templates.FuncsWithExternalURL(eu))
 
 	if *configPath == "" && len(*addrs) == 0 {
 		return nil, nil
@@ -102,7 +110,6 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 		return staticNotifiersFn, nil
 	}
 
-	var err error
 	cw, err = newWatcher(*configPath, gen)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init config watcher: %s", err)

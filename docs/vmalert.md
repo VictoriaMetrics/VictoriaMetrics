@@ -17,23 +17,24 @@ implementation and aims to be compatible with its syntax.
 
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
 * VictoriaMetrics [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html)
- support and expressions validation;
+  support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
- support;
+  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-aplha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight without extra dependencies.
+* Supports [reusable templates](#reusable-templates) for annotations.
 
 ## Limitations
 
 * `vmalert` execute queries against remote datasource which has reliability risks because of the network.
-It is recommended to configure alerts thresholds and rules expressions with the understanding that network
-requests may fail;
+  It is recommended to configure alerts thresholds and rules expressions with the understanding that network
+  requests may fail;
 * by default, rules execution is sequential within one group, but persistence of execution results to remote
-storage is asynchronous. Hence, user shouldn't rely on chaining of recording rules when result of previous
-recording rule is reused in the next one;
+  storage is asynchronous. Hence, user shouldn't rely on chaining of recording rules when result of previous
+  recording rule is reused in the next one;
 
 ## QuickStart
 
@@ -52,8 +53,8 @@ To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable MetricsQL endpoint to run queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
-aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
-[config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
+  aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
+  [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
@@ -150,12 +151,12 @@ expression and then act according to the Rule type.
 There are two types of Rules:
 
 * [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
-Alerting rules allow defining alert conditions via `expr` field and to send notifications to
-[Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty.
+  Alerting rules allow defining alert conditions via `expr` field and to send notifications to
+  [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty.
 * [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
-Recording rules allow defining `expr` which result will be then backfilled to configured
-`-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
-expensive expressions and save their result as a new set of time series.
+  Recording rules allow defining `expr` which result will be then backfilled to configured
+  `-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
+  expensive expressions and save their result as a new set of time series.
 
 `vmalert` forbids defining duplicates - rules with the same combination of name, expression, and labels
 within one group.
@@ -188,10 +189,52 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations
-to format data, iterate over it or execute expressions.
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over it or execute expressions.
 Additionally, `vmalert` provides some extra templating functions
-listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go).
+listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go) and [reusable templates](#reusable-templates).
+
+#### Reusable templates
+
+Like in Alertmanager you can define [reusable templates](https://prometheus.io/docs/prometheus/latest/configuration/template_examples/#defining-reusable-templates)
+to share same templates across annotations. Just define the templates in a file and 
+set the path via `-rule.templates` flag.
+
+For example, template `grafana.filter` can be defined as following:
+
+{% raw  %}
+```
+{{ define "grafana.filter" -}}
+  {{- $labels := .arg0 -}}
+  {{- range $name, $label := . -}}
+    {{- if (ne $name "arg0") -}}
+      {{- ( or (index $labels $label) "All" ) | printf "&var-%s=%s" $label -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+```
+{% endraw %}
+
+And then used in annotations:
+
+{% raw  %}
+```yaml
+groups:
+  - name: AlertGroupName
+    rules:
+      - alert: AlertName
+        expr: any_metric > 100
+        for: 30s
+        labels:
+          alertname: 'Any metric is too high'
+          severity: 'warning'
+        annotations:
+          dashboard: '{{ $externalURL }}/d/dashboard?orgId=1{{ template "grafana.filter" (args .CommonLabels "account_id" "any_label") }}'
+```
+{% endraw %}
+
+The `-rule.templates` flag supports wildcards so multiple files with templates can be loaded.
+The content of `-rule.templates` can be also [hot reloaded](#hot-config-reload).
+
 
 #### Recording rules
 
@@ -219,11 +262,11 @@ For recording rules to work `-remoteWrite.url` must be specified.
 the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
 
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
-into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
-These are regular time series and maybe queried from VM just as any other time series.
-The state is stored to the configured address on every rule evaluation.
+  into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
+  These are regular time series and maybe queried from VM just as any other time series.
+  The state is stored to the configured address on every rule evaluation.
 * `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
-from configured address by querying time series with name `ALERTS_FOR_STATE`.
+  from configured address by querying time series with name `ALERTS_FOR_STATE`.
 
 Both flags are required for proper state restoration. Restore process may fail if time series are missing
 in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by `-remoteRead.lookback`)
@@ -279,7 +322,7 @@ for different scenarios.
 Please note, not all flags in examples are required:
 
 * `-remoteWrite.url` and `-remoteRead.url` are optional and are needed only if
-you have recording rules or want to store [alerts state](#alerts-state-on-restarts) on `vmalert` restarts;
+  you have recording rules or want to store [alerts state](#alerts-state-on-restarts) on `vmalert` restarts;
 * `-notifier.url` is optional and is needed only if you have alerting rules.
 
 #### Single-node VictoriaMetrics
@@ -345,6 +388,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
+The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
 all `vmalert`s are having the same config.
@@ -388,7 +432,7 @@ See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
 * `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status"` - get alert status by ID.
-Used as alert source in AlertManager.
+  Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
@@ -477,17 +521,17 @@ Execute the query against storage which was used for `-remoteWrite.url` during t
 There are following non-required `replay` flags:
 
 * `-replay.maxDatapointsPerQuery` - the max number of data points expected to receive in one request.
-In two words, it affects the max time range for every `/query_range` request. The higher the value,
-the fewer requests will be issued during `replay`.
+  In two words, it affects the max time range for every `/query_range` request. The higher the value,
+  the fewer requests will be issued during `replay`.
 * `-replay.ruleRetryAttempts` - when datasource fails to respond vmalert will make this number of retries
-per rule before giving up.
+  per rule before giving up.
 * `-replay.rulesDelay` - delay between sequential rules execution. Important in cases if there are chaining
-(rules which depend on each other) rules. It is expected, that remote storage will be able to persist
-previously accepted data during the delay, so data will be available for the subsequent queries.
-Keep it equal or bigger than `-remoteWrite.flushInterval`.
+  (rules which depend on each other) rules. It is expected, that remote storage will be able to persist
+  previously accepted data during the delay, so data will be available for the subsequent queries.
+  Keep it equal or bigger than `-remoteWrite.flushInterval`.
 * `replay.disableProgressBar` - whether to disable progress bar which shows progress work.
-Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
-It could break logs parsing by external system and generate additional load on it.
+  Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
+  It could break logs parsing by external system and generate additional load on it.
 
 See full description for these flags in `./vmalert --help`.
 
@@ -565,7 +609,7 @@ The shortlist of configuration flags is the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
   -defaultTenant.graphite string
      Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
   -defaultTenant.prometheus string
@@ -708,7 +752,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.bearerTokenFile string
      Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/query' path to the configured -remoteRead.url.
+     Whether to disable automatic appending of '/api/v1/query' path to the configured -datasource.url and -remoteRead.url
   -remoteRead.ignoreRestoreErrors
      Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
@@ -777,6 +821,8 @@ The shortlist of configuration flags is the following:
      Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
+  -replay.disableProgressBar
+     Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
      Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
@@ -802,6 +848,14 @@ The shortlist of configuration flags is the following:
      Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
+  -rule.templates array
+     Path or glob pattern to location with go template definitions
+      for rules annotations templating. Flag can be specified multiple times.
+     Examples:
+      -rule.templates="/path/to/file". Path to a single file with go templates
+      -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
+     absolute path to all .tpl files in root.
+     Supports an array of values separated by comma or specified via multiple flags.
   -rule.validateExpressions
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
@@ -826,7 +880,7 @@ The shortlist of configuration flags is the following:
 * send SIGHUP signal to `vmalert` process;
 * send GET request to `/-/reload` endpoint;
 * configure `-configCheckInterval` flag for periodic reload
-on config change.
+  on config change.
 
 ### URL params
 

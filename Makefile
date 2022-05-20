@@ -257,7 +257,7 @@ benchmark-pure:
 vendor-update:
 	GO111MODULE=on go get -u -d ./lib/...
 	GO111MODULE=on go get -u -d ./app/...
-	GO111MODULE=on go mod tidy
+	GO111MODULE=on go mod tidy -compat=1.17
 	GO111MODULE=on go mod vendor
 
 app-local:

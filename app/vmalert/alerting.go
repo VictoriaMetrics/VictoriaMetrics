@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -152,7 +153,7 @@ type labelSet struct {
 
 // toLabels converts labels from given Metric
 // to labelSet which contains original and processed labels.
-func (ar *AlertingRule) toLabels(m datasource.Metric, qFn notifier.QueryFn) (*labelSet, error) {
+func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
 	ls := &labelSet{
 		origin:    make(map[string]string, len(m.Labels)),
 		processed: make(map[string]string),
@@ -382,7 +383,7 @@ func hash(labels map[string]string) uint64 {
 	return hash.Sum64()
 }
 
-func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.Time, qFn notifier.QueryFn) (*notifier.Alert, error) {
+func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.Time, qFn templates.QueryFn) (*notifier.Alert, error) {
 	var err error
 	if ls == nil {
 		ls, err = ar.toLabels(m, qFn)

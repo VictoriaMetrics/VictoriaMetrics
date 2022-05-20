@@ -43,16 +43,16 @@ type storageClient interface {
 
 	GetServiceAccount(ctx context.Context, project string, opts ...storageOption) (string, error)
 	CreateBucket(ctx context.Context, project string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error)
-	ListBuckets(ctx context.Context, project string, opts ...storageOption) (*BucketIterator, error)
+	ListBuckets(ctx context.Context, project string, opts ...storageOption) *BucketIterator
 	Close() error
 
 	// Bucket methods.
 
 	DeleteBucket(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) error
 	GetBucket(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error)
-	UpdateBucket(ctx context.Context, uattrs *BucketAttrsToUpdate, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error)
+	UpdateBucket(ctx context.Context, bucket string, uattrs *BucketAttrsToUpdate, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error)
 	LockBucketRetentionPolicy(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) error
-	ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) (*ObjectIterator, error)
+	ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) *ObjectIterator
 
 	// Object metadata methods.
 

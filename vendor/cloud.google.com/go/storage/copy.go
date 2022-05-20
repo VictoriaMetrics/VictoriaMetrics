@@ -142,7 +142,7 @@ func (c *Copier) callRewrite(ctx context.Context, rawObj *raw.Object) (*raw.Rewr
 	retryCall := func() error { res, err = call.Do(); return err }
 	isIdempotent := c.dst.conds != nil && (c.dst.conds.GenerationMatch != 0 || c.dst.conds.DoesNotExist)
 
-	if err := run(ctx, retryCall, c.dst.retry, isIdempotent); err != nil {
+	if err := run(ctx, retryCall, c.dst.retry, isIdempotent, setRetryHeaderHTTP(call)); err != nil {
 		return nil, err
 	}
 	c.RewriteToken = res.RewriteToken
@@ -237,7 +237,7 @@ func (c *Composer) Run(ctx context.Context) (attrs *ObjectAttrs, err error) {
 	retryCall := func() error { obj, err = call.Do(); return err }
 	isIdempotent := c.dst.conds != nil && (c.dst.conds.GenerationMatch != 0 || c.dst.conds.DoesNotExist)
 
-	if err := run(ctx, retryCall, c.dst.retry, isIdempotent); err != nil {
+	if err := run(ctx, retryCall, c.dst.retry, isIdempotent, setRetryHeaderHTTP(call)); err != nil {
 		return nil, err
 	}
 	return newObject(obj), nil

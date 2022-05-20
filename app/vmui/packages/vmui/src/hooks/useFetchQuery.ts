@@ -8,6 +8,8 @@ import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import throttle from "lodash.throttle";
 import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
 import {CustomStep} from "../state/graph/reducer";
+import usePrevious from "./usePrevious";
+import {arrayEquals} from "../utils/array";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -48,7 +50,6 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     setIsLoading(true);
-
     try {
       const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
       const tempData = [];
@@ -114,12 +115,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   },
   [serverUrl, period, displayType, customStep]);
 
+  const prevFetchUrl = usePrevious(fetchUrl);
+
   useEffect(() => {
     fetchOptions();
   }, [serverUrl]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl))) return;
     throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
   }, [fetchUrl, visible]);
 
