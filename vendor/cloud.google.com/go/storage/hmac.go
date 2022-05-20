@@ -130,7 +130,7 @@ func (hkh *HMACKeyHandle) Get(ctx context.Context, opts ...HMACKeyOption) (*HMAC
 	err = run(ctx, func() error {
 		metadata, err = call.Context(ctx).Do()
 		return err
-	}, hkh.retry, true)
+	}, hkh.retry, true, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (hkh *HMACKeyHandle) Delete(ctx context.Context, opts ...HMACKeyOption) err
 
 	return run(ctx, func() error {
 		return delCall.Context(ctx).Do()
-	}, hkh.retry, true)
+	}, hkh.retry, true, setRetryHeaderHTTP(delCall))
 }
 
 func pbHmacKeyToHMACKey(pb *raw.HmacKey, updatedTimeCanBeNil bool) (*HMACKey, error) {
@@ -221,7 +221,7 @@ func (c *Client) CreateHMACKey(ctx context.Context, projectID, serviceAccountEma
 		h, err := call.Context(ctx).Do()
 		hkPb = h
 		return err
-	}, c.retry, false); err != nil {
+	}, c.retry, false, setRetryHeaderHTTP(call)); err != nil {
 		return nil, err
 	}
 
@@ -267,7 +267,7 @@ func (h *HMACKeyHandle) Update(ctx context.Context, au HMACKeyAttrsToUpdate, opt
 	err = run(ctx, func() error {
 		metadata, err = call.Context(ctx).Do()
 		return err
-	}, h.retry, isIdempotent)
+	}, h.retry, isIdempotent, setRetryHeaderHTTP(call))
 
 	if err != nil {
 		return nil, err
@@ -373,7 +373,7 @@ func (it *HMACKeysIterator) fetch(pageSize int, pageToken string) (token string,
 	err = run(it.ctx, func() error {
 		resp, err = call.Context(ctx).Do()
 		return err
-	}, it.retry, true)
+	}, it.retry, true, setRetryHeaderHTTP(call))
 	if err != nil {
 		return "", err
 	}

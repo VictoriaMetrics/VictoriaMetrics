@@ -19,12 +19,15 @@ import (
 	"os"
 
 	gapic "cloud.google.com/go/storage/internal/apiv2"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	storagepb "google.golang.org/genproto/googleapis/storage/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 const (
@@ -110,8 +113,22 @@ func (c *grpcStorageClient) Close() error {
 // Top-level methods.
 
 func (c *grpcStorageClient) GetServiceAccount(ctx context.Context, project string, opts ...storageOption) (string, error) {
-	return "", errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	req := &storagepb.GetServiceAccountRequest{
+		Project: toProjectResource(project),
+	}
+	var resp *storagepb.ServiceAccount
+	err := run(ctx, func() error {
+		var err error
+		resp, err = c.raw.GetServiceAccount(ctx, req, s.gax...)
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	if err != nil {
+		return "", err
+	}
+	return resp.EmailAddress, err
 }
+
 func (c *grpcStorageClient) CreateBucket(ctx context.Context, project string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error) {
 	s := callSettings(c.settings, opts...)
 	b := attrs.toProtoBucket()
@@ -123,13 +140,11 @@ func (c *grpcStorageClient) CreateBucket(ctx context.Context, project string, at
 	}
 
 	req := &storagepb.CreateBucketRequest{
-		Parent:   toProjectResource(project),
-		Bucket:   b,
-		BucketId: b.GetName(),
-		// TODO(noahdietz): This will be switched to a string.
-		//
-		// PredefinedAcl: attrs.PredefinedACL,
-		// PredefinedDefaultObjectAcl: attrs.PredefinedDefaultObjectACL,
+		Parent:                     toProjectResource(project),
+		Bucket:                     b,
+		BucketId:                   b.GetName(),
+		PredefinedAcl:              attrs.PredefinedACL,
+		PredefinedDefaultObjectAcl: attrs.PredefinedDefaultObjectACL,
 	}
 
 	var battrs *BucketAttrs
@@ -139,13 +154,57 @@ func (c *grpcStorageClient) CreateBucket(ctx context.Context, project string, at
 		battrs = newBucketFromProto(res)
 
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
 
 	return battrs, err
 }
 
-func (c *grpcStorageClient) ListBuckets(ctx context.Context, project string, opts ...storageOption) (*BucketIterator, error) {
-	return nil, errMethodNotSupported
+func (c *grpcStorageClient) ListBuckets(ctx context.Context, project string, opts ...storageOption) *BucketIterator {
+	s := callSettings(c.settings, opts...)
+	it := &BucketIterator{
+		ctx:       ctx,
+		projectID: project,
+	}
+
+	var gitr *gapic.BucketIterator
+	fetch := func(pageSize int, pageToken string) (token string, err error) {
+		// Initialize GAPIC-based iterator when pageToken is empty, which
+		// indicates that this fetch call is attempting to get the first page.
+		//
+		// Note: Initializing the GAPIC-based iterator lazily is necessary to
+		// capture the BucketIterator.Prefix set by the user *after* the
+		// BucketIterator is returned to them from the veneer.
+		if pageToken == "" {
+			req := &storagepb.ListBucketsRequest{
+				Parent: toProjectResource(it.projectID),
+				Prefix: it.Prefix,
+			}
+			gitr = c.raw.ListBuckets(it.ctx, req, s.gax...)
+		}
+
+		var buckets []*storagepb.Bucket
+		var next string
+		err = run(it.ctx, func() error {
+			buckets, next, err = gitr.InternalFetch(pageSize, pageToken)
+			return err
+		}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+		if err != nil {
+			return "", err
+		}
+
+		for _, bkt := range buckets {
+			b := newBucketFromProto(bkt)
+			it.buckets = append(it.buckets, b)
+		}
+
+		return next, nil
+	}
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
+		fetch,
+		func() int { return len(it.buckets) },
+		func() interface{} { b := it.buckets; it.buckets = nil; return b })
+
+	return it
 }
 
 // Bucket methods.
@@ -159,14 +218,12 @@ func (c *grpcStorageClient) DeleteBucket(ctx context.Context, bucket string, con
 		return err
 	}
 	if s.userProject != "" {
-		req.CommonRequestParams = &storagepb.CommonRequestParams{
-			UserProject: toProjectResource(s.userProject),
-		}
+		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
 
 	return run(ctx, func() error {
 		return c.raw.DeleteBucket(ctx, req, s.gax...)
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
 }
 
 func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
@@ -178,9 +235,7 @@ func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 		return nil, err
 	}
 	if s.userProject != "" {
-		req.CommonRequestParams = &storagepb.CommonRequestParams{
-			UserProject: toProjectResource(s.userProject),
-		}
+		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
 
 	var battrs *BucketAttrs
@@ -190,7 +245,7 @@ func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 		battrs = newBucketFromProto(res)
 
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
 
 	if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
 		return nil, ErrBucketNotExist
@@ -198,14 +253,153 @@ func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 
 	return battrs, err
 }
-func (c *grpcStorageClient) UpdateBucket(ctx context.Context, uattrs *BucketAttrsToUpdate, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
-	return nil, errMethodNotSupported
+func (c *grpcStorageClient) UpdateBucket(ctx context.Context, bucket string, uattrs *BucketAttrsToUpdate, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
+	s := callSettings(c.settings, opts...)
+	b := uattrs.toProtoBucket()
+	b.Name = bucketResourceName(globalProjectAlias, bucket)
+	req := &storagepb.UpdateBucketRequest{
+		Bucket:                     b,
+		PredefinedAcl:              uattrs.PredefinedACL,
+		PredefinedDefaultObjectAcl: uattrs.PredefinedDefaultObjectACL,
+	}
+	if err := applyBucketCondsProto("grpcStorageClient.UpdateBucket", conds, req); err != nil {
+		return nil, err
+	}
+	if s.userProject != "" {
+		ctx = setUserProjectMetadata(ctx, s.userProject)
+	}
+
+	var paths []string
+	fieldMask := &fieldmaskpb.FieldMask{
+		Paths: paths,
+	}
+	if uattrs.CORS != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "cors")
+	}
+	if uattrs.DefaultEventBasedHold != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "default_event_based_hold")
+	}
+	if uattrs.RetentionPolicy != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "retention_policy")
+	}
+	if uattrs.VersioningEnabled != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "versioning")
+	}
+	if uattrs.RequesterPays != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "billing")
+	}
+	if uattrs.BucketPolicyOnly != nil || uattrs.UniformBucketLevelAccess != nil || uattrs.PublicAccessPrevention != PublicAccessPreventionUnknown {
+		fieldMask.Paths = append(fieldMask.Paths, "iam_config")
+	}
+	if uattrs.Encryption != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "encryption")
+	}
+	if uattrs.Lifecycle != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "lifecycle")
+	}
+	if uattrs.Logging != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "logging")
+	}
+	if uattrs.Website != nil {
+		fieldMask.Paths = append(fieldMask.Paths, "website")
+	}
+	if uattrs.PredefinedACL != "" {
+		// In cases where PredefinedACL is set, Acl is cleared.
+		fieldMask.Paths = append(fieldMask.Paths, "acl")
+	}
+	if uattrs.PredefinedDefaultObjectACL != "" {
+		// In cases where PredefinedDefaultObjectACL is set, DefaultObjectAcl is cleared.
+		fieldMask.Paths = append(fieldMask.Paths, "default_object_acl")
+	}
+	if uattrs.acl != nil {
+		// In cases where acl is set by UpdateBucketACL method.
+		fieldMask.Paths = append(fieldMask.Paths, "acl")
+	}
+	if uattrs.defaultObjectACL != nil {
+		// In cases where defaultObjectACL is set by UpdateBucketACL method.
+		fieldMask.Paths = append(fieldMask.Paths, "default_object_acl")
+	}
+	if uattrs.StorageClass != "" {
+		fieldMask.Paths = append(fieldMask.Paths, "storage_class")
+	}
+	if uattrs.RPO != RPOUnknown {
+		fieldMask.Paths = append(fieldMask.Paths, "rpo")
+	}
+	// TODO(cathyo): Handle labels. Pending b/230510191.
+	req.UpdateMask = fieldMask
+
+	var battrs *BucketAttrs
+	err := run(ctx, func() error {
+		res, err := c.raw.UpdateBucket(ctx, req, s.gax...)
+		battrs = newBucketFromProto(res)
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+
+	return battrs, err
 }
 func (c *grpcStorageClient) LockBucketRetentionPolicy(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) error {
-	return errMethodNotSupported
+	s := callSettings(c.settings, opts...)
+	req := &storagepb.LockBucketRetentionPolicyRequest{
+		Bucket: bucketResourceName(globalProjectAlias, bucket),
+	}
+	if err := applyBucketCondsProto("grpcStorageClient.LockBucketRetentionPolicy", conds, req); err != nil {
+		return err
+	}
+
+	return run(ctx, func() error {
+		_, err := c.raw.LockBucketRetentionPolicy(ctx, req, s.gax...)
+		return err
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+
 }
-func (c *grpcStorageClient) ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) (*ObjectIterator, error) {
-	return nil, errMethodNotSupported
+func (c *grpcStorageClient) ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) *ObjectIterator {
+	s := callSettings(c.settings, opts...)
+	it := &ObjectIterator{
+		ctx: ctx,
+	}
+	if q != nil {
+		it.query = *q
+	}
+	req := &storagepb.ListObjectsRequest{
+		Parent:             bucketResourceName(globalProjectAlias, bucket),
+		Prefix:             it.query.Prefix,
+		Delimiter:          it.query.Delimiter,
+		Versions:           it.query.Versions,
+		LexicographicStart: it.query.StartOffset,
+		LexicographicEnd:   it.query.EndOffset,
+		// TODO(noahietz): Convert a projection to a FieldMask.
+		// ReadMask: q.Projection,
+	}
+	if s.userProject != "" {
+		ctx = setUserProjectMetadata(ctx, s.userProject)
+	}
+	gitr := c.raw.ListObjects(it.ctx, req, s.gax...)
+	fetch := func(pageSize int, pageToken string) (token string, err error) {
+		var objects []*storagepb.Object
+		err = run(it.ctx, func() error {
+			objects, token, err = gitr.InternalFetch(pageSize, pageToken)
+			return err
+		}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+		if err != nil {
+			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+				err = ErrBucketNotExist
+			}
+			return "", err
+		}
+
+		for _, obj := range objects {
+			b := newObjectFromProto(obj)
+			it.items = append(it.items, b)
+		}
+
+		return token, nil
+	}
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
+		fetch,
+		func() int { return len(it.items) },
+		func() interface{} { b := it.items; it.items = nil; return b })
+
+	return it
 }
 
 // Object metadata methods.
@@ -223,10 +417,32 @@ func (c *grpcStorageClient) UpdateObject(ctx context.Context, bucket, object str
 // Default Object ACL methods.
 
 func (c *grpcStorageClient) DeleteDefaultObjectACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error {
-	return errMethodNotSupported
+	// There is no separate API for PATCH in gRPC.
+	// Make a GET call first to retrieve BucketAttrs.
+	attrs, err := c.GetBucket(ctx, bucket, nil, opts...)
+	if err != nil {
+		return err
+	}
+	// Delete the entity and copy other remaining ACL entities.
+	var acl []ACLRule
+	for _, a := range attrs.DefaultObjectACL {
+		if a.Entity != entity {
+			acl = append(acl, a)
+		}
+	}
+	uattrs := &BucketAttrsToUpdate{defaultObjectACL: acl}
+	// Call UpdateBucket with a MetagenerationMatch precondition set.
+	if _, err = c.UpdateBucket(ctx, bucket, uattrs, &BucketConditions{MetagenerationMatch: attrs.MetaGeneration}, opts...); err != nil {
+		return err
+	}
+	return nil
 }
 func (c *grpcStorageClient) ListDefaultObjectACLs(ctx context.Context, bucket string, opts ...storageOption) ([]ACLRule, error) {
-	return nil, errMethodNotSupported
+	attrs, err := c.GetBucket(ctx, bucket, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return attrs.DefaultObjectACL, nil
 }
 func (c *grpcStorageClient) UpdateDefaultObjectACL(ctx context.Context, opts ...storageOption) (*ACLRule, error) {
 	return nil, errMethodNotSupported
@@ -235,13 +451,51 @@ func (c *grpcStorageClient) UpdateDefaultObjectACL(ctx context.Context, opts ...
 // Bucket ACL methods.
 
 func (c *grpcStorageClient) DeleteBucketACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error {
-	return errMethodNotSupported
+	// There is no separate API for PATCH in gRPC.
+	// Make a GET call first to retrieve BucketAttrs.
+	attrs, err := c.GetBucket(ctx, bucket, nil, opts...)
+	if err != nil {
+		return err
+	}
+	// Delete the entity and copy other remaining ACL entities.
+	var acl []ACLRule
+	for _, a := range attrs.ACL {
+		if a.Entity != entity {
+			acl = append(acl, a)
+		}
+	}
+	uattrs := &BucketAttrsToUpdate{acl: acl}
+	// Call UpdateBucket with a MetagenerationMatch precondition set.
+	if _, err = c.UpdateBucket(ctx, bucket, uattrs, &BucketConditions{MetagenerationMatch: attrs.MetaGeneration}, opts...); err != nil {
+		return err
+	}
+	return nil
 }
 func (c *grpcStorageClient) ListBucketACLs(ctx context.Context, bucket string, opts ...storageOption) ([]ACLRule, error) {
-	return nil, errMethodNotSupported
+	attrs, err := c.GetBucket(ctx, bucket, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return attrs.ACL, nil
 }
+
 func (c *grpcStorageClient) UpdateBucketACL(ctx context.Context, bucket string, entity ACLEntity, role ACLRole, opts ...storageOption) (*ACLRule, error) {
-	return nil, errMethodNotSupported
+	// There is no separate API for PATCH in gRPC.
+	// Make a GET call first to retrieve BucketAttrs.
+	attrs, err := c.GetBucket(ctx, bucket, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	var acl []ACLRule
+	aclRule := ACLRule{Entity: entity, Role: role}
+	acl = append(attrs.ACL, aclRule)
+	uattrs := &BucketAttrsToUpdate{acl: acl}
+	// Call UpdateBucket with a MetagenerationMatch precondition set.
+	_, err = c.UpdateBucket(ctx, bucket, uattrs, &BucketConditions{MetagenerationMatch: attrs.MetaGeneration}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &aclRule, err
 }
 
 // Object ACL methods.
@@ -288,7 +542,7 @@ func (c *grpcStorageClient) GetIamPolicy(ctx context.Context, resource string, v
 		var err error
 		rp, err = c.raw.GetIamPolicy(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
 
 	return rp, err
 }
@@ -305,7 +559,7 @@ func (c *grpcStorageClient) SetIamPolicy(ctx context.Context, resource string, p
 	return run(ctx, func() error {
 		_, err := c.raw.SetIamPolicy(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
 }
 
 func (c *grpcStorageClient) TestIamPermissions(ctx context.Context, resource string, permissions []string, opts ...storageOption) ([]string, error) {
@@ -320,7 +574,7 @@ func (c *grpcStorageClient) TestIamPermissions(ctx context.Context, resource str
 		var err error
 		res, err = c.raw.TestIamPermissions(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -343,4 +597,13 @@ func (c *grpcStorageClient) CreateHMACKey(ctx context.Context, desc *hmacKeyDesc
 }
 func (c *grpcStorageClient) DeleteHMACKey(ctx context.Context, desc *hmacKeyDesc, opts ...storageOption) error {
 	return errMethodNotSupported
+}
+
+// setUserProjectMetadata appends a project ID to the outgoing Context metadata
+// via the x-goog-user-project system parameter defined at
+// https://cloud.google.com/apis/docs/system-parameters. This is only for
+// billing purposes, and is generally optional, except for requester-pays
+// buckets.
+func setUserProjectMetadata(ctx context.Context, project string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", project)
 }

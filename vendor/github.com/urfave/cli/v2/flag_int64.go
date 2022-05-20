@@ -6,42 +6,6 @@ import (
 	"strconv"
 )
 
-// Int64Flag is a flag with type int64
-type Int64Flag struct {
-	Name        string
-	Aliases     []string
-	Usage       string
-	EnvVars     []string
-	FilePath    string
-	Required    bool
-	Hidden      bool
-	Value       int64
-	DefaultText string
-	Destination *int64
-	HasBeenSet  bool
-}
-
-// IsSet returns whether or not the flag has been set through env or file
-func (f *Int64Flag) IsSet() bool {
-	return f.HasBeenSet
-}
-
-// String returns a readable representation of this value
-// (for usage defaults)
-func (f *Int64Flag) String() string {
-	return FlagStringer(f)
-}
-
-// Names returns the names of the flag
-func (f *Int64Flag) Names() []string {
-	return flagNames(f.Name, f.Aliases)
-}
-
-// IsRequired returns whether or not the flag is required
-func (f *Int64Flag) IsRequired() bool {
-	return f.Required
-}
-
 // TakesValue returns true of the flag takes a value, otherwise false
 func (f *Int64Flag) TakesValue() bool {
 	return true
@@ -56,11 +20,6 @@ func (f *Int64Flag) GetUsage() string {
 // string if the flag takes no value at all.
 func (f *Int64Flag) GetValue() string {
 	return fmt.Sprintf("%d", f.Value)
-}
-
-// IsVisible returns true if the flag is not hidden, otherwise false
-func (f *Int64Flag) IsVisible() bool {
-	return !f.Hidden
 }
 
 // GetDefaultText returns the default text for this flag

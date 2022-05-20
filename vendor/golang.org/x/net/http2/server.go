@@ -2645,8 +2645,7 @@ func checkWriteHeaderCode(code int) {
 	// Issue 22880: require valid WriteHeader status codes.
 	// For now we only enforce that it's three digits.
 	// In the future we might block things over 599 (600 and above aren't defined
-	// at http://httpwg.org/specs/rfc7231.html#status.codes)
-	// and we might block under 200 (once we have more mature 1xx support).
+	// at http://httpwg.org/specs/rfc7231.html#status.codes).
 	// But for now any three digits.
 	//
 	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
@@ -2667,13 +2666,41 @@ func (w *responseWriter) WriteHeader(code int) {
 }
 
 func (rws *responseWriterState) writeHeader(code int) {
-	if !rws.wroteHeader {
-		checkWriteHeaderCode(code)
-		rws.wroteHeader = true
-		rws.status = code
-		if len(rws.handlerHeader) > 0 {
-			rws.snapHeader = cloneHeader(rws.handlerHeader)
+	if rws.wroteHeader {
+		return
+	}
+
+	checkWriteHeaderCode(code)
+
+	// Handle informational headers
+	if code >= 100 && code <= 199 {
+		// Per RFC 8297 we must not clear the current header map
+		h := rws.handlerHeader
+
+		_, cl := h["Content-Length"]
+		_, te := h["Transfer-Encoding"]
+		if cl || te {
+			h = h.Clone()
+			h.Del("Content-Length")
+			h.Del("Transfer-Encoding")
 		}
+
+		if rws.conn.writeHeaders(rws.stream, &writeResHeaders{
+			streamID:    rws.stream.id,
+			httpResCode: code,
+			h:           h,
+			endStream:   rws.handlerDone && !rws.hasTrailers(),
+		}) != nil {
+			rws.dirty = true
+		}
+
+		return
+	}
+
+	rws.wroteHeader = true
+	rws.status = code
+	if len(rws.handlerHeader) > 0 {
+		rws.snapHeader = cloneHeader(rws.handlerHeader)
 	}
 }
 

@@ -70,41 +70,10 @@ func (s *StringSlice) Get() interface{} {
 	return *s
 }
 
-// StringSliceFlag is a flag with type *StringSlice
-type StringSliceFlag struct {
-	Name        string
-	Aliases     []string
-	Usage       string
-	EnvVars     []string
-	FilePath    string
-	Required    bool
-	Hidden      bool
-	TakesFile   bool
-	Value       *StringSlice
-	DefaultText string
-	HasBeenSet  bool
-	Destination *StringSlice
-}
-
-// IsSet returns whether or not the flag has been set through env or file
-func (f *StringSliceFlag) IsSet() bool {
-	return f.HasBeenSet
-}
-
 // String returns a readable representation of this value
 // (for usage defaults)
 func (f *StringSliceFlag) String() string {
 	return withEnvHint(f.GetEnvVars(), stringifyStringSliceFlag(f))
-}
-
-// Names returns the names of the flag
-func (f *StringSliceFlag) Names() []string {
-	return flagNames(f.Name, f.Aliases)
-}
-
-// IsRequired returns whether or not the flag is required
-func (f *StringSliceFlag) IsRequired() bool {
-	return f.Required
 }
 
 // TakesValue returns true of the flag takes a value, otherwise false
@@ -124,11 +93,6 @@ func (f *StringSliceFlag) GetValue() string {
 		return f.Value.String()
 	}
 	return ""
-}
-
-// IsVisible returns true if the flag is not hidden, otherwise false
-func (f *StringSliceFlag) IsVisible() bool {
-	return !f.Hidden
 }
 
 // GetDefaultText returns the default text for this flag
