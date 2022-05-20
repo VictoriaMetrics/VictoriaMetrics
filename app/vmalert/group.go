@@ -49,14 +49,21 @@ type groupMetrics struct {
 	iterationTotal    *utils.Counter
 	iterationDuration *utils.Summary
 	iterationMissed   *utils.Counter
+	iterationInterval *utils.Gauge
 }
 
-func newGroupMetrics(name, file string) *groupMetrics {
+func newGroupMetrics(g *Group) *groupMetrics {
 	m := &groupMetrics{}
-	labels := fmt.Sprintf(`group=%q, file=%q`, name, file)
+	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
 	m.iterationTotal = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	m.iterationDuration = utils.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	m.iterationMissed = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	m.iterationInterval = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
+		g.mu.RLock()
+		i := g.Interval.Seconds()
+		g.mu.RUnlock()
+		return i
+	})
 	return m
 }
 
@@ -92,13 +99,13 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		finishedCh: make(chan struct{}),
 		updateCh:   make(chan *Group),
 	}
-	g.metrics = newGroupMetrics(g.Name, g.File)
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
 	}
 	if g.Concurrency < 1 {
 		g.Concurrency = 1
 	}
+	g.metrics = newGroupMetrics(g)
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
 		var extraLabels map[string]string
@@ -222,6 +229,8 @@ func (g *Group) close() {
 
 	g.metrics.iterationDuration.Unregister()
 	g.metrics.iterationTotal.Unregister()
+	g.metrics.iterationMissed.Unregister()
+	g.metrics.iterationInterval.Unregister()
 	for _, rule := range g.Rules {
 		rule.Close()
 	}
