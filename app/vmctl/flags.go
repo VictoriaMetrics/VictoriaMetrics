@@ -202,6 +202,7 @@ const (
 	influxFilterTimeEnd             = "influx-filter-time-end"
 	influxMeasurementFieldSeparator = "influx-measurement-field-separator"
 	influxSkipDatabaseLabel         = "influx-skip-database-label"
+	influxPrometheusMode            = "influx-prometheus-mode"
 )
 
 var (
@@ -262,6 +263,11 @@ var (
 		&cli.BoolFlag{
 			Name:  influxSkipDatabaseLabel,
 			Usage: "Wether to skip adding the label 'db' to timeseries.",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  influxPrometheusMode,
+			Usage: "Wether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
 			Value: false,
 		},
 	}

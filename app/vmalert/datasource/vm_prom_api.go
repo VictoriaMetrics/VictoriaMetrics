@@ -2,10 +2,16 @@ package datasource
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+)
+
+var (
+	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
+		"to the configured -datasource.url and -remoteRead.url")
 )
 
 type promResponse struct {
@@ -25,13 +31,6 @@ type promInstant struct {
 	} `json:"result"`
 }
 
-type promRange struct {
-	Result []struct {
-		Labels map[string]string `json:"metric"`
-		TVs    [][2]interface{}  `json:"values"`
-	} `json:"result"`
-}
-
 func (r promInstant) metrics() ([]Metric, error) {
 	var result []Metric
 	for i, res := range r.Result {
@@ -48,6 +47,13 @@ func (r promInstant) metrics() ([]Metric, error) {
 		result = append(result, m)
 	}
 	return result, nil
+}
+
+type promRange struct {
+	Result []struct {
+		Labels map[string]string `json:"metric"`
+		TVs    [][2]interface{}  `json:"values"`
+	} `json:"result"`
 }
 
 func (r promRange) metrics() ([]Metric, error) {
@@ -74,9 +80,22 @@ func (r promRange) metrics() ([]Metric, error) {
 	return result, nil
 }
 
+type promScalar [2]interface{}
+
+func (r promScalar) metrics() ([]Metric, error) {
+	var m Metric
+	f, err := strconv.ParseFloat(r[1].(string), 64)
+	if err != nil {
+		return nil, fmt.Errorf("metric %v, unable to parse float64 from %s: %w", r, r[1], err)
+	}
+	m.Values = append(m.Values, f)
+	m.Timestamps = append(m.Timestamps, int64(r[0].(float64)))
+	return []Metric{m}, nil
+}
+
 const (
-	statusSuccess, statusError = "success", "error"
-	rtVector, rtMatrix         = "vector", "matrix"
+	statusSuccess, statusError  = "success", "error"
+	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
 func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, error) {
@@ -103,23 +122,23 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, 
 			return nil, err
 		}
 		return pr.metrics()
+	case rScalar:
+		var ps promScalar
+		if err := json.Unmarshal(r.Data.Result, &ps); err != nil {
+			return nil, err
+		}
+		return ps.metrics()
 	default:
 		return nil, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
 }
 
-const (
-	prometheusInstantPath = "/api/v1/query"
-	prometheusRangePath   = "/api/v1/query_range"
-	prometheusPrefix      = "/prometheus"
-)
-
 func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
 	if s.appendTypePrefix {
-		r.URL.Path += prometheusPrefix
+		r.URL.Path += "/prometheus"
 	}
-	if !s.disablePathAppend {
-		r.URL.Path += prometheusInstantPath
+	if !*disablePathAppend {
+		r.URL.Path += "/api/v1/query"
 	}
 	q := r.URL.Query()
 	if s.lookBack > 0 {
@@ -136,10 +155,10 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 
 func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
 	if s.appendTypePrefix {
-		r.URL.Path += prometheusPrefix
+		r.URL.Path += "/prometheus"
 	}
-	if !s.disablePathAppend {
-		r.URL.Path += prometheusRangePath
+	if !*disablePathAppend {
+		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
 	q.Add("start", fmt.Sprintf("%d", start.Unix()))

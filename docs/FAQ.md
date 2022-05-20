@@ -250,8 +250,8 @@ All the VictoriaMetrics components provide command-line flags to control the siz
 
 Memory usage for VictoriaMetrics components can be tuned according to the following docs:
 
-* [Capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/#capacity-planning)
-* [Capacity planning for cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
+* [Resource usage limits for single-node VictoriaMetrics](https://docs.victoriametrics.com/#resource-usage-limits)
+* [Resource usage limits for cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits)
 * [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting)
 * [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
 

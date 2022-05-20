@@ -30,7 +30,7 @@ func getAZMap(cfg *apiConfig) map[string]string {
 
 func getAvailabilityZones(cfg *apiConfig) ([]AvailabilityZone, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
-	azFilters := awsapi.GetFiltersQueryString(cfg.azFilters, azFiltersWhitelist)
+	azFilters := awsapi.GetFiltersQueryString(cfg.azFilters)
 	data, err := cfg.awsConfig.GetEC2APIResponse("DescribeAvailabilityZones", azFilters, "")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain availability zones: %w", err)
@@ -40,20 +40,6 @@ func getAvailabilityZones(cfg *apiConfig) ([]AvailabilityZone, error) {
 		return nil, fmt.Errorf("cannot parse availability zones list: %w", err)
 	}
 	return azr.AvailabilityZoneInfo.Items, nil
-}
-
-// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
-var azFiltersWhitelist = map[string]bool{
-	"group-name":      true,
-	"message":         true,
-	"opt-in-status":   true,
-	"parent-zoneID":   true,
-	"parent-zoneName": true,
-	"region-name":     true,
-	"state":           true,
-	"zone-id":         true,
-	"zone-type":       true,
-	"zone-name":       true,
 }
 
 // AvailabilityZonesResponse represents the response for https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html

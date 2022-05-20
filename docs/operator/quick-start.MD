@@ -752,6 +752,7 @@ kubectl logs vmalert-example-vmalert-6f8748c6f9-hcfrr vmalert
 
 Let's add simple rule for `VMAlert` itself, `delta(vmalert_config_last_reload_errors_total[5m]) > 1`
 
+{% raw %}
 ```yaml
 cat << 'EOF' | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -775,6 +776,7 @@ spec:
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 EOF
 ```
+{% endraw %}
 
  Ensure, that new alert was started:
  ```bash
@@ -790,6 +792,7 @@ kubectl logs vmalert-example-vmalert-6f8748c6f9-hcfrr vmalert
 
  Let's trigger it by adding some incorrect rule
  
+{% raw %}
 ```yaml
 cat << 'EOF' | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -811,6 +814,7 @@ spec:
             value: "{{ $badValue | bad function }}"
 EOF
 ```
+{% endraw %}
 
 `VMAlert` will report incorrect rule config and fire alert:
 ```bash
@@ -1129,6 +1133,7 @@ vmauth-config-example   Opaque   1      2m32s
 ```
 
  Generated configuration can be retrieved with command:
+{% raw %}
 ```text
 kubectl get secrets/vmauth-config-example -o=go-template='{{index .data "config.yaml.gz"}}' | base64 -d | gunzip
 
@@ -1136,6 +1141,7 @@ users:
 - url_prefix: http://localhost:8428
   bearer_token: some-default-token
 ```
+{% endraw %}
 
   Operator generates default config, if `VMUser`s for given `VMAuth` wasn't found.
 

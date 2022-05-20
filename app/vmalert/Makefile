@@ -62,13 +62,14 @@ publish-vmalert:
 
 test-vmalert:
 	go test -v -race -cover ./app/vmalert -loggerLevel=ERROR
+	go test -v -race -cover ./app/vmalert/templates
 	go test -v -race -cover ./app/vmalert/datasource
 	go test -v -race -cover ./app/vmalert/notifier
 	go test -v -race -cover ./app/vmalert/config
 	go test -v -race -cover ./app/vmalert/remotewrite
 
 run-vmalert: vmalert
-	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \
+	./bin/vmalert -rule=app/vmalert/config/testdata/rules/rules2-good.rules \
 		-datasource.url=http://localhost:8428 \
 		-notifier.url=http://localhost:9093 \
 		-notifier.url=http://127.0.0.1:9093 \
@@ -77,7 +78,7 @@ run-vmalert: vmalert
 		-external.label=cluster=east-1 \
 		-external.label=replica=a \
 		-evaluationInterval=3s \
-		-rule.configCheckInterval=10s
+		-configCheckInterval=10s
 
 run-vmalert-sd: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \

@@ -1,0 +1,58 @@
+groups:
+  - name: TestGroup
+    interval: 2s
+    concurrency: 2
+    params:
+      denyPartialResponse: ["true"]
+      extra_label: ["env=dev"]
+    rules:
+      - alert: Conns
+        expr: sum(vm_tcplistener_conns) by(instance) > 1
+        for: 3m
+        annotations:
+          summary: Too high connection number for {{$labels.instance}}
+            {{ with printf "sum(vm_tcplistener_conns{instance=%q})" .Labels.instance | query }}
+              {{ . | first | value }}
+            {{ end }}
+          description: "It is {{ $value }} connections for {{$labels.instance}}"
+      - alert: ExampleAlertAlwaysFiring
+        expr: sum by(job)
+          (up == 1)
+        labels:
+          job: '{{ $labels.job }}'
+          dynamic: '{{ $x := query "up" | first | value }}{{ if eq 1.0 $x }}one{{ else }}unknown{{ end }}'
+        annotations:
+          description: Job {{ $labels.job }} is up!
+          external: cluster-{{ $externalLabels.cluster }}; replica-{{ $externalLabels.replica }}
+          summary: All instances up {{ range query "up" }}
+            {{ . | label "instance" }}
+            {{ end }}
+      - record: handler:requests:rate5m
+        expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
+        labels:
+          recording: true
+      - record: code:requests:rate5m
+        expr: sum(rate(promhttp_metric_handler_requests_total[5m])) by (code)
+        labels:
+          env: dev
+          recording: true
+      - record: code:requests:rate5m
+        expr: sum(rate(promhttp_metric_handler_requests_total[5m])) by (code)
+        labels:
+          env: staging
+          recording: true
+      - record: successful_requests:ratio_rate5m
+        labels:
+          recording: true
+        expr: |2
+            sum(code:requests:rate5m{code="200"})
+          /
+            sum(code:requests:rate5m)
+      - record: code:requests:slo
+        labels:
+           recording: true
+        expr: 0.95
+      - record: time:current
+        labels:
+           recording: true
+        expr: time()

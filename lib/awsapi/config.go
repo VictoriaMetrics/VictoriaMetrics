@@ -24,6 +24,7 @@ type Config struct {
 
 	ec2Endpoint string
 	stsEndpoint string
+	service     string
 
 	// these keys are needed for obtaining creds.
 	defaultAccessKey string
@@ -43,13 +44,18 @@ type credentials struct {
 }
 
 // NewConfig returns new AWS Config.
-func NewConfig(region, roleARN, accessKey, secretKey string) (*Config, error) {
+func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, error) {
 	cfg := &Config{
 		client:           http.DefaultClient,
 		region:           region,
 		roleARN:          roleARN,
+		service:          service,
 		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+	}
+	cfg.service = service
+	if cfg.service == "" {
+		cfg.service = "aps"
 	}
 	cfg.region = region
 	if cfg.region == "" {
@@ -115,12 +121,12 @@ func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken s
 }
 
 // SignRequest signs request for service access and payloadHash.
-func (cfg *Config) SignRequest(req *http.Request, service string, payloadHash string) error {
+func (cfg *Config) SignRequest(req *http.Request, payloadHash string) error {
 	ac, err := cfg.getFreshAPICredentials()
 	if err != nil {
 		return err
 	}
-	return signRequestWithTime(req, service, cfg.region, payloadHash, ac, time.Now().UTC())
+	return signRequestWithTime(req, cfg.service, cfg.region, payloadHash, ac, time.Now().UTC())
 }
 
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
@@ -427,15 +433,10 @@ func buildAPIEndpoint(customEndpoint, region, service string) string {
 }
 
 // GetFiltersQueryString returns query string formed from the given filters.
-//
-// If whitelist isn't nil, then filters which don't fall into whitelist isn't returned.
-func GetFiltersQueryString(filters []Filter, whitelist map[string]bool) string {
+func GetFiltersQueryString(filters []Filter) string {
 	// See how to build filters query string at examples at https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
 	var args []string
 	for i, f := range filters {
-		if whitelist != nil && !whitelist[f.Name] {
-			continue
-		}
 		args = append(args, fmt.Sprintf("Filter.%d.Name=%s", i+1, url.QueryEscape(f.Name)))
 		for j, v := range f.Values {
 			args = append(args, fmt.Sprintf("Filter.%d.Value.%d=%s", i+1, j+1, url.QueryEscape(v)))

@@ -37,7 +37,6 @@
     "start": "react-app-rewired start",
     "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
     "test": "react-app-rewired test",
-    "eject": "react-scripts eject",
     "lint": "eslint src --ext tsx,ts",
     "lint:fix": "eslint src --ext tsx,ts --fix"
   },
@@ -66,5 +65,10 @@
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.29.4",
     "react-app-rewired": "^2.2.1"
+  },
+  "overrides": {
+    "react-app-rewired": {
+      "nth-check": "^2.0.1"
+    }
   }
 }

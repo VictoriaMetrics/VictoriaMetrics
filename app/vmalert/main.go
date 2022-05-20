@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -33,6 +34,13 @@ Examples:
  -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
 absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
+
+	ruleTemplatesPath = flagutil.NewArray("rule.templates", `Path or glob pattern to location with go template definitions
+	for rules annotations templating. Flag can be specified multiple times.
+Examples:
+ -rule.templates="/path/to/file". Path to a single file with go templates
+ -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
+absolute path to all .tpl files in root.`)
 
 	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
@@ -73,10 +81,12 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	err := templates.Load(*ruleTemplatesPath, true)
+	if err != nil {
+		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
+	}
 
 	if *dryRun {
-		u, _ := url.Parse("https://victoriametrics.com/")
-		notifier.InitTemplateFunc(u)
 		groups, err := config.Parse(*rulePath, true, true)
 		if err != nil {
 			logger.Fatalf("failed to parse %q: %s", *rulePath, err)
@@ -91,7 +101,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to init `external.url`: %s", err)
 	}
-	notifier.InitTemplateFunc(eu)
+
 	alertURLGeneratorFn, err = getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("failed to init `external.alert.source`: %s", err)
@@ -105,7 +115,6 @@ func main() {
 		if rw == nil {
 			logger.Fatalf("remoteWrite.url can't be empty in replay mode")
 		}
-		notifier.InitTemplateFunc(eu)
 		groupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
 		if err != nil {
 			logger.Fatalf("cannot parse configuration file: %s", err)
@@ -127,7 +136,6 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to init: %s", err)
 	}
-
 	logger.Infof("reading rules configuration file from %q", strings.Join(*rulePath, ";"))
 	groupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
 	if err != nil {
@@ -170,7 +178,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
 
-	labels := make(map[string]string, 0)
+	labels := make(map[string]string)
 	for _, s := range *externalLabels {
 		if len(s) == 0 {
 			continue
@@ -281,7 +289,11 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		case <-ctx.Done():
 			return
 		case <-sighupCh:
-			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
+			tmplMsg := ""
+			if len(*ruleTemplatesPath) > 0 {
+				tmplMsg = fmt.Sprintf("and templates %q ", *ruleTemplatesPath)
+			}
+			logger.Infof("SIGHUP received. Going to reload rules %q %s...", *rulePath, tmplMsg)
 			configReloads.Inc()
 		case <-configCheckCh:
 		}
@@ -289,6 +301,13 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
 			logger.Errorf("failed to reload notifier config: %s", err)
+			continue
+		}
+		err := templates.Load(*ruleTemplatesPath, false)
+		if err != nil {
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
+			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
 		newGroupsCfg, err := config.Parse(*rulePath, *validateTemplates, *validateExpressions)
@@ -299,6 +318,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
+			templates.Reload()
 			// set success to 1 since previous reload
 			// could have been unsuccessful
 			configSuccess.Set(1)
@@ -311,6 +331,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("error while reloading rules: %s", err)
 			continue
 		}
+		templates.Reload()
 		groupsCfg = newGroupsCfg
 		configSuccess.Set(1)
 		configTimestamp.Set(fasttime.UnixTimestamp())
