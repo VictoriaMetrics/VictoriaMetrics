@@ -46,6 +46,7 @@ EOF
 
 ```
 
+### Sharding
  Sharding for `VMAgent` distributes scraping between multiple deployments of `VMAgent`.
 more info https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets
 
@@ -74,6 +75,32 @@ EOF
  This configuration produces 5 deployments with 2 replicas at each. Each deployment has own shard num
 and scrapes only 1/5 of all targets.
 
+### StatefulMode
+
+ In `StatefulMode` `VMAgent` doesn't lose state for PersistentQueue after pod restart.
+
+ Operator creates `StatefulSet` for it, and with provided `PersistenVolumeClaimTemplate`  at `StatefulStorage` configuration param, metrics queue stored at disk.
+
+ Example of configuration:
+```yaml 
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: example-persistent
+spec:
+  selectAllByDefault: true
+  vmAgentExternalLabelName: vmagent-ha
+  replicaCount: 2
+  remoteWrite:
+    - url: "http://vmsingle-example-vmsingle-persisted.default.svc:8429/api/v1/write"
+  statefulMode: true
+  statefulStorage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+            requests:
+              storage: 20Gi
+```
 
 ## VMAlert
 
