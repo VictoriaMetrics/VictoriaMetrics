@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.77.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.2)
+
+Released at 21-05-2022
+
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): support [reusable templates](https://prometheus.io/docs/prometheus/latest/configuration/template_examples/#defining-reusable-templates) for rules annotations. The path to the template files can be specified via `-rule.templates` flag. See more about this feature [here](https://docs.victoriametrics.com/vmalert.html#reusable-templates). Thanks to @AndrewChubatiuk for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2532). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2510).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): expose `vmalert_iteration_interval_seconds` metric at `http://vmalert:8880/metrics`. This metric shows the configured per-group evaluation interval. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2618).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add `influx-prometheus-mode` command-line flag, which allows to restore the original time series written from Prometheus into InfluxDB during data migration from InfluxDB to VictoriaMetrics. See [this feature request](https://github.com/VictoriaMetrics/vmctl/issues/8). Thanks to @mback2k for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2545).
