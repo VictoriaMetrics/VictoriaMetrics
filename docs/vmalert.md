@@ -1017,6 +1017,25 @@ It is recommended using
 
 * `vmalert` is located in `vmutils-*` archives there.
 
+### Docker image
+
+You can build `vmalert` docker image from source and push it to your own docker repository.
+Run the following commands from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics):
+```bash
+make package-vmalert
+docker tag victoria-metrics/vmalert:version my-repo:my-version-name
+docker push my-repo:my-version-name
+```
+
+To run the built image in `victoria-metrics-k8s-stack` or `VMAlert` CR object apply the following config change:
+```yaml
+kind: VMAlert
+spec:
+  image:
+    repository: my-repo
+    tag: my-version-name
+```
+
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
