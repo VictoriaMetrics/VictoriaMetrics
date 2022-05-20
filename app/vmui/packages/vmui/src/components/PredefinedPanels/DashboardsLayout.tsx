@@ -20,7 +20,7 @@ const DashboardLayout: FC = () => {
   }, [dashboards, tab]);
 
   useEffect(() => {
-    getDashboardSettings().then(d => d.length && setDashboards(d));
+    setDashboards(getDashboardSettings());
   }, []);
 
   return <>

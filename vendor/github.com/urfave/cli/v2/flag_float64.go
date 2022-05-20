@@ -6,42 +6,6 @@ import (
 	"strconv"
 )
 
-// Float64Flag is a flag with type float64
-type Float64Flag struct {
-	Name        string
-	Aliases     []string
-	Usage       string
-	EnvVars     []string
-	FilePath    string
-	Required    bool
-	Hidden      bool
-	Value       float64
-	DefaultText string
-	Destination *float64
-	HasBeenSet  bool
-}
-
-// IsSet returns whether or not the flag has been set through env or file
-func (f *Float64Flag) IsSet() bool {
-	return f.HasBeenSet
-}
-
-// String returns a readable representation of this value
-// (for usage defaults)
-func (f *Float64Flag) String() string {
-	return FlagStringer(f)
-}
-
-// Names returns the names of the flag
-func (f *Float64Flag) Names() []string {
-	return flagNames(f.Name, f.Aliases)
-}
-
-// IsRequired returns whether or not the flag is required
-func (f *Float64Flag) IsRequired() bool {
-	return f.Required
-}
-
 // TakesValue returns true of the flag takes a value, otherwise false
 func (f *Float64Flag) TakesValue() bool {
 	return true
@@ -69,11 +33,6 @@ func (f *Float64Flag) GetDefaultText() string {
 // GetEnvVars returns the env vars for this flag
 func (f *Float64Flag) GetEnvVars() []string {
 	return f.EnvVars
-}
-
-// IsVisible returns true if the flag is not hidden, otherwise false
-func (f *Float64Flag) IsVisible() bool {
-	return !f.Hidden
 }
 
 // Apply populates the flag given the flag set and environment

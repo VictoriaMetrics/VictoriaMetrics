@@ -25,7 +25,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/golang/protobuf/proto"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 	raw "google.golang.org/api/storage/v1"
 	storagepb "google.golang.org/genproto/googleapis/storage/v2"
@@ -62,21 +61,26 @@ type Writer struct {
 	// ChunkSize controls the maximum number of bytes of the object that the
 	// Writer will attempt to send to the server in a single request. Objects
 	// smaller than the size will be sent in a single request, while larger
-	// objects will be split over multiple requests. The size will be rounded up
-	// to the nearest multiple of 256K.
+	// objects will be split over multiple requests. The value will be rounded up
+	// to the nearest multiple of 256K. The default ChunkSize is 16MiB.
 	//
-	// ChunkSize will default to a reasonable value. If you perform many
-	// concurrent writes of small objects (under ~8MB), you may wish set ChunkSize
-	// to a value that matches your objects' sizes to avoid consuming large
-	// amounts of memory. See
+	// Each Writer will internally allocate a buffer of size ChunkSize. This is
+	// used to buffer input data and allow for the input to be sent again if a
+	// request must be retried.
+	//
+	// If you upload small objects (< 16MiB), you should set ChunkSize
+	// to a value slightly larger than the objects' sizes to avoid memory bloat.
+	// This is especially important if you are uploading many small objects
+	// concurrently. See
 	// https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#size
 	// for more information about performance trade-offs related to ChunkSize.
 	//
 	// If ChunkSize is set to zero, chunking will be disabled and the object will
 	// be uploaded in a single request without the use of a buffer. This will
 	// further reduce memory used during uploads, but will also prevent the writer
-	// from retrying in case of a transient error from the server, since a buffer
-	// is required in order to retry the failed request.
+	// from retrying in case of a transient error from the server or resuming an
+	// upload that fails midway through, since the buffer is required in order to
+	// retry the failed request.
 	//
 	// ChunkSize must be set before the first Write call.
 	ChunkSize int
@@ -261,7 +265,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 		// Preserve existing functionality that when context is canceled, Write will return
 		// context.Canceled instead of "io: read/write on closed pipe". This hides the
 		// pipe implementation detail from users and makes Write seem as though it's an RPC.
-		if xerrors.Is(werr, context.Canceled) || xerrors.Is(werr, context.DeadlineExceeded) {
+		if errors.Is(werr, context.Canceled) || errors.Is(werr, context.DeadlineExceeded) {
 			return n, werr
 		}
 	}
@@ -452,17 +456,12 @@ func (w *Writer) openGRPC() error {
 //
 // This is an experimental API and not intended for public use.
 func (w *Writer) startResumableUpload() error {
-	var common *storagepb.CommonRequestParams
-	if w.o.userProject != "" {
-		common = &storagepb.CommonRequestParams{UserProject: w.o.userProject}
-	}
 	spec, err := w.writeObjectSpec()
 	if err != nil {
 		return err
 	}
 	upres, err := w.o.c.gc.StartResumableWrite(w.ctx, &storagepb.StartResumableWriteRequest{
-		WriteObjectSpec:     spec,
-		CommonRequestParams: common,
+		WriteObjectSpec: spec,
 	})
 
 	w.upid = upres.GetUploadId()

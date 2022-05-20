@@ -67,7 +67,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		queryRanges += len(rt.QueryRanges)
 	}
 	for _, metric := range metrics {
-		log.Println(fmt.Sprintf("Starting work on %s", metric))
+		log.Printf("Starting work on %s", metric)
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
 			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)

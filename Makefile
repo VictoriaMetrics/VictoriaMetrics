@@ -257,7 +257,7 @@ benchmark-pure:
 vendor-update:
 	GO111MODULE=on go get -u -d ./lib/...
 	GO111MODULE=on go get -u -d ./app/...
-	GO111MODULE=on go mod tidy
+	GO111MODULE=on go mod tidy -compat=1.17
 	GO111MODULE=on go mod vendor
 
 app-local:
@@ -283,7 +283,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.46.0
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.46.1
 
 install-wwhrd:
 	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd

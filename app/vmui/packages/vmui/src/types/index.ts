@@ -1,5 +1,11 @@
 import {MetricBase} from "../api/types";
 
+declare global {
+  interface Window {
+    __VMUI_PREDEFINED_DASHBOARDS__: DashboardSettings[];
+  }
+}
+
 export interface TimeParams {
   start: number; // timestamp in seconds
   end: number; // timestamp in seconds

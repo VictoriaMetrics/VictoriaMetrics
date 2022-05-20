@@ -1,5 +1,5 @@
 /* eslint max-lines: 0 */
-import {DisplayType} from "../../components/CustomPanel/Configurator/DisplayTypeSwitch";
+import {DisplayType, displayTypeTabs} from "../../components/CustomPanel/Configurator/DisplayTypeSwitch";
 import {TimeParams, TimePeriod} from "../../types";
 import {
   dateFromSeconds,
@@ -62,10 +62,12 @@ const {duration, endInput, relativeTimeId} = getRelativeTime({
   defaultEndInput: new Date(formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date)),
 });
 const query = getQueryArray();
+const queryTab = getQueryStringValue("g0.tab", 0);
+const displayType = displayTypeTabs.find(t => t.prometheusCode === queryTab || t.value === queryTab);
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(),
-  displayType: getQueryStringValue("g0.tab", "chart") as DisplayType || "chart",
+  displayType: (displayType?.value || "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
   queryHistory: query.map(q => ({index: 0, values: [q]})),
   time: {

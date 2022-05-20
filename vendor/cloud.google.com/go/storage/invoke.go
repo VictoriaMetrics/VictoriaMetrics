@@ -16,29 +16,39 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"cloud.google.com/go/internal"
+	"cloud.google.com/go/internal/version"
+	sinternal "cloud.google.com/go/storage/internal"
+	"github.com/google/uuid"
 	gax "github.com/googleapis/gax-go/v2"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 var defaultRetry *retryConfig = &retryConfig{}
+var xGoogDefaultHeader = fmt.Sprintf("gl-go/%s gccl/%s", version.Go(), sinternal.Version)
 
 // run determines whether a retry is necessary based on the config and
 // idempotency information. It then calls the function with or without retries
 // as appropriate, using the configured settings.
-func run(ctx context.Context, call func() error, retry *retryConfig, isIdempotent bool) error {
+func run(ctx context.Context, call func() error, retry *retryConfig, isIdempotent bool, setHeader func(string, int)) error {
+	attempts := 1
+	invocationID := uuid.New().String()
+
 	if retry == nil {
 		retry = defaultRetry
 	}
 	if (retry.policy == RetryIdempotent && !isIdempotent) || retry.policy == RetryNever {
+		setHeader(invocationID, attempts)
 		return call()
 	}
 	bo := gax.Backoff{}
@@ -51,17 +61,39 @@ func run(ctx context.Context, call func() error, retry *retryConfig, isIdempoten
 	if retry.shouldRetry != nil {
 		errorFunc = retry.shouldRetry
 	}
+
 	return internal.Retry(ctx, bo, func() (stop bool, err error) {
+		setHeader(invocationID, attempts)
 		err = call()
+		attempts++
 		return !errorFunc(err), err
 	})
+}
+
+func setRetryHeaderHTTP(req interface{ Header() http.Header }) func(string, int) {
+	return func(invocationID string, attempts int) {
+		if req == nil {
+			return
+		}
+		header := req.Header()
+		invocationHeader := fmt.Sprintf("gccl-invocation-id/%v gccl-attempt-count/%v", invocationID, attempts)
+		xGoogHeader := strings.Join([]string{invocationHeader, xGoogDefaultHeader}, " ")
+		header.Set("x-goog-api-client", xGoogHeader)
+	}
+}
+
+// TODO: Implement method setting header via context for gRPC
+func setRetryHeaderGRPC(_ context.Context) func(string, int) {
+	return func(_ string, _ int) {
+		return
+	}
 }
 
 func shouldRetry(err error) bool {
 	if err == nil {
 		return false
 	}
-	if xerrors.Is(err, io.ErrUnexpectedEOF) {
+	if errors.Is(err, io.ErrUnexpectedEOF) {
 		return true
 	}
 

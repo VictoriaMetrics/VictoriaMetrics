@@ -210,7 +210,7 @@ func (o *ObjectHandle) NewRangeReader(ctx context.Context, offset, length int64)
 				gen = gen64
 			}
 			return nil
-		}, o.retry, true)
+		}, o.retry, true, setRetryHeaderHTTP(&readerRequestWrapper{req}))
 		if err != nil {
 			return nil, err
 		}
@@ -356,6 +356,16 @@ func setConditionsHeaders(headers http.Header, conds *Conditions) error {
 	return nil
 }
 
+// Wrap a request to look similar to an apiary library request, in order to
+// be used by run().
+type readerRequestWrapper struct {
+	req *http.Request
+}
+
+func (w *readerRequestWrapper) Header() http.Header {
+	return w.req.Header
+}
+
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // Reader reads a Cloud Storage object.
@@ -492,7 +502,7 @@ func (o *ObjectHandle) newRangeReaderWithGRPC(ctx context.Context, offset, lengt
 			msg, err = stream.Recv()
 
 			return err
-		}, o.retry, true)
+		}, o.retry, true, setRetryHeaderGRPC(ctx))
 		if err != nil {
 			// Close the stream context we just created to ensure we don't leak
 			// resources.

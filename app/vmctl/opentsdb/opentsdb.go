@@ -196,7 +196,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 		3. bad format of response body
 	*/
 	if resp.StatusCode != 200 {
-		log.Println(fmt.Sprintf("bad response code from OpenTSDB query %v for %q...skipping", resp.StatusCode, q))
+		log.Printf("bad response code from OpenTSDB query %v for %q...skipping", resp.StatusCode, q)
 		return Metric{}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -208,7 +208,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 	var output []OtsdbMetric
 	err = json.Unmarshal(body, &output)
 	if err != nil {
-		log.Println(fmt.Sprintf("couldn't marshall response body from OpenTSDB query (%s)...skipping", body))
+		log.Printf("couldn't marshall response body from OpenTSDB query (%s)...skipping", body)
 		return Metric{}, nil
 	}
 	/*
@@ -309,7 +309,7 @@ func NewClient(cfg Config) (*Client, error) {
 		*/
 		offsetPrint = offsetPrint - offsetSecs
 	}
-	log.Println(fmt.Sprintf("Will collect data starting at TS %v", offsetPrint))
+	log.Printf("Will collect data starting at TS %v", offsetPrint)
 	for _, r := range cfg.Retentions {
 		ret, err := convertRetention(r, offsetSecs, cfg.MsecsTime)
 		if err != nil {

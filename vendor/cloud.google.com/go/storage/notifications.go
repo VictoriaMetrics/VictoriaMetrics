@@ -142,7 +142,7 @@ func (b *BucketHandle) AddNotification(ctx context.Context, n *Notification) (re
 	err = run(ctx, func() error {
 		rn, err = call.Context(ctx).Do()
 		return err
-	}, b.retry, false)
+	}, b.retry, false, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (b *BucketHandle) Notifications(ctx context.Context) (n map[string]*Notific
 	err = run(ctx, func() error {
 		res, err = call.Context(ctx).Do()
 		return err
-	}, b.retry, true)
+	}, b.retry, true, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}
@@ -191,5 +191,5 @@ func (b *BucketHandle) DeleteNotification(ctx context.Context, id string) (err e
 	}
 	return run(ctx, func() error {
 		return call.Context(ctx).Do()
-	}, b.retry, true)
+	}, b.retry, true, setRetryHeaderHTTP(call))
 }

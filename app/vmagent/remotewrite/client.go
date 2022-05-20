@@ -70,6 +70,8 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	awsService = flagutil.NewArray("remoteWrite.aws.serice", "Optional AWS Service to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url. Defaults to \"aps\".")
 	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 )
@@ -232,7 +234,8 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	roleARN := awsRoleARN.GetOptionalArg(argIdx)
 	accessKey := awsAccessKey.GetOptionalArg(argIdx)
 	secretKey := awsSecretKey.GetOptionalArg(argIdx)
-	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey)
+	service := awsService.GetOptionalArg(argIdx)
+	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey, service)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +310,7 @@ again:
 		req.Header.Set("Authorization", ah)
 	}
 	if c.awsCfg != nil {
-		if err := c.awsCfg.SignRequest(req, "aps", sigv4Hash); err != nil {
+		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
 			// there is no need in retry, request will be rejected by client.Do and retried by code below
 			logger.Warnf("cannot sign remoteWrite request with AWS sigv4: %s", err)
 		}

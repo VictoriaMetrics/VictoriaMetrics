@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -19,17 +20,20 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var (
+	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
+)
+
 // Client is an asynchronous HTTP client for writing
 // timeseries via remote write protocol.
 type Client struct {
-	addr              string
-	c                 *http.Client
-	authCfg           *promauth.Config
-	input             chan prompbmarshal.TimeSeries
-	flushInterval     time.Duration
-	maxBatchSize      int
-	maxQueueSize      int
-	disablePathAppend bool
+	addr          string
+	c             *http.Client
+	authCfg       *promauth.Config
+	input         chan prompbmarshal.TimeSeries
+	flushInterval time.Duration
+	maxBatchSize  int
+	maxQueueSize  int
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
@@ -70,8 +74,6 @@ const (
 	defaultWriteTimeout  = 30 * time.Second
 )
 
-const writePath = "/api/v1/write"
-
 // NewClient returns asynchronous client for
 // writing timeseries via remotewrite protocol.
 func NewClient(ctx context.Context, cfg Config) (*Client, error) {
@@ -102,14 +104,13 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Timeout:   cfg.WriteTimeout,
 			Transport: cfg.Transport,
 		},
-		addr:              strings.TrimSuffix(cfg.Addr, "/"),
-		authCfg:           cfg.AuthCfg,
-		flushInterval:     cfg.FlushInterval,
-		maxBatchSize:      cfg.MaxBatchSize,
-		maxQueueSize:      cfg.MaxQueueSize,
-		doneCh:            make(chan struct{}),
-		input:             make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
-		disablePathAppend: cfg.DisablePathAppend,
+		addr:          strings.TrimSuffix(cfg.Addr, "/"),
+		authCfg:       cfg.AuthCfg,
+		flushInterval: cfg.FlushInterval,
+		maxBatchSize:  cfg.MaxBatchSize,
+		maxQueueSize:  cfg.MaxQueueSize,
+		doneCh:        make(chan struct{}),
+		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
 	}
 
 	for i := 0; i < cc; i++ {
@@ -240,8 +241,8 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 			req.Header.Set("Authorization", auth)
 		}
 	}
-	if !c.disablePathAppend {
-		req.URL.Path = path.Join(req.URL.Path, writePath)
+	if !*disablePathAppend {
+		req.URL.Path = path.Join(req.URL.Path, "/api/v1/write")
 	}
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
