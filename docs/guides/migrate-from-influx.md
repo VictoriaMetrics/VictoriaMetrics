@@ -2,18 +2,18 @@
 
 InfluxDB is a well-known time series database built for
 [IoT](https://en.wikipedia.org/wiki/Internet_of_things) monitoring, Application Performance Monitoring (APM) and
-analytics. It has its own query language, unique data model and rich tooling for collecting and processing metrics.
+analytics. It has its query language, unique data model, and rich tooling for collecting and processing metrics.
 
 Nowadays, the volume of time series data grows constantly, as well as requirements for durable time series storage. And
 sometimes old known solutions just can't keep up with the new expectations.
 
-VictoriaMetrics is a high performance opensource time series database specifically designed to deal with huge volumes of
-monitoring data remaining cost-efficient in the same time. Many companies are choosing to migrate from InfluxDB to
+VictoriaMetrics is a high-performance opensource time series database specifically designed to deal with huge volumes of
+monitoring data while remaining cost-efficient at the same time. Many companies are choosing to migrate from InfluxDB to
 VictoriaMetrics specifically for performance and scalability reasons. Along them see case studies provided by
 [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
 and [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch).
 
-This guide will cover the differences between two solutions, most commonly asked questions and approaches for migrating
+This guide will cover the differences between two solutions, most commonly asked questions, and approaches for migrating
 from InfluxDB to VictoriaMetrics.
 
 ## Data model differences
@@ -21,7 +21,7 @@ from InfluxDB to VictoriaMetrics.
 While readers are likely familiar
 with [InfluxDB key concepts](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/), the data model of
 VictoriaMetrics is something [new to explore](https://docs.victoriametrics.com/keyConcepts.html#data-model). Let's start
-from similarities and differences:
+with similarities and differences:
 
 * both solutions are **schemaless**, which means there is no need to define metrics or their tags in advance;
 * multi-dimensional data support is implemented
@@ -33,16 +33,16 @@ from similarities and differences:
 * there are
   no [measurements](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#measurement)
   or [fields](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#field-key) in
-  VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics 
+  VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics
   it will be multiple metrics;
 * there are no [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
   or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization), all
-  data in VictoriaMetrics is stored in global namespace or within
+  data in VictoriaMetrics is stored in a global namespace or within
   a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 
 Let's consider the
 following [sample data](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#sample-data)
-borrowed from InfluxDB docs as example:
+borrowed from InfluxDB docs as an example:
 
 | _measurement | _field | location | scientist   | _value | _time                |
 |--------------|--------|----------|-------------|--------|----------------------|
@@ -123,11 +123,11 @@ In addition to InfluxDB line protocol, VictoriaMetrics supports many other ways 
 
 ## Query data
 
-VictoriaMetrics does not have a command line interface (CLI). Instead, it provides
+VictoriaMetrics does not have a com\mand-line interface (CLI). Instead, it provides
 an [HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 for serving read queries. This API is used in various integrations such as
 [Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup). The same API is also used
-by [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - graphical User Interface for
+by [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - a graphical User Interface for
 querying and visualizing metrics:
 
 {% include img.html href="migrate-from-influx-vmui.png" %}
@@ -136,7 +136,7 @@ See more about [how to query data in VictoriaMetrics](https://docs.victoriametri
 
 ### Basic concepts
 
-Let's take a closer look on querying specific with the following data sample:
+Let's take a closer look at querying specific with the following data sample:
 
 ```sql
 foo
@@ -196,17 +196,17 @@ Grafana will have the following form:
 
 {% include img.html href="migrate-from-influx-data-sample-in-vm.png" %}
 
-It is noticeable that visualisations from both databases are a bit different - VictoriaMetrics shows some extra points
-filling the gaps in graph. This behavior described in more
-details [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In InfluxDB, we can achieve the similar
+It is noticeable that visualizations from both databases are a bit different - VictoriaMetrics shows some extra points
+filling the gaps in the graph. This behavior is described in more
+detail [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In InfluxDB, we can achieve a similar
 behavior by adding `fill(previous)` to the query.
 
 ### Advanced usage
 
-The good thing is that knowing basics and some aggregation functions is often enough for using MetricsQL or PromQL.
+The good thing is that knowing the basics and some aggregation functions is often enough for using MetricsQL or PromQL.
 Let's consider one of the most popular Grafana
 dashboards [Node Exporter Full](https://grafana.com/grafana/dashboards/1860). It has almost 15 million downloads and
-about 230 PromQL queries in it! But closer look on those queries shows the following:
+about 230 PromQL queries in it! But a closer look at those queries shows the following:
 
 * ~120 queries are just selecting a metric with label filters,
   e.g. `node_textfile_scrape_error{instance="$node",job="$job"}`;
@@ -217,7 +217,7 @@ about 230 PromQL queries in it! But closer look on those queries shows the follo
   like [sum](https://docs.victoriametrics.com/MetricsQL.html#sum)
   or [count](https://docs.victoriametrics.com/MetricsQL.html#count).
 
-To get better understanding of how MetricsQL works, see the following resources:
+To get a better understanding of how MetricsQL works, see the following resources:
 
 * [MetricsQL concepts](https://docs.victoriametrics.com/keyConcepts.html#metricsql);
 * [MetricsQL functions](https://docs.victoriametrics.com/MetricsQL.html);
@@ -229,12 +229,12 @@ Migrating data from other TSDBs to VictoriaMetrics is as simple as importing dat
 [supported formats](https://docs.victoriametrics.com/keyConcepts.html#push-model).
 
 But migration from InfluxDB might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl.html) -
-VictoriaMetrics command line tool. See more about
+VictoriaMetrics command-line tool. See more about
 migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-1x).
 Migrating data from InfluxDB v2.x is not supported yet. But there is
 useful [3rd party solution]((https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-2x)) for this.
 
-Please note, data migration is basically a backfilling process. So please
+Please note, that data migration is a backfilling process. So, please
 consider [backfilling tips](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backfilling).
 
 ## Frequently asked questions
@@ -244,11 +244,11 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
 * Why don't VictoriaMetrics support Remote Read API, so I don't need to learn MetricsQL?
     * _[Answer](https://docs.victoriametrics.com/FAQ.html#why-doesnt-victoriametrics-support-the-prometheus-remote-read-api)_
 * The PromQL and MetricsQL are often mentioned together - why is that?
-    * _MetricsQL - query language inspired by PromQL. MetricsQL is backwards-compatible with PromQL, so Grafana
+    * _MetricsQL - query language inspired by PromQL. MetricsQL is backward-compatible with PromQL, so Grafana
       dashboards backed by Prometheus datasource should work the same after switching from Prometheus to
       VictoriaMetrics. Both languages mostly share the same concepts with slight differences._
 * Query returns more data points than expected - why?
-    * _VictoriaMetrics may return non-existing data points if `step` param is lower than actual data resolution. See
+    * _VictoriaMetrics may return non-existing data points if `step` param is lower than the actual data resolution. See
       more about this [here](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
 * How do I get the `real` last data point, not `ephemeral`?
     * _[last_over_time](https://docs.victoriametrics.com/MetricsQL.html#last_over_time) function can be used for
