@@ -55,7 +55,7 @@ type apiWatcher struct {
 
 	gw *groupWatcher
 
-	// swos contains per-urlWatcher maps of ScrapeWork objects for the given apiWatcher
+	// swosByURLWatcher contains per-urlWatcher maps of ScrapeWork objects for the given apiWatcher
 	swosByURLWatcher     map[*urlWatcher]map[string][]interface{}
 	swosByURLWatcherLock sync.Mutex
 
@@ -91,28 +91,49 @@ func (aw *apiWatcher) mustStart() {
 	aw.gw.startWatchersForRole(aw.role, aw)
 }
 
+func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]interface{}) {
+	n := 0
+	for _, swos := range swosByKey {
+		n += len(swos)
+	}
+	n *= multiplier
+	aw.swosCount.Add(n)
+}
+
 func (aw *apiWatcher) mustStop() {
 	aw.gw.unsubscribeAPIWatcher(aw)
 	aw.swosByURLWatcherLock.Lock()
 	for _, swosByKey := range aw.swosByURLWatcher {
-		aw.swosCount.Add(-len(swosByKey))
+		aw.updateSwosCount(-1, swosByKey)
 	}
 	aw.swosByURLWatcher = make(map[*urlWatcher]map[string][]interface{})
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func (aw *apiWatcher) reloadScrapeWorks(uw *urlWatcher, swosByKey map[string][]interface{}, mustReplace bool) {
+func (aw *apiWatcher) replaceScrapeWorks(uw *urlWatcher, swosByKey map[string][]interface{}) {
 	aw.swosByURLWatcherLock.Lock()
-	defer aw.swosByURLWatcherLock.Unlock()
-	aw.swosCount.Add(len(swosByKey) - len(aw.swosByURLWatcher[uw]))
-	if mustReplace {
-		// fast path
-		aw.swosByURLWatcher[uw] = swosByKey
-		return
+	aw.updateSwosCount(-1, aw.swosByURLWatcher[uw])
+	aw.updateSwosCount(1, swosByKey)
+	aw.swosByURLWatcher[uw] = swosByKey
+	aw.swosByURLWatcherLock.Unlock()
+}
+
+func (aw *apiWatcher) updateScrapeWorks(uw *urlWatcher, swosByKey map[string][]interface{}) {
+	aw.swosByURLWatcherLock.Lock()
+	dst := aw.swosByURLWatcher[uw]
+	if dst == nil {
+		dst = make(map[string][]interface{})
+		aw.swosByURLWatcher[uw] = dst
 	}
-	for k := range swosByKey {
-		aw.swosByURLWatcher[uw][k] = swosByKey[k]
+	for key, swos := range swosByKey {
+		aw.swosCount.Add(len(swos) - len(dst[key]))
+		if len(swos) == 0 {
+			delete(dst, key)
+		} else {
+			dst[key] = swos
+		}
 	}
+	aw.swosByURLWatcherLock.Unlock()
 }
 
 func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labels []map[string]string) {
@@ -124,10 +145,10 @@ func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labels []map[st
 		aw.swosByURLWatcher[uw] = swosByKey
 	}
 	aw.swosCount.Add(len(swos) - len(swosByKey[key]))
-	if len(swos) > 0 {
-		swosByKey[key] = swos
-	} else {
+	if len(swos) == 0 {
 		delete(swosByKey, key)
+	} else {
+		swosByKey[key] = swos
 	}
 	aw.swosByURLWatcherLock.Unlock()
 }
@@ -257,6 +278,45 @@ var (
 	})
 )
 
+type swosByKeyWithLock struct {
+	mu        sync.Mutex
+	swosByKey map[string][]interface{}
+}
+
+func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) map[*apiWatcher]*swosByKeyWithLock {
+	if len(awsMap) == 0 {
+		return nil
+	}
+	swosByAPIWatcher := make(map[*apiWatcher]*swosByKeyWithLock, len(awsMap))
+	for aw := range awsMap {
+		swosByAPIWatcher[aw] = &swosByKeyWithLock{
+			swosByKey: make(map[string][]interface{}),
+		}
+	}
+
+	// Generate ScrapeWork objects in parallel on available CPU cores.
+	// This should reduce the time needed for their generation on systems with many CPU cores.
+	var wg sync.WaitGroup
+	limiterCh := make(chan struct{}, cgroup.AvailableCPUs())
+	for key, o := range objectsByKey {
+		labels := o.getTargetLabels(gw)
+		wg.Add(1)
+		limiterCh <- struct{}{}
+		go func(key string, labels []map[string]string) {
+			for aw, e := range swosByAPIWatcher {
+				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
+				e.mu.Lock()
+				e.swosByKey[key] = swos
+				e.mu.Unlock()
+			}
+			wg.Done()
+			<-limiterCh
+		}(key, labels)
+	}
+	wg.Wait()
+	return swosByAPIWatcher
+}
+
 func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) object {
 	if role == "node" {
 		// Node objects have no namespace
@@ -317,9 +377,9 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 						time.Sleep(sleepTime)
 						startTime := time.Now()
 						gw.mu.Lock()
-						if uw.needUpdateScrapeWorks {
-							uw.needUpdateScrapeWorks = false
-							uw.updateScrapeWorksLocked(uw.objectsByKey, uw.aws, true)
+						if uw.needRecreateScrapeWorks {
+							uw.needRecreateScrapeWorks = false
+							uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.aws)
 							sleepTime = time.Since(startTime)
 							if sleepTime < minSleepTime {
 								sleepTime = minSleepTime
@@ -408,7 +468,7 @@ type urlWatcher struct {
 	// objectsByKey contains the latest state for objects obtained from apiURL
 	objectsByKey map[string]object
 
-	needUpdateScrapeWorks bool
+	needRecreateScrapeWorks bool
 
 	resourceVersion string
 
@@ -457,7 +517,7 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 	if len(uw.awsPending) == 0 {
 		return
 	}
-	uw.updateScrapeWorksLocked(uw.objectsByKey, uw.awsPending, true)
+	uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.awsPending)
 	for aw := range uw.awsPending {
 		uw.aws[aw] = struct{}{}
 	}
@@ -467,44 +527,23 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Add(-awsPendingLen)
 }
 
-func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}, mustReplace bool) {
-	if len(objectsByKey) == 0 || len(awsMap) == 0 {
-		return
-	}
-	aws := make([]*apiWatcher, 0, len(awsMap))
-	for aw := range awsMap {
-		aws = append(aws, aw)
-	}
-	swosByKey := make([]map[string][]interface{}, len(aws))
-	for i := range aws {
-		swosByKey[i] = make(map[string][]interface{})
-	}
-
-	// Generate ScrapeWork objects in parallel on available CPU cores.
-	// This should reduce the time needed for their generation on systems with many CPU cores.
-	var swosByKeyLock sync.Mutex
-	var wg sync.WaitGroup
-	limiterCh := make(chan struct{}, cgroup.AvailableCPUs())
-	for key, o := range objectsByKey {
-		labels := o.getTargetLabels(uw.gw)
-		wg.Add(1)
-		limiterCh <- struct{}{}
-		go func(key string, labels []map[string]string) {
-			for i, aw := range aws {
-				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
-				if len(swos) > 0 {
-					swosByKeyLock.Lock()
-					swosByKey[i][key] = swos
-					swosByKeyLock.Unlock()
-				}
+func (uw *urlWatcher) recreateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
+	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap)
+	for aw, e := range es {
+		swosByKey := e.swosByKey
+		for key, swos := range swosByKey {
+			if len(swos) == 0 {
+				delete(swosByKey, key)
 			}
-			wg.Done()
-			<-limiterCh
-		}(key, labels)
+		}
+		aw.replaceScrapeWorks(uw, swosByKey)
 	}
-	wg.Wait()
-	for i, aw := range aws {
-		aw.reloadScrapeWorks(uw, swosByKey[i], mustReplace)
+}
+
+func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
+	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap)
+	for aw, e := range es {
+		aw.updateScrapeWorks(uw, e.swosByKey)
 	}
 }
 
@@ -579,9 +618,9 @@ func (uw *urlWatcher) reloadObjects() string {
 		}
 	}
 	uw.removeScrapeWorksLocked(objectsRemoved)
-	uw.updateScrapeWorksLocked(objectsUpdated, uw.aws, false)
-	uw.updateScrapeWorksLocked(objectsAdded, uw.aws, false)
-	uw.needUpdateScrapeWorks = false
+	uw.updateScrapeWorksLocked(objectsUpdated, uw.aws)
+	uw.updateScrapeWorksLocked(objectsAdded, uw.aws)
+	uw.needRecreateScrapeWorks = false
 	if len(objectsRemoved) > 0 || len(objectsUpdated) > 0 || len(objectsAdded) > 0 {
 		uw.maybeUpdateDependedScrapeWorksLocked()
 	}
@@ -763,12 +802,12 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 		}
 		if (role == "pod" || role == "service") && (uwx.role == "endpoints" || uwx.role == "endpointslice") {
 			// endpoints and endpointslice objects depend on pods and service objects
-			uwx.needUpdateScrapeWorks = true
+			uwx.needRecreateScrapeWorks = true
 			continue
 		}
 		if attachNodeMetadata && role == "node" && uwx.role == "pod" {
 			// pod objects depend on node objects if attachNodeMetadata is set
-			uwx.needUpdateScrapeWorks = true
+			uwx.needRecreateScrapeWorks = true
 			continue
 		}
 	}
