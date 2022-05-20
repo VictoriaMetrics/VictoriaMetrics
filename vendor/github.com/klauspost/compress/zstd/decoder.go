@@ -451,7 +451,7 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) {
 		got := d.current.crc.Sum64()
 		var tmp [4]byte
 		binary.LittleEndian.PutUint32(tmp[:], uint32(got))
-		if !d.o.ignoreChecksum && !bytes.Equal(tmp[:], next.d.checkCRC) && !ignoreCRC {
+		if !d.o.ignoreChecksum && !bytes.Equal(tmp[:], next.d.checkCRC) {
 			if debugDecoder {
 				println("CRC Check Failed:", tmp[:], " (got) !=", next.d.checkCRC, "(on stream)")
 			}
@@ -534,10 +534,16 @@ func (d *Decoder) nextBlockSync() (ok bool) {
 		}
 
 		// Update/Check CRC
-		if !d.o.ignoreChecksum && d.frame.HasCheckSum {
-			d.frame.crc.Write(d.current.b)
+		if d.frame.HasCheckSum {
+			if !d.o.ignoreChecksum {
+				d.frame.crc.Write(d.current.b)
+			}
 			if d.current.d.Last {
-				d.current.err = d.frame.checkCRC()
+				if !d.o.ignoreChecksum {
+					d.current.err = d.frame.checkCRC()
+				} else {
+					d.current.err = d.frame.consumeCRC()
+				}
 				if d.current.err != nil {
 					println("CRC error:", d.current.err)
 					return false

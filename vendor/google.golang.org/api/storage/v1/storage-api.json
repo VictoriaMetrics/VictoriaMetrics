@@ -26,7 +26,7 @@
   "description": "Stores and retrieves potentially large, immutable data objects.",
   "discoveryVersion": "v1",
   "documentationLink": "https://developers.google.com/storage/docs/json_api/",
-  "etag": "\"37343432393730373535343630303638323335\"",
+  "etag": "\"3135383434363131313530373135383336353335\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -3005,7 +3005,7 @@
       }
     }
   },
-  "revision": "20220401",
+  "revision": "20220509",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "Bucket": {
@@ -3223,8 +3223,22 @@
                         "description": "A regular expression that satisfies the RE2 syntax. This condition is satisfied when the name of the object matches the RE2 pattern. Note: This feature is currently in the \"Early Access\" launch stage and is only available to a whitelisted set of users; that means that this feature may be changed in backward-incompatible ways and that it is not guaranteed to be released.",
                         "type": "string"
                       },
+                      "matchesPrefix": {
+                        "description": "List of object name prefixes. This condition will be satisfied when at least one of the prefixes exactly matches the beginning of the object name.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
                       "matchesStorageClass": {
                         "description": "Objects having any of the storage classes specified by this condition will be matched. Values include MULTI_REGIONAL, REGIONAL, NEARLINE, COLDLINE, ARCHIVE, STANDARD, and DURABLE_REDUCED_AVAILABILITY.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "matchesSuffix": {
+                        "description": "List of object name suffixes. This condition will be satisfied when at least one of the suffixes exactly matches the end of the object name.",
                         "items": {
                           "type": "string"
                         },

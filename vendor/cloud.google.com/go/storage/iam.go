@@ -57,7 +57,7 @@ func (c *iamClient) GetWithVersion(ctx context.Context, resource string, request
 	err = run(ctx, func() error {
 		rp, err = call.Context(ctx).Do()
 		return err
-	}, c.retry, true)
+	}, c.retry, true, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (c *iamClient) Set(ctx context.Context, resource string, p *iampb.Policy) (
 	return run(ctx, func() error {
 		_, err := call.Context(ctx).Do()
 		return err
-	}, c.retry, isIdempotent)
+	}, c.retry, isIdempotent, setRetryHeaderHTTP(call))
 }
 
 func (c *iamClient) Test(ctx context.Context, resource string, perms []string) (permissions []string, err error) {
@@ -94,7 +94,7 @@ func (c *iamClient) Test(ctx context.Context, resource string, perms []string) (
 	err = run(ctx, func() error {
 		res, err = call.Context(ctx).Do()
 		return err
-	}, c.retry, true)
+	}, c.retry, true, setRetryHeaderHTTP(call))
 	if err != nil {
 		return nil, err
 	}
