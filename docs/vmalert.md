@@ -609,7 +609,7 @@ The shortlist of configuration flags is the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
+     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
   -defaultTenant.graphite string
      Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
   -defaultTenant.prometheus string
@@ -752,7 +752,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.bearerTokenFile string
      Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/query' path to the configured -remoteRead.url.
+     Whether to disable automatic appending of '/api/v1/query' path to the configured -datasource.url and -remoteRead.url
   -remoteRead.ignoreRestoreErrors
      Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
@@ -821,6 +821,8 @@ The shortlist of configuration flags is the following:
      Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
+  -replay.disableProgressBar
+     Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
      Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
@@ -840,17 +842,20 @@ The shortlist of configuration flags is the following:
      absolute path to all .yaml files in root.
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
      Supports an array of values separated by comma or specified via multiple flags.
-  -rule.templates
-     Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
-     Examples:
-      -rule.templates="/path/to/file". Path to a single file with go templates
-      -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder, absolute path to all .tpl files in root.
   -rule.configCheckInterval duration
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
+  -rule.templates array
+     Path or glob pattern to location with go template definitions
+      for rules annotations templating. Flag can be specified multiple times.
+     Examples:
+      -rule.templates="/path/to/file". Path to a single file with go templates
+      -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
+     absolute path to all .tpl files in root.
+     Supports an array of values separated by comma or specified via multiple flags.
   -rule.validateExpressions
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
