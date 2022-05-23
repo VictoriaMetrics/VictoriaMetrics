@@ -166,7 +166,7 @@ func (cw *configWatcher) start() error {
 				if err != nil {
 					return fmt.Errorf("failed to parse labels for target %q: %s", target, err)
 				}
-				notifier, err := NewAlertManager(address, cw.genFn, cw.cfg.HTTPClientConfig, cw.cfg.parsedRelabelConfigs, cw.cfg.Timeout.Duration())
+				notifier, err := NewAlertManager(address, cw.genFn, cw.cfg.HTTPClientConfig, cw.cfg.parsedAlertRelabelConfigs, cw.cfg.Timeout.Duration())
 				if err != nil {
 					return fmt.Errorf("failed to init alertmanager for addr %q: %s", address, err)
 				}
