@@ -4,7 +4,7 @@ sort: 7
 
 # High Availability
 
-High availability is not only important for customer-facing software but if the monitoring infrastructure is not highly available, then there is a risk that operations people are not notified for alerts. Therefore high availability must be just as thought through for the monitoring stack, as for anything else.
+High availability is not only important for customer-facing software but if the monitoring infrastructure is not highly available, then there is a risk that operations people are not notified of alerts. Therefore high availability must be just as thought through for the monitoring stack, as for anything else.
 
 ## VMAgent
 
@@ -46,7 +46,8 @@ EOF
 
 ```
 
- Sharding for `VMAgent` distributes scraping between multiple deployments of `VMAgent`.
+### Sharding
+Sharding for `VMAgent` distributes scraping between multiple deployments of `VMAgent`.
 more info https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets
 
 Example usage:
@@ -71,14 +72,40 @@ spec:
 EOF
 ```
 
- This configuration produces 5 deployments with 2 replicas at each. Each deployment has own shard num
+This configuration produces 5 deployments with 2 replicas at each. Each deployment has its own shard num
 and scrapes only 1/5 of all targets.
 
+### StatefulMode
+
+In `StatefulMode` `VMAgent` doesn't lose state of the PersistentQueue (file-based buffer size for unsent data) on pod restarts.
+
+Operator creates `StatefulSet` and, with provided `PersistenVolumeClaimTemplate` at `StatefulStorage` configuration param, metrics queue is stored on disk.
+
+Example of configuration:
+```yaml 
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: example-persistent
+spec:
+  selectAllByDefault: true
+  vmAgentExternalLabelName: vmagent-ha
+  replicaCount: 2
+  remoteWrite:
+    - url: "http://vmsingle-example-vmsingle-persisted.default.svc:8429/api/v1/write"
+  statefulMode: true
+  statefulStorage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+            requests:
+              storage: 20Gi
+```
 
 ## VMAlert
 
 It can be launched with multiple replicas without an additional configuration, alertmanager is responsible for alert deduplication.
- Note, if you want to use `VMAlert` with high-available `VMAlertmanager`, which has more then 1 replica. You have to specify all pod fqdns 
+Note, if you want to use `VMAlert` with high-available `VMAlertmanager`, which has more than 1 replica. You have to specify all pod fqdns
 at `VMAlert.spec.notifiers.[url]`. Or you can use service discovery for notifier, examples:
 
 alertmanager:
@@ -162,10 +189,10 @@ It doesn't support high availability by default, for such purpose use VMCluster 
 
 ## VMCluster
 
-Cluster version provides a full set of high availability features - metrics replication, node failover, horizontal scaling.
- 
-For using cluster version you have to create corresponding CRD object:
- 
+The cluster version provides a full set of high availability features - metrics replication, node failover, horizontal scaling.
+
+For using the cluster version you have to create the corresponding CRD object:
+
 ```yaml
 cat << EOF | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -250,7 +277,7 @@ spec:
 
 EOF
 ```
- 
+
 Then wait for the cluster becomes ready
 
 ```bash
@@ -260,7 +287,7 @@ example-vmcluster-persistent   2              2               2              2s 
 example-vmcluster-persistent   2              2               2              30s   operational
 ```
 
-Get links for connection by executing command:
+Get links for connection by executing the command:
 
 ```bash
 kubectl get svc -l app.kubernetes.io/instance=example-vmcluster-persistent
@@ -292,7 +319,7 @@ spec:
 EOF
 ```
 
-Config for vmalert 
+Config for vmalert
 
 ```yaml
 cat << EOF | kubectl apply -f -
@@ -315,8 +342,8 @@ EOF
 
 ## Alertmanager
 
-The final step of the high availability scheme is Alertmanager, when an alert triggers, actually fires alerts against *all* instances of an Alertmanager cluster. 
+The final step of the high availability scheme is Alertmanager, when an alert triggers, actually fire alerts against *all* instances of an Alertmanager cluster.
 
-The Alertmanager, starting with the `v0.5.0` release, ships with a high availability mode. It implements a gossip protocol to synchronize instances of an Alertmanager cluster regarding notifications that have been sent out, to prevent duplicate notifications. It is an AP (available and partition tolerant) system. Being an AP system means that notifications are guaranteed to be sent at least once. 
+The Alertmanager, starting with the `v0.5.0` release, ships with a high availability mode. It implements a gossip protocol to synchronize instances of an Alertmanager cluster regarding notifications that have been sent out, to prevent duplicate notifications. It is an AP (available and partition tolerant) system. Being an AP system means that notifications are guaranteed to be sent at least once.
 
 The Victoria Metrics Operator ensures that Alertmanager clusters are properly configured to run highly available on Kubernetes.
