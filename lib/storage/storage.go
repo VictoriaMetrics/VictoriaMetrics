@@ -1101,12 +1101,16 @@ var saveCacheLock sync.Mutex
 func nextRetentionDuration(retentionMsecs int64) time.Duration {
 	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
 	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
-	t := time.Now().UnixNano() / 1e6
+	now := time.Now()
+	t := now.UnixNano() / 1e6
 	deadline := ((t + retentionMsecs - 1) / retentionMsecs) * retentionMsecs
 	// Schedule the deadline to +4 hours from the next retention period start.
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
 	deadline += 4 * 3600 * 1000
+	// The effect of time zone on retention period is moved out
+	_, offset := now.Zone()
+	deadline -= int64(offset) * 1000
 	return time.Duration(deadline-t) * time.Millisecond
 }
 
