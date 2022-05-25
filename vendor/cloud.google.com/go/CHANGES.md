@@ -1,5 +1,12 @@
 # Changes
 
+## [0.102.0](https://github.com/googleapis/google-cloud-go/compare/v0.101.1...v0.102.0) (2022-05-24)
+
+
+### Features
+
+* **civil:** add Before and After methods to civil.Time ([#5703](https://github.com/googleapis/google-cloud-go/issues/5703)) ([7acaaaf](https://github.com/googleapis/google-cloud-go/commit/7acaaafef47668c3e8382b8bc03475598c3db187))
+
 ### [0.101.1](https://github.com/googleapis/google-cloud-go/compare/v0.101.0...v0.101.1) (2022-05-03)
 
 
