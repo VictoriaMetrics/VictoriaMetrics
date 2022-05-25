@@ -126,11 +126,17 @@
         "gaming": {
             "component": "gaming"
         },
+        "gkebackup": {
+            "component": "gkebackup"
+        },
         "gkeconnect": {
             "component": "gkeconnect"
         },
         "gkehub": {
             "component": "gkehub"
+        },
+        "gkemulticloud": {
+            "component": "gkemulticloud"
         },
         "grafeas": {
             "component": "grafeas"
@@ -210,7 +216,7 @@
         "privatecatalog": {
             "component": "privatecatalog"
         },
-        "recaptchaenterprise": {
+        "recaptchaenterprise/v2": {
             "component": "recaptchaenterprise"
         },
         "recommendationengine": {
@@ -288,7 +294,7 @@
         "videointelligence": {
             "component": "videointelligence"
         },
-        "vision": {
+        "vision/v2": {
             "component": "vision"
         },
         "vmmigration": {

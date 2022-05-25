@@ -68,6 +68,11 @@ func (f *TimestampFlag) GetUsage() string {
 	return f.Usage
 }
 
+// GetCategory returns the category for the flag
+func (f *TimestampFlag) GetCategory() string {
+	return f.Category
+}
+
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *TimestampFlag) GetValue() string {
@@ -104,9 +109,9 @@ func (f *TimestampFlag) Apply(set *flag.FlagSet) error {
 		f.Destination.SetLayout(f.Layout)
 	}
 
-	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
+	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if err := f.Value.Set(val); err != nil {
-			return fmt.Errorf("could not parse %q as timestamp value for flag %s: %s", val, f.Name, err)
+			return fmt.Errorf("could not parse %q as timestamp value from %s for flag %s: %s", val, source, f.Name, err)
 		}
 		f.HasBeenSet = true
 	}
