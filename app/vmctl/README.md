@@ -197,7 +197,8 @@ One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" w
 
 ## Migrating data from InfluxDB (1.x)
 
-`vmctl` supports the `influx` mode to migrate data from InfluxDB to VictoriaMetrics time-series database.
+`vmctl` supports the `influx` mode for [migrating data from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html)
+time-series database.
 
 See `./vmctl influx --help` for details and full list of flags.
 
