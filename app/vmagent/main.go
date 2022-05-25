@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -284,6 +285,22 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		promscrape.WriteConfigData(w)
 		return true
+	case "/api/v1/status/config":
+		// See https://prometheus.io/docs/prometheus/latest/querying/api/#config
+		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
+			err := &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
+				StatusCode: http.StatusUnauthorized,
+			}
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		promscrapeStatusConfigRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		var bb bytesutil.ByteBuffer
+		promscrape.WriteConfigData(&bb)
+		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%q}}`, bb.B)
+		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -455,7 +472,8 @@ var (
 	promscrapeTargetResponseRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/target_response"}`)
 	promscrapeTargetResponseErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/target_response"}`)
 
-	promscrapeConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
+	promscrapeConfigRequests       = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
+	promscrapeStatusConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/config"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )
