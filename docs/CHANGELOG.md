@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `/api/v1/status/config` endpoint in the same way as Prometheus does. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#config).
+
 ## [v1.77.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.2)
 
 Released at 21-05-2022
