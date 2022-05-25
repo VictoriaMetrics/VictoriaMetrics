@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -30,7 +31,10 @@ import (
 
 var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
-		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
+		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. "+
+		"See also -promscrape.suppressScrapeErrorsDelay")
+	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
+		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
 	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
@@ -221,6 +225,12 @@ type scrapeWork struct {
 	// in stream parsing mode in order to reduce memory usage when the lastScrape size
 	// equals to or exceeds -promscrape.minResponseSizeForStreamParse
 	lastScrapeCompressed []byte
+
+	// lastErrLogTimestamp is the timestamp in unix seconds of the last logged scrape error
+	lastErrLogTimestamp uint64
+
+	// errsSuppressedCount is the number of suppressed scrape errors since lastErrLogTimestamp
+	errsSuppressedCount int
 }
 
 func (sw *scrapeWork) loadLastScrape() string {
@@ -351,9 +361,23 @@ func (sw *scrapeWork) logError(s string) {
 }
 
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
-	if err := sw.scrapeInternal(scrapeTimestamp, realTimestamp); err != nil && !*suppressScrapeErrors {
-		logger.Errorf("error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
+	err := sw.scrapeInternal(scrapeTimestamp, realTimestamp)
+	if err == nil {
+		return
 	}
+	d := time.Duration(fasttime.UnixTimestamp()-sw.lastErrLogTimestamp) * time.Second
+	if *suppressScrapeErrors || d < *suppressScrapeErrorsDelay {
+		sw.errsSuppressedCount++
+		return
+	}
+	err = fmt.Errorf("cannot scrape %q (job %q, labels %s): %w", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
+	if sw.errsSuppressedCount > 0 {
+		err = fmt.Errorf("%w; %d similar errors suppressed during the last %.1f seconds", err, sw.errsSuppressedCount, d.Seconds())
+	}
+	logger.Warnf("%s", err)
+	sw.lastErrLogTimestamp = fasttime.UnixTimestamp()
+	sw.errsSuppressedCount = 0
+	return
 }
 
 var (
