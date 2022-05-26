@@ -26,7 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -377,7 +377,6 @@ func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 	logger.Warnf("%s", err)
 	sw.lastErrLogTimestamp = fasttime.UnixTimestamp()
 	sw.errsSuppressedCount = 0
-	return
 }
 
 var (
