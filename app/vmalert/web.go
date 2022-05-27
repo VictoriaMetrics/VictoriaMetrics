@@ -4,7 +4,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"path"
 	"sort"
@@ -63,7 +62,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		pathPrefix = "/"
 	}
 
-	log.Printf("PATH => %s", r.URL.Path)
 	switch r.URL.Path {
 	case "/":
 		if r.Method != "GET" {
@@ -145,25 +143,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 }
-
-// case "/static/js/jquery-3.3.1.min.js":
-// 	data, err := embededStatic.ReadFile("static/js/jquery-3.3.1.min.js")
-// 	if err != nil {
-// 		return false
-// 	}
-// 	if err != nil {
-// 		log.Printf("Error read file => %s", err)
-// 		return false
-// 	}
-// 	log.Printf("Data => %s", data)
-// 	// fsys := fs.FS(embededStatic)
-// 	// embeded, err := fs.Sub(fsys, "static")
-// 	// if err != nil {
-// 	// 	log.Printf("Error => %s", err)
-// 	// 	return false
-// 	// }
-// 	w.Write(data)
-// 	return true
 
 type listGroupsResponse struct {
 	Status string `json:"status"`

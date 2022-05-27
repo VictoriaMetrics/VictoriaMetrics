@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"io"
@@ -62,6 +63,8 @@ var (
 	graphiteServer     *graphiteserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
+	//go:embed static/*
+	embededStatic embed.FS
 )
 
 func main() {
@@ -322,11 +325,26 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			w.Write([]byte("OK"))
 		}
 		return true
+	default:
+		if strings.HasPrefix(r.URL.Path, "/static") {
+			file, err := embededStatic.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
+			if err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			if strings.HasSuffix(r.URL.Path, "css") {
+				w.Header().Set("Content-Type", "text/css")
+			} else {
+				w.Header().Set("Content-Type", "text/javascript")
+			}
+			w.Write(file)
+			return true
+		}
+		if remotewrite.MultitenancyEnabled() {
+			return processMultitenantRequest(w, r, path)
+		}
+		return false
 	}
-	if remotewrite.MultitenancyEnabled() {
-		return processMultitenantRequest(w, r, path)
-	}
-	return false
 }
 
 func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path string) bool {
