@@ -1,8 +1,10 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 	"sort"
@@ -21,6 +23,8 @@ var (
 	once     = sync.Once{}
 	apiLinks [][2]string
 	navItems []tpl.NavItem
+	//go:embed static/*
+	embededStatic embed.FS
 )
 
 func initLinks() {
@@ -59,6 +63,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		pathPrefix = "/"
 	}
 
+	log.Printf("PATH => %s", r.URL.Path)
 	switch r.URL.Path {
 	case "/":
 		if r.Method != "GET" {
@@ -99,6 +104,21 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	default:
+		if strings.HasPrefix(r.URL.Path, "/static") {
+			file, err := embededStatic.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
+			if err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			if strings.HasSuffix(r.URL.Path, "css") {
+				w.Header().Set("Content-Type", "text/css")
+			} else {
+				w.Header().Set("Content-Type", "text/javascript")
+			}
+			w.Write(file)
+			return true
+		}
+
 		if !strings.HasSuffix(r.URL.Path, "/status") {
 			return false
 		}
@@ -125,6 +145,25 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 }
+
+// case "/static/js/jquery-3.3.1.min.js":
+// 	data, err := embededStatic.ReadFile("static/js/jquery-3.3.1.min.js")
+// 	if err != nil {
+// 		return false
+// 	}
+// 	if err != nil {
+// 		log.Printf("Error read file => %s", err)
+// 		return false
+// 	}
+// 	log.Printf("Data => %s", data)
+// 	// fsys := fs.FS(embededStatic)
+// 	// embeded, err := fs.Sub(fsys, "static")
+// 	// if err != nil {
+// 	// 	log.Printf("Error => %s", err)
+// 	// 	return false
+// 	// }
+// 	w.Write(data)
+// 	return true
 
 type listGroupsResponse struct {
 	Status string `json:"status"`

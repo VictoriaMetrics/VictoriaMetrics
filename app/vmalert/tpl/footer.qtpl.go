@@ -22,8 +22,8 @@ func StreamFooter(qw422016 *qt422016.Writer) {
 //line app/vmalert/tpl/footer.qtpl:1
 	qw422016.N().S(`
         </main>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script src="static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <script src="static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
         <script type="text/javascript">
             function expandAll() {
                $('.collapse').addClass('show');
@@ -40,14 +40,14 @@ func StreamFooter(qw422016 *qt422016.Writer) {
 
               $(".group-heading").click(function(e) {
                  let target = $(this).attr('data-bs-target');
-                 let el = $('#'+target);
+                 let el = $("#"+target);
                   new bootstrap.Collapse(el, {
                     toggle: true
                   });
               });
 
               var hash = window.location.hash.substr(1);
-              let group = $('#'+hash);
+              let group = $("#"+hash);
               if (group.length > 0) {
                 group.click();
               }
