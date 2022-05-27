@@ -5630,7 +5630,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(max_over_time(vm_concurrent_queries{job=~\"$job_select\", instance=~\"$instance\"}[1m]))",
+              "expr": "sum(max_over_time(vm_concurrent_select_current{job=~\"$job_select\", instance=~\"$instance\"}[1m]))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
