@@ -63,8 +63,8 @@ var (
 	graphiteServer     *graphiteserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
-	//go:embed static/*
-	embededStatic embed.FS
+	//go:embed static
+	staticFiles embed.FS
 )
 
 func main() {
@@ -327,7 +327,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	default:
 		if strings.HasPrefix(r.URL.Path, "/static") {
-			file, err := embededStatic.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
+			file, err := staticFiles.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 			if err != nil {
 				httpserver.Errorf(w, r, "%s", err)
 				return true

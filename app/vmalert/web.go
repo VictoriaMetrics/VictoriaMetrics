@@ -22,8 +22,8 @@ var (
 	once     = sync.Once{}
 	apiLinks [][2]string
 	navItems []tpl.NavItem
-	//go:embed static/*
-	embededStatic embed.FS
+	//go:embed static
+	staticFiles embed.FS
 )
 
 func initLinks() {
@@ -103,7 +103,8 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	default:
 		if strings.HasPrefix(r.URL.Path, "/static") {
-			file, err := embededStatic.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
+			http.FileServer(http.FS(staticFiles))
+			file, err := staticFiles.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
 			if err != nil {
 				httpserver.Errorf(w, r, "%s", err)
 				return true
