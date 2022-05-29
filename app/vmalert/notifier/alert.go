@@ -163,9 +163,6 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.
 	if !execute {
 		return nil
 	}
-	if !execute {
-		return nil
-	}
 	if err = tpl.Execute(dst, data); err != nil {
 		return fmt.Errorf("error evaluating annotation template: %w", err)
 	}
