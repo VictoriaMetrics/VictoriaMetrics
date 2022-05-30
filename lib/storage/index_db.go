@@ -24,7 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -1365,7 +1365,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	thSeriesCountByLabelValuePair := newTopHeap(topN)
 	thSeriesCountByMetricName := newTopHeap(topN)
 	var tmp, labelName, labelNameValue []byte
-	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
+	var labelValueCountByLabelName, seriesCountByLabelValuePair, totalSeriesCountByMetricName uint64
 	nameEqualBytes := []byte("__name__=")
 
 	loopsPaceLimiter := 0
@@ -1450,6 +1450,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 		// It is OK if series can be counted multiple times in rare cases -
 		// the returned number is an estimation.
 		seriesCountByLabelValuePair += uint64(matchingSeriesCount)
+		totalSeriesCountByMetricName += uint64(matchingSeriesCount)
 	}
 	if err := ts.Error(); err != nil {
 		return nil, fmt.Errorf("error when counting time series by metric names: %w", err)
@@ -1459,10 +1460,15 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
 		thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
 	}
+	count, err := is.getSeriesCount()
+	if err != nil {
+		return nil, fmt.Errorf("error when counting total time series: %w", err)
+	}
 	status := &TSDBStatus{
 		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
 		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
 		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
+		NumberOfSeries:              count,
 	}
 	return status, nil
 }
@@ -1474,6 +1480,7 @@ type TSDBStatus struct {
 	SeriesCountByMetricName     []TopHeapEntry
 	LabelValueCountByLabelName  []TopHeapEntry
 	SeriesCountByLabelValuePair []TopHeapEntry
+	NumberOfSeries              uint64
 }
 
 func (status *TSDBStatus) hasEntries() bool {

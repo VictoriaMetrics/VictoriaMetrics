@@ -265,6 +265,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)

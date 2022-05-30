@@ -6,22 +6,25 @@ import CircularProgress from "@mui/material/CircularProgress";
 interface SpinnerProps {
   isLoading: boolean;
   height?: string;
+  containerStyles?: Record<string, string | number>;
 }
 
-const Spinner: FC<SpinnerProps> = ({isLoading, height}) => {
+export const defaultContainerStyles: Record<string, string | number> = {
+  width: "100%",
+  maxWidth: "calc(100vw - 64px)",
+  height: "50%",
+  position: "absolute",
+  background: "rgba(255, 255, 255, 0.7)",
+  pointerEvents: "none",
+  zIndex: 2,
+};
+
+const Spinner: FC<SpinnerProps> = ({isLoading, containerStyles}) => {
+  const styles = containerStyles ?? defaultContainerStyles;
   return <Fade in={isLoading} style={{
     transitionDelay: isLoading ? "300ms" : "0ms",
   }}>
-    <Box alignItems="center" justifyContent="center" flexDirection="column" display="flex"
-      style={{
-        width: "100%",
-        maxWidth: "calc(100vw - 64px)",
-        position: "absolute",
-        height: height ?? "50%",
-        background: "rgba(255, 255, 255, 0.7)",
-        pointerEvents: "none",
-        zIndex: 2,
-      }}>
+    <Box alignItems="center" justifyContent="center" flexDirection="column" display="flex" style={styles}>
       <CircularProgress/>
     </Box>
   </Fade>;

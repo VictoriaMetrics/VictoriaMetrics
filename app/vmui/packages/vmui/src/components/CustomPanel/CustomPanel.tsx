@@ -12,6 +12,7 @@ import GraphSettings from "./Configurator/Graph/GraphSettings";
 import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateContext";
 import {AxisRange} from "../../state/graph/reducer";
 import Spinner from "../common/Spinner";
+import {useFetchQueryOptions} from "../../hooks/useFetchQueryOptions";
 
 const CustomPanel: FC = () => {
 
@@ -33,7 +34,8 @@ const CustomPanel: FC = () => {
     dispatch({type: "SET_PERIOD", payload: {from, to}});
   };
 
-  const {isLoading, liveData, graphData, error, queryOptions} = useFetchQuery({
+  const {queryOptions} = useFetchQueryOptions();
+  const {isLoading, liveData, graphData, error} = useFetchQuery({
     visible: true,
     customStep
   });
