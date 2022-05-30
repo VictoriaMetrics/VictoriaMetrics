@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"io"
@@ -62,6 +63,9 @@ var (
 	graphiteServer     *graphiteserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
+	//go:embed static
+	staticFiles  embed.FS
+	staticServer = http.FileServer(http.FS(staticFiles))
 )
 
 func main() {
@@ -322,11 +326,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			w.Write([]byte("OK"))
 		}
 		return true
+	default:
+		if strings.HasPrefix(r.URL.Path, "/static") {
+			staticServer.ServeHTTP(w, r)
+			return true
+		}
+		if remotewrite.MultitenancyEnabled() {
+			return processMultitenantRequest(w, r, path)
+		}
+		return false
 	}
-	if remotewrite.MultitenancyEnabled() {
-		return processMultitenantRequest(w, r, path)
-	}
-	return false
 }
 
 func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path string) bool {
