@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.43.0
-	github.com/aws/aws-sdk-go v1.44.22
+	github.com/aws/aws-sdk-go v1.44.24
 	github.com/cespare/xxhash/v2 v2.1.2
 
 	// TODO: switch back to https://github.com/cheggaaa/pb/v3 when v3-pooling branch
