@@ -103,18 +103,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	default:
 		if strings.HasPrefix(r.URL.Path, "/static") {
-			http.FileServer(http.FS(staticFiles))
-			file, err := staticFiles.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
-			if err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			if strings.HasSuffix(r.URL.Path, "css") {
-				w.Header().Set("Content-Type", "text/css")
-			} else {
-				w.Header().Set("Content-Type", "text/javascript")
-			}
-			w.Write(file)
+			http.FileServer(http.FS(staticFiles)).ServeHTTP(w, r)
 			return true
 		}
 
