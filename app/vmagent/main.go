@@ -117,9 +117,6 @@ func main() {
 	promscrape.Init(remotewrite.Push)
 
 	if len(*httpListenAddr) > 0 {
-		http.HandleFunc("/static", func(writer http.ResponseWriter, request *http.Request) {
-			http.FileServer(http.FS(staticFiles))
-		})
 		go httpserver.Serve(*httpListenAddr, requestHandler)
 	}
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
