@@ -64,7 +64,8 @@ var (
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
 	//go:embed static
-	staticFiles embed.FS
+	staticFiles  embed.FS
+	staticServer = http.FileServer(http.FS(staticFiles))
 )
 
 func main() {
@@ -327,7 +328,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	default:
 		if strings.HasPrefix(r.URL.Path, "/static") {
-			http.FileServer(http.FS(staticFiles)).ServeHTTP(w, r)
+			staticServer.ServeHTTP(w, r)
 			return true
 		}
 		if remotewrite.MultitenancyEnabled() {
