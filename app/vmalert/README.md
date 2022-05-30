@@ -68,7 +68,7 @@ Then configure `vmalert` accordingly:
     -external.label=replica=a                # Multiple external labels may be set
 ```
 
-Note there's a separate `remoteRead.url` to allow writing results of
+Note there's a separate `remoteWrite.url` to allow writing results of
 alerting/recording rules into a different storage than the initial data that's
 queried. This allows using `vmalert` to aggregate data from a short-term,
 high-frequency, high-cardinality storage into a long-term storage with
