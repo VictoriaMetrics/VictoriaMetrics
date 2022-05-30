@@ -85,7 +85,13 @@ var (
 //go:embed vmui
 var vmuiFiles embed.FS
 
-var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
+//go:embed static
+var staticFiles embed.FS
+
+var (
+	vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
+	staticServer   = http.FileServer(http.FS(staticFiles))
+)
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -175,6 +181,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
 		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
+		return true
+	}
+	if strings.HasPrefix(path, "/static") {
+		staticServer.ServeHTTP(w, r)
 		return true
 	}
 
