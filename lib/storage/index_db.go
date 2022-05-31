@@ -1345,7 +1345,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	if len(tfss) > 0 {
 		tr := TimeRange{
 			MinTimestamp: int64(date) * msecPerDay,
-			MaxTimestamp: int64(date+1) * msecPerDay,
+			MaxTimestamp: int64(date+1) * msecPerDay - 1,
 		}
 		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
 		if err != nil {
