@@ -63,6 +63,9 @@ var (
 	graphiteServer     *graphiteserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
+)
+
+var (
 	//go:embed static
 	staticFiles  embed.FS
 	staticServer = http.FileServer(http.FS(staticFiles))

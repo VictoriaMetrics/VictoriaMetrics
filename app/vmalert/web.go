@@ -22,6 +22,9 @@ var (
 	once     = sync.Once{}
 	apiLinks [][2]string
 	navItems []tpl.NavItem
+)
+
+var (
 	//go:embed static
 	staticFiles  embed.FS
 	staticServer = http.FileServer(http.FS(staticFiles))
