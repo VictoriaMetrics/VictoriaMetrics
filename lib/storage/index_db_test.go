@@ -1828,6 +1828,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair) {
 		t.Fatalf("unexpected SeriesCountByLabelValuePair;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair)
 	}
+	var expectedTotalSeries uint64 = 1000
+	if status.TotalSeriesCount != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeriesCount;\ngot\n%d\nwant\n%d", status.TotalSeriesCount, expectedTotalSeries)
+	}
 
 	// Check GetTSDBStatusWithFiltersForDate
 	tfs = NewTagFilters()
@@ -1850,6 +1854,36 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
 	}
+	expectedTotalSeries = 1000
+	if status.TotalSeriesCount != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeriesCount;\ngot\n%d\nwant\n%d", status.TotalSeriesCount, expectedTotalSeries)
+	}
+	// Check GetTSDBStatusWithFiltersForDate
+	tfs = NewTagFilters()
+	if err := tfs.Add([]byte("uniqueid"), []byte("0|1|3"), false, true); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	status, err = db.GetTSDBStatusWithFiltersForDate([]*TagFilters{tfs}, baseDate, 5, 1e6, noDeadline)
+	if err != nil {
+		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
+	}
+	if !status.hasEntries() {
+		t.Fatalf("expecting non-empty TSDB status")
+	}
+	expectedSeriesCountByMetricName = []TopHeapEntry{
+		{
+			Name:  "testMetric",
+			Count: 3,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
+		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
+	}
+	expectedTotalSeries = 1000
+	if status.TotalSeriesCount != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeriesCount;\ngot\n%d\nwant\n%d", status.TotalSeriesCount, expectedTotalSeries)
+	}
+
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {

@@ -1365,7 +1365,12 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	thSeriesCountByLabelValuePair := newTopHeap(topN)
 	thSeriesCountByMetricName := newTopHeap(topN)
 	var tmp, labelName, labelNameValue []byte
-	var labelValueCountByLabelName, seriesCountByLabelValuePair, totalSeriesCountByMetricName uint64
+	var labelValueCountByLabelName, seriesCountByLabelValuePair, metricIDsLen, totalSeriesCount uint64
+	// tracks if needed to collect stats for given filters
+	// if previous filter for item matches given tfss and current item doesn't
+	// we have to push stats for previous item.
+	// it should help correctly calculate total series count with filters.
+	var prevFilterMatched, shouldSkipHeapPush bool
 	nameEqualBytes := []byte("__name__=")
 
 	loopsPaceLimiter := 0
@@ -1386,6 +1391,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 		}
 		matchingSeriesCount := 0
 		if filter != nil {
+			shouldSkipHeapPush = false
 			if err := mp.Init(item, nsPrefixDateTagToMetricIDs); err != nil {
 				return nil, err
 			}
@@ -1395,10 +1401,12 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 					matchingSeriesCount++
 				}
 			}
-			if matchingSeriesCount == 0 {
-				// Skip rows without matching metricIDs.
-				continue
+			metricIDsLen += uint64(mp.MetricIDsLen())
+			// skip push values into the heap only if previous item doesn't match filter
+			if matchingSeriesCount == 0 && !prevFilterMatched {
+				shouldSkipHeapPush = true
 			}
+			prevFilterMatched = matchingSeriesCount > 0
 		}
 		tail := item[len(prefix):]
 		var err error
@@ -1422,7 +1430,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 			tmp = append(tmp, "__name__"...)
 		}
 		if !bytes.Equal(tmp, labelName) {
-			thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
+			thLabelValueCountByLabelName.maybePush(labelName, labelValueCountByLabelName, shouldSkipHeapPush)
 			labelValueCountByLabelName = 0
 			labelName = append(labelName[:0], tmp...)
 		}
@@ -1432,11 +1440,13 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 			return nil, fmt.Errorf("cannot unmarshal tag value from line %q: %w", item, err)
 		}
 		if !bytes.Equal(tmp, labelNameValue) {
-			thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
+			thSeriesCountByLabelValuePair.maybePush(labelNameValue, seriesCountByLabelValuePair, shouldSkipHeapPush)
 			if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
-				thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
+				thSeriesCountByMetricName.maybePush(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair, shouldSkipHeapPush)
+				totalSeriesCount += metricIDsLen
 			}
 			seriesCountByLabelValuePair = 0
+			metricIDsLen = 0
 			labelValueCountByLabelName++
 			labelNameValue = append(labelNameValue[:0], tmp...)
 		}
@@ -1445,30 +1455,27 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 				return nil, err
 			}
 			matchingSeriesCount = mp.MetricIDsLen()
+			metricIDsLen += uint64(mp.MetricIDsLen())
 		}
 		// Take into account deleted timeseries too.
 		// It is OK if series can be counted multiple times in rare cases -
 		// the returned number is an estimation.
 		seriesCountByLabelValuePair += uint64(matchingSeriesCount)
-		totalSeriesCountByMetricName += uint64(matchingSeriesCount)
 	}
 	if err := ts.Error(); err != nil {
 		return nil, fmt.Errorf("error when counting time series by metric names: %w", err)
 	}
-	thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
-	thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
+	thLabelValueCountByLabelName.maybePush(labelName, labelValueCountByLabelName, shouldSkipHeapPush)
+	thSeriesCountByLabelValuePair.maybePush(labelNameValue, seriesCountByLabelValuePair, shouldSkipHeapPush)
 	if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
-		thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
-	}
-	count, err := is.getSeriesCount()
-	if err != nil {
-		return nil, fmt.Errorf("error when counting total time series: %w", err)
+		thSeriesCountByMetricName.maybePush(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair, shouldSkipHeapPush)
+		totalSeriesCount += metricIDsLen
 	}
 	status := &TSDBStatus{
 		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
 		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
 		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
-		UniqueTimeSeries:            count,
+		TotalSeriesCount:            totalSeriesCount,
 	}
 	return status, nil
 }
@@ -1480,7 +1487,7 @@ type TSDBStatus struct {
 	SeriesCountByMetricName     []TopHeapEntry
 	LabelValueCountByLabelName  []TopHeapEntry
 	SeriesCountByLabelValuePair []TopHeapEntry
-	UniqueTimeSeries            uint64
+	TotalSeriesCount            uint64
 }
 
 func (status *TSDBStatus) hasEntries() bool {
@@ -1506,8 +1513,8 @@ type TopHeapEntry struct {
 	Count uint64
 }
 
-func (th *topHeap) pushIfNonEmpty(name []byte, count uint64) {
-	if count == 0 {
+func (th *topHeap) maybePush(name []byte, count uint64, shouldSkipPush bool) {
+	if count == 0 || shouldSkipPush {
 		return
 	}
 	if len(th.a) < th.topN {

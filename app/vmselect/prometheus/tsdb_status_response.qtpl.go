@@ -5,12 +5,13 @@
 package prometheus
 
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:1
-import "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 
-// TSDBStatusResponse generates response for /api/v1/status/tsdb .
+	// TSDBStatusResponse generates response for /api/v1/status/tsdb .
 
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:5
-import (
+
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
@@ -39,7 +40,7 @@ func StreamTSDBStatusResponse(qw422016 *qt422016.Writer, status *storage.TSDBSta
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:11
 	qw422016.N().S(`,"numSeries":`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:12
-	qw422016.N().DUL(status.UniqueTimeSeries)
+	qw422016.N().DUL(status.TotalSeriesCount)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:12
 	qw422016.N().S(`}}`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:15
