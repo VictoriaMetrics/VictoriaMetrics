@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -26,7 +27,7 @@ var (
 )
 
 // Exec executes q for the given ec.
-func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
+func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
@@ -40,24 +41,28 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	}
 
 	qid := activeQueriesV.Add(ec, q)
-	rv, err := evalExpr(ec, e)
+	rv, err := evalExpr(qt, ec, e)
 	activeQueriesV.Remove(qid)
 	if err != nil {
 		return nil, err
 	}
-
 	if isFirstPointOnly {
 		// Remove all the points except the first one from every time series.
 		for _, ts := range rv {
 			ts.Values = ts.Values[:1]
 			ts.Timestamps = ts.Timestamps[:1]
 		}
+		qt.Printf("leave only the first point in every series")
 	}
-
 	maySort := maySortResults(e, rv)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
 		return nil, err
+	}
+	if maySort {
+		qt.Printf("sort series by metric name and labels")
+	} else {
+		qt.Printf("do not sort series by metric name and labels")
 	}
 	if n := ec.RoundDigits; n < 100 {
 		for i := range result {
@@ -66,6 +71,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 				values[j] = decimal.RoundToDecimalDigits(v, n)
 			}
 		}
+		qt.Printf("round series values to %d decimal digits after the point", n)
 	}
 	return result, err
 }

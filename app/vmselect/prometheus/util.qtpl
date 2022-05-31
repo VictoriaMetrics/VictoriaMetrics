@@ -1,4 +1,5 @@
 {% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
 
@@ -43,6 +44,11 @@
 		{% endfor %}
 	{% endif %}
 ]
+{% endfunc %}
+
+{% func dumpQueryTrace(qt *querytracer.Tracer) %}
+	{% code	traceJSON := qt.ToJSON() %}
+	{% if traceJSON != "" %},"trace":{%s= traceJSON %}{% endif %}
 {% endfunc %}
 
 {% endstripspace %}
