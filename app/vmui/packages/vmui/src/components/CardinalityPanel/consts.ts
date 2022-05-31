@@ -48,4 +48,4 @@ export const spinnerContainerStyles = (height: string) =>  {
 };
 
 export const PERCENTAGE_TITLE = "Shows the percentage of the total number of metrics";
-export const SPINNER_TITLE = "It should take some time to fetch tsdb data";
+export const SPINNER_TITLE = "Please wait while data is loading. Do not reload the page.";
