@@ -39,7 +39,7 @@ func StreamTSDBStatusResponse(qw422016 *qt422016.Writer, status *storage.TSDBSta
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:11
 	qw422016.N().S(`,"numSeries":`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:12
-	qw422016.N().DUL(status.NumberOfSeries)
+	qw422016.N().DUL(status.UniqueTimeSeries)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:12
 	qw422016.N().S(`}}`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:15

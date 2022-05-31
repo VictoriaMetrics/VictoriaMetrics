@@ -6,7 +6,13 @@ import ShowChartIcon from "@mui/icons-material/ShowChart";
 import {useFetchQuery} from "../../hooks/useCardinalityFetch";
 import EnhancedTable from "../Table/Table";
 import {TSDBStatus, TopHeapEntry, DefaultState, Tabs as TabsType, Containers} from "./types";
-import {defaultHeadCells, headCellsWithProgress, PERCENTAGE_TITLE, spinnerContainerStyles} from "./consts";
+import {
+  defaultHeadCells,
+  headCellsWithProgress,
+  PERCENTAGE_TITLE,
+  SPINNER_TITLE,
+  spinnerContainerStyles
+} from "./consts";
 import {defaultProperties, progressCount, queryUpdater, typographyValues} from "./helpers";
 import {Data} from "../Table/types";
 import BarChart from "../BarChart/BarChart";
@@ -70,7 +76,14 @@ const CardinalityPanel: FC = () => {
 
   return (
     <>
-      {isLoading && <Spinner isLoading={isLoading} height={"800px"} containerStyles={spinnerContainerStyles("100%")} />}
+      {isLoading && <Spinner
+        isLoading={isLoading}
+        height={"800px"}
+        containerStyles={spinnerContainerStyles("100%")}
+        title={<Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>
+          {SPINNER_TITLE}
+        </Alert>}
+      />}
       <CardinalityConfigurator error={configError} query={query} onRunQuery={onRunQuery} onSetQuery={onSetQuery}
         onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} />
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}

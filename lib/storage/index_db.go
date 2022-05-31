@@ -1468,7 +1468,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
 		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
 		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
-		NumberOfSeries:              count,
+		UniqueTimeSeries:            count,
 	}
 	return status, nil
 }
@@ -1480,7 +1480,7 @@ type TSDBStatus struct {
 	SeriesCountByMetricName     []TopHeapEntry
 	LabelValueCountByLabelName  []TopHeapEntry
 	SeriesCountByLabelValuePair []TopHeapEntry
-	NumberOfSeries              uint64
+	UniqueTimeSeries            uint64
 }
 
 func (status *TSDBStatus) hasEntries() bool {
