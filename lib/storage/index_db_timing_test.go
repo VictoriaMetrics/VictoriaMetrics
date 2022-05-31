@@ -165,7 +165,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 			MaxTimestamp: timestampFromTime(time.Now()),
 		}
 		for i := 0; i < b.N; i++ {
-			metricIDs, err := is.searchMetricIDs(tfss, tr, 2e9)
+			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}

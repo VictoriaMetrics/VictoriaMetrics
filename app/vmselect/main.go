@@ -26,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -146,6 +147,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
+	tracerEnabled := searchutils.GetBool(r, "trace")
+	qt := querytracer.New(tracerEnabled)
 
 	// Limit the number of concurrent queries.
 	select {
@@ -161,6 +164,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		t := timerpool.Get(d)
 		select {
 		case concurrencyCh <- struct{}{}:
+			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
 			timerpool.Put(t)
 			defer func() { <-concurrencyCh }()
 		case <-t.C:
@@ -223,7 +227,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch p.Prefix {
 	case "select":
-		return selectHandler(startTime, w, r, p, at)
+		return selectHandler(qt, startTime, w, r, p, at)
 	case "delete":
 		return deleteHandler(startTime, w, r, p, at)
 	default:
@@ -237,7 +241,7 @@ var vmuiFiles embed.FS
 
 var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
-func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	defer func() {
 		// Count per-tenant cumulative durations and total requests
 		httpRequests.Get(at).Inc()
@@ -290,7 +294,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
 			httpserver.EnableCORS(w, r)
-			if err := prometheus.LabelValuesHandler(startTime, at, labelName, w, r); err != nil {
+			if err := prometheus.LabelValuesHandler(qt, startTime, at, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
 				sendPrometheusError(w, r, err)
 				return true
@@ -319,7 +323,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	case "prometheus/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryHandler(startTime, at, w, r); err != nil {
+		if err := prometheus.QueryHandler(qt, startTime, at, w, r); err != nil {
 			queryErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -328,7 +332,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	case "prometheus/api/v1/query_range":
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryRangeHandler(startTime, at, w, r); err != nil {
+		if err := prometheus.QueryRangeHandler(qt, startTime, at, w, r); err != nil {
 			queryRangeErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -337,7 +341,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	case "prometheus/api/v1/series":
 		seriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesHandler(startTime, at, w, r); err != nil {
+		if err := prometheus.SeriesHandler(qt, startTime, at, w, r); err != nil {
 			seriesErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -355,7 +359,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	case "prometheus/api/v1/labels":
 		labelsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsHandler(startTime, at, w, r); err != nil {
+		if err := prometheus.LabelsHandler(qt, startTime, at, w, r); err != nil {
 			labelsErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true

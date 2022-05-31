@@ -7,124 +7,145 @@ package prometheus
 //line app/vmselect/prometheus/query_range_response.qtpl:1
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 )
 
 // QueryRangeResponse generates response for /api/v1/query_range.See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 
-//line app/vmselect/prometheus/query_range_response.qtpl:8
+//line app/vmselect/prometheus/query_range_response.qtpl:9
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmselect/prometheus/query_range_response.qtpl:8
+//line app/vmselect/prometheus/query_range_response.qtpl:9
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmselect/prometheus/query_range_response.qtpl:8
-func StreamQueryRangeResponse(qw422016 *qt422016.Writer, isPartial bool, rs []netstorage.Result) {
-//line app/vmselect/prometheus/query_range_response.qtpl:8
-	qw422016.N().S(`{"status":"success","isPartial":`)
-//line app/vmselect/prometheus/query_range_response.qtpl:11
-	if isPartial {
-//line app/vmselect/prometheus/query_range_response.qtpl:11
-		qw422016.N().S(`true`)
-//line app/vmselect/prometheus/query_range_response.qtpl:11
-	} else {
-//line app/vmselect/prometheus/query_range_response.qtpl:11
-		qw422016.N().S(`false`)
-//line app/vmselect/prometheus/query_range_response.qtpl:11
-	}
-//line app/vmselect/prometheus/query_range_response.qtpl:11
-	qw422016.N().S(`,"data":{"resultType":"matrix","result":[`)
-//line app/vmselect/prometheus/query_range_response.qtpl:15
-	if len(rs) > 0 {
+//line app/vmselect/prometheus/query_range_response.qtpl:9
+func StreamQueryRangeResponse(qw422016 *qt422016.Writer, isPartial bool, rs []netstorage.Result, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/query_range_response.qtpl:9
+	qw422016.N().S(`{`)
+//line app/vmselect/prometheus/query_range_response.qtpl:12
+	seriesCount := len(rs)
+	pointsCount := 0
+
+//line app/vmselect/prometheus/query_range_response.qtpl:14
+	qw422016.N().S(`"status":"success","isPartial":`)
 //line app/vmselect/prometheus/query_range_response.qtpl:16
+	if isPartial {
+//line app/vmselect/prometheus/query_range_response.qtpl:16
+		qw422016.N().S(`true`)
+//line app/vmselect/prometheus/query_range_response.qtpl:16
+	} else {
+//line app/vmselect/prometheus/query_range_response.qtpl:16
+		qw422016.N().S(`false`)
+//line app/vmselect/prometheus/query_range_response.qtpl:16
+	}
+//line app/vmselect/prometheus/query_range_response.qtpl:16
+	qw422016.N().S(`,"data":{"resultType":"matrix","result":[`)
+//line app/vmselect/prometheus/query_range_response.qtpl:20
+	if len(rs) > 0 {
+//line app/vmselect/prometheus/query_range_response.qtpl:21
 		streamqueryRangeLine(qw422016, &rs[0])
-//line app/vmselect/prometheus/query_range_response.qtpl:17
+//line app/vmselect/prometheus/query_range_response.qtpl:22
+		pointsCount += len(rs[0].Values)
+
+//line app/vmselect/prometheus/query_range_response.qtpl:23
 		rs = rs[1:]
 
-//line app/vmselect/prometheus/query_range_response.qtpl:18
+//line app/vmselect/prometheus/query_range_response.qtpl:24
 		for i := range rs {
-//line app/vmselect/prometheus/query_range_response.qtpl:18
+//line app/vmselect/prometheus/query_range_response.qtpl:24
 			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/query_range_response.qtpl:19
+//line app/vmselect/prometheus/query_range_response.qtpl:25
 			streamqueryRangeLine(qw422016, &rs[i])
-//line app/vmselect/prometheus/query_range_response.qtpl:20
+//line app/vmselect/prometheus/query_range_response.qtpl:26
+			pointsCount += len(rs[i].Values)
+
+//line app/vmselect/prometheus/query_range_response.qtpl:27
 		}
-//line app/vmselect/prometheus/query_range_response.qtpl:21
+//line app/vmselect/prometheus/query_range_response.qtpl:28
 	}
-//line app/vmselect/prometheus/query_range_response.qtpl:21
-	qw422016.N().S(`]}}`)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-}
+//line app/vmselect/prometheus/query_range_response.qtpl:28
+	qw422016.N().S(`]}`)
+//line app/vmselect/prometheus/query_range_response.qtpl:32
+	qt.Printf("generate /api/v1/query_range response for series=%d, points=%d", seriesCount, pointsCount)
+	qtDone()
 
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-func WriteQueryRangeResponse(qq422016 qtio422016.Writer, isPartial bool, rs []netstorage.Result) {
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	StreamQueryRangeResponse(qw422016, isPartial, rs)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-}
-
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-func QueryRangeResponse(isPartial bool, rs []netstorage.Result) string {
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	WriteQueryRangeResponse(qb422016, isPartial, rs)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-	return qs422016
-//line app/vmselect/prometheus/query_range_response.qtpl:25
-}
-
-//line app/vmselect/prometheus/query_range_response.qtpl:27
-func streamqueryRangeLine(qw422016 *qt422016.Writer, r *netstorage.Result) {
-//line app/vmselect/prometheus/query_range_response.qtpl:27
-	qw422016.N().S(`{"metric":`)
-//line app/vmselect/prometheus/query_range_response.qtpl:29
-	streammetricNameObject(qw422016, &r.MetricName)
-//line app/vmselect/prometheus/query_range_response.qtpl:29
-	qw422016.N().S(`,"values":`)
-//line app/vmselect/prometheus/query_range_response.qtpl:30
-	streamvaluesWithTimestamps(qw422016, r.Values, r.Timestamps)
-//line app/vmselect/prometheus/query_range_response.qtpl:30
+//line app/vmselect/prometheus/query_range_response.qtpl:35
+	streamdumpQueryTrace(qw422016, qt)
+//line app/vmselect/prometheus/query_range_response.qtpl:35
 	qw422016.N().S(`}`)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 }
 
-//line app/vmselect/prometheus/query_range_response.qtpl:32
-func writequeryRangeLine(qq422016 qtio422016.Writer, r *netstorage.Result) {
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
+func WriteQueryRangeResponse(qq422016 qtio422016.Writer, isPartial bool, rs []netstorage.Result, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
-	streamqueryRangeLine(qw422016, r)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
+	StreamQueryRangeResponse(qw422016, isPartial, rs, qt, qtDone)
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 }
 
-//line app/vmselect/prometheus/query_range_response.qtpl:32
-func queryRangeLine(r *netstorage.Result) string {
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
+func QueryRangeResponse(isPartial bool, rs []netstorage.Result, qt *querytracer.Tracer, qtDone func()) string {
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/query_range_response.qtpl:32
-	writequeryRangeLine(qb422016, r)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
+	WriteQueryRangeResponse(qb422016, isPartial, rs, qt, qtDone)
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	return qs422016
-//line app/vmselect/prometheus/query_range_response.qtpl:32
+//line app/vmselect/prometheus/query_range_response.qtpl:37
+}
+
+//line app/vmselect/prometheus/query_range_response.qtpl:39
+func streamqueryRangeLine(qw422016 *qt422016.Writer, r *netstorage.Result) {
+//line app/vmselect/prometheus/query_range_response.qtpl:39
+	qw422016.N().S(`{"metric":`)
+//line app/vmselect/prometheus/query_range_response.qtpl:41
+	streammetricNameObject(qw422016, &r.MetricName)
+//line app/vmselect/prometheus/query_range_response.qtpl:41
+	qw422016.N().S(`,"values":`)
+//line app/vmselect/prometheus/query_range_response.qtpl:42
+	streamvaluesWithTimestamps(qw422016, r.Values, r.Timestamps)
+//line app/vmselect/prometheus/query_range_response.qtpl:42
+	qw422016.N().S(`}`)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+}
+
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+func writequeryRangeLine(qq422016 qtio422016.Writer, r *netstorage.Result) {
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	streamqueryRangeLine(qw422016, r)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+}
+
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+func queryRangeLine(r *netstorage.Result) string {
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	writequeryRangeLine(qb422016, r)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	qs422016 := string(qb422016.B)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/prometheus/query_range_response.qtpl:44
+	return qs422016
+//line app/vmselect/prometheus/query_range_response.qtpl:44
 }

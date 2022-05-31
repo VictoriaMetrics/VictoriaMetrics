@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -1122,15 +1123,17 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 }
 
 // SearchMetricNames returns metric names matching the given tfss on the given tr.
-func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
-	tsids, err := s.searchTSIDs(tfss, tr, maxMetrics, deadline)
+func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
+	qt = qt.NewChild()
+	defer qt.Donef("search for matching metric names")
+	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 	if len(tsids) == 0 {
 		return nil, nil
 	}
-	if err = s.prefetchMetricNames(tsids, deadline); err != nil {
+	if err = s.prefetchMetricNames(qt, tsids, deadline); err != nil {
 		return nil, err
 	}
 	accountID := tsids[0].AccountID
@@ -1165,7 +1168,9 @@ func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics
 }
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
-func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (s *Storage) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild()
+	defer qt.Donef("search for matching series ids")
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 
@@ -1186,6 +1191,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, 
 		t := timerpool.Get(timeout)
 		select {
 		case searchTSIDsConcurrencyCh <- struct{}{}:
+			qt.Printf("wait in the queue because %d concurrent search requests are already performed", cap(searchTSIDsConcurrencyCh))
 			timerpool.Put(t)
 		case <-t.C:
 			timerpool.Put(t)
@@ -1194,7 +1200,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, 
 				cap(searchTSIDsConcurrencyCh), timeout.Seconds())
 		}
 	}
-	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics, deadline)
+	tsids, err := s.idb().searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	<-searchTSIDsConcurrencyCh
 	if err != nil {
 		return nil, fmt.Errorf("error when searching tsids: %w", err)
@@ -1214,8 +1220,11 @@ var (
 // It is expected that all the tsdis have the same (accountID, projectID)
 //
 // This should speed-up further searchMetricNameWithCache calls for metricIDs from tsids.
-func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
+func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, tsids []TSID, deadline uint64) error {
+	qt = qt.NewChild()
+	defer qt.Donef("prefetch metric names for %d series ids", len(tsids))
 	if len(tsids) == 0 {
+		qt.Printf("nothing to prefetch")
 		return nil
 	}
 	accountID := tsids[0].AccountID
@@ -1233,8 +1242,10 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 		}
 		metricIDs = append(metricIDs, metricID)
 	}
+	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(tsids))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
+		qt.Printf("skip pre-fetching metric names for low number of metrid ids=%d", len(metricIDs))
 		return nil
 	}
 	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
@@ -1281,6 +1292,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	if err != nil {
 		return err
 	}
+	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	s.prefetchedMetricIDsLock.Lock()
@@ -1299,6 +1311,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	}
 	s.prefetchedMetricIDs.Store(prefetchedMetricIDsNew)
 	s.prefetchedMetricIDsLock.Unlock()
+	qt.Printf("cache metric ids for pre-fetched metric names")
 	return nil
 }
 

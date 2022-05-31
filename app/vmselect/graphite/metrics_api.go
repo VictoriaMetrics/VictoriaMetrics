@@ -214,7 +214,7 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	}
 	jsonp := r.FormValue("jsonp")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	metricNames, isPartial, err := netstorage.GetLabelValues(at, denyPartialResponse, "__name__", deadline)
+	metricNames, isPartial, err := netstorage.GetLabelValues(nil, at, denyPartialResponse, "__name__", deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}
@@ -236,7 +236,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail
-		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(at, denyPartialResponse, tr, label, query, delimiter, deadline)
+		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(nil, at, denyPartialResponse, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, false, err
 		}
@@ -256,7 +256,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 	}
 	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
 		query := qHead + qTail[:len(qTail)-1]
-		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(at, denyPartialResponse, tr, label, query, delimiter, deadline)
+		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(nil, at, denyPartialResponse, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, false, err
 		}

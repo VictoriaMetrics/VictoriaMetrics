@@ -209,7 +209,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 		}
 
 		// Search
-		s.Init(st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		s.Init(nil, st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		var mbs []metricBlock
 		for s.NextMetricBlock() {
 			var b Block

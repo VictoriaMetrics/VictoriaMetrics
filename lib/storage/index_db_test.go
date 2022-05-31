@@ -874,7 +874,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, true, false); err != nil {
 			return fmt.Errorf("cannot add no-op negative filter: %w", err)
 		}
-		tsidsFound, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err := db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
@@ -883,7 +883,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Verify tag cache.
-		tsidsCached, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsCached, err := db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
@@ -895,7 +895,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, true, false); err != nil {
 			return fmt.Errorf("cannot add negative filter for zeroing search results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter with full negative: %w", err)
 		}
@@ -913,7 +913,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for Graphite wildcard")
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter for Graphite wildcard: %w", err)
 		}
@@ -930,7 +930,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add([]byte("non-existent-tag"), []byte("foo|"), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for non-existing tag: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search with a filter matching empty tag: %w", err)
 		}
@@ -950,7 +950,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add([]byte("non-existent-tag2"), []byte("bar|"), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for non-existing tag2: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search with multipel filters matching empty tags: %w", err)
 		}
@@ -978,7 +978,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, true, true); err != nil {
 			return fmt.Errorf("cannot add no-op negative filter with regexp: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter: %w", err)
 		}
@@ -988,7 +988,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, true, true); err != nil {
 			return fmt.Errorf("cannot add negative filter for zeroing search results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter with full negative: %w", err)
 		}
@@ -1004,7 +1004,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, false, true); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup matching zero results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by non-existing tag filter: %w", err)
 		}
@@ -1020,7 +1020,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 
 		// Search with empty filter. It should match all the results for (accountID, projectID).
 		tfs.Reset(mn.AccountID, mn.ProjectID)
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for common prefix: %w", err)
 		}
@@ -1033,7 +1033,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for empty metricGroup: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for empty metricGroup: %w", err)
 		}
@@ -1050,7 +1050,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs2.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs1, tfs2}, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs1, tfs2}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for empty metricGroup: %w", err)
 		}
@@ -1059,7 +1059,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Verify empty tfss
-		tsidsFound, err = db.searchTSIDs(nil, tr, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, nil, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for nil tfss: %w", err)
 		}
@@ -1823,7 +1823,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MinTimestamp: int64(now - 2*msecPerHour - 1),
 		MaxTimestamp: int64(now),
 	}
-	matchedTSIDs, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 10000, noDeadline)
+	matchedTSIDs, err := db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 10000, noDeadline)
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
@@ -1837,7 +1837,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MaxTimestamp: int64(now),
 	}
 
-	matchedTSIDs, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 10000, noDeadline)
+	matchedTSIDs, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 10000, noDeadline)
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}

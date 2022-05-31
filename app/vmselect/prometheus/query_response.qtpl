@@ -1,12 +1,14 @@
 {% import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 ) %}
 
 {% stripspace %}
 QueryResponse generates response for /api/v1/query.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-{% func QueryResponse(isPartial bool, rs []netstorage.Result) %}
+{% func QueryResponse(isPartial bool, rs []netstorage.Result, qt *querytracer.Tracer, qtDone func()) %}
 {
+	{% code seriesCount := len(rs) %}
 	"status":"success",
 	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":{
@@ -28,6 +30,11 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 			{% endif %}
 		]
 	}
+	{% code
+		qt.Printf("generate /api/v1/query response for series=%d", seriesCount)
+		qtDone()
+	%}
+	{%= dumpQueryTrace(qt) %}
 }
 {% endfunc %}
 {% endstripspace %}

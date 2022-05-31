@@ -3,11 +3,13 @@ package storage
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 )
 
@@ -168,7 +170,9 @@ func (s *Search) reset() {
 // MustClose must be called when the search is done.
 //
 // Init returns the upper bound on the number of found time series.
-func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+	qt = qt.NewChild()
+	defer qt.Donef("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -179,15 +183,15 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMet
 	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := storage.searchTSIDs(tfss, tr, maxMetrics, deadline)
+	tsids, err := storage.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err == nil {
-		err = storage.prefetchMetricNames(tsids, deadline)
+		err = storage.prefetchMetricNames(qt, tsids, deadline)
 	}
 	// It is ok to call Init on error from storage.searchTSIDs.
 	// Init must be called before returning because it will fail
 	// on Seach.MustClose otherwise.
 	s.ts.Init(storage.tb, tsids, tr)
-
+	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
 		s.err = err
 		return 0
@@ -295,9 +299,24 @@ type TagFilter struct {
 
 // String returns string representation of tf.
 func (tf *TagFilter) String() string {
-	var bb bytesutil.ByteBuffer
-	fmt.Fprintf(&bb, "{Key=%q, Value=%q, IsNegative: %v, IsRegexp: %v}", tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp)
-	return string(bb.B)
+	op := tf.getOp()
+	if len(tf.Key) == 0 {
+		return fmt.Sprintf("__name__%s%q", op, tf.Value)
+	}
+	return fmt.Sprintf("%s%s%q", tf.Key, op, tf.Value)
+}
+
+func (tf *TagFilter) getOp() string {
+	if tf.IsNegative {
+		if tf.IsRegexp {
+			return "!~"
+		}
+		return "!="
+	}
+	if tf.IsRegexp {
+		return "=~"
+	}
+	return "="
 }
 
 // Marshal appends marshaled tf to dst and returns the result.
@@ -360,17 +379,19 @@ func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
 
 // String returns string representation of the search query.
 func (sq *SearchQuery) String() string {
-	var bb bytesutil.ByteBuffer
-	fmt.Fprintf(&bb, "AccountID=%d, ProjectID=%d, MinTimestamp=%s, MaxTimestamp=%s, TagFilters=[\n",
-		sq.AccountID, sq.ProjectID, timestampToTime(sq.MinTimestamp), timestampToTime(sq.MaxTimestamp))
-	for _, tagFilters := range sq.TagFilterss {
-		for _, tf := range tagFilters {
-			fmt.Fprintf(&bb, "%s", tf.String())
-		}
-		fmt.Fprintf(&bb, "\n")
+	a := make([]string, len(sq.TagFilterss))
+	for i, tfs := range sq.TagFilterss {
+		a[i] = tagFiltersToString(tfs)
 	}
-	fmt.Fprintf(&bb, "]")
-	return string(bb.B)
+	return fmt.Sprintf("accountID=%d, projectID=%d, filters=%s, timeRange=[%d..%d]", sq.AccountID, sq.ProjectID, a, sq.MinTimestamp, sq.MaxTimestamp)
+}
+
+func tagFiltersToString(tfs []TagFilter) string {
+	a := make([]string, len(tfs))
+	for i, tf := range tfs {
+		a[i] = tf.String()
+	}
+	return "{" + strings.Join(a, ",") + "}"
 }
 
 // Marshal appends marshaled sq to dst and returns the result.

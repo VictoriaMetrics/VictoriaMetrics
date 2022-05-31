@@ -55,7 +55,7 @@ func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		}
 		tfss := joinTagFilterss(tfs, etfs)
 		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tfss, 0)
-		n, err := netstorage.DeleteSeries(at, sq, deadline)
+		n, err := netstorage.DeleteSeries(nil, at, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot delete series for %q: %w", sq, err)
 		}
@@ -135,7 +135,7 @@ func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], at.AccountID, at.ProjectID, labels)
 		mr.Timestamp = ct
 	}
-	if err := netstorage.RegisterMetricNames(at, mrs, deadline); err != nil {
+	if err := netstorage.RegisterMetricNames(nil, at, mrs, deadline); err != nil {
 		return fmt.Errorf("cannot register paths: %w", err)
 	}
 
@@ -193,7 +193,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, isPartial, err = netstorage.GetGraphiteTagValues(at, denyPartialResponse, tag, filter, limit, deadline)
+		tagValues, isPartial, err = netstorage.GetGraphiteTagValues(nil, at, denyPartialResponse, tag, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 		if err != nil {
 			return err
 		}
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(nil, at, denyPartialResponse, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 		}
@@ -282,7 +282,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, isPartial, err = netstorage.GetGraphiteTags(at, denyPartialResponse, filter, limit, deadline)
+		labels, isPartial, err = netstorage.GetGraphiteTags(nil, at, denyPartialResponse, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -292,7 +292,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		if err != nil {
 			return err
 		}
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(nil, at, denyPartialResponse, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 		}
@@ -361,7 +361,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 		return err
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	mns, isPartial, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+	mns, isPartial, err := netstorage.SearchMetricNames(nil, at, denyPartialResponse, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 	}
@@ -422,7 +422,7 @@ func TagValuesHandler(startTime time.Time, at *auth.Token, tagName string, w htt
 	}
 	filter := r.FormValue("filter")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	tagValues, isPartial, err := netstorage.GetGraphiteTagValues(at, denyPartialResponse, tagName, filter, limit, deadline)
+	tagValues, isPartial, err := netstorage.GetGraphiteTagValues(nil, at, denyPartialResponse, tagName, filter, limit, deadline)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func TagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *
 	}
 	filter := r.FormValue("filter")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	labels, isPartial, err := netstorage.GetGraphiteTags(at, denyPartialResponse, filter, limit, deadline)
+	labels, isPartial, err := netstorage.GetGraphiteTags(nil, at, denyPartialResponse, filter, limit, deadline)
 	if err != nil {
 		return err
 	}

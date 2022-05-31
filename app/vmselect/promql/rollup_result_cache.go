@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,8 +13,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -62,8 +65,10 @@ func InitRollupResultCache(cachePath string) {
 	if len(rollupResultCachePath) > 0 {
 		logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
 		c = workingsetcache.Load(rollupResultCachePath, cacheSize)
+		mustLoadRollupResultCacheKeyPrefix(rollupResultCachePath)
 	} else {
 		c = workingsetcache.New(cacheSize)
+		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
 	}
 	if *disableCache {
 		c.Reset()
@@ -121,9 +126,10 @@ func StopRollupResultCache() {
 	logger.Infof("saving rollupResult cache to %q...", rollupResultCachePath)
 	startTime := time.Now()
 	if err := rollupResultCacheV.c.Save(rollupResultCachePath); err != nil {
-		logger.Errorf("cannot close rollupResult cache at %q: %s", rollupResultCachePath, err)
+		logger.Errorf("cannot save rollupResult cache at %q: %s", rollupResultCachePath, err)
 		return
 	}
+	mustSaveRollupResultCacheKeyPrefix(rollupResultCachePath)
 	var fcs fastcache.Stats
 	rollupResultCacheV.c.UpdateStats(&fcs)
 	rollupResultCacheV.c.Stop()
@@ -147,8 +153,14 @@ func ResetRollupResultCache() {
 	logger.Infof("rollupResult cache has been cleared")
 }
 
-func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
+func (rrc *rollupResultCache) Get(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
+	qt = qt.NewChild()
+	if qt.Enabled() {
+		query := expr.AppendString(nil)
+		defer qt.Donef("rollup cache get: query=%s, timeRange=[%d..%d], step=%d, window=%d", query, ec.Start, ec.End, ec.Step, window)
+	}
 	if !ec.mayCache() {
+		qt.Printf("do not fetch series from cache, since it is disabled in the current context")
 		return nil, ec.Start
 	}
 
@@ -159,6 +171,7 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 	bb.B = marshalRollupResultCacheKey(bb.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
+		qt.Printf("nothing found")
 		return nil, ec.Start
 	}
 	var mi rollupResultCacheMetainfo
@@ -167,6 +180,7 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 	}
 	key := mi.GetBestKey(ec.Start, ec.End)
 	if key.prefix == 0 && key.suffix == 0 {
+		qt.Printf("nothing found on the timeRange")
 		return nil, ec.Start
 	}
 	bb.B = key.Marshal(bb.B[:0])
@@ -178,18 +192,22 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
 		bb.B = marshalRollupResultCacheKey(bb.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
 		rrc.c.Set(bb.B, metainfoBuf)
+		qt.Printf("missing cache entry")
 		return nil, ec.Start
 	}
 	// Decompress into newly allocated byte slice, since tss returned from unmarshalTimeseriesFast
 	// refers to the byte slice, so it cannot be returned to the resultBufPool.
+	qt.Printf("load compressed entry from cache with size %d bytes", len(compressedResultBuf.B))
 	resultBuf, err := encoding.DecompressZSTD(nil, compressedResultBuf.B)
 	if err != nil {
 		logger.Panicf("BUG: cannot decompress resultBuf from rollupResultCache: %s; it looks like it was improperly saved", err)
 	}
+	qt.Printf("unpack the entry into %d bytes", len(resultBuf))
 	tss, err = unmarshalTimeseriesFast(resultBuf)
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal timeseries from rollupResultCache: %s; it looks like it was improperly saved", err)
 	}
+	qt.Printf("unmarshal %d series", len(tss))
 
 	// Extract values for the matching timestamps
 	timestamps := tss[0].Timestamps
@@ -199,10 +217,12 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 	}
 	if i == len(timestamps) {
 		// no matches.
+		qt.Printf("no datapoints found in the cached series on the given timeRange")
 		return nil, ec.Start
 	}
 	if timestamps[i] != ec.Start {
 		// The cached range doesn't cover the requested range.
+		qt.Printf("cached series don't cover the given timeRange")
 		return nil, ec.Start
 	}
 
@@ -223,13 +243,20 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 
 	timestamps = tss[0].Timestamps
 	newStart = timestamps[len(timestamps)-1] + ec.Step
+	qt.Printf("return %d series on a timeRange=[%d..%d]", len(tss), ec.Start, newStart-ec.Step)
 	return tss, newStart
 }
 
 var resultBufPool bytesutil.ByteBufferPool
 
-func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
+func (rrc *rollupResultCache) Put(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
+	qt = qt.NewChild()
+	if qt.Enabled() {
+		query := expr.AppendString(nil)
+		defer qt.Donef("rollup cache put: query=%s, timeRange=[%d..%d], step=%d, window=%d, series=%d", query, ec.Start, ec.End, ec.Step, window, len(tss))
+	}
 	if len(tss) == 0 || !ec.mayCache() {
+		qt.Printf("do not store series to cache, since it is disabled in the current context")
 		return
 	}
 
@@ -244,6 +271,7 @@ func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window in
 	i++
 	if i == 0 {
 		// Nothing to store in the cache.
+		qt.Printf("nothing to store in the cache, since all the points have timestamps bigger than %d", deadline)
 		return
 	}
 	if i < len(timestamps) {
@@ -258,51 +286,95 @@ func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window in
 	}
 
 	// Store tss in the cache.
+	metainfoKey := bbPool.Get()
+	defer bbPool.Put(metainfoKey)
+	metainfoBuf := bbPool.Get()
+	defer bbPool.Put(metainfoBuf)
+
+	metainfoKey.B = marshalRollupResultCacheKey(metainfoKey.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
+	var mi rollupResultCacheMetainfo
+	if len(metainfoBuf.B) > 0 {
+		if err := mi.Unmarshal(metainfoBuf.B); err != nil {
+			logger.Panicf("BUG: cannot unmarshal rollupResultCacheMetainfo: %s; it looks like it was improperly saved", err)
+		}
+	}
+	start := timestamps[0]
+	end := timestamps[len(timestamps)-1]
+	if mi.CoversTimeRange(start, end) {
+		qt.Printf("series on the given timeRange=[%d..%d] already exist in the cache", start, end)
+		return
+	}
+
 	maxMarshaledSize := getRollupResultCacheSize() / 4
 	resultBuf := resultBufPool.Get()
 	defer resultBufPool.Put(resultBuf)
 	resultBuf.B = marshalTimeseriesFast(resultBuf.B[:0], tss, maxMarshaledSize, ec.Step)
 	if len(resultBuf.B) == 0 {
 		tooBigRollupResults.Inc()
+		qt.Printf("cannot store series in the cache, since they would occupy more than %d bytes", maxMarshaledSize)
 		return
 	}
+	qt.Printf("marshal %d series on a timeRange=[%d..%d] into %d bytes", len(tss), start, end, len(resultBuf.B))
 	compressedResultBuf := resultBufPool.Get()
 	defer resultBufPool.Put(compressedResultBuf)
 	compressedResultBuf.B = encoding.CompressZSTDLevel(compressedResultBuf.B[:0], resultBuf.B, 1)
-
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
+	qt.Printf("compress %d bytes into %d bytes", len(resultBuf.B), len(compressedResultBuf.B))
 
 	var key rollupResultCacheKey
 	key.prefix = rollupResultCacheKeyPrefix
 	key.suffix = atomic.AddUint64(&rollupResultCacheKeySuffix, 1)
-	bb.B = key.Marshal(bb.B[:0])
-	rrc.c.SetBig(bb.B, compressedResultBuf.B)
+	rollupResultKey := key.Marshal(nil)
+	rrc.c.SetBig(rollupResultKey, compressedResultBuf.B)
+	qt.Printf("store %d bytes in the cache", len(compressedResultBuf.B))
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
-	metainfoBuf := rrc.c.Get(nil, bb.B)
-	var mi rollupResultCacheMetainfo
-	if len(metainfoBuf) > 0 {
-		if err := mi.Unmarshal(metainfoBuf); err != nil {
-			logger.Panicf("BUG: cannot unmarshal rollupResultCacheMetainfo: %s; it looks like it was improperly saved", err)
-		}
-	}
 	mi.AddKey(key, timestamps[0], timestamps[len(timestamps)-1])
-	metainfoBuf = mi.Marshal(metainfoBuf[:0])
-	rrc.c.Set(bb.B, metainfoBuf)
+	metainfoBuf.B = mi.Marshal(metainfoBuf.B[:0])
+	rrc.c.Set(metainfoKey.B, metainfoBuf.B)
 }
 
 var (
-	rollupResultCacheKeyPrefix = func() uint64 {
-		var buf [8]byte
-		if _, err := rand.Read(buf[:]); err != nil {
-			// do not use logger.Panicf, since it isn't initialized yet.
-			panic(fmt.Errorf("FATAL: cannot read random data for rollupResultCacheKeyPrefix: %w", err))
-		}
-		return encoding.UnmarshalUint64(buf[:])
-	}()
+	rollupResultCacheKeyPrefix uint64
 	rollupResultCacheKeySuffix = uint64(time.Now().UnixNano())
 )
+
+func newRollupResultCacheKeyPrefix() uint64 {
+	var buf [8]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		// do not use logger.Panicf, since it isn't initialized yet.
+		panic(fmt.Errorf("FATAL: cannot read random data for rollupResultCacheKeyPrefix: %w", err))
+	}
+	return encoding.UnmarshalUint64(buf[:])
+}
+
+func mustLoadRollupResultCacheKeyPrefix(path string) {
+	path = path + ".key.prefix"
+	if !fs.IsPathExist(path) {
+		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		return
+	}
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		logger.Errorf("cannot load %s: %s; reset rollupResult cache", path, err)
+		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		return
+	}
+	if len(data) != 8 {
+		logger.Errorf("unexpected size of %s; want 8 bytes; got %d bytes; reset rollupResult cache", path, len(data))
+		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		return
+	}
+	rollupResultCacheKeyPrefix = encoding.UnmarshalUint64(data)
+}
+
+func mustSaveRollupResultCacheKeyPrefix(path string) {
+	path = path + ".key.prefix"
+	data := encoding.MarshalUint64(nil, rollupResultCacheKeyPrefix)
+	fs.MustRemoveAll(path)
+	if err := fs.WriteFileAtomically(path, data); err != nil {
+		logger.Fatalf("cannot store rollupResult cache key prefix to %q: %s", path, err)
+	}
+}
 
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
@@ -446,20 +518,36 @@ func (mi *rollupResultCacheMetainfo) Unmarshal(src []byte) error {
 	return nil
 }
 
+func (mi *rollupResultCacheMetainfo) CoversTimeRange(start, end int64) bool {
+	if start > end {
+		logger.Panicf("BUG: start cannot exceed end; got %d vs %d", start, end)
+	}
+	for i := range mi.entries {
+		e := &mi.entries[i]
+		if start >= e.start && end <= e.end {
+			return true
+		}
+	}
+	return false
+}
+
 func (mi *rollupResultCacheMetainfo) GetBestKey(start, end int64) rollupResultCacheKey {
 	if start > end {
 		logger.Panicf("BUG: start cannot exceed end; got %d vs %d", start, end)
 	}
 	var bestKey rollupResultCacheKey
-	bestD := int64(1<<63 - 1)
+	dMax := int64(0)
 	for i := range mi.entries {
 		e := &mi.entries[i]
-		if start < e.start || end <= e.start {
+		if start < e.start {
 			continue
 		}
-		d := start - e.start
-		if d < bestD {
-			bestD = d
+		d := e.end - start
+		if end <= e.end {
+			d = end - start
+		}
+		if d >= dMax {
+			dMax = d
 			bestKey = e.key
 		}
 	}

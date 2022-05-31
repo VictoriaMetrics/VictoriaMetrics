@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -293,6 +294,7 @@ type vmselectRequestCtx struct {
 	sizeBuf []byte
 	dataBuf []byte
 
+	qt   *querytracer.Tracer
 	sq   storage.SearchQuery
 	tfss []*storage.TagFilters
 	sr   storage.Search
@@ -475,6 +477,13 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	}
 	rpcName := string(ctx.dataBuf)
 
+	// Initialize query tracing.
+	traceEnabled, err := ctx.readBool()
+	if err != nil {
+		return fmt.Errorf("cannot read traceEnabled: %w", err)
+	}
+	ctx.qt = querytracer.New(traceEnabled)
+
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		return fmt.Errorf("cannot set read deadline for reading request args: %w", err)
@@ -491,32 +500,47 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	ctx.timeout = uint64(timeout)
 	ctx.deadline = fasttime.UnixTimestamp() + uint64(timeout)
 
+	// Process the rpcName call.
+	if err := s.processVMSelectRPC(ctx, rpcName); err != nil {
+		return err
+	}
+
+	// Finish query trace.
+	ctx.qt.Donef("%s() at vmstorage", rpcName)
+	traceJSON := ctx.qt.ToJSON()
+	if err := ctx.writeString(traceJSON); err != nil {
+		return fmt.Errorf("cannot send trace with length %d bytes to vmselect: %w", len(traceJSON), err)
+	}
+	return nil
+}
+
+func (s *Server) processVMSelectRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
-	case "search_v5":
+	case "search_v6":
 		return s.processVMSelectSearch(ctx)
-	case "searchMetricNames_v2":
+	case "searchMetricNames_v3":
 		return s.processVMSelectSearchMetricNames(ctx)
-	case "labelValuesOnTimeRange_v2":
+	case "labelValuesOnTimeRange_v3":
 		return s.processVMSelectLabelValuesOnTimeRange(ctx)
-	case "labelValues_v3":
+	case "labelValues_v4":
 		return s.processVMSelectLabelValues(ctx)
-	case "tagValueSuffixes_v2":
+	case "tagValueSuffixes_v3":
 		return s.processVMSelectTagValueSuffixes(ctx)
-	case "labelEntries_v3":
+	case "labelEntries_v4":
 		return s.processVMSelectLabelEntries(ctx)
-	case "labelsOnTimeRange_v2":
+	case "labelsOnTimeRange_v3":
 		return s.processVMSelectLabelsOnTimeRange(ctx)
-	case "labels_v3":
+	case "labels_v4":
 		return s.processVMSelectLabels(ctx)
-	case "seriesCount_v3":
+	case "seriesCount_v4":
 		return s.processVMSelectSeriesCount(ctx)
-	case "tsdbStatus_v3":
+	case "tsdbStatus_v4":
 		return s.processVMSelectTSDBStatus(ctx)
-	case "tsdbStatusWithFilters_v2":
+	case "tsdbStatusWithFilters_v3":
 		return s.processVMSelectTSDBStatusWithFilters(ctx)
-	case "deleteMetrics_v4":
+	case "deleteMetrics_v5":
 		return s.processVMSelectDeleteMetrics(ctx)
-	case "registerMetricNames_v2":
+	case "registerMetricNames_v3":
 		return s.processVMSelectRegisterMetricNames(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", ctx.dataBuf)
@@ -1018,7 +1042,7 @@ func (s *Server) processVMSelectSearchMetricNames(ctx *vmselectRequestCtx) error
 		return ctx.writeErrorMessage(err)
 	}
 	maxMetrics := ctx.getMaxMetrics()
-	mns, err := s.storage.SearchMetricNames(ctx.tfss, tr, maxMetrics, ctx.deadline)
+	mns, err := s.storage.SearchMetricNames(ctx.qt, ctx.tfss, tr, maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -1039,6 +1063,7 @@ func (s *Server) processVMSelectSearchMetricNames(ctx *vmselectRequestCtx) error
 			return fmt.Errorf("cannot send metricName #%d: %w", i+1, err)
 		}
 	}
+	ctx.qt.Printf("sent %d series to vmselect", len(mns))
 	return nil
 }
 
@@ -1067,7 +1092,7 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 	}
 	startTime := time.Now()
 	maxMetrics := ctx.getMaxMetrics()
-	ctx.sr.Init(s.storage, ctx.tfss, tr, maxMetrics, ctx.deadline)
+	ctx.sr.Init(ctx.qt, s.storage, ctx.tfss, tr, maxMetrics, ctx.deadline)
 	indexSearchDuration.UpdateDuration(startTime)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
@@ -1080,7 +1105,9 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 	}
 
 	// Send found blocks to vmselect.
+	blocksRead := 0
 	for ctx.sr.NextMetricBlock() {
+		blocksRead++
 		ctx.mb.MetricName = ctx.sr.MetricBlockRef.MetricName
 		ctx.sr.MetricBlockRef.BlockRef.MustReadBlock(&ctx.mb.Block, fetchData)
 
@@ -1095,6 +1122,7 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 	if err := ctx.sr.Error(); err != nil {
 		return fmt.Errorf("search error: %w", err)
 	}
+	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {

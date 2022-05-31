@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
@@ -89,7 +90,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxFederateSeries)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -100,7 +101,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+	err = rss.RunParallel(nil, func(rs *netstorage.Result, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -158,12 +159,12 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, ep.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, ep.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		go func() {
-			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			err := rss.RunParallel(nil, func(rs *netstorage.Result, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -181,7 +182,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		}()
 	} else {
 		go func() {
-			err := netstorage.ExportBlocks(at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(nil, at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -242,7 +243,7 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+	err = netstorage.ExportBlocks(nil, at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -297,7 +298,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
 	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
-	if err := exportHandler(at, w, ep, format, maxRowsPerLine, reduceMemUsage); err != nil {
+	if err := exportHandler(nil, at, w, ep, format, maxRowsPerLine, reduceMemUsage); err != nil {
 		return fmt.Errorf("error when exporting data on the time range (start=%d, end=%d): %w", ep.start, ep.end, err)
 	}
 	return nil
@@ -305,7 +306,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(at *auth.Token, w http.ResponseWriter, ep *exportParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
+func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter, ep *exportParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
 		bb := quicktemplate.AcquireByteBuffer()
@@ -370,12 +371,13 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, ep *exportParams, form
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, ep.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, true, ep.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
+		qtChild := qt.NewChild()
 		go func() {
-			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			err := rss.RunParallel(qtChild, func(rs *netstorage.Result, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -388,12 +390,14 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, ep *exportParams, form
 				exportBlockPool.Put(xb)
 				return nil
 			})
+			qtChild.Donef("background export format=%s", format)
 			close(resultsCh)
 			doneCh <- err
 		}()
 	} else {
+		qtChild := qt.NewChild()
 		go func() {
-			err := netstorage.ExportBlocks(at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(qtChild, at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -410,13 +414,14 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, ep *exportParams, form
 				exportBlockPool.Put(xb)
 				return nil
 			})
+			qtChild.Donef("background export format=%s", format)
 			close(resultsCh)
 			doneCh <- err
 		}()
 	}
 
 	// writeResponseFunc must consume all the data from resultsCh.
-	writeResponseFunc(bw, resultsCh)
+	writeResponseFunc(bw, resultsCh, qt)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
@@ -464,7 +469,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	}
 	ct := startTime.UnixNano() / 1e6
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tagFilterss, 0)
-	deletedCount, err := netstorage.DeleteSeries(at, sq, deadline)
+	deletedCount, err := netstorage.DeleteSeries(nil, at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
 	}
@@ -524,7 +529,7 @@ var httpClient = &http.Client{
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
-func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
+func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
@@ -542,7 +547,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	if len(matches) == 0 && len(etfs) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
-			labelValues, isPartial, err = netstorage.GetLabelValues(at, denyPartialResponse, labelName, deadline)
+			labelValues, isPartial, err = netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
 			}
@@ -560,7 +565,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 				MinTimestamp: start,
 				MaxTimestamp: end,
 			}
-			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(at, denyPartialResponse, labelName, tr, deadline)
+			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(qt, at, denyPartialResponse, labelName, tr, deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
 			}
@@ -582,7 +587,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 		if err != nil {
 			return err
 		}
-		labelValues, isPartial, err = labelValuesWithMatches(at, denyPartialResponse, labelName, matches, etfs, start, end, deadline)
+		labelValues, isPartial, err = labelValuesWithMatches(qt, at, denyPartialResponse, labelName, matches, etfs, start, end, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %w", labelName, matches, start, end, err)
 		}
@@ -591,14 +596,17 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteLabelValuesResponse(bw, isPartial, labelValues)
+	qtDone := func() {
+		qt.Donef("/api/v1/labels")
+	}
+	WriteLabelValuesResponse(bw, isPartial, labelValues, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("canot flush label values to remote client: %w", err)
 	}
 	return nil
 }
 
-func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName string, matches []string, etfs [][]storage.TagFilter,
+func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, matches []string, etfs [][]storage.TagFilter,
 	start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
@@ -629,7 +637,7 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 	isPartial := false
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -642,13 +650,13 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 			m[string(labelValue)] = struct{}{}
 		}
 	} else {
-		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
+		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		isPartial = isPartialResponse
 		var mLock sync.Mutex
-		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		err = rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 			labelValue := rs.MetricName.GetTagValue(labelName)
 			if len(labelValue) == 0 {
 				return nil
@@ -667,6 +675,7 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 		labelValues = append(labelValues, labelValue)
 	}
 	sort.Strings(labelValues)
+	qt.Printf("sort %d label values", len(labelValues))
 	return labelValues, isPartial, nil
 }
 
@@ -678,7 +687,7 @@ func LabelsCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	labelEntries, isPartial, err := netstorage.GetLabelEntries(at, denyPartialResponse, deadline)
+	labelEntries, isPartial, err := netstorage.GetLabelEntries(nil, at, denyPartialResponse, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %w`, err)
 	}
@@ -743,7 +752,7 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	var status *storage.TSDBStatus
 	var isPartial bool
 	if len(matches) == 0 && len(etfs) == 0 {
-		status, isPartial, err = netstorage.GetTSDBStatusForDate(at, denyPartialResponse, deadline, date, topN, *maxTSDBStatusSeries)
+		status, isPartial, err = netstorage.GetTSDBStatusForDate(nil, at, denyPartialResponse, deadline, date, topN, *maxTSDBStatusSeries)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
@@ -776,7 +785,7 @@ func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []s
 	start := int64(date*secsPerDay) * 1000
 	end := int64(date*secsPerDay+secsPerDay) * 1000
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, maxMetrics)
-	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(at, denyPartialResponse, deadline, sq, topN)
+	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(nil, at, denyPartialResponse, deadline, sq, topN)
 	if err != nil {
 		return nil, false, err
 	}
@@ -788,7 +797,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
-func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
@@ -806,7 +815,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if len(matches) == 0 && len(etfs) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
-			labels, isPartial, err = netstorage.GetLabels(at, denyPartialResponse, deadline)
+			labels, isPartial, err = netstorage.GetLabels(qt, at, denyPartialResponse, deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels: %w", err)
 			}
@@ -824,7 +833,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 				MinTimestamp: start,
 				MaxTimestamp: end,
 			}
-			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(at, denyPartialResponse, tr, deadline)
+			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(qt, at, denyPartialResponse, tr, deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels on time range: %w", err)
 			}
@@ -844,7 +853,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		if err != nil {
 			return err
 		}
-		labels, isPartial, err = labelsWithMatches(at, denyPartialResponse, matches, etfs, start, end, deadline)
+		labels, isPartial, err = labelsWithMatches(qt, at, denyPartialResponse, matches, etfs, start, end, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %w", matches, start, end, err)
 		}
@@ -853,14 +862,18 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteLabelsResponse(bw, isPartial, labels)
+	qtDone := func() {
+		qt.Donef("/api/v1/labels")
+	}
+	WriteLabelsResponse(bw, isPartial, labels, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
 	return nil
 }
 
-func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
+func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter,
+	start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, false, err
@@ -877,7 +890,7 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 	isPartial := false
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -891,13 +904,13 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 			m["__name__"] = struct{}{}
 		}
 	} else {
-		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
+		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
 		isPartial = isPartialResponse
 		var mLock sync.Mutex
-		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		err = rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 			mLock.Lock()
 			for _, tag := range rs.MetricName.Tags {
 				m[string(tag.Key)] = struct{}{}
@@ -915,6 +928,7 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 		labels = append(labels, label)
 	}
 	sort.Strings(labels)
+	qt.Printf("sort %d labels", len(labels))
 	return labels, isPartial, nil
 }
 
@@ -926,7 +940,7 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	n, isPartial, err := netstorage.GetSeriesCount(at, denyPartialResponse, deadline)
+	n, isPartial, err := netstorage.GetSeriesCount(nil, at, denyPartialResponse, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
@@ -946,7 +960,7 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // SeriesHandler processes /api/v1/series request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -976,10 +990,13 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		end = start + defaultStep
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
+	qtDone := func() {
+		qt.Donef("/api/v1/series: start=%d, end=%d", start, end)
+	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartial, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		mns, isPartial, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -996,14 +1013,14 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 			close(resultsCh)
 		}()
 		// WriteSeriesResponse must consume all the data from resultsCh.
-		WriteSeriesResponse(bw, isPartial, resultsCh)
+		WriteSeriesResponse(bw, isPartial, resultsCh, qt, qtDone)
 		if err := bw.Flush(); err != nil {
 			return err
 		}
 		seriesDuration.UpdateDuration(startTime)
 		return nil
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -1014,7 +1031,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
 	doneCh := make(chan error)
 	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 			if err := bw.Error(); err != nil {
 				return err
 			}
@@ -1027,7 +1044,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		doneCh <- err
 	}()
 	// WriteSeriesResponse must consume all the data from resultsCh.
-	WriteSeriesResponse(bw, isPartial, resultsCh)
+	WriteSeriesResponse(bw, isPartial, resultsCh, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush series response to remote client: %w", err)
 	}
@@ -1043,10 +1060,11 @@ var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // QueryHandler processes /api/v1/query request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer queryDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
+	mayCache := !searchutils.GetBool(r, "nocache")
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -1099,7 +1117,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 			end:      end,
 			filterss: filterss,
 		}
-		if err := exportHandler(at, w, ep, "promapi", 0, false); err != nil {
+		if err := exportHandler(qt, at, w, ep, "promapi", 0, false); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1115,7 +1133,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		start -= offset
 		end := start
 		start = end - window
-		if err := queryRangeHandler(startTime, at, w, childQuery, start, end, step, r, ct, etfs); err != nil {
+		if err := queryRangeHandler(qt, startTime, at, w, childQuery, start, end, step, r, ct, etfs); err != nil {
 			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1140,13 +1158,14 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
+		MayCache:            mayCache,
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
 	}
-	result, err := promql.Exec(&ec, query, true)
+	result, err := promql.Exec(qt, &ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
@@ -1162,7 +1181,10 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteQueryResponse(bw, ec.IsPartialResponse, result)
+	qtDone := func() {
+		qt.Donef("/api/v1/query: query=%s, time=%d: series=%d", query, start, len(result))
+	}
+	WriteQueryResponse(bw, ec.IsPartialResponse, result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
@@ -1174,7 +1196,7 @@ var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-func QueryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer queryRangeDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -1198,13 +1220,14 @@ func QueryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	if err != nil {
 		return err
 	}
-	if err := queryRangeHandler(startTime, at, w, query, start, end, step, r, ct, etfs); err != nil {
+	if err := queryRangeHandler(qt, startTime, at, w, query, start, end, step, r, ct, etfs); err != nil {
 		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
 	return nil
 }
 
-func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
+func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, query string,
+	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	mayCache := !searchutils.GetBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
@@ -1241,7 +1264,7 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
 	}
-	result, err := promql.Exec(&ec, query, false)
+	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
 		return fmt.Errorf("cannot execute query: %w", err)
 	}
@@ -1259,7 +1282,10 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteQueryRangeResponse(bw, ec.IsPartialResponse, result)
+	qtDone := func() {
+		qt.Donef("/api/v1/query_range: start=%d, end=%d, step=%d, query=%q: series=%d", start, end, step, query, len(result))
+	}
+	WriteQueryRangeResponse(bw, ec.IsPartialResponse, result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
