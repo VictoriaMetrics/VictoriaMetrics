@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: allow overriding default limits for in-memory cache `indexdb/tagFilters` via flag `-storage.cacheSizeIndexDBTagFilters`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2663).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): remove dependency on Internet access in `http://vmagent:8429/targets` page. Previously the page layout was broken without Internet access. See [shis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2594).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove dependency on Internet access in [web API pages](https://docs.victoriametrics.com/vmalert.html#web). Previously the functionality and the layout of these pages was broken without Internet access. See [shis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2594).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `/api/v1/status/config` endpoint in the same way as Prometheus does. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#config).

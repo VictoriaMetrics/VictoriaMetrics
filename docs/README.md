@@ -1474,7 +1474,8 @@ The panel `Cache usage %` in `Troubleshooting` section shows the percentage of u
 from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
 
 Please note, default cache sizes were carefully adjusted accordingly to the most
-practical scenarios and workloads. Change the defaults only if you understand the implications.
+practical scenarios and workloads. Change the defaults only if you understand the implications
+and vmstorage has enough free memory to accommodate the new size. 
 
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).

@@ -109,12 +109,26 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
+var maxTagFilterCacheSize int
+
+// SetTagFilterCacheSize overrides the default size of indexdb/tagFilters cache
+func SetTagFilterCacheSize(size int) {
+	maxTagFilterCacheSize = size
+}
+
+func getTagFilterCacheSize() int {
+	if maxTagFilterCacheSize <= 0 {
+		return int(float64(memory.Allowed()) / 32)
+	}
+	return maxTagFilterCacheSize
+}
+
 // openIndexDB opens index db from the given path.
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
 //
-// The rotationTimestamp must be set to the current unix timestamp when ipenIndexDB
+// The rotationTimestamp must be set to the current unix timestamp when openIndexDB
 // is called when creating new indexdb during indexdb rotation.
 func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, error) {
 	if s == nil {
@@ -142,7 +156,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, e
 		tb:                tb,
 		name:              name,
 
-		tagFiltersCache:            workingsetcache.New(mem / 32),
+		tagFiltersCache:            workingsetcache.New(getTagFilterCacheSize()),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
@@ -1345,7 +1359,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	if len(tfss) > 0 {
 		tr := TimeRange{
 			MinTimestamp: int64(date) * msecPerDay,
-			MaxTimestamp: int64(date+1) * msecPerDay - 1,
+			MaxTimestamp: int64(date+1)*msecPerDay - 1,
 		}
 		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
 		if err != nil {
