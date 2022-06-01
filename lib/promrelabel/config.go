@@ -260,6 +260,13 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 		sourceLabels = []string{"__name__"}
 		action = "drop"
+	case "uppercase", "lowercase":
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("missing `source_labels` for `action=%s`", action)
+		}
+		if targetLabel == "" {
+			return nil, fmt.Errorf("missing `target_label` for `action=%s`", action)
+		}
 	case "labelmap":
 	case "labelmap_all":
 	case "labeldrop":
