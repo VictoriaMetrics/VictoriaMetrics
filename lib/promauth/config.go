@@ -470,13 +470,12 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 						return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
 					}
 					return &cert, nil
-				} else {
-					cert, err := tls.X509KeyPair(tlsConfig.Cert, tlsConfig.Key)
-					if err != nil {
-						return nil, fmt.Errorf("cannot load TLS certificate: %w", err)
-					}
-					return &cert, nil
 				}
+				cert, err := tls.X509KeyPair(tlsConfig.Cert, tlsConfig.Key)
+				if err != nil {
+					return nil, fmt.Errorf("cannot load TLS certificate: %w", err)
+				}
+				return &cert, nil
 			}
 			// Check whether the configured TLS cert can be loaded.
 			if _, err := getTLSCert(nil); err != nil {

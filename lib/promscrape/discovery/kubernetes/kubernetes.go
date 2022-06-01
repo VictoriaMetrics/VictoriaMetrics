@@ -21,7 +21,8 @@ type SDConfig struct {
 	APIServer string `yaml:"api_server,omitempty"`
 
 	// Use role() function for accessing the Role field
-	Role       string `yaml:"role"`
+	Role string `yaml:"role"`
+	// if defined any cluster connection information from HTTPClientConfig will be ignored
 	KubeConfig string `yaml:"kubeconfig_file"`
 
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`

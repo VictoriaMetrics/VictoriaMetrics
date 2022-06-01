@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): Allows using kubeconfig file within `kubernetes_sd_configs`. It may be useful for kubernetes cluster monitoring by `vmagent` outside kubernetes cluster. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1464).
 * FEATURE: allow overriding default limits for in-memory cache `indexdb/tagFilters` via flag `-storage.cacheSizeIndexDBTagFilters`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2663).
 * FEATURE: add support of `lowercase` and `uppercase` relabeling actions in the same way as [Prometheus 2.36.0 does](https://github.com/prometheus/prometheus/releases/tag/v2.36.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2664).
 * FEATURE: support query tracing, which allows determining bottlenecks during query processing. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1403).
