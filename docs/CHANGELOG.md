@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: allow overriding default limits for in-memory cache `indexdb/tagFilters` via flag `-storage.cacheSizeIndexDBTagFilters`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2663).
 * FEATURE: add support of `lowercase` and `uppercase` relabeling actions for compatibility reasons. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2664).
 * FEATURE: support query tracing, which allows determining bottlenecks during query processing. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1403).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): remove dependency on Internet access in `http://vmagent:8429/targets` page. Previously the page layout was broken without Internet access. See [shis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2594).
