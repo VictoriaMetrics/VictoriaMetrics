@@ -2005,6 +2005,7 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 		var er *errRemote
 		if errors.As(err, &er) {
 			// Remote error. The connection may be re-used. Return it to the pool.
+			_ = readTrace(qt, bc)
 			sn.connPool.Put(bc)
 		} else {
 			// Local error.
@@ -2019,23 +2020,28 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	}
 
 	// Read trace from the response
-	bb := traceJSONBufPool.Get()
-	bb.B, err = readBytes(bb.B[:0], bc, maxTraceJSONSize)
-	if err != nil {
+	if err := readTrace(qt, bc); err != nil {
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()
-		return fmt.Errorf("cannot read trace for funcName=%q from the server: %w", funcName, err)
+		return err
 	}
-	if err := qt.AddJSON(bb.B); err != nil {
-		// Close the connection instead of returning it to the pool,
-		// since it may be broken.
-		_ = bc.Close()
-		return fmt.Errorf("cannot read trace for funcName=%q from the server: %w", funcName, err)
-	}
-	traceJSONBufPool.Put(bb)
 	// Return the connection back to the pool, assuming it is healthy.
 	sn.connPool.Put(bc)
+	return nil
+}
+
+func readTrace(qt *querytracer.Tracer, bc *handshake.BufferedConn) error {
+	bb := traceJSONBufPool.Get()
+	var err error
+	bb.B, err = readBytes(bb.B[:0], bc, maxTraceJSONSize)
+	if err != nil {
+		return fmt.Errorf("cannot read trace from the server: %w", err)
+	}
+	if err := qt.AddJSON(bb.B); err != nil {
+		return fmt.Errorf("cannot parse trace read from the server: %w", err)
+	}
+	traceJSONBufPool.Put(bb)
 	return nil
 }
 
