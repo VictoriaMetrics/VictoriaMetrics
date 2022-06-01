@@ -206,7 +206,7 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	jsonp := r.FormValue("jsonp")
-	metricNames, err := netstorage.GetLabelValues("__name__", deadline)
+	metricNames, err := netstorage.GetLabelValues(nil, "__name__", deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}
@@ -227,7 +227,7 @@ func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byt
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail
-		suffixes, err := netstorage.GetTagValueSuffixes(tr, label, query, delimiter, deadline)
+		suffixes, err := netstorage.GetTagValueSuffixes(nil, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +247,7 @@ func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byt
 	}
 	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
 		query := qHead + qTail[:len(qTail)-1]
-		suffixes, err := netstorage.GetTagValueSuffixes(tr, label, query, delimiter, deadline)
+		suffixes, err := netstorage.GetTagValueSuffixes(nil, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, err
 		}

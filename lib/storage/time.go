@@ -26,9 +26,7 @@ type TimeRange struct {
 }
 
 func (tr *TimeRange) String() string {
-	minTime := timestampToTime(tr.MinTimestamp)
-	maxTime := timestampToTime(tr.MaxTimestamp)
-	return fmt.Sprintf("[%s - %s]", minTime, maxTime)
+	return fmt.Sprintf("[%d..%d]", tr.MinTimestamp, tr.MaxTimestamp)
 }
 
 // timestampToPartitionName returns partition name for the given timestamp.

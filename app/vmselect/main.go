@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -97,6 +98,8 @@ var (
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
+	tracerEnabled := searchutils.GetBool(r, "trace")
+	qt := querytracer.New(tracerEnabled)
 
 	// Limit the number of concurrent queries.
 	select {
@@ -112,6 +115,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		t := timerpool.Get(d)
 		select {
 		case concurrencyCh <- struct{}{}:
+			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
 			timerpool.Put(t)
 			defer func() { <-concurrencyCh }()
 		case <-t.C:
@@ -194,7 +198,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
 			httpserver.EnableCORS(w, r)
-			if err := prometheus.LabelValuesHandler(startTime, labelName, w, r); err != nil {
+			if err := prometheus.LabelValuesHandler(qt, startTime, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
 				sendPrometheusError(w, r, err)
 				return true
@@ -222,7 +226,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryHandler(startTime, w, r); err != nil {
+		if err := prometheus.QueryHandler(qt, startTime, w, r); err != nil {
 			queryErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -231,7 +235,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/query_range":
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryRangeHandler(startTime, w, r); err != nil {
+		if err := prometheus.QueryRangeHandler(qt, startTime, w, r); err != nil {
 			queryRangeErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -240,7 +244,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/series":
 		seriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesHandler(startTime, w, r); err != nil {
+		if err := prometheus.SeriesHandler(qt, startTime, w, r); err != nil {
 			seriesErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -258,7 +262,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/labels":
 		labelsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsHandler(startTime, w, r); err != nil {
+		if err := prometheus.LabelsHandler(qt, startTime, w, r); err != nil {
 			labelsErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true

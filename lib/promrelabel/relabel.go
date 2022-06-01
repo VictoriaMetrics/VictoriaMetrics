@@ -184,7 +184,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		relabelBufPool.Put(bb)
 		return setLabelValue(labels, labelsOffset, nameStr, valueStr)
 	case "replace_all":
-		// Replace all the occurences of `regex` at `source_labels` joined with `separator` with the `replacement`
+		// Replace all the occurrences of `regex` at `source_labels` joined with `separator` with the `replacement`
 		// and store the result at `target_label`
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
@@ -300,6 +300,20 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 			}
 		}
 		return dst
+	case "uppercase":
+		bb := relabelBufPool.Get()
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		value := strings.ToUpper(string(bb.B))
+		relabelBufPool.Put(bb)
+		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
+		return labels
+	case "lowercase":
+		bb := relabelBufPool.Get()
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		value := strings.ToLower(string(bb.B))
+		relabelBufPool.Put(bb)
+		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
+		return labels
 	default:
 		logger.Panicf("BUG: unknown `action`: %q", prc.Action)
 		return labels

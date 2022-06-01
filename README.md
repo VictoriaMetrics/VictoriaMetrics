@@ -1365,6 +1365,69 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
+## Query tracing
+
+VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
+
+Query tracing can be enabled for a specific query by passing `trace=1` query arg.
+In this case VictoriaMetrics puts query trace into `trace` field in the output JSON.
+
+For example, the following command:
+
+```bash
+curl http://localhost:8428/api/v1/query_range -d 'query=2*rand()' -d 'start=-1h' -d 'step=1m' -d 'trace=1' | jq -r '.trace'
+```
+
+would return the following trace:
+
+```json
+{
+  "duration_msec": 0.099,
+  "message": "/api/v1/query_range: start=1654034340000, end=1654037880000, step=60000, query=\"2*rand()\": series=1",
+  "children": [
+    {
+      "duration_msec": 0.034,
+      "message": "eval: query=2 * rand(), timeRange=[1654034340000..1654037880000], step=60000, mayCache=true: series=1, points=60, pointsPerSeries=60",
+      "children": [
+        {
+          "duration_msec": 0.032,
+          "message": "binary op \"*\": series=1",
+          "children": [
+            {
+              "duration_msec": 0.009,
+              "message": "eval: query=2, timeRange=[1654034340000..1654037880000], step=60000, mayCache=true: series=1, points=60, pointsPerSeries=60"
+            },
+            {
+              "duration_msec": 0.017,
+              "message": "eval: query=rand(), timeRange=[1654034340000..1654037880000], step=60000, mayCache=true: series=1, points=60, pointsPerSeries=60",
+              "children": [
+                {
+                  "duration_msec": 0.015,
+                  "message": "transform rand(): series=1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "duration_msec": 0.004,
+      "message": "sort series by metric name and labels"
+    },
+    {
+      "duration_msec": 0.044,
+      "message": "generate /api/v1/query_range response for series=1, points=60"
+    }
+  ]
+}
+```
+
+All the durations and timestamps in traces are in milliseconds.
+
+Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
+
+
 ## Cardinality limiter
 
 By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
