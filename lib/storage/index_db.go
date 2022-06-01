@@ -110,6 +110,20 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
+var maxTagFilterCacheSize int
+
+// SetTagFilterCacheSize overrides the default size of indexdb/tagFilters cache
+func SetTagFilterCacheSize(size int) {
+	maxTagFilterCacheSize = size
+}
+
+func getTagFilterCacheSize() int {
+	if maxTagFilterCacheSize <= 0 {
+		return int(float64(memory.Allowed()) / 32)
+	}
+	return maxTagFilterCacheSize
+}
+
 // openIndexDB opens index db from the given path.
 //
 // The last segment of the path should contain unique hex value which
@@ -143,7 +157,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *
 		tb:                tb,
 		name:              name,
 
-		tagFiltersCache:            workingsetcache.New(mem / 32),
+		tagFiltersCache:            workingsetcache.New(getTagFilterCacheSize()),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}

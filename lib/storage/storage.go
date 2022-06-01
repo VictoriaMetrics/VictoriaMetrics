@@ -291,7 +291,7 @@ func (s *Storage) RetentionMsecs() int64 {
 
 var maxTSIDCacheSize int
 
-// SetTSIDCacheSize overrides the default size of storage/tsid cahce
+// SetTSIDCacheSize overrides the default size of storage/tsid cache
 func SetTSIDCacheSize(size int) {
 	maxTSIDCacheSize = size
 }
