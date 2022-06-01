@@ -6,78 +6,94 @@ package prometheus
 
 //line app/vmselect/prometheus/series_response.qtpl:1
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/valyala/quicktemplate"
 )
 
 // SeriesResponse generates response for /api/v1/series.See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
 
-//line app/vmselect/prometheus/series_response.qtpl:8
+//line app/vmselect/prometheus/series_response.qtpl:9
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmselect/prometheus/series_response.qtpl:8
+//line app/vmselect/prometheus/series_response.qtpl:9
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmselect/prometheus/series_response.qtpl:8
-func StreamSeriesResponse(qw422016 *qt422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer) {
-//line app/vmselect/prometheus/series_response.qtpl:8
-	qw422016.N().S(`{"status":"success","data":[`)
-//line app/vmselect/prometheus/series_response.qtpl:12
+//line app/vmselect/prometheus/series_response.qtpl:9
+func StreamSeriesResponse(qw422016 *qt422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/series_response.qtpl:9
+	qw422016.N().S(`{`)
+//line app/vmselect/prometheus/series_response.qtpl:11
+	seriesCount := 0
+
+//line app/vmselect/prometheus/series_response.qtpl:11
+	qw422016.N().S(`"status":"success","data":[`)
+//line app/vmselect/prometheus/series_response.qtpl:14
 	bb, ok := <-resultsCh
 
-//line app/vmselect/prometheus/series_response.qtpl:13
-	if ok {
-//line app/vmselect/prometheus/series_response.qtpl:14
-		qw422016.N().Z(bb.B)
 //line app/vmselect/prometheus/series_response.qtpl:15
-		quicktemplate.ReleaseByteBuffer(bb)
-
+	if ok {
 //line app/vmselect/prometheus/series_response.qtpl:16
-		for bb := range resultsCh {
-//line app/vmselect/prometheus/series_response.qtpl:16
-			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/series_response.qtpl:17
-			qw422016.N().Z(bb.B)
+		qw422016.N().Z(bb.B)
 //line app/vmselect/prometheus/series_response.qtpl:18
+		quicktemplate.ReleaseByteBuffer(bb)
+		seriesCount++
+
+//line app/vmselect/prometheus/series_response.qtpl:21
+		for bb := range resultsCh {
+//line app/vmselect/prometheus/series_response.qtpl:21
+			qw422016.N().S(`,`)
+//line app/vmselect/prometheus/series_response.qtpl:22
+			qw422016.N().Z(bb.B)
+//line app/vmselect/prometheus/series_response.qtpl:24
 			quicktemplate.ReleaseByteBuffer(bb)
+			seriesCount++
 
-//line app/vmselect/prometheus/series_response.qtpl:19
+//line app/vmselect/prometheus/series_response.qtpl:27
 		}
-//line app/vmselect/prometheus/series_response.qtpl:20
+//line app/vmselect/prometheus/series_response.qtpl:28
 	}
-//line app/vmselect/prometheus/series_response.qtpl:20
-	qw422016.N().S(`]}`)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:28
+	qw422016.N().S(`]`)
+//line app/vmselect/prometheus/series_response.qtpl:31
+	qt.Printf("generate response: series=%d", seriesCount)
+	qtDone()
+
+//line app/vmselect/prometheus/series_response.qtpl:34
+	streamdumpQueryTrace(qw422016, qt)
+//line app/vmselect/prometheus/series_response.qtpl:34
+	qw422016.N().S(`}`)
+//line app/vmselect/prometheus/series_response.qtpl:36
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:23
-func WriteSeriesResponse(qq422016 qtio422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer) {
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
+func WriteSeriesResponse(qq422016 qtio422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/series_response.qtpl:36
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/series_response.qtpl:23
-	StreamSeriesResponse(qw422016, resultsCh)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
+	StreamSeriesResponse(qw422016, resultsCh, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:36
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:23
-func SeriesResponse(resultsCh <-chan *quicktemplate.ByteBuffer) string {
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
+func SeriesResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) string {
+//line app/vmselect/prometheus/series_response.qtpl:36
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/series_response.qtpl:23
-	WriteSeriesResponse(qb422016, resultsCh)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
+	WriteSeriesResponse(qb422016, resultsCh, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:36
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
 	return qs422016
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:36
 }

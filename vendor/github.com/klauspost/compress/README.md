@@ -17,6 +17,12 @@ This package provides various compression algorithms.
 
 # changelog
 
+* May 11, 2022 (v1.15.4)
+	* huff0: decompress directly into output by @WojciechMula in [#577](https://github.com/klauspost/compress/pull/577)
+	* inflate: Keep dict on stack [#581](https://github.com/klauspost/compress/pull/581)
+	* zstd: Faster decoding memcopy in asm [#583](https://github.com/klauspost/compress/pull/583)
+	* zstd: Fix ignored crc [#580](https://github.com/klauspost/compress/pull/580)
+
 * May 5, 2022 (v1.15.3)
 	* zstd: Allow to ignore checksum checking by @WojciechMula [#572](https://github.com/klauspost/compress/pull/572)
 	* s2: Fix incorrect seek for io.SeekEnd in [#575](https://github.com/klauspost/compress/pull/575)

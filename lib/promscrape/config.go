@@ -68,11 +68,11 @@ func mustInitClusterMemberID() {
 	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
 		s = s[idx+1:]
 	}
-	n, err := strconv.ParseInt(s, 10, 64)
+	n, err := strconv.Atoi(s)
 	if err != nil {
 		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
 	}
-	clusterMemberID = int(n)
+	clusterMemberID = n
 }
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/

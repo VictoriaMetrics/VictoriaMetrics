@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/metrics"
@@ -170,9 +171,9 @@ func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
 }
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
-func SearchMetricNames(tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
+func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
 	WG.Add(1)
-	mns, err := Storage.SearchMetricNames(tfss, tr, maxMetrics, deadline)
+	mns, err := Storage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	WG.Done()
 	return mns, err
 }

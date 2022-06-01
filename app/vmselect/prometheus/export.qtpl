@@ -5,6 +5,7 @@
 	"time"
 
 	"github.com/valyala/quicktemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
 
@@ -125,8 +126,12 @@
 }
 {% endfunc %}
 
-{% func ExportPromAPIResponse(resultsCh <-chan *quicktemplate.ByteBuffer) %}
+{% func ExportPromAPIResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer) %}
 {
+	{% code
+		lines := 0
+		bytesTotal := 0
+	%}
 	"status":"success",
 	"data":{
 		"resultType":"matrix",
@@ -134,18 +139,30 @@
 			{% code bb, ok := <-resultsCh %}
 			{% if ok %}
 				{%z= bb.B %}
-				{% code quicktemplate.ReleaseByteBuffer(bb) %}
+				{% code
+					lines++
+					bytesTotal += len(bb.B)
+					quicktemplate.ReleaseByteBuffer(bb)
+				%}
 				{% for bb := range resultsCh %}
 					,{%z= bb.B %}
-					{% code quicktemplate.ReleaseByteBuffer(bb) %}
+					{% code
+						lines++
+						bytesTotal += len(bb.B)
+						quicktemplate.ReleaseByteBuffer(bb)
+					%}
 				{% endfor %}
 			{% endif %}
 		]
 	}
+	{% code
+		qt.Donef("export format=promapi: lines=%d, bytes=%d", lines, bytesTotal)
+	%}
+	{%= dumpQueryTrace(qt) %}
 }
 {% endfunc %}
 
-{% func ExportStdResponse(resultsCh <-chan *quicktemplate.ByteBuffer) %}
+{% func ExportStdResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer) %}
 	{% for bb := range resultsCh %}
 		{%z= bb.B %}
 		{% code quicktemplate.ReleaseByteBuffer(bb) %}
