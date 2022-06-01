@@ -40,7 +40,8 @@ func TestTableSearchSerial(t *testing.T) {
 
 	func() {
 		// Re-open the table and verify the search works.
-		tb, err := OpenTable(path, nil, nil)
+		var isReadOnly uint32
+		tb, err := OpenTable(path, nil, nil, &isReadOnly)
 		if err != nil {
 			t.Fatalf("cannot open table: %s", err)
 		}
@@ -75,7 +76,8 @@ func TestTableSearchConcurrent(t *testing.T) {
 
 	// Re-open the table and verify the search works.
 	func() {
-		tb, err := OpenTable(path, nil, nil)
+		var isReadOnly uint32
+		tb, err := OpenTable(path, nil, nil, &isReadOnly)
 		if err != nil {
 			t.Fatalf("cannot open table: %s", err)
 		}
@@ -151,7 +153,8 @@ func newTestTable(path string, itemsCount int) (*Table, []string, error) {
 	flushCallback := func() {
 		atomic.AddUint64(&flushes, 1)
 	}
-	tb, err := OpenTable(path, flushCallback, nil)
+	var isReadOnly uint32
+	tb, err := OpenTable(path, flushCallback, nil, &isReadOnly)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open table: %w", err)
 	}

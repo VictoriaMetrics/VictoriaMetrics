@@ -115,9 +115,9 @@ type indexDB struct {
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
 //
-// The rotationTimestamp must be set to the current unix timestamp when ipenIndexDB
+// The rotationTimestamp must be set to the current unix timestamp when openIndexDB
 // is called when creating new indexdb during indexdb rotation.
-func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, error) {
+func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *uint32) (*indexDB, error) {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
@@ -128,7 +128,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, e
 		return nil, fmt.Errorf("failed to parse indexdb path %q: %w", path, err)
 	}
 
-	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows)
+	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %w", path, err)
 	}

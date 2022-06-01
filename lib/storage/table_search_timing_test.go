@@ -48,7 +48,8 @@ func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount
 		createBenchTable(b, path, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 		createdBenchTables[path] = true
 	}
-	tb, err := openTable(path, nilGetDeletedMetricIDs, maxRetentionMsecs)
+	var isReadOnly uint32
+	tb, err := openTable(path, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
 	if err != nil {
 		b.Fatalf("cnanot open table %q: %s", path, err)
 	}
@@ -71,7 +72,8 @@ var createdBenchTables = make(map[string]bool)
 func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) {
 	b.Helper()
 
-	tb, err := openTable(path, nilGetDeletedMetricIDs, maxRetentionMsecs)
+	var isReadOnly uint32
+	tb, err := openTable(path, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
 	if err != nil {
 		b.Fatalf("cannot open table %q: %s", path, err)
 	}
