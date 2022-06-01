@@ -303,16 +303,18 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	case "uppercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		value := strings.ToUpper(string(bb.B))
+		valueStr := string(bb.B)
 		relabelBufPool.Put(bb)
-		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
+		valueStr = strings.ToUpper(valueStr)
+		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 		return labels
 	case "lowercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		value := strings.ToLower(string(bb.B))
+		valueStr := string(bb.B)
 		relabelBufPool.Put(bb)
-		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
+		valueStr = strings.ToLower(valueStr)
+		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 		return labels
 	default:
 		logger.Panicf("BUG: unknown `action`: %q", prc.Action)
