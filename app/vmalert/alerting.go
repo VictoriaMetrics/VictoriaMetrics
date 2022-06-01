@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -193,7 +195,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
 // It returns ALERT and ALERT_FOR_STATE time series as result.
-func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	series, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
 	if err != nil {
 		return nil, err
@@ -231,6 +233,11 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 		}
 	}
+	numActive := len(ar.alerts)
+	if limit > 0 && numActive > limit {
+		ar.alerts = map[uint64]*notifier.Alert{}
+		return nil, errors.Errorf("exec range exceeded limit of %d with %d alerts", limit, numActive)
+	}
 	return result, nil
 }
 
@@ -240,7 +247,7 @@ const resolvedRetention = 15 * time.Minute
 
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
 	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
 	ar.mu.Lock()
@@ -307,7 +314,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 		a.ActiveAt = ts
 		ar.alerts[h] = a
 	}
-
+	var numActivePending int
 	for h, a := range ar.alerts {
 		// if alert wasn't updated in this iteration
 		// means it is resolved already
@@ -324,11 +331,16 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 			}
 			continue
 		}
+		numActivePending++
 		if a.State == notifier.StatePending && ts.Sub(a.ActiveAt) >= ar.For {
 			a.State = notifier.StateFiring
 			a.Start = ts
 			alertsFired.Inc()
 		}
+	}
+	if limit != 0 && numActivePending > limit {
+		ar.alerts = map[uint64]*notifier.Alert{}
+		return nil, fmt.Errorf("exec exceeded limit of %d with %d alerts", limit, numActivePending)
 	}
 	return ar.toTimeSeries(ts.Unix()), nil
 }

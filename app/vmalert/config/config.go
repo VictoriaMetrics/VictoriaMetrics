@@ -27,6 +27,7 @@ type Group struct {
 	File        string
 	Name        string              `yaml:"name"`
 	Interval    *promutils.Duration `yaml:"interval,omitempty"`
+	Limit 		int 				`yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
 	// ExtraFilterLabels is a list label filters applied to every rule

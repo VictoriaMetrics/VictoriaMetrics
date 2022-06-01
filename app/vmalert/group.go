@@ -29,6 +29,7 @@ type Group struct {
 	Rules          []Rule
 	Type           datasource.Type
 	Interval       time.Duration
+	limit 		   int
 	Concurrency    int
 	Checksum       string
 	LastEvaluation time.Time
@@ -90,6 +91,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Name:        cfg.Name,
 		File:        cfg.File,
 		Interval:    cfg.Interval.Duration(),
+		limit: 		 cfg.Limit,
 		Concurrency: cfg.Concurrency,
 		Checksum:    cfg.Checksum,
 		Params:      cfg.Params,
@@ -282,7 +284,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration)
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit())
 		for err := range errs {
 			if err != nil {
 				logger.Errorf("group %q: %s", g.Name, err)
@@ -335,6 +337,9 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 }
 
+// Limit returns the group's limit.
+func (g *Group) Limit() int { return g.limit }
+
 // getResolveDuration returns the duration after which firing alert
 // can be considered as resolved.
 func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Duration {
@@ -360,12 +365,12 @@ type executor struct {
 	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
 }
 
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, ts, resolveDuration)
+			res <- e.exec(ctx, rule, ts, resolveDuration, limit)
 		}
 		close(res)
 		return res
@@ -378,7 +383,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, r, ts, resolveDuration)
+				res <- e.exec(ctx, r, ts, resolveDuration, limit)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -399,10 +404,10 @@ var (
 	remoteWriteTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 )
 
-func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDuration time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDuration time.Duration, limit int) error {
 	execTotal.Inc()
 
-	tss, err := rule.Exec(ctx, ts)
+	tss, err := rule.Exec(ctx, ts, limit)
 	if err != nil {
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)

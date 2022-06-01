@@ -16,9 +16,9 @@ type Rule interface {
 	// identifying this Rule among others.
 	ID() uint64
 	// Exec executes the rule with given context at the given timestamp
-	Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error)
+	Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error)
 	// ExecRange executes the rule on the given time range
-	ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error)
+	ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error)
 	// UpdateWith performs modification of current Rule
 	// with fields of the given Rule.
 	UpdateWith(Rule) error

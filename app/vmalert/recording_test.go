@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func TestRecoridngRule_Exec(t *testing.T) {
+func TestRecordingRule_Exec(t *testing.T) {
 	timestamp := time.Now()
 	testCases := []struct {
 		rule    *RecordingRule
@@ -77,7 +77,7 @@ func TestRecoridngRule_Exec(t *testing.T) {
 			fq := &fakeQuerier{}
 			fq.add(tc.metrics...)
 			tc.rule.q = fq
-			tss, err := tc.rule.Exec(context.TODO(), time.Now())
+			tss, err := tc.rule.Exec(context.TODO(), time.Now(), 0)
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -88,7 +88,7 @@ func TestRecoridngRule_Exec(t *testing.T) {
 	}
 }
 
-func TestRecoridngRule_ExecRange(t *testing.T) {
+func TestRecordingRule_ExecRange(t *testing.T) {
 	timestamp := time.Now()
 	testCases := []struct {
 		rule    *RecordingRule
@@ -158,7 +158,7 @@ func TestRecoridngRule_ExecRange(t *testing.T) {
 			fq := &fakeQuerier{}
 			fq.add(tc.metrics...)
 			tc.rule.q = fq
-			tss, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now())
+			tss, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now(), 0)
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -169,7 +169,49 @@ func TestRecoridngRule_ExecRange(t *testing.T) {
 	}
 }
 
-func TestRecoridngRule_ExecNegative(t *testing.T) {
+func TestRecordingRuleLimit(t *testing.T) {
+	timestamp := time.Now()
+	testCases := []struct {
+		limit int
+		err   string
+	}{
+		{
+			limit: 0,
+		},
+		{
+			limit: 2,
+		},
+		{
+			limit: -1,
+			err:   "exec exceeded limit of -1 with 2 series",
+		},
+		{
+			limit: 3,
+			err:   "exec exceeded limit of 3 with 2 series",
+		},
+	}
+	fq := &fakeQuerier{}
+	fq.add([]datasource.Metric{
+		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
+		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar")}...)
+	rule := &RecordingRule{Name: "job:foo", Labels: map[string]string{
+		"source": "test_limit",
+	}}
+	rule.q = fq
+	var err error
+	for _, testCase := range testCases {
+		_, err = rule.Exec(context.TODO(), timestamp, testCase.limit)
+		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
+			t.Fatal(err)
+		}
+		_, err = rule.ExecRange(context.TODO(), timestamp, timestamp, testCase.limit)
+		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRecordingRule_ExecNegative(t *testing.T) {
 	rr := &RecordingRule{Name: "job:foo", Labels: map[string]string{
 		"job": "test",
 	}}
@@ -178,7 +220,7 @@ func TestRecoridngRule_ExecNegative(t *testing.T) {
 	expErr := "connection reset by peer"
 	fq.setErr(errors.New(expErr))
 	rr.q = fq
-	_, err := rr.Exec(context.TODO(), time.Now())
+	_, err := rr.Exec(context.TODO(), time.Now(), 0)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -193,7 +235,7 @@ func TestRecoridngRule_ExecNegative(t *testing.T) {
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
 	fq.add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
-	_, err = rr.Exec(context.TODO(), time.Now())
+	_, err = rr.Exec(context.TODO(), time.Now(), 0)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
