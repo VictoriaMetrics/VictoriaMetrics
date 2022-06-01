@@ -32,3 +32,10 @@
   regex: [foo bar baz]
 - action: drop_metrics
   regex: "foo|bar|baz"
+- source_labels: [foo, bar]
+  separator: "-"
+  target_label: __tmp_uppercase
+  action: uppercase
+- source_labels: [__tmp_uppercase]
+  target_label: lower_aaa
+  action: lowercase
