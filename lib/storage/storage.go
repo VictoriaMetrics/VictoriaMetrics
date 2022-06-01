@@ -259,7 +259,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load data
 	tablePath := path + "/data"
-	tb, err := openTable(tablePath, s.getDeletedMetricIDs, retentionMsecs)
+	tb, err := openTable(tablePath, s.getDeletedMetricIDs, retentionMsecs, &s.isReadOnly)
 	if err != nil {
 		s.idb().MustClose()
 		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
@@ -722,7 +722,7 @@ func (s *Storage) mustRotateIndexDB() {
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
 	rotationTimestamp := fasttime.UnixTimestamp()
-	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp)
+	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -2526,12 +2526,12 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, s, 0)
+	curr, err = openIndexDB(currPath, s, 0, &s.isReadOnly)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, s, 0)
+	prev, err = openIndexDB(prevPath, s, 0, &s.isReadOnly)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
