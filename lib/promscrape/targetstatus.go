@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 )
 
 var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
@@ -167,17 +167,17 @@ func (tsm *targetStatusMap) StatusByGroup(group string, up bool) int {
 	return count
 }
 
-// WriteActiveTargetsJSON writes `activeTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
-func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
+type activeKeyStatus struct {
+	key string
+	st  targetStatus
+}
+
+func (tsm *targetStatusMap) getActiveKeyStatuses() []activeKeyStatus {
 	tsm.mu.Lock()
-	type keyStatus struct {
-		key string
-		st  targetStatus
-	}
-	kss := make([]keyStatus, 0, len(tsm.m))
+	kss := make([]activeKeyStatus, 0, len(tsm.m))
 	for sw, st := range tsm.m {
 		key := promLabelsString(sw.Config.OriginalLabels)
-		kss = append(kss, keyStatus{
+		kss = append(kss, activeKeyStatus{
 			key: key,
 			st:  *st,
 		})
@@ -187,6 +187,12 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 	sort.Slice(kss, func(i, j int) bool {
 		return kss[i].key < kss[j].key
 	})
+	return kss
+}
+
+// WriteActiveTargetsJSON writes `activeTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
+func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
+	kss := tsm.getActiveKeyStatuses()
 	fmt.Fprintf(w, `[`)
 	for i, ks := range kss {
 		st := ks.st
@@ -244,15 +250,38 @@ func (st *targetStatus) getDurationFromLastScrape() time.Duration {
 	return time.Since(time.Unix(st.scrapeTime/1000, (st.scrapeTime%1000)*1e6))
 }
 
-type droppedTargets struct {
-	mu              sync.Mutex
-	m               map[uint64]droppedTarget
-	lastCleanupTime uint64
-}
+type (
+	droppedTargets struct {
+		mu              sync.Mutex
+		m               map[uint64]droppedTarget
+		lastCleanupTime uint64
+	}
+	droppedTarget struct {
+		originalLabels []prompbmarshal.Label
+		deadline       uint64
+	}
+	droppedKeyStatus struct {
+		key            string
+		originalLabels []prompbmarshal.Label
+	}
+)
 
-type droppedTarget struct {
-	originalLabels []prompbmarshal.Label
-	deadline       uint64
+func (dt *droppedTargets) getDroppedKeyStatuses() []droppedKeyStatus {
+	dt.mu.Lock()
+	kss := make([]droppedKeyStatus, 0, len(dt.m))
+	for _, v := range dt.m {
+		key := promLabelsString(v.originalLabels)
+		kss = append(kss, droppedKeyStatus{
+			key:            key,
+			originalLabels: v.originalLabels,
+		})
+	}
+	dt.mu.Unlock()
+
+	sort.Slice(kss, func(i, j int) bool {
+		return kss[i].key < kss[j].key
+	})
+	return kss
 }
 
 func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
@@ -300,24 +329,7 @@ var xxhashPool = &sync.Pool{
 
 // WriteDroppedTargetsJSON writes `droppedTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
-	dt.mu.Lock()
-	type keyStatus struct {
-		key            string
-		originalLabels []prompbmarshal.Label
-	}
-	kss := make([]keyStatus, 0, len(dt.m))
-	for _, v := range dt.m {
-		key := promLabelsString(v.originalLabels)
-		kss = append(kss, keyStatus{
-			key:            key,
-			originalLabels: v.originalLabels,
-		})
-	}
-	dt.mu.Unlock()
-
-	sort.Slice(kss, func(i, j int) bool {
-		return kss[i].key < kss[j].key
-	})
+	kss := dt.getDroppedKeyStatuses()
 	fmt.Fprintf(w, `[`)
 	for i, ks := range kss {
 		fmt.Fprintf(w, `{"discoveredLabels":`)
@@ -468,8 +480,9 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
 func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
+	droppedKeyStatuses := droppedTargetsMap.getDroppedKeyStatuses()
 	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
-	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, err)
+	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, droppedKeyStatuses, err)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
