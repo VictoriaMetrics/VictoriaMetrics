@@ -607,151 +607,97 @@
           "type": "stat"
         },
         {
+          "id": 149,
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 8,
+            "h": 5
+          },
+          "type": "table",
           "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
+            "uid": "$ds",
+            "type": "prometheus"
+          },
+          "pluginVersion": "8.5.1",
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(job, short_version)",
+              "editorMode": "code",
+              "range": false,
+              "instant": true,
+              "exemplar": false,
+              "format": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "fields": ""
+            }
           },
           "fieldConfig": {
             "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto"
+                "displayMode": "auto",
+                "inspect": false,
+                "minWidth": 50
               },
-              "decimals": 2,
-              "displayName": "",
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
+                    "value": null,
                     "color": "green"
                   },
                   {
-                    "color": "red",
-                    "value": 80
+                    "value": 80,
+                    "color": "red"
                   }
                 ]
               },
-              "unit": "s"
+              "color": {
+                "mode": "thresholds"
+              }
             },
             "overrides": [
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "Value #A"
+                  "options": "Time"
                 },
                 "properties": [
                   {
-                    "id": "unit",
-                    "value": "s"
-                  },
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": [
                   {
-                    "id": "decimals",
-                    "value": 2
-                  },
-                  {
-                    "id": "custom.displayMode",
-                    "value": "color-background"
-                  },
-                  {
-                    "id": "custom.align"
-                  },
-                  {
-                    "id": "thresholds",
-                    "value": {
-                      "mode": "absolute",
-                      "steps": [
-                        {
-                          "color": "rgba(245, 54, 54, 0.9)"
-                        },
-                        {
-                          "color": "rgba(237, 129, 40, 0.89)",
-                          "value": 1800
-                        },
-                        {
-                          "color": "rgba(50, 172, 45, 0.97)",
-                          "value": 3600
-                        }
-                      ]
-                    }
+                    "id": "displayName",
+                    "value": "Count"
                   }
                 ]
               }
             ]
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 8,
-            "x": 0,
-            "y": 5
-          },
-          "id": 26,
-          "options": {
-            "footer": {
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "showHeader": true
-          },
-          "pluginVersion": "8.3.5",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "exemplar": false,
-              "expr": "sort((time() - vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}) or (up{job=~\"$job\", instance=~\"$instance\"}))",
-              "format": "table",
-              "hide": false,
-              "instant": true,
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Uptime",
-          "transformations": [
-            {
-              "id": "sortBy",
-              "options": {
-                "fields": {},
-                "sort": [
-                  {
-                    "desc": false,
-                    "field": "Value #A"
-                  }
-                ]
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true,
-                  "job": true
-                },
-                "indexByName": {
-                  "Time": 0,
-                  "Value #A": 2,
-                  "env": 3,
-                  "instance": 1,
-                  "job": 4,
-                  "team": 5
-                },
-                "renameByName": {
-                  "Value #A": "uptime"
-                }
-              }
-            }
-          ],
-          "type": "table"
+          }
         },
         {
           "aliasColors": {},
@@ -2007,7 +1953,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance) / process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance) / sum(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
