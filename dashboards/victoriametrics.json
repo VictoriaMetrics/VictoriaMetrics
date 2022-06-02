@@ -2007,7 +2007,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance) / process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance) / sum(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
