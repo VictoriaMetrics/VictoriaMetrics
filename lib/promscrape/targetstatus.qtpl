@@ -96,7 +96,7 @@ function expand_all() {
                 <hr />
                 <div class="row g-3 align-items-center mb-3">
                     <div class="col-auto">
-                        <button type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-secondary{% else %}btn-success{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
+                        <button id="all-btn" type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-secondary{% else %}btn-success{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
 	"show_only_unhealthy": "false",
 	"endpoint_search": endpointSearch,
 	"label_search": labelSearch,
@@ -106,7 +106,7 @@ function expand_all() {
                         </button>
                     </div>
                     <div class="col-auto">
-                        <button type="button" class="btn{% space %}{% if showOnlyUnhealthy %}btn-secondary{% else %}btn-danger{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
+                        <button id="unhealthy-btn" type="button" class="btn{% space %}{% if showOnlyUnhealthy %}btn-secondary{% else %}btn-danger{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
 	"show_only_unhealthy": "true",
 	"endpoint_search": endpointSearch,
 	"label_search": labelSearch,
@@ -184,6 +184,8 @@ function expand_all() {
         (function(){
             const navBtns = document.querySelectorAll(".nav-link");
             const tabInput = document.getElementById("tab_input");
+            const unhealthyBtn = document.getElementById("unhealthy-btn");
+            const allBtn = document.getElementById("all-btn");
             navBtns.forEach((btn) => {
                 if (btn) {
                     btn.addEventListener("click", (e) => {
@@ -191,6 +193,14 @@ function expand_all() {
                            var url = new URL(window.location.href);
                            url.searchParams.set("active_tab", e.target.id);
                            tabInput.value = e.target.id;
+                           unhealthyBtn.onclick = () => {
+                               url.searchParams.set("show_only_unhealthy", "true");
+                               window.location.href=url;
+                           };
+                           allBtn.onclick = () => {
+                               url.searchParams.set("show_only_unhealthy", "false");
+                               window.location.href=url;
+                           };
                            window.history.replaceState({}, "", url);
                         }
                     });
