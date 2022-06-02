@@ -49,9 +49,10 @@ func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
 	showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
 	endpointSearch := strings.TrimSpace(r.FormValue("endpoint_search"))
 	labelSearch := strings.TrimSpace(r.FormValue("label_search"))
+	activeTab := strings.TrimSpace(r.FormValue("active_tab"))
 	if accept := r.Header.Get("Accept"); strings.Contains(accept, "text/html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, endpointSearch, labelSearch)
+		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, endpointSearch, labelSearch, activeTab)
 	} else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels, showOnlyUnhealthy, endpointSearch, labelSearch)
@@ -479,10 +480,10 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
-func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
+func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch, activeTab string) {
 	droppedKeyStatuses := droppedTargetsMap.getDroppedKeyStatuses()
 	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
-	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, droppedKeyStatuses, err)
+	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, activeTab, droppedKeyStatuses, err)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
