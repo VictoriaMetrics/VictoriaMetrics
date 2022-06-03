@@ -16,13 +16,18 @@ func (f *Uint64Flag) GetUsage() string {
 	return f.Usage
 }
 
+// GetCategory returns the category for the flag
+func (f *Uint64Flag) GetCategory() string {
+	return f.Category
+}
+
 // Apply populates the flag given the flag set and environment
 func (f *Uint64Flag) Apply(set *flag.FlagSet) error {
-	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
+	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
 			valInt, err := strconv.ParseUint(val, 0, 64)
 			if err != nil {
-				return fmt.Errorf("could not parse %q as uint64 value for flag %s: %s", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as uint64 value from %s for flag %s: %s", val, source, f.Name, err)
 			}
 
 			f.Value = valInt

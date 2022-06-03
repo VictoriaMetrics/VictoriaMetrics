@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -109,14 +110,28 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
+var maxTagFilterCacheSize int
+
+// SetTagFilterCacheSize overrides the default size of indexdb/tagFilters cache
+func SetTagFilterCacheSize(size int) {
+	maxTagFilterCacheSize = size
+}
+
+func getTagFilterCacheSize() int {
+	if maxTagFilterCacheSize <= 0 {
+		return int(float64(memory.Allowed()) / 32)
+	}
+	return maxTagFilterCacheSize
+}
+
 // openIndexDB opens index db from the given path.
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
 //
-// The rotationTimestamp must be set to the current unix timestamp when ipenIndexDB
+// The rotationTimestamp must be set to the current unix timestamp when openIndexDB
 // is called when creating new indexdb during indexdb rotation.
-func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, error) {
+func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *uint32) (*indexDB, error) {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
@@ -127,7 +142,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, e
 		return nil, fmt.Errorf("failed to parse indexdb path %q: %w", path, err)
 	}
 
-	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows)
+	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %w", path, err)
 	}
@@ -142,7 +157,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64) (*indexDB, e
 		tb:                tb,
 		name:              name,
 
-		tagFiltersCache:            workingsetcache.New(mem / 32),
+		tagFiltersCache:            workingsetcache.New(getTagFilterCacheSize()),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
@@ -1345,7 +1360,7 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(tfss []*TagFilters, date 
 	if len(tfss) > 0 {
 		tr := TimeRange{
 			MinTimestamp: int64(date) * msecPerDay,
-			MaxTimestamp: int64(date+1) * msecPerDay,
+			MaxTimestamp: int64(date+1)*msecPerDay - 1,
 		}
 		metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
 		if err != nil {
@@ -1622,7 +1637,7 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 		MaxTimestamp: (1 << 63) - 1,
 	}
 	is := db.getIndexSearch(noDeadline)
-	metricIDs, err := is.searchMetricIDs(tfss, tr, 2e9)
+	metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
@@ -1713,7 +1728,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 }
 
 // searchTSIDs returns sorted tsids matching the given tfss over the given tr.
-func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	if len(tfss) == 0 {
 		return nil, nil
 	}
@@ -1727,13 +1742,14 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int,
 	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, tr, true)
 	tsids, ok := db.getFromTagFiltersCache(tfKeyBuf.B)
 	if ok {
-		// Fast path - tsids found in the cache.
+		// Fast path - tsids found in the cache
+		qt.Printf("found %d matching series ids in the cache; they occupy %d bytes of memory", len(tsids), memorySizeForTSIDs(tsids))
 		return tsids, nil
 	}
 
 	// Slow path - search for tsids in the db and extDB.
 	is := db.getIndexSearch(deadline)
-	localTSIDs, err := is.searchTSIDs(tfss, tr, maxMetrics)
+	localTSIDs, err := is.searchTSIDs(qt, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
@@ -1752,7 +1768,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int,
 			return
 		}
 		is := extDB.getIndexSearch(deadline)
-		extTSIDs, err = is.searchTSIDs(tfss, tr, maxMetrics)
+		extTSIDs, err = is.searchTSIDs(qt, tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 
 		sort.Slice(extTSIDs, func(i, j int) bool { return extTSIDs[i].Less(&extTSIDs[j]) })
@@ -1769,11 +1785,17 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int,
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
 	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
+	qt.Printf("sort the found %d series ids", len(tsids))
 
 	// Store TSIDs in the cache.
 	db.putToTagFiltersCache(tsids, tfKeyBuf.B)
+	qt.Printf("store the found %d series ids in cache; they occupy %d bytes of memory", len(tsids), memorySizeForTSIDs(tsids))
 
 	return tsids, err
+}
+
+func memorySizeForTSIDs(tsids []TSID) int {
+	return len(tsids) * int(unsafe.Sizeof(TSID{}))
 }
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
@@ -1900,7 +1922,7 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	return true, nil
 }
 
-func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+func (is *indexSearch) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	ok, err := is.containsTimeRange(tr)
 	if err != nil {
 		return nil, err
@@ -1909,7 +1931,7 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 		// Fast path - the index doesn't contain data for the given tr.
 		return nil, nil
 	}
-	metricIDs, err := is.searchMetricIDs(tfss, tr, maxMetrics)
+	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -1954,6 +1976,7 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 		i++
 	}
 	tsids = tsids[:i]
+	qt.Printf("load %d series ids from %d metric ids", len(tsids), len(metricIDs))
 
 	// Do not sort the found tsids, since they will be sorted later.
 	return tsids, nil
@@ -2186,17 +2209,19 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 	return true, nil
 }
 
-func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
+func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
 	metricIDs, err := is.searchMetricIDsInternal(tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
+	qt.Printf("found %d matching metric ids", metricIDs.Len())
 	if metricIDs.Len() == 0 {
 		// Nothing found
 		return nil, nil
 	}
 
 	sortedMetricIDs := metricIDs.AppendTo(nil)
+	qt.Printf("sort %d matching metric ids", len(sortedMetricIDs))
 
 	// Filter out deleted metricIDs.
 	dmis := is.db.s.getDeletedMetricIDs()
@@ -2207,6 +2232,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 				metricIDsFiltered = append(metricIDsFiltered, metricID)
 			}
 		}
+		qt.Printf("%d metric ids after removing deleted metric ids", len(metricIDsFiltered))
 		sortedMetricIDs = metricIDsFiltered
 	}
 

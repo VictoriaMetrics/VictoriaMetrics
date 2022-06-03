@@ -55,7 +55,7 @@ func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 		}
 		tfss := joinTagFilterss(tfs, etfs)
 		sq := storage.NewSearchQuery(0, ct, tfss, 0)
-		n, err := netstorage.DeleteSeries(sq, deadline)
+		n, err := netstorage.DeleteSeries(nil, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot delete series for %q: %w", sq, err)
 		}
@@ -190,7 +190,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, err = netstorage.GetGraphiteTagValues(tag, filter, limit, deadline)
+		tagValues, err = netstorage.GetGraphiteTagValues(nil, tag, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -200,7 +200,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		if err != nil {
 			return err
 		}
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(nil, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 		}
@@ -276,7 +276,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, err = netstorage.GetGraphiteTags(filter, limit, deadline)
+		labels, err = netstorage.GetGraphiteTags(nil, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -286,7 +286,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		if err != nil {
 			return err
 		}
-		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		mns, err := netstorage.SearchMetricNames(nil, sq, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 		}
@@ -353,7 +353,7 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return err
 	}
-	mns, err := netstorage.SearchMetricNames(sq, deadline)
+	mns, err := netstorage.SearchMetricNames(nil, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
 	}
@@ -413,7 +413,7 @@ func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter
 		return err
 	}
 	filter := r.FormValue("filter")
-	tagValues, err := netstorage.GetGraphiteTagValues(tagName, filter, limit, deadline)
+	tagValues, err := netstorage.GetGraphiteTagValues(nil, tagName, filter, limit, deadline)
 	if err != nil {
 		return err
 	}
@@ -444,7 +444,7 @@ func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 	filter := r.FormValue("filter")
-	labels, err := netstorage.GetGraphiteTags(filter, limit, deadline)
+	labels, err := netstorage.GetGraphiteTags(nil, filter, limit, deadline)
 	if err != nil {
 		return err
 	}

@@ -9,11 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
-// apiConfig contains config for API server
-type apiConfig struct {
-	aw *apiWatcher
-}
-
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	role := sdc.role()
 	switch role {
@@ -26,6 +21,21 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
 	apiServer := sdc.APIServer
+
+	if len(sdc.KubeConfig) > 0 {
+		fmt.Println("building")
+		kc, err := buildConfig(sdc)
+		if err != nil {
+			return nil, fmt.Errorf("cannot build kube config: %w", err)
+		}
+		ac, err = promauth.NewConfig(".", nil, kc.basicAuth, kc.token, kc.tokenFile, nil, kc.tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize service account auth: %w; probably, `kubernetes_sd_config->api_server` is missing in Prometheus configs?", err)
+		}
+		apiServer = kc.server
+		sdc.ProxyURL = kc.proxyURL
+	}
+
 	if len(apiServer) == 0 {
 		// Assume we run at k8s pod.
 		// Discover apiServer and auth config according to k8s docs.

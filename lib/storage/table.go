@@ -23,6 +23,7 @@ type table struct {
 
 	getDeletedMetricIDs func() *uint64set.Set
 	retentionMsecs      int64
+	isReadOnly          *uint32
 
 	ptws     []*partitionWrapper
 	ptwsLock sync.Mutex
@@ -83,7 +84,7 @@ func (ptw *partitionWrapper) scheduleToDrop() {
 // The table is created if it doesn't exist.
 //
 // Data older than the retentionMsecs may be dropped at any time.
-func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64) (*table, error) {
+func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) (*table, error) {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
@@ -116,7 +117,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 	}
 
 	// Open partitions.
-	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, getDeletedMetricIDs, retentionMsecs)
+	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open partitions in the table %q: %w", path, err)
 	}
@@ -127,6 +128,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 		bigPartitionsPath:   bigPartitionsPath,
 		getDeletedMetricIDs: getDeletedMetricIDs,
 		retentionMsecs:      retentionMsecs,
+		isReadOnly:          isReadOnly,
 
 		flockF: flockF,
 
@@ -359,7 +361,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 			continue
 		}
 
-		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.getDeletedMetricIDs, tb.retentionMsecs)
+		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.getDeletedMetricIDs, tb.retentionMsecs, tb.isReadOnly)
 		if err != nil {
 			// Return only the first error, since it has no sense in returning all errors.
 			tb.ptwsLock.Unlock()
@@ -497,7 +499,7 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64) ([]*partition, error) {
+func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) ([]*partition, error) {
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
@@ -511,7 +513,7 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMet
 	for ptName := range ptNames {
 		smallPartsPath := smallPartitionsPath + "/" + ptName
 		bigPartsPath := bigPartitionsPath + "/" + ptName
-		pt, err := openPartition(smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs)
+		pt, err := openPartition(smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
 		if err != nil {
 			mustClosePartitions(pts)
 			return nil, fmt.Errorf("cannot open partition %q: %w", ptName, err)

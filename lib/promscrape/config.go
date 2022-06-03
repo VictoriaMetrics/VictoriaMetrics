@@ -56,6 +56,9 @@ var (
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
+	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
+		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
+		"See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679")
 )
 
 var clusterMemberID int
@@ -68,11 +71,11 @@ func mustInitClusterMemberID() {
 	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
 		s = s[idx+1:]
 	}
-	n, err := strconv.ParseInt(s, 10, 64)
+	n, err := strconv.Atoi(s)
 	if err != nil {
 		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
 	}
-	clusterMemberID = int(n)
+	clusterMemberID = n
 }
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/

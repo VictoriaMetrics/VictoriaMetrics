@@ -15,6 +15,11 @@ func (f *StringFlag) GetUsage() string {
 	return f.Usage
 }
 
+// GetCategory returns the category for the flag
+func (f *StringFlag) GetCategory() string {
+	return f.Category
+}
+
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *StringFlag) GetValue() string {
@@ -39,7 +44,7 @@ func (f *StringFlag) GetEnvVars() []string {
 
 // Apply populates the flag given the flag set and environment
 func (f *StringFlag) Apply(set *flag.FlagSet) error {
-	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
+	if val, _, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		f.Value = val
 		f.HasBeenSet = true
 	}

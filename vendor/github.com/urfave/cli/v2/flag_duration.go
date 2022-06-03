@@ -16,6 +16,11 @@ func (f *DurationFlag) GetUsage() string {
 	return f.Usage
 }
 
+// GetCategory returns the category for the flag
+func (f *DurationFlag) GetCategory() string {
+	return f.Category
+}
+
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *DurationFlag) GetValue() string {
@@ -37,12 +42,12 @@ func (f *DurationFlag) GetEnvVars() []string {
 
 // Apply populates the flag given the flag set and environment
 func (f *DurationFlag) Apply(set *flag.FlagSet) error {
-	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
+	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
 			valDuration, err := time.ParseDuration(val)
 
 			if err != nil {
-				return fmt.Errorf("could not parse %q as duration value for flag %s: %s", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as duration value from %s for flag %s: %s", val, source, f.Name, err)
 			}
 
 			f.Value = valDuration

@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	xxhash "github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -68,8 +69,11 @@ func (s *Secret) String() string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
 type TLSConfig struct {
+	CA                 []byte `yaml:"ca,omitempty"`
 	CAFile             string `yaml:"ca_file,omitempty"`
+	Cert               []byte `yaml:"cert,omitempty"`
 	CertFile           string `yaml:"cert_file,omitempty"`
+	Key                []byte `yaml:"key,omitempty"`
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
@@ -81,8 +85,11 @@ func (tlsConfig *TLSConfig) String() string {
 	if tlsConfig == nil {
 		return ""
 	}
-	return fmt.Sprintf("ca_file=%q, cert_file=%q, key_file=%q, server_name=%q, insecure_skip_verify=%v, min_version=%q",
-		tlsConfig.CAFile, tlsConfig.CertFile, tlsConfig.KeyFile, tlsConfig.ServerName, tlsConfig.InsecureSkipVerify, tlsConfig.MinVersion)
+	caHash := xxhash.Sum64(tlsConfig.CA)
+	certHash := xxhash.Sum64(tlsConfig.Cert)
+	keyHash := xxhash.Sum64(tlsConfig.Key)
+	return fmt.Sprintf("hash(ca)=%d, ca_file=%q, hash(cert)=%d, cert_file=%q, hash(key)=%d, key_file=%q, server_name=%q, insecure_skip_verify=%v, min_version=%q",
+		caHash, tlsConfig.CAFile, certHash, tlsConfig.CertFile, keyHash, tlsConfig.KeyFile, tlsConfig.ServerName, tlsConfig.InsecureSkipVerify, tlsConfig.MinVersion)
 }
 
 // Authorization represents generic authorization config.
@@ -270,6 +277,9 @@ func (ac *Config) GetAuthHeader() string {
 }
 
 // String returns human-readable representation for ac.
+//
+// It is also used for comparing Config objects for equality. If two Config
+// objects have the same string representation, then they are considered equal.
 func (ac *Config) String() string {
 	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v, TLSMinVersion=%d",
 		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify, ac.TLSMinVersion)
@@ -456,7 +466,17 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 	if tlsConfig != nil {
 		tlsServerName = tlsConfig.ServerName
 		tlsInsecureSkipVerify = tlsConfig.InsecureSkipVerify
-		if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
+		if len(tlsConfig.Key) != 0 || len(tlsConfig.Cert) != 0 {
+			cert, err := tls.X509KeyPair(tlsConfig.Cert, tlsConfig.Key)
+			if err != nil {
+				return nil, fmt.Errorf("cannot load TLS certificate from the provided `cert` and `key` values: %w", err)
+			}
+			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				return &cert, nil
+			}
+			h := xxhash.Sum64(tlsConfig.Key) ^ xxhash.Sum64(tlsConfig.Cert)
+			tlsCertDigest = fmt.Sprintf("digest(key+cert)=%d", h)
+		} else if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
 			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 				// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
 				certPath := fs.GetFilepath(baseDir, tlsConfig.CertFile)
@@ -473,7 +493,12 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			}
 			tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tlsConfig.CertFile, tlsConfig.KeyFile)
 		}
-		if tlsConfig.CAFile != "" {
+		if len(tlsConfig.CA) != 0 {
+			tlsRootCA = x509.NewCertPool()
+			if !tlsRootCA.AppendCertsFromPEM(tlsConfig.CA) {
+				return nil, fmt.Errorf("cannot parse data from `ca` value")
+			}
+		} else if tlsConfig.CAFile != "" {
 			path := fs.GetFilepath(baseDir, tlsConfig.CAFile)
 			data, err := fs.ReadFileOrHTTP(path)
 			if err != nil {

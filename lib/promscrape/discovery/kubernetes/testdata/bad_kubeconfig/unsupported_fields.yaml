@@ -1,0 +1,30 @@
+apiVersion: v1
+clusters:
+  - cluster:
+      server: "http://some-server:8080"
+    name: k8s
+contexts:
+  - context:
+      cluster: k8s
+      user: user1
+    name: user1@k8s
+current-context: user1@k8s
+kind: Config
+preferences: {}
+users:
+  - name: user1
+    exec:
+      apiVersion: client.authentication.k8s.io/v1alpha1
+      args:
+        - eks
+        - get-token
+        - --cluster-name
+        - some-cluster
+        - --region
+        - us-east-2
+      command: aws
+      env:
+        - name: AWS_STS_REGIONAL_ENDPOINTS
+          value: regional
+      interactiveMode: IfAvailable
+      provideClusterInfo: false

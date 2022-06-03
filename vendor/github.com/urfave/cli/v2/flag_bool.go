@@ -16,6 +16,11 @@ func (f *BoolFlag) GetUsage() string {
 	return f.Usage
 }
 
+// GetCategory returns the category for the flag
+func (f *BoolFlag) GetCategory() string {
+	return f.Category
+}
+
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *BoolFlag) GetValue() string {
@@ -37,12 +42,12 @@ func (f *BoolFlag) GetEnvVars() []string {
 
 // Apply populates the flag given the flag set and environment
 func (f *BoolFlag) Apply(set *flag.FlagSet) error {
-	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
+	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
 			valBool, err := strconv.ParseBool(val)
 
 			if err != nil {
-				return fmt.Errorf("could not parse %q as bool value for flag %s: %s", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as bool value from %s for flag %s: %s", val, source, f.Name, err)
 			}
 
 			f.Value = valBool

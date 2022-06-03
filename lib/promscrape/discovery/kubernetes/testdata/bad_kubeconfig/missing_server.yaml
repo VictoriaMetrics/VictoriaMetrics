@@ -1,0 +1,11 @@
+apiVersion: v1
+clusters:
+  - cluster:
+    name: k8s
+contexts:
+  - context:
+      cluster: k8s
+    name: user1@k8s
+current-context: user1@k8s
+kind: Config
+preferences: {}

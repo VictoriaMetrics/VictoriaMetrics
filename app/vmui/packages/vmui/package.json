@@ -69,6 +69,9 @@
   "overrides": {
     "react-app-rewired": {
       "nth-check": "^2.0.1"
+    },
+    "css-select": {
+      "nth-check": "^2.0.1"
     }
   }
 }

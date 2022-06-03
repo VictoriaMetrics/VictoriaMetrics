@@ -1,7 +1,7 @@
 ### Setup
 1. Create `.json` config file in a folder `dashboards`
 2. Import your config file into the `dashboards/index.js`
-3. Add imported variable into the array `window.__VMUI_PREDEFINED_DASHBOARDS__`
+3. Add filename into the array `window.__VMUI_PREDEFINED_DASHBOARDS__`
 
 ### Configuration options
 

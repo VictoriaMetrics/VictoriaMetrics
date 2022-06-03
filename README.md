@@ -14,12 +14,18 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
-and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and follow [these instructions](#how-to-start-victoriametrics).
-Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
+and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
 Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. See [features available in enterprise package](https://victoriametrics.com/products/enterprise/). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow 
+[QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for better experience.
+
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
+See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
+Enterprise binaries can be downloaded and evaluated for free 
+from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Prominent features
 
@@ -53,7 +59,7 @@ VictoriaMetrics has the following prominent features:
   * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
   * [Native binary format](#how-to-import-data-in-native-format).
-* It supports metrics' relabeling. See [these docs](#relabeling) for details.
+* It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
 * It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/products/enterprise/).
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
@@ -92,9 +98,10 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
 
 ## Operation
 
-## How to start VictoriaMetrics
+### How to start VictoriaMetrics
 
 Just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
+See also [QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for additional information.
 
 The following command-line flags are used the most:
 
@@ -143,17 +150,25 @@ After changes were made, trigger config re-read with the command `curl 127.0.0.1
 
 Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
 
+<div class="with-copy" markdown="1">
+
 ```yml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
 ```
 
+</div>
+
 Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
 Then apply new config via the following command:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 kill -HUP `pidof prometheus`
 ```
+
+</div>
 
 Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
 This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
@@ -174,6 +189,8 @@ across Prometheus instances, so time series could be filtered and grouped by thi
 
 For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
 
+<div class="with-copy" markdown="1">
+
 ```yaml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
@@ -183,13 +200,18 @@ remote_write:
       max_shards: 30
 ```
 
+</div>
+
 Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
-too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. Keep in mind that these two params are tightly connected.
+too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
+Keep in mind that these two params are tightly connected.
 Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
-It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, since previous versions may have issues with `remote_write`.
+It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, 
+since previous versions may have issues with `remote_write`.
 
-Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html) and [vmalert](https://docs.victoriametrics.com/vmalert.html),
+Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html) 
+and [vmalert](https://docs.victoriametrics.com/vmalert.html),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
 ## Grafana setup
@@ -217,6 +239,27 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Start the upgraded VictoriaMetrics.
 
 Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent.html).
+
+## vmui
+
+VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
+The UI allows exploring query results via graphs and tables. Graphs support scrolling and zooming:
+
+* Drag the graph to the left / right in order to move the displayed time range into the past / future.
+* Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
+
+Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
+
+Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
+
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
+
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
+
+VMUI allows investigating correlations between two queries on the same graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
+
+See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
+
 
 ## How to apply new config to VictoriaMetrics
 
@@ -316,7 +359,7 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
-* [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
+* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
   unless `db` tag exists in the InfluxDB line. The `db` label name can be overriden via `-influxDBLabel` command-line flag.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
@@ -338,20 +381,28 @@ foo_field2{tag1="value1", tag2="value2"} 40
 Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 to local VictoriaMetrics using `curl`:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
+</div>
+
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
+</div>
+
 The `/api/v1/export` endpoint should return the following response:
 
-```jsonl
+```json
 {"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
 ```
@@ -431,20 +482,28 @@ Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
+</div>
+
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
+</div>
+
 The `/api/v1/export` endpoint should return the following response:
 
-```bash
+```json
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
 ```
 
@@ -461,25 +520,37 @@ Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing a single data point:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
 ```
 
+</div>
+
 Example for writing multiple data points in a single request:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
+</div>
+
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```
 
+</div>
+
 The `/api/v1/export` endpoint should return the following response:
 
-```bash
+```json
 {"metric":{"__name__":"foo"},"values":[45.34],"timestamps":[1566464846000]}
 {"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
 {"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
@@ -519,7 +590,7 @@ VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v
 
 By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
 
-Additionally VictoriaMetrics provides the following handlers:
+Additionally, VictoriaMetrics provides the following handlers:
 
 * `/vmui` - Basic Web UI. See [these docs](#vmui).
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
@@ -586,26 +657,6 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 * [/tags/autoComplete/tags](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
 * [/tags/autoComplete/values](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
 * [/tags/delSeries](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb)
-
-## vmui
-
-VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables. Graphs support scrolling and zooming:
-
-* Drag the graph to the left / right in order to move the displayed time range into the past / future.
-* Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
-
-Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
-
-Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
-
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
-
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
-
-VMUI allows investigating correlations between two queries on the same graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
-
-See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
 ## How to build from sources
 
@@ -1314,6 +1365,69 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
+## Query tracing
+
+VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
+
+Query tracing can be enabled for a specific query by passing `trace=1` query arg.
+In this case VictoriaMetrics puts query trace into `trace` field in the output JSON.
+
+For example, the following command:
+
+```bash
+curl http://localhost:8428/api/v1/query_range -d 'query=2*rand()' -d 'start=-1h' -d 'step=1m' -d 'trace=1' | jq -r '.trace'
+```
+
+would return the following trace:
+
+```json
+{
+  "duration_msec": 0.099,
+  "message": "/api/v1/query_range: start=1654034340000, end=1654037880000, step=60000, query=\"2*rand()\": series=1",
+  "children": [
+    {
+      "duration_msec": 0.034,
+      "message": "eval: query=2 * rand(), timeRange=[1654034340000..1654037880000], step=60000, mayCache=true: series=1, points=60, pointsPerSeries=60",
+      "children": [
+        {
+          "duration_msec": 0.032,
+          "message": "binary op \"*\": series=1",
+          "children": [
+            {
+              "duration_msec": 0.009,
+              "message": "eval: query=2, timeRange=[1654034340000..1654037880000], step=60000, mayCache=true: series=1, points=60, pointsPerSeries=60"
+            },
+            {
+              "duration_msec": 0.017,
+              "message": "eval: query=rand(), timeRange=[1654034340000..1654037880000], step=60000, mayCache=true: series=1, points=60, pointsPerSeries=60",
+              "children": [
+                {
+                  "duration_msec": 0.015,
+                  "message": "transform rand(): series=1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "duration_msec": 0.004,
+      "message": "sort series by metric name and labels"
+    },
+    {
+      "duration_msec": 0.044,
+      "message": "generate /api/v1/query_range response for series=1, points=60"
+    }
+  ]
+}
+```
+
+All the durations and timestamps in traces are in milliseconds.
+
+Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
+
+
 ## Cardinality limiter
 
 By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
@@ -1423,7 +1537,8 @@ The panel `Cache usage %` in `Troubleshooting` section shows the percentage of u
 from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
 
 Please note, default cache sizes were carefully adjusted accordingly to the most
-practical scenarios and workloads. Change the defaults only if you understand the implications.
+practical scenarios and workloads. Change the defaults only if you understand the implications
+and vmstorage has enough free memory to accommodate new cache sizes.
 
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).

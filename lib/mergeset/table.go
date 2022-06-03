@@ -91,6 +91,7 @@ type Table struct {
 	needFlushCallbackCall uint32
 
 	prepareBlock PrepareBlockCallback
+	isReadOnly   *uint32
 
 	partsLock sync.Mutex
 	parts     []*partWrapper
@@ -254,7 +255,7 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback) (*Table, error) {
+func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) (*Table, error) {
 	path = filepath.Clean(path)
 	logger.Infof("opening table %q...", path)
 	startTime := time.Now()
@@ -280,6 +281,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		path:          path,
 		flushCallback: flushCallback,
 		prepareBlock:  prepareBlock,
+		isReadOnly:    isReadOnly,
 		parts:         pws,
 		mergeIdx:      uint64(time.Now().UnixNano()),
 		flockF:        flockF,
@@ -799,7 +801,17 @@ func (tb *Table) startPartMergers() {
 	}
 }
 
+func (tb *Table) canBackgroundMerge() bool {
+	return atomic.LoadUint32(tb.isReadOnly) == 0
+}
+
 func (tb *Table) mergeExistingParts(isFinal bool) error {
+	if !tb.canBackgroundMerge() {
+		// Do not perform background merge in read-only mode
+		// in order to prevent from disk space shortage.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
+		return nil
+	}
 	n := fs.MustGetFreeSpace(tb.path)
 	// Divide free space by the max number of concurrent merges.
 	maxOutBytes := n / uint64(mergeWorkersCount)
