@@ -41,11 +41,13 @@ job={%q= jobName %} (0/0 up)
 
 {% endfunc %}
 
-{% func TargetsResponseHTML(jts []jobTargetsStatuses, emptyJobs []string, showOnlyUnhealthy bool, endpointSearch, labelSearch, activeTab string, droppedKeyStatuses []droppedKeyStatus, err error) %}
+{% func TargetsResponseHTML(scrapeTargets scrapeTargets) %}
 {% code
-    if activeTab == "" {
-        activeTab="targets-tab"
-    }
+    targetsStatuses := scrapeTargets.targetsStatuses
+    filter := scrapeTargets.requestFilter
+    if filter.activeTab == "" {
+            filter.activeTab="targets-tab"
+        }
 %}
 <!DOCTYPE html>
 <html lang="en">
@@ -56,7 +58,7 @@ job={%q= jobName %} (0/0 up)
     <title>Scrape targets</title>
     <script>
 function collapse_all() {
-  for (var i = 0; i <= {%d len(jts) %}; i++) {
+  for (var i = 0; i <= {%d len(targetsStatuses.jobTargetsStatuses) %}; i++) {
     ["table-"+i, "table-discovery-"+i, "table-empty-"+i].forEach((id) => {
         let el = document.getElementById(id);
         if (el) {
@@ -66,7 +68,7 @@ function collapse_all() {
   }
 }
 function expand_all() {
-  for (var i = 0; i <= {%d len(jts) %}; i++) {
+  for (var i = 0; i <= {%d len(targetsStatuses.jobTargetsStatuses) %}; i++) {
     ["table-"+i, "table-discovery-"+i, "table-empty-"+i].forEach((id) => {
         let el = document.getElementById(id);
         if (el) {
@@ -87,8 +89,8 @@ function expand_all() {
         </div>
     </div>
     <div class="container-fluid">
-        {% if err != nil %}
-            {%= errorNotification(err) %}
+        {% if targetsStatuses.err != nil %}
+            {%= errorNotification(targetsStatuses.err) %}
         {% endif %}
         <div class="row">
             <main class="col-12">
@@ -96,21 +98,21 @@ function expand_all() {
                 <hr />
                 <div class="row g-3 align-items-center mb-3">
                     <div class="col-auto">
-                        <button id="all-btn" type="button" class="btn{% space %}{% if !showOnlyUnhealthy %}btn-secondary{% else %}btn-success{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
+                        <button id="all-btn" type="button" class="btn{% space %}{% if !filter.showOnlyUnhealthy %}btn-secondary{% else %}btn-success{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
 	"show_only_unhealthy": "false",
-	"endpoint_search": endpointSearch,
-	"label_search": labelSearch,
-	"active_tab": activeTab,
+	"endpoint_search": filter.endpointSearch,
+	"label_search": filter.labelSearch,
+	"active_tab": filter.activeTab,
 }) %}'">
                             All
                         </button>
                     </div>
                     <div class="col-auto">
-                        <button id="unhealthy-btn" type="button" class="btn{% space %}{% if showOnlyUnhealthy %}btn-secondary{% else %}btn-danger{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
+                        <button id="unhealthy-btn" type="button" class="btn{% space %}{% if filter.showOnlyUnhealthy %}btn-secondary{% else %}btn-danger{% endif %}" onclick="location.href='?{%= queryArgs(map[string]string{
 	"show_only_unhealthy": "true",
-	"endpoint_search": endpointSearch,
-	"label_search": labelSearch,
-	"active_tab": activeTab,
+	"endpoint_search": filter.endpointSearch,
+	"label_search": filter.labelSearch,
+	"active_tab": filter.activeTab,
 }) %}'">
                             Unhealthy
                         </button>
@@ -126,7 +128,7 @@ function expand_all() {
                         </button>
                     </div>
                     <div class="col-auto">
-                    {% if endpointSearch == "" && labelSearch == "" %}
+                    {% if filter.endpointSearch == "" && filter.labelSearch == "" %}
                         <button type="button" class="btn btn-success" onclick="document.getElementById('filters').style.display='block'">
                             Filter targets
                         </button>
@@ -137,42 +139,42 @@ function expand_all() {
                     {% endif %}
                     </div>
                 </div>
-                <div id="filters" {% if endpointSearch == "" && labelSearch == "" %}style="display:none"{% endif %}>
+                <div id="filters" {% if filter.endpointSearch == "" && filter.labelSearch == "" %}style="display:none"{% endif %}>
                     <form class="form-horizontal">
                         <div class="form-group mb-3">
                             <label for="endpoint_search" class="col-sm-10 control-label">Endpoint filter (<a target="_blank" href="https://github.com/google/re2/wiki/Syntax">Regexp</a> is accepted)</label>
                             <div class="col-sm-10">
                                 <input type="text" id="endpoint_search" name="endpoint_search"
-                                    placeholder="For example, 127.0.0.1" class="form-control" value="{%s endpointSearch %}"/>
+                                    placeholder="For example, 127.0.0.1" class="form-control" value="{%s filter.endpointSearch %}"/>
                             </div>
                         </div>
                         <div class="form-group mb-3">
                             <label for="label_search" class="col-sm-10 control-label">Labels filter (<a target="_blank" href="https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors">Arbitrary time series selectors</a> are accepted)</label>
                             <div class="col-sm-10">
                                 <input type="text" id="label_search" name="label_search"
-                                    placeholder="For example, {instance=~'.+:9100'}" class="form-control" value="{%s labelSearch %}"/>
+                                    placeholder="For example, {instance=~'.+:9100'}" class="form-control" value="{%s filter.labelSearch %}"/>
                             </div>
                         </div>
-                        <input type="hidden" name="show_only_unhealthy" value="{%v showOnlyUnhealthy %}"/>
-                        <input id="tab_input" type="hidden" name="active_tab" value="{%s activeTab %}" />
+                        <input type="hidden" name="show_only_unhealthy" value="{%v filter.showOnlyUnhealthy %}"/>
+                        <input id="tab_input" type="hidden" name="active_tab" value="{%s filter.activeTab %}" />
                         <button type="submit" class="btn btn-success mb-3">Submit</button>
                     </form>
                 </div>
                 <hr />
                 <ul class="nav nav-tabs" id="myTab" role="tablist">
                   <li class="nav-item" role="presentation">
-                    <button id="targets-tab" class="nav-link {%if activeTab=="targets-tab"%} {% space %}active {%endif%}" data-bs-toggle="tab" data-bs-target="#targets" type="button" role="tab" aria-controls="home" aria-selected="true">Targets</button>
+                    <button id="targets-tab" class="nav-link {%if filter.activeTab=="targets-tab"%} {% space %}active {%endif%}" data-bs-toggle="tab" data-bs-target="#targets" type="button" role="tab" aria-controls="home" aria-selected="true">Targets</button>
                   </li>
                   <li class="nav-item" role="presentation">
-                    <button id="discovery-tab" class="nav-link {%if activeTab=="discovery-tab"%} {% space %}active {%endif%}" data-bs-toggle="tab" data-bs-target="#discovery" type="button" role="tab" aria-controls="profile" aria-selected="false">Service Discovery</button>
+                    <button id="discovery-tab" class="nav-link {%if filter.activeTab=="discovery-tab"%} {% space %}active {%endif%}" data-bs-toggle="tab" data-bs-target="#discovery" type="button" role="tab" aria-controls="profile" aria-selected="false">Service Discovery</button>
                   </li>
                 </ul>
                 <div class="tab-content">
-                    <div id="targets" class="tab-pane {%if activeTab=="targets-tab"%} {% space %}active{%endif%}" role="tabpanel" aria-labelledby="targets-tab">
-                        {%= Targets(jts, emptyJobs, showOnlyUnhealthy) %}
+                    <div id="targets" class="tab-pane {%if filter.activeTab=="targets-tab"%} {% space %}active{%endif%}" role="tabpanel" aria-labelledby="targets-tab">
+                        {%= Targets(targetsStatuses.jobTargetsStatuses, targetsStatuses.emptyJobs, filter.showOnlyUnhealthy) %}
                     </div>
-                    <div id="discovery" class="tab-pane {%if activeTab=="discovery-tab"%} {% space %}active{%endif%}" role="tabpanel" aria-labelledby="profile-tab">
-                        {%= ServiceDiscovery(jts, emptyJobs, showOnlyUnhealthy, droppedKeyStatuses) %}
+                    <div id="discovery" class="tab-pane {%if filter.activeTab=="discovery-tab"%} {% space %}active{%endif%}" role="tabpanel" aria-labelledby="profile-tab">
+                        {%= ServiceDiscovery(targetsStatuses.jobTargetsStatuses, targetsStatuses.emptyJobs, filter.showOnlyUnhealthy, targetsStatuses.droppedKeyStatuses) %}
                     </div>
                 </div>
             </main>

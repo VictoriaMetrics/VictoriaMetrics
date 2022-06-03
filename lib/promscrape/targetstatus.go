@@ -50,12 +50,19 @@ func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
 	endpointSearch := strings.TrimSpace(r.FormValue("endpoint_search"))
 	labelSearch := strings.TrimSpace(r.FormValue("label_search"))
 	activeTab := strings.TrimSpace(r.FormValue("active_tab"))
+	filter := requestFilter{
+		showOriginalLabels: showOriginalLabels,
+		showOnlyUnhealthy:  showOnlyUnhealthy,
+		endpointSearch:     endpointSearch,
+		labelSearch:        labelSearch,
+		activeTab:          activeTab,
+	}
 	if accept := r.Header.Get("Accept"); strings.Contains(accept, "text/html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy, endpointSearch, labelSearch, activeTab)
+		tsmGlobal.WriteTargetsHTML(w, filter)
 	} else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels, showOnlyUnhealthy, endpointSearch, labelSearch)
+		tsmGlobal.WriteTargetsPlain(w, filter)
 	}
 }
 
@@ -478,17 +485,46 @@ func getEmptyJobs(jts []jobTargetsStatuses, jobNames []string) []string {
 	return emptyJobs
 }
 
+type (
+	requestFilter struct {
+		showOriginalLabels bool
+		showOnlyUnhealthy  bool
+		endpointSearch     string
+		labelSearch        string
+		activeTab          string
+	}
+	targetsStatuses struct {
+		jobTargetsStatuses []jobTargetsStatuses
+		droppedKeyStatuses []droppedKeyStatus
+		emptyJobs          []string
+		err                error
+	}
+	scrapeTargets struct {
+		requestFilter
+		targetsStatuses
+	}
+)
+
 // WriteTargetsHTML writes targets status grouped by job into writer w in html table,
 // accepts filter to show only unhealthy targets.
-func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, showOnlyUnhealthy bool, endpointSearch, labelSearch, activeTab string) {
+func (tsm *targetStatusMap) WriteTargetsHTML(w io.Writer, filter requestFilter) {
 	droppedKeyStatuses := droppedTargetsMap.getDroppedKeyStatuses()
-	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
-	WriteTargetsResponseHTML(w, jss, emptyJobs, showOnlyUnhealthy, endpointSearch, labelSearch, activeTab, droppedKeyStatuses, err)
+	jss, emptyJobs, err := tsm.getTargetsStatusByJob(filter.endpointSearch, filter.labelSearch)
+	scrapeTargets := scrapeTargets{
+		requestFilter: filter,
+		targetsStatuses: targetsStatuses{
+			jobTargetsStatuses: jss,
+			droppedKeyStatuses: droppedKeyStatuses,
+			emptyJobs:          emptyJobs,
+			err:                err,
+		},
+	}
+	WriteTargetsResponseHTML(w, scrapeTargets)
 }
 
 // WriteTargetsPlain writes targets grouped by job into writer w in plain text,
 // accept filter to show original labels.
-func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, showOriginalLabels, showOnlyUnhealthy bool, endpointSearch, labelSearch string) {
-	jss, emptyJobs, err := tsm.getTargetsStatusByJob(endpointSearch, labelSearch)
-	WriteTargetsResponsePlain(w, jss, emptyJobs, showOriginalLabels, showOnlyUnhealthy, err)
+func (tsm *targetStatusMap) WriteTargetsPlain(w io.Writer, filter requestFilter) {
+	jss, emptyJobs, err := tsm.getTargetsStatusByJob(filter.endpointSearch, filter.labelSearch)
+	WriteTargetsResponsePlain(w, jss, emptyJobs, filter.showOriginalLabels, filter.showOnlyUnhealthy, err)
 }
