@@ -371,7 +371,11 @@ start a cluster of three `vmagent` instances, where each target is scraped by tw
 ```
 
 If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
+The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+
+If multiple `vmagent` clusters scrape the same set of targets, then each cluster must have unique value for the `-promscrape.cluster.name` command-line flag.
+This is needed for proper data de-duplication. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
 
