@@ -1,0 +1,82 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+) %}
+
+{% func ServiceDiscovery(jts []jobTargetsStatuses, emptyJobs []string, showOnlyUnhealthy bool, droppedKeyStatuses []droppedKeyStatus) %}
+<div class="row mt-4">
+    <div class="col-12">
+        {% for i, js := range jts %}
+        {% if showOnlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
+            <h4>
+                   <span class="me-2">{%s js.job %}{% space %}({%d js.upCount %}/{%d js.targetsTotal %}{% space %}up)</span>
+                   <button type="button" class="btn btn-primary btn-sm me-1"
+                           onclick="document.querySelector('.table-discovery-{%d i %}').style.display='none'">collapse
+                   </button>
+                   <button type="button" class="btn btn-secondary btn-sm me-1"
+                           onclick="document.querySelector('.table-discovery-{%d i %}').style.display='block'">expand
+                   </button>
+            </h4>
+            <div id="table-discovery-{%d i %}" class="table-responsive table-discovery-{%d i %}">
+               <table class="table table-striped table-hover table-bordered table-sm">
+                   <thead>
+                   <tr>
+                       <th scope="col" style="width: 50%">Discovered Labels</th>
+                       <th scope="col" style="width: 50%">Target Labels</th>
+                   </tr>
+                   </thead>
+                   <tbody class="list-{%d i %}">
+                   {% for _, ts := range js.targetsStatus %}
+                   {% if showOnlyUnhealthy && ts.up %}{% continue %}{% endif %}
+                   <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
+                       <td class="labels">
+                          {%= formatLabel(ts.sw.Config.OriginalLabels) %}
+                       </td>
+                       <td class="labels">
+                           {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
+                       </td>
+                   </tr>
+                   {% endfor %}
+                   </tbody>
+               </table>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% for i,jobName := range emptyJobs %}
+   <div>
+       <h4>
+            <a>{%s jobName %} (0/0 up)</a>
+            <button type="button" class="btn btn-primary btn-sm me-1"
+                   onclick="document.querySelector('.table-empty-{%d i %}').style.display='none'">collapse
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm me-1"
+                   onclick="document.querySelector('.table-empty-{%d i %}').style.display='block'">expand
+            </button>
+       </h4>
+       <table id="table-empty-{%d i %}" class="table table-striped table-hover table-bordered table-sm table-empty-{%d i %}">
+           <thead>
+               <tr>
+                   <th scope="col" style="width: 50%">Discovered Labels</th>
+                   <th scope="col" style="width: 50%">Target Labels</th>
+               </tr>
+           </thead>
+            <tbody class="list-{%d i %}">
+                 {% for _, status := range droppedKeyStatuses %}
+                    {% for _, label := range status.originalLabels %}
+                        {% if label.Value == jobName %}
+                             <tr>
+                                 <td class="labels">
+                                    {%= formatLabel(status.originalLabels) %}
+                                 </td>
+                                 <td class="labels">
+                                    <span class="badge bg-danger">DROPPED</span>
+                                 </td>
+                             </tr>
+                        {% endif %}
+                    {% endfor %}
+                 {% endfor %}
+             </tbody>
+       </table>
+   </div>
+{% endfor %}
+{% endfunc %}
