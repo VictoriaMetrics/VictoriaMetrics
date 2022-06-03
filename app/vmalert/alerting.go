@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -201,6 +199,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 		return nil, err
 	}
 	var result []prompbmarshal.TimeSeries
+	timeStamp2Series := make(map[int64][]prompbmarshal.TimeSeries, 0)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
@@ -212,11 +211,10 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 		if ar.For == 0 { // if alert is instant
 			a.State = notifier.StateFiring
 			for i := range s.Values {
-				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				timeStamp2Series[s.Timestamps[i]] = append(timeStamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
 			}
 			continue
 		}
-
 		// if alert with For > 0
 		prevT := time.Time{}
 		for i := range s.Values {
@@ -230,13 +228,15 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 				a.Start = at
 			}
 			prevT = at
-			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			timeStamp2Series[s.Timestamps[i]] = append(timeStamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
 		}
 	}
-	numActive := len(ar.alerts)
-	if limit > 0 && numActive > limit {
-		ar.alerts = map[uint64]*notifier.Alert{}
-		return nil, errors.Errorf("exec range exceeded limit of %d with %d alerts", limit, numActive)
+	for _, tss := range timeStamp2Series {
+		if limit > 0 && len(tss) > limit {
+			logger.Errorf("exec exceeded limit of %d with %d alerts", limit, len(tss))
+			continue
+		}
+		result = append(result, tss...)
 	}
 	return result, nil
 }
@@ -338,7 +338,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			alertsFired.Inc()
 		}
 	}
-	if limit != 0 && numActivePending > limit {
+	if limit > 0 && numActivePending > limit {
 		ar.alerts = map[uint64]*notifier.Alert{}
 		return nil, fmt.Errorf("exec exceeded limit of %d with %d alerts", limit, numActivePending)
 	}

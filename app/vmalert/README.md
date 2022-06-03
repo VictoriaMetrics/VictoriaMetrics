@@ -101,8 +101,8 @@ name: <string>
 # How often rules in the group are evaluated.
 [ interval: <duration> | default = -evaluationInterval flag ]
 
-# Limit the number of alerts and series individual rules can produce.
-# 0 is no limit.
+# Limit the number of alerts an alerting rule and series a recording
+# rule can produce. 0 is no limit.
 [ limit: <int> | default = 0 ]
 
 # How many rules execute at once within a group. Increasing concurrency may speed

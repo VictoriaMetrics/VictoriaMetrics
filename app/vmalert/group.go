@@ -30,7 +30,7 @@ type Group struct {
 	Rules          []Rule
 	Type           datasource.Type
 	Interval       time.Duration
-	limit          int
+	Limit          int
 	Concurrency    int
 	Checksum       string
 	LastEvaluation time.Time
@@ -92,14 +92,15 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Name:        cfg.Name,
 		File:        cfg.File,
 		Interval:    cfg.Interval.Duration(),
-		limit:       cfg.Limit,
+		Limit:       cfg.Limit,
 		Concurrency: cfg.Concurrency,
 		Checksum:    cfg.Checksum,
 		Params:      cfg.Params,
 		Labels:      cfg.Labels,
-		doneCh:      make(chan struct{}),
-		finishedCh:  make(chan struct{}),
-		updateCh:    make(chan *Group),
+
+		doneCh:     make(chan struct{}),
+		finishedCh: make(chan struct{}),
+		updateCh:   make(chan *Group),
 	}
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
@@ -284,7 +285,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit())
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
 			if err != nil {
 				logger.Errorf("group %q: %s", g.Name, err)
@@ -336,9 +337,6 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 	}
 }
-
-// Limit returns the group's limit.
-func (g *Group) Limit() int { return g.limit }
 
 // getResolveDuration returns the duration after which firing alert
 // can be considered as resolved.

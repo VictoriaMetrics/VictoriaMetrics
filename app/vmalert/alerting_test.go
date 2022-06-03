@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -654,35 +655,49 @@ func TestAlertingRuleLimit(t *testing.T) {
 	ar := newTestAlertingRule("test", 0)
 	ar.Labels = map[string]string{"job": "test"}
 	ar.q = fq
+	ar.For = time.Minute
 	testCases := []struct {
-		limit int
-		err   string
+		limit  int
+		err    string
+		tssNum int
 	}{
 		{
-			limit: 0,
+			limit:  0,
+			tssNum: 4,
 		},
 		{
-			limit: 1,
+			limit:  -1,
+			tssNum: 4,
 		},
 		{
-			limit: -1,
-			err:   "exec exceeded limit of -1 with 1 alerts",
+			limit:  1,
+			err:    "exec exceeded limit of 1 with 2 alerts",
+			tssNum: 0,
 		},
 		{
-			limit: 2,
-			err:   "exec exceeded limit of 2 with 1 alerts",
+			limit:  4,
+			tssNum: 4,
 		},
 	}
-	var err error
+	var (
+		err       error
+		timestamp = time.Now()
+	)
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "bar", "job"))
 	for _, testCase := range testCases {
-		_, err = ar.Exec(context.TODO(), time.Now(), testCase.limit)
+		_, err = ar.Exec(context.TODO(), timestamp, testCase.limit)
 		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
 			t.Fatal(err)
 		}
-		_, err = ar.ExecRange(context.TODO(), time.Now(), time.Now(), testCase.limit)
-		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
+	}
+	for _, testCase := range testCases {
+		tss, err := ar.ExecRange(context.TODO(), timestamp, timestamp, testCase.limit)
+		if err != nil {
 			t.Fatal(err)
+		}
+		if len(tss) != testCase.tssNum {
+			t.Fatal(fmt.Errorf("tss len %d is not equal to supposed %d", len(tss), testCase.tssNum))
 		}
 	}
 	fq.reset()

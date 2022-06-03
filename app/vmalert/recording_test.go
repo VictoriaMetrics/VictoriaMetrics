@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -172,28 +173,30 @@ func TestRecordingRule_ExecRange(t *testing.T) {
 func TestRecordingRuleLimit(t *testing.T) {
 	timestamp := time.Now()
 	testCases := []struct {
-		limit int
-		err   string
+		limit  int
+		err    string
+		tssNum int
 	}{
 		{
-			limit: 0,
+			limit:  0,
+			tssNum: 4,
 		},
 		{
-			limit: 2,
+			limit:  -1,
+			tssNum: 4,
 		},
 		{
-			limit: -1,
-			err:   "exec exceeded limit of -1 with 2 series",
+			limit:  1,
+			err:    "exec exceeded limit of 1 with 2 series",
+			tssNum: 2,
 		},
 		{
-			limit: 3,
-			err:   "exec exceeded limit of 3 with 2 series",
+			limit:  2,
+			tssNum: 4,
 		},
 	}
 	fq := &fakeQuerier{}
-	fq.add([]datasource.Metric{
-		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar")}...)
+	fq.add(metricWithValuesAndLabels(t, []float64{1, 2, 3}, "__name__", "foo", "job", "foo"))
 	rule := &RecordingRule{Name: "job:foo", Labels: map[string]string{
 		"source": "test_limit",
 	}}
@@ -204,9 +207,14 @@ func TestRecordingRuleLimit(t *testing.T) {
 		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
 			t.Fatal(err)
 		}
-		_, err = rule.ExecRange(context.TODO(), timestamp, timestamp, testCase.limit)
-		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
+	}
+	for _, testCase := range testCases {
+		tss, err := rule.ExecRange(context.TODO(), timestamp, timestamp, testCase.limit)
+		if err != nil {
 			t.Fatal(err)
+		}
+		if len(tss) != testCase.tssNum {
+			t.Fatal(fmt.Errorf("tss len %d is not equal to supposed %d", len(tss), testCase.tssNum))
 		}
 	}
 }

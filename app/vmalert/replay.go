@@ -96,7 +96,7 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 		}
 		ri.reset()
 		for ri.next() {
-			n, err := replayRule(rule, ri.s, ri.e, rw, g.Limit())
+			n, err := replayRule(rule, ri.s, ri.e, rw, g.Limit)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", rule, err)
 			}
