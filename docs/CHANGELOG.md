@@ -16,8 +16,9 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * FEATURE: adds service discovery visualisation tab for `/targets` page. It simplifies service discovery debugging. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2675).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): Allows using kubeconfig file within `kubernetes_sd_configs`. It may be useful for kubernetes cluster monitoring by `vmagent` outside kubernetes cluster. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1464).
 * FEATURE: allow overriding default limits for in-memory cache `indexdb/tagFilters` via flag `-storage.cacheSizeIndexDBTagFilters`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2663).
-* FEATURE: add support of `lowercase` and `uppercase` relabeling actions for compatibility reasons. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2664).
+* FEATURE: add support of `lowercase` and `uppercase` relabeling actions in the same way as [Prometheus 2.36.0 does](https://github.com/prometheus/prometheus/releases/tag/v2.36.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2664).
 * FEATURE: support query tracing, which allows determining bottlenecks during query processing. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1403).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): remove dependency on Internet access in `http://vmagent:8429/targets` page. Previously the page layout was broken without Internet access. See [shis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2594).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove dependency on Internet access in [web API pages](https://docs.victoriametrics.com/vmalert.html#web). Previously the functionality and the layout of these pages was broken without Internet access. See [shis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2594).
@@ -26,6 +27,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `-promscrape.suppressScrapeErrorsDelay` command-line flag, which can be used for delaying and aggregating the logging of per-target scrape errors. This may reduce the amounts of logs when `vmagent` scrapes many unreliable targets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2575). Thanks to @jelmd for [the initial implementation](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2576).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly apply `alert_relabel_configs` relabeling rules to `-notifier.config` according to [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file). Thanks to @spectvtor for [the bugfix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2633).
+* BUGFIX: deny [background merge](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) when the storage enters read-only mode, e.g. when free disk space becomes lower than `-storage.minFreeDiskSpaceBytes`. Background merge needs additional disk space, so it could result in `no space left on device` errors. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603).
 
 ## [v1.77.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.2)
 
