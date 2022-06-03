@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: adds service discovery visualisation tab for `/targets` page. It simplifies service discovery debugging. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2675).
 * FEATURE: allow overriding default limits for in-memory cache `indexdb/tagFilters` via flag `-storage.cacheSizeIndexDBTagFilters`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2663).
 * FEATURE: add support of `lowercase` and `uppercase` relabeling actions for compatibility reasons. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2664).
 * FEATURE: support query tracing, which allows determining bottlenecks during query processing. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1403).
