@@ -282,11 +282,16 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		// This also makes consistent scrape times across restarts
 		// for a target with the same ScrapeURL and labels.
 		//
-		// Include clusterMemberNum to the key in order to guarantee that each member in vmagent cluster
+		// Include clusterName to the key in order to guarantee that the same
+		// scrape target is scraped at different offsets per each cluster.
+		// This guarantees that the deduplication consistently leaves samples received from the same vmagent.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679
+		//
+		// Include clusterMemberID to the key in order to guarantee that each member in vmagent cluster
 		// scrapes replicated targets at different time offsets. This guarantees that the deduplication consistently leaves samples
 		// received from the same vmagent replica.
 		// See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
-		key := fmt.Sprintf("ClusterMemberNum=%d, ScrapeURL=%s, Labels=%s", clusterMemberID, sw.Config.ScrapeURL, sw.Config.LabelsString())
+		key := fmt.Sprintf("clusterName=%s, clusterMemberID=%d, ScrapeURL=%s, Labels=%s", *clusterName, clusterMemberID, sw.Config.ScrapeURL, sw.Config.LabelsString())
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 64)))
 		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
