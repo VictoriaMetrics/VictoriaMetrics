@@ -199,7 +199,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 		return nil, err
 	}
 	var result []prompbmarshal.TimeSeries
-	timeStamp2Series := make(map[int64][]prompbmarshal.TimeSeries, 0)
+	timestamp2Series := make(map[int64][]prompbmarshal.TimeSeries, 0)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
@@ -211,7 +211,11 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 		if ar.For == 0 { // if alert is instant
 			a.State = notifier.StateFiring
 			for i := range s.Values {
-				timeStamp2Series[s.Timestamps[i]] = append(timeStamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				if limit > 0 {
+					timestamp2Series[s.Timestamps[i]] = append(timestamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				} else {
+					result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				}
 			}
 			continue
 		}
@@ -228,15 +232,27 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 				a.Start = at
 			}
 			prevT = at
-			timeStamp2Series[s.Timestamps[i]] = append(timeStamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			if limit > 0 {
+				timestamp2Series[s.Timestamps[i]] = append(timestamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			} else {
+				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			}
 		}
 	}
-	for _, tss := range timeStamp2Series {
-		if limit > 0 && len(tss) > limit {
-			logger.Errorf("exec exceeded limit of %d with %d alerts", limit, len(tss))
+	if limit <= 0 {
+		return result, nil
+	}
+	sortedTimestamp := make([]int64, 0)
+	for timestamp := range timestamp2Series {
+		sortedTimestamp = append(sortedTimestamp, timestamp)
+	}
+	sort.Slice(sortedTimestamp, func(i, j int) bool { return sortedTimestamp[i] < sortedTimestamp[j] })
+	for _, timestamp := range sortedTimestamp {
+		if len(timestamp2Series[timestamp]) > limit {
+			logger.Errorf("exec exceeded limit of %d with %d alerts", limit, len(timestamp2Series[timestamp]))
 			continue
 		}
-		result = append(result, tss...)
+		result = append(result, timestamp2Series[timestamp]...)
 	}
 	return result, nil
 }

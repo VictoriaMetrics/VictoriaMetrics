@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -112,24 +111,17 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time, li
 	}
 	duplicates := make(map[string]struct{}, len(series))
 	var tss []prompbmarshal.TimeSeries
-	timestamp2Series := make(map[int64][]prompbmarshal.TimeSeries, 0)
 	for _, s := range series {
 		ts := rr.toTimeSeries(s)
-		for _, timestamp := range s.Timestamps {
-			timestamp2Series[timestamp] = append(timestamp2Series[timestamp], ts)
-		}
 		key := stringifyLabels(ts)
 		if _, ok := duplicates[key]; ok {
 			return nil, fmt.Errorf("original metric %v; resulting labels %q: %w", s.Labels, key, errDuplicate)
 		}
 		duplicates[key] = struct{}{}
+		tss = append(tss, ts)
 	}
-	for _, ts := range timestamp2Series {
-		if limit > 0 && len(ts) > limit {
-			logger.Errorf("exec exceeded limit of %d with %d series", limit, len(ts))
-			continue
-		}
-		tss = append(tss, ts...)
+	if limit > 0 && len(tss) > limit {
+		return nil, fmt.Errorf("exec exceeded limit of %d with %d series", limit, len(tss))
 	}
 	return tss, nil
 }
