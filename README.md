@@ -289,7 +289,7 @@ VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping t
 * [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
 * [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
 
-If you need to support for other `*_sd_config` types file free to open a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+If you need to support for other `*_sd_config` types feel free to open a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
