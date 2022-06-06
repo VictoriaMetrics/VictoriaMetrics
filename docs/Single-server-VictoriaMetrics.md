@@ -828,6 +828,11 @@ Each JSON line contains samples for a single time series. An example output:
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
+2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+```
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
@@ -867,6 +872,11 @@ for metrics to export.
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
+2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
@@ -889,6 +899,11 @@ wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
+2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+```
 
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
 The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
