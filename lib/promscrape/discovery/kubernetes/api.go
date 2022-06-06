@@ -28,7 +28,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		if err != nil {
 			return nil, fmt.Errorf("cannot build kube config: %w", err)
 		}
-		ac, err = promauth.NewConfig(".", nil, kc.basicAuth, kc.token, kc.tokenFile, nil, kc.tlsConfig)
+		ac, err = promauth.NewConfig(".", promauth.WithBasicAuth(kc.basicAuth), promauth.WithBearer(kc.token, kc.tokenFile), promauth.WithTLS(kc.tlsConfig))
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize service account auth: %w; probably, `kubernetes_sd_config->api_server` is missing in Prometheus configs?", err)
 		}
@@ -54,7 +54,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		tlsConfig := promauth.TLSConfig{
 			CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 		}
-		acNew, err := promauth.NewConfig(".", nil, nil, "", "/var/run/secrets/kubernetes.io/serviceaccount/token", nil, &tlsConfig)
+		acNew, err := promauth.NewConfig(".", promauth.WithBearer("", "/var/run/secrets/kubernetes.io/serviceaccount/token"), promauth.WithTLS(&tlsConfig))
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize service account auth: %w; probably, `kubernetes_sd_config->api_server` is missing in Prometheus configs?", err)
 		}

@@ -116,7 +116,12 @@ func TestNewConfig(t *testing.T) {
 				mock := httptest.NewServer(r)
 				tt.args.oauth.TokenURL = mock.URL
 			}
-			got, err := NewConfig(tt.args.baseDir, tt.args.az, tt.args.basicAuth, tt.args.bearerToken, tt.args.bearerTokenFile, tt.args.oauth, tt.args.tlsConfig)
+			got, err := NewConfig(tt.args.baseDir,
+				WithAuthorization(tt.args.az),
+				WithBasicAuth(tt.args.basicAuth),
+				WithBearer(tt.args.bearerToken, tt.args.bearerTokenFile),
+				WithOAuth2(tt.args.oauth),
+				WithTLS(tt.args.tlsConfig))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return

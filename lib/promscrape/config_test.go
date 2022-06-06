@@ -3,6 +3,7 @@ package promscrape
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -284,6 +285,14 @@ scrape_configs:
 	}
 	sws := cfg.getStaticScrapeWork()
 	resetNonEssentialFields(sws)
+	baseDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("cannot detect baseDir: %s", err)
+	}
+	emptyAC, err := promauth.NewConfig(baseDir)
+	if err != nil {
+		t.Fatalf("cannot create stub auth config: %s", err)
+	}
 	swsExpected := []*ScrapeWork{{
 		ScrapeURL:       "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
 		ScrapeInterval:  defaultScrapeInterval,
@@ -327,8 +336,8 @@ scrape_configs:
 				Value: "blackbox",
 			},
 		},
-		AuthConfig:      &promauth.Config{},
-		ProxyAuthConfig: &promauth.Config{},
+		AuthConfig:      emptyAC,
+		ProxyAuthConfig: emptyAC,
 		jobNameOriginal: "blackbox",
 	}}
 	if !reflect.DeepEqual(sws, swsExpected) {
@@ -718,6 +727,14 @@ func (sw *ScrapeWork) String() string {
 }
 
 func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
+	baseDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("cannot detect baseDir: %s", err)
+	}
+	emptyAC, err := promauth.NewConfig(baseDir)
+	if err != nil {
+		t.Fatalf("cannot create stub auth config: %s", err)
+	}
 	f := func(data string, expectedSws []*ScrapeWork) {
 		t.Helper()
 		sws, err := getFileSDScrapeWork([]byte(data), "non-existing-file")
@@ -795,8 +812,8 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 		{
@@ -842,8 +859,8 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 		{
@@ -889,14 +906,22 @@ scrape_configs:
 					Value: "test",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
 }
 
 func TestGetStaticScrapeWorkSuccess(t *testing.T) {
+	baseDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("cannot detect baseDir: %s", err)
+	}
+	emptyAC, err := promauth.NewConfig(baseDir)
+	if err != nil {
+		t.Fatalf("cannot create stub auth config: %s", err)
+	}
 	f := func(data string, expectedSws []*ScrapeWork) {
 		t.Helper()
 		sws, err := getStaticScrapeWork([]byte(data), "non-exsiting-file")
@@ -950,8 +975,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1008,8 +1033,8 @@ scrape_configs:
 					Value: "xxx",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1090,8 +1115,8 @@ scrape_configs:
 					Value: "y",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
@@ -1140,8 +1165,8 @@ scrape_configs:
 					Value: "y",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
@@ -1180,11 +1205,14 @@ scrape_configs:
 					Value: "qwer",
 				},
 			},
-			AuthConfig: &promauth.Config{
-				TLSServerName:         "foobar",
-				TLSInsecureSkipVerify: true,
-			},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig: func() *promauth.Config {
+				ac, err := promauth.NewConfig(baseDir, promauth.WithTLS(&promauth.TLSConfig{ServerName: "foobar", InsecureSkipVerify: true}))
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				return ac
+			}(),
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "qwer",
 		},
 		{
@@ -1222,8 +1250,8 @@ scrape_configs:
 					Value: "asdf",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "asdf",
 		},
 	})
@@ -1310,8 +1338,8 @@ scrape_configs:
 					Value: "http://foo.bar:1234/metrics",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1382,8 +1410,8 @@ scrape_configs:
 					Value: "https",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1427,8 +1455,8 @@ scrape_configs:
 					Value: "3",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1477,8 +1505,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			MetricRelabelConfigs: mustParseRelabelConfigs(`
 - source_labels: [foo]
   target_label: abc
@@ -1527,8 +1555,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1573,8 +1601,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1645,8 +1673,8 @@ scrape_configs:
 					Value: "qwe",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "aaa",
 		},
 	})
@@ -1727,8 +1755,8 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
-			AuthConfig:          &promauth.Config{},
-			ProxyAuthConfig:     &promauth.Config{},
+			AuthConfig:          emptyAC,
+			ProxyAuthConfig:     emptyAC,
 			SampleLimit:         100,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,
@@ -1784,8 +1812,8 @@ scrape_configs:
 				},
 			},
 			jobNameOriginal: "path wo slash",
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 		},
 	})
 	f(`
@@ -1836,8 +1864,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
+			AuthConfig:      emptyAC,
+			ProxyAuthConfig: emptyAC,
 			jobNameOriginal: "foo",
 		},
 	})

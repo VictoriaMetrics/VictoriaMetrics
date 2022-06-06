@@ -258,6 +258,9 @@ type Config struct {
 	authHeaderDeadline uint64
 
 	authDigest string
+
+	baseDir    string
+	authSource string
 }
 
 // GetAuthHeader returns optional `Authorization: ...` http header.
@@ -330,34 +333,42 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 
 // NewConfig creates auth config for the given hcc.
 func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken.String(), hcc.BearerTokenFile, hcc.OAuth2, hcc.TLSConfig)
+	return NewConfig(baseDir, WithAuthorization(hcc.Authorization), WithBasicAuth(hcc.BasicAuth), WithBearer(hcc.BearerToken.String(), hcc.BearerTokenFile), WithOAuth2(hcc.OAuth2), WithTLS(hcc.TLSConfig))
 }
 
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken.String(), pcc.BearerTokenFile, nil, pcc.TLSConfig)
+	return NewConfig(baseDir, WithAuthorization(pcc.Authorization), WithBasicAuth(pcc.BasicAuth), WithBearer(pcc.BearerToken.String(), pcc.BearerTokenFile), WithTLS(pcc.TLSConfig))
 }
 
 // NewConfig creates auth config for the given o.
 func (o *OAuth2Config) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, nil, nil, "", "", nil, o.TLSConfig)
+	return NewConfig(baseDir, WithTLS(o.TLSConfig))
 }
 
-// NewConfig creates auth config from the given args.
-func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, o *OAuth2Config, tlsConfig *TLSConfig) (*Config, error) {
-	var getAuthHeader func() string
-	authDigest := ""
-	if az != nil {
+// Option configuration option for Config
+type Option func(c *Config) error
+
+// WithAuthorization configures prometheus authorization.
+func WithAuthorization(az *Authorization) Option {
+	return func(c *Config) error {
+		if az == nil {
+			return nil
+		}
+		if c.getAuthHeader != nil {
+			return fmt.Errorf("cannot use both `authorization` and `%s`", c.authSource)
+		}
+		c.authSource = "authorization"
 		azType := "Bearer"
 		if az.Type != "" {
 			azType = az.Type
 		}
 		if az.CredentialsFile != "" {
 			if az.Credentials != nil {
-				return nil, fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
+				return fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
 			}
-			filePath := fs.GetFilepath(baseDir, az.CredentialsFile)
-			getAuthHeader = func() string {
+			filePath := fs.GetFilepath(c.baseDir, az.CredentialsFile)
+			c.getAuthHeader = func() string {
 				token, err := readPasswordFromFile(filePath)
 				if err != nil {
 					logger.Errorf("cannot read credentials from `credentials_file`=%q: %s", az.CredentialsFile, err)
@@ -365,27 +376,36 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 				}
 				return azType + " " + token
 			}
-			authDigest = fmt.Sprintf("custom(type=%q, credsFile=%q)", az.Type, filePath)
-		} else {
-			getAuthHeader = func() string {
-				return azType + " " + az.Credentials.String()
-			}
-			authDigest = fmt.Sprintf("custom(type=%q, creds=%q)", az.Type, az.Credentials)
+			c.authDigest = fmt.Sprintf("custom(type=%q, credsFile=%q)", az.Type, filePath)
+			return nil
 		}
+		c.getAuthHeader = func() string {
+			return azType + " " + az.Credentials.String()
+		}
+		c.authDigest = fmt.Sprintf("custom(type=%q, creds=%q)", az.Type, az.Credentials)
+		return nil
 	}
-	if basicAuth != nil {
-		if getAuthHeader != nil {
-			return nil, fmt.Errorf("cannot use both `authorization` and `basic_auth`")
+}
+
+// WithBasicAuth configures basic authorization.
+func WithBasicAuth(basicAuth *BasicAuthConfig) Option {
+	return func(c *Config) error {
+		if basicAuth == nil {
+			return nil
 		}
+		if c.getAuthHeader != nil {
+			return fmt.Errorf("cannot use both `basic_auth` and `%s`", c.authSource)
+		}
+		c.authSource = "basic_auth"
 		if basicAuth.Username == "" {
-			return nil, fmt.Errorf("missing `username` in `basic_auth` section")
+			return fmt.Errorf("missing `username` in `basic_auth` section")
 		}
 		if basicAuth.PasswordFile != "" {
 			if basicAuth.Password != nil {
-				return nil, fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", basicAuth.Password, basicAuth.PasswordFile)
+				return fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", basicAuth.Password, basicAuth.PasswordFile)
 			}
-			filePath := fs.GetFilepath(baseDir, basicAuth.PasswordFile)
-			getAuthHeader = func() string {
+			filePath := fs.GetFilepath(c.baseDir, basicAuth.PasswordFile)
+			c.getAuthHeader = func() string {
 				password, err := readPasswordFromFile(filePath)
 				if err != nil {
 					logger.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %s", basicAuth.PasswordFile, err)
@@ -396,53 +416,71 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 				token64 := base64.StdEncoding.EncodeToString([]byte(token))
 				return "Basic " + token64
 			}
-			authDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", basicAuth.Username, filePath)
-		} else {
-			getAuthHeader = func() string {
-				// See https://en.wikipedia.org/wiki/Basic_access_authentication
-				token := basicAuth.Username + ":" + basicAuth.Password.String()
-				token64 := base64.StdEncoding.EncodeToString([]byte(token))
-				return "Basic " + token64
-			}
-			authDigest = fmt.Sprintf("basic(username=%q, password=%q)", basicAuth.Username, basicAuth.Password)
+			c.authDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", basicAuth.Username, filePath)
+			return nil
 		}
+		c.getAuthHeader = func() string {
+			// See https://en.wikipedia.org/wiki/Basic_access_authentication
+			token := basicAuth.Username + ":" + basicAuth.Password.String()
+			token64 := base64.StdEncoding.EncodeToString([]byte(token))
+			return "Basic " + token64
+		}
+		c.authDigest = fmt.Sprintf("basic(username=%q, password=%q)", basicAuth.Username, basicAuth.Password)
+		return nil
 	}
-	if bearerTokenFile != "" {
-		if getAuthHeader != nil {
-			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth` and `bearer_token_file`")
+}
+
+// WithBearer configures bearer token authorization.
+func WithBearer(bearerToken, bearerTokenFile string) Option {
+	return func(c *Config) error {
+		if len(bearerToken) == 0 && len(bearerTokenFile) == 0 {
+			return nil
 		}
-		if bearerToken != "" {
-			return nil, fmt.Errorf("both `bearer_token`=%q and `bearer_token_file`=%q are set", bearerToken, bearerTokenFile)
+		if c.getAuthHeader != nil {
+			return fmt.Errorf("cannot use both `authorization` and `%s`", c.authSource)
 		}
-		filePath := fs.GetFilepath(baseDir, bearerTokenFile)
-		getAuthHeader = func() string {
-			token, err := readPasswordFromFile(filePath)
-			if err != nil {
-				logger.Errorf("cannot read bearer token from `bearer_token_file`=%q: %s", bearerTokenFile, err)
-				return ""
+		if len(bearerTokenFile) > 0 {
+			if bearerToken != "" {
+				return fmt.Errorf("both `bearer_token`=%q and `bearer_token_file`=%q are set", bearerToken, bearerTokenFile)
 			}
-			return "Bearer " + token
+			c.authSource = "bearer_token_file"
+			filePath := fs.GetFilepath(c.baseDir, bearerTokenFile)
+			c.getAuthHeader = func() string {
+				token, err := readPasswordFromFile(filePath)
+				if err != nil {
+					logger.Errorf("cannot read bearer token from `bearer_token_file`=%q: %s", bearerTokenFile, err)
+					return ""
+				}
+				return "Bearer " + token
+			}
+			c.authDigest = fmt.Sprintf("bearer(tokenFile=%q)", filePath)
+			return nil
 		}
-		authDigest = fmt.Sprintf("bearer(tokenFile=%q)", filePath)
-	}
-	if bearerToken != "" {
-		if getAuthHeader != nil {
-			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth` and `bearer_token`")
-		}
-		getAuthHeader = func() string {
+
+		c.authSource = "bearer_token"
+		c.getAuthHeader = func() string {
 			return "Bearer " + bearerToken
 		}
-		authDigest = fmt.Sprintf("bearer(token=%q)", bearerToken)
+		c.authDigest = fmt.Sprintf("bearer(token=%q)", bearerToken)
+		return nil
 	}
-	if o != nil {
-		if getAuthHeader != nil {
-			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
+}
+
+// WithOAuth2 configures OAuth2 authorization.
+func WithOAuth2(o *OAuth2Config) Option {
+	return func(c *Config) error {
+		if o == nil {
+			return nil
 		}
-		oi, err := newOAuth2ConfigInternal(baseDir, o)
+		if c.getAuthHeader != nil {
+			return fmt.Errorf("cannot use both `ouath2` and `%s`", c.authSource)
+		}
+		oi, err := newOAuth2ConfigInternal(c.baseDir, o)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		getAuthHeader = func() string {
+		c.authSource = "oauth2"
+		c.getAuthHeader = func() string {
 			ts, err := oi.getTokenSource()
 			if err != nil {
 				logger.Errorf("cannot get OAuth2 tokenSource: %s", err)
@@ -455,79 +493,84 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			}
 			return t.Type() + " " + t.AccessToken
 		}
-		authDigest = fmt.Sprintf("oauth2(%s)", o.String())
+		c.authDigest = fmt.Sprintf("oauth2(%s)", o.String())
+		return nil
 	}
-	var tlsRootCA *x509.CertPool
-	var getTLSCert func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
-	tlsCertDigest := ""
-	tlsServerName := ""
-	tlsInsecureSkipVerify := false
-	tlsMinVersion := uint16(0)
-	if tlsConfig != nil {
-		tlsServerName = tlsConfig.ServerName
-		tlsInsecureSkipVerify = tlsConfig.InsecureSkipVerify
-		if len(tlsConfig.Key) != 0 || len(tlsConfig.Cert) != 0 {
-			cert, err := tls.X509KeyPair(tlsConfig.Cert, tlsConfig.Key)
-			if err != nil {
-				return nil, fmt.Errorf("cannot load TLS certificate from the provided `cert` and `key` values: %w", err)
-			}
-			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-				return &cert, nil
-			}
-			h := xxhash.Sum64(tlsConfig.Key) ^ xxhash.Sum64(tlsConfig.Cert)
-			tlsCertDigest = fmt.Sprintf("digest(key+cert)=%d", h)
-		} else if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
-			getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-				// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
-				certPath := fs.GetFilepath(baseDir, tlsConfig.CertFile)
-				keyPath := fs.GetFilepath(baseDir, tlsConfig.KeyFile)
-				cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+}
+
+// WithTLS configures tls authentication.
+func WithTLS(tlsConfig *TLSConfig) Option {
+	return func(c *Config) error {
+		if tlsConfig == nil {
+			return nil
+		}
+		if tlsConfig != nil {
+			c.TLSServerName = tlsConfig.ServerName
+			c.TLSInsecureSkipVerify = tlsConfig.InsecureSkipVerify
+			if len(tlsConfig.Key) != 0 || len(tlsConfig.Cert) != 0 {
+				cert, err := tls.X509KeyPair(tlsConfig.Cert, tlsConfig.Key)
 				if err != nil {
-					return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+					return fmt.Errorf("cannot load TLS certificate from the provided `cert` and `key` values: %w", err)
 				}
-				return &cert, nil
+				c.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+					return &cert, nil
+				}
+				h := xxhash.Sum64(tlsConfig.Key) ^ xxhash.Sum64(tlsConfig.Cert)
+				c.tlsCertDigest = fmt.Sprintf("digest(key+cert)=%d", h)
+			} else if tlsConfig.CertFile != "" || tlsConfig.KeyFile != "" {
+				c.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+					// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
+					certPath := fs.GetFilepath(c.baseDir, tlsConfig.CertFile)
+					keyPath := fs.GetFilepath(c.baseDir, tlsConfig.KeyFile)
+					cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+					if err != nil {
+						return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+					}
+					return &cert, nil
+				}
+				// Check whether the configured TLS cert can be loaded.
+				if _, err := c.getTLSCert(nil); err != nil {
+					return err
+				}
+				c.tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tlsConfig.CertFile, tlsConfig.KeyFile)
 			}
-			// Check whether the configured TLS cert can be loaded.
-			if _, err := getTLSCert(nil); err != nil {
-				return nil, err
+			if len(tlsConfig.CA) != 0 {
+				c.TLSRootCA = x509.NewCertPool()
+				if !c.TLSRootCA.AppendCertsFromPEM(tlsConfig.CA) {
+					return fmt.Errorf("cannot parse data from `ca` value")
+				}
+			} else if tlsConfig.CAFile != "" {
+				path := fs.GetFilepath(c.baseDir, tlsConfig.CAFile)
+				data, err := fs.ReadFileOrHTTP(path)
+				if err != nil {
+					return fmt.Errorf("cannot read `ca_file` %q: %w", tlsConfig.CAFile, err)
+				}
+				c.TLSRootCA = x509.NewCertPool()
+				if !c.TLSRootCA.AppendCertsFromPEM(data) {
+					return fmt.Errorf("cannot parse data from `ca_file` %q", tlsConfig.CAFile)
+				}
 			}
-			tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tlsConfig.CertFile, tlsConfig.KeyFile)
+			if tlsConfig.MinVersion != "" {
+				v, err := parseTLSVersion(tlsConfig.MinVersion)
+				if err != nil {
+					return fmt.Errorf("cannot parse `min_version`: %w", err)
+				}
+				c.TLSMinVersion = v
+			}
 		}
-		if len(tlsConfig.CA) != 0 {
-			tlsRootCA = x509.NewCertPool()
-			if !tlsRootCA.AppendCertsFromPEM(tlsConfig.CA) {
-				return nil, fmt.Errorf("cannot parse data from `ca` value")
-			}
-		} else if tlsConfig.CAFile != "" {
-			path := fs.GetFilepath(baseDir, tlsConfig.CAFile)
-			data, err := fs.ReadFileOrHTTP(path)
-			if err != nil {
-				return nil, fmt.Errorf("cannot read `ca_file` %q: %w", tlsConfig.CAFile, err)
-			}
-			tlsRootCA = x509.NewCertPool()
-			if !tlsRootCA.AppendCertsFromPEM(data) {
-				return nil, fmt.Errorf("cannot parse data from `ca_file` %q", tlsConfig.CAFile)
-			}
-		}
-		if tlsConfig.MinVersion != "" {
-			v, err := parseTLSVersion(tlsConfig.MinVersion)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse `min_version`: %w", err)
-			}
-			tlsMinVersion = v
-		}
+		return nil
 	}
+}
+
+// NewConfig creates auth config from the given options.
+func NewConfig(baseDir string, options ...Option) (*Config, error) {
 	ac := &Config{
-		TLSRootCA:             tlsRootCA,
-		TLSServerName:         tlsServerName,
-		TLSInsecureSkipVerify: tlsInsecureSkipVerify,
-		TLSMinVersion:         tlsMinVersion,
-
-		getTLSCert:    getTLSCert,
-		tlsCertDigest: tlsCertDigest,
-
-		getAuthHeader: getAuthHeader,
-		authDigest:    authDigest,
+		baseDir: baseDir,
+	}
+	for _, option := range options {
+		if err := option(ac); err != nil {
+			return nil, err
+		}
 	}
 	return ac, nil
 }
