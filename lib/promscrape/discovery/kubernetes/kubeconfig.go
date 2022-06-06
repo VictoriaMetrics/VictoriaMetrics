@@ -66,26 +66,30 @@ type AuthInfo struct {
 }
 
 func (au *AuthInfo) validate() error {
-	errContext := "field %q is not supported yet; if you feel it is needed please open a feature request at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
 	if au.Exec != nil {
-		return fmt.Errorf(errContext, "exec")
+		return unsupportedFieldError("exec")
 	}
 	if len(au.ImpersonateUID) > 0 {
-		return fmt.Errorf(errContext, "act-as-uid")
+		return unsupportedFieldError("act-as-uid")
 	}
 	if len(au.Impersonate) > 0 {
-		return fmt.Errorf(errContext, "act-as")
+		return unsupportedFieldError("act-as")
 	}
 	if len(au.ImpersonateGroups) > 0 {
-		return fmt.Errorf(errContext, "act-as-groups")
+		return unsupportedFieldError("act-as-groups")
 	}
 	if len(au.ImpersonateUserExtra) > 0 {
-		return fmt.Errorf(errContext, "act-as-user-extra")
+		return unsupportedFieldError("act-as-user-extra")
 	}
 	if len(au.Password) > 0 && len(au.Username) == 0 {
 		return fmt.Errorf("username cannot be empty, if password defined")
 	}
 	return nil
+}
+
+func unsupportedFieldError(fieldName string) error {
+	return fmt.Errorf("field %q is not supported yet; if you feel it is needed please open a feature request "+
+		"at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new", fieldName)
 }
 
 // ExecConfig contains information about os.command, that returns auth token for kubernetes cluster connection
