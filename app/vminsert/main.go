@@ -190,6 +190,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if strings.HasPrefix(p.Suffix, "datadog/") {
+		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
 	}
 	switch p.Suffix {
@@ -278,7 +280,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
-	case "datadog/intake/":
+	case "datadog/intake":
 		datadogIntakeRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
@@ -323,7 +325,7 @@ var (
 
 	datadogValidateRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/check_run", protocol="datadog"}`)
-	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/intake/", protocol="datadog"}`)
+	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/intake", protocol="datadog"}`)
 
 	_ = metrics.NewGauge(`vm_metrics_with_dropped_labels_total`, func() float64 {
 		return float64(atomic.LoadUint64(&storage.MetricsWithDroppedLabels))
