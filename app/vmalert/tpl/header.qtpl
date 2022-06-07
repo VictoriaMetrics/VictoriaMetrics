@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <title>vmalert{% if title != "" %} - {%s title %}{% endif %}</title>
-    <link href="static/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="static/css/bootstrap.min.css" rel="stylesheet" />
     <style>
         body{
           min-height: 75rem;

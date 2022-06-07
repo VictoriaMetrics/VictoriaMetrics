@@ -8,18 +8,18 @@ sort: 2
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
-It is recommended using [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of cluster version
-for ingestion rates lower than a million of data points per second.
-Single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
+It is recommended to use the [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of the cluster version
+for ingestion rates lower than a million data points per second.
+The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
 with the number of CPU cores, RAM and available storage space.
-Single-node version is easier to configure and operate comparing to cluster version, so think twice before sticking to cluster version.
+The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
 
 Join [our Slack](https://slack.victoriametrics.com/) or [contact us](mailto:info@victoriametrics.com) with consulting and support questions.
 
 ## Prominent features
 
-- Supports all the features of [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics).
-- Performance and capacity scales horizontally. See [these docs for details](#cluster-resizing-and-scalability).
+- Supports all the features of the [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics).
+- Performance and capacity scale horizontally. See [these docs for details](#cluster-resizing-and-scalability).
 - Supports multiple independent namespaces for time series data (aka multi-tenancy). See [these docs for details](#multitenancy).
 - Supports replication. See [these docs for details](#replication-and-data-safety).
 
@@ -33,8 +33,8 @@ VictoriaMetrics cluster consists of the following services:
 
 Each service may scale independently and may run on the most suitable hardware.
 `vmstorage` nodes don't know about each other, don't communicate with each other and don't share any data.
-This is [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
-It increases cluster availability, simplifies cluster maintenance and cluster scaling.
+This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
+It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
 ![Naive cluster scheme](assets/images/Naive_cluster_scheme.png)
 
@@ -60,10 +60,10 @@ when different tenants have different amounts of data and different query load.
 
 ## Binaries
 
-Compiled binaries for cluster version are available in the `assets` section of [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-See archives containing `cluster` word.
+Compiled binaries for the cluster version are available in the `assets` section of the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Also see archives containing the word `cluster`.
 
-Docker images for cluster version are available here:
+Docker images for the cluster version are available here:
 
 - `vminsert` - <https://hub.docker.com/r/victoriametrics/vminsert/tags>
 - `vmselect` - <https://hub.docker.com/r/victoriametrics/vmselect/tags>
@@ -71,20 +71,20 @@ Docker images for cluster version are available here:
 
 ## Building from sources
 
-Source code for cluster version is available at [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+The source code for the cluster version is available in the [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 ### Production builds
 
-There is no need in installing Go on a host system since binaries are built
+There is no need to install Go on a host system since binaries are built
 inside [the official docker container for Go](https://hub.docker.com/_/golang).
-This makes reproducible builds.
+This allows reproducible builds.
 So [install docker](https://docs.docker.com/install/) and run the following command:
 
 ```
 make vminsert-prod vmselect-prod vmstorage-prod
 ```
 
-Production binaries are built into statically linked binaries. They are put into `bin` folder with `-prod` suffixes:
+Production binaries are built into statically linked binaries. They are put into the `bin` folder with `-prod` suffixes:
 
 ```
 $ make vminsert-prod vmselect-prod vmstorage-prod

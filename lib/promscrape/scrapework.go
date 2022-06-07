@@ -500,7 +500,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		// This should reduce memory usage when scraping targets which return big responses.
 		leveledbytebufferpool.Put(body)
 	}
-	tsmGlobal.Update(sw, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	return err
 }
 
@@ -603,7 +603,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		sw.storeLastScrape(sbr.body)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err

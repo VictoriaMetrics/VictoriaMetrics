@@ -11,26 +11,22 @@ func TestParseKubeConfigSuccess(t *testing.T) {
 
 	type testCase struct {
 		name           string
-		sdc            *SDConfig
+		kubeConfigFile string
 		expectedConfig *kubeConfig
 	}
 
 	var cases = []testCase{
 		{
-			name: "token",
-			sdc: &SDConfig{
-				KubeConfig: "testdata/good_kubeconfig/with_token.yaml",
-			},
+			name:           "token",
+			kubeConfigFile: "testdata/good_kubeconfig/with_token.yaml",
 			expectedConfig: &kubeConfig{
 				server: "http://some-server:8080",
 				token:  "abc",
 			},
 		},
 		{
-			name: "cert",
-			sdc: &SDConfig{
-				KubeConfig: "testdata/good_kubeconfig/with_tls.yaml",
-			},
+			name:           "cert",
+			kubeConfigFile: "testdata/good_kubeconfig/with_tls.yaml",
 			expectedConfig: &kubeConfig{
 				server: "https://localhost:6443",
 				tlsConfig: &promauth.TLSConfig{
@@ -41,10 +37,8 @@ func TestParseKubeConfigSuccess(t *testing.T) {
 			},
 		},
 		{
-			name: "basic",
-			sdc: &SDConfig{
-				KubeConfig: "testdata/good_kubeconfig/with_basic.yaml",
-			},
+			name:           "basic",
+			kubeConfigFile: "testdata/good_kubeconfig/with_basic.yaml",
 			expectedConfig: &kubeConfig{
 				server: "http://some-server:8080",
 				basicAuth: &promauth.BasicAuthConfig{
@@ -56,7 +50,7 @@ func TestParseKubeConfigSuccess(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ac, err := buildConfig(tc.sdc)
+			ac, err := newKubeConfig(tc.kubeConfigFile)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -68,14 +62,11 @@ func TestParseKubeConfigSuccess(t *testing.T) {
 }
 
 func TestParseKubeConfigFail(t *testing.T) {
-	f := func(name, kubeConfigPath string) {
+	f := func(name, kubeConfigFile string) {
 		t.Helper()
 		t.Run(name, func(t *testing.T) {
-			sdc := &SDConfig{
-				KubeConfig: kubeConfigPath,
-			}
-			if _, err := buildConfig(sdc); err == nil {
-				t.Fatalf("unexpected result for config file: %s, must return error", kubeConfigPath)
+			if _, err := newKubeConfig(kubeConfigFile); err == nil {
+				t.Fatalf("unexpected result for config file: %s, must return error", kubeConfigFile)
 			}
 		})
 	}

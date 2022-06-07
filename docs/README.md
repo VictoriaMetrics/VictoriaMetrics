@@ -17,10 +17,10 @@ VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMet
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
-Cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow 
-[QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for better experience.
+Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
+[QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
@@ -32,8 +32,8 @@ from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/rele
 VictoriaMetrics has the following prominent features:
 
 * It can be used as long-term storage for Prometheus. See [these docs](#prometheus-setup) for details.
-* It can be used as drop-in replacement for Prometheus in Grafana, because it supports [Prometheus querying API](#prometheus-querying-api-usage).
-* It can be used as drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
+* It can be used as a drop-in replacement for Prometheus in Grafana, because it supports [Prometheus querying API](#prometheus-querying-api-usage).
+* It can be used as  a drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
 * It features easy setup and operation:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d) without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
@@ -1280,7 +1280,7 @@ The downsampling can be evaluated for free by downloading and using enterprise b
 
 ## Multi-tenancy
 
-Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) instead.
+Single-node VictoriaMetrics doesn't support multi-tenancy. Use the [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) instead.
 
 ## Scalability and cluster version
 
@@ -1288,7 +1288,7 @@ Though single-node VictoriaMetrics cannot scale to multiple nodes, it is optimiz
 This means that a single-node VictoriaMetrics may scale vertically and substitute a moderately sized cluster built with competing solutions
 such as Thanos, Uber M3, InfluxDB or TimescaleDB. See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
-So try single-node VictoriaMetrics at first and then [switch to cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
+So try single-node VictoriaMetrics at first and then [switch to the cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
 horizontally scalable long-term remote storage for really large Prometheus deployments.
 [Contact us](mailto:info@victoriametrics.com) for enterprise support.
 
