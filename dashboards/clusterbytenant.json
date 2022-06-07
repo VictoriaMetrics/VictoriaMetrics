@@ -1,35 +1,78 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_VICTORIAMETRICS",
+      "label": "VictoriaMetrics",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.5.1"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph (old)",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
   "annotations": {
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
   },
   "description": "Overview for enterprise cluster VictoriaMetrics v1.56.0 or higher",
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 13,
-  "iteration": 1617980754279,
+  "id": null,
+  "iteration": 1654632993170,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "description": "How many datapoints are inserted into storage per second by accountID and projectID",
       "fieldConfig": {
         "defaults": {
-          "custom": {},
           "links": []
         },
         "overrides": []
@@ -61,7 +104,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.3.4",
+      "pluginVersion": "8.5.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -71,16 +114,18 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(vm_tenant_inserted_rows_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$accountID\", projectID=~\"$projectID\"}[1m])/60) by (accountID,projectID) ",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "sum(increase(vm_tenant_inserted_rows_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\", projectID=~\"$project\"}[1m])/60) by (accountID,projectID) ",
           "interval": "",
           "legendFormat": "inserted rows: {{accountID}}:{{projectID}}",
           "refId": "A"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Datapoints ingestion rate ($instance)",
       "tooltip": {
         "shared": true,
@@ -89,33 +134,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -123,11 +161,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "description": "Request rate accepted by vmselect nodes per tenant",
       "fieldConfig": {
         "defaults": {
-          "custom": {},
           "links": []
         },
         "overrides": []
@@ -162,7 +202,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.3.4",
+      "pluginVersion": "8.5.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -172,18 +212,22 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_tenant_select_requests_total{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$accountID\", projectID=~\"$projectID\"}[$__rate_interval])) by (accountID,projectID) ",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vm_tenant_select_requests_total{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "tenant: {{accountID}}{{projectID}}",
+          "legendFormat": "query rate tenant: {{accountID}}:{{projectID}}",
+          "range": true,
           "refId": "A"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Query rate ($instance)",
       "tooltip": {
         "shared": true,
@@ -192,33 +236,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -226,11 +263,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
-          "custom": {},
           "links": []
         },
         "overrides": []
@@ -246,6 +285,7 @@
       "hiddenSeries": false,
       "id": 6,
       "legend": {
+        "alignAsTable": true,
         "avg": false,
         "current": false,
         "max": false,
@@ -268,7 +308,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.3.4",
+      "pluginVersion": "8.5.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -278,7 +318,11 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_tenant_active_timeseries{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$accountID\",projectID=~\"$projectID\"}) by(accountID,projectID)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "sum(vm_tenant_active_timeseries{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -287,9 +331,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Active time series ($instance)",
       "tooltip": {
         "shared": true,
@@ -298,33 +340,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -332,11 +367,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
       "fieldConfig": {
         "defaults": {
-          "custom": {},
           "links": []
         },
         "overrides": []
@@ -352,10 +389,12 @@
       "hiddenSeries": false,
       "id": 8,
       "legend": {
+        "alignAsTable": true,
         "avg": false,
         "current": false,
         "max": false,
         "min": false,
+        "rightSide": false,
         "show": true,
         "total": false,
         "values": false
@@ -367,7 +406,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.3.4",
+      "pluginVersion": "8.5.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -377,16 +416,18 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(vm_tenant_timeseries_created_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$accountID\", projectID=~\"$projectID\"}[1m])/60) by(accountID,projectID)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "sum(increase(vm_tenant_timeseries_created_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\", projectID=~\"$project\"}[1m])/60) by(accountID,projectID)",
           "interval": "",
           "legendFormat": "churn rate tenant: {{accountID}}:{{projectID}}",
           "refId": "A"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Churn rate ($instance)",
       "tooltip": {
         "shared": true,
@@ -395,33 +436,25 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -429,11 +462,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$ds",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "description": "Shows amount of on-disk space occupied by data points.",
       "fieldConfig": {
         "defaults": {
-          "custom": {},
           "links": []
         },
         "overrides": []
@@ -449,6 +484,7 @@
       "hiddenSeries": false,
       "id": 10,
       "legend": {
+        "alignAsTable": true,
         "avg": false,
         "current": false,
         "max": false,
@@ -465,7 +501,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.3.4",
+      "pluginVersion": "8.5.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -475,18 +511,22 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_tenant_used_tenant_bytes{job=~\"$job_storage\", instance=~\"$instance\",accountID=~\"$accountID\",projectID=~\"$projectID\"}) by(accountID,projectID)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(vm_tenant_used_tenant_bytes{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "{{accountID}}:{{projectID}}",
+          "legendFormat": "disk usage tenant {{accountID}}:{{projectID}}",
+          "range": true,
           "refId": "A"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Disk space usage (datapoints) ($instance)",
       "tooltip": {
         "shared": true,
@@ -495,37 +535,30 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "bytes",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     }
   ],
-  "schemaVersion": 26,
+  "schemaVersion": 36,
   "style": "dark",
   "tags": [
     "VictoriaMetrics",
@@ -536,13 +569,11 @@
       {
         "current": {
           "selected": false,
-          "text": "gw",
-          "value": "gw"
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
-        "error": null,
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "ds",
         "options": [],
@@ -555,108 +586,100 @@
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+        "current": {},
+        "datasource": {
+          "uid": "$ds"
         },
-        "datasource": "$ds",
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
-        "error": null,
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": true,
         "name": "job",
         "options": [],
-        "query": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
+        "query": {
+          "query": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
+          "refId": "VictoriaMetrics-job-Variable-Query"
+        },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+        "current": {},
+        "datasource": {
+          "uid": "$ds"
         },
-        "datasource": "$ds",
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
-        "error": null,
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": false,
         "name": "instance",
         "options": [],
-        "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+          "refId": "VictoriaMetrics-instance-Variable-Query"
+        },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+        "current": {},
+        "datasource": {
+          "uid": "$ds"
         },
-        "datasource": "$ds",
         "definition": "label_values(vm_tenant_active_timeseries{job=~\"$job\"},accountID)",
-        "error": null,
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": false,
-        "name": "accountID",
+        "name": "account",
         "options": [],
-        "query": "label_values(vm_tenant_active_timeseries{job=~\"$job\"},accountID)",
+        "query": {
+          "query": "label_values(vm_tenant_active_timeseries{job=~\"$job\"},accountID)",
+          "refId": "StandardVariableQuery"
+        },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+        "current": {},
+        "datasource": {
+          "uid": "$ds"
         },
-        "datasource": "$ds",
         "definition": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
-        "error": null,
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": false,
-        "name": "projectID",
+        "name": "project",
         "options": [],
-        "query": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
+        "query": {
+          "query": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
+          "refId": "VictoriaMetrics-projectID-Variable-Query"
+        },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
@@ -669,7 +692,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "VictoriaMetrics cluster per tenant Copy",
+  "title": "VictoriaMetrics Cluster Per Tenant Statistic",
   "uid": "IZFqd3lMz",
-  "version": 1
+  "version": 7,
+  "weekStart": ""
 }
