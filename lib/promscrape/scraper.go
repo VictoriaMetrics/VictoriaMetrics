@@ -256,7 +256,11 @@ func (scfg *scrapeConfig) run(globalStopCh <-chan struct{}) {
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
 		swsPrev = sws
-		scfg.discoveryDuration.UpdateDuration(startTime)
+		if sg.scrapersStarted.Get() > 0 {
+			// update duration only if at least one scraper has started
+			// otherwise this SD is considered as inactive
+			scfg.discoveryDuration.UpdateDuration(startTime)
+		}
 	}
 	updateScrapeWork(cfg)
 	atomic.AddInt32(&PendingScrapeConfigs, -1)
