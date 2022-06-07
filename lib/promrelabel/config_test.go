@@ -53,8 +53,8 @@ func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
-	if n := pcs.Len(); n != 12 {
-		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, 12)
+	if n := pcs.Len(); n != 14 {
+		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, 14)
 	}
 }
 

@@ -1580,6 +1580,63 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
+
+	t.Run("upper-lower-case", func(t *testing.T) {
+		f(`
+- action: uppercase
+  source_labels: ["foo"]
+  target_label: foo
+`, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "BAR",
+			},
+		})
+		f(`
+- action: lowercase
+  source_labels: ["foo", "bar"]
+  target_label: baz
+- action: labeldrop
+  regex: foo|bar
+`, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "BaR",
+			},
+			{
+				Name:  "bar",
+				Value: "fOO",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "baz",
+				Value: "bar;foo",
+			},
+		})
+	})
+	f(`
+- action: lowercase
+  source_labels: ["foo"]
+  target_label: baz
+- action: uppercase
+  source_labels: ["bar"]
+  target_label: baz
+`, []prompbmarshal.Label{
+		{
+			Name:  "qux",
+			Value: "quux",
+		},
+	}, true, []prompbmarshal.Label{
+		{
+			Name:  "qux",
+			Value: "quux",
+		},
+	})
 }
 
 func TestFinalizeLabels(t *testing.T) {

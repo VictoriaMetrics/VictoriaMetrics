@@ -9,11 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
-// apiConfig contains config for API server
-type apiConfig struct {
-	aw *apiWatcher
-}
-
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	role := sdc.role()
 	switch role {
@@ -26,6 +21,24 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
 	apiServer := sdc.APIServer
+
+	if len(sdc.KubeConfigFile) > 0 {
+		if len(apiServer) > 0 {
+			return nil, fmt.Errorf("`api_server: %q` and `kubeconfig_file: %q` options cannot be set simultaneously", apiServer, sdc.KubeConfigFile)
+		}
+		kc, err := newKubeConfig(sdc.KubeConfigFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot build kube config from the specified `kubeconfig_file` config option: %w", err)
+		}
+		acNew, err := promauth.NewConfig(".", nil, kc.basicAuth, kc.token, kc.tokenFile, nil, kc.tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize auth config from `kubeconfig_file: %q`: %w", sdc.KubeConfigFile, err)
+		}
+		ac = acNew
+		apiServer = kc.server
+		sdc.ProxyURL = kc.proxyURL
+	}
+
 	if len(apiServer) == 0 {
 		// Assume we run at k8s pod.
 		// Discover apiServer and auth config according to k8s docs.

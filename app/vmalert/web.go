@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,6 +22,12 @@ var (
 	once     = sync.Once{}
 	apiLinks [][2]string
 	navItems []tpl.NavItem
+)
+
+var (
+	//go:embed static
+	staticFiles  embed.FS
+	staticServer = http.FileServer(http.FS(staticFiles))
 )
 
 func initLinks() {
@@ -99,6 +106,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	default:
+		if strings.HasPrefix(r.URL.Path, "/static") {
+			staticServer.ServeHTTP(w, r)
+			return true
+		}
+
 		if !strings.HasSuffix(r.URL.Path, "/status") {
 			return false
 		}

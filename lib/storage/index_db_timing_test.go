@@ -44,7 +44,8 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	defer stopTestStorage(s)
 
 	dbName := nextIndexDBTableName()
-	db, err := openIndexDB(dbName, s, 0)
+	var isReadOnly uint32
+	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -105,7 +106,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	defer stopTestStorage(s)
 
 	dbName := nextIndexDBTableName()
-	db, err := openIndexDB(dbName, s, 0)
+	var isReadOnly uint32
+	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -157,7 +159,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 			MaxTimestamp: timestampFromTime(time.Now()),
 		}
 		for i := 0; i < b.N; i++ {
-			metricIDs, err := is.searchMetricIDs(tfss, tr, 2e9)
+			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
@@ -280,7 +282,8 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	defer stopTestStorage(s)
 
 	dbName := nextIndexDBTableName()
-	db, err := openIndexDB(dbName, s, 0)
+	var isReadOnly uint32
+	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
