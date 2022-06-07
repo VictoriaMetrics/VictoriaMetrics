@@ -80,6 +80,12 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		rw.err(w, fmt.Errorf("bad method %q", r.Method))
 		return
 	}
+
+	h := r.Header.Get("Content-Encoding") 
+	if h != "snappy" {
+		rw.err(w, fmt.Errorf("header read error: Content-Encoding is not snappy (%q)", h))
+	}
+
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		rw.err(w, fmt.Errorf("body read err: %w", err))
