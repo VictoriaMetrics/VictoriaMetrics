@@ -18,7 +18,7 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
-and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
 Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
 The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
@@ -26,9 +26,9 @@ The cluster version of VictoriaMetrics is available [here](https://docs.victoria
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
 [QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
 See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
-Enterprise binaries can be downloaded and evaluated for free 
+Enterprise binaries can be downloaded and evaluated for free
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Prominent features
@@ -188,7 +188,7 @@ global:
 ```
 
 This instructs Prometheus to add `datacenter=dc-123` label to each sample before sending it to remote storage.
-The label name can be arbitrary - `datacenter` is just an example. The label value must be unique
+The label name can be arbitrary - `datacenter` it is just an example. The label value must be unique
 across Prometheus instances, so time series could be filtered and grouped by this label.
 
 For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
@@ -207,14 +207,14 @@ remote_write:
 </div>
 
 Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
-too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
+too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params.
 Keep in mind that these two params are tightly connected.
 Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
-It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, 
+It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer,
 since previous versions may have issues with `remote_write`.
 
-Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html) 
+Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html)
 and [vmalert](https://docs.victoriametrics.com/vmalert.html),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
@@ -293,7 +293,7 @@ VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping t
 * [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
 * [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
 
-File a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need support for other `*_sd_config` types.
+If you need to support for other `*_sd_config` types feel free to open a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
@@ -828,6 +828,11 @@ Each JSON line contains samples for a single time series. An example output:
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
+2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+```
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
@@ -867,6 +872,11 @@ for metrics to export.
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
+2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
@@ -889,6 +899,11 @@ wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
+2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+```
 
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
 The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
@@ -1346,7 +1361,7 @@ The most interesting metrics are:
   aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 * `increase(vm_new_timeseries_created_total[1h])` - time series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) during the previous hour.
 * `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
-* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
+* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted in the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
 * `sum(vm_data_size_bytes)` - the total size of data on disk.
 * `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
