@@ -236,6 +236,9 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
+
+	req.Header.Set("Content-Encoding", "snappy")
+
 	if c.authCfg != nil {
 		if auth := c.authCfg.GetAuthHeader(); auth != "" {
 			req.Header.Set("Authorization", auth)
