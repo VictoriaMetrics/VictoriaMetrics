@@ -189,6 +189,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	if strings.HasPrefix(p.Suffix, "datadog/") {
+		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
+	}
 	switch p.Suffix {
 	case "prometheus/", "prometheus", "prometheus/api/v1/write":
 		prometheusWriteRequests.Inc()
