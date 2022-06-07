@@ -81,7 +81,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h := r.Header.Get("Content-Encoding") 
+	h := r.Header.Get("Content-Encoding")
 	if h != "snappy" {
 		rw.err(w, fmt.Errorf("header read error: Content-Encoding is not snappy (%q)", h))
 	}
