@@ -824,6 +824,11 @@ Each JSON line contains samples for a single time series. An example output:
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
+```
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
@@ -863,6 +868,11 @@ for metrics to export.
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
+```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
@@ -885,6 +895,11 @@ wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
+```
 
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
 The native export format may change in incompatible way between VictoriaMetrics releases, so the data exported from the release X
@@ -1079,8 +1094,13 @@ VictoriaMetrics exports [Prometheus-compatible federation data](https://promethe
 at `http://<victoriametrics-addr>:8428/federate?match[]=<timeseries_selector_for_federation>`.
 
 Optional `start` and `end` args may be added to the request in order to scrape the last point for each selected time series on the `[start ... end]` interval.
-`start` and `end` may contain either unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values. By default, the last point
-on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden.
+`start` and `end` may contain either unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+For example:
+```bash
+curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
+```
+By default, the last point on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden with `max_lookback` query arg.
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
 
@@ -1342,7 +1362,7 @@ The most interesting metrics are:
   aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 * `increase(vm_new_timeseries_created_total[1h])` - time series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) during the previous hour.
 * `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
-* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
+* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted in the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
 * `sum(vm_data_size_bytes)` - the total size of data on disk.
 * `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.

@@ -154,7 +154,7 @@ It is possible manualy setting up a toy cluster on a single host. In this case e
 
 ### Environment variables
 
-Each flag values can be set thru environment variables by following these rules:
+Each flag values can be set through environment variables by following these rules:
 
 - The `-envflag.enable` flag must be set
 - Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
