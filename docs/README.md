@@ -289,7 +289,7 @@ VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping t
 * [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
 * [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
 
-If you need to support for other `*_sd_config` types feel free to open a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+File a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need support for other `*_sd_config` types.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
@@ -826,8 +826,8 @@ Optional `start` and `end` args may be added to the request in order to limit th
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 For example:
 ```bash
-1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
-2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
 ```
 
 Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
@@ -870,8 +870,8 @@ Optional `start` and `end` args may be added to the request in order to limit th
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 For example:
 ```bash
-1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
-2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
 ```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
@@ -897,8 +897,8 @@ Optional `start` and `end` args may be added to the request in order to limit th
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 For example:
 ```bash
-1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
-2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
 ```
 
 The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
@@ -1097,11 +1097,10 @@ Optional `start` and `end` args may be added to the request in order to scrape t
 `start` and `end` may contain either unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 For example:
 ```bash
-1. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=1654543486&end=1654543486
-2. http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>&start=2022-06-06T19:25:48+00:00&end=2022-06-06T19:29:07+00:00
+curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
+curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48+00:00' -d 'end=2022-06-06T19:29:07+00:00'
 ```
-
-By default, the last point on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden.
+By default, the last point on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden with `max_lookback` query arg.
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
 
