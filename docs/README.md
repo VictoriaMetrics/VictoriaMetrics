@@ -184,7 +184,7 @@ global:
 ```
 
 This instructs Prometheus to add `datacenter=dc-123` label to each sample before sending it to remote storage.
-The label name can be arbitrary - `datacenter` it is just an example. The label value must be unique
+The label name can be arbitrary - `datacenter` is just an example. The label value must be unique
 across Prometheus instances, so time series could be filtered and grouped by this label.
 
 For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
