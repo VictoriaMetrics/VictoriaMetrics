@@ -86,13 +86,7 @@ var (
 //go:embed vmui
 var vmuiFiles embed.FS
 
-//go:embed static
-var staticFiles embed.FS
-
-var (
-	vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
-	staticServer   = http.FileServer(http.FS(staticFiles))
-)
+var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -187,11 +181,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
-	if strings.HasPrefix(path, "/static") {
-		staticServer.ServeHTTP(w, r)
-		return true
-	}
-
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {

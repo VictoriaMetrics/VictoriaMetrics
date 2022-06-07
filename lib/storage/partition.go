@@ -869,9 +869,17 @@ func hasActiveMerges(pws []*partWrapper) bool {
 }
 
 var (
-	bigMergeWorkersCount   = (cgroup.AvailableCPUs() + 1) / 2
-	smallMergeWorkersCount = (cgroup.AvailableCPUs() + 1) / 2
+	bigMergeWorkersCount   = getDefaultMergeConcurrency(4)
+	smallMergeWorkersCount = getDefaultMergeConcurrency(8)
 )
+
+func getDefaultMergeConcurrency(max int) int {
+	v := (cgroup.AvailableCPUs() + 1) / 2
+	if v > max {
+		v = max
+	}
+	return v
+}
 
 // SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.
 //

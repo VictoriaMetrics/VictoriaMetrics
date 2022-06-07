@@ -1,0 +1,19 @@
+apiVersion: v1
+clusters:
+  - cluster:
+      certificate-authority-data: YXV0aG9yaXR5
+      server: https://localhost:6443
+    name: k8s
+contexts:
+  - context:
+      cluster: k8s
+      user: user1
+    name: user1@k8s
+current-context: user1@k8s
+kind: Config
+preferences: {}
+users:
+  - name: user1
+    user:
+      client-certificate-data: Y2VydGlmaWNhdGU=
+      client-key-data: a2V5

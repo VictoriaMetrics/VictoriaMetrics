@@ -92,7 +92,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
 			{"vmui", "Web UI"},
-			{"targets", "discovered targets list"},
+			{"targets", "status for discovered active targets"},
+			{"service-discovery", "labels before and after relabeling for discovered targets"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
 			{"metrics", "available service metrics"},
