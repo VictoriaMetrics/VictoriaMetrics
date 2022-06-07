@@ -107,9 +107,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	defer requestDuration.UpdateDuration(startTime)
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
-	if strings.HasPrefix(path, "/datadog") {
-		path = strings.TrimSuffix(path, "/")
-	}
 	if strings.HasPrefix(path, "/static") {
 		staticServer.ServeHTTP(w, r)
 		return true
@@ -118,6 +115,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		r.URL.Path = strings.TrimPrefix(path, "/prometheus")
 		staticServer.ServeHTTP(w, r)
 		return true
+	}
+	if strings.HasPrefix(path, "/datadog/") {
+		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
+		path = strings.TrimSuffix(path, "/")
 	}
 	switch path {
 	case "/prometheus/api/v1/write", "/api/v1/write":
@@ -205,7 +207,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
-	case "/datadog/intake/":
+	case "/datadog/intake":
 		datadogIntakeRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
@@ -316,7 +318,7 @@ var (
 
 	datadogValidateRequests = metrics.NewCounter(`vm_http_requests_total{path="/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vm_http_requests_total{path="/datadog/api/v1/check_run", protocol="datadog"}`)
-	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/datadog/intake/", protocol="datadog"}`)
+	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/datadog/intake", protocol="datadog"}`)
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vm_http_requests_total{path="/service-discovery"}`)
