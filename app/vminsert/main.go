@@ -107,6 +107,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	defer requestDuration.UpdateDuration(startTime)
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	if strings.HasPrefix(path, "/datadog") {
+		path = strings.TrimSuffix(path, "/")
+	}
 	if strings.HasPrefix(path, "/static") {
 		staticServer.ServeHTTP(w, r)
 		return true
