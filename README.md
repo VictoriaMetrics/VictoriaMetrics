@@ -1425,7 +1425,7 @@ In this case VictoriaMetrics puts query trace into `trace` field in the output J
 For example, the following command:
 
 ```bash
-curl http://localhost:8428/api/v1/query_range -d 'query=2*rand()' -d 'start=-1h' -d 'step=1m' -d 'trace=1' | jq -r '.trace'
+curl http://localhost:8428/api/v1/query_range -d 'query=2*rand()' -d 'start=-1h' -d 'step=1m' -d 'trace=1' | jq '.trace'
 ```
 
 would return the following trace:

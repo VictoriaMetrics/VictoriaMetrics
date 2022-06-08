@@ -361,7 +361,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, ep *exportPara
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
-		qtChild := qt.NewChild()
+		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
 			err := rss.RunParallel(qtChild, func(rs *netstorage.Result, workerID uint) error {
 				if err := bw.Error(); err != nil {
@@ -376,12 +376,12 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, ep *exportPara
 				exportBlockPool.Put(xb)
 				return nil
 			})
-			qtChild.Donef("background export format=%s", format)
+			qtChild.Done()
 			close(resultsCh)
 			doneCh <- err
 		}()
 	} else {
-		qtChild := qt.NewChild()
+		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
 			err := netstorage.ExportBlocks(qtChild, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
@@ -400,7 +400,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, ep *exportPara
 				exportBlockPool.Put(xb)
 				return nil
 			})
-			qtChild.Donef("background export format=%s", format)
+			qtChild.Done()
 			close(resultsCh)
 			doneCh <- err
 		}()
@@ -535,10 +535,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	qtDone := func() {
-		qt.Donef("/api/v1/labels")
-	}
-	WriteLabelValuesResponse(bw, labelValues, qt, qtDone)
+	WriteLabelValuesResponse(bw, labelValues, qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("canot flush label values to remote client: %w", err)
 	}
@@ -791,10 +788,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	qtDone := func() {
-		qt.Donef("/api/v1/labels")
-	}
-	WriteLabelsResponse(bw, labels, qt, qtDone)
+	WriteLabelsResponse(bw, labels, qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
@@ -914,7 +908,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 	sq := storage.NewSearchQuery(start, end, tagFilterss, *maxSeriesLimit)
 	qtDone := func() {
-		qt.Donef("/api/v1/series: start=%d, end=%d", start, end)
+		qt.Donef("start=%d, end=%d", start, end)
 	}
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
@@ -1101,7 +1095,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	qtDone := func() {
-		qt.Donef("/api/v1/query: query=%s, time=%d: series=%d", query, start, len(result))
+		qt.Donef("query=%s, time=%d: series=%d", query, start, len(result))
 	}
 	WriteQueryResponse(bw, result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
@@ -1199,7 +1193,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	qtDone := func() {
-		qt.Donef("/api/v1/query_range: start=%d, end=%d, step=%d, query=%q: series=%d", start, end, step, query, len(result))
+		qt.Donef("start=%d, end=%d, step=%d, query=%q: series=%d", start, end, step, query, len(result))
 	}
 	WriteQueryRangeResponse(bw, result, qt, qtDone)
 	if err := bw.Flush(); err != nil {

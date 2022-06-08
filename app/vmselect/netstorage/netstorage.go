@@ -194,7 +194,7 @@ var resultPool sync.Pool
 //
 // rss becomes unusable after the call to RunParallel.
 func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
-	qt = qt.NewChild()
+	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.mustClose()
 
 	// Spin up local workers.
@@ -256,7 +256,7 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		close(workCh)
 	}
 	workChsWG.Wait()
-	qt.Donef("parallel process of fetched data: series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
+	qt.Donef("series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
 
 	return firstErr
 }
@@ -598,8 +598,8 @@ func (sbh *sortBlocksHeap) Pop() interface{} {
 
 // DeleteSeries deletes time series matching the given tagFilterss.
 func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (int, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("delete series: %s", sq)
+	qt = qt.NewChild("delete series: %s", sq)
+	defer qt.Done()
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
@@ -613,8 +613,8 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 
 // GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
 func GetLabelsOnTimeRange(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get labels on timeRange=%s", &tr)
+	qt = qt.NewChild("get labels on timeRange=%s", &tr)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -637,8 +637,8 @@ func GetLabelsOnTimeRange(qt *querytracer.Tracer, tr storage.TimeRange, deadline
 
 // GetGraphiteTags returns Graphite tags until the given deadline.
 func GetGraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get graphite tags: filter=%s, limit=%d", filter, limit)
+	qt = qt.NewChild("get graphite tags: filter=%s, limit=%d", filter, limit)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -684,8 +684,8 @@ func hasString(a []string, s string) bool {
 
 // GetLabels returns labels until the given deadline.
 func GetLabels(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get labels")
+	qt = qt.NewChild("get labels")
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -709,8 +709,8 @@ func GetLabels(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]string,
 // GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
 // until the given deadline.
 func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get values for label %s on a timeRange %s", labelName, &tr)
+	qt = qt.NewChild("get values for label %s on a timeRange %s", labelName, &tr)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -731,8 +731,8 @@ func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tr stor
 
 // GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
 func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
+	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -758,8 +758,8 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
 func GetLabelValues(qt *querytracer.Tracer, labelName string, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get values for label %s", labelName)
+	qt = qt.NewChild("get values for label %s", labelName)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -782,8 +782,8 @@ func GetLabelValues(qt *querytracer.Tracer, labelName string, deadline searchuti
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, timeRange=%s", tagKey, tagValuePrefix, &tr)
+	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, timeRange=%s", tagKey, tagValuePrefix, &tr)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -802,8 +802,8 @@ func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, t
 
 // GetLabelEntries returns all the label entries until the given deadline.
 func GetLabelEntries(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]storage.TagEntry, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get label entries")
+	qt = qt.NewChild("get label entries")
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -836,8 +836,8 @@ func GetLabelEntries(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]s
 
 // GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 func GetTSDBStatusForDate(qt *querytracer.Tracer, deadline searchutils.Deadline, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get tsdb stats for date=%d, topN=%d", date, topN)
+	qt = qt.NewChild("get tsdb stats for date=%d, topN=%d", date, topN)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -852,8 +852,8 @@ func GetTSDBStatusForDate(qt *querytracer.Tracer, deadline searchutils.Deadline,
 //
 // It accepts aribtrary filters on time series in sq.
 func GetTSDBStatusWithFilters(qt *querytracer.Tracer, deadline searchutils.Deadline, sq *storage.SearchQuery, topN int) (*storage.TSDBStatus, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get tsdb stats: %s, topN=%d", sq, topN)
+	qt = qt.NewChild("get tsdb stats: %s, topN=%d", sq, topN)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -875,8 +875,8 @@ func GetTSDBStatusWithFilters(qt *querytracer.Tracer, deadline searchutils.Deadl
 
 // GetSeriesCount returns the number of unique series.
 func GetSeriesCount(qt *querytracer.Tracer, deadline searchutils.Deadline) (uint64, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("get series count")
+	qt = qt.NewChild("get series count")
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return 0, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -909,8 +909,8 @@ var ssPool sync.Pool
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
 func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
-	qt = qt.NewChild()
-	defer qt.Donef("export blocks: %s", sq)
+	qt = qt.NewChild("export blocks: %s", sq)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
@@ -1021,8 +1021,8 @@ var exportWorkPool = &sync.Pool{
 
 // SearchMetricNames returns all the metric names matching sq until the given deadline.
 func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("fetch metric names: %s", sq)
+	qt = qt.NewChild("fetch metric names: %s", sq)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
 	}
@@ -1051,8 +1051,8 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("fetch matching series: %s, fetchData=%v", sq, fetchData)
+	qt = qt.NewChild("fetch matching series: %s, fetchData=%v", sq, fetchData)
+	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}

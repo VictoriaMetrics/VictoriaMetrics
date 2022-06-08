@@ -93,7 +93,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := searchutils.GetBool(r, "trace")
-	qt := querytracer.New(tracerEnabled)
+	qt := querytracer.New(tracerEnabled, r.URL.Path)
 
 	// Limit the number of concurrent queries.
 	select {
