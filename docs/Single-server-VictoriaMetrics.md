@@ -247,7 +247,9 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables. Graphs support scrolling and zooming:
+The UI allows exploring query results via graphs and tables. It also provides support for [cardinality explorer](#cardinality-explorer).
+
+Graphs in vmui support scrolling and zooming:
 
 * Drag the graph to the left / right in order to move the displayed time range into the past / future.
 * Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
@@ -263,6 +265,21 @@ VMUI automatically adjusts the interval between datapoints on the graph dependin
 VMUI allows investigating correlations between two queries on the same graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
+
+
+## Cardinality explorer
+
+VictoriaMetrics provides an ability to explore time series cardinality at `cardinality` tab in [vmui](#vmui) in the following ways:
+
+- To identify metric names with the highest number of series.
+- To identify label=name pairs with the highest number of series.
+- To identify labels with the highest number of unique values.
+
+By default cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
+By default all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
+matching the specified [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+
+Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 
 ## How to apply new config to VictoriaMetrics
@@ -1389,6 +1406,8 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
+VictoriaMetrics provides an UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
+
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
@@ -1526,7 +1545,7 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
   It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
   each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
-* Metrics and labels leading to [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) or [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) can be determined at `/api/v1/status/tsdb` page. See [these docs](#tsdb-stats) for details.
+* Metrics and labels leading to [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) or [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) can be determined via [cardinality explorer](#cardinality-explorer) and via [/api/v1/status/tsdb](#tsdb-stats) endpoint.
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
