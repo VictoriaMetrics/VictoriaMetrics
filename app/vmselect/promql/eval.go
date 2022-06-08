@@ -210,22 +210,23 @@ func getTimestamps(start, end, step int64) []int64 {
 }
 
 func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
-	qt = qt.NewChild()
+	if qt.Enabled() {
+		query := e.AppendString(nil)
+		mayCache := ec.mayCache()
+		qt = qt.NewChild("eval: query=%s, timeRange=[%d..%d], step=%d, mayCache=%v", query, ec.Start, ec.End, ec.Step, mayCache)
+	}
 	rv, err := evalExprInternal(qt, ec, e)
 	if err != nil {
 		return nil, err
 	}
 	if qt.Enabled() {
-		query := e.AppendString(nil)
 		seriesCount := len(rv)
 		pointsPerSeries := 0
 		if len(rv) > 0 {
 			pointsPerSeries = len(rv[0].Timestamps)
 		}
 		pointsCount := seriesCount * pointsPerSeries
-		mayCache := ec.mayCache()
-		qt.Donef("eval: query=%s, timeRange=[%d..%d], step=%d, mayCache=%v: series=%d, points=%d, pointsPerSeries=%d",
-			query, ec.Start, ec.End, ec.Step, mayCache, seriesCount, pointsCount, pointsPerSeries)
+		qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 	}
 	return rv, nil
 }
@@ -251,9 +252,9 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 	if fe, ok := e.(*metricsql.FuncExpr); ok {
 		nrf := getRollupFunc(fe.Name)
 		if nrf == nil {
-			qtChild := qt.NewChild()
+			qtChild := qt.NewChild("transform %s()", fe.Name)
 			rv, err := evalTransformFunc(qtChild, ec, fe)
-			qtChild.Donef("transform %s(): series=%d", fe.Name, len(rv))
+			qtChild.Donef("series=%d", len(rv))
 			return rv, err
 		}
 		args, re, err := evalRollupFuncArgs(qt, ec, fe)
@@ -271,15 +272,15 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		return rv, nil
 	}
 	if ae, ok := e.(*metricsql.AggrFuncExpr); ok {
-		qtChild := qt.NewChild()
+		qtChild := qt.NewChild("aggregate %s()", ae.Name)
 		rv, err := evalAggrFunc(qtChild, ec, ae)
-		qtChild.Donef("aggregate %s(): series=%d", ae.Name, len(rv))
+		qtChild.Donef("series=%d", len(rv))
 		return rv, err
 	}
 	if be, ok := e.(*metricsql.BinaryOpExpr); ok {
-		qtChild := qt.NewChild()
+		qtChild := qt.NewChild("binary op %q", be.Op)
 		rv, err := evalBinaryOp(qtChild, ec, be)
-		qtChild.Donef("binary op %q: series=%d", be.Op, len(rv))
+		qtChild.Donef("series=%d", len(rv))
 		return rv, err
 	}
 	if ne, ok := e.(*metricsql.NumberExpr); ok {
@@ -742,8 +743,8 @@ func aggregateAbsentOverTime(ec *EvalConfig, expr metricsql.Expr, tss []*timeser
 
 func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
-	qt = qt.NewChild()
-	defer qt.Donef("subquery")
+	qt = qt.NewChild("subquery")
+	defer qt.Done()
 	step := re.Step.Duration(ec.Step)
 	if step == 0 {
 		step = ec.Step
@@ -874,9 +875,9 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
 	var rollupMemorySize int64
 	window := windowExpr.Duration(ec.Step)
-	qt = qt.NewChild()
+	qt = qt.NewChild("rollup %s(): timeRange=[%d..%d], step=%d, window=%d", funcName, ec.Start, ec.End, ec.Step, window)
 	defer func() {
-		qt.Donef("rollup %s(): timeRange=[%d..%d], step=%d, window=%d, neededMemoryBytes=%d", funcName, ec.Start, ec.End, ec.Step, window, rollupMemorySize)
+		qt.Donef("neededMemoryBytes=%d", rollupMemorySize)
 	}()
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
@@ -994,8 +995,8 @@ func getRollupMemoryLimiter() *memoryLimiter {
 func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("rollup %s() with incremental aggregation %s() over %d series", funcName, iafc.ae.Name, rss.Len())
+	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series", funcName, iafc.ae.Name, rss.Len())
+	defer qt.Done()
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
@@ -1029,8 +1030,8 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 
 func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("rollup %s() over %d series", funcName, rss.Len())
+	qt = qt.NewChild("rollup %s() over %d series", funcName, rss.Len())
+	defer qt.Done()
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {

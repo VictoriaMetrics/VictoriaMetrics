@@ -482,7 +482,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read traceEnabled: %w", err)
 	}
-	ctx.qt = querytracer.New(traceEnabled)
+	ctx.qt = querytracer.New(traceEnabled, "%s() at vmstorage", rpcName)
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -506,7 +506,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	}
 
 	// Finish query trace.
-	ctx.qt.Donef("%s() at vmstorage", rpcName)
+	ctx.qt.Done()
 	traceJSON := ctx.qt.ToJSON()
 	if err := ctx.writeString(traceJSON); err != nil {
 		return fmt.Errorf("cannot send trace with length %d bytes to vmselect: %w", len(traceJSON), err)

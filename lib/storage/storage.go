@@ -1124,8 +1124,8 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 
 // SearchMetricNames returns metric names matching the given tfss on the given tr.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("search for matching metric names")
+	qt = qt.NewChild("search for matching metric names")
+	defer qt.Done()
 	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1169,8 +1169,8 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("search for matching series ids")
+	qt = qt.NewChild("search for matching series ids")
+	defer qt.Done()
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 
@@ -1221,8 +1221,8 @@ var (
 //
 // This should speed-up further searchMetricNameWithCache calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, tsids []TSID, deadline uint64) error {
-	qt = qt.NewChild()
-	defer qt.Donef("prefetch metric names for %d series ids", len(tsids))
+	qt = qt.NewChild("prefetch metric names for %d series ids", len(tsids))
+	defer qt.Done()
 	if len(tsids) == 0 {
 		qt.Printf("nothing to prefetch")
 		return nil
