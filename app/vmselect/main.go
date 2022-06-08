@@ -268,6 +268,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
@@ -280,6 +281,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/top_queries":
 		topQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
 			topQueriesErrors.Inc()
 			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))

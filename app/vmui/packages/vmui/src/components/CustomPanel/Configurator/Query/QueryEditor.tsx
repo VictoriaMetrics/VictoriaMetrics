@@ -18,6 +18,7 @@ export interface QueryEditorProps {
   autocomplete: boolean;
   error?: ErrorTypes | string;
   queryOptions: string[];
+  label: string;
 }
 
 const QueryEditor: FC<QueryEditorProps> = ({
@@ -28,7 +29,8 @@ const QueryEditor: FC<QueryEditorProps> = ({
   runQuery,
   autocomplete,
   error,
-  queryOptions
+  queryOptions,
+  label,
 }) => {
 
   const [focusField, setFocusField] = useState(false);
@@ -99,8 +101,9 @@ const QueryEditor: FC<QueryEditorProps> = ({
     <TextField
       defaultValue={query}
       fullWidth
-      label={`Query ${index + 1}`}
+      label={label}
       multiline
+      focused={!!query}
       error={!!error}
       onFocus={() => setFocusField(true)}
       onBlur={(e) => {

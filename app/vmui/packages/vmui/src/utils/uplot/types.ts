@@ -39,3 +39,26 @@ export interface LegendItem {
     checked: boolean;
     freeFormFields: {[key: string]: string};
 }
+
+export interface BarSeriesItem {
+    which: number[],
+    ori: number,
+    dir: number,
+    radius: number,
+    disp: Disp
+}
+
+export interface Disp {
+    stroke: Stroke,
+    fill: Fill,
+}
+
+export interface Stroke {
+    unit: number,
+    values: (u: { data: number[][]; }) => string[],
+}
+
+export interface Fill {
+    unit: number,
+    values: (u: { data: number[][]; }) => string[],
+}

@@ -1832,6 +1832,14 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair) {
 		t.Fatalf("unexpected SeriesCountByLabelValuePair;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair)
 	}
+	expectedTotalSeries := uint64(1000)
+	if status.TotalSeries != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
+	}
+	expectedLabelValuePairs := uint64(4000)
+	if status.TotalLabelValuePairs != expectedLabelValuePairs {
+		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
+	}
 
 	// Check GetTSDBStatusWithFiltersForDate
 	tfs = NewTagFilters()
@@ -1853,6 +1861,43 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
+	}
+	expectedTotalSeries = 1000
+	if status.TotalSeries != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
+	}
+	expectedLabelValuePairs = 4000
+	if status.TotalLabelValuePairs != expectedLabelValuePairs {
+		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
+	}
+	// Check GetTSDBStatusWithFiltersForDate
+	tfs = NewTagFilters()
+	if err := tfs.Add([]byte("uniqueid"), []byte("0|1|3"), false, true); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	status, err = db.GetTSDBStatusWithFiltersForDate([]*TagFilters{tfs}, baseDate, 5, 1e6, noDeadline)
+	if err != nil {
+		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
+	}
+	if !status.hasEntries() {
+		t.Fatalf("expecting non-empty TSDB status")
+	}
+	expectedSeriesCountByMetricName = []TopHeapEntry{
+		{
+			Name:  "testMetric",
+			Count: 3,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
+		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
+	}
+	expectedTotalSeries = 3
+	if status.TotalSeries != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
+	}
+	expectedLabelValuePairs = 12
+	if status.TotalLabelValuePairs != expectedLabelValuePairs {
+		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 }
 
