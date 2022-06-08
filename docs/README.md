@@ -1226,9 +1226,18 @@ values and timestamps. These are sorted and compressed raw time series values. A
 index files for searching for specific series in the values and timestamps files.
 
 `Parts` are periodically merged into the bigger parts. The resulting `part` is constructed
-under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` subdirectory. When the resulting `part` is complete, it is atomically moved from the `tmp`
+under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` subdirectory.
+When the resulting `part` is complete, it is atomically moved from the `tmp`
 to its own subdirectory, while the source parts are atomically removed. The end result is that the source
 parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/{small,big}/YYYY_MM/` directory.
+
+VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
+This prevents from potential out of disk space errors during merge.
+The number of parts may significantly increase over time under free disk space shortage.
+This increases overhead during data querying, since VictoriaMetrics needs to read data from
+bigger number of parts per each request. That's why it is recommended to have at least 20%
+of free disk space under directory pointed by `-storageDataPath` command-line flag.
+
 Information about merging process is available in [single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
 and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Grafana dashboards.
 See more details in [monitoring docs](#monitoring).
