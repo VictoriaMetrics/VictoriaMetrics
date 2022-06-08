@@ -4,10 +4,8 @@ import {BorderLinearProgressWithLabel} from "../../BorderLineProgress/BorderLine
 import React from "preact/compat";
 import IconButton from "@mui/material/IconButton";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
 import Tooltip from "@mui/material/Tooltip";
 import {SyntheticEvent} from "react";
-import {formatDateToUTC} from "../../../utils/time";
 import dayjs from "dayjs";
 
 export const tableCells = (
@@ -34,29 +32,16 @@ export const tableCells = (
     }
     if (key === "actions") {
       const title = `Filter by ${row.name}`;
-      const vmuiTitle = `go to graph with value: ${row.name}`;
       return (<TableCell key={key}>
         <ButtonGroup variant="contained">
           <Tooltip title={title}>
             <IconButton
               id={row.name}
               onClick={onFilterClick}
-              sx={{height: "49px", width: "49px"}}>
+              sx={{height: "20px", width: "20px"}}>
               <PlayCircleOutlineIcon/>
             </IconButton>
           </Tooltip>
-          {row[key]==="1" ? <Tooltip title={vmuiTitle}>
-            <a
-              href={`${pathname}?g0.range_input=24h&g0.end_input=${formatDateToUTC(withday)}&g0.expr=count(${row.name})#/`}
-              target="_blank"
-              rel="noreferrer">
-              <IconButton
-                id={row.name}
-                sx={{height: "49px", width: "49px"}}>
-                <ShowChartIcon />
-              </IconButton>
-            </a>
-          </Tooltip>: null}
         </ButtonGroup>
       </TableCell>);
     }

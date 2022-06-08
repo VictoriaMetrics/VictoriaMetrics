@@ -25,25 +25,25 @@ var (
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:5
 func StreamTSDBStatusResponse(qw422016 *qt422016.Writer, status *storage.TSDBStatus) {
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:5
-	qw422016.N().S(`{"status":"success","data":{"seriesCountByMetricName":`)
+	qw422016.N().S(`{"status":"success","data":{"totalSeries":`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:9
-	streamtsdbStatusEntries(qw422016, status.SeriesCountByMetricName)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:9
-	qw422016.N().S(`,"labelValueCountByLabelName":`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:10
-	streamtsdbStatusEntries(qw422016, status.LabelValueCountByLabelName)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:10
-	qw422016.N().S(`,"seriesCountByLabelValuePair":`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:11
-	streamtsdbStatusEntries(qw422016, status.SeriesCountByLabelValuePair)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:11
-	qw422016.N().S(`,"totalSeries":`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:12
 	qw422016.N().DUL(status.TotalSeries)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:12
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:9
 	qw422016.N().S(`,"totalLabelValuePairs":`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:13
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:10
 	qw422016.N().DUL(status.TotalLabelValuePairs)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:10
+	qw422016.N().S(`,"seriesCountByMetricName":`)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:11
+	streamtsdbStatusEntries(qw422016, status.SeriesCountByMetricName)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:11
+	qw422016.N().S(`,"seriesCountByLabelValuePair":`)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:12
+	streamtsdbStatusEntries(qw422016, status.SeriesCountByLabelValuePair)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:12
+	qw422016.N().S(`,"labelValueCountByLabelName":`)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:13
+	streamtsdbStatusEntries(qw422016, status.LabelValueCountByLabelName)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:13
 	qw422016.N().S(`}}`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:16

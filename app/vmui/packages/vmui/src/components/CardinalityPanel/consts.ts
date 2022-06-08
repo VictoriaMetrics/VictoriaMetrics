@@ -16,7 +16,7 @@ export const headCellsWithProgress = [
   {
     disablePadding: false,
     id: "percentage",
-    label: "Percentage",
+    label: "Percent of series",
     numeric: false,
   },
   {
@@ -28,12 +28,6 @@ export const headCellsWithProgress = [
 ] as HeadCell[];
 
 export const defaultHeadCells = headCellsWithProgress.filter((head) => head.id!=="percentage");
-
-export const labels = {
-  totalSeries: "Number of Series",
-  numOfLabelPairs:	"Number of unique Label Pairs",
-  numberOfLabelsValuePairs: "Total series count by label name",
-};
 
 export const spinnerContainerStyles = (height: string) =>  {
   return {
@@ -47,5 +41,4 @@ export const spinnerContainerStyles = (height: string) =>  {
   };
 };
 
-export const PERCENTAGE_TITLE = "Shows the percentage of the total number of metrics";
-export const SPINNER_TITLE = "Please wait while data is loading. Do not reload the page.";
+export const SPINNER_TITLE = "Please wait while cardinality stats is calculated. This may take some time if the db contains big number of time series";

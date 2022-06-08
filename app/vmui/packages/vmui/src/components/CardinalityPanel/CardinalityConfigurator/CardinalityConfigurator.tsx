@@ -68,7 +68,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           variant="outlined"
           value={topN}
           error={topN < 1}
-          helperText={topN < 1 ? "Number can't be less than zero" : " "}
+          helperText={topN < 1 ? "Number must be bigger than zero" : " "}
           onChange={onTopNChange}/>
       </Box>
     </Box>

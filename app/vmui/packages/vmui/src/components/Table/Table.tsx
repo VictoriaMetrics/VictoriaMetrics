@@ -79,6 +79,7 @@ const EnhancedTable: FC<TableProps> = ({
       <Paper sx={{width: "100%", mb: 2}}>
         <TableContainer>
           <Table
+            size={"small"}
             sx={{minWidth: 750}}
             aria-labelledby="tableTitle"
           >

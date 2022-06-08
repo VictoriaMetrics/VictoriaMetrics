@@ -4,7 +4,7 @@ import LinearProgressWithLabel, {linearProgressClasses, LinearProgressProps} fro
 import {Box, Typography} from "@mui/material";
 
 export const BorderLinearProgress = styled(LinearProgressWithLabel)(({ theme }) => ({
-  height: 30,
+  height: 20,
   borderRadius: 5,
   [`&.${linearProgressClasses.colorPrimary}`]: {
     backgroundColor: theme.palette.grey[theme.palette.mode === "light" ? 200 : 800],

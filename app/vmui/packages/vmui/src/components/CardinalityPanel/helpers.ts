@@ -2,27 +2,31 @@ import {Containers, DefaultState, QueryUpdater, Tabs, TSDBStatus, TypographyFunc
 import {Data} from "../Table/types";
 import {useRef} from "preact/compat";
 
-export const typographyValues: TypographyFunctions = {
-  labelValueCountByLabelName: (value: number): string => `Top ${value} label names with value count`,
-  seriesCountByLabelValuePair: (value: number): string => `Top ${value} series count by label value pairs`,
-  seriesCountByMetricName: (value: number): string => `Top ${value} series count by metric names`,
+export const tableTitles: {[key: string]: string} = {
+  "seriesCountByMetricName": "Metric names with the highest number of series",
+  "seriesCountByLabelValuePair": "Label=value pairs with the highest number of series",
+  "labelValueCountByLabelName": "Labels with the highest number of unique values",
 };
 
 export const queryUpdater: QueryUpdater = {
   labelValueCountByLabelName: (query: string): string => `{${query}!=""}`,
   seriesCountByLabelValuePair: (query: string): string => {
-    return `{${query.split("=").map((val, idx) => {
-      if (idx === 1) {
-        return `"${val}"`;
-      }
-      return val;
-    }).join("=")}}`;
+    const a = query.split("=");
+    const label = a[0];
+    const value = a.slice(1).join("=");
+    return getSeriesSelector(label, value);
   },
-  seriesCountByMetricName: (query: string): string => query,
+  seriesCountByMetricName: (query: string): string => {
+    return getSeriesSelector("__name__", query);
+  },
+};
+
+const getSeriesSelector = (label: string, value: string): string => {
+  return "{" + label + "=" + JSON.stringify(value) + "}";
 };
 
 export const progressCount = (totalSeries: number, key: string, row: Data): Data => {
-  if (key === "seriesCountByMetricName") {
+  if (key === "seriesCountByMetricName" || key === "seriesCountByLabelValuePair") {
     row.progressValue = row.value / totalSeries * 100;
     return row;
   }
@@ -31,7 +35,7 @@ export const progressCount = (totalSeries: number, key: string, row: Data): Data
 
 export const defaultProperties = (tsdbStatus: TSDBStatus) => {
   return Object.keys(tsdbStatus).reduce((acc, key) => {
-    if (key === "totalSeries") return acc;
+    if (key === "totalSeries" || key === "totalLabelValuePairs") return acc;
     return {
       ...acc,
       tabs:{

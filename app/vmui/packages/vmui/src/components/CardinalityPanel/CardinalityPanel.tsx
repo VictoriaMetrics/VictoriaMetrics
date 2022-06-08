@@ -9,11 +9,10 @@ import {TSDBStatus, TopHeapEntry, DefaultState, Tabs as TabsType, Containers} fr
 import {
   defaultHeadCells,
   headCellsWithProgress,
-  PERCENTAGE_TITLE,
   SPINNER_TITLE,
   spinnerContainerStyles
 } from "./consts";
-import {defaultProperties, progressCount, queryUpdater, typographyValues} from "./helpers";
+import {defaultProperties, progressCount, queryUpdater, tableTitles} from "./helpers";
 import {Data} from "../Table/types";
 import BarChart from "../BarChart/BarChart";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
@@ -87,32 +86,25 @@ const CardinalityPanel: FC = () => {
       <CardinalityConfigurator error={configError} query={query} onRunQuery={onRunQuery} onSetQuery={onSetQuery}
         onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} />
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
+      {<Box m={2}>
+        Analyzed <b>{tsdbStatus.totalSeries}</b> series and <b>{tsdbStatus.totalLabelValuePairs}</b> label=value pairs
+        at <b>{date}</b> {match && <span>for series selector <b>{match}</b></span>}. Show top {topN} entries per table.
+      </Box>}
       {Object.keys(tsdbStatus).map((key ) => {
-        if (key == "totalSeries") return null;
-        const typographyFn = typographyValues[key];
-        const numberOfValues = tsdbStatus[key as keyof TSDBStatus] as TopHeapEntry[];
+        if (key == "totalSeries" || key == "totalLabelValuePairs") return null;
+        const tableTitle = tableTitles[key];
         const rows = tsdbStatus[key as keyof TSDBStatus] as unknown as Data[];
         rows.forEach((row) => {
           progressCount(tsdbStatus.totalSeries, key, row);
-          row.actions = key === "seriesCountByMetricName" ? "1" : "0";
+          row.actions = "0";
         });
-        const cells = headCellsWithProgress.map((cell) => {
-          if (cell.id === "percentage") {
-            const label = cell.label;
-            cell.label = (<Tooltip placement={"top"} title={PERCENTAGE_TITLE}>
-              <span>{label}</span>
-            </Tooltip>);
-            return cell;
-          }
-          return cell;
-        });
-        const headerCells = key == "seriesCountByMetricName" ? cells : defaultHeadCells;
+        const headerCells = (key == "seriesCountByMetricName" || key == "seriesCountByLabelValuePair") ? headCellsWithProgress : defaultHeadCells;
         return (
           <>
             <Grid container spacing={2} sx={{px: 2}}>
               <Grid item xs={12} md={12} lg={12} key={key}>
-                <Typography gutterBottom variant="h4" component="h4">
-                  {typographyFn(numberOfValues.length)}
+                <Typography gutterBottom variant="h5" component="h5">
+                  {tableTitle}
                 </Typography>
                 <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
                   <Tabs

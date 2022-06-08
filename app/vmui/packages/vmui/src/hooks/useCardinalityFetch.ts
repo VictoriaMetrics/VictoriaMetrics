@@ -9,11 +9,11 @@ import {useCardinalityState} from "../state/cardinality/CardinalityStateContext"
 const appModeEnable = getAppModeEnable();
 const {serverURL: appServerUrl} = getAppModeParams();
 const defaultTSDBStatus = {
-  labelValueCountByLabelName: [],
-  seriesCountByLabelValuePair: [],
-  seriesCountByMetricName: [],
   totalSeries: 0,
   totalLabelValuePairs: 0,
+  seriesCountByMetricName: [],
+  seriesCountByLabelValuePair: [],
+  labelValueCountByLabelName: [],
 };
 
 export const useFetchQuery = (): {
