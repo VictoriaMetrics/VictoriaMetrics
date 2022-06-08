@@ -1170,6 +1170,8 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 	seriesCountByMetricName := make(map[string]uint64)
 	labelValueCountByLabelName := make(map[string]uint64)
 	seriesCountByLabelValuePair := make(map[string]uint64)
+	totalSeries := uint64(0)
+	totalLabelValuePairs := uint64(0)
 	for _, st := range statuses {
 		for _, e := range st.SeriesCountByMetricName {
 			seriesCountByMetricName[e.Name] += e.Count
@@ -1184,11 +1186,15 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 		for _, e := range st.SeriesCountByLabelValuePair {
 			seriesCountByLabelValuePair[e.Name] += e.Count
 		}
+		totalSeries += st.TotalSeries
+		totalLabelValuePairs += st.TotalLabelValuePairs
 	}
 	return &storage.TSDBStatus{
 		SeriesCountByMetricName:     toTopHeapEntries(seriesCountByMetricName, topN),
 		LabelValueCountByLabelName:  toTopHeapEntries(labelValueCountByLabelName, topN),
 		SeriesCountByLabelValuePair: toTopHeapEntries(seriesCountByLabelValuePair, topN),
+		TotalSeries:                 totalSeries,
+		TotalLabelValuePairs:        totalLabelValuePairs,
 	}
 }
 
@@ -2395,6 +2401,36 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 	}
 
 	// Read response
+	return readTSDBStatus(bc)
+}
+
+func (sn *storageNode) getTSDBStatusWithFiltersOnConn(bc *handshake.BufferedConn, requestData []byte, topN int) (*storage.TSDBStatus, error) {
+	// Send the request to sn.
+	if err := writeBytes(bc, requestData); err != nil {
+		return nil, fmt.Errorf("cannot write requestData: %w", err)
+	}
+	// topN shouldn't exceed 32 bits, so send it as uint32.
+	if err := writeUint32(bc, uint32(topN)); err != nil {
+		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush tsdbStatusWithFilters args to conn: %w", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	// Read response
+	return readTSDBStatus(bc)
+}
+
+func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 	seriesCountByMetricName, err := readTopHeapEntries(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
@@ -2421,49 +2457,6 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 		SeriesCountByLabelValuePair: seriesCountByLabelValuePair,
 		TotalSeries:                 totalSeries,
 		TotalLabelValuePairs:        totalLabelValuePairs,
-	}
-	return status, nil
-}
-
-func (sn *storageNode) getTSDBStatusWithFiltersOnConn(bc *handshake.BufferedConn, requestData []byte, topN int) (*storage.TSDBStatus, error) {
-	// Send the request to sn.
-	if err := writeBytes(bc, requestData); err != nil {
-		return nil, fmt.Errorf("cannot write requestData: %w", err)
-	}
-	// topN shouldn't exceed 32 bits, so send it as uint32.
-	if err := writeUint32(bc, uint32(topN)); err != nil {
-		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
-	}
-	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush tsdbStatusWithFilters args to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
-	}
-
-	// Read response
-	seriesCountByMetricName, err := readTopHeapEntries(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
-	}
-	labelValueCountByLabelName, err := readTopHeapEntries(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
-	}
-	seriesCountByLabelValuePair, err := readTopHeapEntries(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %w", err)
-	}
-	status := &storage.TSDBStatus{
-		SeriesCountByMetricName:     seriesCountByMetricName,
-		LabelValueCountByLabelName:  labelValueCountByLabelName,
-		SeriesCountByLabelValuePair: seriesCountByLabelValuePair,
 	}
 	return status, nil
 }

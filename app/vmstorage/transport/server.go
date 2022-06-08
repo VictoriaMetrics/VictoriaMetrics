@@ -950,6 +950,10 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Send status to vmselect.
+	return writeTSDBStatus(ctx, status)
+}
+
+func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error {
 	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
 		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
 	}
@@ -1001,16 +1005,7 @@ func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) e
 	}
 
 	// Send status to vmselect.
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
-		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
-		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
-		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
-	}
-	return nil
+	return writeTSDBStatus(ctx, status)
 }
 
 func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) error {
