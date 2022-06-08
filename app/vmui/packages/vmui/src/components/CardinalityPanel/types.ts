@@ -4,7 +4,8 @@ export interface TSDBStatus {
   labelValueCountByLabelName: TopHeapEntry[];
   seriesCountByLabelValuePair: TopHeapEntry[];
   seriesCountByMetricName: TopHeapEntry[];
-  numSeries: number;
+  totalSeries: number;
+  totalLabelValuePairs: number;
 }
 
 export interface TopHeapEntry {

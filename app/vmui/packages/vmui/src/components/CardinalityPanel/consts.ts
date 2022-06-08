@@ -30,7 +30,7 @@ export const headCellsWithProgress = [
 export const defaultHeadCells = headCellsWithProgress.filter((head) => head.id!=="percentage");
 
 export const labels = {
-  numSeries: "Number of Series",
+  totalSeries: "Number of Series",
   numOfLabelPairs:	"Number of unique Label Pairs",
   numberOfLabelsValuePairs: "Total series count by label name",
 };

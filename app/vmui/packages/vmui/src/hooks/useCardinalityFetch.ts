@@ -12,7 +12,8 @@ const defaultTSDBStatus = {
   labelValueCountByLabelName: [],
   seriesCountByLabelValuePair: [],
   seriesCountByMetricName: [],
-  numSeries: 0,
+  totalSeries: 0,
+  totalLabelValuePairs: 0,
 };
 
 export const useFetchQuery = (): {

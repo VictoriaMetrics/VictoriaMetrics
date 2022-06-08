@@ -5,13 +5,12 @@
 package prometheus
 
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:1
-import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+import "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 
-	// TSDBStatusResponse generates response for /api/v1/status/tsdb .
+// TSDBStatusResponse generates response for /api/v1/status/tsdb .
 
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:5
-
+import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
@@ -38,91 +37,95 @@ func StreamTSDBStatusResponse(qw422016 *qt422016.Writer, status *storage.TSDBSta
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:11
 	streamtsdbStatusEntries(qw422016, status.SeriesCountByLabelValuePair)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:11
-	qw422016.N().S(`,"numSeries":`)
+	qw422016.N().S(`,"totalSeries":`)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:12
-	qw422016.N().DUL(status.TotalSeriesCount)
+	qw422016.N().DUL(status.TotalSeries)
 //line app/vmselect/prometheus/tsdb_status_response.qtpl:12
+	qw422016.N().S(`,"totalLabelValuePairs":`)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:13
+	qw422016.N().DUL(status.TotalLabelValuePairs)
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:13
 	qw422016.N().S(`}}`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 }
 
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 func WriteTSDBStatusResponse(qq422016 qtio422016.Writer, status *storage.TSDBStatus) {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	StreamTSDBStatusResponse(qw422016, status)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 }
 
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 func TSDBStatusResponse(status *storage.TSDBStatus) string {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	WriteTSDBStatusResponse(qb422016, status)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 	return qs422016
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:15
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:16
 }
 
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:17
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:18
 func streamtsdbStatusEntries(qw422016 *qt422016.Writer, a []storage.TopHeapEntry) {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:17
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:18
 	qw422016.N().S(`[`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:19
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:20
 	for i, e := range a {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:19
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:20
 		qw422016.N().S(`{"name":`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:21
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:22
 		qw422016.N().Q(e.Name)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:21
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:22
 		qw422016.N().S(`,"value":`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:22
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:23
 		qw422016.N().D(int(e.Count))
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:22
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:23
 		qw422016.N().S(`}`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:24
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:25
 		if i+1 < len(a) {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:24
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:25
 			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:24
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:25
 		}
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:25
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:26
 	}
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:25
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:26
 	qw422016.N().S(`]`)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 }
 
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 func writetsdbStatusEntries(qq422016 qtio422016.Writer, a []storage.TopHeapEntry) {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	streamtsdbStatusEntries(qw422016, a)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 }
 
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 func tsdbStatusEntries(a []storage.TopHeapEntry) string {
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	writetsdbStatusEntries(qb422016, a)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 	return qs422016
-//line app/vmselect/prometheus/tsdb_status_response.qtpl:27
+//line app/vmselect/prometheus/tsdb_status_response.qtpl:28
 }

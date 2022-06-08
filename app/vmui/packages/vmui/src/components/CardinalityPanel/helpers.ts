@@ -31,7 +31,7 @@ export const progressCount = (totalSeries: number, key: string, row: Data): Data
 
 export const defaultProperties = (tsdbStatus: TSDBStatus) => {
   return Object.keys(tsdbStatus).reduce((acc, key) => {
-    if (key === "numSeries") return acc;
+    if (key === "totalSeries") return acc;
     return {
       ...acc,
       tabs:{

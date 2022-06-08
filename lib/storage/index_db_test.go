@@ -1832,9 +1832,13 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair) {
 		t.Fatalf("unexpected SeriesCountByLabelValuePair;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair)
 	}
-	var expectedTotalSeries uint64 = 1000
-	if status.TotalSeriesCount != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeriesCount;\ngot\n%d\nwant\n%d", status.TotalSeriesCount, expectedTotalSeries)
+	expectedTotalSeries := uint64(1000)
+	if status.TotalSeries != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
+	}
+	expectedLabelValuePairs := uint64(4000)
+	if status.TotalLabelValuePairs != expectedLabelValuePairs {
+		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 
 	// Check GetTSDBStatusWithFiltersForDate
@@ -1859,8 +1863,12 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
 	}
 	expectedTotalSeries = 1000
-	if status.TotalSeriesCount != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeriesCount;\ngot\n%d\nwant\n%d", status.TotalSeriesCount, expectedTotalSeries)
+	if status.TotalSeries != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
+	}
+	expectedLabelValuePairs = 4000
+	if status.TotalLabelValuePairs != expectedLabelValuePairs {
+		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 	// Check GetTSDBStatusWithFiltersForDate
 	tfs = NewTagFilters()
@@ -1883,11 +1891,14 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
 	}
-	expectedTotalSeries = 1000
-	if status.TotalSeriesCount != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeriesCount;\ngot\n%d\nwant\n%d", status.TotalSeriesCount, expectedTotalSeries)
+	expectedTotalSeries = 3
+	if status.TotalSeries != expectedTotalSeries {
+		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
 	}
-
+	expectedLabelValuePairs = 12
+	if status.TotalLabelValuePairs != expectedLabelValuePairs {
+		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
+	}
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {

@@ -88,12 +88,12 @@ const CardinalityPanel: FC = () => {
         onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} />
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
       {Object.keys(tsdbStatus).map((key ) => {
-        if (key == "numSeries") return null;
+        if (key == "totalSeries") return null;
         const typographyFn = typographyValues[key];
         const numberOfValues = tsdbStatus[key as keyof TSDBStatus] as TopHeapEntry[];
         const rows = tsdbStatus[key as keyof TSDBStatus] as unknown as Data[];
         rows.forEach((row) => {
-          progressCount(tsdbStatus.numSeries, key, row);
+          progressCount(tsdbStatus.totalSeries, key, row);
           row.actions = key === "seriesCountByMetricName" ? "1" : "0";
         });
         const cells = headCellsWithProgress.map((cell) => {
