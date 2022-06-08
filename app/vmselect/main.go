@@ -207,6 +207,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if path == "/api/v1/status/top_queries" {
 		globalTopQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(startTime, nil, w, r); err != nil {
 			globalTopQueriesErrors.Inc()
 			sendPrometheusError(w, r, err)
@@ -376,6 +377,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(startTime, at, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
@@ -388,6 +390,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/status/top_queries":
 		topQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(startTime, at, w, r); err != nil {
 			topQueriesErrors.Inc()
 			sendPrometheusError(w, r, err)

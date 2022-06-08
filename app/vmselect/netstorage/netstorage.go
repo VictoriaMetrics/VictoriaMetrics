@@ -2407,10 +2407,20 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 	if err != nil {
 		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %w", err)
 	}
+	totalSeries, err := readUint64(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read totalSeries: %w", err)
+	}
+	totalLabelValuePairs, err := readUint64(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read totalLabelValuePairs: %w", err)
+	}
 	status := &storage.TSDBStatus{
 		SeriesCountByMetricName:     seriesCountByMetricName,
 		LabelValueCountByLabelName:  labelValueCountByLabelName,
 		SeriesCountByLabelValuePair: seriesCountByLabelValuePair,
+		TotalSeries:                 totalSeries,
+		TotalLabelValuePairs:        totalLabelValuePairs,
 	}
 	return status, nil
 }
