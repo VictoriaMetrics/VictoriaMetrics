@@ -1195,6 +1195,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		atomic.AddUint64(&pt.activeSmallMerges, 1)
 	}
 	retentionDeadline := timestampFromTime(startTime) - pt.retentionMsecs
+	deadlineTime := timestampToTime(retentionDeadline)
+	retentionDeadline = timestampFromTime(time.Date(deadlineTime.Year(), deadlineTime.Month(), deadlineTime.Day(), 0, 0, 0, 0, time.UTC))
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
 	if isBigPart {
 		atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
