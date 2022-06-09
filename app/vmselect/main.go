@@ -378,7 +378,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.TSDBStatusHandler(startTime, at, w, r); err != nil {
+		if err := prometheus.TSDBStatusHandler(qt, startTime, at, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true

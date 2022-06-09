@@ -690,7 +690,7 @@ const secsPerDay = 3600 * 24
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It can accept `match[]` filters in order to narrow down the search.
-func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer tsdbStatusDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
@@ -728,12 +728,12 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	var status *storage.TSDBStatus
 	var isPartial bool
 	if len(matches) == 0 && len(etfs) == 0 {
-		status, isPartial, err = netstorage.GetTSDBStatusForDate(nil, at, denyPartialResponse, deadline, date, topN, *maxTSDBStatusSeries)
+		status, isPartial, err = netstorage.GetTSDBStatusForDate(qt, at, denyPartialResponse, deadline, date, topN, *maxTSDBStatusSeries)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, isPartial, err = tsdbStatusWithMatches(at, denyPartialResponse, matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
+		status, isPartial, err = tsdbStatusWithMatches(qt, at, denyPartialResponse, matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -742,14 +742,14 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteTSDBStatusResponse(bw, isPartial, status)
+	WriteTSDBStatusResponse(bw, isPartial, status, qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send tsdb status response to remote client: %w", err)
 	}
 	return nil
 }
 
-func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+func tsdbStatusWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, false, err
@@ -761,7 +761,7 @@ func tsdbStatusWithMatches(at *auth.Token, denyPartialResponse bool, matches []s
 	start := int64(date*secsPerDay) * 1000
 	end := int64(date*secsPerDay+secsPerDay) * 1000
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, maxMetrics)
-	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(nil, at, denyPartialResponse, deadline, sq, topN)
+	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(qt, at, denyPartialResponse, deadline, sq, topN)
 	if err != nil {
 		return nil, false, err
 	}

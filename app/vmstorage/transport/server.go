@@ -939,7 +939,7 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, uint64(date), int(topN), maxMetrics, ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.qt, accountID, projectID, nil, uint64(date), int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -994,7 +994,7 @@ func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) e
 	}
 	maxMetrics := ctx.getMaxMetrics()
 	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), maxMetrics, ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

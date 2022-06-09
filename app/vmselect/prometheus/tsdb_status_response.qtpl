@@ -1,8 +1,11 @@
-{% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage" %}
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+) %}
 
 {% stripspace %}
 TSDBStatusResponse generates response for /api/v1/status/tsdb .
-{% func TSDBStatusResponse(isPartial bool, status *storage.TSDBStatus) %}
+{% func TSDBStatusResponse(isPartial bool, status *storage.TSDBStatus, qt *querytracer.Tracer) %}
 {
 	"status":"success",
 	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
@@ -13,6 +16,8 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 		"seriesCountByLabelValuePair":{%= tsdbStatusEntries(status.SeriesCountByLabelValuePair) %},
 		"labelValueCountByLabelName":{%= tsdbStatusEntries(status.LabelValueCountByLabelName) %}
 	}
+	{% code	qt.Done() %}
+	{%= dumpQueryTrace(qt) %}
 }
 {% endfunc %}
 
