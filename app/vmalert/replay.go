@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dmitryk-dk/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/dmitryk-dk/pb/v3"
 )
 
 var (
@@ -87,6 +88,10 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 		"\nrequests to make: \t%d"+
 		"\nmax range per request: \t%v\n",
 		g.Name, g.Interval, iterations, step)
+	if g.Limit > 0 {
+		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
+			g.Limit)
+	}
 	for _, rule := range g.Rules {
 		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
 		var bar *pb.ProgressBar

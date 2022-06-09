@@ -167,7 +167,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent.html'>https://docs.victoriametrics.com/vmagent.html</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
-			{"targets", "discovered targets list"},
+			{"targets", "status for discovered active targets"},
+			{"service-discovery", "labels before and after relabeling for discovered targets"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
 			{"metrics", "available service metrics"},
@@ -178,6 +179,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	if strings.HasPrefix(path, "datadog/") {
+		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
+		path = strings.TrimSuffix(path, "/")
+	}
 	switch path {
 	case "/api/v1/write":
 		prometheusWriteRequests.Inc()
@@ -262,7 +268,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
-	case "/datadog/intake/":
+	case "/datadog/intake":
 		datadogIntakeRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
@@ -270,6 +276,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
+		return true
+	case "/service-discovery":
+		promscrapeServiceDiscoveryRequests.Inc()
+		promscrape.WriteServiceDiscovery(w, r)
 		return true
 	case "/target_response":
 		promscrapeTargetResponseRequests.Inc()
@@ -356,6 +366,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
 		return true
 	}
+	if strings.HasPrefix(p.Suffix, "datadog/") {
+		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
+		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
+	}
 	switch p.Suffix {
 	case "prometheus/", "prometheus", "prometheus/api/v1/write":
 		prometheusWriteRequests.Inc()
@@ -439,7 +454,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
-	case "datadog/intake/":
+	case "datadog/intake":
 		datadogIntakeRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
@@ -476,10 +491,11 @@ var (
 
 	datadogValidateRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/check_run", protocol="datadog"}`)
-	datadogIntakeRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/intake/", protocol="datadog"}`)
+	datadogIntakeRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/intake", protocol="datadog"}`)
 
-	promscrapeTargetsRequests      = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
-	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
+	promscrapeTargetsRequests          = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/service-discovery"}`)
+	promscrapeAPIV1TargetsRequests     = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
 
 	promscrapeTargetResponseRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/target_response"}`)
 	promscrapeTargetResponseErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/target_response"}`)

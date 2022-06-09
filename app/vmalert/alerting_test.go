@@ -304,7 +304,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			for _, step := range tc.steps {
 				fq.reset()
 				fq.add(step...)
-				if _, err := tc.rule.Exec(context.TODO(), time.Now()); err != nil {
+				if _, err := tc.rule.Exec(context.TODO(), time.Now(), 0); err != nil {
 					t.Fatalf("unexpected err: %s", err)
 				}
 				// artificial delay between applying steps
@@ -624,14 +624,14 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 
 	// successful attempt
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
-	_, err := ar.Exec(context.TODO(), time.Now())
+	_, err := ar.Exec(context.TODO(), time.Now(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// label `job` will collide with rule extra label and will make both time series equal
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
-	_, err = ar.Exec(context.TODO(), time.Now())
+	_, err = ar.Exec(context.TODO(), time.Now(), 0)
 	if !errors.Is(err, errDuplicate) {
 		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
 	}
@@ -640,13 +640,57 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 
 	expErr := "connection reset by peer"
 	fq.setErr(errors.New(expErr))
-	_, err = ar.Exec(context.TODO(), time.Now())
+	_, err = ar.Exec(context.TODO(), time.Now(), 0)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
 	if !strings.Contains(err.Error(), expErr) {
 		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
 	}
+}
+
+func TestAlertingRuleLimit(t *testing.T) {
+	fq := &fakeQuerier{}
+	ar := newTestAlertingRule("test", 0)
+	ar.Labels = map[string]string{"job": "test"}
+	ar.q = fq
+	ar.For = time.Minute
+	testCases := []struct {
+		limit  int
+		err    string
+		tssNum int
+	}{
+		{
+			limit:  0,
+			tssNum: 4,
+		},
+		{
+			limit:  -1,
+			tssNum: 4,
+		},
+		{
+			limit:  1,
+			err:    "exec exceeded limit of 1 with 2 alerts",
+			tssNum: 0,
+		},
+		{
+			limit:  4,
+			tssNum: 4,
+		},
+	}
+	var (
+		err       error
+		timestamp = time.Now()
+	)
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "bar", "job"))
+	for _, testCase := range testCases {
+		_, err = ar.Exec(context.TODO(), timestamp, testCase.limit)
+		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
+			t.Fatal(err)
+		}
+	}
+	fq.reset()
 }
 
 func TestAlertingRule_Template(t *testing.T) {
@@ -761,7 +805,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			tc.rule.GroupID = fakeGroup.ID()
 			tc.rule.q = fq
 			fq.add(tc.metrics...)
-			if _, err := tc.rule.Exec(context.TODO(), time.Now()); err != nil {
+			if _, err := tc.rule.Exec(context.TODO(), time.Now(), 0); err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 			for hash, expAlert := range tc.expAlerts {

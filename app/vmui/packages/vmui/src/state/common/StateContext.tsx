@@ -3,6 +3,7 @@ import {Action, AppState, initialState, reducer} from "./reducer";
 import {getQueryStringValue, setQueryStringValue} from "../../utils/query-string";
 import {Dispatch} from "react";
 import {useLocation} from "react-router-dom";
+import router from "../../router";
 
 type StateContextType = { state: AppState, dispatch: Dispatch<Action> };
 
@@ -23,6 +24,7 @@ export const StateProvider: FC = ({children}) => {
   const [state, dispatch] = useReducer(reducer, initialPrepopulatedState);
 
   useEffect(() => {
+    if (location.pathname === router.cardinality) return;
     setQueryStringValue(state as unknown as Record<string, unknown>);
   }, [state, location]);
 

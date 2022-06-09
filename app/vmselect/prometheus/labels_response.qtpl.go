@@ -25,7 +25,7 @@ var (
 )
 
 //line app/vmselect/prometheus/labels_response.qtpl:9
-func StreamLabelsResponse(qw422016 *qt422016.Writer, labels []string, qt *querytracer.Tracer, qtDone func()) {
+func StreamLabelsResponse(qw422016 *qt422016.Writer, labels []string, qt *querytracer.Tracer) {
 //line app/vmselect/prometheus/labels_response.qtpl:9
 	qw422016.N().S(`{"status":"success","data":[`)
 //line app/vmselect/prometheus/labels_response.qtpl:13
@@ -44,7 +44,7 @@ func StreamLabelsResponse(qw422016 *qt422016.Writer, labels []string, qt *queryt
 	qw422016.N().S(`]`)
 //line app/vmselect/prometheus/labels_response.qtpl:19
 	qt.Printf("generate response for %d labels", len(labels))
-	qtDone()
+	qt.Done()
 
 //line app/vmselect/prometheus/labels_response.qtpl:22
 	streamdumpQueryTrace(qw422016, qt)
@@ -54,22 +54,22 @@ func StreamLabelsResponse(qw422016 *qt422016.Writer, labels []string, qt *queryt
 }
 
 //line app/vmselect/prometheus/labels_response.qtpl:24
-func WriteLabelsResponse(qq422016 qtio422016.Writer, labels []string, qt *querytracer.Tracer, qtDone func()) {
+func WriteLabelsResponse(qq422016 qtio422016.Writer, labels []string, qt *querytracer.Tracer) {
 //line app/vmselect/prometheus/labels_response.qtpl:24
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/prometheus/labels_response.qtpl:24
-	StreamLabelsResponse(qw422016, labels, qt, qtDone)
+	StreamLabelsResponse(qw422016, labels, qt)
 //line app/vmselect/prometheus/labels_response.qtpl:24
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/prometheus/labels_response.qtpl:24
 }
 
 //line app/vmselect/prometheus/labels_response.qtpl:24
-func LabelsResponse(labels []string, qt *querytracer.Tracer, qtDone func()) string {
+func LabelsResponse(labels []string, qt *querytracer.Tracer) string {
 //line app/vmselect/prometheus/labels_response.qtpl:24
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/prometheus/labels_response.qtpl:24
-	WriteLabelsResponse(qb422016, labels, qt, qtDone)
+	WriteLabelsResponse(qb422016, labels, qt)
 //line app/vmselect/prometheus/labels_response.qtpl:24
 	qs422016 := string(qb422016.B)
 //line app/vmselect/prometheus/labels_response.qtpl:24

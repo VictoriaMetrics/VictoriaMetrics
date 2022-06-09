@@ -72,8 +72,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
       {query.map((q, i) =>
         <Box key={i} display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="100%"
           mb={i === query.length - 1 ? 0 : 2.5}>
-          <QueryEditor query={query[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
-            error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
+          <QueryEditor
+            query={query[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
+            error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}
+            label={`Query ${i + 1}`}/>
           {i === 0 && <Tooltip title="Execute Query">
             <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
               <PlayCircleOutlineIcon/>

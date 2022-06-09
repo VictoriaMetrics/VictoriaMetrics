@@ -66,26 +66,30 @@ type AuthInfo struct {
 }
 
 func (au *AuthInfo) validate() error {
-	errContext := "field: %s is not supported currently, open an issue with feature request for it"
 	if au.Exec != nil {
-		return fmt.Errorf(errContext, "exec")
+		return unsupportedFieldError("exec")
 	}
 	if len(au.ImpersonateUID) > 0 {
-		return fmt.Errorf(errContext, "act-as-uid")
+		return unsupportedFieldError("act-as-uid")
 	}
 	if len(au.Impersonate) > 0 {
-		return fmt.Errorf(errContext, "act-as")
+		return unsupportedFieldError("act-as")
 	}
 	if len(au.ImpersonateGroups) > 0 {
-		return fmt.Errorf(errContext, "act-as-groups")
+		return unsupportedFieldError("act-as-groups")
 	}
 	if len(au.ImpersonateUserExtra) > 0 {
-		return fmt.Errorf(errContext, "act-as-user-extra")
+		return unsupportedFieldError("act-as-user-extra")
 	}
 	if len(au.Password) > 0 && len(au.Username) == 0 {
 		return fmt.Errorf("username cannot be empty, if password defined")
 	}
 	return nil
+}
+
+func unsupportedFieldError(fieldName string) error {
+	return fmt.Errorf("field %q is not supported yet; if you feel it is needed please open a feature request "+
+		"at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new", fieldName)
 }
 
 // ExecConfig contains information about os.command, that returns auth token for kubernetes cluster connection
@@ -150,94 +154,95 @@ type kubeConfig struct {
 	proxyURL  *proxy.URL
 }
 
-func buildConfig(sdc *SDConfig) (*kubeConfig, error) {
-
-	data, err := fs.ReadFileOrHTTP(sdc.KubeConfig)
+func newKubeConfig(kubeConfigFile string) (*kubeConfig, error) {
+	data, err := fs.ReadFileOrHTTP(kubeConfigFile)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read kubeConfig from %q: %w", sdc.KubeConfig, err)
+		return nil, fmt.Errorf("cannot read %q: %w", kubeConfigFile, err)
 	}
-	var config Config
-	if err = yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %w", sdc.KubeConfig, err)
+	var cfg Config
+	if err = yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("cannot parse %q: %w", kubeConfigFile, err)
 	}
+	kc, err := cfg.buildKubeConfig()
+	if err != nil {
+		return nil, fmt.Errorf("cannot build kubeConfig from %q: %w", kubeConfigFile, err)
+	}
+	return kc, nil
+}
 
+func (cfg *Config) buildKubeConfig() (*kubeConfig, error) {
 	authInfos := make(map[string]*AuthInfo)
-	for _, obj := range config.AuthInfos {
+	for _, obj := range cfg.AuthInfos {
 		authInfos[obj.Name] = obj.AuthInfo
 	}
 	clusterInfos := make(map[string]*Cluster)
-	for _, obj := range config.Clusters {
+	for _, obj := range cfg.Clusters {
 		clusterInfos[obj.Name] = obj.Cluster
 	}
 	contexts := make(map[string]*Context)
-	for _, obj := range config.Contexts {
+	for _, obj := range cfg.Contexts {
 		contexts[obj.Name] = obj.Context
 	}
 
-	contextName := config.CurrentContext
+	contextName := cfg.CurrentContext
 	configContext := contexts[contextName]
 	if configContext == nil {
-		return nil, fmt.Errorf("context %q does not exist", contextName)
+		return nil, fmt.Errorf("missing context %q", contextName)
 	}
 
 	clusterInfoName := configContext.Cluster
 	configClusterInfo := clusterInfos[clusterInfoName]
 	if configClusterInfo == nil {
-		return nil, fmt.Errorf("cluster %q does not exist", clusterInfoName)
+		return nil, fmt.Errorf("missing cluster config %q at context %q", clusterInfoName, contextName)
 	}
-
-	if len(configClusterInfo.Server) == 0 {
-		return nil, fmt.Errorf("kubernetes server address cannot be empty, define it for context: %s", contextName)
+	server := configClusterInfo.Server
+	if len(server) == 0 {
+		return nil, fmt.Errorf("missing kubernetes server address for config %q at context %q", clusterInfoName, contextName)
 	}
 
 	authInfoName := configContext.AuthInfo
 	configAuthInfo := authInfos[authInfoName]
 	if authInfoName != "" && configAuthInfo == nil {
-		return nil, fmt.Errorf("auth info %q does not exist", authInfoName)
+		return nil, fmt.Errorf("missing auth config %q", authInfoName)
 	}
-
 	var tlsConfig *promauth.TLSConfig
 	var basicAuth *promauth.BasicAuthConfig
 	var token, tokenFile string
-	isHTTPS := strings.HasPrefix(configClusterInfo.Server, "https://")
-
-	if isHTTPS {
-		tlsConfig = &promauth.TLSConfig{
-			CAFile:             configClusterInfo.CertificateAuthority,
-			ServerName:         configClusterInfo.TLSServerName,
-			InsecureSkipVerify: configClusterInfo.InsecureSkipTLSVerify,
-		}
-	}
-
-	if len(configClusterInfo.CertificateAuthorityData) > 0 && isHTTPS {
-		tlsConfig.CA, err = base64.StdEncoding.DecodeString(configClusterInfo.CertificateAuthorityData)
-		if err != nil {
-			return nil, fmt.Errorf("cannot base64-decode configClusterInfo.CertificateAuthorityData %q: %w", configClusterInfo.CertificateAuthorityData, err)
-		}
-	}
-
 	if configAuthInfo != nil {
 		if err := configAuthInfo.validate(); err != nil {
-			return nil, fmt.Errorf("invalid user auth configuration for context: %s, err: %w", contextName, err)
+			return nil, fmt.Errorf("invalid auth config %q: %w", authInfoName, err)
 		}
-		if isHTTPS {
+		if strings.HasPrefix(configClusterInfo.Server, "https://") {
+			tlsConfig = &promauth.TLSConfig{
+				CAFile:             configClusterInfo.CertificateAuthority,
+				ServerName:         configClusterInfo.TLSServerName,
+				InsecureSkipVerify: configClusterInfo.InsecureSkipTLSVerify,
+			}
+			if len(configClusterInfo.CertificateAuthorityData) > 0 {
+				ca, err := base64.StdEncoding.DecodeString(configClusterInfo.CertificateAuthorityData)
+				if err != nil {
+					return nil, fmt.Errorf("cannot base64-decode certificate-authority-data from config %q at context %q: %w", clusterInfoName, contextName, err)
+				}
+				tlsConfig.CA = ca
+			}
 			tlsConfig.CertFile = configAuthInfo.ClientCertificate
 			tlsConfig.KeyFile = configAuthInfo.ClientKey
 
 			if len(configAuthInfo.ClientCertificateData) > 0 {
-				tlsConfig.Cert, err = base64.StdEncoding.DecodeString(configAuthInfo.ClientCertificateData)
+				cert, err := base64.StdEncoding.DecodeString(configAuthInfo.ClientCertificateData)
 				if err != nil {
-					return nil, fmt.Errorf("cannot base64-decode configAuthInfo.ClientCertificateData %q: %w", configClusterInfo.CertificateAuthorityData, err)
+					return nil, fmt.Errorf("cannot base64-decode client-certificate-data from %q: %w", authInfoName, err)
 				}
+				tlsConfig.Cert = cert
 			}
 			if len(configAuthInfo.ClientKeyData) > 0 {
-				tlsConfig.Key, err = base64.StdEncoding.DecodeString(configAuthInfo.ClientKeyData)
+				key, err := base64.StdEncoding.DecodeString(configAuthInfo.ClientKeyData)
 				if err != nil {
-					return nil, fmt.Errorf("cannot base64-decode configAuthInfo.ClientKeyData %q: %w", configClusterInfo.CertificateAuthorityData, err)
+					return nil, fmt.Errorf("cannot base64-decode client-key-data from %q: %w", authInfoName, err)
 				}
+				tlsConfig.Key = key
 			}
 		}
-
 		if len(configAuthInfo.Username) > 0 || len(configAuthInfo.Password) > 0 {
 			basicAuth = &promauth.BasicAuthConfig{
 				Username: configAuthInfo.Username,
@@ -247,15 +252,13 @@ func buildConfig(sdc *SDConfig) (*kubeConfig, error) {
 		token = configAuthInfo.Token
 		tokenFile = configAuthInfo.TokenFile
 	}
-
-	kc := kubeConfig{
+	kc := &kubeConfig{
 		basicAuth: basicAuth,
-		server:    configClusterInfo.Server,
+		server:    server,
 		token:     token,
 		tokenFile: tokenFile,
 		tlsConfig: tlsConfig,
 		proxyURL:  configClusterInfo.ProxyURL,
 	}
-
-	return &kc, nil
+	return kc, nil
 }

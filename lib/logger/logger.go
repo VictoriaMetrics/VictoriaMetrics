@@ -40,7 +40,6 @@ func Init() {
 	initTimezone()
 	go logLimiterCleaner()
 	logAllFlags()
-
 }
 
 func initTimezone() {
@@ -79,7 +78,7 @@ func validateLoggerFormat() {
 	switch *loggerFormat {
 	case "default", "json":
 	default:
-		// We cannot use logger.Pancif here, since the logger isn't initialized yet.
+		// We cannot use logger.Panicf here, since the logger isn't initialized yet.
 		panic(fmt.Errorf("FATAL: unsupported `-loggerFormat` value: %q; supported values are: default, json", *loggerFormat))
 	}
 }

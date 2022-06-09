@@ -1,7 +1,7 @@
 import {MetricResult} from "../../api/types";
 import {Series} from "uplot";
 import {getNameForMetric} from "../metric";
-import {LegendItem} from "./types";
+import {BarSeriesItem, Disp, Fill, LegendItem, Stroke} from "./types";
 import {getColorLine, getDashLine} from "./helpers";
 import {HideSeriesArgs} from "./types";
 
@@ -49,4 +49,26 @@ export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesA
 
 export const includesHideSeries = (label: string, group: string | number, hideSeries: string[]): boolean => {
   return hideSeries.includes(`${group}.${label}`);
+};
+
+export const getBarSeries = (
+  which: number[],
+  ori: number,
+  dir: number,
+  radius: number,
+  disp: Disp): BarSeriesItem => {
+  return {
+    which: which,
+    ori: ori,
+    dir: dir,
+    radius: radius,
+    disp: disp,
+  };
+};
+
+export const barDisp = (stroke: Stroke, fill: Fill): Disp => {
+  return {
+    stroke: stroke,
+    fill: fill
+  };
 };

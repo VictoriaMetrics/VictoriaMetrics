@@ -2,6 +2,7 @@ groups:
   - name: ReplayGroup
     interval: 1m
     concurrency: 1
+    limit: 1000
     rules:
       - record: type:vm_cache_entries:rate5m
         expr: sum(rate(vm_cache_entries[5m])) by (type)

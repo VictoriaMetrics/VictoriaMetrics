@@ -25,7 +25,7 @@ var (
 )
 
 //line app/vmselect/prometheus/label_values_response.qtpl:9
-func StreamLabelValuesResponse(qw422016 *qt422016.Writer, labelValues []string, qt *querytracer.Tracer, qtDone func()) {
+func StreamLabelValuesResponse(qw422016 *qt422016.Writer, labelValues []string, qt *querytracer.Tracer) {
 //line app/vmselect/prometheus/label_values_response.qtpl:9
 	qw422016.N().S(`{"status":"success","data":[`)
 //line app/vmselect/prometheus/label_values_response.qtpl:13
@@ -44,7 +44,7 @@ func StreamLabelValuesResponse(qw422016 *qt422016.Writer, labelValues []string, 
 	qw422016.N().S(`]`)
 //line app/vmselect/prometheus/label_values_response.qtpl:19
 	qt.Printf("generate response for %d label values", len(labelValues))
-	qtDone()
+	qt.Done()
 
 //line app/vmselect/prometheus/label_values_response.qtpl:22
 	streamdumpQueryTrace(qw422016, qt)
@@ -54,22 +54,22 @@ func StreamLabelValuesResponse(qw422016 *qt422016.Writer, labelValues []string, 
 }
 
 //line app/vmselect/prometheus/label_values_response.qtpl:24
-func WriteLabelValuesResponse(qq422016 qtio422016.Writer, labelValues []string, qt *querytracer.Tracer, qtDone func()) {
+func WriteLabelValuesResponse(qq422016 qtio422016.Writer, labelValues []string, qt *querytracer.Tracer) {
 //line app/vmselect/prometheus/label_values_response.qtpl:24
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/prometheus/label_values_response.qtpl:24
-	StreamLabelValuesResponse(qw422016, labelValues, qt, qtDone)
+	StreamLabelValuesResponse(qw422016, labelValues, qt)
 //line app/vmselect/prometheus/label_values_response.qtpl:24
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/prometheus/label_values_response.qtpl:24
 }
 
 //line app/vmselect/prometheus/label_values_response.qtpl:24
-func LabelValuesResponse(labelValues []string, qt *querytracer.Tracer, qtDone func()) string {
+func LabelValuesResponse(labelValues []string, qt *querytracer.Tracer) string {
 //line app/vmselect/prometheus/label_values_response.qtpl:24
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/prometheus/label_values_response.qtpl:24
-	WriteLabelValuesResponse(qb422016, labelValues, qt, qtDone)
+	WriteLabelValuesResponse(qb422016, labelValues, qt)
 //line app/vmselect/prometheus/label_values_response.qtpl:24
 	qs422016 := string(qb422016.B)
 //line app/vmselect/prometheus/label_values_response.qtpl:24

@@ -86,20 +86,14 @@ var (
 //go:embed vmui
 var vmuiFiles embed.FS
 
-//go:embed static
-var staticFiles embed.FS
-
-var (
-	vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
-	staticServer   = http.FileServer(http.FS(staticFiles))
-)
+var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := searchutils.GetBool(r, "trace")
-	qt := querytracer.New(tracerEnabled)
+	qt := querytracer.New(tracerEnabled, r.URL.Path)
 
 	// Limit the number of concurrent queries.
 	select {
@@ -187,11 +181,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
-	if strings.HasPrefix(path, "/static") {
-		staticServer.ServeHTTP(w, r)
-		return true
-	}
-
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -279,6 +268,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
@@ -291,6 +281,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/top_queries":
 		topQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
 			topQueriesErrors.Inc()
 			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))

@@ -200,10 +200,10 @@ func ResetRollupResultCache() {
 }
 
 func (rrc *rollupResultCache) Get(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
-	qt = qt.NewChild()
 	if qt.Enabled() {
 		query := expr.AppendString(nil)
-		defer qt.Donef("rollup cache get: query=%s, timeRange=[%d..%d], step=%d, window=%d", query, ec.Start, ec.End, ec.Step, window)
+		qt = qt.NewChild("rollup cache get: query=%s, timeRange=[%d..%d], step=%d, window=%d", query, ec.Start, ec.End, ec.Step, window)
+		defer qt.Done()
 	}
 	if !ec.mayCache() {
 		qt.Printf("do not fetch series from cache, since it is disabled in the current context")
@@ -296,10 +296,10 @@ func (rrc *rollupResultCache) Get(qt *querytracer.Tracer, ec *EvalConfig, expr m
 var resultBufPool bytesutil.ByteBufferPool
 
 func (rrc *rollupResultCache) Put(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
-	qt = qt.NewChild()
 	if qt.Enabled() {
 		query := expr.AppendString(nil)
-		defer qt.Donef("rollup cache put: query=%s, timeRange=[%d..%d], step=%d, window=%d, series=%d", query, ec.Start, ec.End, ec.Step, window, len(tss))
+		qt = qt.NewChild("rollup cache put: query=%s, timeRange=[%d..%d], step=%d, window=%d, series=%d", query, ec.Start, ec.End, ec.Step, window, len(tss))
+		defer qt.Done()
 	}
 	if len(tss) == 0 || !ec.mayCache() {
 		qt.Printf("do not store series to cache, since it is disabled in the current context")

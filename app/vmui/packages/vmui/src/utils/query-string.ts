@@ -13,6 +13,12 @@ const graphStateToUrlParams = {
 const stateToUrlParams = {
   [router.home]: graphStateToUrlParams,
   [router.dashboards]: graphStateToUrlParams,
+  [router.cardinality]: {
+    "topN": "topN",
+    "date": "date",
+    "match": "match[]",
+    "extraLabel": "extra_label"
+  }
 };
 
 // TODO need function for detect types.

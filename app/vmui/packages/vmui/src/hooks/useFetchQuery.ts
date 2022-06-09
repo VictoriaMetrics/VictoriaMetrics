@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useCallback, useState} from "preact/compat";
-import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../api/query-range";
+import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
 import {useAppState} from "../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
@@ -27,11 +27,9 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
-  queryOptions: string[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
 
-  const [queryOptions, setQueryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
@@ -78,22 +76,6 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
 
   const throttledFetchData = useCallback(throttle(fetchData, 1000), []);
 
-  const fetchOptions = async () => {
-    const server = appModeEnable ? appServerUrl : serverUrl;
-    if (!server) return;
-    const url = getQueryOptions(server);
-
-    try {
-      const response = await fetch(url);
-      const resp = await response.json();
-      if (response.ok) {
-        setQueryOptions(resp.data);
-      }
-    } catch (e) {
-      if (e instanceof Error) setError(`${e.name}: ${e.message}`);
-    }
-  };
-
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
     const expr = predefinedQuery ?? query;
@@ -118,10 +100,6 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const prevFetchUrl = usePrevious(fetchUrl);
 
   useEffect(() => {
-    fetchOptions();
-  }, [serverUrl]);
-
-  useEffect(() => {
     if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl))) return;
     throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
   }, [fetchUrl, visible]);
@@ -133,5 +111,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryOptions: queryOptions };
+  return { fetchUrl, isLoading, graphData, liveData, error };
 };
