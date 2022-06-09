@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dmitryk-dk/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/dmitryk-dk/pb/v3"
 )
 
 var (
@@ -95,7 +96,7 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 		}
 		ri.reset()
 		for ri.next() {
-			n, err := replayRule(rule, ri.s, ri.e, rw)
+			n, err := replayRule(rule, ri.s, ri.e, rw, g.Limit)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", rule, err)
 			}
@@ -114,11 +115,11 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 	return total
 }
 
-func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client) (int, error) {
+func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client, limit int) (int, error) {
 	var err error
 	var tss []prompbmarshal.TimeSeries
 	for i := 0; i < *replayRuleRetryAttempts; i++ {
-		tss, err = rule.ExecRange(context.Background(), start, end)
+		tss, err = rule.ExecRange(context.Background(), start, end, limit)
 		if err == nil {
 			break
 		}

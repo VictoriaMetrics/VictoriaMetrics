@@ -104,7 +104,7 @@ func (rr *RecordingRule) Close() {
 // ExecRange executes recording rule on the given time range similarly to Exec.
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
-func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	series, err := rr.q.QueryRange(ctx, rr.Expr, start, end)
 	if err != nil {
 		return nil, err
@@ -120,11 +120,14 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 		duplicates[key] = struct{}{}
 		tss = append(tss, ts)
 	}
+	if limit > 0 && len(tss) > limit {
+		return nil, fmt.Errorf("exec exceeded limit of %d with %d series", limit, len(tss))
+	}
 	return tss, nil
 }
 
 // Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	qMetrics, err := rr.q.Query(ctx, rr.Expr, ts)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
@@ -135,6 +138,11 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarsha
 	rr.lastExecSamples = len(qMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
+	}
+
+	numSeries := len(qMetrics)
+	if limit > 0 && numSeries > limit {
+		return nil, fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
 	}
 
 	duplicates := make(map[string]struct{}, len(qMetrics))
