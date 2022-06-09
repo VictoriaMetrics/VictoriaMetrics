@@ -83,9 +83,8 @@ func TagsTagMultiSeriesHandler(startTime time.Time, w http.ResponseWriter, r *ht
 }
 
 func registerMetrics(startTime time.Time, w http.ResponseWriter, r *http.Request, isJSONResponse bool) error {
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	_ = deadline // TODO: use the deadline as in the cluster branch
 	paths := r.Form["path"]
 	var row graphiteparser.Row
 	var labels []prompb.Label
