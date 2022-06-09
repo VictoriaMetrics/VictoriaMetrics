@@ -18,9 +18,8 @@ type Rule interface {
 	// Exec executes the rule with given context at the given timestamp and limit.
 	// returns an err if number of resulting time series exceeds the limit.
 	Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error)
-	// ExecRange executes the rule on the given time range and limit.
-	// returns an err if number of resulting time series exceeds the limit.
-	ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error)
+	// ExecRange executes the rule on the given time range.
+	ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error)
 	// UpdateWith performs modification of current Rule
 	// with fields of the given Rule.
 	UpdateWith(Rule) error
