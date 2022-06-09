@@ -193,13 +193,12 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
 // It returns ALERT and ALERT_FOR_STATE time series as result.
-func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
+func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
 	series, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
 	if err != nil {
 		return nil, err
 	}
 	var result []prompbmarshal.TimeSeries
-	timestamp2Series := make(map[int64][]prompbmarshal.TimeSeries, 0)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
@@ -211,14 +210,11 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 		if ar.For == 0 { // if alert is instant
 			a.State = notifier.StateFiring
 			for i := range s.Values {
-				if limit > 0 {
-					timestamp2Series[s.Timestamps[i]] = append(timestamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
-				} else {
-					result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-				}
+				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 			}
 			continue
 		}
+
 		// if alert with For > 0
 		prevT := time.Time{}
 		for i := range s.Values {
@@ -232,27 +228,8 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, lim
 				a.Start = at
 			}
 			prevT = at
-			if limit > 0 {
-				timestamp2Series[s.Timestamps[i]] = append(timestamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			} else {
-				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			}
+			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 		}
-	}
-	if limit <= 0 {
-		return result, nil
-	}
-	sortedTimestamp := make([]int64, 0)
-	for timestamp := range timestamp2Series {
-		sortedTimestamp = append(sortedTimestamp, timestamp)
-	}
-	sort.Slice(sortedTimestamp, func(i, j int) bool { return sortedTimestamp[i] < sortedTimestamp[j] })
-	for _, timestamp := range sortedTimestamp {
-		if len(timestamp2Series[timestamp]) > limit {
-			logger.Errorf("exec exceeded limit of %d with %d alerts", limit, len(timestamp2Series[timestamp]))
-			continue
-		}
-		result = append(result, timestamp2Series[timestamp]...)
 	}
 	return result, nil
 }

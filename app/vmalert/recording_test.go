@@ -158,7 +158,7 @@ func TestRecordingRule_ExecRange(t *testing.T) {
 			fq := &fakeQuerier{}
 			fq.add(tc.metrics...)
 			tc.rule.q = fq
-			tss, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now(), 0)
+			tss, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now())
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -204,10 +204,6 @@ func TestRecordingRuleLimit(t *testing.T) {
 		fq.add(testMetrics...)
 		rule.q = fq
 		_, err = rule.Exec(context.TODO(), timestamp, testCase.limit)
-		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
-			t.Fatal(err)
-		}
-		_, err = rule.ExecRange(context.TODO(), timestamp.Add(-2*time.Second), timestamp, testCase.limit)
 		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
 			t.Fatal(err)
 		}

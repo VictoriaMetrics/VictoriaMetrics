@@ -2,6 +2,7 @@ groups:
   - name: TestGroup
     interval: 2s
     concurrency: 2
+    limit: 1000
     params:
       denyPartialResponse: ["true"]
       extra_label: ["env=dev"]

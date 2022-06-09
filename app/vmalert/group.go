@@ -218,6 +218,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
 	g.Labels = newGroup.Labels
+	g.Limit = newGroup.Limit
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil
