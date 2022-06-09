@@ -104,7 +104,7 @@ func (rr *RecordingRule) Close() {
 // ExecRange executes recording rule on the given time range similarly to Exec.
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
-func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
 	series, err := rr.q.QueryRange(ctx, rr.Expr, start, end)
 	if err != nil {
 		return nil, err
@@ -119,9 +119,6 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time, li
 		}
 		duplicates[key] = struct{}{}
 		tss = append(tss, ts)
-	}
-	if limit > 0 && len(tss) > limit {
-		return nil, fmt.Errorf("exec exceeded limit of %d with %d series", limit, len(tss))
 	}
 	return tss, nil
 }

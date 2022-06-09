@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -473,7 +472,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 			tc.rule.q = fq
 			tc.rule.GroupID = fakeGroup.ID()
 			fq.add(tc.data...)
-			gotTS, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now(), 0)
+			gotTS, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now())
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
@@ -689,15 +688,6 @@ func TestAlertingRuleLimit(t *testing.T) {
 		_, err = ar.Exec(context.TODO(), timestamp, testCase.limit)
 		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
 			t.Fatal(err)
-		}
-	}
-	for _, testCase := range testCases {
-		tss, err := ar.ExecRange(context.TODO(), timestamp, timestamp, testCase.limit)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(tss) != testCase.tssNum {
-			t.Fatal(fmt.Errorf("tss len %d is not equal to supposed %d", len(tss), testCase.tssNum))
 		}
 	}
 	fq.reset()
