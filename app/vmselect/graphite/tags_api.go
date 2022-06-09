@@ -84,9 +84,6 @@ func TagsTagMultiSeriesHandler(startTime time.Time, at *auth.Token, w http.Respo
 
 func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request, isJSONResponse bool) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	paths := r.Form["path"]
 	var row graphiteparser.Row
 	var labels []prompb.Label
