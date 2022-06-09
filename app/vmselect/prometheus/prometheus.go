@@ -62,9 +62,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	defer federateDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %w", err)
-	}
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
@@ -80,7 +78,6 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	if start >= end {
 		start = end - defaultStep
 	}
@@ -126,9 +123,6 @@ var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/fe
 func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportCSVDuration.UpdateDuration(startTime)
 
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %w", err)
-	}
 	format := r.FormValue("format")
 	if len(format) == 0 {
 		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/#how-to-export-csv-data")
@@ -223,9 +217,6 @@ var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/a
 func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportNativeDuration.UpdateDuration(startTime)
 
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %w", err)
-	}
 	ep, err := getExportParams(r, startTime)
 	if err != nil {
 		return err
@@ -288,9 +279,6 @@ var bbPool bytesutil.ByteBufferPool
 func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportDuration.UpdateDuration(startTime)
 
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %w", err)
-	}
 	ep, err := getExportParams(r, startTime)
 	if err != nil {
 		return err
@@ -457,9 +445,6 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	defer deleteDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %w", err)
-	}
 	if r.FormValue("start") != "" || r.FormValue("end") != "" {
 		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
 	}
@@ -533,9 +518,6 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	defer labelValuesDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
@@ -712,9 +694,6 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	defer tsdbStatusDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
@@ -798,9 +777,6 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	defer labelsDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
@@ -957,10 +933,8 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	ct := startTime.UnixNano() / 1e6
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	end, err := searchutils.GetTime(r, "end", ct)
 	if err != nil {
 		return err
@@ -974,7 +948,6 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 
 	tagFilterss, err := getTagFilterssFromRequest(r)
 	if err != nil {
@@ -1058,6 +1031,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	defer queryDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	mayCache := !searchutils.GetBool(r, "nocache")
 	query := r.FormValue("query")
 	if len(query) == 0 {
@@ -1078,7 +1052,6 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	if step <= 0 {
 		step = defaultStep
 	}
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 
 	if len(query) > maxQueryLen.N {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
@@ -1427,9 +1400,6 @@ func getLatencyOffsetMilliseconds() int64 {
 func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer queryStatsDuration.UpdateDuration(startTime)
 
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	topN := 20
 	topNStr := r.FormValue("topN")
 	if len(topNStr) > 0 {
