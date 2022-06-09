@@ -61,8 +61,10 @@ const defaultStep = 5 * 60 * 1000
 func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer federateDuration.UpdateDuration(startTime)
 
-	ct := startTime.UnixNano() / 1e6
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	cp, err := getCommonParams(r, startTime, true)
+	if err != nil {
+		return err
+	}
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
@@ -70,24 +72,12 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	if lookbackDelta <= 0 {
 		lookbackDelta = defaultStep
 	}
-	start, err := searchutils.GetTime(r, "start", ct-lookbackDelta)
-	if err != nil {
-		return err
+	if cp.IsDefaultTimeRange() {
+		cp.start = cp.end - lookbackDelta
 	}
-	end, err := searchutils.GetTime(r, "end", ct)
-	if err != nil {
-		return err
-	}
-	if start >= end {
-		start = end - defaultStep
-	}
-	tagFilterss, err := getTagFilterssFromRequest(r)
-	if err != nil {
-		return err
-	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxFederateSeries)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxFederateSeries)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -123,18 +113,19 @@ var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/fe
 func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportCSVDuration.UpdateDuration(startTime)
 
+	cp, err := getExportParams(r, startTime)
+	if err != nil {
+		return err
+	}
+
 	format := r.FormValue("format")
 	if len(format) == 0 {
 		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/#how-to-export-csv-data")
 	}
 	fieldNames := strings.Split(format, ",")
 	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
-	ep, err := getExportParams(r, startTime)
-	if err != nil {
-		return err
-	}
 
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, ep.start, ep.end, ep.filterss, *maxExportSeries)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -153,7 +144,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, ep.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -176,7 +167,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		}()
 	} else {
 		go func() {
-			err := netstorage.ExportBlocks(nil, at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(nil, at, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -217,24 +208,24 @@ var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/a
 func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportNativeDuration.UpdateDuration(startTime)
 
-	ep, err := getExportParams(r, startTime)
+	cp, err := getExportParams(r, startTime)
 	if err != nil {
 		return err
 	}
 
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, ep.start, ep.end, ep.filterss, *maxExportSeries)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 
 	// Marshal tr
 	trBuf := make([]byte, 0, 16)
-	trBuf = encoding.MarshalInt64(trBuf, ep.start)
-	trBuf = encoding.MarshalInt64(trBuf, ep.end)
+	trBuf = encoding.MarshalInt64(trBuf, cp.start)
+	trBuf = encoding.MarshalInt64(trBuf, cp.end)
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(nil, at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+	err = netstorage.ExportBlocks(nil, at, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -279,22 +270,22 @@ var bbPool bytesutil.ByteBufferPool
 func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportDuration.UpdateDuration(startTime)
 
-	ep, err := getExportParams(r, startTime)
+	cp, err := getExportParams(r, startTime)
 	if err != nil {
 		return err
 	}
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
 	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
-	if err := exportHandler(nil, at, w, ep, format, maxRowsPerLine, reduceMemUsage); err != nil {
-		return fmt.Errorf("error when exporting data on the time range (start=%d, end=%d): %w", ep.start, ep.end, err)
+	if err := exportHandler(nil, at, w, cp, format, maxRowsPerLine, reduceMemUsage); err != nil {
+		return fmt.Errorf("error when exporting data on the time range (start=%d, end=%d): %w", cp.start, cp.end, err)
 	}
 	return nil
 }
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter, ep *exportParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
+func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
 		bb := quicktemplate.AcquireByteBuffer()
@@ -347,8 +338,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		}
 	}
 
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, ep.start, ep.end, ep.filterss, *maxExportSeries)
-
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -359,7 +349,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, true, ep.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, true, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -385,7 +375,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 	} else {
 		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
-			err := netstorage.ExportBlocks(qtChild, at, sq, ep.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(qtChild, at, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -444,17 +434,15 @@ var exportBlockPool = &sync.Pool{
 func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	defer deleteDuration.UpdateDuration(startTime)
 
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if r.FormValue("start") != "" || r.FormValue("end") != "" {
-		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
-	}
-	tagFilterss, err := getTagFilterssFromRequest(r)
+	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
 		return err
 	}
-	ct := startTime.UnixNano() / 1e6
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tagFilterss, 0)
-	deletedCount, err := netstorage.DeleteSeries(nil, at, sq, deadline)
+	if !cp.IsDefaultTimeRange() {
+		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
+	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, 0)
+	deletedCount, err := netstorage.DeleteSeries(nil, at, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
 	}
@@ -517,37 +505,28 @@ var httpClient = &http.Client{
 func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	cp, err := getCommonParams(r, startTime, false)
 	if err != nil {
 		return err
 	}
-	matches := getMatchesFromRequest(r)
 	var labelValues []string
 	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if len(matches) == 0 && len(etfs) == 0 {
-		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
-			var err error
-			labelValues, isPartial, err = netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, deadline)
+	if len(cp.filterss) == 0 {
+		if cp.IsDefaultTimeRange() {
+			labelValues, isPartial, err = netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, cp.deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
 			}
 		} else {
-			ct := startTime.UnixNano() / 1e6
-			end, err := searchutils.GetTime(r, "end", ct)
-			if err != nil {
-				return err
-			}
-			start, err := searchutils.GetTime(r, "start", end-defaultStep)
-			if err != nil {
-				return err
+			if cp.start == 0 {
+				cp.start = cp.end - defaultStep
 			}
 			tr := storage.TimeRange{
-				MinTimestamp: start,
-				MaxTimestamp: end,
+				MinTimestamp: cp.start,
+				MaxTimestamp: cp.end,
 			}
-			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(qt, at, denyPartialResponse, labelName, tr, deadline)
+			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(qt, at, denyPartialResponse, labelName, tr, cp.deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
 			}
@@ -557,21 +536,12 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 		// i.e. /api/v1/label/foo/values?match[]=foobar{baz="abc"}&start=...&end=...
 		// is equivalent to `label_values(foobar{baz="abc"}, foo)` call on the selected
 		// time range in Grafana templating.
-		if len(matches) == 0 {
-			matches = []string{fmt.Sprintf("{%s!=''}", labelName)}
+		if cp.start == 0 {
+			cp.start = cp.end - defaultStep
 		}
-		ct := startTime.UnixNano() / 1e6
-		end, err := searchutils.GetTime(r, "end", ct)
+		labelValues, isPartial, err = labelValuesWithMatches(qt, at, denyPartialResponse, labelName, cp)
 		if err != nil {
-			return err
-		}
-		start, err := searchutils.GetTime(r, "start", end-defaultStep)
-		if err != nil {
-			return err
-		}
-		labelValues, isPartial, err = labelValuesWithMatches(qt, at, denyPartialResponse, labelName, matches, etfs, start, end, deadline)
-		if err != nil {
-			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %w", labelName, matches, start, end, err)
+			return fmt.Errorf("cannot obtain label values for %q on time range [%d...%d]: %w", labelName, cp.start, cp.end, err)
 		}
 	}
 
@@ -585,38 +555,25 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	return nil
 }
 
-func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, matches []string, etfs [][]storage.TagFilter,
-	start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
-	tagFilterss, err := getTagFilterssFromMatches(matches)
-	if err != nil {
-		return nil, false, err
-	}
-
+func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, cp *commonParams) ([]string, bool, error) {
 	// Add `labelName!=''` tag filter in order to filter out series without the labelName.
 	// There is no need in adding `__name__!=''` filter, since all the time series should
 	// already have non-empty name.
 	if labelName != "__name__" {
 		key := []byte(labelName)
-		for i, tfs := range tagFilterss {
-			tagFilterss[i] = append(tfs, storage.TagFilter{
+		for i, tfs := range cp.filterss {
+			cp.filterss[i] = append(tfs, storage.TagFilter{
 				Key:        key,
 				IsNegative: true,
 			})
 		}
 	}
-	if start >= end {
-		end = start + defaultStep
-	}
-	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
-	if len(tagFilterss) == 0 {
-		logger.Panicf("BUG: tagFilterss must be non-empty")
-	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
-	isPartial := false
-	if end-start > 24*3600*1000 {
+	var isPartial bool
+	if cp.end-cp.start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, deadline)
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -629,7 +586,7 @@ func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialR
 			m[string(labelValue)] = struct{}{}
 		}
 	} else {
-		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, deadline)
+		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, cp.deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -693,12 +650,11 @@ const secsPerDay = 3600 * 24
 func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer tsdbStatusDuration.UpdateDuration(startTime)
 
-	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	cp, err := getCommonParams(r, startTime, false)
 	if err != nil {
 		return err
 	}
-	matches := getMatchesFromRequest(r)
+	cp.deadline = searchutils.GetDeadlineForStatusRequest(r, startTime)
 
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
@@ -727,13 +683,13 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	var status *storage.TSDBStatus
 	var isPartial bool
-	if len(matches) == 0 && len(etfs) == 0 {
-		status, isPartial, err = netstorage.GetTSDBStatusForDate(qt, at, denyPartialResponse, deadline, date, topN, *maxTSDBStatusSeries)
+	if len(cp.filterss) == 0 {
+		status, isPartial, err = netstorage.GetTSDBStatusForDate(qt, at, denyPartialResponse, cp.deadline, date, topN, *maxTSDBStatusSeries)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, isPartial, err = tsdbStatusWithMatches(qt, at, denyPartialResponse, matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
+		status, isPartial, err = tsdbStatusWithMatches(qt, at, denyPartialResponse, cp.filterss, date, topN, *maxTSDBStatusSeries, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -749,18 +705,10 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	return nil
 }
 
-func tsdbStatusWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
-	tagFilterss, err := getTagFilterssFromMatches(matches)
-	if err != nil {
-		return nil, false, err
-	}
-	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
-	if len(tagFilterss) == 0 {
-		logger.Panicf("BUG: tagFilterss must be non-empty")
-	}
+func tsdbStatusWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, filterss [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
 	start := int64(date*secsPerDay) * 1000
 	end := int64(date*secsPerDay+secsPerDay) * 1000
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, maxMetrics)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, filterss, maxMetrics)
 	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(qt, at, denyPartialResponse, deadline, sq, topN)
 	if err != nil {
 		return nil, false, err
@@ -776,37 +724,28 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	cp, err := getCommonParams(r, startTime, false)
 	if err != nil {
 		return err
 	}
-	matches := getMatchesFromRequest(r)
 	var labels []string
 	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if len(matches) == 0 && len(etfs) == 0 {
-		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
-			var err error
-			labels, isPartial, err = netstorage.GetLabels(qt, at, denyPartialResponse, deadline)
+	if len(cp.filterss) == 0 {
+		if cp.IsDefaultTimeRange() {
+			labels, isPartial, err = netstorage.GetLabels(qt, at, denyPartialResponse, cp.deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels: %w", err)
 			}
 		} else {
-			ct := startTime.UnixNano() / 1e6
-			end, err := searchutils.GetTime(r, "end", ct)
-			if err != nil {
-				return err
-			}
-			start, err := searchutils.GetTime(r, "start", end-defaultStep)
-			if err != nil {
-				return err
+			if cp.start == 0 {
+				cp.start = cp.end - defaultStep
 			}
 			tr := storage.TimeRange{
-				MinTimestamp: start,
-				MaxTimestamp: end,
+				MinTimestamp: cp.start,
+				MaxTimestamp: cp.end,
 			}
-			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(qt, at, denyPartialResponse, tr, deadline)
+			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(qt, at, denyPartialResponse, tr, cp.deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels on time range: %w", err)
 			}
@@ -814,21 +753,12 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	} else {
 		// Extended functionality that allows filtering by label filters and time range
 		// i.e. /api/v1/labels?match[]=foobar{baz="abc"}&start=...&end=...
-		if len(matches) == 0 {
-			matches = []string{"{__name__!=''}"}
+		if cp.start == 0 {
+			cp.start = cp.end - defaultStep
 		}
-		ct := startTime.UnixNano() / 1e6
-		end, err := searchutils.GetTime(r, "end", ct)
+		labels, isPartial, err = labelsWithMatches(qt, at, denyPartialResponse, cp)
 		if err != nil {
-			return err
-		}
-		start, err := searchutils.GetTime(r, "start", end-defaultStep)
-		if err != nil {
-			return err
-		}
-		labels, isPartial, err = labelsWithMatches(qt, at, denyPartialResponse, matches, etfs, start, end, deadline)
-		if err != nil {
-			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %w", matches, start, end, err)
+			return fmt.Errorf("cannot obtain labels for timeRange=[%d..%d]: %w", cp.start, cp.end, err)
 		}
 	}
 
@@ -842,25 +772,13 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	return nil
 }
 
-func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, matches []string, etfs [][]storage.TagFilter,
-	start, end int64, deadline searchutils.Deadline) ([]string, bool, error) {
-	tagFilterss, err := getTagFilterssFromMatches(matches)
-	if err != nil {
-		return nil, false, err
-	}
-	if start >= end {
-		end = start + defaultStep
-	}
-	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
-	if len(tagFilterss) == 0 {
-		logger.Panicf("BUG: tagFilterss must be non-empty")
-	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
+func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, cp *commonParams) ([]string, bool, error) {
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
 	isPartial := false
-	if end-start > 24*3600*1000 {
+	if cp.end-cp.start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, deadline)
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -874,7 +792,7 @@ func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialRespon
 			m["__name__"] = struct{}{}
 		}
 	} else {
-		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, deadline)
+		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, cp.deadline)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -933,9 +851,7 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	ct := startTime.UnixNano() / 1e6
-	end, err := searchutils.GetTime(r, "end", ct)
+	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
 		return err
 	}
@@ -944,26 +860,17 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	// which can take a lot of time for big storages.
 	// It is better setting start as end-defaultStep by default.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	start, err := searchutils.GetTime(r, "start", end-defaultStep)
-	if err != nil {
-		return err
+	if cp.start == 0 {
+		cp.start = cp.end - defaultStep
 	}
-
-	tagFilterss, err := getTagFilterssFromRequest(r)
-	if err != nil {
-		return err
-	}
-	if start >= end {
-		end = start + defaultStep
-	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss, *maxSeriesLimit)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	qtDone := func() {
-		qt.Donef("start=%d, end=%d", start, end)
+		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if end-start > 24*3600*1000 {
+	if cp.end-cp.start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartial, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, deadline)
+		mns, isPartial, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
@@ -987,7 +894,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		seriesDuration.UpdateDuration(startTime)
 		return nil
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -1078,13 +985,13 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		}
 		filterss := searchutils.JoinTagFilterss(tagFilterss, etfs)
 
-		ep := &exportParams{
+		cp := &commonParams{
 			deadline: deadline,
 			start:    start,
 			end:      end,
 			filterss: filterss,
 		}
-		if err := exportHandler(qt, at, w, ep, "promapi", 0, false); err != nil {
+		if err := exportHandler(qt, at, w, cp, "promapi", 0, false); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -1352,30 +1259,6 @@ func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) 
 	return tagFilterss, nil
 }
 
-func getTagFilterssFromRequest(r *http.Request) ([][]storage.TagFilter, error) {
-	matches := getMatchesFromRequest(r)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("missing `match[]` query arg")
-	}
-	tagFilterss, err := getTagFilterssFromMatches(matches)
-	if err != nil {
-		return nil, err
-	}
-	etfs, err := searchutils.GetExtraTagFilters(r)
-	if err != nil {
-		return nil, err
-	}
-	tagFilterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
-	return tagFilterss, nil
-}
-
-func getMatchesFromRequest(r *http.Request) []string {
-	matches := r.Form["match[]"]
-	// This is needed for backwards compatibility
-	matches = append(matches, r.Form["match"]...)
-	return matches
-}
-
 func getRoundDigits(r *http.Request) int {
 	s := r.FormValue("round_digits")
 	if len(s) == 0 {
@@ -1430,19 +1313,50 @@ func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 
 var queryStatsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/top_queries"}`)
 
-// exportParams contains common parameters for all /api/v1/export* handlers
+// commonParams contains common parameters for all /api/v1/* handlers
 //
-// deadline, start, end, match[], extra_label, extra_filters
-type exportParams struct {
-	deadline searchutils.Deadline
-	start    int64
-	end      int64
-	filterss [][]storage.TagFilter
+// timeout, start, end, match[], extra_label, extra_filters[]
+type commonParams struct {
+	deadline         searchutils.Deadline
+	start            int64
+	end              int64
+	currentTimestamp int64
+	filterss         [][]storage.TagFilter
 }
 
-// getExportParams obtains common params from r, which are used for /api/v1/export* handlers
-func getExportParams(r *http.Request, startTime time.Time) (*exportParams, error) {
-	deadline := searchutils.GetDeadlineForExport(r, startTime)
+func (cp *commonParams) IsDefaultTimeRange() bool {
+	return cp.start == 0 && cp.currentTimestamp-cp.end < 1000
+}
+
+// getCommonParams obtains common params from r, which are used in /api/v1/export* handlers
+//
+// - timeout
+// - start
+// - end
+// - match[]
+// - extra_label
+// - extra_filters[]
+//
+func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error) {
+	cp, err := getCommonParams(r, startTime, true)
+	if err != nil {
+		return nil, err
+	}
+	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
+	return cp, nil
+}
+
+// getCommonParams obtains common params from r, which are used in /api/v1/* handlers:
+//
+// - timeout
+// - start
+// - end
+// - match[]
+// - extra_label
+// - extra_filters[]
+//
+func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	start, err := searchutils.GetTime(r, "start", 0)
 	if err != nil {
 		return nil, err
@@ -1455,15 +1369,10 @@ func getExportParams(r *http.Request, startTime time.Time) (*exportParams, error
 	if end < start {
 		end = start
 	}
-
-	matches := r.Form["match[]"]
-	if len(matches) == 0 {
-		// Maintain backwards compatibility
-		match := r.FormValue("match")
-		if len(match) == 0 {
-			return nil, fmt.Errorf("missing `match[]` arg")
-		}
-		matches = []string{match}
+	matches := append([]string{}, r.Form["match[]"]...)
+	matches = append(matches, r.Form["match"]...)
+	if requireNonEmptyMatch && len(matches) == 0 {
+		return nil, fmt.Errorf("missing `match[]` arg")
 	}
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
@@ -1474,11 +1383,12 @@ func getExportParams(r *http.Request, startTime time.Time) (*exportParams, error
 		return nil, err
 	}
 	filterss := searchutils.JoinTagFilterss(tagFilterss, etfs)
-
-	return &exportParams{
-		deadline: deadline,
-		start:    start,
-		end:      end,
-		filterss: filterss,
-	}, nil
+	cp := &commonParams{
+		deadline:         deadline,
+		start:            start,
+		end:              end,
+		currentTimestamp: ct,
+		filterss:         filterss,
+	}
+	return cp, nil
 }
