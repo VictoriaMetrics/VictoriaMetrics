@@ -239,17 +239,17 @@ func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.
 }
 
 // GetTSDBStatusForDate returns TSDB status for the given date.
-func GetTSDBStatusForDate(date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
+func GetTSDBStatusForDate(qt *querytracer.Tracer, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(nil, date, topN, maxMetrics, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(qt, nil, date, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }
 
 // GetTSDBStatusWithFiltersForDate returns TSDB status for given filters on the given date.
-func GetTSDBStatusWithFiltersForDate(tfss []*storage.TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
+func GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, tfss []*storage.TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }

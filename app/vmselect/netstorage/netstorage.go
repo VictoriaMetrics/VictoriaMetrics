@@ -841,7 +841,7 @@ func GetTSDBStatusForDate(qt *querytracer.Tracer, deadline searchutils.Deadline,
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	status, err := vmstorage.GetTSDBStatusForDate(date, topN, maxMetrics, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatusForDate(qt, date, topN, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
@@ -866,7 +866,7 @@ func GetTSDBStatusWithFilters(qt *querytracer.Tracer, deadline searchutils.Deadl
 		return nil, err
 	}
 	date := uint64(tr.MinTimestamp) / (3600 * 24 * 1000)
-	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, sq.MaxMetrics, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status with filters request: %w", err)
 	}

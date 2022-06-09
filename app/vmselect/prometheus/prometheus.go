@@ -624,7 +624,7 @@ const secsPerDay = 3600 * 24
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It can accept `match[]` filters in order to narrow down the search.
-func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer tsdbStatusDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
@@ -660,12 +660,12 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	}
 	var status *storage.TSDBStatus
 	if len(matches) == 0 && len(etfs) == 0 {
-		status, err = netstorage.GetTSDBStatusForDate(nil, deadline, date, topN, *maxTSDBStatusSeries)
+		status, err = netstorage.GetTSDBStatusForDate(qt, deadline, date, topN, *maxTSDBStatusSeries)
 		if err != nil {
 			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 		}
 	} else {
-		status, err = tsdbStatusWithMatches(matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
+		status, err = tsdbStatusWithMatches(qt, matches, etfs, date, topN, *maxTSDBStatusSeries, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
 		}
@@ -673,14 +673,14 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteTSDBStatusResponse(bw, status)
+	WriteTSDBStatusResponse(bw, status, qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send tsdb status response to remote client: %w", err)
 	}
 	return nil
 }
 
-func tsdbStatusWithMatches(matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+func tsdbStatusWithMatches(qt *querytracer.Tracer, matches []string, etfs [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, err
@@ -692,7 +692,7 @@ func tsdbStatusWithMatches(matches []string, etfs [][]storage.TagFilter, date ui
 	start := int64(date*secsPerDay) * 1000
 	end := int64(date*secsPerDay+secsPerDay) * 1000
 	sq := storage.NewSearchQuery(start, end, tagFilterss, maxMetrics)
-	status, err := netstorage.GetTSDBStatusWithFilters(nil, deadline, sq, topN)
+	status, err := netstorage.GetTSDBStatusWithFilters(qt, deadline, sq, topN)
 	if err != nil {
 		return nil, err
 	}

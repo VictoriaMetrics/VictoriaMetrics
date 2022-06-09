@@ -1061,7 +1061,7 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 
 // SearchMetricNames returns metric names matching the given tfss on the given tr.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
-	qt = qt.NewChild("search for matching metric names")
+	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
@@ -1104,7 +1104,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild("search for matching series ids")
+	qt = qt.NewChild("search for matching tsids: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
@@ -1154,7 +1154,7 @@ var (
 //
 // This should speed-up further searchMetricNameWithCache calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, tsids []TSID, deadline uint64) error {
-	qt = qt.NewChild("prefetch metric names for %d series ids", len(tsids))
+	qt = qt.NewChild("prefetch metric names for %d tsids", len(tsids))
 	defer qt.Done()
 	if len(tsids) == 0 {
 		qt.Printf("nothing to prefetch")
@@ -1510,8 +1510,8 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 }
 
 // GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters.
-func (s *Storage) GetTSDBStatusWithFiltersForDate(tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics, deadline)
+func (s *Storage) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, maxMetrics, deadline)
 }
 
 // MetricRow is a metric to insert into storage.

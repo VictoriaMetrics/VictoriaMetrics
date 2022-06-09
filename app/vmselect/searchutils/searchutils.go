@@ -213,12 +213,16 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
 		}
+		if tmp[0] == "__name__" {
+			// This is required for storage.Search.
+			tmp[0] = ""
+		}
 		tagFilters = append(tagFilters, storage.TagFilter{
 			Key:   []byte(tmp[0]),
 			Value: []byte(tmp[1]),
 		})
 	}
-	extraFilters := r.Form["extra_filters"]
+	extraFilters := append([]string{}, r.Form["extra_filters"]...)
 	extraFilters = append(extraFilters, r.Form["extra_filters[]"]...)
 	if len(extraFilters) == 0 {
 		if len(tagFilters) == 0 {
