@@ -193,12 +193,13 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
 // It returns ALERT and ALERT_FOR_STATE time series as result.
-func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	series, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
 	if err != nil {
 		return nil, err
 	}
 	var result []prompbmarshal.TimeSeries
+	timestamp2Series := make(map[int64][]prompbmarshal.TimeSeries, 0)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
@@ -210,11 +211,14 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 		if ar.For == 0 { // if alert is instant
 			a.State = notifier.StateFiring
 			for i := range s.Values {
-				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				if limit > 0 {
+					timestamp2Series[s.Timestamps[i]] = append(timestamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				} else {
+					result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+				}
 			}
 			continue
 		}
-
 		// if alert with For > 0
 		prevT := time.Time{}
 		for i := range s.Values {
@@ -228,8 +232,27 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 				a.Start = at
 			}
 			prevT = at
-			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			if limit > 0 {
+				timestamp2Series[s.Timestamps[i]] = append(timestamp2Series[s.Timestamps[i]], ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			} else {
+				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			}
 		}
+	}
+	if limit <= 0 {
+		return result, nil
+	}
+	sortedTimestamp := make([]int64, 0)
+	for timestamp := range timestamp2Series {
+		sortedTimestamp = append(sortedTimestamp, timestamp)
+	}
+	sort.Slice(sortedTimestamp, func(i, j int) bool { return sortedTimestamp[i] < sortedTimestamp[j] })
+	for _, timestamp := range sortedTimestamp {
+		if len(timestamp2Series[timestamp]) > limit {
+			logger.Errorf("exec exceeded limit of %d with %d alerts", limit, len(timestamp2Series[timestamp]))
+			continue
+		}
+		result = append(result, timestamp2Series[timestamp]...)
 	}
 	return result, nil
 }
@@ -240,7 +263,7 @@ const resolvedRetention = 15 * time.Minute
 
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
 	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
 	ar.mu.Lock()
@@ -307,7 +330,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 		a.ActiveAt = ts
 		ar.alerts[h] = a
 	}
-
+	var numActivePending int
 	for h, a := range ar.alerts {
 		// if alert wasn't updated in this iteration
 		// means it is resolved already
@@ -324,11 +347,16 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal
 			}
 			continue
 		}
+		numActivePending++
 		if a.State == notifier.StatePending && ts.Sub(a.ActiveAt) >= ar.For {
 			a.State = notifier.StateFiring
 			a.Start = ts
 			alertsFired.Inc()
 		}
+	}
+	if limit > 0 && numActivePending > limit {
+		ar.alerts = map[uint64]*notifier.Alert{}
+		return nil, fmt.Errorf("exec exceeded limit of %d with %d alerts", limit, numActivePending)
 	}
 	return ar.toTimeSeries(ts.Unix()), nil
 }
