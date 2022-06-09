@@ -22,9 +22,6 @@ import (
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	format := r.FormValue("format")
 	if format == "" {
 		format = "treejson"
@@ -119,9 +116,6 @@ func deduplicatePaths(paths []string, delimiter string) []string {
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
 func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	queries := r.Form["query"]
 	if len(queries) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -202,9 +196,6 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json
 func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	jsonp := r.FormValue("jsonp")
 	metricNames, err := netstorage.GetLabelValues(nil, "__name__", deadline)
 	if err != nil {

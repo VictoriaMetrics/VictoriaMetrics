@@ -24,9 +24,6 @@ import (
 // See https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb
 func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	paths := r.Form["path"]
 	totalDeleted := 0
 	var row graphiteparser.Row
@@ -163,9 +160,6 @@ var (
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
 func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
@@ -252,9 +246,6 @@ var tagsAutoCompleteValuesDuration = metrics.NewSummary(`vm_request_duration_sec
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
 func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
@@ -334,9 +325,6 @@ var tagsAutoCompleteTagsDuration = metrics.NewSummary(`vm_request_duration_secon
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
@@ -405,9 +393,6 @@ var tagsFindSeriesDuration = metrics.NewSummary(`vm_request_duration_seconds{pat
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
@@ -436,9 +421,6 @@ var tagValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/t
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
