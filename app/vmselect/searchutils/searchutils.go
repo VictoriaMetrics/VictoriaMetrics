@@ -25,6 +25,19 @@ func roundToSeconds(ms int64) int64 {
 	return ms - ms%1000
 }
 
+// GetInt returns integer value from the given argKey.
+func GetInt(r *http.Request, argKey string) (int, error) {
+	argValue := r.FormValue(argKey)
+	if len(argValue) == 0 {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(argValue)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse integer %q=%q: %w", argKey, argValue, err)
+	}
+	return n, nil
+}
+
 // GetTime returns time from the given argKey query arg.
 //
 // If argKey is missing in r, then defaultMs rounded to seconds is returned.

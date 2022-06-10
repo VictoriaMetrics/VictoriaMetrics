@@ -612,13 +612,16 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 }
 
 // GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
-func GetLabelsOnTimeRange(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelsOnTimeRange(qt *querytracer.Tracer, tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get labels on timeRange=%s", &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := vmstorage.SearchTagKeysOnTimeRange(tr, *maxTagKeysPerSearch, deadline.Deadline())
+	if limit > *maxTagKeysPerSearch || limit <= 0 {
+		limit = *maxTagKeysPerSearch
+	}
+	labels, err := vmstorage.SearchTagKeysOnTimeRange(tr, limit, deadline.Deadline())
 	qt.Printf("get %d labels", len(labels))
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search on time range: %w", err)
@@ -642,7 +645,7 @@ func GetGraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline 
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := GetLabels(nil, deadline)
+	labels, err := GetLabels(nil, 0, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -683,13 +686,16 @@ func hasString(a []string, s string) bool {
 }
 
 // GetLabels returns labels until the given deadline.
-func GetLabels(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]string, error) {
+func GetLabels(qt *querytracer.Tracer, limit int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get labels")
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := vmstorage.SearchTagKeys(*maxTagKeysPerSearch, deadline.Deadline())
+	if limit > *maxTagKeysPerSearch || limit <= 0 {
+		limit = *maxTagKeysPerSearch
+	}
+	labels, err := vmstorage.SearchTagKeys(limit, deadline.Deadline())
 	qt.Printf("get %d labels from global index", len(labels))
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search: %w", err)
@@ -708,7 +714,7 @@ func GetLabels(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]string,
 
 // GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
 // until the given deadline.
-func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get values for label %s on a timeRange %s", labelName, &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -718,7 +724,10 @@ func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tr stor
 		labelName = ""
 	}
 	// Search for tag values
-	labelValues, err := vmstorage.SearchTagValuesOnTimeRange([]byte(labelName), tr, *maxTagValuesPerSearch, deadline.Deadline())
+	if limit > *maxTagValuesPerSearch || limit <= 0 {
+		limit = *maxTagValuesPerSearch
+	}
+	labelValues, err := vmstorage.SearchTagValuesOnTimeRange([]byte(labelName), tr, limit, deadline.Deadline())
 	qt.Printf("get %d label values", len(labelValues))
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search on time range for labelName=%q: %w", labelName, err)
@@ -739,7 +748,7 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 	if tagName == "name" {
 		tagName = ""
 	}
-	tagValues, err := GetLabelValues(nil, tagName, deadline)
+	tagValues, err := GetLabelValues(nil, tagName, 0, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +766,7 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
-func GetLabelValues(qt *querytracer.Tracer, labelName string, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelValues(qt *querytracer.Tracer, labelName string, limit int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get values for label %s", labelName)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -767,7 +776,10 @@ func GetLabelValues(qt *querytracer.Tracer, labelName string, deadline searchuti
 		labelName = ""
 	}
 	// Search for tag values
-	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), *maxTagValuesPerSearch, deadline.Deadline())
+	if limit > *maxTagValuesPerSearch || limit <= 0 {
+		limit = *maxTagValuesPerSearch
+	}
+	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), limit, deadline.Deadline())
 	qt.Printf("get %d label values", len(labelValues))
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search for labelName=%q: %w", labelName, err)
