@@ -509,12 +509,16 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	if err != nil {
 		return err
 	}
+	limit, err := searchutils.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
 	var labelValues []string
 	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	if len(cp.filterss) == 0 {
 		if cp.IsDefaultTimeRange() {
-			labelValues, isPartial, err = netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, cp.deadline)
+			labelValues, isPartial, err = netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, limit, cp.deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
 			}
@@ -526,7 +530,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 				MinTimestamp: cp.start,
 				MaxTimestamp: cp.end,
 			}
-			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(qt, at, denyPartialResponse, labelName, tr, cp.deadline)
+			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(qt, at, denyPartialResponse, labelName, tr, limit, cp.deadline)
 			if err != nil {
 				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
 			}
@@ -539,7 +543,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 		if cp.start == 0 {
 			cp.start = cp.end - defaultStep
 		}
-		labelValues, isPartial, err = labelValuesWithMatches(qt, at, denyPartialResponse, labelName, cp)
+		labelValues, isPartial, err = labelValuesWithMatches(qt, at, denyPartialResponse, labelName, cp, limit)
 		if err != nil {
 			return fmt.Errorf("cannot obtain label values for %q on time range [%d...%d]: %w", labelName, cp.start, cp.end, err)
 		}
@@ -555,7 +559,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	return nil
 }
 
-func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, cp *commonParams) ([]string, bool, error) {
+func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, cp *commonParams, limit int) ([]string, bool, error) {
 	// Add `labelName!=''` tag filter in order to filter out series without the labelName.
 	// There is no need in adding `__name__!=''` filter, since all the time series should
 	// already have non-empty name.
@@ -609,6 +613,9 @@ func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialR
 	labelValues := make([]string, 0, len(m))
 	for labelValue := range m {
 		labelValues = append(labelValues, labelValue)
+	}
+	if limit > 0 && len(labelValues) > limit {
+		labelValues = labelValues[:limit]
 	}
 	sort.Strings(labelValues)
 	qt.Printf("sort %d label values", len(labelValues))
@@ -728,12 +735,16 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
+	limit, err := searchutils.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
 	var labels []string
 	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	if len(cp.filterss) == 0 {
 		if cp.IsDefaultTimeRange() {
-			labels, isPartial, err = netstorage.GetLabels(qt, at, denyPartialResponse, cp.deadline)
+			labels, isPartial, err = netstorage.GetLabels(qt, at, denyPartialResponse, limit, cp.deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels: %w", err)
 			}
@@ -745,7 +756,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 				MinTimestamp: cp.start,
 				MaxTimestamp: cp.end,
 			}
-			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(qt, at, denyPartialResponse, tr, cp.deadline)
+			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(qt, at, denyPartialResponse, tr, limit, cp.deadline)
 			if err != nil {
 				return fmt.Errorf("cannot obtain labels on time range: %w", err)
 			}
@@ -756,7 +767,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		if cp.start == 0 {
 			cp.start = cp.end - defaultStep
 		}
-		labels, isPartial, err = labelsWithMatches(qt, at, denyPartialResponse, cp)
+		labels, isPartial, err = labelsWithMatches(qt, at, denyPartialResponse, cp, limit)
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels for timeRange=[%d..%d]: %w", cp.start, cp.end, err)
 		}
@@ -772,7 +783,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	return nil
 }
 
-func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, cp *commonParams) ([]string, bool, error) {
+func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, cp *commonParams, limit int) ([]string, bool, error) {
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	m := make(map[string]struct{})
 	isPartial := false
@@ -814,6 +825,9 @@ func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialRespon
 	labels := make([]string, 0, len(m))
 	for label := range m {
 		labels = append(labels, label)
+	}
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
 	}
 	sort.Strings(labels)
 	qt.Printf("sort %d labels", len(labels))

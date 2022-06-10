@@ -322,6 +322,17 @@ func (ctx *vmselectRequestCtx) readTimeRange() (storage.TimeRange, error) {
 	return tr, nil
 }
 
+func (ctx *vmselectRequestCtx) readLimit() (int, error) {
+	n, err := ctx.readUint32()
+	if err != nil {
+		return 0, fmt.Errorf("cannot read limit: %w", err)
+	}
+	if n > 1<<31-1 {
+		n = 1<<31 - 1
+	}
+	return int(n), nil
+}
+
 func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
 	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 4)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
@@ -642,9 +653,16 @@ func (s *Server) processVMSelectLabelsOnTimeRange(ctx *vmselectRequestCtx) error
 	if err != nil {
 		return err
 	}
+	limit, err := ctx.readLimit()
+	if err != nil {
+		return err
+	}
+	if limit <= 0 || limit > *maxTagKeysPerSearch {
+		limit = *maxTagKeysPerSearch
+	}
 
 	// Search for tag keys
-	labels, err := s.storage.SearchTagKeysOnTimeRange(accountID, projectID, tr, *maxTagKeysPerSearch, ctx.deadline)
+	labels, err := s.storage.SearchTagKeysOnTimeRange(accountID, projectID, tr, limit, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -680,9 +698,16 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return err
 	}
+	limit, err := ctx.readLimit()
+	if err != nil {
+		return err
+	}
+	if limit <= 0 || limit > *maxTagKeysPerSearch {
+		limit = *maxTagKeysPerSearch
+	}
 
 	// Search for tag keys
-	labels, err := s.storage.SearchTagKeys(accountID, projectID, *maxTagKeysPerSearch, ctx.deadline)
+	labels, err := s.storage.SearchTagKeys(accountID, projectID, limit, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -728,9 +753,16 @@ func (s *Server) processVMSelectLabelValuesOnTimeRange(ctx *vmselectRequestCtx) 
 	if err != nil {
 		return err
 	}
+	limit, err := ctx.readLimit()
+	if err != nil {
+		return err
+	}
+	if limit <= 0 || limit > *maxTagValuesPerSearch {
+		limit = *maxTagValuesPerSearch
+	}
 
 	// Search for tag values
-	labelValues, err := s.storage.SearchTagValuesOnTimeRange(accountID, projectID, []byte(labelName), tr, *maxTagValuesPerSearch, ctx.deadline)
+	labelValues, err := s.storage.SearchTagValuesOnTimeRange(accountID, projectID, []byte(labelName), tr, limit, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -755,9 +787,16 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot read labelName: %w", err)
 	}
 	labelName := ctx.dataBuf
+	limit, err := ctx.readLimit()
+	if err != nil {
+		return err
+	}
+	if limit <= 0 || limit > *maxTagValuesPerSearch {
+		limit = *maxTagValuesPerSearch
+	}
 
 	// Search for tag values
-	labelValues, err := s.storage.SearchTagValues(accountID, projectID, labelName, *maxTagValuesPerSearch, ctx.deadline)
+	labelValues, err := s.storage.SearchTagValues(accountID, projectID, labelName, limit, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

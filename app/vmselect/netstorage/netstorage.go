@@ -684,7 +684,7 @@ func DeleteSeries(qt *querytracer.Tracer, at *auth.Token, sq *storage.SearchQuer
 }
 
 // GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
-func GetLabelsOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabelsOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get labels on timeRange=%s", &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -697,7 +697,7 @@ func GetLabelsOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.labelsOnTimeRangeRequests.Inc()
-		labels, err := sn.getLabelsOnTimeRange(qt, at.AccountID, at.ProjectID, tr, deadline)
+		labels, err := sn.getLabelsOnTimeRange(qt, at.AccountID, at.ProjectID, tr, limit, deadline)
 		if err != nil {
 			sn.labelsOnTimeRangeErrors.Inc()
 			err = fmt.Errorf("cannot get labels on time range from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -732,6 +732,9 @@ func GetLabelsOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 			labels[i] = "__name__"
 		}
 	}
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
+	}
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
 	qt.Printf("sort %d labels", len(labels))
@@ -745,7 +748,7 @@ func GetGraphiteTags(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, isPartial, err := GetLabels(qt, at, denyPartialResponse, deadline)
+	labels, isPartial, err := GetLabels(qt, at, denyPartialResponse, 0, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -786,7 +789,7 @@ func hasString(a []string, s string) bool {
 }
 
 // GetLabels returns labels until the given deadline.
-func GetLabels(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabels(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get labels")
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -799,7 +802,7 @@ func GetLabels(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool,
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.labelsRequests.Inc()
-		labels, err := sn.getLabels(qt, at.AccountID, at.ProjectID, deadline)
+		labels, err := sn.getLabels(qt, at.AccountID, at.ProjectID, limit, deadline)
 		if err != nil {
 			sn.labelsErrors.Inc()
 			err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -835,6 +838,9 @@ func GetLabels(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool,
 		}
 	}
 	// Sort labels like Prometheus does
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
+	}
 	sort.Strings(labels)
 	qt.Printf("sort %d labels", len(labels))
 	return labels, isPartial, nil
@@ -843,7 +849,7 @@ func GetLabels(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool,
 // GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
 // until the given deadline.
 func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string,
-	tr storage.TimeRange, deadline searchutils.Deadline) ([]string, bool, error) {
+	tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get values for label %s on a timeRange %s", labelName, &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -860,7 +866,7 @@ func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyParti
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.labelValuesOnTimeRangeRequests.Inc()
-		labelValues, err := sn.getLabelValuesOnTimeRange(qt, at.AccountID, at.ProjectID, labelName, tr, deadline)
+		labelValues, err := sn.getLabelValuesOnTimeRange(qt, at.AccountID, at.ProjectID, labelName, tr, limit, deadline)
 		if err != nil {
 			sn.labelValuesOnTimeRangeErrors.Inc()
 			err = fmt.Errorf("cannot get label values on time range from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -890,6 +896,9 @@ func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyParti
 	labelValues = deduplicateStrings(labelValues)
 	qt.Printf("get %d unique label values after de-duplication", len(labelValues))
 	// Sort labelValues like Prometheus does
+	if limit > 0 && limit < len(labelValues) {
+		labelValues = labelValues[:limit]
+	}
 	sort.Strings(labelValues)
 	qt.Printf("sort %d label values", len(labelValues))
 	return labelValues, isPartial, nil
@@ -905,7 +914,7 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 	if tagName == "name" {
 		tagName = ""
 	}
-	tagValues, isPartial, err := GetLabelValues(qt, at, denyPartialResponse, tagName, deadline)
+	tagValues, isPartial, err := GetLabelValues(qt, at, denyPartialResponse, tagName, 0, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -923,7 +932,7 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
-func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get values for label %s", labelName)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -940,7 +949,7 @@ func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse 
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.labelValuesRequests.Inc()
-		labelValues, err := sn.getLabelValues(qt, at.AccountID, at.ProjectID, labelName, deadline)
+		labelValues, err := sn.getLabelValues(qt, at.AccountID, at.ProjectID, labelName, limit, deadline)
 		if err != nil {
 			sn.labelValuesErrors.Inc()
 			err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -970,6 +979,9 @@ func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse 
 	labelValues = deduplicateStrings(labelValues)
 	qt.Printf("get %d unique label values after de-duplication", len(labelValues))
 	// Sort labelValues like Prometheus does
+	if limit > 0 && limit < len(labelValues) {
+		labelValues = labelValues[:limit]
+	}
 	sort.Strings(labelValues)
 	qt.Printf("sort %d label values", len(labelValues))
 	return labelValues, isPartial, nil
@@ -1766,10 +1778,10 @@ func (sn *storageNode) deleteMetrics(qt *querytracer.Tracer, requestData []byte,
 	return deletedCount, nil
 }
 
-func (sn *storageNode) getLabelsOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func (sn *storageNode) getLabelsOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, error) {
 	var labels []string
 	f := func(bc *handshake.BufferedConn) error {
-		ls, err := sn.getLabelsOnTimeRangeOnConn(bc, accountID, projectID, tr)
+		ls, err := sn.getLabelsOnTimeRangeOnConn(bc, accountID, projectID, tr, limit)
 		if err != nil {
 			return err
 		}
@@ -1782,10 +1794,10 @@ func (sn *storageNode) getLabelsOnTimeRange(qt *querytracer.Tracer, accountID, p
 	return labels, nil
 }
 
-func (sn *storageNode) getLabels(qt *querytracer.Tracer, accountID, projectID uint32, deadline searchutils.Deadline) ([]string, error) {
+func (sn *storageNode) getLabels(qt *querytracer.Tracer, accountID, projectID uint32, limit int, deadline searchutils.Deadline) ([]string, error) {
 	var labels []string
 	f := func(bc *handshake.BufferedConn) error {
-		ls, err := sn.getLabelsOnConn(bc, accountID, projectID)
+		ls, err := sn.getLabelsOnConn(bc, accountID, projectID, limit)
 		if err != nil {
 			return err
 		}
@@ -1799,10 +1811,10 @@ func (sn *storageNode) getLabels(qt *querytracer.Tracer, accountID, projectID ui
 }
 
 func (sn *storageNode) getLabelValuesOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string,
-	tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+	tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, error) {
 	var labelValues []string
 	f := func(bc *handshake.BufferedConn) error {
-		lvs, err := sn.getLabelValuesOnTimeRangeOnConn(bc, accountID, projectID, labelName, tr)
+		lvs, err := sn.getLabelValuesOnTimeRangeOnConn(bc, accountID, projectID, labelName, tr, limit)
 		if err != nil {
 			return err
 		}
@@ -1815,10 +1827,10 @@ func (sn *storageNode) getLabelValuesOnTimeRange(qt *querytracer.Tracer, account
 	return labelValues, nil
 }
 
-func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, deadline searchutils.Deadline) ([]string, error) {
+func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, limit int, deadline searchutils.Deadline) ([]string, error) {
 	var labelValues []string
 	f := func(bc *handshake.BufferedConn) error {
-		lvs, err := sn.getLabelValuesOnConn(bc, accountID, projectID, labelName)
+		lvs, err := sn.getLabelValuesOnConn(bc, accountID, projectID, labelName, limit)
 		if err != nil {
 			return err
 		}
@@ -2132,12 +2144,15 @@ func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestDa
 
 const maxLabelSize = 16 * 1024 * 1024
 
-func (sn *storageNode) getLabelsOnTimeRangeOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, tr storage.TimeRange) ([]string, error) {
+func (sn *storageNode) getLabelsOnTimeRangeOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, tr storage.TimeRange, limit int) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
 	}
 	if err := writeTimeRange(bc, tr); err != nil {
+		return nil, err
+	}
+	if err := writeLimit(bc, limit); err != nil {
 		return nil, err
 	}
 	if err := bc.Flush(); err != nil {
@@ -2168,9 +2183,12 @@ func (sn *storageNode) getLabelsOnTimeRangeOnConn(bc *handshake.BufferedConn, ac
 	}
 }
 
-func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]string, error) {
+func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, limit int) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return nil, err
+	}
+	if err := writeLimit(bc, limit); err != nil {
 		return nil, err
 	}
 	if err := bc.Flush(); err != nil {
@@ -2203,7 +2221,7 @@ func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, pr
 
 const maxLabelValueSize = 16 * 1024 * 1024
 
-func (sn *storageNode) getLabelValuesOnTimeRangeOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string, tr storage.TimeRange) ([]string, error) {
+func (sn *storageNode) getLabelValuesOnTimeRangeOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string, tr storage.TimeRange, limit int) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
@@ -2212,6 +2230,9 @@ func (sn *storageNode) getLabelValuesOnTimeRangeOnConn(bc *handshake.BufferedCon
 		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
 	}
 	if err := writeTimeRange(bc, tr); err != nil {
+		return nil, err
+	}
+	if err := writeLimit(bc, limit); err != nil {
 		return nil, err
 	}
 	if err := bc.Flush(); err != nil {
@@ -2235,13 +2256,16 @@ func (sn *storageNode) getLabelValuesOnTimeRangeOnConn(bc *handshake.BufferedCon
 	return labelValues, nil
 }
 
-func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string) ([]string, error) {
+func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string, limit int) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
 	}
 	if err := writeBytes(bc, []byte(labelName)); err != nil {
 		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
+	}
+	if err := writeLimit(bc, limit); err != nil {
+		return nil, err
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
@@ -2609,6 +2633,20 @@ func writeTimeRange(bc *handshake.BufferedConn, tr storage.TimeRange) error {
 	}
 	if err := writeUint64(bc, uint64(tr.MaxTimestamp)); err != nil {
 		return fmt.Errorf("cannot send maxTimestamp=%d to conn: %w", tr.MaxTimestamp, err)
+	}
+	return nil
+}
+
+func writeLimit(bc *handshake.BufferedConn, limit int) error {
+	if limit < 0 {
+		limit = 0
+	}
+	if limit > 1<<31-1 {
+		limit = 1<<31 - 1
+	}
+	limitU32 := uint32(limit)
+	if err := writeUint32(bc, limitU32); err != nil {
+		return fmt.Errorf("cannot write limit=%d to conn: %w", limitU32, err)
 	}
 	return nil
 }
