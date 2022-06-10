@@ -359,6 +359,25 @@ This command should return the following output if everything is OK:
 ```
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
+Some users want to use list of host tags which can be declared by environment variable `DD_TAGS` or in 
+`datadog.yaml` config file by setting tags section like in example below: 
+```yaml
+tags:
+  - "team:team"
+  - "dev:dev"
+```
+In that case datadog agent starts to send this tags via `/datadog/intake` endpoint.  
+At that moment it is not present a clear solution for gathering tags from this endpoint.
+As a workaround we suggest to use next schema of components realization:
+
+<img src="datadog.png" width="300" alt="VictoriaMetrics logo">
+
+and set labels for each vmagent which you want to see in your metrics using next flags as in example: 
+```bash
+./vmagent --remoteWrite.label=team=team,dev=dev 
+```
+However, you can check this part pf documentation how to correctly set labels to you vmagent
+[vmagent label config](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics)
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/datadog/api/v1/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
