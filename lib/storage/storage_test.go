@@ -865,7 +865,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		return fmt.Errorf("SearchTagKeys with incorrect accountID, projectID returns unexpected non-empty result:\n%q", lns)
 	}
 
-	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified timr range returns correct result.
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns correct result.
 	now := timestampFromTime(time.Now())
 	start := now - msecPerDay
 	end := now + 60*1000
