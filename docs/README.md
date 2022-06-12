@@ -33,7 +33,7 @@ VictoriaMetrics has the following prominent features:
 
 * It can be used as long-term storage for Prometheus. See [these docs](#prometheus-setup) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports [Prometheus querying API](#prometheus-querying-api-usage).
-* It can be used as  a drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
+* It can be used as a drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
 * It features easy setup and operation:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d) without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
@@ -350,13 +350,17 @@ echo '
 
 The imported data can be read via [export API](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl http://localhost:8428/api/v1/export -d 'match[]=system.load.1'
 ```
 
+</div>
+
 This command should return the following output if everything is OK:
 
-```
+```json
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
 
@@ -458,13 +462,17 @@ VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
+</div>
+
 The `/api/v1/export` endpoint should return the following response:
 
-```bash
+```json
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
@@ -742,8 +750,8 @@ More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetr
 
 ## Setting up service
 
-Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics as a service in your OS.
-There is also [snap package for Ubuntu](https://snapcraft.io/victoriametrics).
+Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
+as a service for your OS. A [snap package](https://snapcraft.io/victoriametrics) is available for Ubuntu.
 
 ## How to work with snapshots
 
@@ -836,7 +844,7 @@ for metrics to export. Use `{__name__!=""}` selector for fetching all the time s
 The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
 Each JSON line contains samples for a single time series. An example output:
 
-```jsonl
+```json
 {"metric":{"__name__":"up","job":"node_exporter","instance":"localhost:9100"},"values":[0,0,0],"timestamps":[1549891472010,1549891487724,1549891503438]}
 {"metric":{"__name__":"up","job":"prometheus","instance":"localhost:9090"},"values":[1,1,1],"timestamps":[1549891461511,1549891476511,1549891491511]}
 ```
@@ -856,9 +864,13 @@ In this case the output may contain multiple lines with samples for the same tim
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
+
+</div>
 
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
@@ -1032,7 +1044,7 @@ curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
 
 The following response should be returned:
 
-```bash
+```json
 {"metric":{"__name__":"bid","market":"NASDAQ","ticker":"MSFT"},"values":[1.67],"timestamps":[1583865146520]}
 {"metric":{"__name__":"bid","market":"NYSE","ticker":"GOOG"},"values":[4.56],"timestamps":[1583865146495]}
 {"metric":{"__name__":"ask","market":"NASDAQ","ticker":"MSFT"},"values":[3.21],"timestamps":[1583865146520]}
@@ -1050,28 +1062,40 @@ VictoriaMetrics accepts data in [Prometheus exposition format](https://github.co
 and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
 via `/api/v1/import/prometheus` path. For example, the following line imports a single line in Prometheus exposition format into VictoriaMetrics:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
 ```
 
+</div>
+
 The following command may be used for verifying the imported data:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 ```
 
+</div>
+
 It should return something like the following:
 
-```
+```json
 {"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
 ```
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/prometheus -T prometheus_data.gz
 ```
+
+</div>
 
 Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
 For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
@@ -1243,7 +1267,7 @@ and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Gr
 See more details in [monitoring docs](#monitoring).
 
 The `merge` process is usually named "compaction", because the resulting `part` size is usually smaller than
-the sum of the source `parts`. There are following benefits of doing the merge process:
+the sum of the source `parts`. Benefits of doing the merge process are the following:
 
 * it improves query performance, since lower number of `parts` are inspected with each query;
 * it reduces the number of data files, since each `part`contains fixed number of files;
@@ -1251,7 +1275,7 @@ the sum of the source `parts`. There are following benefits of doing the merge p
 
 Newly added `parts` either appear in the storage or fail to appear.
 Storage never contains partially created parts. The same applies to merge process — `parts` are either fully
-merged into a new `part` or fail to merge. There are no partially merged `parts` in MergeTree.
+merged into a new `part` or fail to merge. MergeTree doesn't contain partially merged `parts`.
 `Part` contents in MergeTree never change. Parts are immutable. They may be only deleted after the merge
 to a bigger `part` or when the `part` contents goes outside the configured `-retentionPeriod`.
 
@@ -1353,9 +1377,9 @@ or similar auth proxy.
 
 ## Tuning
 
-* There is no need for VictoriaMetrics tuning since it uses reasonable defaults for command-line flags,
+* No need in tuning for VictoriaMetrics - it uses reasonable defaults for command-line flags,
   which are automatically adjusted for the available CPU and RAM resources.
-* There is no need for Operating System tuning since VictoriaMetrics is optimized for default OS settings.
+* No need in tuning for Operating System - VictoriaMetrics is optimized for default OS settings.
   The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
   The recommendation is not specific for VictoriaMetrics only but also for any service which handles many HTTP connections and stores data on disk.
 * VictoriaMetrics is a write-heavy application and its performance depends on disk performance. So be careful with other
@@ -1372,19 +1396,23 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 
 ## Monitoring
 
-VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
-These metrics may be collected by [vmagent](https://docs.victoriametrics.com/vmagent.html)
-or Prometheus by adding the corresponding scrape config to it.
-Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
-For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
+VictoriaMetrics exports internal metrics in Prometheus exposition format at `/metrics` page.
+These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-selfScrapeInterval` command-line flag is 
+set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
+with 10 seconds interval.
 
-There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176). There is also an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831).
+Official Grafana dashboards available for [single-node](https://grafana.com/dashboards/10229) 
+and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics. 
+See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831) 
+created by community.
 
-Graphs on these dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
-It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
+We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
+via [vmalert](https://docs.victoriametrics.com/vmalert.html) or via Prometheus.
 
-The most interesting metrics are:
+The most interesting health metrics are the following:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
   aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
@@ -1400,9 +1428,7 @@ The most interesting metrics are:
   If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
   of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
-VictoriaMetrics also exposes currently running queries with their execution times at `/api/v1/status/active_queries` page.
-
-See the example of alerting rules for VM components [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
+VictoriaMetrics exposes currently running queries and their execution times at `/api/v1/status/active_queries` page.
 
 ## TSDB stats
 
@@ -1787,9 +1813,10 @@ Files included in each folder:
 ### We kindly ask
 
 * Please don't use any other font instead of suggested.
-* There should be sufficient clear space around the logo.
+* To keep enough clear space around the logo.
 * Do not change spacing, alignment, or relative locations of the design elements.
-* Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.
+* Do not change the proportions for any of the design elements or the design itself. 
+  You may resize as needed but must retain all proportions.
 
 ## List of command-line flags
 
