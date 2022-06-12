@@ -812,7 +812,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
-	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified timr range returns correct result.
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns correct result.
 	now := timestampFromTime(time.Now())
 	start := now - msecPerDay
 	end := now + 60*1000
