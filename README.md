@@ -356,7 +356,7 @@ curl http://localhost:8428/api/v1/export -d 'match[]=system.load.1'
 
 This command should return the following output if everything is OK:
 
-```
+```json
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
 
@@ -464,7 +464,7 @@ curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 
 The `/api/v1/export` endpoint should return the following response:
 
-```bash
+```json
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
@@ -836,7 +836,7 @@ for metrics to export. Use `{__name__!=""}` selector for fetching all the time s
 The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
 Each JSON line contains samples for a single time series. An example output:
 
-```jsonl
+```json
 {"metric":{"__name__":"up","job":"node_exporter","instance":"localhost:9100"},"values":[0,0,0],"timestamps":[1549891472010,1549891487724,1549891503438]}
 {"metric":{"__name__":"up","job":"prometheus","instance":"localhost:9090"},"values":[1,1,1],"timestamps":[1549891461511,1549891476511,1549891491511]}
 ```
@@ -1032,7 +1032,7 @@ curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
 
 The following response should be returned:
 
-```bash
+```json
 {"metric":{"__name__":"bid","market":"NASDAQ","ticker":"MSFT"},"values":[1.67],"timestamps":[1583865146520]}
 {"metric":{"__name__":"bid","market":"NYSE","ticker":"GOOG"},"values":[4.56],"timestamps":[1583865146495]}
 {"metric":{"__name__":"ask","market":"NASDAQ","ticker":"MSFT"},"values":[3.21],"timestamps":[1583865146520]}
@@ -1062,7 +1062,7 @@ curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 
 It should return something like the following:
 
-```
+```json
 {"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
 ```
 
