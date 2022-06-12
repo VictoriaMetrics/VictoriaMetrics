@@ -350,9 +350,13 @@ echo '
 
 The imported data can be read via [export API](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl http://localhost:8428/api/v1/export -d 'match[]=system.load.1'
 ```
+
+</div>
 
 This command should return the following output if everything is OK:
 
@@ -458,9 +462,13 @@ VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
+
+</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -856,9 +864,13 @@ In this case the output may contain multiple lines with samples for the same tim
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
+
+</div>
 
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
@@ -1050,15 +1062,23 @@ VictoriaMetrics accepts data in [Prometheus exposition format](https://github.co
 and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
 via `/api/v1/import/prometheus` path. For example, the following line imports a single line in Prometheus exposition format into VictoriaMetrics:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
 ```
 
+</div>
+
 The following command may be used for verifying the imported data:
+
+<div class="with-copy" markdown="1">
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 ```
+
+</div>
 
 It should return something like the following:
 
@@ -1068,10 +1088,14 @@ It should return something like the following:
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
 
+<div class="with-copy" markdown="1">
+
 ```bash
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/prometheus -T prometheus_data.gz
 ```
+
+</div>
 
 Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
 For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
