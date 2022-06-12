@@ -703,9 +703,9 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 }
 
 func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isConcurrent bool) error {
-	hasValue := func(tvs []string, v []byte) bool {
-		for _, tv := range tvs {
-			if string(v) == tv {
+	hasValue := func(lvs []string, v []byte) bool {
+		for _, lv := range lvs {
+			if string(v) == lv {
 				return true
 			}
 		}
@@ -715,7 +715,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 	timeseriesCounters := make(map[uint64]bool)
 	var tsidCopy TSID
 	var metricNameCopy []byte
-	allKeys := make(map[string]bool)
+	allLabelNames := make(map[string]bool)
 	for i := range mns {
 		mn := &mns[i]
 		tsid := &tsids[i]
@@ -757,38 +757,38 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 			return fmt.Errorf("expecting empty buf when searching for non-existent metricID; got %X", buf)
 		}
 
-		// Test SearchTagValues
-		tvs, err := db.SearchTagValues(nil, 1e5, noDeadline)
+		// Test SearchLabelValuesWithFiltersOnTimeRange
+		lvs, err := db.SearchLabelValuesWithFiltersOnTimeRange(nil, "__name__", nil, TimeRange{}, 1e5, 1e9, noDeadline)
 		if err != nil {
-			return fmt.Errorf("error in SearchTagValues for __name__: %w", err)
+			return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange(labelName=%q): %w", "__name__", err)
 		}
-		if !hasValue(tvs, mn.MetricGroup) {
-			return fmt.Errorf("SearchTagValues couldn't find %q; found %q", mn.MetricGroup, tvs)
+		if !hasValue(lvs, mn.MetricGroup) {
+			return fmt.Errorf("SearchLabelValuesWithFiltersOnTimeRange(labelName=%q): couldn't find %q; found %q", "__name__", mn.MetricGroup, lvs)
 		}
 		for i := range mn.Tags {
 			tag := &mn.Tags[i]
-			tvs, err := db.SearchTagValues(tag.Key, 1e5, noDeadline)
+			lvs, err := db.SearchLabelValuesWithFiltersOnTimeRange(nil, string(tag.Key), nil, TimeRange{}, 1e5, 1e9, noDeadline)
 			if err != nil {
-				return fmt.Errorf("error in SearchTagValues for __name__: %w", err)
+				return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange(labelName=%q): %w", tag.Key, err)
 			}
-			if !hasValue(tvs, tag.Value) {
-				return fmt.Errorf("SearchTagValues couldn't find %q=%q; found %q", tag.Key, tag.Value, tvs)
+			if !hasValue(lvs, tag.Value) {
+				return fmt.Errorf("SearchLabelValuesWithFiltersOnTimeRange(labelName=%q): couldn't find %q; found %q", tag.Key, tag.Value, lvs)
 			}
-			allKeys[string(tag.Key)] = true
+			allLabelNames[string(tag.Key)] = true
 		}
 	}
 
-	// Test SearchTagKeys
-	tks, err := db.SearchTagKeys(1e5, noDeadline)
+	// Test SearchLabelNamesWithFiltersOnTimeRange (empty filters, global time range)
+	lns, err := db.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagKeys: %w", err)
+		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange(empty filter, global time range): %w", err)
 	}
-	if !hasValue(tks, nil) {
-		return fmt.Errorf("cannot find __name__ in %q", tks)
+	if !hasValue(lns, []byte("__name__")) {
+		return fmt.Errorf("cannot find __name__ in %q", lns)
 	}
-	for key := range allKeys {
-		if !hasValue(tks, []byte(key)) {
-			return fmt.Errorf("cannot find %q in %q", key, tks)
+	for labelName := range allLabelNames {
+		if !hasValue(lns, []byte(labelName)) {
+			return fmt.Errorf("cannot find %q in %q", labelName, lns)
 		}
 	}
 
@@ -1633,13 +1633,13 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	var metricNameBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
-	tagKeys := []string{
-		"", "constant", "day", "uniqueid",
+	labelNames := []string{
+		"__name__", "constant", "day", "uniqueid",
 	}
-	tagValues := []string{
+	labelValues := []string{
 		"testMetric",
 	}
-	sort.Strings(tagKeys)
+	sort.Strings(labelNames)
 	for day := 0; day < days; day++ {
 		var tsids []TSID
 		var mns []MetricName
@@ -1709,30 +1709,28 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
 	}
 
-	// Check SearchTagKeysOnTimeRange.
-	tks, err := db.SearchTagKeysOnTimeRange(TimeRange{
+	// Check SearchLabelNamesWithFiltersOnTimeRange with the specified time range.
+	tr := TimeRange{
 		MinTimestamp: int64(now) - msecPerDay,
 		MaxTimestamp: int64(now),
-	}, 10000, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchTagKeysOnTimeRange: %s", err)
 	}
-	sort.Strings(tks)
-	if !reflect.DeepEqual(tks, tagKeys) {
-		t.Fatalf("unexpected tagKeys; got\n%s\nwant\n%s", tks, tagKeys)
+	lns, err := db.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelNamesWithFiltersOnTimeRange(timeRange=%s): %s", &tr, err)
+	}
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
 	}
 
-	// Check SearchTagValuesOnTimeRange.
-	tvs, err := db.SearchTagValuesOnTimeRange([]byte(""), TimeRange{
-		MinTimestamp: int64(now) - msecPerDay,
-		MaxTimestamp: int64(now),
-	}, 10000, noDeadline)
+	// Check SearchLabelValuesWithFiltersOnTimeRange with the specified time range.
+	lvs, err := db.SearchLabelValuesWithFiltersOnTimeRange(nil, "", nil, tr, 10000, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("unexpected error in SearchTagValuesOnTimeRange: %s", err)
+		t.Fatalf("unexpected error in SearchLabelValuesWithFiltersOnTimeRange(timeRange=%s): %s", &tr, err)
 	}
-	sort.Strings(tvs)
-	if !reflect.DeepEqual(tvs, tagValues) {
-		t.Fatalf("unexpected tagValues; got\n%s\nwant\n%s", tvs, tagValues)
+	sort.Strings(lvs)
+	if !reflect.DeepEqual(lvs, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
 	}
 
 	// Create a filter that will match series that occur across multiple days
@@ -1743,7 +1741,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	// Perform a search within a day.
 	// This should return the metrics for the day
-	tr := TimeRange{
+	tr = TimeRange{
 		MinTimestamp: int64(now - 2*msecPerHour - 1),
 		MaxTimestamp: int64(now),
 	}
@@ -1753,6 +1751,46 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	if len(matchedTSIDs) != metricsPerDay {
 		t.Fatalf("expected %d time series for current day, got %d time series", metricsPerDay, len(matchedTSIDs))
+	}
+
+	// Check SearchLabelNamesWithFiltersOnTimeRange with the specified filter.
+	lns, err = db.SearchLabelNamesWithFiltersOnTimeRange(nil, []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelNamesWithFiltersOnTimeRange(filters=%s): %s", tfs, err)
+	}
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	}
+
+	// Check SearchLabelNamesWithFiltersOnTimeRange with the specified filter and time range.
+	lns, err = db.SearchLabelNamesWithFiltersOnTimeRange(nil, []*TagFilters{tfs}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelNamesWithFiltersOnTimeRange(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	}
+
+	// Check SearchLabelValuesWithFiltersOnTimeRange with the specified filter.
+	lvs, err = db.SearchLabelValuesWithFiltersOnTimeRange(nil, "", []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValuesWithFiltersOnTimeRange(filters=%s): %s", tfs, err)
+	}
+	sort.Strings(lvs)
+	if !reflect.DeepEqual(lvs, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	}
+
+	// Check SearchLabelValuesWithFiltersOnTimeRange with the specified filter and time range.
+	lvs, err = db.SearchLabelValuesWithFiltersOnTimeRange(nil, "", []*TagFilters{tfs}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValuesWithFiltersOnTimeRange(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	sort.Strings(lvs)
+	if !reflect.DeepEqual(lvs, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
 	}
 
 	// Perform a search across all the days, should match all metrics

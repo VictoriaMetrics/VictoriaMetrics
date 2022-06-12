@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -454,38 +453,10 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	if err != nil {
 		return err
 	}
-	var labelValues []string
-	if len(cp.filterss) == 0 {
-		if cp.IsDefaultTimeRange() {
-			labelValues, err = netstorage.GetLabelValues(qt, labelName, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
-			}
-		} else {
-			if cp.start == 0 {
-				cp.start = cp.end - defaultStep
-			}
-			tr := storage.TimeRange{
-				MinTimestamp: cp.start,
-				MaxTimestamp: cp.end,
-			}
-			labelValues, err = netstorage.GetLabelValuesOnTimeRange(qt, labelName, tr, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
-			}
-		}
-	} else {
-		// Extended functionality that allows filtering by label filters and time range
-		// i.e. /api/v1/label/foo/values?match[]=foobar{baz="abc"}&start=...&end=...
-		// is equivalent to `label_values(foobar{baz="abc"}, foo)` call on the selected
-		// time range in Grafana templating.
-		if cp.start == 0 {
-			cp.start = cp.end - defaultStep
-		}
-		labelValues, err = labelValuesWithMatches(qt, labelName, cp, limit)
-		if err != nil {
-			return fmt.Errorf("cannot obtain label values for %q on time range [%d...%d]: %w", labelName, cp.start, cp.end, err)
-		}
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	labelValues, err := netstorage.GetLabelValues(qt, labelName, sq, limit, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -498,88 +469,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	return nil
 }
 
-func labelValuesWithMatches(qt *querytracer.Tracer, labelName string, cp *commonParams, limit int) ([]string, error) {
-	// Add `labelName!=''` tag filter in order to filter out series without the labelName.
-	// There is no need in adding `__name__!=''` filter, since all the time series should
-	// already have non-empty name.
-	if labelName != "__name__" {
-		key := []byte(labelName)
-		for i, tfs := range cp.filterss {
-			cp.filterss[i] = append(tfs, storage.TagFilter{
-				Key:        key,
-				IsNegative: true,
-			})
-		}
-	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	m := make(map[string]struct{})
-	if cp.end-cp.start > 24*3600*1000 {
-		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
-		}
-		for _, mn := range mns {
-			labelValue := mn.GetTagValue(labelName)
-			if len(labelValue) == 0 {
-				continue
-			}
-			m[string(labelValue)] = struct{}{}
-		}
-	} else {
-		rss, err := netstorage.ProcessSearchQuery(qt, sq, false, cp.deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-		}
-		var mLock sync.Mutex
-		err = rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-			labelValue := rs.MetricName.GetTagValue(labelName)
-			if len(labelValue) == 0 {
-				return nil
-			}
-			mLock.Lock()
-			m[string(labelValue)] = struct{}{}
-			mLock.Unlock()
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch label values from storage: %w", err)
-		}
-	}
-	labelValues := make([]string, 0, len(m))
-	for labelValue := range m {
-		labelValues = append(labelValues, labelValue)
-	}
-	if limit > 0 && len(labelValues) > limit {
-		labelValues = labelValues[:limit]
-	}
-	sort.Strings(labelValues)
-	qt.Printf("sort %d label values", len(labelValues))
-	return labelValues, nil
-}
-
 var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/label/{}/values"}`)
-
-// LabelsCountHandler processes /api/v1/labels/count request.
-func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	defer labelsCountDuration.UpdateDuration(startTime)
-
-	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	labelEntries, err := netstorage.GetLabelEntries(nil, deadline)
-	if err != nil {
-		return fmt.Errorf(`cannot obtain label entries: %w`, err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	bw := bufferedwriter.Get(w)
-	defer bufferedwriter.Put(bw)
-	WriteLabelsCountResponse(bw, labelEntries)
-	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("cannot send labels count response to remote client: %w", err)
-	}
-	return nil
-}
-
-var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels/count"}`)
 
 const secsPerDay = 3600 * 24
 
@@ -670,36 +560,10 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if err != nil {
 		return err
 	}
-	var labels []string
-	if len(cp.filterss) == 0 {
-		if cp.IsDefaultTimeRange() {
-			labels, err = netstorage.GetLabels(qt, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf("cannot obtain labels: %w", err)
-			}
-		} else {
-			if cp.start == 0 {
-				cp.start = cp.end - defaultStep
-			}
-			tr := storage.TimeRange{
-				MinTimestamp: cp.start,
-				MaxTimestamp: cp.end,
-			}
-			labels, err = netstorage.GetLabelsOnTimeRange(qt, tr, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf("cannot obtain labels on time range: %w", err)
-			}
-		}
-	} else {
-		// Extended functionality that allows filtering by label filters and time range
-		// i.e. /api/v1/labels?match[]=foobar{baz="abc"}&start=...&end=...
-		if cp.start == 0 {
-			cp.start = cp.end - defaultStep
-		}
-		labels, err = labelsWithMatches(qt, cp, limit)
-		if err != nil {
-			return fmt.Errorf("cannot obtain labels for timeRange=[%d..%d]: %w", cp.start, cp.end, err)
-		}
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	labels, err := netstorage.GetLabelNames(qt, sq, limit, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain labels: %w", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -710,54 +574,6 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
 	return nil
-}
-
-func labelsWithMatches(qt *querytracer.Tracer, cp *commonParams, limit int) ([]string, error) {
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	m := make(map[string]struct{})
-	if cp.end-cp.start > 24*3600*1000 {
-		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
-		}
-		for _, mn := range mns {
-			for _, tag := range mn.Tags {
-				m[string(tag.Key)] = struct{}{}
-			}
-		}
-		if len(mns) > 0 {
-			m["__name__"] = struct{}{}
-		}
-	} else {
-		rss, err := netstorage.ProcessSearchQuery(qt, sq, false, cp.deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-		}
-		var mLock sync.Mutex
-		err = rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-			mLock.Lock()
-			for _, tag := range rs.MetricName.Tags {
-				m[string(tag.Key)] = struct{}{}
-			}
-			m["__name__"] = struct{}{}
-			mLock.Unlock()
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch labels from storage: %w", err)
-		}
-	}
-	labels := make([]string, 0, len(m))
-	for label := range m {
-		labels = append(labels, label)
-	}
-	if limit > 0 && limit < len(labels) {
-		labels = labels[:limit]
-	}
-	sort.Strings(labels)
-	qt.Printf("sort %d labels", len(labels))
-	return labels, nil
 }
 
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)
