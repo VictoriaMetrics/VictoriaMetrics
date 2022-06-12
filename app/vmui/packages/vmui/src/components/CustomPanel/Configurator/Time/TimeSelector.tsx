@@ -76,7 +76,7 @@ export const TimeSelector: FC = () => {
         }}
         startIcon={<QueryBuilderIcon/>}
         onClick={(e) => setAnchorEl(e.currentTarget)}>
-        {relativeTime
+        {relativeTime && relativeTime !== "none"
           ? relativeTime.replace(/_/g, " ")
           : `${formatRange.start} - ${formatRange.end}`}
       </Button>
