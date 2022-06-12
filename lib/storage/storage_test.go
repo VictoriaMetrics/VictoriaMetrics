@@ -538,13 +538,13 @@ func TestStorageDeleteMetrics(t *testing.T) {
 		t.Fatalf("cannot open storage: %s", err)
 	}
 
-	// Verify no tag keys exist
-	tks, err := s.SearchTagKeys(0, 0, 1e5, noDeadline)
+	// Verify no label names exist
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("error in SearchTagKeys at the start: %s", err)
+		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
 	}
-	if len(tks) != 0 {
-		t.Fatalf("found non-empty tag keys at the start: %q", tks)
+	if len(lns) != 0 {
+		t.Fatalf("found non-empty tag keys at the start: %q", lns)
 	}
 
 	t.Run("serial", func(t *testing.T) {
@@ -590,12 +590,12 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	})
 
 	// Verify no more tag keys exist
-	tks, err = s.SearchTagKeys(0, 0, 1e5, noDeadline)
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("error in SearchTagKeys after the test: %s", err)
+		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange after the test: %s", err)
 	}
-	if len(tks) != 0 {
-		t.Fatalf("found non-empty tag keys after the test: %q", tks)
+	if len(lns) != 0 {
+		t.Fatalf("found non-empty tag keys after the test: %q", lns)
 	}
 
 	s.MustClose()
@@ -612,8 +612,8 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	accountID := uint32(workerNum)
 	projectID := uint32(123)
 
-	tksAll := make(map[string]bool)
-	tksAll[""] = true // __name__
+	lnsAll := make(map[string]bool)
+	lnsAll["__name__"] = true
 	for i := 0; i < metricsCount; i++ {
 		var mrs []MetricRow
 		var mn MetricName
@@ -627,7 +627,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 			{workerTag, []byte("foobar")},
 		}
 		for i := range mn.Tags {
-			tksAll[string(mn.Tags[i].Key)] = true
+			lnsAll[string(mn.Tags[i].Key)] = true
 		}
 		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", i, workerNum))
 		metricNameRaw := mn.marshalRaw(nil)
@@ -650,21 +650,21 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	s.DebugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchTagValues(accountID, projectID, workerTag, 1e5, noDeadline)
+	tvs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValues before metrics removal: %w", err)
+		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange before metrics removal: %w", err)
 	}
 	if len(tvs) == 0 {
 		return fmt.Errorf("unexpected empty number of tag values for workerTag")
 	}
 
 	// Verify tag keys exist
-	tks, err := s.SearchTagKeys(accountID, projectID, 1e5, noDeadline)
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagKeys before metrics removal: %w", err)
+		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange before metrics removal: %w", err)
 	}
-	if err := checkTagKeys(tks, tksAll); err != nil {
-		return fmt.Errorf("unexpected tag keys before metrics removal: %w", err)
+	if err := checkLabelNames(lns, lnsAll); err != nil {
+		return fmt.Errorf("unexpected label names before metrics removal: %w", err)
 	}
 
 	var sr Search
@@ -723,9 +723,9 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	if n := metricBlocksCount(tfs); n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchTagValues(accountID, projectID, workerTag, 1e5, noDeadline)
+	tvs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValues after all the metrics are removed: %w", err)
+		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange after all the metrics are removed: %w", err)
 	}
 	if len(tvs) != 0 {
 		return fmt.Errorf("found non-empty tag values for %q after metrics removal: %q", workerTag, tvs)
@@ -734,21 +734,21 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	return nil
 }
 
-func checkTagKeys(tks []string, tksExpected map[string]bool) error {
-	if len(tks) < len(tksExpected) {
-		return fmt.Errorf("unexpected number of tag keys found; got %d; want at least %d; tks=%q, tksExpected=%v", len(tks), len(tksExpected), tks, tksExpected)
+func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
+	if len(lns) < len(lnsExpected) {
+		return fmt.Errorf("unexpected number of label names found; got %d; want at least %d; lns=%q, lnsExpected=%v", len(lns), len(lnsExpected), lns, lnsExpected)
 	}
-	hasItem := func(k string, tks []string) bool {
-		for _, kk := range tks {
-			if k == kk {
+	hasItem := func(s string, lns []string) bool {
+		for _, labelName := range lns {
+			if s == labelName {
 				return true
 			}
 		}
 		return false
 	}
-	for k := range tksExpected {
-		if !hasItem(k, tks) {
-			return fmt.Errorf("cannot find %q in tag keys %q", k, tks)
+	for labelName := range lnsExpected {
+		if !hasItem(labelName, lns) {
+			return fmt.Errorf("cannot find %q in label names %q", labelName, lns)
 		}
 	}
 	return nil
@@ -840,32 +840,32 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	// Verify the storage contains the added metric names.
 	s.DebugFlush()
 
-	// Verify that SearchTagKeys returns correct result.
-	tksExpected := []string{
-		"",
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange returns correct result.
+	lnsExpected := []string{
+		"__name__",
 		"add_id",
 		"instance",
 		"job",
 	}
-	tks, err := s.SearchTagKeys(accountID, projectID, 100, noDeadline)
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, TimeRange{}, 100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagKeys: %w", err)
+		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
 	}
-	sort.Strings(tks)
-	if !reflect.DeepEqual(tks, tksExpected) {
-		return fmt.Errorf("unexpected tag keys returned from SearchTagKeys;\ngot\n%q\nwant\n%q", tks, tksExpected)
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, lnsExpected) {
+		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
-	// Verify that SearchTagKeys returns empty results for incorrect accountID, projectID
-	tks, err = s.SearchTagKeys(accountID+1, projectID+1, 100, noDeadline)
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange returns empty results for incorrect accountID, projectID
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, nil, TimeRange{}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeys for incorrect accountID, projectID: %w", err)
 	}
-	if len(tks) > 0 {
-		return fmt.Errorf("SearchTagKeys with incorrect accountID, projectID returns unexpected non-empty result:\n%q", tks)
+	if len(lns) > 0 {
+		return fmt.Errorf("SearchTagKeys with incorrect accountID, projectID returns unexpected non-empty result:\n%q", lns)
 	}
 
-	// Verify that SearchTagKeysOnTimeRange returns correct result.
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified timr range returns correct result.
 	now := timestampFromTime(time.Now())
 	start := now - msecPerDay
 	end := now + 60*1000
@@ -873,36 +873,36 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		MinTimestamp: start,
 		MaxTimestamp: end,
 	}
-	tks, err = s.SearchTagKeysOnTimeRange(accountID, projectID, tr, 100, noDeadline)
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, tr, 100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagKeysOnTimeRange: %w", err)
+		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
 	}
-	sort.Strings(tks)
-	if !reflect.DeepEqual(tks, tksExpected) {
-		return fmt.Errorf("unexpected tag keys returned from SearchTagKeysOnTimeRange;\ngot\n%q\nwant\n%q", tks, tksExpected)
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, lnsExpected) {
+		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
-	// Verify that SearchTagKeysOnTimeRange returns empty results for incrorrect accountID, projectID
-	tks, err = s.SearchTagKeysOnTimeRange(accountID+1, projectID+1, tr, 100, noDeadline)
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns empty results for incrorrect accountID, projectID
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, nil, tr, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeysOnTimeRange for incorrect accountID, projectID: %w", err)
 	}
-	if len(tks) > 0 {
-		return fmt.Errorf("SearchTagKeysOnTimeRange with incorrect accountID, projectID returns unexpected non-empty result:\n%q", tks)
+	if len(lns) > 0 {
+		return fmt.Errorf("SearchTagKeysOnTimeRange with incorrect accountID, projectID returns unexpected non-empty result:\n%q", lns)
 	}
 
-	// Verify that SearchTagValues returns correct result.
-	addIDs, err := s.SearchTagValues(accountID, projectID, []byte("add_id"), addsCount+100, noDeadline)
+	// Verify that SearchLabelValuesWithFiltersOnTimeRange returns correct result.
+	addIDs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValues: %w", err)
+		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
 	}
 	sort.Strings(addIDs)
 	if !reflect.DeepEqual(addIDs, addIDsExpected) {
-		return fmt.Errorf("unexpected tag values returned from SearchTagValues;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+		return fmt.Errorf("unexpected tag values returned from SearchLabelValuesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
 	}
 
-	// Verify that SearchTagValues return empty results for incorrect accountID, projectID
-	addIDs, err = s.SearchTagValues(accountID+1, projectID+1, []byte("add_id"), addsCount+100, noDeadline)
+	// Verify that SearchLabelValuesWithFiltersOnTimeRange return empty results for incorrect accountID, projectID
+	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagValues for incorrect accountID, projectID: %w", err)
 	}
@@ -910,23 +910,23 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		return fmt.Errorf("SearchTagValues with incorrect accountID, projectID returns unexpected non-empty result:\n%q", addIDs)
 	}
 
-	// Verify that SearchTagValuesOnTimeRange returns correct result.
-	addIDs, err = s.SearchTagValuesOnTimeRange(accountID, projectID, []byte("add_id"), tr, addsCount+100, noDeadline)
+	// Verify that SearchLabelValuesWithFiltersOnTimeRange with the specified time range returns correct result.
+	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValuesOnTimeRange: %w", err)
+		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
 	}
 	sort.Strings(addIDs)
 	if !reflect.DeepEqual(addIDs, addIDsExpected) {
-		return fmt.Errorf("unexpected tag values returned from SearchTagValuesOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+		return fmt.Errorf("unexpected tag values returned from SearchLabelValuesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
 	}
 
-	// Verify that SearchTagValuesOnTimeRange returns empty results for incorrect accountID, projectID
-	addIDs, err = s.SearchTagValuesOnTimeRange(accountID+1, projectID+1, []byte("addd_id"), tr, addsCount+100, noDeadline)
+	// Verify that SearchLabelValuesWithFiltersOnTimeRange returns empty results for incorrect accountID, projectID
+	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, "addd_id", nil, tr, addsCount+100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValuesOnTimeRange for incorrect accoundID, projectID: %w", err)
+		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange for incorrect accoundID, projectID: %w", err)
 	}
 	if len(addIDs) > 0 {
-		return fmt.Errorf("SearchTagValuesOnTimeRange with incorrect accountID, projectID returns unexpected non-empty result:\n%q", addIDs)
+		return fmt.Errorf("SearchLabelValuesWithFiltersOnTimeRange with incorrect accountID, projectID returns unexpected non-empty result:\n%q", addIDs)
 	}
 
 	// Verify that SearchMetricNames returns correct result.

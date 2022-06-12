@@ -275,6 +275,8 @@ By default cardinality explorer analyzes time series for the current date. It pr
 By default all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
 matching the specified [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
 
+Cardinality explorer takes into account [deleted time series](#how-to-delete-time-series), because they stay in the inverted index for up to [-retentionPeriod](#retention). This means that the deleted time series take RAM, CPU, disk IO and disk space for the inverted index in the same way as other time series.
+
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
@@ -617,7 +619,6 @@ Additionally, VictoriaMetrics provides the following handlers:
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
   * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
-* `/api/v1/labels/count` - returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
 * `/api/v1/status/active_queries` - returns a list of currently running queries.
 * `/api/v1/status/top_queries` - returns the following query lists:
   * the most frequently executed queries - `topByCount`
@@ -1245,11 +1246,12 @@ and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Gr
 See more details in [monitoring docs](#monitoring).
 
 The `merge` process is usually named "compaction", because the resulting `part` size is usually smaller than
-the sum of the source `parts`. There are following benefits of doing the merge process:
+the sum of the source `parts` because of better compression rate. The merge process provides the following additional benefits:
 
-* it improves query performance, since lower number of `parts` are inspected with each query;
-* it reduces the number of data files, since each `part`contains fixed number of files;
-* better compression rate for the resulting part.
+* it improves query performance, since lower number of `parts` are inspected with each query
+* it reduces the number of data files, since each `part` contains fixed number of files
+* various background maintenance tasks such as [de-duplication](#deduplication), [downsampling](#downsampling)
+  and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are perfomed during the merge.
 
 Newly added `parts` either appear in the storage or fail to appear.
 Storage never contains partially created parts. The same applies to merge process — `parts` are either fully
@@ -1411,7 +1413,7 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way similar to Prometheus - see [these Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts the following optional query args at `/api/v1/status/tsdb` page:
 
 * `topN=N` where `N` is the number of top entries to return in the response. By default top 10 entries are returned.
-* `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day.
+* `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day. Pass `date=1970-01-01` in order to collect global stats across all the days.
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 

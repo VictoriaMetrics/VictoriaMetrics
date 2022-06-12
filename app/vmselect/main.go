@@ -366,15 +366,6 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
-	case "prometheus/api/v1/labels/count":
-		labelsCountRequests.Inc()
-		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsCountHandler(startTime, at, w, r); err != nil {
-			labelsCountErrors.Inc()
-			sendPrometheusError(w, r, err)
-			return true
-		}
-		return true
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
 		httpserver.EnableCORS(w, r)
@@ -607,9 +598,6 @@ var (
 
 	labelsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels"}`)
 	labelsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels"}`)
-
-	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
-	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
 
 	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)

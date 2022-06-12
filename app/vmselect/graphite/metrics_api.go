@@ -205,7 +205,8 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	jsonp := r.FormValue("jsonp")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	metricNames, isPartial, err := netstorage.GetLabelValues(nil, at, denyPartialResponse, "__name__", 0, deadline)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, nil, 0)
+	metricNames, isPartial, err := netstorage.GetLabelValues(nil, at, denyPartialResponse, "__name__", sq, 0, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}

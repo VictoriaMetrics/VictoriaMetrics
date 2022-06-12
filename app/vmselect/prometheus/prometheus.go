@@ -6,7 +6,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -513,40 +512,11 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	if err != nil {
 		return err
 	}
-	var labelValues []string
-	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if len(cp.filterss) == 0 {
-		if cp.IsDefaultTimeRange() {
-			labelValues, isPartial, err = netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
-			}
-		} else {
-			if cp.start == 0 {
-				cp.start = cp.end - defaultStep
-			}
-			tr := storage.TimeRange{
-				MinTimestamp: cp.start,
-				MaxTimestamp: cp.end,
-			}
-			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(qt, at, denyPartialResponse, labelName, tr, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
-			}
-		}
-	} else {
-		// Extended functionality that allows filtering by label filters and time range
-		// i.e. /api/v1/label/foo/values?match[]=foobar{baz="abc"}&start=...&end=...
-		// is equivalent to `label_values(foobar{baz="abc"}, foo)` call on the selected
-		// time range in Grafana templating.
-		if cp.start == 0 {
-			cp.start = cp.end - defaultStep
-		}
-		labelValues, isPartial, err = labelValuesWithMatches(qt, at, denyPartialResponse, labelName, cp, limit)
-		if err != nil {
-			return fmt.Errorf("cannot obtain label values for %q on time range [%d...%d]: %w", labelName, cp.start, cp.end, err)
-		}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	labelValues, isPartial, err := netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, sq, limit, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -559,93 +529,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	return nil
 }
 
-func labelValuesWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, cp *commonParams, limit int) ([]string, bool, error) {
-	// Add `labelName!=''` tag filter in order to filter out series without the labelName.
-	// There is no need in adding `__name__!=''` filter, since all the time series should
-	// already have non-empty name.
-	if labelName != "__name__" {
-		key := []byte(labelName)
-		for i, tfs := range cp.filterss {
-			cp.filterss[i] = append(tfs, storage.TagFilter{
-				Key:        key,
-				IsNegative: true,
-			})
-		}
-	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	m := make(map[string]struct{})
-	var isPartial bool
-	if cp.end-cp.start > 24*3600*1000 {
-		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
-		}
-		isPartial = isPartialResponse
-		for _, mn := range mns {
-			labelValue := mn.GetTagValue(labelName)
-			if len(labelValue) == 0 {
-				continue
-			}
-			m[string(labelValue)] = struct{}{}
-		}
-	} else {
-		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-		}
-		isPartial = isPartialResponse
-		var mLock sync.Mutex
-		err = rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-			labelValue := rs.MetricName.GetTagValue(labelName)
-			if len(labelValue) == 0 {
-				return nil
-			}
-			mLock.Lock()
-			m[string(labelValue)] = struct{}{}
-			mLock.Unlock()
-			return nil
-		})
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch label values from storage: %w", err)
-		}
-	}
-	labelValues := make([]string, 0, len(m))
-	for labelValue := range m {
-		labelValues = append(labelValues, labelValue)
-	}
-	if limit > 0 && len(labelValues) > limit {
-		labelValues = labelValues[:limit]
-	}
-	sort.Strings(labelValues)
-	qt.Printf("sort %d label values", len(labelValues))
-	return labelValues, isPartial, nil
-}
-
 var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/label/{}/values"}`)
-
-// LabelsCountHandler processes /api/v1/labels/count request.
-func LabelsCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	defer labelsCountDuration.UpdateDuration(startTime)
-
-	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	labelEntries, isPartial, err := netstorage.GetLabelEntries(nil, at, denyPartialResponse, deadline)
-	if err != nil {
-		return fmt.Errorf(`cannot obtain label entries: %w`, err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	bw := bufferedwriter.Get(w)
-	defer bufferedwriter.Put(bw)
-	WriteLabelsCountResponse(bw, isPartial, labelEntries)
-	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("cannot send labels count response to remote client: %w", err)
-	}
-	return nil
-}
-
-var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels/count"}`)
 
 const secsPerDay = 3600 * 24
 
@@ -739,38 +623,11 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-	var labels []string
-	var isPartial bool
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if len(cp.filterss) == 0 {
-		if cp.IsDefaultTimeRange() {
-			labels, isPartial, err = netstorage.GetLabels(qt, at, denyPartialResponse, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf("cannot obtain labels: %w", err)
-			}
-		} else {
-			if cp.start == 0 {
-				cp.start = cp.end - defaultStep
-			}
-			tr := storage.TimeRange{
-				MinTimestamp: cp.start,
-				MaxTimestamp: cp.end,
-			}
-			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(qt, at, denyPartialResponse, tr, limit, cp.deadline)
-			if err != nil {
-				return fmt.Errorf("cannot obtain labels on time range: %w", err)
-			}
-		}
-	} else {
-		// Extended functionality that allows filtering by label filters and time range
-		// i.e. /api/v1/labels?match[]=foobar{baz="abc"}&start=...&end=...
-		if cp.start == 0 {
-			cp.start = cp.end - defaultStep
-		}
-		labels, isPartial, err = labelsWithMatches(qt, at, denyPartialResponse, cp, limit)
-		if err != nil {
-			return fmt.Errorf("cannot obtain labels for timeRange=[%d..%d]: %w", cp.start, cp.end, err)
-		}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	labels, isPartial, err := netstorage.GetLabelNames(qt, at, denyPartialResponse, sq, limit, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain labels: %w", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -781,57 +638,6 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
 	return nil
-}
-
-func labelsWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, cp *commonParams, limit int) ([]string, bool, error) {
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	m := make(map[string]struct{})
-	isPartial := false
-	if cp.end-cp.start > 24*3600*1000 {
-		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartialResponse, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
-		}
-		isPartial = isPartialResponse
-		for _, mn := range mns {
-			for _, tag := range mn.Tags {
-				m[string(tag.Key)] = struct{}{}
-			}
-		}
-		if len(mns) > 0 {
-			m["__name__"] = struct{}{}
-		}
-	} else {
-		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-		}
-		isPartial = isPartialResponse
-		var mLock sync.Mutex
-		err = rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-			mLock.Lock()
-			for _, tag := range rs.MetricName.Tags {
-				m[string(tag.Key)] = struct{}{}
-			}
-			m["__name__"] = struct{}{}
-			mLock.Unlock()
-			return nil
-		})
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch labels from storage: %w", err)
-		}
-	}
-	labels := make([]string, 0, len(m))
-	for label := range m {
-		labels = append(labels, label)
-	}
-	if limit > 0 && limit < len(labels) {
-		labels = labels[:limit]
-	}
-	sort.Strings(labels)
-	qt.Printf("sort %d labels", len(labels))
-	return labels, isPartial, nil
 }
 
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)

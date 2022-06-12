@@ -683,62 +683,57 @@ func DeleteSeries(qt *querytracer.Tracer, at *auth.Token, sq *storage.SearchQuer
 	return deletedTotal, nil
 }
 
-// GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
-func GetLabelsOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get labels on timeRange=%s", &tr)
+// GetLabelNames returns label names matching the given sq until the given deadline.
+func GetLabelNames(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, maxLabelNames int, deadline searchutils.Deadline) ([]string, bool, error) {
+	qt = qt.NewChild("get labels: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
+	requestData := sq.Marshal(nil)
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
-		labels []string
-		err    error
+		labelNames []string
+		err        error
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
-		sn.labelsOnTimeRangeRequests.Inc()
-		labels, err := sn.getLabelsOnTimeRange(qt, at.AccountID, at.ProjectID, tr, limit, deadline)
+		sn.labelNamesRequests.Inc()
+		labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 		if err != nil {
-			sn.labelsOnTimeRangeErrors.Inc()
-			err = fmt.Errorf("cannot get labels on time range from vmstorage %s: %w", sn.connPool.Addr(), err)
+			sn.labelNamesErrors.Inc()
+			err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
-			labels: labels,
-			err:    err,
+			labelNames: labelNames,
+			err:        err,
 		}
 	})
 
 	// Collect results
-	var labels []string
-	isPartial, err := snr.collectResults(partialLabelsOnTimeRangeResults, func(result interface{}) error {
+	var labelNames []string
+	isPartial, err := snr.collectResults(partialLabelNamesResults, func(result interface{}) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
 		}
-		labels = append(labels, nr.labels...)
+		labelNames = append(labelNames, nr.labelNames...)
 		return nil
 	})
-	qt.Printf("get %d non-duplicated labels", len(labels))
+	qt.Printf("get %d non-duplicated labels", len(labelNames))
 	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot fetch labels on time range from vmstorage nodes: %w", err)
+		return nil, isPartial, fmt.Errorf("cannot fetch labels from vmstorage nodes: %w", err)
 	}
 
 	// Deduplicate labels
-	labels = deduplicateStrings(labels)
-	qt.Printf("get %d unique labels after de-duplication", len(labels))
-	// Substitute "" with "__name__"
-	for i := range labels {
-		if labels[i] == "" {
-			labels[i] = "__name__"
-		}
+	labelNames = deduplicateStrings(labelNames)
+	qt.Printf("get %d unique labels after de-duplication", len(labelNames))
+	if maxLabelNames > 0 && maxLabelNames < len(labelNames) {
+		labelNames = labelNames[:maxLabelNames]
 	}
-	if limit > 0 && limit < len(labels) {
-		labels = labels[:limit]
-	}
-	// Sort labels like Prometheus does
-	sort.Strings(labels)
-	qt.Printf("sort %d labels", len(labels))
-	return labels, isPartial, nil
+	// Sort labelNames like Prometheus does
+	sort.Strings(labelNames)
+	qt.Printf("sort %d labels", len(labelNames))
+	return labelNames, isPartial, nil
 }
 
 // GetGraphiteTags returns Graphite tags until the given deadline.
@@ -748,7 +743,8 @@ func GetGraphiteTags(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, isPartial, err := GetLabels(qt, at, denyPartialResponse, 0, deadline)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, nil, 0)
+	labels, isPartial, err := GetLabelNames(qt, at, denyPartialResponse, sq, 0, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -788,159 +784,15 @@ func hasString(a []string, s string) bool {
 	return false
 }
 
-// GetLabels returns labels until the given deadline.
-func GetLabels(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get labels")
+// GetLabelValues returns label values matching the given labelName and sq until the given deadline.
+func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, sq *storage.SearchQuery,
+	maxLabelValues int, deadline searchutils.Deadline) ([]string, bool, error) {
+	qt = qt.NewChild("get values for label %s: %s", labelName, sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	// Send the query to all the storage nodes in parallel.
-	type nodeResult struct {
-		labels []string
-		err    error
-	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
-		sn.labelsRequests.Inc()
-		labels, err := sn.getLabels(qt, at.AccountID, at.ProjectID, limit, deadline)
-		if err != nil {
-			sn.labelsErrors.Inc()
-			err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
-		}
-		return &nodeResult{
-			labels: labels,
-			err:    err,
-		}
-	})
-
-	// Collect results
-	var labels []string
-	isPartial, err := snr.collectResults(partialLabelsResults, func(result interface{}) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
-		}
-		labels = append(labels, nr.labels...)
-		return nil
-	})
-	qt.Printf("get %d non-duplicated labels from global index", len(labels))
-	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot fetch labels from vmstorage nodes: %w", err)
-	}
-
-	// Deduplicate labels
-	labels = deduplicateStrings(labels)
-	qt.Printf("get %d unique labels after de-duplication", len(labels))
-	// Substitute "" with "__name__"
-	for i := range labels {
-		if labels[i] == "" {
-			labels[i] = "__name__"
-		}
-	}
-	// Sort labels like Prometheus does
-	if limit > 0 && limit < len(labels) {
-		labels = labels[:limit]
-	}
-	sort.Strings(labels)
-	qt.Printf("sort %d labels", len(labels))
-	return labels, isPartial, nil
-}
-
-// GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
-// until the given deadline.
-func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string,
-	tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get values for label %s on a timeRange %s", labelName, &tr)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	if labelName == "__name__" {
-		labelName = ""
-	}
-
-	// Send the query to all the storage nodes in parallel.
-	type nodeResult struct {
-		labelValues []string
-		err         error
-	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
-		sn.labelValuesOnTimeRangeRequests.Inc()
-		labelValues, err := sn.getLabelValuesOnTimeRange(qt, at.AccountID, at.ProjectID, labelName, tr, limit, deadline)
-		if err != nil {
-			sn.labelValuesOnTimeRangeErrors.Inc()
-			err = fmt.Errorf("cannot get label values on time range from vmstorage %s: %w", sn.connPool.Addr(), err)
-		}
-		return &nodeResult{
-			labelValues: labelValues,
-			err:         err,
-		}
-	})
-
-	// Collect results
-	var labelValues []string
-	isPartial, err := snr.collectResults(partialLabelValuesOnTimeRangeResults, func(result interface{}) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
-		}
-		labelValues = append(labelValues, nr.labelValues...)
-		return nil
-	})
-	qt.Printf("get %d non-duplicated label values", len(labelValues))
-	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot fetch label values on time range from vmstorage nodes: %w", err)
-	}
-
-	// Deduplicate label values
-	labelValues = deduplicateStrings(labelValues)
-	qt.Printf("get %d unique label values after de-duplication", len(labelValues))
-	// Sort labelValues like Prometheus does
-	if limit > 0 && limit < len(labelValues) {
-		labelValues = labelValues[:limit]
-	}
-	sort.Strings(labelValues)
-	qt.Printf("sort %d label values", len(labelValues))
-	return labelValues, isPartial, nil
-}
-
-// GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
-func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	if tagName == "name" {
-		tagName = ""
-	}
-	tagValues, isPartial, err := GetLabelValues(qt, at, denyPartialResponse, tagName, 0, deadline)
-	if err != nil {
-		return nil, false, err
-	}
-	if len(filter) > 0 {
-		tagValues, err = applyGraphiteRegexpFilter(filter, tagValues)
-		if err != nil {
-			return nil, false, err
-		}
-	}
-	if limit > 0 && limit < len(tagValues) {
-		tagValues = tagValues[:limit]
-	}
-	return tagValues, isPartial, nil
-}
-
-// GetLabelValues returns label values for the given labelName
-// until the given deadline.
-func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get values for label %s", labelName)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	if labelName == "__name__" {
-		labelName = ""
-	}
+	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -949,7 +801,7 @@ func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse 
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.labelValuesRequests.Inc()
-		labelValues, err := sn.getLabelValues(qt, at.AccountID, at.ProjectID, labelName, limit, deadline)
+		labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 		if err != nil {
 			sn.labelValuesErrors.Inc()
 			err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -979,12 +831,39 @@ func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse 
 	labelValues = deduplicateStrings(labelValues)
 	qt.Printf("get %d unique label values after de-duplication", len(labelValues))
 	// Sort labelValues like Prometheus does
-	if limit > 0 && limit < len(labelValues) {
-		labelValues = labelValues[:limit]
+	if maxLabelValues > 0 && maxLabelValues < len(labelValues) {
+		labelValues = labelValues[:maxLabelValues]
 	}
 	sort.Strings(labelValues)
 	qt.Printf("sort %d label values", len(labelValues))
 	return labelValues, isPartial, nil
+}
+
+// GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
+func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	if tagName == "name" {
+		tagName = ""
+	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, nil, 0)
+	tagValues, isPartial, err := GetLabelValues(qt, at, denyPartialResponse, tagName, sq, 0, deadline)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(filter) > 0 {
+		tagValues, err = applyGraphiteRegexpFilter(filter, tagValues)
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	if limit > 0 && limit < len(tagValues) {
+		tagValues = tagValues[:limit]
+	}
+	return tagValues, isPartial, nil
 }
 
 // GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
@@ -1037,89 +916,6 @@ func GetTagValueSuffixes(qt *querytracer.Tracer, at *auth.Token, denyPartialResp
 		suffixes = append(suffixes, suffix)
 	}
 	return suffixes, isPartial, nil
-}
-
-// GetLabelEntries returns all the label entries for at until the given deadline.
-func GetLabelEntries(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) ([]storage.TagEntry, bool, error) {
-	qt = qt.NewChild("get label entries")
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	// Send the query to all the storage nodes in parallel.
-	type nodeResult struct {
-		labelEntries []storage.TagEntry
-		err          error
-	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
-		sn.labelEntriesRequests.Inc()
-		labelEntries, err := sn.getLabelEntries(qt, at.AccountID, at.ProjectID, deadline)
-		if err != nil {
-			sn.labelEntriesErrors.Inc()
-			err = fmt.Errorf("cannot get label entries from vmstorage %s: %w", sn.connPool.Addr(), err)
-		}
-		return &nodeResult{
-			labelEntries: labelEntries,
-			err:          err,
-		}
-	})
-
-	// Collect results
-	var labelEntries []storage.TagEntry
-	isPartial, err := snr.collectResults(partialLabelEntriesResults, func(result interface{}) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
-		}
-		labelEntries = append(labelEntries, nr.labelEntries...)
-		return nil
-	})
-	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot featch label etnries from vmstorage nodes: %w", err)
-	}
-	qt.Printf("get %d label entries before de-duplication", len(labelEntries))
-
-	// Substitute "" with "__name__"
-	for i := range labelEntries {
-		e := &labelEntries[i]
-		if e.Key == "" {
-			e.Key = "__name__"
-		}
-	}
-
-	// Deduplicate label entries
-	labelEntries = deduplicateLabelEntries(labelEntries)
-	qt.Printf("left %d label entries after de-duplication", len(labelEntries))
-
-	// Sort labelEntries by the number of label values in each entry.
-	sort.Slice(labelEntries, func(i, j int) bool {
-		a, b := labelEntries[i].Values, labelEntries[j].Values
-		if len(a) != len(b) {
-			return len(a) > len(b)
-		}
-		return labelEntries[i].Key > labelEntries[j].Key
-	})
-	qt.Printf("sort %d label entries", len(labelEntries))
-
-	return labelEntries, isPartial, nil
-}
-
-func deduplicateLabelEntries(src []storage.TagEntry) []storage.TagEntry {
-	m := make(map[string][]string, len(src))
-	for i := range src {
-		e := &src[i]
-		m[e.Key] = append(m[e.Key], e.Values...)
-	}
-	dst := make([]storage.TagEntry, 0, len(m))
-	for key, values := range m {
-		values := deduplicateStrings(values)
-		sort.Strings(values)
-		dst = append(dst, storage.TagEntry{
-			Key:    key,
-			Values: values,
-		})
-	}
-	return dst
 }
 
 func deduplicateStrings(a []string) []string {
@@ -1679,35 +1475,17 @@ type storageNode struct {
 	// The number of DeleteSeries request errors to storageNode.
 	deleteSeriesErrors *metrics.Counter
 
-	// The number of requests to labels.
-	labelsOnTimeRangeRequests *metrics.Counter
+	// The number of requests to labelNames.
+	labelNamesRequests *metrics.Counter
 
-	// The number of requests to labels.
-	labelsRequests *metrics.Counter
-
-	// The number of errors during requests to labels.
-	labelsOnTimeRangeErrors *metrics.Counter
-
-	// The number of errors during requests to labels.
-	labelsErrors *metrics.Counter
-
-	// The number of requests to labelValuesOnTimeRange.
-	labelValuesOnTimeRangeRequests *metrics.Counter
+	// The number of errors during requests to labelNames.
+	labelNamesErrors *metrics.Counter
 
 	// The number of requests to labelValues.
 	labelValuesRequests *metrics.Counter
 
 	// The number of errors during requests to labelValuesOnTimeRange.
-	labelValuesOnTimeRangeErrors *metrics.Counter
-
-	// The number of errors during requests to labelValues.
 	labelValuesErrors *metrics.Counter
-
-	// The number of requests to labelEntries.
-	labelEntriesRequests *metrics.Counter
-
-	// The number of errors during requests to labelEntries.
-	labelEntriesErrors *metrics.Counter
 
 	// The number of requests to tagValueSuffixes.
 	tagValueSuffixesRequests *metrics.Counter
@@ -1778,66 +1556,33 @@ func (sn *storageNode) deleteMetrics(qt *querytracer.Tracer, requestData []byte,
 	return deletedCount, nil
 }
 
-func (sn *storageNode) getLabelsOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, error) {
+func (sn *storageNode) getLabelNames(qt *querytracer.Tracer, requestData []byte, maxLabelNames int, deadline searchutils.Deadline) ([]string, error) {
 	var labels []string
 	f := func(bc *handshake.BufferedConn) error {
-		ls, err := sn.getLabelsOnTimeRangeOnConn(bc, accountID, projectID, tr, limit)
+		ls, err := sn.getLabelNamesOnConn(bc, requestData, maxLabelNames)
 		if err != nil {
 			return err
 		}
 		labels = ls
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "labelsOnTimeRange_v3", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "labelNames_v5", f, deadline); err != nil {
 		return nil, err
 	}
 	return labels, nil
 }
 
-func (sn *storageNode) getLabels(qt *querytracer.Tracer, accountID, projectID uint32, limit int, deadline searchutils.Deadline) ([]string, error) {
-	var labels []string
-	f := func(bc *handshake.BufferedConn) error {
-		ls, err := sn.getLabelsOnConn(bc, accountID, projectID, limit)
-		if err != nil {
-			return err
-		}
-		labels = ls
-		return nil
-	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "labels_v4", f, deadline); err != nil {
-		return nil, err
-	}
-	return labels, nil
-}
-
-func (sn *storageNode) getLabelValuesOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string,
-	tr storage.TimeRange, limit int, deadline searchutils.Deadline) ([]string, error) {
+func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, labelName string, requestData []byte, maxLabelValues int, deadline searchutils.Deadline) ([]string, error) {
 	var labelValues []string
 	f := func(bc *handshake.BufferedConn) error {
-		lvs, err := sn.getLabelValuesOnTimeRangeOnConn(bc, accountID, projectID, labelName, tr, limit)
+		lvs, err := sn.getLabelValuesOnConn(bc, labelName, requestData, maxLabelValues)
 		if err != nil {
 			return err
 		}
 		labelValues = lvs
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "labelValuesOnTimeRange_v3", f, deadline); err != nil {
-		return nil, err
-	}
-	return labelValues, nil
-}
-
-func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, limit int, deadline searchutils.Deadline) ([]string, error) {
-	var labelValues []string
-	f := func(bc *handshake.BufferedConn) error {
-		lvs, err := sn.getLabelValuesOnConn(bc, accountID, projectID, labelName, limit)
-		if err != nil {
-			return err
-		}
-		labelValues = lvs
-		return nil
-	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "labelValues_v4", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "labelValues_v5", f, deadline); err != nil {
 		return nil, err
 	}
 	return labelValues, nil
@@ -1858,22 +1603,6 @@ func (sn *storageNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, pr
 		return nil, err
 	}
 	return suffixes, nil
-}
-
-func (sn *storageNode) getLabelEntries(qt *querytracer.Tracer, accountID, projectID uint32, deadline searchutils.Deadline) ([]storage.TagEntry, error) {
-	var tagEntries []storage.TagEntry
-	f := func(bc *handshake.BufferedConn) error {
-		tes, err := sn.getLabelEntriesOnConn(bc, accountID, projectID)
-		if err != nil {
-			return err
-		}
-		tagEntries = tes
-		return nil
-	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "labelEntries_v4", f, deadline); err != nil {
-		return nil, err
-	}
-	return tagEntries, nil
 }
 
 func (sn *storageNode) getTSDBStatusForDate(qt *querytracer.Tracer, accountID, projectID uint32,
@@ -2142,18 +1871,15 @@ func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestDa
 	return int(deletedCount), nil
 }
 
-const maxLabelSize = 16 * 1024 * 1024
+const maxLabelNameSize = 16 * 1024 * 1024
 
-func (sn *storageNode) getLabelsOnTimeRangeOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, tr storage.TimeRange, limit int) ([]string, error) {
+func (sn *storageNode) getLabelNamesOnConn(bc *handshake.BufferedConn, requestData []byte, maxLabelNames int) ([]string, error) {
 	// Send the request to sn.
-	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
-		return nil, err
+	if err := writeBytes(bc, requestData); err != nil {
+		return nil, fmt.Errorf("cannot write requestData: %w", err)
 	}
-	if err := writeTimeRange(bc, tr); err != nil {
-		return nil, err
-	}
-	if err := writeLimit(bc, limit); err != nil {
-		return nil, err
+	if err := writeLimit(bc, maxLabelNames); err != nil {
+		return nil, fmt.Errorf("cannot write maxLabelNames=%d: %w", maxLabelNames, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
@@ -2171,43 +1897,7 @@ func (sn *storageNode) getLabelsOnTimeRangeOnConn(bc *handshake.BufferedConn, ac
 	// Read response
 	var labels []string
 	for {
-		buf, err = readBytes(buf[:0], bc, maxLabelSize)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read labels: %w", err)
-		}
-		if len(buf) == 0 {
-			// Reached the end of the response
-			return labels, nil
-		}
-		labels = append(labels, string(buf))
-	}
-}
-
-func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, limit int) ([]string, error) {
-	// Send the request to sn.
-	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
-		return nil, err
-	}
-	if err := writeLimit(bc, limit); err != nil {
-		return nil, err
-	}
-	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
-	}
-
-	// Read response
-	var labels []string
-	for {
-		buf, err = readBytes(buf[:0], bc, maxLabelSize)
+		buf, err = readBytes(buf[:0], bc, maxLabelNameSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read labels: %w", err)
 		}
@@ -2221,51 +1911,16 @@ func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, pr
 
 const maxLabelValueSize = 16 * 1024 * 1024
 
-func (sn *storageNode) getLabelValuesOnTimeRangeOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string, tr storage.TimeRange, limit int) ([]string, error) {
+func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
 	// Send the request to sn.
-	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
-		return nil, err
-	}
 	if err := writeBytes(bc, []byte(labelName)); err != nil {
 		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
 	}
-	if err := writeTimeRange(bc, tr); err != nil {
-		return nil, err
+	if err := writeBytes(bc, requestData); err != nil {
+		return nil, fmt.Errorf("cannot write requestData: %w", err)
 	}
-	if err := writeLimit(bc, limit); err != nil {
-		return nil, err
-	}
-	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
-	}
-
-	// Read response
-	labelValues, _, err := readLabelValues(buf, bc)
-	if err != nil {
-		return nil, err
-	}
-	return labelValues, nil
-}
-
-func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string, limit int) ([]string, error) {
-	// Send the request to sn.
-	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
-		return nil, err
-	}
-	if err := writeBytes(bc, []byte(labelName)); err != nil {
-		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
-	}
-	if err := writeLimit(bc, limit); err != nil {
-		return nil, err
+	if err := writeLimit(bc, maxLabelValues); err != nil {
+		return nil, fmt.Errorf("cannot write maxLabelValues=%d: %w", maxLabelValues, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
@@ -2350,48 +2005,6 @@ func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, acc
 		suffixes = append(suffixes, string(buf))
 	}
 	return suffixes, nil
-}
-
-func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]storage.TagEntry, error) {
-	// Send the request to sn.
-	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
-		return nil, err
-	}
-	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
-	}
-
-	// Read response.
-	var labelEntries []storage.TagEntry
-	for {
-		buf, err = readBytes(buf[:0], bc, maxLabelSize)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read label: %w", err)
-		}
-		if len(buf) == 0 {
-			// Reached the end of the response
-			return labelEntries, nil
-		}
-		label := string(buf)
-		var values []string
-		values, buf, err = readLabelValues(buf, bc)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read values for label %q: %w", label, err)
-		}
-		labelEntries = append(labelEntries, storage.TagEntry{
-			Key:    label,
-			Values: values,
-		})
-	}
 }
 
 func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
@@ -2493,7 +2106,7 @@ func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, err
 	var a []storage.TopHeapEntry
 	var buf []byte
 	for i := uint64(0); i < n; i++ {
-		buf, err = readBytes(buf[:0], bc, maxLabelSize)
+		buf, err = readBytes(buf[:0], bc, maxLabelNameSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read label name: %w", err)
 		}
@@ -2745,34 +2358,28 @@ func InitStorageNodes(addrs []string) {
 
 			concurrentQueries: metrics.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 
-			registerMetricNamesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			registerMetricNamesErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsOnTimeRangeRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsOnTimeRangeErrors:        metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsErrors:                   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesOnTimeRangeRequests: metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValuesOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesOnTimeRangeErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValuesOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelEntriesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelEntriesErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesErrors:         metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:             metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusErrors:               metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusWithFiltersRequests:  metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusWithFiltersErrors:    metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesErrors:        metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchErrors:                   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			metricBlocksRead:               metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:                 metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelNamesRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelNamesErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesErrors:        metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusWithFiltersRequests: metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusWithFiltersErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesRequests:     metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchErrors:                  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			metricBlocksRead:              metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+			metricRowsRead:                metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 		}
 		storageNodes = append(storageNodes, sn)
 	}
@@ -2784,16 +2391,13 @@ func Stop() {
 }
 
 var (
-	partialLabelsOnTimeRangeResults      = metrics.NewCounter(`vm_partial_results_total{type="labels_on_time_range", name="vmselect"}`)
-	partialLabelsResults                 = metrics.NewCounter(`vm_partial_results_total{type="labels", name="vmselect"}`)
-	partialLabelValuesOnTimeRangeResults = metrics.NewCounter(`vm_partial_results_total{type="label_values_on_time_range", name="vmselect"}`)
-	partialLabelValuesResults            = metrics.NewCounter(`vm_partial_results_total{type="label_values", name="vmselect"}`)
-	partialTagValueSuffixesResults       = metrics.NewCounter(`vm_partial_results_total{type="tag_value_suffixes", name="vmselect"}`)
-	partialLabelEntriesResults           = metrics.NewCounter(`vm_partial_results_total{type="label_entries", name="vmselect"}`)
-	partialTSDBStatusResults             = metrics.NewCounter(`vm_partial_results_total{type="tsdb_status", name="vmselect"}`)
-	partialSeriesCountResults            = metrics.NewCounter(`vm_partial_results_total{type="series_count", name="vmselect"}`)
-	partialSearchMetricNamesResults      = metrics.NewCounter(`vm_partial_results_total{type="search_metric_names", name="vmselect"}`)
-	partialSearchResults                 = metrics.NewCounter(`vm_partial_results_total{type="search", name="vmselect"}`)
+	partialLabelNamesResults        = metrics.NewCounter(`vm_partial_results_total{type="labels_names", name="vmselect"}`)
+	partialLabelValuesResults       = metrics.NewCounter(`vm_partial_results_total{type="label_values", name="vmselect"}`)
+	partialTagValueSuffixesResults  = metrics.NewCounter(`vm_partial_results_total{type="tag_value_suffixes", name="vmselect"}`)
+	partialTSDBStatusResults        = metrics.NewCounter(`vm_partial_results_total{type="tsdb_status", name="vmselect"}`)
+	partialSeriesCountResults       = metrics.NewCounter(`vm_partial_results_total{type="series_count", name="vmselect"}`)
+	partialSearchMetricNamesResults = metrics.NewCounter(`vm_partial_results_total{type="search_metric_names", name="vmselect"}`)
+	partialSearchResults            = metrics.NewCounter(`vm_partial_results_total{type="search", name="vmselect"}`)
 )
 
 func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
