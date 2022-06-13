@@ -1,26 +1,22 @@
 import React, {ChangeEvent, FC, useState} from "react";
 import {SyntheticEvent} from "react";
-import {Typography, Grid, Alert, Box, Tabs, Tab, Tooltip} from "@mui/material";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
+import {Alert, Box} from "@mui/material";
 import {useFetchQuery} from "../../hooks/useCardinalityFetch";
-import EnhancedTable from "../Table/Table";
-import {TSDBStatus, TopHeapEntry, DefaultState, Tabs as TabsType, Containers} from "./types";
 import {
-  defaultHeadCells,
-  headCellsWithProgress,
+  LABEL_VALUE_PAIR_CONTENT_TITLE,
+  LABEL_VALUE_PAIRS_TABLE_HEADERS,
+  LABEL_WITH_UNIQUE_VALUES_TABLE_HEADERS,
+  LABELS_CONTENT_TITLE, METRICS_TABLE_HEADERS,
+  SERIES_CONTENT_TITLE,
   SPINNER_TITLE,
   spinnerContainerStyles
 } from "./consts";
-import {defaultProperties, progressCount, queryUpdater, tableTitles} from "./helpers";
+import {defaultProperties, queryUpdater} from "./helpers";
 import {Data} from "../Table/types";
-import BarChart from "../BarChart/BarChart";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
-import {barOptions} from "../BarChart/consts";
 import Spinner from "../common/Spinner";
-import TabPanel from "../TabPanel/TabPanel";
 import {useCardinalityDispatch, useCardinalityState} from "../../state/cardinality/CardinalityStateContext";
-import {tableCells} from "./TableCells/TableCells";
+import MetricsContent from "./MetricsContent/MetricsContent";
 
 const CardinalityPanel: FC = () => {
   const cardinalityDispatch = useCardinalityDispatch();
@@ -84,72 +80,45 @@ const CardinalityPanel: FC = () => {
         </Alert>}
       />}
       <CardinalityConfigurator error={configError} query={query} onRunQuery={onRunQuery} onSetQuery={onSetQuery}
-        onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} />
+        onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} date={date} match={match}
+        totalSeries={tsdbStatus.totalSeries} totalLabelValuePairs={tsdbStatus.totalLabelValuePairs}/>
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
-      {<Box m={2}>
-        Analyzed <b>{tsdbStatus.totalSeries}</b> series and <b>{tsdbStatus.totalLabelValuePairs}</b> label=value pairs
-        at <b>{date}</b> {match && <span>for series selector <b>{match}</b></span>}. Show top {topN} entries per table.
-      </Box>}
-      {Object.keys(tsdbStatus).map((key ) => {
-        if (key == "totalSeries" || key == "totalLabelValuePairs") return null;
-        const tableTitle = tableTitles[key];
-        const rows = tsdbStatus[key as keyof TSDBStatus] as unknown as Data[];
-        rows.forEach((row) => {
-          progressCount(tsdbStatus.totalSeries, key, row);
-          row.actions = "0";
-        });
-        const headerCells = (key == "seriesCountByMetricName" || key == "seriesCountByLabelValuePair") ? headCellsWithProgress : defaultHeadCells;
-        return (
-          <>
-            <Grid container spacing={2} sx={{px: 2}}>
-              <Grid item xs={12} md={12} lg={12} key={key}>
-                <Typography gutterBottom variant="h5" component="h5">
-                  {tableTitle}
-                </Typography>
-                <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                  <Tabs
-                    value={stateTabs[key as keyof DefaultState]}
-                    onChange={handleTabChange} aria-label="basic tabs example">
-                    {defaultProps.tabs[key as keyof TabsType].map((title: string, i: number) =>
-                      <Tab
-                        key={title}
-                        label={title}
-                        aria-controls={`tabpanel-${i}`}
-                        id={key}
-                        iconPosition={"start"}
-                        icon={ i === 0 ? <TableChartIcon /> : <ShowChartIcon /> } />
-                    )}
-                  </Tabs>
-                </Box>
-                {defaultProps.tabs[key as keyof TabsType].map((_,idx) =>
-                  <div
-                    ref={defaultProps.containerRefs[key as keyof Containers<HTMLDivElement>]}
-                    style={{width: "100%", paddingRight: idx !== 0 ? "40px" : 0 }} key={`${key}-${idx}`}>
-                    <TabPanel value={stateTabs[key as keyof DefaultState]} index={idx}>
-                      {stateTabs[key as keyof DefaultState] === 0 ? <EnhancedTable
-                        rows={rows}
-                        headerCells={headerCells}
-                        defaultSortColumn={"value"}
-                        tableCells={(row) => tableCells(row,date,handleFilterClick(key))}
-                      />: <BarChart
-                        data={[
-                          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                          // @ts-ignore
-                          rows.map((v) => v.name),
-                          rows.map((v) => v.value),
-                          rows.map((_, i) => i % 12 == 0 ? 1 : i % 10 == 0 ? 2 : 0),
-                        ]}
-                        container={defaultProps.containerRefs[key as keyof Containers<HTMLDivElement>]?.current}
-                        configs={barOptions}
-                      />}
-                    </TabPanel>
-                  </div>
-                )}
-              </Grid>
-            </Grid>
-          </>
-        );
-      })}
+      <MetricsContent
+        activeTab={stateTabs.seriesCountByMetricName}
+        rows={tsdbStatus.seriesCountByMetricName as unknown as Data[]}
+        onChange={handleTabChange}
+        onActionClick={handleFilterClick("seriesCountByMetricName")}
+        tabs={defaultProps.tabs.seriesCountByMetricName}
+        chartContainer={defaultProps.containerRefs.seriesCountByMetricName}
+        totalSeries={tsdbStatus.totalSeries}
+        tabId={"seriesCountByMetricName"}
+        sectionTitle={SERIES_CONTENT_TITLE}
+        tableHeaderCells={METRICS_TABLE_HEADERS}
+      />
+      <MetricsContent
+        activeTab={stateTabs.seriesCountByLabelValuePair}
+        rows={tsdbStatus.seriesCountByLabelValuePair as unknown as Data[]}
+        onChange={handleTabChange}
+        onActionClick={handleFilterClick("seriesCountByLabelValuePair")}
+        tabs={defaultProps.tabs.seriesCountByLabelValuePair}
+        chartContainer={defaultProps.containerRefs.seriesCountByLabelValuePair}
+        totalSeries={tsdbStatus.totalLabelValuePairs}
+        tabId={"seriesCountByLabelValuePair"}
+        sectionTitle={LABEL_VALUE_PAIR_CONTENT_TITLE}
+        tableHeaderCells={LABEL_VALUE_PAIRS_TABLE_HEADERS}
+      />
+      <MetricsContent
+        activeTab={stateTabs.labelValueCountByLabelName}
+        rows={tsdbStatus.labelValueCountByLabelName as unknown as Data[]}
+        onChange={handleTabChange}
+        onActionClick={handleFilterClick("labelValueCountByLabelName")}
+        tabs={defaultProps.tabs.labelValueCountByLabelName}
+        chartContainer={defaultProps.containerRefs.labelValueCountByLabelName}
+        totalSeries={-1}
+        tabId={"seriesCountByLabelValuePair"}
+        sectionTitle={LABELS_CONTENT_TITLE}
+        tableHeaderCells={LABEL_WITH_UNIQUE_VALUES_TABLE_HEADERS}
+      />
     </>
   );
 };

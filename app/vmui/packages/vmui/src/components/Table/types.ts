@@ -23,7 +23,7 @@ export interface TableProps {
   rows: Data[];
   headerCells: HeadCell[],
   defaultSortColumn: keyof Data,
-  tableCells: (row: Data) => ReactNode[],
+  tableCells: (row: Data) => ReactNode,
   isPagingEnabled?: boolean,
 }
 

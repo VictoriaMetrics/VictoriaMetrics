@@ -37,7 +37,7 @@ const EnhancedTable: FC<TableProps> = ({
     setSelected([]);
   };
 
-  const handleClick = (event: SyntheticEvent, name: string) => {
+  const handleClick = (name: string) => (_: SyntheticEvent) => {
     const selectedIndex = selected.indexOf(name);
     let newSelected: readonly string[] = [];
 
@@ -101,7 +101,7 @@ const EnhancedTable: FC<TableProps> = ({
                   return (
                     <TableRow
                       hover
-                      onClick={(event) => handleClick(event, row.name)}
+                      onClick={handleClick(row.name)}
                       role="checkbox"
                       aria-checked={isItemSelected}
                       tabIndex={-1}
