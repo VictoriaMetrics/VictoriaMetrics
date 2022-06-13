@@ -125,6 +125,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         time: {
           ...state.time,
+          duration: action.payload.duration,
           period: getTimeperiodForDuration(action.payload.duration, new Date(action.payload.until)),
           relativeTime: action.payload.id,
         }
