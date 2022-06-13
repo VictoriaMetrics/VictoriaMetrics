@@ -28,10 +28,10 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20220531201128-c960675eff93
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
-	google.golang.org/api v0.82.0
+	google.golang.org/api v0.83.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
