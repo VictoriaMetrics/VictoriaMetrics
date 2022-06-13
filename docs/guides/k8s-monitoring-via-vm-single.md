@@ -74,7 +74,7 @@ Run this command in your terminal:
 
 <div class="with-copy" markdown="1">.html
 
-```yaml
+```bash
 helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml
 ```
 
