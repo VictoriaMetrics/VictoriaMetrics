@@ -359,24 +359,19 @@ This command should return the following output if everything is OK:
 ```
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
-Some users want to use list of host tags.
-How to set up tags and use them you can check in the DataDog documentation
-![DataDog tagging](https://docs.datadoghq.com/getting_started/tagging/)
 
-In that case datadog agent starts to send this tags via `/datadog/intake` endpoint.  
-At that moment it is not present a clear solution for gathering tags from this endpoint.
-As a workaround we suggest to use next schema of components realization:
+For [tagging](https://docs.datadoghq.com/getting_started/tagging/) DataDog agent sends configured tags to a separate 
+`/datadog/intake` endpoint, which is not supported by VictoriaMetrics. 
+Instead, we recommend adding tags via `--remoteWrite.label` flag using [vmagent](https://docs.victoriametrics.com/vmagent.html) 
+as a proxy or a sidecar for each DataDog agent:
 
-<img src="docs/assets/images/datadog.png" width="300" alt="VictoriaMetrics logo">
+<img src="docs/assets/images/datadog.png" width="300" alt="Tagging via vmagent">
 
-How to setup this schema by the code:
-1. In Datadog side you should define each vmagent address where you want to push metrics
-   `dd_url: http://127.0.0.1:8429/datadog`;
-2. In each vmagent which collect metrics from DataDog you should define flag
-   `--remoteWrite.url=http://localhost:8430/api/v1/write`  where to send to last vmagent which will collect all those metrics,
-   and you need to specify the labels `--remoteWrite.label=team=team,dev=dev ` which you want to see in the metrics;
-3. Last  vmagent which is agregating data will send this metrics to db via address which need to be defined
-   `--remoteWrite.url=http://localhost:8428/api/v1/write`;
+The configuration details are the following:
+1. Set the `dd_url` param for each DataDog agent to the corresponding vmagent proxy address: `dd_url: http://<vmagent-addr>:8429/datadog`;
+2. Configure flag `--remoteWrite.url` for each vmagent proxy in order to forward collected data to the central vmagent: `--remoteWrite.url=http://<vmagent-addr>:8430/api/v1/write`;
+3. [Specify extra tags (labels)](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) you want to add for each vmagent: `--remoteWrite.label=team=dev,env=prod`;
+4. Configure the central vmagent with VictoriaMetrics database address: `--remoteWrite.url=http://<victoriametrics-addr>:8428/api/v1/write`.
 
 However, you can check this part of documentation how to correctly set labels to you vmagent
 [vmagent label config](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics)
