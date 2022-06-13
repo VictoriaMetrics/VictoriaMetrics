@@ -365,7 +365,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 					return err
 				}
 				if err := b.UnmarshalData(); err != nil {
-					return fmt.Errorf("cannot unmarshal block during export: %s", err)
+					return fmt.Errorf("cannot unmarshal block during export: %w", err)
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = mn
@@ -714,7 +714,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	}
 
 	if len(query) > maxQueryLen.N {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
+		return fmt.Errorf("query is too long: %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
@@ -745,7 +745,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 			filterss: filterss,
 		}
 		if err := exportHandler(qt, w, cp, "promapi", 0, false); err != nil {
-			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
+			return fmt.Errorf("error export the data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
 		return nil
@@ -828,6 +828,10 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
 	}
+	// Validate input args.
+	if len(query) > maxQueryLen.N {
+		return fmt.Errorf("query is too long: %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
+	}
 	start, err := searchutils.GetTime(r, "start", ct-defaultStep)
 	if err != nil {
 		return err
@@ -859,10 +863,6 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		return err
 	}
 
-	// Validate input args.
-	if len(query) > maxQueryLen.N {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
-	}
 	if start > end {
 		end = start + defaultStep
 	}

@@ -200,7 +200,7 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 	}
 	rv, err := evalExprInternal(qt, ec, e)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(`cannot evaluate %q: %w`, e.AppendString(nil), err)
 	}
 	if qt.Enabled() {
 		seriesCount := len(rv)
@@ -221,14 +221,14 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		}
 		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %w`, me.AppendString(nil), err)
+			return nil, err
 		}
 		return rv, nil
 	}
 	if re, ok := e.(*metricsql.RollupExpr); ok {
 		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %w`, re.AppendString(nil), err)
+			return nil, err
 		}
 		return rv, nil
 	}
@@ -250,7 +250,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		}
 		rv, err := evalRollupFunc(qt, ec, fe.Name, rf, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
+			return nil, err
 		}
 		return rv, nil
 	}
@@ -299,7 +299,7 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	}
 	rv, err := tf(tfa)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
+		return nil, err
 	}
 	return rv, nil
 }
@@ -360,7 +360,7 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 		tssLeft, tssRight, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
+		return nil, err
 	}
 	bfa := &binaryOpFuncArg{
 		be:    be,
@@ -369,7 +369,7 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	}
 	rv, err := bf(bfa)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot evaluate %q: %w`, be.AppendString(nil), err)
+		return nil, err
 	}
 	return rv, nil
 }
@@ -933,12 +933,13 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
-		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
-			"total available memory for concurrent requests: %d bytes; "+
-			"requested memory: %d bytes; "+
-			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
-			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
-			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3)
+		// 	"total available memory for concurrent requests: %d bytes; "+
+		// 	"requested memory: %d bytes; "+
+		// 	"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
+		// 	"increasing -memory.allowedPercent; increasing `step` query arg (%gs)
+		//  rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3
+		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series",
+			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries)
 	}
 	defer rml.Put(uint64(rollupMemorySize))
 

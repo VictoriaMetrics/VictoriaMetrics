@@ -116,9 +116,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("cannot handle more than %d concurrent search requests during %s; possible solutions: "+
-					"increase `-search.maxQueueDuration`; increase `-search.maxQueryDuration`; increase `-search.maxConcurrentRequests`; "+
-					"increase server capacity",
+				// possible solutions: increase `-search.maxQueueDuration`; increase `-search.maxQueryDuration`;
+				// increase `-search.maxConcurrentRequests`; increase server capacity"
+				Err: fmt.Errorf("cannot handle more than %d concurrent search requests during %s",
 					*maxConcurrentRequests, d),
 				StatusCode: http.StatusServiceUnavailable,
 			}

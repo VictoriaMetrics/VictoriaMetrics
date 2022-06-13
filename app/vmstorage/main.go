@@ -1,7 +1,6 @@
 package vmstorage
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -143,7 +142,7 @@ var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
 // AddRows adds mrs to the storage.
 func AddRows(mrs []storage.MetricRow) error {
 	if Storage.IsReadOnly() {
-		return errReadOnly
+		return fmt.Errorf("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
 	}
 	resetResponseCacheIfNeeded(mrs)
 	WG.Add(1)
@@ -151,8 +150,6 @@ func AddRows(mrs []storage.MetricRow) error {
 	WG.Done()
 	return err
 }
-
-var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
 func RegisterMetricNames(mrs []storage.MetricRow) error {

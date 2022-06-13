@@ -136,22 +136,25 @@ func GetMaxQueryDuration(r *http.Request) time.Duration {
 // GetDeadlineForQuery returns deadline for the given query r.
 func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxQueryDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
+	// "-search.maxQueryDuration"
+	return getDeadlineWithMaxDuration(r, startTime, dMax)
 }
 
 // GetDeadlineForStatusRequest returns deadline for the given request to /api/v1/status/*.
 func GetDeadlineForStatusRequest(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxStatusRequestDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
+	// "-search.maxStatusRequestDuration"
+	return getDeadlineWithMaxDuration(r, startTime, dMax)
 }
 
 // GetDeadlineForExport returns deadline for the given request to /api/v1/export.
 func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxExportDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
+	// "-search.maxExportDuration"
+	return getDeadlineWithMaxDuration(r, startTime, dMax)
 }
 
-func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {
+func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64) Deadline {
 	d, err := GetDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
@@ -160,7 +163,7 @@ func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64
 		d = dMax
 	}
 	timeout := time.Duration(d) * time.Millisecond
-	return NewDeadline(startTime, timeout, flagHint)
+	return NewDeadline(startTime, timeout)
 }
 
 // GetBool returns boolean value from the given argKey query arg.
@@ -186,11 +189,10 @@ type Deadline struct {
 //
 // flagHint must contain a hit for command-line flag, which could be used
 // in order to increase timeout.
-func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) Deadline {
+func NewDeadline(startTime time.Time, timeout time.Duration) Deadline {
 	return Deadline{
 		deadline: uint64(startTime.Add(timeout).Unix()),
 		timeout:  timeout,
-		flagHint: flagHint,
 	}
 }
 
@@ -208,7 +210,8 @@ func (d *Deadline) Deadline() uint64 {
 func (d *Deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
 	elapsed := time.Since(startTime)
-	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds); the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), elapsed.Seconds(), d.flagHint)
+	//  the timeout can be adjusted with `%s` command-line flag d.flagHint
+	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds)", d.timeout.Seconds(), elapsed.Seconds())
 }
 
 // GetExtraTagFilters returns additional label filters from request.
@@ -224,7 +227,7 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	for _, match := range r.Form["extra_label"] {
 		tmp := strings.SplitN(match, "=", 2)
 		if len(tmp) != 2 {
-			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
+			return nil, fmt.Errorf("the format of `extra_label` is `name=value`; got %q", match)
 		}
 		if tmp[0] == "__name__" {
 			// This is required for storage.Search.

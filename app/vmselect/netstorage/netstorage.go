@@ -449,8 +449,8 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 			if *maxSamplesPerSeries <= 0 || samples < *maxSamplesPerSeries {
 				sbs = append(sbs, upw.sbs...)
 			} else {
-				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
-					"or reduce time range for the query", *maxSamplesPerSeries)
+				// either increase -search.maxSamplesPerSeries or reduce time range for the query"
+				firstErr = fmt.Errorf("cannot process more than %d samples per series", *maxSamplesPerSeries)
 			}
 		}
 		if firstErr != nil {
@@ -757,8 +757,8 @@ func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, t
 			tagKey, tagValuePrefix, delimiter, tr.String(), err)
 	}
 	if len(suffixes) >= *maxTagValueSuffixesPerSearch {
-		return nil, fmt.Errorf("more than -search.maxTagValueSuffixesPerSearch=%d tag value suffixes found for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
-			"either narrow down the query or increase -search.maxTagValueSuffixesPerSearch command-line flag value",
+		// either narrow down the query or increase -search.maxTagValueSuffixesPerSearch command-line flag value
+		return nil, fmt.Errorf("more than -search.maxTagValueSuffixesPerSearch=%d tag value suffixes found for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; ",
 			*maxTagValueSuffixesPerSearch, tagKey, tagValuePrefix, delimiter, tr.String())
 	}
 	return suffixes, nil
@@ -1025,7 +1025,9 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, fetchDa
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			// possible solutions: to increase the -search.maxSamplesPerQuery;
+			// to reduce time range for the query; to use more specific label filters in order to select lower number of series
+			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples", *maxSamplesPerQuery)
 		}
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
@@ -1101,8 +1103,8 @@ func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetri
 					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
 				}
 				if len(paths) >= maxMetrics {
-					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
-						"either narrow down the query or increase the corresponding -search.max* command-line flag value", maxMetrics, query)
+					// either narrow down the query or increase the corresponding -search.max* command-line flag value
+					return nil, fmt.Errorf("more than %d time series match Graphite query %q", maxMetrics, query)
 				}
 				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
 				continue
