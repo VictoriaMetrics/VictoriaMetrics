@@ -1363,8 +1363,13 @@ Additionally, alerting can be set up with the following tools:
 
 ## Security
 
-Do not forget protecting sensitive endpoints in VictoriaMetrics when exposing it to untrusted networks such as the internet.
-Consider setting the following command-line flags:
+General security recommendations:
+
+- All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet. The exception is [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
+- All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as vmauth or vmgateway. The proxy must be set up with proper authentication and authorization.
+- Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring auth proxy in front of VictoriaMetrics components.
+
+VictoriaMetrics provides the following security-related command-line flags:
 
 * `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS.
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
@@ -1374,14 +1379,11 @@ Consider setting the following command-line flags:
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
 * `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
 * `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
-
-- `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
+* `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
+* `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
-For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
-
-Prefer authorizing all the incoming requests from untrusted networks with [vmauth](https://docs.victoriametrics.com/vmauth.html)
-or similar auth proxy.
+For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
 
 ## Tuning
 
