@@ -1269,13 +1269,13 @@ Information about merging process is available in [single-node VictoriaMetrics](
 and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Grafana dashboards.
 See more details in [monitoring docs](#monitoring).
 
-The `merge` process is usually named "compaction", because the resulting `part` size is usually smaller than
-the sum of the source `parts` because of better compression rate.  Benefits of doing the merge process are the following:
+The `merge` process improves compression rate and keeps number of `parts` on disk relatively low.
+Benefits of doing the merge process are the following:
 
 * it improves query performance, since lower number of `parts` are inspected with each query
 * it reduces the number of data files, since each `part` contains fixed number of files
 * various background maintenance tasks such as [de-duplication](#deduplication), [downsampling](#downsampling)
-  and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are perfomed during the merge.
+  and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge.
 
 Newly added `parts` either appear in the storage or fail to appear.
 Storage never contains partially created parts. The same applies to merge process — `parts` are either fully
