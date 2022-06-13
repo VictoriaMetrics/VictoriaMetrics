@@ -237,7 +237,12 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
 
+	// RFC standard compliant headers
 	req.Header.Set("Content-Encoding", "snappy")
+	req.Header.Set("Content-Type", "application/x-protobuf")
+
+	// Prometheus compliant headers
+	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
 	if c.authCfg != nil {
 		if auth := c.authCfg.GetAuthHeader(); auth != "" {
