@@ -62,7 +62,7 @@ func TestExecSuccess(t *testing.T) {
 			End:         end,
 			Step:        step,
 			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute),
 			RoundDigits: 100,
 		}
 		for i := 0; i < 5; i++ {
@@ -7724,7 +7724,7 @@ func TestExecError(t *testing.T) {
 			End:         2000,
 			Step:        100,
 			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute),
 			RoundDigits: 100,
 		}
 		for i := 0; i < 4; i++ {
