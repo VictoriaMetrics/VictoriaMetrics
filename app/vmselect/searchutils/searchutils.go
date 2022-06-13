@@ -180,9 +180,7 @@ func GetBool(r *http.Request, argKey string) bool {
 // Deadline contains deadline with the corresponding timeout for pretty error messages.
 type Deadline struct {
 	deadline uint64
-
 	timeout  time.Duration
-	flagHint string
 }
 
 // NewDeadline returns deadline for the given timeout.
