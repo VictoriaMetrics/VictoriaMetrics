@@ -50,7 +50,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
 
   return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} mb={2}>
     <Box>
-      <Box display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="100%" mb={4}>
+      <Box display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="50%" mb={4}>
         <QueryEditor
           query={query} index={0} autocomplete={autocomplete} queryOptions={queryOptions}
           error={error} setHistoryIndex={onSetHistory} runQuery={onRunQuery} setQuery={onSetQuery}
