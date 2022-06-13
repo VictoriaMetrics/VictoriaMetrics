@@ -28,13 +28,13 @@ const Legend: FC<LegendProps> = ({labels, query, onChange}) => {
     <div className="legendWrapper">
       {groups.map((group) => <div className="legendGroup" key={group}>
         <div className="legendGroupTitle">
-          <span className="legendGroupQuery">Query {group}</span>
           <svg className="legendGroupLine" width="33" height="3" version="1.1" xmlns="http://www.w3.org/2000/svg">
             <line strokeWidth="3" x1="0" y1="0" x2="33" y2="0" stroke="#363636"
               strokeDasharray={getDashLine(group).join(",")}
             />
           </svg>
-          <b>&quot;{query[group - 1]}&quot;:</b>
+          <span className="legendGroupQuery">Query {group}</span>
+          <span>(&quot;{query[group - 1]}&quot;)</span>
         </div>
         <div>
           {labels.filter(l => l.group === group).map((legendItem: LegendItem) =>

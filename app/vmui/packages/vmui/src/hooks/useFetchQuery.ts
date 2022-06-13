@@ -5,7 +5,7 @@ import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
-import throttle from "lodash.throttle";
+import debounce from "lodash.debounce";
 import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
 import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
@@ -43,11 +43,9 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     }
   }, [error]);
 
-  const fetchData = async (fetchUrl: string[] | undefined, fetchQueue: AbortController[], displayType: DisplayType) => {
-    if (!fetchUrl?.length) return;
+  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
-    setIsLoading(true);
     try {
       const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
       const tempData = [];
@@ -74,7 +72,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(throttle(fetchData, 1000), []);
+  const throttledFetchData = useCallback(debounce(fetchData, 600), []);
 
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
@@ -100,7 +98,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const prevFetchUrl = usePrevious(fetchUrl);
 
   useEffect(() => {
-    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl))) return;
+    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl)) || !fetchUrl?.length) return;
+    setIsLoading(true);
     throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
   }, [fetchUrl, visible]);
 

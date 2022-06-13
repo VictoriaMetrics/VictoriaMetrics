@@ -67,4 +67,5 @@ export interface RelativeTimeOption {
   duration: string,
   until: () => Date,
   title: string,
+  isDefault?: boolean,
 }
