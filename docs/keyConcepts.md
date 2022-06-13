@@ -145,13 +145,13 @@ vm_per_query_rows_processed_count_count 11
 
 In practice, histogram `vm_per_query_rows_processed_count` may be used in the following way:
 
-```Go
+```go
 // define the histogram
 perQueryRowsProcessed := metrics.NewHistogram(`vm_per_query_rows_processed_count`)
 
 // use the histogram during processing
 for _, query := range queries {
-perQueryRowsProcessed.Update(len(query.Rows))
+    perQueryRowsProcessed.Update(len(query.Rows))
 }
 ```
 
