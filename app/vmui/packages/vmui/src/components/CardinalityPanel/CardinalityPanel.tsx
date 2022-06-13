@@ -1,6 +1,6 @@
 import React, {ChangeEvent, FC, useState} from "react";
 import {SyntheticEvent} from "react";
-import {Alert, Box} from "@mui/material";
+import {Alert} from "@mui/material";
 import {useFetchQuery} from "../../hooks/useCardinalityFetch";
 import {
   LABEL_VALUE_PAIR_CONTENT_TITLE,
@@ -115,7 +115,7 @@ const CardinalityPanel: FC = () => {
         tabs={defaultProps.tabs.labelValueCountByLabelName}
         chartContainer={defaultProps.containerRefs.labelValueCountByLabelName}
         totalSeries={-1}
-        tabId={"seriesCountByLabelValuePair"}
+        tabId={"labelValueCountByLabelName"}
         sectionTitle={LABELS_CONTENT_TITLE}
         tableHeaderCells={LABEL_WITH_UNIQUE_VALUES_TABLE_HEADERS}
       />
