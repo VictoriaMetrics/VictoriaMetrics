@@ -464,6 +464,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
+	case "datadog/api/v1/metadata":
+		datadogMetadataRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{}`)
+		return true
 	default:
 		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
 		return true
