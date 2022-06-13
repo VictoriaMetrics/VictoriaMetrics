@@ -494,6 +494,22 @@ rules:
     expr: sum by(job) (up == 1)
 `)
 	})
+
+	t.Run("`limit` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+limit: 5
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+limit: 10
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`)
+	})
 }
 
 func TestGroupParams(t *testing.T) {

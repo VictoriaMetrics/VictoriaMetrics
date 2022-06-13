@@ -88,6 +88,10 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 		"\nrequests to make: \t%d"+
 		"\nmax range per request: \t%v\n",
 		g.Name, g.Interval, iterations, step)
+	if g.Limit > 0 {
+		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
+			g.Limit)
+	}
 	for _, rule := range g.Rules {
 		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
 		var bar *pb.ProgressBar
@@ -96,7 +100,7 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 		}
 		ri.reset()
 		for ri.next() {
-			n, err := replayRule(rule, ri.s, ri.e, rw, g.Limit)
+			n, err := replayRule(rule, ri.s, ri.e, rw)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", rule, err)
 			}
@@ -115,11 +119,11 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 	return total
 }
 
-func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client, limit int) (int, error) {
+func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client) (int, error) {
 	var err error
 	var tss []prompbmarshal.TimeSeries
 	for i := 0; i < *replayRuleRetryAttempts; i++ {
-		tss, err = rule.ExecRange(context.Background(), start, end, limit)
+		tss, err = rule.ExecRange(context.Background(), start, end)
 		if err == nil {
 			break
 		}

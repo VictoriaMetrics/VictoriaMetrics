@@ -611,23 +611,27 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	return vmstorage.DeleteMetrics(tfss)
 }
 
-// GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
-func GetLabelsOnTimeRange(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild("get labels on timeRange=%s", &tr)
+// GetLabelNames returns label names matching the given sq until the given deadline.
+func GetLabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline searchutils.Deadline) ([]string, error) {
+	qt = qt.NewChild("get labels: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := vmstorage.SearchTagKeysOnTimeRange(tr, *maxTagKeysPerSearch, deadline.Deadline())
-	qt.Printf("get %d labels", len(labels))
+	if maxLabelNames > *maxTagKeysPerSearch || maxLabelNames <= 0 {
+		maxLabelNames = *maxTagKeysPerSearch
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	labels, err := vmstorage.SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search on time range: %w", err)
-	}
-	// Substitute "" with "__name__"
-	for i := range labels {
-		if labels[i] == "" {
-			labels[i] = "__name__"
-		}
 	}
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
@@ -642,7 +646,8 @@ func GetGraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline 
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := GetLabels(nil, deadline)
+	sq := storage.NewSearchQuery(0, 0, nil, 0)
+	labels, err := GetLabelNames(qt, sq, 0, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -682,44 +687,25 @@ func hasString(a []string, s string) bool {
 	return false
 }
 
-// GetLabels returns labels until the given deadline.
-func GetLabels(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild("get labels")
+// GetLabelValues returns label values matching the given labelName and sq until the given deadline.
+func GetLabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQuery, maxLabelValues int, deadline searchutils.Deadline) ([]string, error) {
+	qt = qt.NewChild("get values for label %s: %s", labelName, sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := vmstorage.SearchTagKeys(*maxTagKeysPerSearch, deadline.Deadline())
-	qt.Printf("get %d labels from global index", len(labels))
+	if maxLabelValues > *maxTagValuesPerSearch || maxLabelValues <= 0 {
+		maxLabelValues = *maxTagValuesPerSearch
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
-		return nil, fmt.Errorf("error during labels search: %w", err)
+		return nil, err
 	}
-	// Substitute "" with "__name__"
-	for i := range labels {
-		if labels[i] == "" {
-			labels[i] = "__name__"
-		}
-	}
-	// Sort labels like Prometheus does
-	sort.Strings(labels)
-	qt.Printf("sort %d labels", len(labels))
-	return labels, nil
-}
-
-// GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
-// until the given deadline.
-func GetLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild("get values for label %s on a timeRange %s", labelName, &tr)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	if labelName == "__name__" {
-		labelName = ""
-	}
-	// Search for tag values
-	labelValues, err := vmstorage.SearchTagValuesOnTimeRange([]byte(labelName), tr, *maxTagValuesPerSearch, deadline.Deadline())
-	qt.Printf("get %d label values", len(labelValues))
+	labelValues, err := vmstorage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search on time range for labelName=%q: %w", labelName, err)
 	}
@@ -739,7 +725,8 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 	if tagName == "name" {
 		tagName = ""
 	}
-	tagValues, err := GetLabelValues(nil, tagName, deadline)
+	sq := storage.NewSearchQuery(0, 0, nil, 0)
+	tagValues, err := GetLabelValues(qt, tagName, sq, 0, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -753,29 +740,6 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 		tagValues = tagValues[:limit]
 	}
 	return tagValues, nil
-}
-
-// GetLabelValues returns label values for the given labelName
-// until the given deadline.
-func GetLabelValues(qt *querytracer.Tracer, labelName string, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild("get values for label %s", labelName)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	if labelName == "__name__" {
-		labelName = ""
-	}
-	// Search for tag values
-	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), *maxTagValuesPerSearch, deadline.Deadline())
-	qt.Printf("get %d label values", len(labelValues))
-	if err != nil {
-		return nil, fmt.Errorf("error during label values search for labelName=%q: %w", labelName, err)
-	}
-	// Sort labelValues like Prometheus does
-	sort.Strings(labelValues)
-	qt.Printf("sort %d label values", len(labelValues))
-	return labelValues, nil
 }
 
 // GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
@@ -800,40 +764,6 @@ func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, t
 	return suffixes, nil
 }
 
-// GetLabelEntries returns all the label entries until the given deadline.
-func GetLabelEntries(qt *querytracer.Tracer, deadline searchutils.Deadline) ([]storage.TagEntry, error) {
-	qt = qt.NewChild("get label entries")
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	labelEntries, err := vmstorage.SearchTagEntries(*maxTagKeysPerSearch, *maxTagValuesPerSearch, deadline.Deadline())
-	if err != nil {
-		return nil, fmt.Errorf("error during label entries request: %w", err)
-	}
-	qt.Printf("get %d label entries", len(labelEntries))
-
-	// Substitute "" with "__name__"
-	for i := range labelEntries {
-		e := &labelEntries[i]
-		if e.Key == "" {
-			e.Key = "__name__"
-		}
-	}
-
-	// Sort labelEntries by the number of label values in each entry.
-	sort.Slice(labelEntries, func(i, j int) bool {
-		a, b := labelEntries[i].Values, labelEntries[j].Values
-		if len(a) != len(b) {
-			return len(a) > len(b)
-		}
-		return labelEntries[i].Key > labelEntries[j].Key
-	})
-	qt.Printf("sort %d label entries", len(labelEntries))
-
-	return labelEntries, nil
-}
-
 // GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 func GetTSDBStatusForDate(qt *querytracer.Tracer, deadline searchutils.Deadline, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
 	qt = qt.NewChild("get tsdb stats for date=%d, topN=%d", date, topN)
@@ -841,7 +771,7 @@ func GetTSDBStatusForDate(qt *querytracer.Tracer, deadline searchutils.Deadline,
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	status, err := vmstorage.GetTSDBStatusForDate(date, topN, maxMetrics, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatusForDate(qt, date, topN, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
@@ -866,7 +796,7 @@ func GetTSDBStatusWithFilters(qt *querytracer.Tracer, deadline searchutils.Deadl
 		return nil, err
 	}
 	date := uint64(tr.MinTimestamp) / (3600 * 24 * 1000)
-	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, sq.MaxMetrics, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status with filters request: %w", err)
 	}

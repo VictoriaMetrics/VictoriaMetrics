@@ -180,36 +180,21 @@ func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr st
 	return mns, err
 }
 
-// SearchTagKeysOnTimeRange searches for tag keys on tr.
-func SearchTagKeysOnTimeRange(tr storage.TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
+// SearchLabelNamesWithFiltersOnTimeRange searches for tag keys matching the given tfss on tr.
+func SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxTagKeys, maxMetrics int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	keys, err := Storage.SearchTagKeysOnTimeRange(tr, maxTagKeys, deadline)
+	labelNames, err := Storage.SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxTagKeys, maxMetrics, deadline)
 	WG.Done()
-	return keys, err
+	return labelNames, err
 }
 
-// SearchTagKeys searches for tag keys
-func SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, error) {
+// SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, tfss and tr.
+func SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*storage.TagFilters,
+	tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	keys, err := Storage.SearchTagKeys(maxTagKeys, deadline)
+	labelValues, err := Storage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	WG.Done()
-	return keys, err
-}
-
-// SearchTagValuesOnTimeRange searches for tag values for the given tagKey on tr.
-func SearchTagValuesOnTimeRange(tagKey []byte, tr storage.TimeRange, maxTagValues int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	values, err := Storage.SearchTagValuesOnTimeRange(tagKey, tr, maxTagValues, deadline)
-	WG.Done()
-	return values, err
-}
-
-// SearchTagValues searches for tag values for the given tagKey
-func SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	values, err := Storage.SearchTagValues(tagKey, maxTagValues, deadline)
-	WG.Done()
-	return values, err
+	return labelValues, err
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
@@ -230,26 +215,18 @@ func SearchGraphitePaths(tr storage.TimeRange, query []byte, maxPaths int, deadl
 	return paths, err
 }
 
-// SearchTagEntries searches for tag entries.
-func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.TagEntry, error) {
-	WG.Add(1)
-	tagEntries, err := Storage.SearchTagEntries(maxTagKeys, maxTagValues, deadline)
-	WG.Done()
-	return tagEntries, err
-}
-
 // GetTSDBStatusForDate returns TSDB status for the given date.
-func GetTSDBStatusForDate(date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
+func GetTSDBStatusForDate(qt *querytracer.Tracer, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(nil, date, topN, maxMetrics, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(qt, nil, date, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }
 
 // GetTSDBStatusWithFiltersForDate returns TSDB status for given filters on the given date.
-func GetTSDBStatusWithFiltersForDate(tfss []*storage.TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
+func GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, tfss []*storage.TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(tfss, date, topN, maxMetrics, deadline)
+	status, err := Storage.GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }

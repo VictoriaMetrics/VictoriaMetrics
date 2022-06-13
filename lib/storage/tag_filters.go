@@ -211,16 +211,11 @@ func (tfs *TagFilters) addTagFilter() *tagFilter {
 
 // String returns human-readable value for tfs.
 func (tfs *TagFilters) String() string {
-	if len(tfs.tfs) == 0 {
-		return "{}"
+	a := make([]string, 0, len(tfs.tfs))
+	for _, tf := range tfs.tfs {
+		a = append(a, tf.String())
 	}
-	var bb bytes.Buffer
-	fmt.Fprintf(&bb, "{%s", tfs.tfs[0].String())
-	for i := range tfs.tfs[1:] {
-		fmt.Fprintf(&bb, ", %s", tfs.tfs[i+1].String())
-	}
-	fmt.Fprintf(&bb, "}")
-	return bb.String()
+	return fmt.Sprintf("{%s}", strings.Join(a, ","))
 }
 
 // Reset resets the tf
@@ -304,6 +299,16 @@ func (tf *tagFilter) String() string {
 		}
 	} else if tf.isRegexp {
 		op = "=~"
+	}
+	if bytes.Equal(tf.key, graphiteReverseTagKey) {
+		return fmt.Sprintf("__graphite_reverse__%s%q", op, tf.value)
+	}
+	if tf.isComposite() {
+		metricName, key, err := unmarshalCompositeTagKey(tf.key)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal composite tag key: %s", err)
+		}
+		return fmt.Sprintf("composite(%s,%s)%s%q", metricName, key, op, tf.value)
 	}
 	key := tf.key
 	if len(key) == 0 {
