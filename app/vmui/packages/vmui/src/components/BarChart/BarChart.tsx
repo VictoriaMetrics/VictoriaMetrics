@@ -9,7 +9,7 @@ const BarChart: FC<BarChartProps> = ({
   configs}) => {
 
   const uPlotRef = useRef<HTMLDivElement>(null);
-  const [isPanning, setPanning] = useState(false);
+  const [isPanning] = useState(false);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const layoutSize = useResize(container);
 
