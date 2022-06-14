@@ -203,7 +203,7 @@ behavior by adding `fill(previous)` to the query.
 
 VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
 To limit the interval on which VictoriaMetrics will try to fill the gaps try setting `-search.maxStalenessInterval`
-command-line flag to the value equal to actual resolution between data points (for example, to `1ms`).
+command-line flag to the value equal to actual resolution between data points (for example, to `10s`).
 
 
 ### Advanced usage
