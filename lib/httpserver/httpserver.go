@@ -38,6 +38,10 @@ var (
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
 		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
+	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
+	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty")
+	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
@@ -270,6 +274,10 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		return
 	case "/metrics":
 		metricsRequests.Inc()
+		if len(*metricsAuthKey) > 0 && r.FormValue("authKey") != *metricsAuthKey {
+			http.Error(w, "The provided authKey doesn't match -metricsAuthKey", http.StatusUnauthorized)
+			return
+		}
 		startTime := time.Now()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		WritePrometheusMetrics(w)
@@ -292,8 +300,16 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
+			if len(*pprofAuthKey) > 0 && r.FormValue("authKey") != *pprofAuthKey {
+				http.Error(w, "The provided authKey doesn't match -pprofAuthKey", http.StatusUnauthorized)
+				return
+			}
 			DisableResponseCompression(w)
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
+			return
+		}
+
+		if !checkBasicAuth(w, r) {
 			return
 		}
 		if rh(w, r) {
@@ -322,6 +338,20 @@ func getCanonicalPath(path string) (string, error) {
 	}
 	path = path[len(prefix)-1:]
 	return path, nil
+}
+
+func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
+	if len(*httpAuthUsername) == 0 {
+		// HTTP Basic Auth is disabled.
+		return true
+	}
+	username, password, ok := r.BasicAuth()
+	if ok && username == *httpAuthUsername && password == *httpAuthPassword {
+		return true
+	}
+	w.Header().Set("WWW-Authenticate", `Basic realm="VictoriaMetrics"`)
+	http.Error(w, "", http.StatusUnauthorized)
+	return false
 }
 
 func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
