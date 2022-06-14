@@ -1174,7 +1174,7 @@ It is recommended leaving the following amounts of spare resources:
 
 * 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
 * 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
-* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line flag description [here](#list-of-command-line-flags).
+* At least [20% of free storage space](#storage) at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line flag description [here](#list-of-command-line-flags).
 
 See also [resource usage limits docs](#resource-usage-limits).
 
@@ -1848,6 +1848,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
      Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+  -denyQueryTracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1965,6 +1967,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
      The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
+  -promscrape.cluster.name string
+     Optional name of the cluster. If multiple vmagent clusters scrape the same targets, then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679
   -promscrape.cluster.replicationFactor int
      The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
@@ -2033,7 +2037,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.suppressDuplicateScrapeTargetErrors
      Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
-     Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
+     Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
+  -promscrape.suppressScrapeErrorsDelay duration
+     The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
@@ -2041,6 +2047,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
+  -retentionTimezoneOffset duration
+     The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources. See also -search.disableAutoCacheReset (default 5m0s)
   -search.disableAutoCacheReset
@@ -2060,9 +2068,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int
-     The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage (default 1000000)
+     The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage (default 10000000)
   -search.maxFederateSeries int
-     The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 300000)
+     The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
   -search.maxLookback duration
@@ -2081,7 +2089,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxSamplesPerSeries int
      The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage (default 30000000)
   -search.maxSeries int
-     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 10000)
+     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
   -search.maxStalenessInterval duration
      The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
@@ -2089,7 +2097,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxStepForPointsAdjustment duration
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTSDBStatusSeries int
-     The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 1000000)
+     The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
   -search.maxTagKeys int
      The maximum number of tag keys returned from /api/v1/labels (default 100000)
   -search.maxTagValueSuffixesPerSearch int
@@ -2130,6 +2138,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBTagFilters size
+     Overrides max size for indexdb/tagFilters cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
