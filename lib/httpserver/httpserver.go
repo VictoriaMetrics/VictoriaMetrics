@@ -308,6 +308,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return
 		}
+
 		if !checkBasicAuth(w, r) {
 			return
 		}
