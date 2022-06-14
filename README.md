@@ -268,14 +268,13 @@ See the [example VMUI at VictoriaMetrics playground](https://play.victoriametric
 VictoriaMetrics provides an ability to explore time series cardinality at `cardinality` tab in [vmui](#vmui) in the following ways:
 
 - To identify metric names with the highest number of series.
+- To idnetify labels with the highest number of series.
 - To identify label=name pairs with the highest number of series.
 - To identify labels with the highest number of unique values.
 
 By default cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
 By default all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
 matching the specified [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
-
-Cardinality explorer takes into account [deleted time series](#how-to-delete-time-series), because they stay in the inverted index for up to [-retentionPeriod](#retention). This means that the deleted time series take RAM, CPU, disk IO and disk space for the inverted index in the same way as other time series.
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 

@@ -54,12 +54,12 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
         <QueryEditor
           query={query} index={0} autocomplete={autocomplete} queryOptions={queryOptions}
           error={error} setHistoryIndex={onSetHistory} runQuery={onRunQuery} setQuery={onSetQuery}
-          label={"Arbitrary time series selector"}
+          label={"Time series selector"}
         />
         <Box display="flex" alignItems="center">
           <Box ml={2}>
             <TextField
-              label="Number of top entries"
+              label="Number of entries per table"
               type="number"
               size="small"
               variant="outlined"
@@ -82,7 +82,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
       </Box>
     </Box>
     <Box>
-      Analyzed <b>{totalSeries}</b> series and <b>{totalLabelValuePairs}</b> label=value pairs
+      Analyzed <b>{totalSeries}</b> series with <b>{totalLabelValuePairs}</b> label=value pairs
       at <b>{date}</b> {match && <span>for series selector <b>{match}</b></span>}. Show top {topN} entries per table.
     </Box>
   </Box>;

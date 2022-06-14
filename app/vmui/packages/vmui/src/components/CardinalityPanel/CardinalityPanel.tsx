@@ -3,12 +3,10 @@ import {SyntheticEvent} from "react";
 import {Alert} from "@mui/material";
 import {useFetchQuery} from "../../hooks/useCardinalityFetch";
 import {
-  LABEL_VALUE_PAIR_CONTENT_TITLE,
-  LABEL_VALUE_PAIRS_TABLE_HEADERS,
-  LABEL_WITH_UNIQUE_VALUES_TABLE_HEADERS,
-  LABELS_CONTENT_TITLE, METRICS_TABLE_HEADERS,
-  SERIES_CONTENT_TITLE,
-  SPINNER_TITLE,
+  METRIC_NAMES_HEADERS,
+  LABEL_NAMES_HEADERS,
+  LABEL_VALUE_PAIRS_HEADERS,
+  LABELS_WITH_UNIQUE_VALUES_HEADERS,
   spinnerContainerStyles
 } from "./consts";
 import {defaultProperties, queryUpdater} from "./helpers";
@@ -76,7 +74,7 @@ const CardinalityPanel: FC = () => {
         height={"800px"}
         containerStyles={spinnerContainerStyles("100%")}
         title={<Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>
-          {SPINNER_TITLE}
+          Please wait while cardinality stats is calculated. This may take some time if the db contains big number of time series
         </Alert>}
       />}
       <CardinalityConfigurator error={configError} query={query} onRunQuery={onRunQuery} onSetQuery={onSetQuery}
@@ -84,6 +82,7 @@ const CardinalityPanel: FC = () => {
         totalSeries={tsdbStatus.totalSeries} totalLabelValuePairs={tsdbStatus.totalLabelValuePairs}/>
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
       <MetricsContent
+        sectionTitle={"Metric names with the highest number of series"}
         activeTab={stateTabs.seriesCountByMetricName}
         rows={tsdbStatus.seriesCountByMetricName as unknown as Data[]}
         onChange={handleTabChange}
@@ -92,10 +91,22 @@ const CardinalityPanel: FC = () => {
         chartContainer={defaultProps.containerRefs.seriesCountByMetricName}
         totalSeries={tsdbStatus.totalSeries}
         tabId={"seriesCountByMetricName"}
-        sectionTitle={SERIES_CONTENT_TITLE}
-        tableHeaderCells={METRICS_TABLE_HEADERS}
+        tableHeaderCells={METRIC_NAMES_HEADERS}
       />
       <MetricsContent
+        sectionTitle={"Labels with the highest number of series"}
+        activeTab={stateTabs.seriesCountByLabelName}
+        rows={tsdbStatus.seriesCountByLabelName as unknown as Data[]}
+        onChange={handleTabChange}
+        onActionClick={handleFilterClick("seriesCountByLabelName")}
+        tabs={defaultProps.tabs.seriesCountByLabelName}
+        chartContainer={defaultProps.containerRefs.seriesCountByLabelName}
+        totalSeries={tsdbStatus.totalSeries}
+        tabId={"seriesCountByLabelName"}
+        tableHeaderCells={LABEL_NAMES_HEADERS}
+      />
+      <MetricsContent
+        sectionTitle={"Label=value pairs with the highest number of series"}
         activeTab={stateTabs.seriesCountByLabelValuePair}
         rows={tsdbStatus.seriesCountByLabelValuePair as unknown as Data[]}
         onChange={handleTabChange}
@@ -104,10 +115,10 @@ const CardinalityPanel: FC = () => {
         chartContainer={defaultProps.containerRefs.seriesCountByLabelValuePair}
         totalSeries={tsdbStatus.totalSeries}
         tabId={"seriesCountByLabelValuePair"}
-        sectionTitle={LABEL_VALUE_PAIR_CONTENT_TITLE}
-        tableHeaderCells={LABEL_VALUE_PAIRS_TABLE_HEADERS}
+        tableHeaderCells={LABEL_VALUE_PAIRS_HEADERS}
       />
       <MetricsContent
+        sectionTitle={"Labels with the highest number of unique values"}
         activeTab={stateTabs.labelValueCountByLabelName}
         rows={tsdbStatus.labelValueCountByLabelName as unknown as Data[]}
         onChange={handleTabChange}
@@ -116,8 +127,7 @@ const CardinalityPanel: FC = () => {
         chartContainer={defaultProps.containerRefs.labelValueCountByLabelName}
         totalSeries={-1}
         tabId={"labelValueCountByLabelName"}
-        sectionTitle={LABELS_CONTENT_TITLE}
-        tableHeaderCells={LABEL_WITH_UNIQUE_VALUES_TABLE_HEADERS}
+        tableHeaderCells={LABELS_WITH_UNIQUE_VALUES_HEADERS}
       />
     </>
   );

@@ -2,16 +2,17 @@ import {Containers, DefaultState, QueryUpdater, Tabs, TSDBStatus} from "./types"
 import {useRef} from "preact/compat";
 
 export const queryUpdater: QueryUpdater = {
-  labelValueCountByLabelName: (query: string): string => `{${query}!=""}`,
+  seriesCountByMetricName: (query: string): string => {
+    return getSeriesSelector("__name__", query);
+  },
+  seriesCountByLabelName: (query: string): string => `{${query}!=""}`,
   seriesCountByLabelValuePair: (query: string): string => {
     const a = query.split("=");
     const label = a[0];
     const value = a.slice(1).join("=");
     return getSeriesSelector(label, value);
   },
-  seriesCountByMetricName: (query: string): string => {
-    return getSeriesSelector("__name__", query);
-  },
+  labelValueCountByLabelName: (query: string): string => `{${query}!=""}`,
 };
 
 const getSeriesSelector = (label: string, value: string): string => {

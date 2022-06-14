@@ -1824,6 +1824,27 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
 	}
+	expectedSeriesCountByLabelName := []TopHeapEntry{
+		{
+			Name:  "__name__",
+			Count: 1000,
+		},
+		{
+			Name:  "constant",
+			Count: 1000,
+		},
+		{
+			Name:  "day",
+			Count: 1000,
+		},
+		{
+			Name:  "uniqueid",
+			Count: 1000,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByLabelName, expectedSeriesCountByLabelName) {
+		t.Fatalf("unexpected SeriesCountByLabelName;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelName, expectedSeriesCountByLabelName)
+	}
 	expectedLabelValueCountByLabelName := []TopHeapEntry{
 		{
 			Name:  "uniqueid",
