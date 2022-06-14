@@ -102,7 +102,7 @@ const CardinalityPanel: FC = () => {
         onActionClick={handleFilterClick("seriesCountByLabelValuePair")}
         tabs={defaultProps.tabs.seriesCountByLabelValuePair}
         chartContainer={defaultProps.containerRefs.seriesCountByLabelValuePair}
-        totalSeries={tsdbStatus.totalLabelValuePairs}
+        totalSeries={tsdbStatus.totalSeries}
         tabId={"seriesCountByLabelValuePair"}
         sectionTitle={LABEL_VALUE_PAIR_CONTENT_TITLE}
         tableHeaderCells={LABEL_VALUE_PAIRS_TABLE_HEADERS}
