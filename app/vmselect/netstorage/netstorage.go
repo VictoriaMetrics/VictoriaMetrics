@@ -764,25 +764,11 @@ func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, t
 	return suffixes, nil
 }
 
-// GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func GetTSDBStatusForDate(qt *querytracer.Tracer, deadline searchutils.Deadline, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
-	qt = qt.NewChild("get tsdb stats for date=%d, topN=%d", date, topN)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	status, err := vmstorage.GetTSDBStatusForDate(qt, date, topN, maxMetrics, deadline.Deadline())
-	if err != nil {
-		return nil, fmt.Errorf("error during tsdb status request: %w", err)
-	}
-	return status, nil
-}
-
-// GetTSDBStatusWithFilters returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+// GetTSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It accepts aribtrary filters on time series in sq.
-func GetTSDBStatusWithFilters(qt *querytracer.Tracer, deadline searchutils.Deadline, sq *storage.SearchQuery, topN int) (*storage.TSDBStatus, error) {
-	qt = qt.NewChild("get tsdb stats: %s, topN=%d", sq, topN)
+func GetTSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
@@ -796,9 +782,9 @@ func GetTSDBStatusWithFilters(qt *querytracer.Tracer, deadline searchutils.Deadl
 		return nil, err
 	}
 	date := uint64(tr.MinTimestamp) / (3600 * 24 * 1000)
-	status, err := vmstorage.GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, sq.MaxMetrics, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatus(qt, tfss, date, focusLabel, topN, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
-		return nil, fmt.Errorf("error during tsdb status with filters request: %w", err)
+		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
 	return status, nil
 }
