@@ -320,7 +320,7 @@ It is recommended leaving the following amounts of spare resources:
 
 - 50% of free RAM across all the node types for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
 - 50% of spare CPU across all the node types for reducing the probability of slowdowns during temporary spikes in workload.
-- At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes. See also `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
+- At least 20% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes. See also `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
 
 Some capacity planning tips for VictoriaMetrics cluster:
 
