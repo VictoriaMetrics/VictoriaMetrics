@@ -1170,7 +1170,7 @@ It is recommended leaving the following amounts of spare resources:
 
 * 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
 * 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
-* At least 30% of free storage space at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line flag description [here](#list-of-command-line-flags).
+* At least [20% of free storage space](#storage) at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line flag description [here](#list-of-command-line-flags).
 
 See also [resource usage limits docs](#resource-usage-limits).
 
