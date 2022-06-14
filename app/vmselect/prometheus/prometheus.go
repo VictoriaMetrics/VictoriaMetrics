@@ -1109,6 +1109,11 @@ func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch 
 	if err != nil {
 		return nil, err
 	}
+	now := int64(fasttime.UnixTimestamp() * 1000)
+	maxTS := now + 2*24*3600*1000 // allow max +2 days from now
+	if end > maxTS {
+		end = maxTS
+	}
 	if end < start {
 		end = start
 	}
