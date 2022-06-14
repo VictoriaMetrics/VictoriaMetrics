@@ -1,6 +1,6 @@
 import {Box, Paper, Table, TableBody, TableCell, TableContainer, TablePagination, TableRow,} from "@mui/material";
 import React, {FC, useState} from "preact/compat";
-import {ChangeEvent, MouseEvent, SyntheticEvent} from "react";
+import {ChangeEvent, MouseEvent} from "react";
 import {Data, Order, TableProps,} from "./types";
 import {EnhancedTableHead} from "./TableHead";
 import {getComparator, stableSort} from "./helpers";
@@ -37,7 +37,7 @@ const EnhancedTable: FC<TableProps> = ({
     setSelected([]);
   };
 
-  const handleClick = (event: SyntheticEvent, name: string) => {
+  const handleClick = (name: string) => () => {
     const selectedIndex = selected.indexOf(name);
     let newSelected: readonly string[] = [];
 
@@ -101,7 +101,7 @@ const EnhancedTable: FC<TableProps> = ({
                   return (
                     <TableRow
                       hover
-                      onClick={(event) => handleClick(event, row.name)}
+                      onClick={handleClick(row.name)}
                       role="checkbox"
                       aria-checked={isItemSelected}
                       tabIndex={-1}

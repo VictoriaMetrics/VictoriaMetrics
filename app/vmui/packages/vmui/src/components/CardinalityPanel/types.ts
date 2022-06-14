@@ -13,10 +13,6 @@ export interface TopHeapEntry {
   count: number;
 }
 
-export type TypographyFunctions = {
-  [key: string]: (value: number) => string,
-}
-
 export type QueryUpdater = {
   [key: string]: (query: string) => string,
 }
