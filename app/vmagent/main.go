@@ -273,6 +273,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
+	case "/datadog/api/v1/metadata":
+		datadogMetadataRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{}`)
+		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
@@ -459,6 +464,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
+	case "datadog/api/v1/metadata":
+		datadogMetadataRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{}`)
+		return true
 	default:
 		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
 		return true
@@ -492,6 +502,7 @@ var (
 	datadogValidateRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/check_run", protocol="datadog"}`)
 	datadogIntakeRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/intake", protocol="datadog"}`)
+	datadogMetadataRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/metadata", protocol="datadog"}`)
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/service-discovery"}`)

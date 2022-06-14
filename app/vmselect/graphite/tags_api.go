@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,9 +23,6 @@ import (
 // See https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb
 func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	paths := r.Form["path"]
 	totalDeleted := 0
 	var row graphiteparser.Row
@@ -87,9 +83,6 @@ func TagsTagMultiSeriesHandler(startTime time.Time, at *auth.Token, w http.Respo
 
 func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request, isJSONResponse bool) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
 	paths := r.Form["path"]
 	var row graphiteparser.Row
 	var labels []prompb.Label
@@ -164,10 +157,7 @@ var (
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
 func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
-	limit, err := getInt(r, "limit")
+	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -256,10 +246,7 @@ var tagsAutoCompleteValuesDuration = metrics.NewSummary(`vm_request_duration_sec
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
 func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
-	limit, err := getInt(r, "limit")
+	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -341,10 +328,7 @@ var tagsAutoCompleteTagsDuration = metrics.NewSummary(`vm_request_duration_secon
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
-	limit, err := getInt(r, "limit")
+	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -413,10 +397,7 @@ var tagsFindSeriesDuration = metrics.NewSummary(`vm_request_duration_seconds{pat
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagValuesHandler(startTime time.Time, at *auth.Token, tagName string, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
-	limit, err := getInt(r, "limit")
+	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -445,10 +426,7 @@ var tagValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/t
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %w", err)
-	}
-	limit, err := getInt(r, "limit")
+	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -471,18 +449,6 @@ func TagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *
 }
 
 var tagsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/tags"}`)
-
-func getInt(r *http.Request, argName string) (int, error) {
-	argValue := r.FormValue(argName)
-	if len(argValue) == 0 {
-		return 0, nil
-	}
-	n, err := strconv.Atoi(argValue)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse %q=%q: %w", argName, argValue, err)
-	}
-	return n, nil
-}
 
 func getSearchQueryForExprs(startTime time.Time, at *auth.Token, etfs [][]storage.TagFilter, exprs []string, maxMetrics int) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)

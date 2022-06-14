@@ -117,7 +117,7 @@ export function reducer(state: AppState, action: Action): AppState {
           ...state.time,
           duration: action.payload,
           period: getTimeperiodForDuration(action.payload, dateFromSeconds(state.time.period.end)),
-          relativeTime: ""
+          relativeTime: "none"
         }
       };
     case "SET_RELATIVE_TIME":
@@ -125,6 +125,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         time: {
           ...state.time,
+          duration: action.payload.duration,
           period: getTimeperiodForDuration(action.payload.duration, new Date(action.payload.until)),
           relativeTime: action.payload.id,
         }
@@ -135,7 +136,7 @@ export function reducer(state: AppState, action: Action): AppState {
         time: {
           ...state.time,
           period: getTimeperiodForDuration(state.time.duration, action.payload),
-          relativeTime: ""
+          relativeTime: "none"
         }
       };
     case "SET_FROM":
@@ -151,7 +152,7 @@ export function reducer(state: AppState, action: Action): AppState {
           ...state.time,
           duration: durationFrom,
           period: getTimeperiodForDuration(durationFrom, dayjs(state.time.period.end*1000).toDate()),
-          relativeTime: ""
+          relativeTime: "none"
         }
       };
     case "SET_PERIOD":
@@ -167,7 +168,7 @@ export function reducer(state: AppState, action: Action): AppState {
           ...state.time,
           duration: durationPeriod,
           period: getTimeperiodForDuration(durationPeriod, action.payload.to),
-          relativeTime: ""
+          relativeTime: "none"
         }
       };
     case "TOGGLE_AUTOREFRESH":

@@ -6,7 +6,7 @@
 
 LabelsResponse generates response for /api/v1/labels .
 See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
-{% func LabelsResponse(isPartial bool, labels []string, qt *querytracer.Tracer, qtDone func()) %}
+{% func LabelsResponse(isPartial bool, labels []string, qt *querytracer.Tracer) %}
 {
 	"status":"success",
 	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
@@ -18,7 +18,7 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-nam
 	]
 	{% code
 		qt.Printf("generate response for %d labels", len(labels))
-		qtDone()
+		qt.Done()
 	%}
 	{%= dumpQueryTrace(qt) %}
 }

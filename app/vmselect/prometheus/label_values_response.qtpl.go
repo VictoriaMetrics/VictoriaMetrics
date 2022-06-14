@@ -25,7 +25,7 @@ var (
 )
 
 //line app/vmselect/prometheus/label_values_response.qtpl:9
-func StreamLabelValuesResponse(qw422016 *qt422016.Writer, isPartial bool, labelValues []string, qt *querytracer.Tracer, qtDone func()) {
+func StreamLabelValuesResponse(qw422016 *qt422016.Writer, isPartial bool, labelValues []string, qt *querytracer.Tracer) {
 //line app/vmselect/prometheus/label_values_response.qtpl:9
 	qw422016.N().S(`{"status":"success","isPartial":`)
 //line app/vmselect/prometheus/label_values_response.qtpl:12
@@ -56,7 +56,7 @@ func StreamLabelValuesResponse(qw422016 *qt422016.Writer, isPartial bool, labelV
 	qw422016.N().S(`]`)
 //line app/vmselect/prometheus/label_values_response.qtpl:20
 	qt.Printf("generate response for %d label values", len(labelValues))
-	qtDone()
+	qt.Done()
 
 //line app/vmselect/prometheus/label_values_response.qtpl:23
 	streamdumpQueryTrace(qw422016, qt)
@@ -66,22 +66,22 @@ func StreamLabelValuesResponse(qw422016 *qt422016.Writer, isPartial bool, labelV
 }
 
 //line app/vmselect/prometheus/label_values_response.qtpl:25
-func WriteLabelValuesResponse(qq422016 qtio422016.Writer, isPartial bool, labelValues []string, qt *querytracer.Tracer, qtDone func()) {
+func WriteLabelValuesResponse(qq422016 qtio422016.Writer, isPartial bool, labelValues []string, qt *querytracer.Tracer) {
 //line app/vmselect/prometheus/label_values_response.qtpl:25
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/prometheus/label_values_response.qtpl:25
-	StreamLabelValuesResponse(qw422016, isPartial, labelValues, qt, qtDone)
+	StreamLabelValuesResponse(qw422016, isPartial, labelValues, qt)
 //line app/vmselect/prometheus/label_values_response.qtpl:25
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/prometheus/label_values_response.qtpl:25
 }
 
 //line app/vmselect/prometheus/label_values_response.qtpl:25
-func LabelValuesResponse(isPartial bool, labelValues []string, qt *querytracer.Tracer, qtDone func()) string {
+func LabelValuesResponse(isPartial bool, labelValues []string, qt *querytracer.Tracer) string {
 //line app/vmselect/prometheus/label_values_response.qtpl:25
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/prometheus/label_values_response.qtpl:25
-	WriteLabelValuesResponse(qb422016, isPartial, labelValues, qt, qtDone)
+	WriteLabelValuesResponse(qb422016, isPartial, labelValues, qt)
 //line app/vmselect/prometheus/label_values_response.qtpl:25
 	qs422016 := string(qb422016.B)
 //line app/vmselect/prometheus/label_values_response.qtpl:25

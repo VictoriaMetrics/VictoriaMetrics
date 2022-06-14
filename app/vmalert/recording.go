@@ -124,7 +124,7 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 }
 
 // Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	qMetrics, err := rr.q.Query(ctx, rr.Expr, ts)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
@@ -135,6 +135,11 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time) ([]prompbmarsha
 	rr.lastExecSamples = len(qMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
+	}
+
+	numSeries := len(qMetrics)
+	if limit > 0 && numSeries > limit {
+		return nil, fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
 	}
 
 	duplicates := make(map[string]struct{}, len(qMetrics))

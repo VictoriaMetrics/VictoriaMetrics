@@ -1124,8 +1124,8 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 
 // SearchMetricNames returns metric names matching the given tfss on the given tr.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("search for matching metric names")
+	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
+	defer qt.Done()
 	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1169,8 +1169,8 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild()
-	defer qt.Donef("search for matching series ids")
+	qt = qt.NewChild("search for matching tsids: filters=%s, timeRange=%s", tfss, &tr)
+	defer qt.Done()
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 
@@ -1221,8 +1221,8 @@ var (
 //
 // This should speed-up further searchMetricNameWithCache calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, tsids []TSID, deadline uint64) error {
-	qt = qt.NewChild()
-	defer qt.Donef("prefetch metric names for %d series ids", len(tsids))
+	qt = qt.NewChild("prefetch metric names for %d tsids", len(tsids))
+	defer qt.Done()
 	if len(tsids) == 0 {
 		qt.Printf("nothing to prefetch")
 		return nil
@@ -1335,24 +1335,16 @@ func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 	return deletedCount, nil
 }
 
-// SearchTagKeysOnTimeRange searches for tag keys on tr.
-func (s *Storage) SearchTagKeysOnTimeRange(accountID, projectID uint32, tr TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagKeysOnTimeRange(accountID, projectID, tr, maxTagKeys, deadline)
+// SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
+func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange,
+	maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
+	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-// SearchTagKeys searches for tag keys for the given (accountID, projectID).
-func (s *Storage) SearchTagKeys(accountID, projectID uint32, maxTagKeys int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagKeys(accountID, projectID, maxTagKeys, deadline)
-}
-
-// SearchTagValuesOnTimeRange searches for tag values for the given tagKey on tr.
-func (s *Storage) SearchTagValuesOnTimeRange(accountID, projectID uint32, tagKey []byte, tr TimeRange, maxTagValues int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagValuesOnTimeRange(accountID, projectID, tagKey, tr, maxTagValues, deadline)
-}
-
-// SearchTagValues searches for tag values for the given tagKey in (accountID, projectID).
-func (s *Storage) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagValues(accountID, projectID, tagKey, maxTagValues, deadline)
+// SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
+func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters,
+	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
@@ -1541,39 +1533,6 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 	}
 }
 
-// SearchTagEntries returns a list of (tagName -> tagValues) for (accountID, projectID).
-func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxTagValues int, deadline uint64) ([]TagEntry, error) {
-	idb := s.idb()
-	keys, err := idb.SearchTagKeys(accountID, projectID, maxTagKeys, deadline)
-	if err != nil {
-		return nil, fmt.Errorf("cannot search tag keys: %w", err)
-	}
-
-	// Sort keys for faster seeks below
-	sort.Strings(keys)
-
-	tes := make([]TagEntry, len(keys))
-	for i, key := range keys {
-		values, err := idb.SearchTagValues(accountID, projectID, []byte(key), maxTagValues, deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot search values for tag %q: %w", key, err)
-		}
-		te := &tes[i]
-		te.Key = key
-		te.Values = values
-	}
-	return tes, nil
-}
-
-// TagEntry contains (tagName -> tagValues) mapping
-type TagEntry struct {
-	// Key is tagName
-	Key string
-
-	// Values contains all the values for Key.
-	Values []string
-}
-
 // GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
 //
 // It includes the deleted series too and may count the same series
@@ -1583,8 +1542,8 @@ func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (
 }
 
 // GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters and the given (accountID, projectID).
-func (s *Storage) GetTSDBStatusWithFiltersForDate(accountID, projectID uint32, tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusWithFiltersForDate(accountID, projectID, tfss, date, topN, maxMetrics, deadline)
+func (s *Storage) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusWithFiltersForDate(qt, accountID, projectID, tfss, date, topN, maxMetrics, deadline)
 }
 
 // MetricRow is a metric to insert into storage.

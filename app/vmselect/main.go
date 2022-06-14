@@ -148,7 +148,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := searchutils.GetBool(r, "trace")
-	qt := querytracer.New(tracerEnabled)
+	qt := querytracer.New(tracerEnabled, r.URL.Path)
 
 	// Limit the number of concurrent queries.
 	select {
@@ -207,6 +207,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if path == "/api/v1/status/top_queries" {
 		globalTopQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(startTime, nil, w, r); err != nil {
 			globalTopQueriesErrors.Inc()
 			sendPrometheusError(w, r, err)
@@ -365,18 +366,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
-	case "prometheus/api/v1/labels/count":
-		labelsCountRequests.Inc()
-		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsCountHandler(startTime, at, w, r); err != nil {
-			labelsCountErrors.Inc()
-			sendPrometheusError(w, r, err)
-			return true
-		}
-		return true
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
-		if err := prometheus.TSDBStatusHandler(startTime, at, w, r); err != nil {
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.TSDBStatusHandler(qt, startTime, at, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -388,6 +381,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/status/top_queries":
 		topQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(startTime, at, w, r); err != nil {
 			topQueriesErrors.Inc()
 			sendPrometheusError(w, r, err)
@@ -604,9 +598,6 @@ var (
 
 	labelsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels"}`)
 	labelsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels"}`)
-
-	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
-	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
 
 	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)

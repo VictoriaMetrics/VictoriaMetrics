@@ -27,6 +27,19 @@ func roundToSeconds(ms int64) int64 {
 	return ms - ms%1000
 }
 
+// GetInt returns integer value from the given argKey.
+func GetInt(r *http.Request, argKey string) (int, error) {
+	argValue := r.FormValue(argKey)
+	if len(argValue) == 0 {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(argValue)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse integer %q=%q: %w", argKey, argValue, err)
+	}
+	return n, nil
+}
+
 // GetTime returns time from the given argKey query arg.
 //
 // If argKey is missing in r, then defaultMs rounded to seconds is returned.
@@ -223,12 +236,16 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
 		}
+		if tmp[0] == "__name__" {
+			// This is required for storage.Search.
+			tmp[0] = ""
+		}
 		tagFilters = append(tagFilters, storage.TagFilter{
 			Key:   []byte(tmp[0]),
 			Value: []byte(tmp[1]),
 		})
 	}
-	extraFilters := r.Form["extra_filters"]
+	extraFilters := append([]string{}, r.Form["extra_filters"]...)
 	extraFilters = append(extraFilters, r.Form["extra_filters[]"]...)
 	if len(extraFilters) == 0 {
 		if len(tagFilters) == 0 {

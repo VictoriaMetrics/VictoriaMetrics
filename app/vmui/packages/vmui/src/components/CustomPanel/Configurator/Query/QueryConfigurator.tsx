@@ -1,4 +1,4 @@
-import React, {FC, useEffect, useRef} from "preact/compat";
+import React, {FC, useState} from "preact/compat";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -18,15 +18,12 @@ export interface QueryConfiguratorProps {
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 
   const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
+  const [stateQuery, setStateQuery] = useState(query || []);
   const dispatch = useAppDispatch();
-  const queryRef = useRef(query);
-  useEffect(() => {
-    queryRef.current = query;
-  }, [query]);
 
   const updateHistory = () => {
     dispatch({
-      type: "SET_QUERY_HISTORY", payload: query.map((q, i) => {
+      type: "SET_QUERY_HISTORY", payload: stateQuery.map((q, i) => {
         const h = queryHistory[i] || {values: []};
         const queryEqual = q === h.values[h.values.length - 1];
         return {
@@ -39,22 +36,20 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
 
   const onRunQuery = () => {
     updateHistory();
-    dispatch({type: "SET_QUERY", payload: query});
+    dispatch({type: "SET_QUERY", payload: stateQuery});
     dispatch({type: "RUN_QUERY"});
   };
 
-  const onAddQuery = () => dispatch({type: "SET_QUERY", payload: [...queryRef.current, ""]});
+  const onAddQuery = () => {
+    setStateQuery(prev => [...prev, ""]);
+  };
 
   const onRemoveQuery = (index: number) => {
-    const newQuery = [...queryRef.current];
-    newQuery.splice(index, 1);
-    dispatch({type: "SET_QUERY", payload: newQuery});
+    setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
   const onSetQuery = (value: string, index: number) => {
-    const newQuery = [...queryRef.current];
-    newQuery[index] = value;
-    dispatch({type: "SET_QUERY", payload: newQuery});
+    setStateQuery(prev => prev.map((q, i) => i === index ? value : q));
   };
 
   const setHistoryIndex = (step: number, indexQuery: number) => {
@@ -69,17 +64,19 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
   };
   return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
     <Box>
-      {query.map((q, i) =>
+      {stateQuery.map((q, i) =>
         <Box key={i} display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="100%"
-          mb={i === query.length - 1 ? 0 : 2.5}>
-          <QueryEditor query={query[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
-            error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}/>
+          mb={i === stateQuery.length - 1 ? 0 : 2.5}>
+          <QueryEditor
+            query={stateQuery[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
+            error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}
+            label={`Query ${i + 1}`}/>
           {i === 0 && <Tooltip title="Execute Query">
             <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
               <PlayCircleOutlineIcon/>
             </IconButton>
           </Tooltip>}
-          {query.length < 2 && <Tooltip title="Add Query">
+          {stateQuery.length < 2 && <Tooltip title="Add Query">
             <IconButton onClick={onAddQuery} sx={{height: "49px", width: "49px"}}>
               <AddCircleOutlineIcon/>
             </IconButton>

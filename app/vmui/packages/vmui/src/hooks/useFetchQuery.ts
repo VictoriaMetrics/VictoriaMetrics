@@ -1,11 +1,11 @@
 import {useEffect, useMemo, useCallback, useState} from "preact/compat";
-import {getQueryOptions, getQueryRangeUrl, getQueryUrl} from "../api/query-range";
+import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
 import {useAppState} from "../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
-import throttle from "lodash.throttle";
+import debounce from "lodash.debounce";
 import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
 import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
@@ -27,11 +27,9 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
-  queryOptions: string[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
 
-  const [queryOptions, setQueryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
@@ -45,11 +43,9 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     }
   }, [error]);
 
-  const fetchData = async (fetchUrl: string[] | undefined, fetchQueue: AbortController[], displayType: DisplayType) => {
-    if (!fetchUrl?.length) return;
+  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
-    setIsLoading(true);
     try {
       const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
       const tempData = [];
@@ -76,23 +72,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(throttle(fetchData, 1000), []);
-
-  const fetchOptions = async () => {
-    const server = appModeEnable ? appServerUrl : serverUrl;
-    if (!server) return;
-    const url = getQueryOptions(server);
-
-    try {
-      const response = await fetch(url);
-      const resp = await response.json();
-      if (response.ok) {
-        setQueryOptions(resp.data);
-      }
-    } catch (e) {
-      if (e instanceof Error) setError(`${e.name}: ${e.message}`);
-    }
-  };
+  const throttledFetchData = useCallback(debounce(fetchData, 600), []);
 
   const fetchUrl = useMemo(() => {
     const server = appModeEnable ? appServerUrl : serverUrl;
@@ -118,11 +98,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const prevFetchUrl = usePrevious(fetchUrl);
 
   useEffect(() => {
-    fetchOptions();
-  }, [serverUrl]);
-
-  useEffect(() => {
-    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl))) return;
+    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl)) || !fetchUrl?.length) return;
+    setIsLoading(true);
     throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
   }, [fetchUrl, visible]);
 
@@ -133,5 +110,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryOptions: queryOptions };
+  return { fetchUrl, isLoading, graphData, liveData, error };
 };

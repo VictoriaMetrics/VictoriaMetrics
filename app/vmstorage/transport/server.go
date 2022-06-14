@@ -322,6 +322,17 @@ func (ctx *vmselectRequestCtx) readTimeRange() (storage.TimeRange, error) {
 	return tr, nil
 }
 
+func (ctx *vmselectRequestCtx) readLimit() (int, error) {
+	n, err := ctx.readUint32()
+	if err != nil {
+		return 0, fmt.Errorf("cannot read limit: %w", err)
+	}
+	if n > 1<<31-1 {
+		n = 1<<31 - 1
+	}
+	return int(n), nil
+}
+
 func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
 	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 4)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
@@ -482,7 +493,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read traceEnabled: %w", err)
 	}
-	ctx.qt = querytracer.New(traceEnabled)
+	ctx.qt = querytracer.New(traceEnabled, "%s() at vmstorage", rpcName)
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -502,11 +513,11 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 
 	// Process the rpcName call.
 	if err := s.processVMSelectRPC(ctx, rpcName); err != nil {
-		return err
+		return fmt.Errorf("cannot execute %q: %s", rpcName, err)
 	}
 
 	// Finish query trace.
-	ctx.qt.Donef("%s() at vmstorage", rpcName)
+	ctx.qt.Done()
 	traceJSON := ctx.qt.ToJSON()
 	if err := ctx.writeString(traceJSON); err != nil {
 		return fmt.Errorf("cannot send trace with length %d bytes to vmselect: %w", len(traceJSON), err)
@@ -520,18 +531,12 @@ func (s *Server) processVMSelectRPC(ctx *vmselectRequestCtx, rpcName string) err
 		return s.processVMSelectSearch(ctx)
 	case "searchMetricNames_v3":
 		return s.processVMSelectSearchMetricNames(ctx)
-	case "labelValuesOnTimeRange_v3":
-		return s.processVMSelectLabelValuesOnTimeRange(ctx)
-	case "labelValues_v4":
+	case "labelValues_v5":
 		return s.processVMSelectLabelValues(ctx)
 	case "tagValueSuffixes_v3":
 		return s.processVMSelectTagValueSuffixes(ctx)
-	case "labelEntries_v4":
-		return s.processVMSelectLabelEntries(ctx)
-	case "labelsOnTimeRange_v3":
-		return s.processVMSelectLabelsOnTimeRange(ctx)
-	case "labels_v4":
-		return s.processVMSelectLabels(ctx)
+	case "labelNames_v5":
+		return s.processVMSelectLabelNames(ctx)
 	case "seriesCount_v4":
 		return s.processVMSelectSeriesCount(ctx)
 	case "tsdbStatus_v4":
@@ -543,7 +548,7 @@ func (s *Server) processVMSelectRPC(ctx *vmselectRequestCtx, rpcName string) err
 	case "registerMetricNames_v3":
 		return s.processVMSelectRegisterMetricNames(ctx)
 	default:
-		return fmt.Errorf("unsupported rpcName: %q", ctx.dataBuf)
+		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
 }
 
@@ -630,21 +635,31 @@ func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func (s *Server) processVMSelectLabelsOnTimeRange(ctx *vmselectRequestCtx) error {
-	vmselectLabelsOnTimeRangeRequests.Inc()
+func (s *Server) processVMSelectLabelNames(ctx *vmselectRequestCtx) error {
+	vmselectLabelNamesRequests.Inc()
 
 	// Read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
+	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-	tr, err := ctx.readTimeRange()
+	maxLabelNames, err := ctx.readLimit()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read maxLabelNames: %w", err)
+	}
+	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeysPerSearch {
+		maxLabelNames = *maxTagKeysPerSearch
 	}
 
-	// Search for tag keys
-	labels, err := s.storage.SearchTagKeysOnTimeRange(accountID, projectID, tr, *maxTagKeysPerSearch, ctx.deadline)
+	// Execute the request
+	tr := storage.TimeRange{
+		MinTimestamp: ctx.sq.MinTimestamp,
+		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	maxMetrics := ctx.getMaxMetrics()
+	labelNames, err := s.storage.SearchLabelNamesWithFiltersOnTimeRange(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, tr, maxLabelNames, maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -654,55 +669,12 @@ func (s *Server) processVMSelectLabelsOnTimeRange(ctx *vmselectRequestCtx) error
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
-	// Send labels to vmselect
-	for _, label := range labels {
-		if len(label) == 0 {
-			// Do this substitution in order to prevent clashing with 'end of response' marker.
-			label = "__name__"
-		}
-		if err := ctx.writeString(label); err != nil {
-			return fmt.Errorf("cannot write label %q: %w", label, err)
+	// Send labelNames to vmselect
+	for _, labelName := range labelNames {
+		if err := ctx.writeString(labelName); err != nil {
+			return fmt.Errorf("cannot write label name %q: %w", labelName, err)
 		}
 	}
-
-	// Send 'end of response' marker
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send 'end of response' marker")
-	}
-	return nil
-}
-
-func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
-	vmselectLabelsRequests.Inc()
-
-	// Read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
-		return err
-	}
-
-	// Search for tag keys
-	labels, err := s.storage.SearchTagKeys(accountID, projectID, *maxTagKeysPerSearch, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send labels to vmselect
-	for _, label := range labels {
-		if len(label) == 0 {
-			// Do this substitution in order to prevent clashing with 'end of response' marker.
-			label = "__name__"
-		}
-		if err := ctx.writeString(label); err != nil {
-			return fmt.Errorf("cannot write label %q: %w", label, err)
-		}
-	}
-
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send 'end of response' marker")
@@ -712,52 +684,36 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 
 const maxLabelValueSize = 16 * 1024
 
-func (s *Server) processVMSelectLabelValuesOnTimeRange(ctx *vmselectRequestCtx) error {
-	vmselectLabelValuesOnTimeRangeRequests.Inc()
-
-	// Read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
-		return err
-	}
-	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read labelName: %w", err)
-	}
-	labelName := string(ctx.dataBuf)
-	tr, err := ctx.readTimeRange()
-	if err != nil {
-		return err
-	}
-
-	// Search for tag values
-	labelValues, err := s.storage.SearchTagValuesOnTimeRange(accountID, projectID, []byte(labelName), tr, *maxTagValuesPerSearch, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	return writeLabelValues(ctx, labelValues)
-}
-
 func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 	vmselectLabelValuesRequests.Inc()
 
 	// Read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
-		return err
-	}
 	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
 		return fmt.Errorf("cannot read labelName: %w", err)
 	}
-	labelName := ctx.dataBuf
+	labelName := string(ctx.dataBuf)
+	if err := ctx.readSearchQuery(); err != nil {
+		return err
+	}
+	maxLabelValues, err := ctx.readLimit()
+	if err != nil {
+		return fmt.Errorf("cannot read maxLabelValues: %w", err)
+	}
+	if maxLabelValues <= 0 || maxLabelValues > *maxTagValuesPerSearch {
+		maxLabelValues = *maxTagValuesPerSearch
+	}
 
-	// Search for tag values
-	labelValues, err := s.storage.SearchTagValues(accountID, projectID, labelName, *maxTagValuesPerSearch, ctx.deadline)
+	// Execute the request
+	tr := storage.TimeRange{
+		MinTimestamp: ctx.sq.MinTimestamp,
+		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	maxMetrics := ctx.getMaxMetrics()
+	labelValues, err := s.storage.SearchLabelValuesWithFiltersOnTimeRange(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, labelName, ctx.tfss, tr,
+		maxLabelValues, maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -767,7 +723,21 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
-	return writeLabelValues(ctx, labelValues)
+	// Send labelValues to vmselect
+	for _, labelValue := range labelValues {
+		if len(labelValue) == 0 {
+			// Skip empty label values, since they have no sense for prometheus.
+			continue
+		}
+		if err := ctx.writeString(labelValue); err != nil {
+			return fmt.Errorf("cannot write labelValue %q: %w", labelValue, err)
+		}
+	}
+	// Send 'end of label values' marker
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send 'end of response' marker")
+	}
+	return nil
 }
 
 func (s *Server) processVMSelectTagValueSuffixes(ctx *vmselectRequestCtx) error {
@@ -826,66 +796,6 @@ func (s *Server) processVMSelectTagValueSuffixes(ctx *vmselectRequestCtx) error 
 	return nil
 }
 
-func writeLabelValues(ctx *vmselectRequestCtx, labelValues []string) error {
-	for _, labelValue := range labelValues {
-		if len(labelValue) == 0 {
-			// Skip empty label values, since they have no sense for prometheus.
-			continue
-		}
-		if err := ctx.writeString(labelValue); err != nil {
-			return fmt.Errorf("cannot write labelValue %q: %w", labelValue, err)
-		}
-	}
-	// Send 'end of label values' marker
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send 'end of response' marker")
-	}
-	return nil
-}
-
-func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
-	vmselectLabelEntriesRequests.Inc()
-
-	// Read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
-		return err
-	}
-
-	// Perform the request
-	labelEntries, err := s.storage.SearchTagEntries(accountID, projectID, *maxTagKeysPerSearch, *maxTagValuesPerSearch, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send labelEntries to vmselect
-	for i := range labelEntries {
-		e := &labelEntries[i]
-		label := e.Key
-		if label == "" {
-			// Do this substitution in order to prevent clashing with 'end of response' marker.
-			label = "__name__"
-		}
-		if err := ctx.writeString(label); err != nil {
-			return fmt.Errorf("cannot write label %q: %w", label, err)
-		}
-		if err := writeLabelValues(ctx, e.Values); err != nil {
-			return fmt.Errorf("cannot write label values for %q: %w", label, err)
-		}
-	}
-
-	// Send 'end of response' marker
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send 'end of response' marker")
-	}
-	return nil
-}
-
 func (s *Server) processVMSelectSeriesCount(ctx *vmselectRequestCtx) error {
 	vmselectSeriesCountRequests.Inc()
 
@@ -939,7 +849,7 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(accountID, projectID, nil, uint64(date), int(topN), maxMetrics, ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.qt, accountID, projectID, nil, uint64(date), int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -950,6 +860,10 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Send status to vmselect.
+	return writeTSDBStatus(ctx, status)
+}
+
+func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error {
 	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
 		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
 	}
@@ -958,6 +872,12 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
 		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
+	}
+	if err := ctx.writeUint64(status.TotalSeries); err != nil {
+		return fmt.Errorf("cannot write totalSeries to vmselect: %w", err)
+	}
+	if err := ctx.writeUint64(status.TotalLabelValuePairs); err != nil {
+		return fmt.Errorf("cannot write totalLabelValuePairs to vmselect: %w", err)
 	}
 	return nil
 }
@@ -984,7 +904,7 @@ func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) e
 	}
 	maxMetrics := ctx.getMaxMetrics()
 	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), maxMetrics, ctx.deadline)
+	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -995,16 +915,7 @@ func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) e
 	}
 
 	// Send status to vmselect.
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
-		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
-		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
-		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
-	}
-	return nil
+	return writeTSDBStatus(ctx, status)
 }
 
 func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) error {
@@ -1151,19 +1062,16 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 }
 
 var (
-	vmselectRegisterMetricNamesRequests    = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="register_metric_names"}`)
-	vmselectDeleteMetricsRequests          = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="delete_metrics"}`)
-	vmselectLabelsOnTimeRangeRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="labels_on_time_range"}`)
-	vmselectLabelsRequests                 = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="labels"}`)
-	vmselectLabelValuesOnTimeRangeRequests = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values_on_time_range"}`)
-	vmselectLabelValuesRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values"}`)
-	vmselectTagValueSuffixesRequests       = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tag_value_suffixes"}`)
-	vmselectLabelEntriesRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_entries"}`)
-	vmselectSeriesCountRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="series_count"}`)
-	vmselectTSDBStatusRequests             = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status"}`)
-	vmselectTSDBStatusWithFiltersRequests  = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status_with_filters"}`)
-	vmselectSearchMetricNamesRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search_metric_names"}`)
-	vmselectSearchRequests                 = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search"}`)
+	vmselectRegisterMetricNamesRequests   = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="register_metric_names"}`)
+	vmselectDeleteMetricsRequests         = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="delete_metrics"}`)
+	vmselectLabelNamesRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_names"}`)
+	vmselectLabelValuesRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values"}`)
+	vmselectTagValueSuffixesRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tag_value_suffixes"}`)
+	vmselectSeriesCountRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="series_count"}`)
+	vmselectTSDBStatusRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status"}`)
+	vmselectTSDBStatusWithFiltersRequests = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status_with_filters"}`)
+	vmselectSearchMetricNamesRequests     = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search_metric_names"}`)
+	vmselectSearchRequests                = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search"}`)
 
 	vmselectMetricBlocksRead = metrics.NewCounter(`vm_vmselect_metric_blocks_read_total`)
 	vmselectMetricRowsRead   = metrics.NewCounter(`vm_vmselect_metric_rows_read_total`)

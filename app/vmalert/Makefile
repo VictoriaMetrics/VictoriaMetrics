@@ -88,7 +88,7 @@ run-vmalert-sd: vmalert
 		-configCheckInterval=10s
 
 replay-vmalert: vmalert
-	./bin/vmalert -rule=app/vmalert/config/testdata/rules-replay-good.rules \
+	./bin/vmalert -rule=app/vmalert/config/testdata/rules/rules-replay-good.rules \
 		-datasource.url=http://localhost:8428 \
 		-remoteWrite.url=http://localhost:8428 \
 		-external.label=cluster=east-1 \

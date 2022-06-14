@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -18,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // Group is an entity for grouping rules
@@ -29,6 +30,7 @@ type Group struct {
 	Rules          []Rule
 	Type           datasource.Type
 	Interval       time.Duration
+	Limit          int
 	Concurrency    int
 	Checksum       string
 	LastEvaluation time.Time
@@ -90,6 +92,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Name:        cfg.Name,
 		File:        cfg.File,
 		Interval:    cfg.Interval.Duration(),
+		Limit:       cfg.Limit,
 		Concurrency: cfg.Concurrency,
 		Checksum:    cfg.Checksum,
 		Params:      cfg.Params,
@@ -215,6 +218,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
 	g.Labels = newGroup.Labels
+	g.Limit = newGroup.Limit
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil
@@ -282,7 +286,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration)
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
 			if err != nil {
 				logger.Errorf("group %q: %s", g.Name, err)
@@ -360,12 +364,12 @@ type executor struct {
 	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
 }
 
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, ts, resolveDuration)
+			res <- e.exec(ctx, rule, ts, resolveDuration, limit)
 		}
 		close(res)
 		return res
@@ -378,7 +382,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, r, ts, resolveDuration)
+				res <- e.exec(ctx, r, ts, resolveDuration, limit)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -399,10 +403,10 @@ var (
 	remoteWriteTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 )
 
-func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDuration time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDuration time.Duration, limit int) error {
 	execTotal.Inc()
 
-	tss, err := rule.Exec(ctx, ts)
+	tss, err := rule.Exec(ctx, ts, limit)
 	if err != nil {
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)

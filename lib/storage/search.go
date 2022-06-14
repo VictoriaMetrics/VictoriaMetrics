@@ -171,8 +171,8 @@ func (s *Search) reset() {
 //
 // Init returns the upper bound on the number of found time series.
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
-	qt = qt.NewChild()
-	defer qt.Donef("init series search: filters=%s, timeRange=%s", tfss, &tr)
+	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
+	defer qt.Done()
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}

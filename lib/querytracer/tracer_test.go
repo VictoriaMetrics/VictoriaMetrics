@@ -6,21 +6,21 @@ import (
 )
 
 func TestTracerDisabled(t *testing.T) {
-	qt := New(false)
+	qt := New(false, "test")
 	if qt.Enabled() {
 		t.Fatalf("query tracer must be disabled")
 	}
-	qtChild := qt.NewChild()
+	qtChild := qt.NewChild("child done %d", 456)
 	if qtChild.Enabled() {
 		t.Fatalf("query tracer must be disabled")
 	}
 	qtChild.Printf("foo %d", 123)
-	qtChild.Donef("child done %d", 456)
+	qtChild.Done()
 	qt.Printf("parent %d", 789)
 	if err := qt.AddJSON([]byte("foobar")); err != nil {
 		t.Fatalf("unexpected error in AddJSON: %s", err)
 	}
-	qt.Donef("test")
+	qt.Done()
 	s := qt.String()
 	if s != "" {
 		t.Fatalf("unexpected trace; got %s; want empty", s)
@@ -32,20 +32,20 @@ func TestTracerDisabled(t *testing.T) {
 }
 
 func TestTracerEnabled(t *testing.T) {
-	qt := New(true)
+	qt := New(true, "test")
 	if !qt.Enabled() {
 		t.Fatalf("query tracer must be enabled")
 	}
-	qtChild := qt.NewChild()
+	qtChild := qt.NewChild("child done %d", 456)
 	if !qtChild.Enabled() {
 		t.Fatalf("child query tracer must be enabled")
 	}
 	qtChild.Printf("foo %d", 123)
-	qtChild.Donef("child done %d", 456)
+	qtChild.Done()
 	qt.Printf("parent %d", 789)
-	qt.Donef("test")
+	qt.Donef("foo %d", 33)
 	s := qt.String()
-	sExpected := `- 0ms: test
+	sExpected := `- 0ms: test: foo 33
 | - 0ms: child done 456
 | | - 0ms: foo 123
 | - 0ms: parent 789
@@ -56,9 +56,9 @@ func TestTracerEnabled(t *testing.T) {
 }
 
 func TestTracerMultiline(t *testing.T) {
-	qt := New(true)
+	qt := New(true, "line1\nline2")
 	qt.Printf("line3\nline4\n")
-	qt.Donef("line1\nline2")
+	qt.Done()
 	s := qt.String()
 	sExpected := `- 0ms: line1
 | line2
@@ -71,18 +71,18 @@ func TestTracerMultiline(t *testing.T) {
 }
 
 func TestTracerToJSON(t *testing.T) {
-	qt := New(true)
+	qt := New(true, "test")
 	if !qt.Enabled() {
 		t.Fatalf("query tracer must be enabled")
 	}
-	qtChild := qt.NewChild()
+	qtChild := qt.NewChild("child done %d", 456)
 	if !qtChild.Enabled() {
 		t.Fatalf("child query tracer must be enabled")
 	}
 	qtChild.Printf("foo %d", 123)
-	qtChild.Donef("child done %d", 456)
+	qtChild.Done()
 	qt.Printf("parent %d", 789)
-	qt.Donef("test")
+	qt.Done()
 	s := qt.ToJSON()
 	sExpected := `{"duration_msec":0,"message":"test","children":[` +
 		`{"duration_msec":0,"message":"child done 456","children":[` +
@@ -94,11 +94,11 @@ func TestTracerToJSON(t *testing.T) {
 }
 
 func TestTraceAddJSON(t *testing.T) {
-	qtChild := New(true)
+	qtChild := New(true, "child")
 	qtChild.Printf("foo")
-	qtChild.Donef("child")
+	qtChild.Done()
 	jsonTrace := qtChild.ToJSON()
-	qt := New(true)
+	qt := New(true, "parent")
 	qt.Printf("first_line")
 	if err := qt.AddJSON([]byte(jsonTrace)); err != nil {
 		t.Fatalf("unexpected error in AddJSON: %s", err)
@@ -107,7 +107,7 @@ func TestTraceAddJSON(t *testing.T) {
 	if err := qt.AddJSON(nil); err != nil {
 		t.Fatalf("unexpected error in AddJSON(nil): %s", err)
 	}
-	qt.Donef("parent")
+	qt.Done()
 	s := qt.String()
 	sExpected := `- 0ms: parent
 | - 0ms: first_line
@@ -131,15 +131,15 @@ func TestTraceAddJSON(t *testing.T) {
 }
 
 func TestTraceMissingDonef(t *testing.T) {
-	qt := New(true)
+	qt := New(true, "parent")
 	qt.Printf("parent printf")
-	qtChild := qt.NewChild()
+	qtChild := qt.NewChild("child")
 	qtChild.Printf("child printf")
 	qt.Printf("another parent printf")
 	s := qt.String()
-	sExpected := `- 0ms: missing Tracer.Donef() call
+	sExpected := `- 0ms: parent: missing Tracer.Done() call
 | - 0ms: parent printf
-| - 0ms: missing Tracer.Donef() call
+| - 0ms: child: missing Tracer.Done() call
 | | - 0ms: child printf
 | - 0ms: another parent printf
 `

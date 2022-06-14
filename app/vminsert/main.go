@@ -286,6 +286,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
+	case "datadog/api/v1/metadata":
+		datadogMetadataRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{}`)
+		return true
 	default:
 		// This is not our link
 		return false
@@ -327,6 +332,7 @@ var (
 	datadogValidateRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/check_run", protocol="datadog"}`)
 	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/intake", protocol="datadog"}`)
+	datadogMetadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/metadata", protocol="datadog"}`)
 
 	_ = metrics.NewGauge(`vm_metrics_with_dropped_labels_total`, func() float64 {
 		return float64(atomic.LoadUint64(&storage.MetricsWithDroppedLabels))
