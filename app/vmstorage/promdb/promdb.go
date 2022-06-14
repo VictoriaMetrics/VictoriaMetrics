@@ -112,15 +112,6 @@ func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadlin
 	return names, err
 }
 
-// GetLabelNames returns label names.
-func GetLabelNames(deadline searchutils.Deadline) ([]string, error) {
-	tr := storage.TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: time.Now().UnixNano() / 1e6,
-	}
-	return GetLabelNamesOnTimeRange(tr, deadline)
-}
-
 // GetLabelValuesOnTimeRange returns values for the given labelName on the given tr.
 func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
 	d := time.Unix(int64(deadline.Deadline()), 0)
@@ -136,15 +127,6 @@ func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline 
 	// Make full copy of values, since they cannot be used after q is closed.
 	values = copyStringsWithMemory(values)
 	return values, err
-}
-
-// GetLabelValues returns values for the given labelName.
-func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, error) {
-	tr := storage.TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: time.Now().UnixNano() / 1e6,
-	}
-	return GetLabelValuesOnTimeRange(labelName, tr, deadline)
 }
 
 func copyStringsWithMemory(a []string) []string {

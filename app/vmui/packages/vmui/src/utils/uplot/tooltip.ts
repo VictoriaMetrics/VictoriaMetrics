@@ -21,7 +21,9 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   tooltip.style.display = "grid";
   tooltip.style.top = `${tooltipOffset.top + top + 10 - (overflowY ? tooltipHeight + 10 : 0)}px`;
   tooltip.style.left = `${tooltipOffset.left + lft + 10 - (overflowX ? tooltipWidth + 20 : 0)}px`;
-  const name = (selectedSeries.label || "").replace(/{.+}/gmi, "");
+  const metricName = (selectedSeries.label || "").replace(/{.+}/gmi, "").trim();
+  const groupName = `Query ${selectedSeries.scale}`;
+  const name = metricName || groupName;
   const date = dayjs(new Date(dataTime * 1000)).format("YYYY-MM-DD HH:mm:ss:SSS (Z)");
   const info = Object.keys(metric).filter(k => k !== "__name__").map(k => `<div><b>${k}</b>: ${metric[k]}</div>`).join("");
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;

@@ -111,7 +111,7 @@ export const dateFromSeconds = (epochTimeInSeconds: number): Date => new Date(ep
 export const relativeTimeOptions: RelativeTimeOption[] = [
   {title: "Last 5 minutes", duration: "5m"},
   {title: "Last 15 minutes", duration: "15m"},
-  {title: "Last 30 minutes", duration: "30m"},
+  {title: "Last 30 minutes", duration: "30m", isDefault: true},
   {title: "Last 1 hour", duration: "1h"},
   {title: "Last 3 hours", duration: "3h"},
   {title: "Last 6 hours", duration: "6h"},
@@ -133,10 +133,11 @@ export const relativeTimeOptions: RelativeTimeOption[] = [
 
 export const getRelativeTime = ({relativeTimeId, defaultDuration, defaultEndInput}:
                                   { relativeTimeId?: string, defaultDuration: string, defaultEndInput: Date }) => {
-  const id = relativeTimeId || getQueryStringValue("g0.relative_time", "") as string;
+  const defaultId = relativeTimeOptions.find(t => t.isDefault)?.id;
+  const id = relativeTimeId || getQueryStringValue("g0.relative_time", defaultId) as string;
   const target = relativeTimeOptions.find(d => d.id === id);
   return {
-    relativeTimeId: id,
+    relativeTimeId: target ? id : "none",
     duration: target ? target.duration : defaultDuration,
     endInput: target ? target.until() : defaultEndInput
   };
