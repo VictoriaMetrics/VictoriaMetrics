@@ -519,6 +519,8 @@ Below is the output for `/path/to/vminsert -help`:
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+  -denyQueryTracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -disableRerouting
      Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -dropSamplesOnOverload (default true)
   -dropSamplesOnOverload
@@ -549,6 +551,10 @@ Below is the output for `/path/to/vminsert -help`:
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections (default ":8480")
   -import.maxLineLen size
@@ -602,6 +608,8 @@ Below is the output for `/path/to/vminsert -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
   -opentsdbListenAddr string
@@ -613,6 +621,8 @@ Below is the output for `/path/to/vminsert -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -pprofAuthKey string
+     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
@@ -658,6 +668,8 @@ Below is the output for `/path/to/vmselect -help`:
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+  -denyQueryTracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
      Supports an array of values separated by comma or specified via multiple flags.
@@ -685,6 +697,10 @@ Below is the output for `/path/to/vmselect -help`:
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections (default ":8481")
   -loggerDisableTimestamps
@@ -706,6 +722,10 @@ Below is the output for `/path/to/vmselect -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pprofAuthKey string
+     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -replicationFactor int
      How many copies of every time series is available on vmstorage nodes. See -replicationFactor command-line flag for vminsert nodes (default 1)
   -search.cacheTimestampOffset duration
@@ -727,9 +747,9 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int
-     The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage (default 1000000)
+     The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage (default 10000000)
   -search.maxFederateSeries int
-     The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 300000)
+     The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
   -search.maxLookback duration
@@ -748,7 +768,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxSamplesPerSeries int
      The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery (default 30000000)
   -search.maxSeries int
-     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 10000)
+     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
   -search.maxStalenessInterval duration
      The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
   -search.maxStatusRequestDuration duration
@@ -756,7 +776,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxStepForPointsAdjustment duration
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTSDBStatusSeries int
-     The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 1000000)
+     The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.minStalenessInterval duration
@@ -816,6 +836,8 @@ Below is the output for `/path/to/vmstorage -help`:
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueriesOutsideRetention
      Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+  -denyQueryTracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details
      Supports an array of values separated by comma or specified via multiple flags.
@@ -847,6 +869,10 @@ Below is the output for `/path/to/vmstorage -help`:
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections (default ":8482")
   -logNewSeries
@@ -870,11 +896,17 @@ Below is the output for `/path/to/vmstorage -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pprofAuthKey string
+     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
+  -retentionTimezoneOffset duration
+     The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -rpc.disableCompression
      Whether to disable compression of the data sent from vmstorage to vmselect. This reduces CPU usage at the cost of higher network bandwidth usage
   -search.maxTagKeys int
@@ -897,6 +929,9 @@ Below is the output for `/path/to/vmstorage -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -storage.cacheSizeIndexDBTagFilters size
+     Overrides max size for indexdb/tagFilters cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
