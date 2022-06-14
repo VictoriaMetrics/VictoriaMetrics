@@ -1263,11 +1263,11 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	return metricIDsLen, nil
 }
 
-// GetTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss, date, accountID and projectID.
-func (db *indexDB) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+// GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
+func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	qtChild := qt.NewChild("collect tsdb stats in the current indexdb")
 	is := db.getIndexSearch(accountID, projectID, deadline)
-	status, err := is.getTSDBStatusWithFiltersForDate(qtChild, tfss, date, topN, maxMetrics)
+	status, err := is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 	qtChild.Done()
 	db.putIndexSearch(is)
 	if err != nil {
@@ -1279,7 +1279,7 @@ func (db *indexDB) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, accou
 	ok := db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("collect tsdb stats in the previous indexdb")
 		is := extDB.getIndexSearch(accountID, projectID, deadline)
-		status, err = is.getTSDBStatusWithFiltersForDate(qtChild, tfss, date, topN, maxMetrics)
+		status, err = is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 		qtChild.Done()
 		extDB.putIndexSearch(is)
 	})
@@ -1289,8 +1289,8 @@ func (db *indexDB) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, accou
 	return status, nil
 }
 
-// getTSDBStatusWithFiltersForDate returns topN entries for tsdb status for the given tfss and the given date.
-func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, topN, maxMetrics int) (*TSDBStatus, error) {
+// getTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
+func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int) (*TSDBStatus, error) {
 	filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
 	if err != nil {
 		return nil, err
@@ -1305,12 +1305,14 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, t
 	dmis := is.db.s.getDeletedMetricIDs()
 	thSeriesCountByMetricName := newTopHeap(topN)
 	thSeriesCountByLabelName := newTopHeap(topN)
+	thSeriesCountByFocusLabelValue := newTopHeap(topN)
 	thSeriesCountByLabelValuePair := newTopHeap(topN)
 	thLabelValueCountByLabelName := newTopHeap(topN)
 	var tmp, prevLabelName, prevLabelValuePair []byte
 	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
 	var totalSeries, labelSeries, totalLabelValuePairs uint64
 	nameEqualBytes := []byte("__name__=")
+	focusLabelEqualBytes := []byte(focusLabel + "=")
 
 	loopsPaceLimiter := 0
 	nsPrefixExpected := byte(nsPrefixDateTagToMetricIDs)
@@ -1382,6 +1384,9 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, t
 			if bytes.HasPrefix(prevLabelValuePair, nameEqualBytes) {
 				thSeriesCountByMetricName.push(prevLabelValuePair[len(nameEqualBytes):], seriesCountByLabelValuePair)
 			}
+			if bytes.HasPrefix(prevLabelValuePair, focusLabelEqualBytes) {
+				thSeriesCountByFocusLabelValue.push(prevLabelValuePair[len(focusLabelEqualBytes):], seriesCountByLabelValuePair)
+			}
 			seriesCountByLabelValuePair = 0
 			labelValueCountByLabelName++
 			prevLabelValuePair = append(prevLabelValuePair[:0], labelValuePair...)
@@ -1401,13 +1406,17 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, t
 	if bytes.HasPrefix(prevLabelValuePair, nameEqualBytes) {
 		thSeriesCountByMetricName.push(prevLabelValuePair[len(nameEqualBytes):], seriesCountByLabelValuePair)
 	}
+	if bytes.HasPrefix(prevLabelValuePair, focusLabelEqualBytes) {
+		thSeriesCountByFocusLabelValue.push(prevLabelValuePair[len(focusLabelEqualBytes):], seriesCountByLabelValuePair)
+	}
 	status := &TSDBStatus{
-		TotalSeries:                 totalSeries,
-		TotalLabelValuePairs:        totalLabelValuePairs,
-		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
-		SeriesCountByLabelName:      thSeriesCountByLabelName.getSortedResult(),
-		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
-		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
+		TotalSeries:                  totalSeries,
+		TotalLabelValuePairs:         totalLabelValuePairs,
+		SeriesCountByMetricName:      thSeriesCountByMetricName.getSortedResult(),
+		SeriesCountByLabelName:       thSeriesCountByLabelName.getSortedResult(),
+		SeriesCountByFocusLabelValue: thSeriesCountByFocusLabelValue.getSortedResult(),
+		SeriesCountByLabelValuePair:  thSeriesCountByLabelValuePair.getSortedResult(),
+		LabelValueCountByLabelName:   thLabelValueCountByLabelName.getSortedResult(),
 	}
 	return status, nil
 }
@@ -1416,12 +1425,13 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, t
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 type TSDBStatus struct {
-	TotalSeries                 uint64
-	TotalLabelValuePairs        uint64
-	SeriesCountByMetricName     []TopHeapEntry
-	SeriesCountByLabelName      []TopHeapEntry
-	SeriesCountByLabelValuePair []TopHeapEntry
-	LabelValueCountByLabelName  []TopHeapEntry
+	TotalSeries                  uint64
+	TotalLabelValuePairs         uint64
+	SeriesCountByMetricName      []TopHeapEntry
+	SeriesCountByLabelName       []TopHeapEntry
+	SeriesCountByFocusLabelValue []TopHeapEntry
+	SeriesCountByLabelValuePair  []TopHeapEntry
+	LabelValueCountByLabelName   []TopHeapEntry
 }
 
 func (status *TSDBStatus) hasEntries() bool {

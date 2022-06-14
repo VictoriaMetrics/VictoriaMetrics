@@ -550,12 +550,17 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
 	if len(dateStr) > 0 {
-		t, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
-			return fmt.Errorf("cannot parse `date` arg %q: %w", dateStr, err)
+		if dateStr == "0" {
+			date = 0
+		} else {
+			t, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				return fmt.Errorf("cannot parse `date` arg %q: %w", dateStr, err)
+			}
+			date = uint64(t.Unix()) / secsPerDay
 		}
-		date = uint64(t.Unix()) / secsPerDay
 	}
+	focusLabel := r.FormValue("focusLabel")
 	topN := 10
 	topNStr := r.FormValue("topN")
 	if len(topNStr) > 0 {
@@ -572,18 +577,12 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		topN = n
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	var status *storage.TSDBStatus
-	var isPartial bool
-	if len(cp.filterss) == 0 {
-		status, isPartial, err = netstorage.GetTSDBStatusForDate(qt, at, denyPartialResponse, cp.deadline, date, topN, *maxTSDBStatusSeries)
-		if err != nil {
-			return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
-		}
-	} else {
-		status, isPartial, err = tsdbStatusWithMatches(qt, at, denyPartialResponse, cp.filterss, date, topN, *maxTSDBStatusSeries, cp.deadline)
-		if err != nil {
-			return fmt.Errorf("cannot obtain tsdb status with matches for date=%d, topN=%d: %w", date, topN, err)
-		}
+	start := int64(date*secsPerDay) * 1000
+	end := int64((date+1)*secsPerDay)*1000 - 1
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, cp.filterss, *maxTSDBStatusSeries)
+	status, isPartial, err := netstorage.GetTSDBStatus(qt, at, denyPartialResponse, sq, focusLabel, topN, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -594,17 +593,6 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		return fmt.Errorf("cannot send tsdb status response to remote client: %w", err)
 	}
 	return nil
-}
-
-func tsdbStatusWithMatches(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, filterss [][]storage.TagFilter, date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
-	start := int64(date*secsPerDay) * 1000
-	end := int64(date*secsPerDay+secsPerDay) * 1000
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, filterss, maxMetrics)
-	status, isPartial, err := netstorage.GetTSDBStatusWithFilters(qt, at, denyPartialResponse, deadline, sq, topN)
-	if err != nil {
-		return nil, false, err
-	}
-	return status, isPartial, nil
 }
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)

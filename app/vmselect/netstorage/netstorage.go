@@ -930,14 +930,16 @@ func deduplicateStrings(a []string) []string {
 	return a
 }
 
-// GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func GetTSDBStatusForDate(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool,
-	deadline searchutils.Deadline, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, bool, error) {
-	qt = qt.NewChild("get tsdb stats for date=%d, topN=%d", date, topN)
+// GetTSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+//
+// It accepts aribtrary filters on time series in sq.
+func GetTSDBStatus(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
+	requestData := sq.Marshal(nil)
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		status *storage.TSDBStatus
@@ -945,7 +947,7 @@ func GetTSDBStatusForDate(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.tsdbStatusRequests.Inc()
-		status, err := sn.getTSDBStatusForDate(qt, at.AccountID, at.ProjectID, date, topN, maxMetrics, deadline)
+		status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 		if err != nil {
 			sn.tsdbStatusErrors.Inc()
 			err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1024,53 +1026,6 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 		a = a[:topN]
 	}
 	return a
-}
-
-// GetTSDBStatusWithFilters returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-//
-// It accepts aribtrary filters on time series in sq.
-func GetTSDBStatusWithFilters(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool,
-	deadline searchutils.Deadline, sq *storage.SearchQuery, topN int) (*storage.TSDBStatus, bool, error) {
-	qt = qt.NewChild("get tsdb stats: %s, topN=%d", sq, topN)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-	requestData := sq.Marshal(nil)
-	// Send the query to all the storage nodes in parallel.
-	type nodeResult struct {
-		status *storage.TSDBStatus
-		err    error
-	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
-		sn.tsdbStatusWithFiltersRequests.Inc()
-		status, err := sn.getTSDBStatusWithFilters(qt, requestData, topN, deadline)
-		if err != nil {
-			sn.tsdbStatusWithFiltersErrors.Inc()
-			err = fmt.Errorf("cannot obtain tsdb status with filters from vmstorage %s: %w", sn.connPool.Addr(), err)
-		}
-		return &nodeResult{
-			status: status,
-			err:    err,
-		}
-	})
-
-	// Collect results.
-	var statuses []*storage.TSDBStatus
-	isPartial, err := snr.collectResults(partialTSDBStatusResults, func(result interface{}) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
-		}
-		statuses = append(statuses, nr.status)
-		return nil
-	})
-	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot fetch tsdb status with filters from vmstorage nodes: %w", err)
-	}
-
-	status := mergeTSDBStatuses(statuses, topN)
-	return status, isPartial, nil
 }
 
 // GetSeriesCount returns the number of unique series for the given at.
@@ -1499,12 +1454,6 @@ type storageNode struct {
 	// The number of errors during requests to tsdb status.
 	tsdbStatusErrors *metrics.Counter
 
-	// The number of requests to tsdb status.
-	tsdbStatusWithFiltersRequests *metrics.Counter
-
-	// The number of errors during requests to tsdb status.
-	tsdbStatusWithFiltersErrors *metrics.Counter
-
 	// The number of requests to seriesCount.
 	seriesCountRequests *metrics.Counter
 
@@ -1605,34 +1554,17 @@ func (sn *storageNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, pr
 	return suffixes, nil
 }
 
-func (sn *storageNode) getTSDBStatusForDate(qt *querytracer.Tracer, accountID, projectID uint32,
-	date uint64, topN, maxMetrics int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+func (sn *storageNode) getTSDBStatus(qt *querytracer.Tracer, requestData []byte, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
 	var status *storage.TSDBStatus
 	f := func(bc *handshake.BufferedConn) error {
-		st, err := sn.getTSDBStatusForDateOnConn(bc, accountID, projectID, date, topN, maxMetrics)
+		st, err := sn.getTSDBStatusOnConn(bc, requestData, focusLabel, topN)
 		if err != nil {
 			return err
 		}
 		status = st
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tsdbStatus_v4", f, deadline); err != nil {
-		return nil, err
-	}
-	return status, nil
-}
-
-func (sn *storageNode) getTSDBStatusWithFilters(qt *querytracer.Tracer, requestData []byte, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
-	var status *storage.TSDBStatus
-	f := func(bc *handshake.BufferedConn) error {
-		st, err := sn.getTSDBStatusWithFiltersOnConn(bc, requestData, topN)
-		if err != nil {
-			return err
-		}
-		status = st
-		return nil
-	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tsdbStatusWithFilters_v3", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "tsdbStatus_v5", f, deadline); err != nil {
 		return nil, err
 	}
 	return status, nil
@@ -2007,51 +1939,20 @@ func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, acc
 	return suffixes, nil
 }
 
-func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN, maxMetrics int) (*storage.TSDBStatus, error) {
-	// Send the request to sn.
-	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
-		return nil, err
-	}
-	// date shouldn't exceed 32 bits, so send it as uint32.
-	if err := writeUint32(bc, uint32(date)); err != nil {
-		return nil, fmt.Errorf("cannot send date=%d to conn: %w", date, err)
-	}
-	// topN shouldn't exceed 32 bits, so send it as uint32.
-	if err := writeUint32(bc, uint32(topN)); err != nil {
-		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
-	}
-	// maxMetrics shouldn't exceed 32 bits, so send it as uint32.
-	if err := writeUint32(bc, uint32(maxMetrics)); err != nil {
-		return nil, fmt.Errorf("cannot send maxMetrics=%d to conn: %w", maxMetrics, err)
-	}
-	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush tsdbStatus args to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
-	}
-
-	// Read response
-	return readTSDBStatus(bc)
-}
-
-func (sn *storageNode) getTSDBStatusWithFiltersOnConn(bc *handshake.BufferedConn, requestData []byte, topN int) (*storage.TSDBStatus, error) {
+func (sn *storageNode) getTSDBStatusOnConn(bc *handshake.BufferedConn, requestData []byte, focusLabel string, topN int) (*storage.TSDBStatus, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return nil, fmt.Errorf("cannot write requestData: %w", err)
 	}
+	if err := writeBytes(bc, []byte(focusLabel)); err != nil {
+		return nil, fmt.Errorf("cannot write focusLabel=%q: %w", focusLabel, err)
+	}
 	// topN shouldn't exceed 32 bits, so send it as uint32.
 	if err := writeUint32(bc, uint32(topN)); err != nil {
 		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush tsdbStatusWithFilters args to conn: %w", err)
+		return nil, fmt.Errorf("cannot flush tsdbStatus args to conn: %w", err)
 	}
 
 	// Read response error.
@@ -2358,28 +2259,26 @@ func InitStorageNodes(addrs []string) {
 
 			concurrentQueries: metrics.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 
-			registerMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			registerMetricNamesErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesErrors:        metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusWithFiltersRequests: metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusWithFiltersErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatusWithFilters", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequests:     metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchErrors:                  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			metricBlocksRead:              metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:                metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesErrors:          metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelNamesErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchErrors:                metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			metricBlocksRead:            metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+			metricRowsRead:              metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 		}
 		storageNodes = append(storageNodes, sn)
 	}

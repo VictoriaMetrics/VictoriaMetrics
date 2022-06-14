@@ -1541,9 +1541,9 @@ func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (
 	return s.idb().GetSeriesCount(accountID, projectID, deadline)
 }
 
-// GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters and the given (accountID, projectID).
-func (s *Storage) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusWithFiltersForDate(qt, accountID, projectID, tfss, date, topN, maxMetrics, deadline)
+// GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
+func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
 // MetricRow is a metric to insert into storage.

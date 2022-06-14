@@ -539,10 +539,8 @@ func (s *Server) processVMSelectRPC(ctx *vmselectRequestCtx, rpcName string) err
 		return s.processVMSelectLabelNames(ctx)
 	case "seriesCount_v4":
 		return s.processVMSelectSeriesCount(ctx)
-	case "tsdbStatus_v4":
+	case "tsdbStatus_v5":
 		return s.processVMSelectTSDBStatus(ctx)
-	case "tsdbStatusWithFilters_v3":
-		return s.processVMSelectTSDBStatusWithFilters(ctx)
 	case "deleteMetrics_v5":
 		return s.processVMSelectDeleteMetrics(ctx)
 	case "registerMetricNames_v3":
@@ -827,29 +825,29 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	vmselectTSDBStatusRequests.Inc()
 
 	// Read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
+	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-	date, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read date: %w", err)
+	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
+		return fmt.Errorf("cannot read focusLabel: %w", err)
 	}
+	focusLabel := string(ctx.dataBuf)
 	topN, err := ctx.readUint32()
 	if err != nil {
 		return fmt.Errorf("cannot read topN: %w", err)
 	}
-	maxMetricsUint32, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read MaxMetrics: %w", err)
-	}
-	maxMetrics := int(maxMetricsUint32)
-	if maxMetrics < 0 {
-		return fmt.Errorf("too big value for MaxMetrics=%d; must be smaller than 2e9", maxMetricsUint32)
-	}
 
 	// Execute the request
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.qt, accountID, projectID, nil, uint64(date), int(topN), maxMetrics, ctx.deadline)
+	tr := storage.TimeRange{
+		MinTimestamp: ctx.sq.MinTimestamp,
+		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	maxMetrics := ctx.getMaxMetrics()
+	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
+	status, err := s.storage.GetTSDBStatus(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, focusLabel, int(topN), maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -880,42 +878,6 @@ func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error 
 		return fmt.Errorf("cannot write totalLabelValuePairs to vmselect: %w", err)
 	}
 	return nil
-}
-
-func (s *Server) processVMSelectTSDBStatusWithFilters(ctx *vmselectRequestCtx) error {
-	vmselectTSDBStatusWithFiltersRequests.Inc()
-
-	// Read request
-	if err := ctx.readSearchQuery(); err != nil {
-		return err
-	}
-	topN, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read topN: %w", err)
-	}
-
-	// Execute the request
-	tr := storage.TimeRange{
-		MinTimestamp: ctx.sq.MinTimestamp,
-		MaxTimestamp: ctx.sq.MaxTimestamp,
-	}
-	if err := ctx.setupTfss(s.storage, tr); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	maxMetrics := ctx.getMaxMetrics()
-	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
-	status, err := s.storage.GetTSDBStatusWithFiltersForDate(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, date, int(topN), maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send status to vmselect.
-	return writeTSDBStatus(ctx, status)
 }
 
 func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) error {
@@ -1062,16 +1024,15 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 }
 
 var (
-	vmselectRegisterMetricNamesRequests   = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="register_metric_names"}`)
-	vmselectDeleteMetricsRequests         = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="delete_metrics"}`)
-	vmselectLabelNamesRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_names"}`)
-	vmselectLabelValuesRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values"}`)
-	vmselectTagValueSuffixesRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tag_value_suffixes"}`)
-	vmselectSeriesCountRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="series_count"}`)
-	vmselectTSDBStatusRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status"}`)
-	vmselectTSDBStatusWithFiltersRequests = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status_with_filters"}`)
-	vmselectSearchMetricNamesRequests     = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search_metric_names"}`)
-	vmselectSearchRequests                = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search"}`)
+	vmselectRegisterMetricNamesRequests = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="register_metric_names"}`)
+	vmselectDeleteMetricsRequests       = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="delete_metrics"}`)
+	vmselectLabelNamesRequests          = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_names"}`)
+	vmselectLabelValuesRequests         = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values"}`)
+	vmselectTagValueSuffixesRequests    = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tag_value_suffixes"}`)
+	vmselectSeriesCountRequests         = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="series_count"}`)
+	vmselectTSDBStatusRequests          = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status"}`)
+	vmselectSearchMetricNamesRequests   = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search_metric_names"}`)
+	vmselectSearchRequests              = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search"}`)
 
 	vmselectMetricBlocksRead = metrics.NewCounter(`vm_vmselect_metric_blocks_read_total`)
 	vmselectMetricRowsRead   = metrics.NewCounter(`vm_vmselect_metric_rows_read_total`)
