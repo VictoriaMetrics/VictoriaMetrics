@@ -12,6 +12,7 @@ const defaultTSDBStatus = {
   totalSeries: 0,
   totalLabelValuePairs: 0,
   seriesCountByMetricName: [],
+  seriesCountByLabelName: [],
   seriesCountByLabelValuePair: [],
   labelValueCountByLabelName: [],
 };

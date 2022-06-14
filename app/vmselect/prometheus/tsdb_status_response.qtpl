@@ -13,6 +13,7 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 		"totalSeries": {%dul= status.TotalSeries %},
 		"totalLabelValuePairs": {%dul= status.TotalLabelValuePairs %},
 		"seriesCountByMetricName":{%= tsdbStatusEntries(status.SeriesCountByMetricName) %},
+		"seriesCountByLabelName":{%= tsdbStatusEntries(status.SeriesCountByLabelName) %},
 		"seriesCountByLabelValuePair":{%= tsdbStatusEntries(status.SeriesCountByLabelValuePair) %},
 		"labelValueCountByLabelName":{%= tsdbStatusEntries(status.LabelValueCountByLabelName) %}
 	}

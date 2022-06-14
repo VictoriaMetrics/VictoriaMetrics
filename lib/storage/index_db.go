@@ -857,10 +857,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		if err := mp.Init(item, nsPrefixExpected); err != nil {
 			return err
 		}
-		if mp.IsDeletedTag(dmis) {
-			continue
-		}
-		if mp.GetMatchingSeriesCount(filter) == 0 {
+		if mp.GetMatchingSeriesCount(filter, dmis) == 0 {
 			continue
 		}
 		labelName := mp.Tag.Key
@@ -1023,10 +1020,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 		if err := mp.Init(item, nsPrefixExpected); err != nil {
 			return err
 		}
-		if mp.IsDeletedTag(dmis) {
-			continue
-		}
-		if mp.GetMatchingSeriesCount(filter) == 0 {
+		if mp.GetMatchingSeriesCount(filter, dmis) == 0 {
 			continue
 		}
 		labelValue := mp.Tag.Value
@@ -1174,7 +1168,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 		if err := mp.Init(item, nsPrefix); err != nil {
 			return err
 		}
-		if mp.IsDeletedTag(dmis) {
+		if mp.GetMatchingSeriesCount(nil, dmis) == 0 {
 			continue
 		}
 		tagValue := mp.Tag.Value
@@ -1308,12 +1302,14 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, t
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
-	thLabelValueCountByLabelName := newTopHeap(topN)
-	thSeriesCountByLabelValuePair := newTopHeap(topN)
+	dmis := is.db.s.getDeletedMetricIDs()
 	thSeriesCountByMetricName := newTopHeap(topN)
-	var tmp, labelName, labelNameValue []byte
+	thSeriesCountByLabelName := newTopHeap(topN)
+	thSeriesCountByLabelValuePair := newTopHeap(topN)
+	thLabelValueCountByLabelName := newTopHeap(topN)
+	var tmp, prevLabelName, prevLabelValuePair []byte
 	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
-	var totalSeries, totalLabelValuePairs uint64
+	var totalSeries, labelSeries, totalLabelValuePairs uint64
 	nameEqualBytes := []byte("__name__=")
 
 	loopsPaceLimiter := 0
@@ -1338,69 +1334,80 @@ func (is *indexSearch) getTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, t
 		if err := mp.Init(item, nsPrefixExpected); err != nil {
 			return nil, err
 		}
-		matchingSeriesCount := mp.GetMatchingSeriesCount(filter)
+		matchingSeriesCount := mp.GetMatchingSeriesCount(filter, dmis)
 		if matchingSeriesCount == 0 {
 			// Skip rows without matching metricIDs.
 			continue
 		}
 		tmp = append(tmp[:0], mp.Tag.Key...)
-		tagKey := tmp
-		if isArtificialTagKey(tagKey) {
+		labelName := tmp
+		if isArtificialTagKey(labelName) {
 			// Skip artificially created tag keys.
 			kb.B = append(kb.B[:0], prefix...)
-			if len(tagKey) > 0 && tagKey[0] == compositeTagKeyPrefix {
+			if len(labelName) > 0 && labelName[0] == compositeTagKeyPrefix {
 				kb.B = append(kb.B, compositeTagKeyPrefix)
 			} else {
-				kb.B = marshalTagValue(kb.B, tagKey)
+				kb.B = marshalTagValue(kb.B, labelName)
 			}
 			kb.B[len(kb.B)-1]++
 			ts.Seek(kb.B)
 			continue
 		}
-		if len(tagKey) == 0 {
-			tagKey = append(tagKey, "__name__"...)
-			tmp = tagKey
+		if len(labelName) == 0 {
+			labelName = append(labelName, "__name__"...)
+			tmp = labelName
+		}
+		if string(labelName) == "__name__" {
+			totalSeries += uint64(matchingSeriesCount)
 		}
 		tmp = append(tmp, '=')
 		tmp = append(tmp, mp.Tag.Value...)
-		tagKeyValue := tmp
-		if string(tagKey) == "__name__" {
-			totalSeries += uint64(matchingSeriesCount)
+		labelValuePair := tmp
+		if len(prevLabelName) == 0 {
+			prevLabelName = append(prevLabelName[:0], labelName...)
 		}
-		if !bytes.Equal(tagKey, labelName) {
-			thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
+		if string(labelName) != string(prevLabelName) {
+			thLabelValueCountByLabelName.push(prevLabelName, labelValueCountByLabelName)
+			thSeriesCountByLabelName.push(prevLabelName, labelSeries)
+			labelSeries = 0
 			labelValueCountByLabelName = 0
-			labelName = append(labelName[:0], tagKey...)
+			prevLabelName = append(prevLabelName[:0], labelName...)
 		}
-		if !bytes.Equal(tagKeyValue, labelNameValue) {
-			thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
-			if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
-				thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
+		if len(prevLabelValuePair) == 0 {
+			prevLabelValuePair = append(prevLabelValuePair[:0], labelValuePair...)
+			labelValueCountByLabelName++
+		}
+		if string(labelValuePair) != string(prevLabelValuePair) {
+			thSeriesCountByLabelValuePair.push(prevLabelValuePair, seriesCountByLabelValuePair)
+			if bytes.HasPrefix(prevLabelValuePair, nameEqualBytes) {
+				thSeriesCountByMetricName.push(prevLabelValuePair[len(nameEqualBytes):], seriesCountByLabelValuePair)
 			}
 			seriesCountByLabelValuePair = 0
 			labelValueCountByLabelName++
-			labelNameValue = append(labelNameValue[:0], tagKeyValue...)
+			prevLabelValuePair = append(prevLabelValuePair[:0], labelValuePair...)
 		}
-		// Take into account deleted timeseries too.
 		// It is OK if series can be counted multiple times in rare cases -
 		// the returned number is an estimation.
+		labelSeries += uint64(matchingSeriesCount)
 		seriesCountByLabelValuePair += uint64(matchingSeriesCount)
 		totalLabelValuePairs += uint64(matchingSeriesCount)
 	}
 	if err := ts.Error(); err != nil {
 		return nil, fmt.Errorf("error when counting time series by metric names: %w", err)
 	}
-	thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
-	thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
-	if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
-		thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
+	thLabelValueCountByLabelName.push(prevLabelName, labelValueCountByLabelName)
+	thSeriesCountByLabelName.push(prevLabelName, labelSeries)
+	thSeriesCountByLabelValuePair.push(prevLabelValuePair, seriesCountByLabelValuePair)
+	if bytes.HasPrefix(prevLabelValuePair, nameEqualBytes) {
+		thSeriesCountByMetricName.push(prevLabelValuePair[len(nameEqualBytes):], seriesCountByLabelValuePair)
 	}
 	status := &TSDBStatus{
-		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
-		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
-		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
 		TotalSeries:                 totalSeries,
 		TotalLabelValuePairs:        totalLabelValuePairs,
+		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
+		SeriesCountByLabelName:      thSeriesCountByLabelName.getSortedResult(),
+		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
+		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
 	}
 	return status, nil
 }
@@ -1412,8 +1419,9 @@ type TSDBStatus struct {
 	TotalSeries                 uint64
 	TotalLabelValuePairs        uint64
 	SeriesCountByMetricName     []TopHeapEntry
-	LabelValueCountByLabelName  []TopHeapEntry
+	SeriesCountByLabelName      []TopHeapEntry
 	SeriesCountByLabelValuePair []TopHeapEntry
+	LabelValueCountByLabelName  []TopHeapEntry
 }
 
 func (status *TSDBStatus) hasEntries() bool {
@@ -1439,7 +1447,7 @@ type TopHeapEntry struct {
 	Count uint64
 }
 
-func (th *topHeap) pushIfNonEmpty(name []byte, count uint64) {
+func (th *topHeap) push(name []byte, count uint64) {
 	if count == 0 {
 		return
 	}
@@ -3147,37 +3155,25 @@ func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 	mp.metricIDsParsed = true
 }
 
-// GetMatchingSeriesCount returns the number of series in mp, which match metricIDs from the given filter.
+// GetMatchingSeriesCount returns the number of series in mp, which match metricIDs from the given filter
+// and do not match metricIDs from negativeFilter.
 //
 // if filter is empty, then all series in mp are taken into account.
-func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter *uint64set.Set) int {
-	if filter == nil {
+func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter *uint64set.Set) int {
+	if filter == nil && negativeFilter.Len() == 0 {
 		return mp.MetricIDsLen()
 	}
 	mp.ParseMetricIDs()
 	n := 0
 	for _, metricID := range mp.MetricIDs {
-		if filter.Has(metricID) {
+		if filter != nil && !filter.Has(metricID) {
+			continue
+		}
+		if !negativeFilter.Has(metricID) {
 			n++
 		}
 	}
 	return n
-}
-
-// IsDeletedTag verifies whether the tag from mp is deleted according to dmis.
-//
-// dmis must contain deleted MetricIDs.
-func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis *uint64set.Set) bool {
-	if dmis.Len() == 0 {
-		return false
-	}
-	mp.ParseMetricIDs()
-	for _, metricID := range mp.MetricIDs {
-		if !dmis.Has(metricID) {
-			return false
-		}
-	}
-	return true
 }
 
 func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
