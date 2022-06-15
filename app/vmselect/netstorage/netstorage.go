@@ -977,34 +977,44 @@ func GetTSDBStatus(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse b
 }
 
 func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBStatus {
-	seriesCountByMetricName := make(map[string]uint64)
-	labelValueCountByLabelName := make(map[string]uint64)
-	seriesCountByLabelValuePair := make(map[string]uint64)
 	totalSeries := uint64(0)
 	totalLabelValuePairs := uint64(0)
+	seriesCountByMetricName := make(map[string]uint64)
+	seriesCountByLabelName := make(map[string]uint64)
+	seriesCountByFocusLabelValue := make(map[string]uint64)
+	seriesCountByLabelValuePair := make(map[string]uint64)
+	labelValueCountByLabelName := make(map[string]uint64)
 	for _, st := range statuses {
+		totalSeries += st.TotalSeries
+		totalLabelValuePairs += st.TotalLabelValuePairs
 		for _, e := range st.SeriesCountByMetricName {
 			seriesCountByMetricName[e.Name] += e.Count
 		}
-		for _, e := range st.LabelValueCountByLabelName {
-			// Label values are copied among vmstorage nodes,
-			// so select the maximum label values count.
-			if e.Count > labelValueCountByLabelName[e.Name] {
-				labelValueCountByLabelName[e.Name] = e.Count
-			}
+		for _, e := range st.SeriesCountByLabelName {
+			seriesCountByLabelName[e.Name] += e.Count
+		}
+		for _, e := range st.SeriesCountByFocusLabelValue {
+			seriesCountByFocusLabelValue[e.Name] += e.Count
 		}
 		for _, e := range st.SeriesCountByLabelValuePair {
 			seriesCountByLabelValuePair[e.Name] += e.Count
 		}
-		totalSeries += st.TotalSeries
-		totalLabelValuePairs += st.TotalLabelValuePairs
+		for _, e := range st.LabelValueCountByLabelName {
+			// The same label values may exist in multiple vmstorage nodes.
+			// So select the maximum label values count in order to get the value close to reality.
+			if e.Count > labelValueCountByLabelName[e.Name] {
+				labelValueCountByLabelName[e.Name] = e.Count
+			}
+		}
 	}
 	return &storage.TSDBStatus{
-		SeriesCountByMetricName:     toTopHeapEntries(seriesCountByMetricName, topN),
-		LabelValueCountByLabelName:  toTopHeapEntries(labelValueCountByLabelName, topN),
-		SeriesCountByLabelValuePair: toTopHeapEntries(seriesCountByLabelValuePair, topN),
-		TotalSeries:                 totalSeries,
-		TotalLabelValuePairs:        totalLabelValuePairs,
+		TotalSeries:                  totalSeries,
+		TotalLabelValuePairs:         totalLabelValuePairs,
+		SeriesCountByMetricName:      toTopHeapEntries(seriesCountByMetricName, topN),
+		SeriesCountByLabelName:       toTopHeapEntries(seriesCountByLabelName, topN),
+		SeriesCountByFocusLabelValue: toTopHeapEntries(seriesCountByFocusLabelValue, topN),
+		SeriesCountByLabelValuePair:  toTopHeapEntries(seriesCountByLabelValuePair, topN),
+		LabelValueCountByLabelName:   toTopHeapEntries(labelValueCountByLabelName, topN),
 	}
 }
 
