@@ -63,6 +63,10 @@ const CardinalityPanel: FC = () => {
     setQueryHistoryIndex(prev => prev + 1);
     cardinalityDispatch({type: "SET_MATCH", payload: query});
     cardinalityDispatch({type: "RUN_QUERY"});
+    cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: ""});
+    if (key === "labelValueCountByLabelName") {
+      cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: name});
+    }
   };
 
   return (

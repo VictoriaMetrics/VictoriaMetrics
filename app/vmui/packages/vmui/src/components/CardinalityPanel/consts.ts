@@ -106,7 +106,7 @@ export const LABEL_WITH_HIGHEST_SERIES_HEADERS = [
   {
     disablePadding: false,
     id: "name",
-    label: "Value name",
+    label: "Label value",
     numeric: false,
   },
   {

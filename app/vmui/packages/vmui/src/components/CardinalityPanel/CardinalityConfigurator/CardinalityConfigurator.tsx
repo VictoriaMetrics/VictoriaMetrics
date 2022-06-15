@@ -66,7 +66,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           </IconButton>
         </Tooltip>
       </Box>
-      <Box display="flex" alignItems="center">
+      <Box display="flex" alignItems="center" mb={4}>
         <Box mr={2}>
           <TextField
             label="Number of entries per table"
