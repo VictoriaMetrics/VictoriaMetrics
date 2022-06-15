@@ -218,18 +218,10 @@ func SearchGraphitePaths(tr storage.TimeRange, query []byte, maxPaths int, deadl
 	return paths, err
 }
 
-// GetTSDBStatusForDate returns TSDB status for the given date.
-func GetTSDBStatusForDate(qt *querytracer.Tracer, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
+// GetTSDBStatus returns TSDB status for given filters on the given date.
+func GetTSDBStatus(qt *querytracer.Tracer, tfss []*storage.TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(qt, nil, date, topN, maxMetrics, deadline)
-	WG.Done()
-	return status, err
-}
-
-// GetTSDBStatusWithFiltersForDate returns TSDB status for given filters on the given date.
-func GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, tfss []*storage.TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
-	WG.Add(1)
-	status, err := Storage.GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, maxMetrics, deadline)
+	status, err := Storage.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	WG.Done()
 	return status, err
 }
