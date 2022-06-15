@@ -17,6 +17,7 @@ export interface CardinalityConfiguratorProps {
   onSetQuery: (query: string, index: number) => void;
   onRunQuery: () => void;
   onTopNChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
+  onFocusChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
   query: string;
   topN: number;
   error?: ErrorTypes | string;
@@ -24,6 +25,7 @@ export interface CardinalityConfiguratorProps {
   totalLabelValuePairs: number;
   date: string | null;
   match: string | null;
+  focusLabel: string | null;
 }
 
 const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
@@ -34,10 +36,12 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
   onRunQuery,
   onSetQuery,
   onTopNChange,
+  onFocusChange,
   totalSeries,
   totalLabelValuePairs,
   date,
-  match
+  match,
+  focusLabel
 }) => {
   const dispatch = useAppDispatch();
   const {queryControls: {autocomplete}} = useAppState();
@@ -56,28 +60,37 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           error={error} setHistoryIndex={onSetHistory} runQuery={onRunQuery} setQuery={onSetQuery}
           label={"Time series selector"}
         />
-        <Box display="flex" alignItems="center">
-          <Box ml={2}>
-            <TextField
-              label="Number of entries per table"
-              type="number"
-              size="small"
-              variant="outlined"
-              value={topN}
-              error={topN < 1}
-              helperText={topN < 1 ? "Number must be bigger than zero" : " "}
-              onChange={onTopNChange}/>
-          </Box>
-          <Tooltip title="Execute Query">
-            <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
-              <PlayCircleOutlineIcon/>
-            </IconButton>
-          </Tooltip>
-          <Box>
-            <FormControlLabel label="Enable autocomplete"
-              control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
-            />
-          </Box>
+        <Tooltip title="Execute Query">
+          <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
+            <PlayCircleOutlineIcon/>
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box display="flex" alignItems="center">
+        <Box mr={2}>
+          <TextField
+            label="Number of entries per table"
+            type="number"
+            size="medium"
+            variant="outlined"
+            value={topN}
+            error={topN < 1}
+            helperText={topN < 1 ? "Number must be bigger than zero" : " "}
+            onChange={onTopNChange}/>
+        </Box>
+        <Box mr={2}>
+          <TextField
+            label="Label filter"
+            type="text"
+            size="medium"
+            variant="outlined"
+            value={focusLabel}
+            onChange={onFocusChange} />
+        </Box>
+        <Box>
+          <FormControlLabel label="Enable autocomplete"
+            control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
+          />
         </Box>
       </Box>
     </Box>

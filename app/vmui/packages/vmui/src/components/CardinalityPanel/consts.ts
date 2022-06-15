@@ -102,6 +102,27 @@ export const LABELS_WITH_UNIQUE_VALUES_HEADERS = [
   }
 ] as HeadCell[];
 
+export const LABEL_WITH_HIGHEST_SERIES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Value name",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
+
 export const spinnerContainerStyles = (height: string) =>  {
   return {
     width: "100%",

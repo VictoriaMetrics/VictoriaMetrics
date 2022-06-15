@@ -2,24 +2,19 @@ import React, {ChangeEvent, FC, useState} from "react";
 import {SyntheticEvent} from "react";
 import {Alert} from "@mui/material";
 import {useFetchQuery} from "../../hooks/useCardinalityFetch";
-import {
-  METRIC_NAMES_HEADERS,
-  LABEL_NAMES_HEADERS,
-  LABEL_VALUE_PAIRS_HEADERS,
-  LABELS_WITH_UNIQUE_VALUES_HEADERS,
-  spinnerContainerStyles
-} from "./consts";
-import {defaultProperties, queryUpdater} from "./helpers";
+import {spinnerContainerStyles} from "./consts";
+import {queryUpdater} from "./helpers";
 import {Data} from "../Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
 import Spinner from "../common/Spinner";
 import {useCardinalityDispatch, useCardinalityState} from "../../state/cardinality/CardinalityStateContext";
 import MetricsContent from "./MetricsContent/MetricsContent";
+import {DefaultActiveTab, Tabs, TSDBStatus, Containers} from "./types";
 
 const CardinalityPanel: FC = () => {
   const cardinalityDispatch = useCardinalityDispatch();
 
-  const {topN, match, date} = useCardinalityState();
+  const {topN, match, date, focusLabel} = useCardinalityState();
   const configError = "";
   const [query, setQuery] = useState(match || "");
   const [queryHistoryIndex, setQueryHistoryIndex] = useState(0);
@@ -47,10 +42,13 @@ const CardinalityPanel: FC = () => {
     cardinalityDispatch({type: "SET_TOP_N", payload: +e.target.value});
   };
 
-  const {isLoading, tsdbStatus, error} = useFetchQuery();
-  const defaultProps = defaultProperties(tsdbStatus);
-  const [stateTabs, setTab] = useState(defaultProps.defaultState);
+  const onFocusChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
+    cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: e.target.value});
+  };
 
+  const {isLoading, appConfigurator, error} = useFetchQuery();
+  const [stateTabs, setTab] = useState(appConfigurator.defaultState.defaultActiveTab);
+  const {tsdbStatusData, defaultState, tablesHeaders} = appConfigurator;
   const handleTabChange = (e: SyntheticEvent, newValue: number) => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -79,56 +77,25 @@ const CardinalityPanel: FC = () => {
       />}
       <CardinalityConfigurator error={configError} query={query} onRunQuery={onRunQuery} onSetQuery={onSetQuery}
         onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} date={date} match={match}
-        totalSeries={tsdbStatus.totalSeries} totalLabelValuePairs={tsdbStatus.totalLabelValuePairs}/>
+        totalSeries={tsdbStatusData.totalSeries} totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
+        focusLabel={focusLabel} onFocusChange={onFocusChange}
+      />
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
-      <MetricsContent
-        sectionTitle={"Metric names with the highest number of series"}
-        activeTab={stateTabs.seriesCountByMetricName}
-        rows={tsdbStatus.seriesCountByMetricName as unknown as Data[]}
-        onChange={handleTabChange}
-        onActionClick={handleFilterClick("seriesCountByMetricName")}
-        tabs={defaultProps.tabs.seriesCountByMetricName}
-        chartContainer={defaultProps.containerRefs.seriesCountByMetricName}
-        totalSeries={tsdbStatus.totalSeries}
-        tabId={"seriesCountByMetricName"}
-        tableHeaderCells={METRIC_NAMES_HEADERS}
-      />
-      <MetricsContent
-        sectionTitle={"Labels with the highest number of series"}
-        activeTab={stateTabs.seriesCountByLabelName}
-        rows={tsdbStatus.seriesCountByLabelName as unknown as Data[]}
-        onChange={handleTabChange}
-        onActionClick={handleFilterClick("seriesCountByLabelName")}
-        tabs={defaultProps.tabs.seriesCountByLabelName}
-        chartContainer={defaultProps.containerRefs.seriesCountByLabelName}
-        totalSeries={tsdbStatus.totalSeries}
-        tabId={"seriesCountByLabelName"}
-        tableHeaderCells={LABEL_NAMES_HEADERS}
-      />
-      <MetricsContent
-        sectionTitle={"Label=value pairs with the highest number of series"}
-        activeTab={stateTabs.seriesCountByLabelValuePair}
-        rows={tsdbStatus.seriesCountByLabelValuePair as unknown as Data[]}
-        onChange={handleTabChange}
-        onActionClick={handleFilterClick("seriesCountByLabelValuePair")}
-        tabs={defaultProps.tabs.seriesCountByLabelValuePair}
-        chartContainer={defaultProps.containerRefs.seriesCountByLabelValuePair}
-        totalSeries={tsdbStatus.totalSeries}
-        tabId={"seriesCountByLabelValuePair"}
-        tableHeaderCells={LABEL_VALUE_PAIRS_HEADERS}
-      />
-      <MetricsContent
-        sectionTitle={"Labels with the highest number of unique values"}
-        activeTab={stateTabs.labelValueCountByLabelName}
-        rows={tsdbStatus.labelValueCountByLabelName as unknown as Data[]}
-        onChange={handleTabChange}
-        onActionClick={handleFilterClick("labelValueCountByLabelName")}
-        tabs={defaultProps.tabs.labelValueCountByLabelName}
-        chartContainer={defaultProps.containerRefs.labelValueCountByLabelName}
-        totalSeries={-1}
-        tabId={"labelValueCountByLabelName"}
-        tableHeaderCells={LABELS_WITH_UNIQUE_VALUES_HEADERS}
-      />
+      {appConfigurator.keysWithoutTotalFields.map((keyName) => (
+        <MetricsContent
+          key={keyName}
+          sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}
+          activeTab={stateTabs[keyName as keyof DefaultActiveTab]}
+          rows={tsdbStatusData[keyName as keyof TSDBStatus] as unknown as Data[]}
+          onChange={handleTabChange}
+          onActionClick={handleFilterClick(keyName)}
+          tabs={defaultState.tabs[keyName as keyof Tabs]}
+          chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
+          totalSeries={appConfigurator.totalSeries(keyName)}
+          tabId={keyName}
+          tableHeaderCells={tablesHeaders[keyName]}
+        />
+      ))}
     </>
   );
 };

@@ -1,5 +1,4 @@
-import {Containers, DefaultState, QueryUpdater, Tabs, TSDBStatus} from "./types";
-import {useRef} from "preact/compat";
+import {QueryUpdater} from "./types";
 
 export const queryUpdater: QueryUpdater = {
   seriesCountByMetricName: (query: string): string => {
@@ -17,29 +16,4 @@ export const queryUpdater: QueryUpdater = {
 
 const getSeriesSelector = (label: string, value: string): string => {
   return "{" + label + "=" + JSON.stringify(value) + "}";
-};
-
-export const defaultProperties = (tsdbStatus: TSDBStatus) => {
-  return Object.keys(tsdbStatus).reduce((acc, key) => {
-    if (key === "totalSeries" || key === "totalLabelValuePairs") return acc;
-    return {
-      ...acc,
-      tabs:{
-        ...acc.tabs,
-        [key]: ["table", "graph"],
-      },
-      containerRefs: {
-        ...acc.containerRefs,
-        [key]: useRef<HTMLDivElement>(null),
-      },
-      defaultState: {
-        ...acc.defaultState,
-        [key]: 0,
-      },
-    };
-  }, {
-    tabs:{} as Tabs,
-    containerRefs: {} as Containers<HTMLDivElement>,
-    defaultState: {} as DefaultState,
-  });
 };
