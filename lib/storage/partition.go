@@ -91,6 +91,8 @@ type partition struct {
 	smallRowsDeleted    atomic.Uint64
 	bigRowsDeleted      atomic.Uint64
 
+	isDedupScheduled atomic.Bool
+
 	mergeIdx atomic.Uint64
 
 	// the path to directory with smallParts.
@@ -326,6 +328,9 @@ type partitionMetrics struct {
 	InmemoryPartsRefCount uint64
 	SmallPartsRefCount    uint64
 	BigPartsRefCount      uint64
+
+	ScheduledDownsamplingPartitions     uint64
+	ScheduledDownsamplingPartitionsSize uint64
 }
 
 // TotalRowsCount returns total number of rows in tm.
@@ -339,12 +344,20 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	pt.partsLock.Lock()
 
+	isDedupScheduled := pt.isDedupScheduled.Load()
+	if isDedupScheduled {
+		m.ScheduledDownsamplingPartitions++
+	}
+
 	for _, pw := range pt.inmemoryParts {
 		p := pw.p
 		m.InmemoryRowsCount += p.ph.RowsCount
 		m.InmemoryBlocksCount += p.ph.BlocksCount
 		m.InmemorySizeBytes += p.size
 		m.InmemoryPartsRefCount += uint64(pw.refCount.Load())
+		if isDedupScheduled {
+			m.ScheduledDownsamplingPartitionsSize += p.size
+		}
 	}
 	for _, pw := range pt.smallParts {
 		p := pw.p
@@ -352,6 +365,9 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.SmallBlocksCount += p.ph.BlocksCount
 		m.SmallSizeBytes += p.size
 		m.SmallPartsRefCount += uint64(pw.refCount.Load())
+		if isDedupScheduled {
+			m.ScheduledDownsamplingPartitionsSize += p.size
+		}
 	}
 	for _, pw := range pt.bigParts {
 		p := pw.p
@@ -359,6 +375,9 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.BigBlocksCount += p.ph.BlocksCount
 		m.BigSizeBytes += p.size
 		m.BigPartsRefCount += uint64(pw.refCount.Load())
+		if isDedupScheduled {
+			m.ScheduledDownsamplingPartitionsSize += p.size
+		}
 	}
 
 	m.InmemoryPartsCount += uint64(len(pt.inmemoryParts))
