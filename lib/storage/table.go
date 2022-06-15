@@ -442,15 +442,21 @@ func (tb *table) finalDedupWatcher() {
 		defer tb.PutPartitions(ptws)
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
+		var ptwsToDedup []*partitionWrapper
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName || !ptw.pt.isFinalDedupNeeded() {
 				// Do not run final dedup for the current month.
 				continue
 			}
+			// mark partition with final deduplication marker
+			ptw.pt.isDedupScheduled.Store(true)
+			ptwsToDedup = append(ptwsToDedup, ptw)
+		}
+		for _, ptw := range ptwsToDedup {
 			if err := ptw.pt.runFinalDedup(); err != nil {
 				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
-				continue
 			}
+			ptw.pt.isDedupScheduled.Store(false)
 		}
 	}
 	d := timeutil.AddJitterToDuration(time.Hour)
