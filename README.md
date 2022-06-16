@@ -366,21 +366,19 @@ This command should return the following output if everything is OK:
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
 
-For [tagging](https://docs.datadoghq.com/getting_started/tagging/) DataDog agent sends configured tags to a separate 
-`/datadog/intake` endpoint, which is not supported by VictoriaMetrics. 
-Instead, we recommend adding tags via `--remoteWrite.label` flag using [vmagent](https://docs.victoriametrics.com/vmagent.html) 
-as a proxy or a sidecar for each DataDog agent:
+DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
+undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet. This prevents from adding the configured tags to DataDog agent data sent into VictoriaMetrics.
+The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/vmagent.html) alongside every DataDog agent, which must run with `DD_DD_URL=http://localhost:8429/datadog` environment variable.
+The sidecar `vmagent` must be configured with the needed tags via `-remoteWrite.label` command-line flag and must forward incoming data with the added tags to a centralized VictoriaMetrics:
 
 <img src="docs/assets/images/datadog.png" width="300" alt="Tagging via vmagent">
 
 The configuration details are the following:
-1. Set the `dd_url` param for each DataDog agent to the corresponding vmagent proxy address: `dd_url: http://<vmagent-addr>:8429/datadog`;
-2. Configure flag `--remoteWrite.url` for each vmagent proxy in order to forward collected data to the central vmagent: `--remoteWrite.url=http://<vmagent-addr>:8430/api/v1/write`;
-3. [Specify extra tags (labels)](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) you want to add for each vmagent: `--remoteWrite.label=team=dev,env=prod`;
-4. Configure the central vmagent with VictoriaMetrics database address: `--remoteWrite.url=http://<victoriametrics-addr>:8428/api/v1/write`.
+1. Set the `dd_url` param for each DataDog agent to the corresponding vmagent proxy address: `dd_url: http://<vmagent-addr>:8429/datadog`
+2. Configure ever sidecar `vmagent` with `-remoteWrite.url` command-line flag, so it forwards the received data to a centralized storage: `-remoteWrite.url=http://victoria-metrics:8428/api/v1/write`
+3. [Specify extra tags](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) you want to add to the data received from DataDog agent via `-remoteWrite.label` command-line flag at `vmagent` sidecars. For example, the following config adds `team="dev"` and `env="prod"` tags to all the received metrics from DataDog agent: `-remoteWrite.label=team=dev,env=prod`
 
-However, you can check this part of documentation how to correctly set labels to you vmagent
-[vmagent label config](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics)
+See [these docs](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) for details on how to add labels to metrics at `vmagent`.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/datadog/api/v1/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
