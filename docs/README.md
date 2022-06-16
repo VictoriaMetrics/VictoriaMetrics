@@ -268,7 +268,8 @@ See the [example VMUI at VictoriaMetrics playground](https://play.victoriametric
 VictoriaMetrics provides an ability to explore time series cardinality at `cardinality` tab in [vmui](#vmui) in the following ways:
 
 - To identify metric names with the highest number of series.
-- To idnetify labels with the highest number of series.
+- To identify labels with the highest number of series.
+- To identify values with the highest number of series for the selected label (aka `focusLabel`).
 - To identify label=name pairs with the highest number of series.
 - To identify labels with the highest number of unique values.
 
@@ -364,6 +365,20 @@ This command should return the following output if everything is OK:
 ```json
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
+
+DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
+undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet. This prevents from adding the configured tags to DataDog agent data sent into VictoriaMetrics.
+The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/vmagent.html) alongside every DataDog agent, which must run with `DD_DD_URL=http://localhost:8429/datadog` environment variable.
+The sidecar `vmagent` must be configured with the needed tags via `-remoteWrite.label` command-line flag and must forward incoming data with the added tags to a centralized VictoriaMetrics:
+
+<img src="docs/assets/images/datadog.png" width="300" alt="Tagging via vmagent">
+
+The configuration details are the following:
+1. Set the `dd_url` param for each DataDog agent to the corresponding vmagent proxy address: `dd_url: http://<vmagent-addr>:8429/datadog`
+2. Configure ever sidecar `vmagent` with `-remoteWrite.url` command-line flag, so it forwards the received data to a centralized storage: `-remoteWrite.url=http://victoria-metrics:8428/api/v1/write`
+3. [Specify extra tags](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) you want to add to the data received from DataDog agent via `-remoteWrite.label` command-line flag at `vmagent` sidecars. For example, the following config adds `team="dev"` and `env="prod"` tags to all the received metrics from DataDog agent: `-remoteWrite.label=team=dev,env=prod`
+
+See [these docs](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) for details on how to add labels to metrics at `vmagent`.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/datadog/api/v1/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
@@ -477,6 +492,8 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
+[Graphite relabeling](https://docs.victoriametrics.com/vmagent.html#graphite-relabeling) can be used if the imported Graphite data is going to be queried via [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+
 ## Querying Graphite data
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
@@ -490,6 +507,9 @@ Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via t
 VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/MetricsQL.html#label_graphite_group) function for extracting the given groups from Graphite metric name.
 
 The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`. They are transparently converted to `{value1,...,valueN}` syntax [used in Graphite](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). This allows using [multi-value template variables in Grafana](https://grafana.com/docs/grafana/latest/variables/formatting-multi-value-variables/) inside `__graphite__` pseudo-label. For example, Grafana expands `{__graphite__=~"foo.($bar).baz"}` into `{__graphite__=~"foo.(x|y).baz"}` if `$bar` template variable contains `x` and `y` values. In this case the query is automatically converted into `{__graphite__=~"foo.{x,y}.baz"}` before execution.
+
+VictoriaMetrics also supports Graphite query language - see [these docs](#graphite-render-api-usage).
+
 
 ## How to send data from OpenTSDB-compatible agents
 
@@ -1131,7 +1151,9 @@ Example contents for `-relabelConfig` file:
   regex: true
 ```
 
-See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details about relabeling in VictoriaMetrics.
+VictoriaMetrics components provide additional relabeling features such as Graphite-style relabeling.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
+
 
 ## Federation
 
@@ -1441,6 +1463,7 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 
 * `topN=N` where `N` is the number of top entries to return in the response. By default top 10 entries are returned.
 * `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day. Pass `date=1970-01-01` in order to collect global stats across all the days.
+* `focusLabel=LABEL_NAME` returns label values with the highest number of time series for the given `LABEL_NAME` in the `seriesCountByFocusLabelValue` list.
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 

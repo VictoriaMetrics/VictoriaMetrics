@@ -18,6 +18,14 @@ type IfExpression struct {
 	lfs []*labelFilter
 }
 
+// String returns string representation of ie.
+func (ie *IfExpression) String() string {
+	if ie == nil {
+		return ""
+	}
+	return ie.s
+}
+
 // Parse parses `if` expression from s and stores it to ie.
 func (ie *IfExpression) Parse(s string) error {
 	expr, err := metricsql.Parse(s)
