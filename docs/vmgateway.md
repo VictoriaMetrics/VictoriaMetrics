@@ -213,7 +213,7 @@ The shortlist of configuration flags include the following:
   -enableTCP6
         Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
-        Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+        Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag is not set
   -envflag.prefix string
         Prefix for environment variables if -envflag.enable is set
   -eula
