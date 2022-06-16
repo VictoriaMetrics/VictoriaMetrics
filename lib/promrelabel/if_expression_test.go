@@ -2,6 +2,7 @@ package promrelabel
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -34,6 +35,36 @@ func TestIfExpressionParseSuccess(t *testing.T) {
 	f(`foo`)
 	f(`{foo="bar"}`)
 	f(`foo{bar=~"baz", x!="y"}`)
+}
+
+func TestIfExpressionMarshalUnmarshalJSON(t *testing.T) {
+	f := func(s, jsonExpected string) {
+		t.Helper()
+		var ie IfExpression
+		if err := ie.Parse(s); err != nil {
+			t.Fatalf("cannot parse ifExpression %q: %s", s, err)
+		}
+		data, err := json.Marshal(&ie)
+		if err != nil {
+			t.Fatalf("cannot marshal ifExpression %q: %s", s, err)
+		}
+		if string(data) != jsonExpected {
+			t.Fatalf("unexpected value after json marshaling;\ngot\n%s\nwant\n%s", data, jsonExpected)
+		}
+		var ie2 IfExpression
+		if err := json.Unmarshal(data, &ie2); err != nil {
+			t.Fatalf("cannot unmarshal ifExpression from json %q: %s", data, err)
+		}
+		data2, err := json.Marshal(&ie2)
+		if err != nil {
+			t.Fatalf("cannot marshal ifExpression2: %s", err)
+		}
+		if string(data2) != jsonExpected {
+			t.Fatalf("unexpected data after unmarshal/marshal cycle;\ngot\n%s\nwant\n%s", data2, jsonExpected)
+		}
+	}
+	f("foo", `"foo"`)
+	f(`{foo="bar",baz=~"x.*"}`, `"{foo=\"bar\",baz=~\"x.*\"}"`)
 }
 
 func TestIfExpressionUnmarshalFailure(t *testing.T) {
