@@ -17,6 +17,8 @@ sort: 18
 4. Push release tags to <https://github.com/VictoriaMetrics/VictoriaMetrics> : `git push origin v1.xx.y` and `git push origin v1.xx.y-cluster`. Do not push `-enterprise` tags to public repository.
 5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> , create new release from the pushed tag on step 4 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 3.
 6. Copy the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release to [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page.
+7. Bump version of the VictoriaMetrics cluster setup in for [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
+by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
 
 ## Building snap package
 
