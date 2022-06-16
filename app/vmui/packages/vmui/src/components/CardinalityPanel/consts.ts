@@ -1,16 +1,16 @@
 import {HeadCell} from "../Table/types";
 
-export const headCellsWithProgress = [
+export const METRIC_NAMES_HEADERS = [
   {
     disablePadding: false,
     id: "name",
-    label: "Name",
+    label: "Metric name",
     numeric: false,
   },
   {
     disablePadding: false,
     id: "value",
-    label: "Value",
+    label: "Number of series",
     numeric: false,
   },
   {
@@ -27,7 +27,80 @@ export const headCellsWithProgress = [
   }
 ] as HeadCell[];
 
-export const defaultHeadCells = headCellsWithProgress.filter((head) => head.id!=="percentage");
+export const LABEL_NAMES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label name",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "percentage",
+    label: "Percent of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
+
+export const LABEL_VALUE_PAIRS_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label=value pair",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "percentage",
+    label: "Percent of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+]as HeadCell[];
+
+export const LABELS_WITH_UNIQUE_VALUES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label name",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of unique values",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
 
 export const spinnerContainerStyles = (height: string) =>  {
   return {
@@ -40,5 +113,3 @@ export const spinnerContainerStyles = (height: string) =>  {
     zIndex: 1000,
   };
 };
-
-export const SPINNER_TITLE = "Please wait while cardinality stats is calculated. This may take some time if the db contains big number of time series";

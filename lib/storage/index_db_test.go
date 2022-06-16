@@ -1807,10 +1807,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("expected %d time series for all days, got %d time series", metricsPerDay*days, len(matchedTSIDs))
 	}
 
-	// Check GetTSDBStatusWithFiltersForDate with nil filters.
-	status, err := db.GetTSDBStatusWithFiltersForDate(nil, nil, baseDate, 5, 1e6, noDeadline)
+	// Check GetTSDBStatus with nil filters.
+	status, err := db.GetTSDBStatus(nil, nil, baseDate, "day", 5, 1e6, noDeadline)
 	if err != nil {
-		t.Fatalf("error in GetTSDBStatusWithFiltersForDate with nil filters: %s", err)
+		t.Fatalf("error in GetTSDBStatus with nil filters: %s", err)
 	}
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
@@ -1823,6 +1823,36 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
 		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
+	}
+	expectedSeriesCountByLabelName := []TopHeapEntry{
+		{
+			Name:  "__name__",
+			Count: 1000,
+		},
+		{
+			Name:  "constant",
+			Count: 1000,
+		},
+		{
+			Name:  "day",
+			Count: 1000,
+		},
+		{
+			Name:  "uniqueid",
+			Count: 1000,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByLabelName, expectedSeriesCountByLabelName) {
+		t.Fatalf("unexpected SeriesCountByLabelName;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelName, expectedSeriesCountByLabelName)
+	}
+	expectedSeriesCountByFocusLabelValue := []TopHeapEntry{
+		{
+			Name:  "0",
+			Count: 1000,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue) {
+		t.Fatalf("unexpected SeriesCountByFocusLabelValue;\ngot\n%v\nwant\n%v", status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue)
 	}
 	expectedLabelValueCountByLabelName := []TopHeapEntry{
 		{
@@ -1879,14 +1909,14 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 
-	// Check GetTSDBStatusWithFiltersForDate with non-nil filter, which matches all the series
+	// Check GetTSDBStatus with non-nil filter, which matches all the series
 	tfs = NewTagFilters()
 	if err := tfs.Add([]byte("day"), []byte("0"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatusWithFiltersForDate(nil, []*TagFilters{tfs}, baseDate, 5, 1e6, noDeadline)
+	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, baseDate, "", 5, 1e6, noDeadline)
 	if err != nil {
-		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
+		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
@@ -1909,10 +1939,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 
-	// Check GetTSDBStatusWithFiltersOnDate, which matches all the series on a global time range
-	status, err = db.GetTSDBStatusWithFiltersForDate(nil, nil, 0, 5, 1e6, noDeadline)
+	// Check GetTSDBStatus, which matches all the series on a global time range
+	status, err = db.GetTSDBStatus(nil, nil, 0, "day", 5, 1e6, noDeadline)
 	if err != nil {
-		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
+		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
@@ -1934,15 +1964,40 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if status.TotalLabelValuePairs != expectedLabelValuePairs {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
+	expectedSeriesCountByFocusLabelValue = []TopHeapEntry{
+		{
+			Name:  "0",
+			Count: 1000,
+		},
+		{
+			Name:  "1",
+			Count: 1000,
+		},
+		{
+			Name:  "2",
+			Count: 1000,
+		},
+		{
+			Name:  "3",
+			Count: 1000,
+		},
+		{
+			Name:  "4",
+			Count: 1000,
+		},
+	}
+	if !reflect.DeepEqual(status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue) {
+		t.Fatalf("unexpected SeriesCountByFocusLabelValue;\ngot\n%v\nwant\n%v", status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue)
+	}
 
-	// Check GetTSDBStatusWithFiltersForDate with non-nil filter, which matches only 3 series
+	// Check GetTSDBStatus with non-nil filter, which matches only 3 series
 	tfs = NewTagFilters()
 	if err := tfs.Add([]byte("uniqueid"), []byte("0|1|3"), false, true); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatusWithFiltersForDate(nil, []*TagFilters{tfs}, baseDate, 5, 1e6, noDeadline)
+	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, baseDate, "", 5, 1e6, noDeadline)
 	if err != nil {
-		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
+		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
@@ -1965,10 +2020,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 
-	// Check GetTSDBStatusWithFiltersForDate with non-nil filter on global time range, which matches only 15 series
-	status, err = db.GetTSDBStatusWithFiltersForDate(nil, []*TagFilters{tfs}, 0, 5, 1e6, noDeadline)
+	// Check GetTSDBStatus with non-nil filter on global time range, which matches only 15 series
+	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, 0, "", 5, 1e6, noDeadline)
 	if err != nil {
-		t.Fatalf("error in GetTSDBStatusWithFiltersForDate: %s", err)
+		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
