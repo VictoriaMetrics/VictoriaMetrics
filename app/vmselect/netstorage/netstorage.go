@@ -1979,18 +1979,6 @@ func (sn *storageNode) getTSDBStatusOnConn(bc *handshake.BufferedConn, requestDa
 }
 
 func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
-	seriesCountByMetricName, err := readTopHeapEntries(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
-	}
-	labelValueCountByLabelName, err := readTopHeapEntries(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
-	}
-	seriesCountByLabelValuePair, err := readTopHeapEntries(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %w", err)
-	}
 	totalSeries, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read totalSeries: %w", err)
@@ -1999,12 +1987,34 @@ func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read totalLabelValuePairs: %w", err)
 	}
+	seriesCountByMetricName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
+	}
+	seriesCountByLabelName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByLabelName: %w", err)
+	}
+	seriesCountByFocusLabelValue, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByFocusLabelValue: %w", err)
+	}
+	seriesCountByLabelValuePair, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %w", err)
+	}
+	labelValueCountByLabelName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
+	}
 	status := &storage.TSDBStatus{
-		SeriesCountByMetricName:     seriesCountByMetricName,
-		LabelValueCountByLabelName:  labelValueCountByLabelName,
-		SeriesCountByLabelValuePair: seriesCountByLabelValuePair,
-		TotalSeries:                 totalSeries,
-		TotalLabelValuePairs:        totalLabelValuePairs,
+		TotalSeries:                  totalSeries,
+		TotalLabelValuePairs:         totalLabelValuePairs,
+		SeriesCountByMetricName:      seriesCountByMetricName,
+		SeriesCountByLabelName:       seriesCountByLabelName,
+		SeriesCountByFocusLabelValue: seriesCountByFocusLabelValue,
+		SeriesCountByLabelValuePair:  seriesCountByLabelValuePair,
+		LabelValueCountByLabelName:   labelValueCountByLabelName,
 	}
 	return status, nil
 }

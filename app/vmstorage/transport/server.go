@@ -862,20 +862,26 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 }
 
 func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error {
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
-		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
-		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
-		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
-	}
 	if err := ctx.writeUint64(status.TotalSeries); err != nil {
 		return fmt.Errorf("cannot write totalSeries to vmselect: %w", err)
 	}
 	if err := ctx.writeUint64(status.TotalLabelValuePairs); err != nil {
 		return fmt.Errorf("cannot write totalLabelValuePairs to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
+		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelName); err != nil {
+		return fmt.Errorf("cannot write seriesCountByLabelName to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByFocusLabelValue); err != nil {
+		return fmt.Errorf("cannot write seriesCountByFocusLabelValue to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
+		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
+	}
+	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
+		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
 	}
 	return nil
 }
