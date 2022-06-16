@@ -45,6 +45,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly apply the selected time range when auto-refresh is enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2693).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update the url with vmui state when new query is entered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2692).
 * BUGFIX: [Graphite render API](https://docs.victoriametrics.com/#graphite-render-api-usage): properly calculate sample timestamps when `moving*()` functions such as [movingAverage()](https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.movingAverage) are applied over [summarize()](https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.summarize).
+* BUGFIX: limit the `end` query arg value to `+2 days` in the future at `/api/v1/*` endpoints, because VictoriaMetrics doesn't allow storing samples with timestamps bigger than +2 days in the future. This should help resolving [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2669).
 
 ## [v1.77.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.2)
 
