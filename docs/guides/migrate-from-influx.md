@@ -196,10 +196,15 @@ Grafana will have the following form:
 
 {% include img.html href="migrate-from-influx-data-sample-in-vm.png" %}
 
-It is noticeable that visualizations from both databases are a bit different - VictoriaMetrics shows some extra points
+Visualizations from both databases are a bit different - VictoriaMetrics shows some extra points
 filling the gaps in the graph. This behavior is described in more
 detail [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In InfluxDB, we can achieve a similar
 behavior by adding `fill(previous)` to the query.
+
+VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
+To limit the interval on which VictoriaMetrics will try to fill the gaps try setting `-search.maxStalenessInterval`
+command-line flag to the value equal to actual resolution between data points (for example, to `10s`).
+
 
 ### Advanced usage
 

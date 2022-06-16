@@ -1263,24 +1263,15 @@ func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 	return deletedCount, nil
 }
 
-// SearchTagKeysOnTimeRange searches for tag keys on tr.
-func (s *Storage) SearchTagKeysOnTimeRange(tr TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagKeysOnTimeRange(tr, maxTagKeys, deadline)
+// SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
+func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
+	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-// SearchTagKeys searches for tag keys
-func (s *Storage) SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagKeys(maxTagKeys, deadline)
-}
-
-// SearchTagValuesOnTimeRange searches for tag values for the given tagKey on tr.
-func (s *Storage) SearchTagValuesOnTimeRange(tagKey []byte, tr TimeRange, maxTagValues int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagValuesOnTimeRange(tagKey, tr, maxTagValues, deadline)
-}
-
-// SearchTagValues searches for tag values for the given tagKey
-func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagValues(tagKey, maxTagValues, deadline)
+// SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
+func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
+	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
@@ -1468,39 +1459,6 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 	}
 }
 
-// SearchTagEntries returns a list of (tagName -> tagValues)
-func (s *Storage) SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]TagEntry, error) {
-	idb := s.idb()
-	keys, err := idb.SearchTagKeys(maxTagKeys, deadline)
-	if err != nil {
-		return nil, fmt.Errorf("cannot search tag keys: %w", err)
-	}
-
-	// Sort keys for faster seeks below
-	sort.Strings(keys)
-
-	tes := make([]TagEntry, len(keys))
-	for i, key := range keys {
-		values, err := idb.SearchTagValues([]byte(key), maxTagValues, deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot search values for tag %q: %w", key, err)
-		}
-		te := &tes[i]
-		te.Key = key
-		te.Values = values
-	}
-	return tes, nil
-}
-
-// TagEntry contains (tagName -> tagValues) mapping
-type TagEntry struct {
-	// Key is tagName
-	Key string
-
-	// Values contains all the values for Key.
-	Values []string
-}
-
 // GetSeriesCount returns the approximate number of unique time series.
 //
 // It includes the deleted series too and may count the same series
@@ -1509,9 +1467,9 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 	return s.idb().GetSeriesCount(deadline)
 }
 
-// GetTSDBStatusWithFiltersForDate returns TSDB status data for /api/v1/status/tsdb with match[] filters.
-func (s *Storage) GetTSDBStatusWithFiltersForDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusWithFiltersForDate(qt, tfss, date, topN, maxMetrics, deadline)
+// GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
+func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
 // MetricRow is a metric to insert into storage.

@@ -252,12 +252,13 @@ Labels can be added to metrics by the following mechanisms:
 VictoriaMetrics components (including `vmagent`) support Prometheus-compatible relabeling.
 They provide the following additional actions on top of actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
-* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`.
-* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`.
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal.
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`.
-* `drop_metrics`: drops all the metrics with names matching the given `regex`.
+* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`
+* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`
+* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal
+* `keep_metrics`: keeps all the metrics with names matching the given `regex`
+* `drop_metrics`: drops all the metrics with names matching the given `regex`
+* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling)
 
 The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
@@ -304,6 +305,38 @@ You can read more about relabeling in the following articles:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+## Graphite relabeling
+
+VictoriaMetrics components support `action: graphite` relabeling rules, which allow extracting various parts from Graphite-style metrics
+into the configured labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
+Note that the `name` field must be substituted with explicit `__name__` option under `labels` section.
+If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
+
+For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
+from "app42.host123.requests.total" Graphite-style metric:
+
+```yaml
+- action: graphite
+  match: "*.*.*.total"
+  labels:
+    __name__: "${3}_total"
+    job: "$1"
+    instance: "${2}:8080"
+```
+
+Important notes about `action: graphite` relabeling rules:
+
+- The relabeling rule is applied only to metrics, which match the given `match` expression. Other metrics remain unchanged.
+- The `*` matches the maximum possible number of chars until the next dot or until the next part of the `match` expression whichever comes first.
+  It may match zero chars if the next char is `.`.
+  For example, `match: "app*foo.bar"` matches `app42foo.bar` and `42` becomes available to use at `labels` section via `$1` capture group.
+- The `$0` capture group matches the original metric name.
+- The relabeling rules are executed in order defined in the original config.
+
+The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
+Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
+
 
 ## Prometheus staleness markers
 
@@ -723,6 +756,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+  -denyQueryTracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -dryRun
      Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableTCP6
@@ -849,6 +884,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
      The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
+  -promscrape.cluster.name string
+     Optional name of the cluster. If multiple vmagent clusters scrape the same targets, then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679
   -promscrape.cluster.replicationFactor int
      The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
@@ -917,7 +954,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.suppressDuplicateScrapeTargetErrors
      Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
-     Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
+     Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
+  -promscrape.suppressScrapeErrorsDelay duration
+     The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -remoteWrite.aws.accessKey array
      Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
