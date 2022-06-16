@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useCallback, useState} from "preact/compat";
 import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
 import {useAppState} from "../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
+import {InstantMetricResult, MetricBase, MetricResult, TraceData} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
@@ -27,12 +27,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
+  traceData?: TraceData,
 } => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
+  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, queryTracing}} = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
+  const [traceData, setTraceData] = useState<TraceData>();
   const [error, setError] = useState<ErrorTypes | string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
 
@@ -40,6 +42,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     if (error) {
       setGraphData(undefined);
       setLiveData(undefined);
+      setTraceData(undefined);
     }
   }, [error]);
 
@@ -54,6 +57,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
         const resp = await response.json();
         if (response.ok) {
           setError(undefined);
+          setTraceData(resp.trace);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
             return d;
@@ -87,8 +91,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       const updatedPeriod = {...period};
       if (customStep.enable) updatedPeriod.step = customStep.value;
       return expr.filter(q => q.trim()).map(q => displayChart
-        ? getQueryRangeUrl(server, q, updatedPeriod, nocache)
-        : getQueryUrl(server, q, updatedPeriod));
+        ? getQueryRangeUrl(server, q, updatedPeriod, nocache, queryTracing)
+        : getQueryUrl(server, q, updatedPeriod, queryTracing));
     } else {
       setError(ErrorTypes.validServer);
     }
@@ -110,5 +114,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error };
+  return { fetchUrl, isLoading, graphData, liveData, error, traceData };
 };

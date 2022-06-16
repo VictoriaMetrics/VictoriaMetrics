@@ -21,3 +21,8 @@ export interface QueryRangeResponse {
     resultType: "matrix";
   }
 }
+export interface TraceData {
+  message: string;
+  duration_msec: number;
+  children: TraceData[];
+}

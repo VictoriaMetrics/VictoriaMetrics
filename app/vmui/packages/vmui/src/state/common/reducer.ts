@@ -34,8 +34,9 @@ export interface AppState {
   queryHistory: QueryHistory[],
   queryControls: {
     autoRefresh: boolean;
-    autocomplete: boolean,
-    nocache: boolean
+    autocomplete: boolean;
+    nocache: boolean;
+    queryTracing: boolean;
   }
 }
 
@@ -55,6 +56,7 @@ export type Action =
     | { type: "TOGGLE_AUTOREFRESH"}
     | { type: "TOGGLE_AUTOCOMPLETE"}
     | { type: "NO_CACHE"}
+    | { type: "TOGGLE_QUERY_TRACING" }
 
 
 const {duration, endInput, relativeTimeId} = getRelativeTime({
@@ -79,6 +81,7 @@ export const initialState: AppState = {
     autoRefresh: false,
     autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
     nocache: getFromStorage("NO_CACHE") as boolean || false,
+    queryTracing: getFromStorage("QUERY_TRACING") as boolean || true,
   }
 };
 
@@ -185,6 +188,14 @@ export function reducer(state: AppState, action: Action): AppState {
         queryControls: {
           ...state.queryControls,
           autocomplete: !state.queryControls.autocomplete
+        }
+      };
+    case "TOGGLE_QUERY_TRACING":
+      return {
+        ...state,
+        queryControls: {
+          ...state.queryControls,
+          queryTracing: !state.queryControls.queryTracing,
         }
       };
     case "NO_CACHE":
