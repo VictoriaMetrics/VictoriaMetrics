@@ -39,3 +39,11 @@
 - source_labels: [__tmp_uppercase]
   target_label: lower_aaa
   action: lowercase
+- if: '{foo=~"bar.*",baz="aa"}'
+  target_label: aaa
+  replacement: foobar
+- action: graphite
+  match: 'foo.*.bar'
+  labels:
+    instance: 'foo-$1'
+    job: '${1}-bar'
