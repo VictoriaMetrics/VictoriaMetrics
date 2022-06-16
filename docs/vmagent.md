@@ -313,7 +313,7 @@ You can read more about relabeling in the following articles:
 ## Graphite relabeling
 
 VictoriaMetrics components support `action: graphite` relabeling rules, which allow extracting various parts from Graphite-style metrics
-into the configued labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
+into the configured labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
 Note that the `name` field must be substituted with explicit `__name__` option under `labels` section.
 If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
 
