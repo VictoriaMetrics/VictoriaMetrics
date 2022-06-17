@@ -34,7 +34,7 @@ const MetricsContent: FC<MetricsProperties> = ({
   tabId,
   onActionClick,
   sectionTitle,
-  tableHeaderCells
+  tableHeaderCells,
 }) => {
   const tableCells = (row: Data) => (
     <TableCells
