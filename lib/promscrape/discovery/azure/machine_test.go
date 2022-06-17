@@ -67,6 +67,9 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 			}))
 			defer testServer.Close()
 			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil)
+			if err != nil {
+				t.Fatalf("unexpected error at client create: %s", err)
+			}
 			ac := &apiConfig{
 				c:              c,
 				subscriptionID: "some-id",
