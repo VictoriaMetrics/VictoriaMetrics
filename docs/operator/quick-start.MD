@@ -13,7 +13,7 @@ Obtain release from releases page:
 
  We suggest use the latest release. 
 
-```bash
+```console
 # Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
 export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
 wget https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/bundle_crd.zip
@@ -24,7 +24,7 @@ unzip  bundle_crd.zip
 > sed -i "s/namespace: monitoring-system/namespace: YOUR_NAMESPACE/g" release/operator/*
 
 First of all, you  have to create [custom resource definitions](https://github.com/VictoriaMetrics/operator)
-```bash
+```console
 kubectl apply -f release/crds
 ```
  
@@ -32,13 +32,13 @@ Then you need RBAC for operator, relevant configuration for the release can be f
 
 Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/vars.MD)
 and apply it:
-```bash
+```console
 kubectl apply -f release/operator/
 ```
 
 Check the status of operator
 
-```bash
+```console
 kubectl get pods -n monitoring-system
 
 #NAME                           READY   STATUS    RESTARTS   AGE
@@ -74,19 +74,19 @@ You can change [operator-settings](/vars.MD), or use your custom namespace see [
 
 Build template
 
-```bash
+```console
 kustomize build . -o monitoring.yaml
 ```
 
 Apply manifests
 
-```bash
+```console
 kubectl apply -f monitoring.yaml
 ```
 
 Check the status of operator
 
-```bash
+```console
 kubectl get pods -n monitoring-system
 
 #NAME                           READY   STATUS    RESTARTS   AGE
@@ -269,7 +269,7 @@ EOF
 It requires access to Kubernetes API and you can create RBAC for it first, it can be found at `release/examples/VMAgent_rbac.yaml`
 Or you can use default rbac account, that will be created for `VMAgent` by operator automatically.
 
-```bash
+```console
  kubectl apply -f release/examples/vmagent_rbac.yaml
 ```
 
@@ -538,7 +538,7 @@ EOF
 ```
 
  Check status for pods:
- ```bash
+ ```console
 kubectl get pods 
 NAME                                                   READY   STATUS    RESTARTS   AGE
 example-app-594f97677c-g72v8                           1/1     Running   0          23s
@@ -552,7 +552,7 @@ vmsingle-example-vmsingle-persisted-794b59ccc6-fnkpt   1/1     Running   0      
 ```
 
 Checking logs for `VMAgent`:
-```bash
+```console
 kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent 
 2020-08-02T18:18:17.226Z        info    VictoriaMetrics/app/vmagent/remotewrite/remotewrite.go:98       Successfully reloaded relabel configs
 2020-08-02T18:18:17.229Z        info    VictoriaMetrics/lib/promscrape/scraper.go:137   found changes in "/etc/vmagent/config_out/vmagent.env.yaml"; applying these changes
@@ -606,7 +606,7 @@ EOF
 
  Let's check `VMAgent` logs (you have to wait some time for config sync, usually its around 1 min):
  
- ```bash
+ ```console
 kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent --tail 100
 2020-08-03T08:24:13.312Z	info	VictoriaMetrics/lib/promscrape/scraper.go:106	SIGHUP received; reloading Prometheus configs from "/etc/vmagent/config_out/vmagent.env.yaml"
 2020-08-03T08:24:13.312Z	info	VictoriaMetrics/app/vmagent/remotewrite/remotewrite.go:98	Successfully reloaded relabel configs
@@ -668,7 +668,7 @@ EOF
 ```
 
  Ensure, that pods started:
- ```bash
+ ```console
 kubectl get pods
 NAME                                                   READY   STATUS    RESTARTS   AGE
 example-app-594f97677c-g72v8                           1/1     Running   0          3m40s
@@ -700,7 +700,7 @@ EOF
 ```  
 
  Lets check `VMAgent` logs:
- ```bash
+ ```console
 kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent --tail 100
 2020-08-03T08:51:13.582Z	info	VictoriaMetrics/app/vmagent/remotewrite/remotewrite.go:98	Successfully reloaded relabel configs
 2020-08-03T08:51:13.585Z	info	VictoriaMetrics/lib/promscrape/scraper.go:137	found changes in "/etc/vmagent/config_out/vmagent.env.yaml"; applying these changes
@@ -736,7 +736,7 @@ EOF
 ```
 
 Ensure, that it started and ready:
-```bash
+```console
 kubectl get pods -l app.kubernetes.io/name=vmalert
 NAME                                       READY   STATUS    RESTARTS   AGE
 vmalert-example-vmalert-6f8748c6f9-hcfrr   2/2     Running   0          2m26s
@@ -779,7 +779,7 @@ EOF
 {% endraw %}
 
  Ensure, that new alert was started:
- ```bash
+ ```console
 kubectl logs vmalert-example-vmalert-6f8748c6f9-hcfrr vmalert 
 2020-08-03T09:07:49.772Z	info	VictoriaMetrics/app/vmalert/web.go:45	api config reload was called, sending sighup
 2020-08-03T09:07:49.772Z	info	VictoriaMetrics/app/vmalert/main.go:115	SIGHUP received. Going to reload rules ["/etc/vmalert/config/vm-example-vmalert-rulefiles-0/*.yaml"] ...
@@ -817,14 +817,14 @@ EOF
 {% endraw %}
 
 `VMAlert` will report incorrect rule config and fire alert:
-```bash
+```console
 2020-08-03T09:11:40.672Z	info	VictoriaMetrics/app/vmalert/main.go:115	SIGHUP received. Going to reload rules ["/etc/vmalert/config/vm-example-vmalert-rulefiles-0/*.yaml"] ...
 2020-08-03T09:11:40.672Z	info	VictoriaMetrics/app/vmalert/manager.go:83	reading rules configuration file from "/etc/vmalert/config/vm-example-vmalert-rulefiles-0/*.yaml"
 2020-08-03T09:11:40.673Z	error	VictoriaMetrics/app/vmalert/main.go:119	error while reloading rules: cannot parse configuration file: invalid group "incorrect rule" in file "/etc/vmalert/config/vm-example-vmalert-rulefiles-0/default-example-vmrule-incorrect-rule.yaml": invalid rule "incorrect rule"."vmalert bad config": invalid expression: unparsed data left: "expression"
 ```
 
 Clean up incorrect rule:
-```bash
+```console
 kubectl delete vmrule example-vmrule-incorrect-rule
 ```
 
@@ -976,7 +976,7 @@ EOF
 
 Ensure, that pods are ready:
 
-```bash
+```console
 kubectl get pods
 NAME                                                   READY   STATUS    RESTARTS   AGE
 prometheus-blackbox-exporter-5b5f44bd9c-2szdj          1/1     Running   0          3m3s
@@ -986,7 +986,7 @@ vmsingle-example-vmsingle-persisted-8584486b68-mqg6b   1/1     Running   0      
 
 Now define some `VMProbe`, lets start with basic static target and probe `VMAgent` with its service address, for accessing
 blackbox exporter, you have to specify its url at `VMProbe` config. Lets get both services names:
-```bash
+```console
 kubectl get svc
 NAME                                  TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
 kubernetes                            ClusterIP   10.96.0.1       <none>        443/TCP    4h21m
@@ -1095,7 +1095,7 @@ spec:
 EOF
 ```
  2 targets must be added to `VMAgent` scrape config:
-```bash
+```console
 static_configs: added targets: 2, removed targets: 0; total targets: 2
 ```
 
@@ -1200,7 +1200,7 @@ EOF
 ```
 
  Check its status
-```bash
+```console
 
 kubectl get pods
 NAME                                READY   STATUS    RESTARTS   AGE
@@ -1233,7 +1233,7 @@ EOF
 
  Configuration changes for `VMAuth` takes some time, coz of mounted secret, its eventually updated by kubelet. Check vmauth log for changes:
 
-```bash
+```console
 kubectl logs vmauth-example-ffcc78fcc-xddk7 vmauth -f --tail 10
 2021-05-31T10:46:40.171Z	info	VictoriaMetrics/app/vmauth/auth_config.go:168	Loaded information about 1 users from "/opt/vmauth/config.yaml"
 2021-05-31T10:46:40.171Z	info	VictoriaMetrics/app/vmauth/main.go:37	started vmauth in 0.000 seconds
@@ -1249,7 +1249,7 @@ kubectl logs vmauth-example-ffcc78fcc-xddk7 vmauth -f --tail 10
 
  Now lets try to access protected  endpoints, i will use port-forward for that:
 
-```bash
+```console
 kubectl port-forward vmauth-example-ffcc78fcc-xddk7 8427
 
 # at separate terminal execute:
@@ -1263,7 +1263,7 @@ curl localhost:8427/api/v1/groups -u 'simple-user:simple-password'
 
  Check create secret for application access:
 
-```bash
+```console
 kubectl get secrets vmuser-example
 NAME             TYPE     DATA   AGE
 vmuser-example   Opaque   2      6m33s
@@ -1275,7 +1275,7 @@ By default, the operator converts all existing prometheus-operator API objects i
 
 You can control this behaviour by setting env variable for operator:
 
-```bash
+```console
 #disable convertion for each object
 VM_ENABLEDPROMETHEUSCONVERTER_PODMONITOR=false
 VM_ENABLEDPROMETHEUSCONVERTER_SERVICESCRAPE=false
@@ -1326,7 +1326,7 @@ spec:
 
 By default the operator doesn't make converted objects disappear after original ones are deleted. To change this behaviour
 configure adding `OwnerReferences` to converted objects:
-```bash
+```console
 VM_ENABLEDPROMETHEUSCONVERTEROWNERREFERENCES=true
 ```
 Converted objects will be linked to the original ones and will be deleted by kubernetes after the original ones are deleted.
@@ -1404,7 +1404,7 @@ to the rule config:
 
 Example for Kubernetes Nginx ingress [doc](https://kubernetes.github.io/ingress-nginx/examples/auth/basic/)
 
-```bash
+```console
 #generate creds
 htpasswd -c auth foo
 

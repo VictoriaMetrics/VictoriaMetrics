@@ -65,7 +65,7 @@ EOF
 
 The expected result of the command execution is the following:
 
-```bash
+```console
 NAME: vmcluster
 LAST DEPLOYED: Thu Jul 29 13:33:51 2021
 NAMESPACE: default
@@ -121,14 +121,14 @@ Verify that the VictoriaMetrics cluster pods are up and running by executing the
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods | grep vmcluster
 ```
 </div>
 
 The expected output is:
 
-```bash
+```console
 vmcluster-victoria-metrics-cluster-vminsert-78b84d8cd9-4mh9d   1/1     Running   0          2m28s
 vmcluster-victoria-metrics-cluster-vminsert-78b84d8cd9-4ppl7   1/1     Running   0          2m28s
 vmcluster-victoria-metrics-cluster-vminsert-78b84d8cd9-782qk   1/1     Running   0          2m28s
@@ -241,7 +241,7 @@ Verify that `vmagent`'s pod is up and running by executing the following command
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods | grep vmagent
 ```
 </div>
@@ -249,7 +249,7 @@ kubectl get pods | grep vmagent
 
 The expected output is:
 
-```bash
+```console
 vmagent-victoria-metrics-agent-57ddbdc55d-h4ljb                1/1     Running   0          13s
 ```
 
@@ -258,14 +258,14 @@ vmagent-victoria-metrics-agent-57ddbdc55d-h4ljb                1/1     Running  
 Run the following command to check that VictoriaMetrics services are up and running:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods | grep victoria-metrics
 ```
 </div>
 
 The expected output is:
 
-```bash
+```console
 vmagent-victoria-metrics-agent-57ddbdc55d-h4ljb                1/1     Running   0          75s
 vmcluster-victoria-metrics-cluster-vminsert-78b84d8cd9-s8v7x   1/1     Running   0          89s
 vmcluster-victoria-metrics-cluster-vminsert-78b84d8cd9-xlm9d   1/1     Running   0          89s
@@ -283,14 +283,14 @@ To verify that metrics are present in the VictoriaMetrics send a curl request to
 Run the following command to see the list of services:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 k get svc | grep vmselect
 ```
 </div>
 
 The expected output:
 
-```bash
+```console
 vmcluster-victoria-metrics-cluster-vmselect    ClusterIP   10.88.2.69    <none>        8481/TCP                     1m
 ```
 
@@ -298,20 +298,20 @@ Run the following command to make `vmselect`'s port accessable from the local ma
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl port-forward svc/vmcluster-victoria-metrics-cluster-vmselect 8481:8481
 ```
 </div>
 
 Execute the following command to get metrics via `curl`:
 
-```bash
+```console
 curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmselect.*"})&start=-10m&step=1m' | jq
 ```
 
 The expected output is:
 
-```bash
+```console
 {
   "status": "success",
   "isPartial": false,
@@ -389,7 +389,7 @@ To test if High Availability works, we need to shutdown one of the `vmstorages`.
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl scale sts vmcluster-victoria-metrics-cluster-vmstorage --replicas=2
 ```
 </div>
@@ -398,13 +398,13 @@ Verify that now we have two running `vmstorages` in the cluster by executing the
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods  | grep vmstorage
 ```
 </div>
 
 The expected output is:
-```bash
+```console
 vmcluster-victoria-metrics-cluster-vmstorage-0                 1/1     Running   0          44m
 vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running   0          43m
 ```

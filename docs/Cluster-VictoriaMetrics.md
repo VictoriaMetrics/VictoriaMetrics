@@ -115,7 +115,7 @@ By default images are built on top of [alpine](https://hub.docker.com/_/scratch)
 It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package
 ```
 
@@ -448,7 +448,7 @@ Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` w
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
@@ -458,7 +458,7 @@ Example command for collecting memory profile from `vminsert` (replace `0.0.0.0`
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
 

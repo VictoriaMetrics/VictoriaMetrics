@@ -19,7 +19,7 @@ Features:
 To see the full list of supported modes
 run the following command:
 
-```bash
+```console
 $ ./vmctl --help                                        
 NAME:
    vmctl - VictoriaMetrics command-line tool
@@ -531,7 +531,7 @@ and specify `accountID` param.
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via [native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format) from VictoriaMetrics. 
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
-```bash
+```console
 # export blocks from VictoriaMetrics
 curl localhost:8428/api/v1/export/native -g -d 'match[]={__name__!=""}' -o exported_data_block
 # verify block content
@@ -654,7 +654,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmctl
 ```
 
