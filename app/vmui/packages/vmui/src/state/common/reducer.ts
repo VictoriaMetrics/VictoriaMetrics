@@ -36,7 +36,7 @@ export interface AppState {
     autoRefresh: boolean;
     autocomplete: boolean;
     nocache: boolean;
-    queryTracing: boolean;
+    isTracingEnabled: boolean;
   }
 }
 
@@ -81,7 +81,7 @@ export const initialState: AppState = {
     autoRefresh: false,
     autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
     nocache: getFromStorage("NO_CACHE") as boolean || false,
-    queryTracing: getFromStorage("QUERY_TRACING") as boolean || true,
+    isTracingEnabled: getFromStorage("QUERY_TRACING") as boolean || true,
   }
 };
 
@@ -195,7 +195,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         queryControls: {
           ...state.queryControls,
-          queryTracing: !state.queryControls.queryTracing,
+          isTracingEnabled: !state.queryControls.isTracingEnabled,
         }
       };
     case "NO_CACHE":

@@ -3,11 +3,13 @@ import {TraceData} from "../../../api/types";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemButton from "@mui/material/ListItemButton";
 import Collapse from "@mui/material/Collapse";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import AddCircleRoundedIcon from "@mui/icons-material/AddCircleRounded";
 import {recursiveComponent} from "../NestedNav/NestedNav";
 
 
@@ -27,11 +29,18 @@ const TraceView: FC<TraceViewProps> = ({traceData}) => {
 
   return (<List sx={{ width: "100%" }} component="nav">
     <Typography variant="h4" gutterBottom component="div">Query tracing</Typography>
-    <Box sx={{ bgcolor: "rgba(227, 242, 253, 0.6)" }}>
+    <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
       <ListItem onClick={() => handleClick(traceData.duration_msec)}>
-        {openLevels[traceData.duration_msec] ? <RemoveIcon /> : <AddIcon />}
-        <ListItemText primary={traceData.duration_msec} />
-        <ListItemText secondary={traceData.message} secondaryTypographyProps={{align: "left"}}/>
+        <ListItemButton>
+          <ListItemIcon>
+            {openLevels[traceData.duration_msec] ?
+              <ExpandLess fontSize={"large"} color={"info"} /> :
+              <AddCircleRoundedIcon fontSize={"large"} color={"info"} />}
+          </ListItemIcon>
+          <ListItemText
+            primary={`duration: ${traceData.duration_msec} ms`}
+            secondary={traceData.message} />
+        </ListItemButton>
       </ListItem>
       <Collapse in={openLevels[traceData.duration_msec]} timeout="auto" unmountOnExit>
         <List component="div" disablePadding sx={{ pl: 4 }}>

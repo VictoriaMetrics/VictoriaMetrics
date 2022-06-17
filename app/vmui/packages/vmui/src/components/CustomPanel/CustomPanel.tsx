@@ -1,4 +1,4 @@
-import React, {FC} from "preact/compat";
+import React, {FC, useState} from "preact/compat";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -20,7 +20,8 @@ import TraceView from "./Views/TraceView";
 
 const CustomPanel: FC = () => {
 
-  const {displayType, time: {period}, query} = useAppState();
+  const [showTracing, setShowTracing] = useState(false);
+  const {displayType, time: {period}, query, queryControls: {isTracingEnabled}} = useAppState();
   const { customStep, yaxis } = useGraphState();
 
   const dispatch = useAppDispatch();
@@ -35,7 +36,7 @@ const CustomPanel: FC = () => {
   };
 
   const handleShowTraceClick = () => {
-
+    setShowTracing(!showTracing);
   };
 
 
@@ -48,7 +49,7 @@ const CustomPanel: FC = () => {
     visible: true,
     customStep
   });
-
+  const useTracing = traceData && isTracingEnabled && showTracing;
   return (
     <Box p={4} display="grid" gridTemplateRows="auto 1fr" style={{minHeight: "calc(100vh - 64px)"}}>
       <QueryConfigurator error={error} queryOptions={queryOptions}/>
@@ -59,11 +60,11 @@ const CustomPanel: FC = () => {
             borderBottom={1} borderColor="divider">
             <DisplayTypeSwitch/>
             <Box display={"flex"}>
-              {displayType === "chart" || displayType === "table" ?
+              {(displayType === "chart" || displayType === "table") && isTracingEnabled ?
                 <Box>
                   <Tooltip title={"Show traces"}>
                     <Button variant="text" startIcon={<ListAltIcon />} onClick={handleShowTraceClick}>
-                      Show Trace
+                      {showTracing ? "Hide tracing" : "Show tracing"}
                     </Button>
                   </Tooltip>
                 </Box> : null
@@ -78,13 +79,16 @@ const CustomPanel: FC = () => {
           {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
           {graphData && period && (displayType === "chart") &&
             <>
-              {traceData && <TraceView traceData={traceData} />}
+              {useTracing && <TraceView traceData={traceData} />}
               <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
                 setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>
             </>}
           {liveData && (displayType === "code") && <JsonView data={liveData}/>}
           {liveData && (displayType === "table") &&
-            <>{traceData && <TraceView traceData={traceData} />}<TableView data={liveData}/></>}
+            <>
+              {useTracing && <TraceView traceData={traceData} />}
+              <TableView data={liveData}/>
+            </>}
         </Box>}
       </Box>
     </Box>

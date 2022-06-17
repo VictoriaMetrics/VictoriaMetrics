@@ -29,7 +29,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   error?: ErrorTypes | string,
   traceData?: TraceData,
 } => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, queryTracing}} = useAppState();
+  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
@@ -91,8 +91,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       const updatedPeriod = {...period};
       if (customStep.enable) updatedPeriod.step = customStep.value;
       return expr.filter(q => q.trim()).map(q => displayChart
-        ? getQueryRangeUrl(server, q, updatedPeriod, nocache, queryTracing)
-        : getQueryUrl(server, q, updatedPeriod, queryTracing));
+        ? getQueryRangeUrl(server, q, updatedPeriod, nocache, isTracingEnabled)
+        : getQueryUrl(server, q, updatedPeriod, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
