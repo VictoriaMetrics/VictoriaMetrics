@@ -94,7 +94,7 @@ type faultyNotifier struct {
 func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert) error {
 	d, ok := ctx.Deadline()
 	if ok {
-		time.Sleep(d.Sub(time.Now()))
+		time.Sleep(time.Until(d))
 	}
 	return fmt.Errorf("send failed")
 }

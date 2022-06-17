@@ -24,9 +24,13 @@ func (eg *ErrGroup) Add(err error) {
 // Err checks if group contains at least
 // one error.
 func (eg *ErrGroup) Err() error {
+	if eg == nil {
+		return nil
+	}
+
 	eg.mu.Lock()
 	defer eg.mu.Unlock()
-	if eg == nil || len(eg.errs) == 0 {
+	if len(eg.errs) == 0 {
 		return nil
 	}
 	return eg
