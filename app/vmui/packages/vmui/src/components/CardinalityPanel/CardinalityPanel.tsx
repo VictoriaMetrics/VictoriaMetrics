@@ -2,7 +2,6 @@ import React, {ChangeEvent, FC, useState} from "react";
 import {SyntheticEvent} from "react";
 import {Alert} from "@mui/material";
 import {useFetchQuery} from "../../hooks/useCardinalityFetch";
-import {spinnerContainerStyles} from "./consts";
 import {queryUpdater} from "./helpers";
 import {Data} from "../Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
@@ -10,6 +9,18 @@ import Spinner from "../common/Spinner";
 import {useCardinalityDispatch, useCardinalityState} from "../../state/cardinality/CardinalityStateContext";
 import MetricsContent from "./MetricsContent/MetricsContent";
 import {DefaultActiveTab, Tabs, TSDBStatus, Containers} from "./types";
+
+const spinnerContainerStyles = (height: string) =>  {
+  return {
+    width: "100%",
+    maxWidth: "100%",
+    position: "absolute",
+    height: height ?? "50%",
+    background: "rgba(255, 255, 255, 0.7)",
+    pointerEvents: "none",
+    zIndex: 1000,
+  };
+};
 
 const CardinalityPanel: FC = () => {
   const cardinalityDispatch = useCardinalityDispatch();
@@ -42,7 +53,7 @@ const CardinalityPanel: FC = () => {
     cardinalityDispatch({type: "SET_TOP_N", payload: +e.target.value});
   };
 
-  const onFocusChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
+  const onFocusLabelChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
     cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: e.target.value});
   };
 
@@ -57,16 +68,17 @@ const CardinalityPanel: FC = () => {
 
   const handleFilterClick = (key: string) => (e: SyntheticEvent) => {
     const name = e.currentTarget.id;
-    const query = queryUpdater[key](name);
+    const query = queryUpdater[key](focusLabel, name);
     setQuery(query);
     setQueryHistory(prev => [...prev, query]);
     setQueryHistoryIndex(prev => prev + 1);
     cardinalityDispatch({type: "SET_MATCH", payload: query});
-    cardinalityDispatch({type: "RUN_QUERY"});
-    cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: ""});
-    if (key === "labelValueCountByLabelName") {
-      cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: name});
+    let newFocusLabel = "";
+    if (key === "labelValueCountByLabelName" || key == "seriesCountByLabelName") {
+      newFocusLabel = name;
     }
+    cardinalityDispatch({type: "SET_FOCUS_LABEL", payload: newFocusLabel});
+    cardinalityDispatch({type: "RUN_QUERY"});
   };
 
   return (
@@ -82,10 +94,10 @@ const CardinalityPanel: FC = () => {
       <CardinalityConfigurator error={configError} query={query} onRunQuery={onRunQuery} onSetQuery={onSetQuery}
         onSetHistory={onSetHistory} onTopNChange={onTopNChange} topN={topN} date={date} match={match}
         totalSeries={tsdbStatusData.totalSeries} totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
-        focusLabel={focusLabel} onFocusChange={onFocusChange}
+        focusLabel={focusLabel} onFocusLabelChange={onFocusLabelChange}
       />
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
-      {appConfigurator.keysWithoutTotalFields.map((keyName) => (
+      {appConfigurator.keys(focusLabel).map((keyName) => (
         <MetricsContent
           key={keyName}
           sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}

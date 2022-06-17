@@ -17,7 +17,7 @@ export interface CardinalityConfiguratorProps {
   onSetQuery: (query: string, index: number) => void;
   onRunQuery: () => void;
   onTopNChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
-  onFocusChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
+  onFocusLabelChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
   query: string;
   topN: number;
   error?: ErrorTypes | string;
@@ -36,7 +36,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
   onRunQuery,
   onSetQuery,
   onTopNChange,
-  onFocusChange,
+  onFocusLabelChange,
   totalSeries,
   totalLabelValuePairs,
   date,
@@ -54,19 +54,12 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
 
   return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} mb={2}>
     <Box>
-      <Box display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="50%" mb={4}>
+      <Box display="grid" gridTemplateColumns="1fr auto auto auto auto" gap="4px" width="100%" mb={4}>
         <QueryEditor
           query={query} index={0} autocomplete={autocomplete} queryOptions={queryOptions}
           error={error} setHistoryIndex={onSetHistory} runQuery={onRunQuery} setQuery={onSetQuery}
           label={"Time series selector"}
         />
-        <Tooltip title="Execute Query">
-          <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
-            <PlayCircleOutlineIcon/>
-          </IconButton>
-        </Tooltip>
-      </Box>
-      <Box display="flex" alignItems="center" mb={4}>
         <Box mr={2}>
           <TextField
             label="Number of entries per table"
@@ -80,23 +73,29 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
         </Box>
         <Box mr={2}>
           <TextField
-            label="Label filter"
+            label="Focus label"
             type="text"
             size="medium"
             variant="outlined"
             value={focusLabel}
-            onChange={onFocusChange} />
+            onChange={onFocusLabelChange} />
         </Box>
         <Box>
           <FormControlLabel label="Enable autocomplete"
             control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
           />
         </Box>
+        <Tooltip title="Execute Query">
+          <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
+            <PlayCircleOutlineIcon/>
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
     <Box>
-      Analyzed <b>{totalSeries}</b> series with <b>{totalLabelValuePairs}</b> label=value pairs
-      at <b>{date}</b> {match && <span>for series selector <b>{match}</b></span>}. Show top {topN} entries per table.
+      Analyzed <b>{totalSeries}</b> series with <b>{totalLabelValuePairs}</b> &quot;label=value&quot; pairs
+      at <b>{date}</b> {match && <span>for series selector <b>{match}</b></span>}.
+      Show top {topN} entries per table.
     </Box>
   </Box>;
 };

@@ -1,11 +1,5 @@
 import {Containers, DefaultActiveTab, Tabs, TSDBStatus} from "./types";
 import {useRef} from "preact/compat";
-import {
-  LABEL_NAMES_HEADERS,
-  LABEL_VALUE_PAIRS_HEADERS, LABEL_WITH_HIGHEST_SERIES_HEADERS,
-  LABELS_WITH_UNIQUE_VALUES_HEADERS,
-  METRIC_NAMES_HEADERS
-} from "./consts";
 import {HeadCell} from "../Table/types";
 
 interface AppState {
@@ -16,12 +10,10 @@ interface AppState {
 
 export default class AppConfigurator {
   private tsdbStatus: TSDBStatus;
-  private totalFields: string[];
   private tabsNames: string[];
 
   constructor() {
     this.tsdbStatus = this.defaultTSDBStatus;
-    this.totalFields = ["totalSeries", "totalLabelValuePairs"];
     this.tabsNames = ["table", "graph"];
   }
 
@@ -37,24 +29,30 @@ export default class AppConfigurator {
     return {
       totalSeries: 0,
       totalLabelValuePairs: 0,
-      seriesCountByFocusLabelValue: [],
       seriesCountByMetricName: [],
       seriesCountByLabelName: [],
+      seriesCountByFocusLabelValue: [],
       seriesCountByLabelValuePair: [],
       labelValueCountByLabelName: [],
     };
   }
 
-  get keys(): string[] {
-    return Object.keys(this.tsdbStatus);
-  }
-
-  get keysWithoutTotalFields(): string[] {
-    return this.keys.filter((keyName: string) => this.totalFields.indexOf(keyName) === -1);
+  keys(focusLabel: string | null): string[] {
+    let keys: string[] = [];
+    if (focusLabel) {
+      keys = keys.concat("seriesCountByFocusLabelValue");
+    }
+    keys = keys.concat(
+      "seriesCountByMetricName",
+      "seriesCountByLabelName",
+      "seriesCountByLabelValuePair",
+      "labelValueCountByLabelName",
+    );
+    return keys;
   }
 
   get defaultState(): AppState {
-    return this.keysWithoutTotalFields.reduce((acc, cur) => {
+    return this.keys("job").reduce((acc, cur) => {
       return {
         ...acc,
         tabs: {
@@ -81,26 +79,155 @@ export default class AppConfigurator {
     return {
       seriesCountByMetricName: "Metric names with the highest number of series",
       seriesCountByLabelName: "Labels with the highest number of series",
+      seriesCountByFocusLabelValue: `Values for "${str}" label with the highest number of series`,
       seriesCountByLabelValuePair: "Label=value pairs with the highest number of series",
       labelValueCountByLabelName: "Labels with the highest number of unique values",
-      seriesCountByFocusLabelValue: `{${str}} label values with the highest number of series`,
     };
   }
 
   get tablesHeaders(): Record<string, HeadCell[]> {
     return {
-      seriesCountByFocusLabelValue: LABEL_WITH_HIGHEST_SERIES_HEADERS,
       seriesCountByMetricName: METRIC_NAMES_HEADERS,
       seriesCountByLabelName: LABEL_NAMES_HEADERS,
+      seriesCountByFocusLabelValue: FOCUS_LABEL_VALUES_HEADERS,
       seriesCountByLabelValuePair: LABEL_VALUE_PAIRS_HEADERS,
-      labelValueCountByLabelName: LABELS_WITH_UNIQUE_VALUES_HEADERS,
+      labelValueCountByLabelName: LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS,
     };
   }
 
   totalSeries(keyName: string): number {
-    if (keyName === "labelValueCountByLabelName" || keyName === "seriesCountByFocusLabelValue") {
+    if (keyName === "labelValueCountByLabelName") {
       return -1;
     }
     return this.tsdbStatus.totalSeries;
   }
 }
+
+const METRIC_NAMES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Metric name",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "percentage",
+    label: "Percent of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
+
+const LABEL_NAMES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label name",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "percentage",
+    label: "Percent of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
+
+const FOCUS_LABEL_VALUES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label value",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "percentage",
+    label: "Percent of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
+
+export const LABEL_VALUE_PAIRS_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label=value pair",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "percentage",
+    label: "Percent of series",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
+
+export const LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS = [
+  {
+    disablePadding: false,
+    id: "name",
+    label: "Label name",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "value",
+    label: "Number of unique values",
+    numeric: false,
+  },
+  {
+    disablePadding: false,
+    id: "action",
+    label: "Action",
+    numeric: false,
+  }
+] as HeadCell[];
