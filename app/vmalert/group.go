@@ -438,11 +438,17 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 		return nil
 	}
 
+	wg := sync.WaitGroup{}
 	for _, nt := range e.notifiers() {
-		if err := nt.Send(ctx, alerts); err != nil {
-			errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
-		}
+		wg.Add(1)
+		go func(nt notifier.Notifier) {
+			if err := nt.Send(ctx, alerts); err != nil {
+				errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
+			}
+			wg.Done()
+		}(nt)
 	}
+	wg.Wait()
 	return errGr.Err()
 }
 
