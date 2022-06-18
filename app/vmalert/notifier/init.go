@@ -145,7 +145,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 		}
 
 		addr = strings.TrimSuffix(addr, "/")
-		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, time.Minute)
+		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, time.Second*10)
 		if err != nil {
 			return nil, err
 		}

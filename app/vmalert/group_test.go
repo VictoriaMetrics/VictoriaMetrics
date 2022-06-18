@@ -413,3 +413,42 @@ func TestPurgeStaleSeries(t *testing.T) {
 		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
 	)
 }
+
+func TestFaultyNotifier(t *testing.T) {
+	fq := &fakeQuerier{}
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+
+	r := newTestAlertingRule("instant", 0)
+	r.q = fq
+
+	fn := &fakeNotifier{}
+	e := &executor{
+		notifiers: func() []notifier.Notifier {
+			return []notifier.Notifier{
+				&faultyNotifier{},
+				fn,
+			}
+		},
+	}
+	delay := 5 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), delay)
+	defer cancel()
+
+	go func() {
+		_ = e.exec(ctx, r, time.Now(), 0, 10)
+	}()
+
+	tn := time.Now()
+	deadline := tn.Add(delay / 2)
+	for {
+		if fn.getCounter() > 0 {
+			return
+		}
+		if tn.After(deadline) {
+			break
+		}
+		tn = time.Now()
+		time.Sleep(time.Millisecond * 100)
+	}
+	t.Fatalf("alive notifier didn't receive notification by %v", deadline)
+}
