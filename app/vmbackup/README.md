@@ -28,7 +28,7 @@ creation of hourly, daily, weekly and monthly backups.
 
 Regular backup can be performed with the following command:
 
-```bash
+```console
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
@@ -43,7 +43,7 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=h
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be sped up
 with the following command:
 
-```bash
+```console
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
@@ -54,7 +54,7 @@ It saves time and network bandwidth costs by performing server-side copy for the
 Incremental backups are performed if `-dst` points to an already existing backup. In this case only new data is uploaded to remote storage.
 It saves time and network bandwidth costs when working with big backups:
 
-```bash
+```console
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/existing/backup>
 ```
 
@@ -64,7 +64,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 
 * Run the following command every hour:
 
-```bash
+```console
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
@@ -73,7 +73,7 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 
 * Run the following command once a day:
 
-```bash
+```console
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
@@ -129,7 +129,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
     for s3 (aws, minio or other s3 compatible storages):
 
-     ```bash
+     ```console
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
@@ -155,7 +155,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
   You have to add a custom url endpoint via flag:
 
-```bash
+```console
   # for minio
   -customS3Endpoint=http://localhost:9000
 
@@ -165,7 +165,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 * Run `vmbackup -help` in order to see all the available options:
 
-```bash
+```console
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -280,6 +280,6 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmbackup
 ```

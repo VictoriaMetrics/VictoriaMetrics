@@ -42,7 +42,7 @@ To check it, open the following in your browser `http://your_droplet_public_ipv4
 
 Run the following command to query and retrieve a result from VictoriaMetrics Single with `curl`:
 
-```bash
+```console
 curl -sg http://your_droplet_public_ipv4:8428/api/v1/query_range?query=vm_app_uptime_seconds | jq
 ```
 
@@ -50,6 +50,6 @@ curl -sg http://your_droplet_public_ipv4:8428/api/v1/query_range?query=vm_app_up
 
 Once the Droplet is created, you can use DigitalOcean's web console to start a session or  SSH directly to the server as root:
 
-```bash
+```console
 ssh root@your_droplet_public_ipv4
 ```
