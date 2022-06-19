@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1703,6 +1704,9 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName); err != nil {
+			if errors.Is(err, errSeriesCardinalityExceeded) {
+				continue
+			}
 			return fmt.Errorf("cannot register the metric because cannot create TSID for metricName %q: %w", metricName, err)
 		}
 		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
@@ -1793,11 +1797,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		}
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			r.TSID = genTSID.TSID
-			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip the row, since the limit on the number of unique series has been exceeded.
-				j--
-				continue
-			}
 			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
 			// contain MetricName->TSID entries for deleted time series.
@@ -1859,34 +1858,28 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 				// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
 				r.TSID = prevTSID
-				if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
-					// Skip the row, since the limit on the number of unique series has been exceeded.
-					j--
-					continue
-				}
 				continue
 			}
 			slowInsertsCount++
 			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName); err != nil {
+				j--
+				if errors.Is(err, errSeriesCardinalityExceeded) {
+					continue
+				}
 				// Do not stop adding rows on error - just skip invalid row.
 				// This guarantees that invalid rows don't prevent
 				// from adding valid rows into the storage.
 				if firstWarn == nil {
 					firstWarn = fmt.Errorf("cannot obtain or create TSID for MetricName %q: %w", pmr.MetricName, err)
 				}
-				j--
 				continue
 			}
 			genTSID.generation = idb.generation
 			genTSID.TSID = r.TSID
 			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
-			if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip the row, since the limit on the number of unique series has been exceeded.
-				j--
-				continue
-			}
 		}
 		idb.putIndexSearch(is)
 		putPendingMetricRows(pmrs)
@@ -1911,26 +1904,26 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	return nil
 }
 
-func (s *Storage) isSeriesCardinalityExceeded(metricID uint64, metricNameRaw []byte) bool {
+func (s *Storage) registerSeriesCardinality(metricID uint64, mn *MetricName) bool {
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		atomic.AddUint64(&s.hourlySeriesLimitRowsDropped, 1)
-		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
-		return true
+		logSkippedSeries(mn, "-storage.maxHourlySeries", sl.MaxItems())
+		return false
 	}
 	if sl := s.dailySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		atomic.AddUint64(&s.dailySeriesLimitRowsDropped, 1)
-		logSkippedSeries(metricNameRaw, "-storage.maxDailySeries", sl.MaxItems())
-		return true
+		logSkippedSeries(mn, "-storage.maxDailySeries", sl.MaxItems())
+		return false
 	}
-	return false
+	return true
 }
 
-func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
+func logSkippedSeries(mn *MetricName, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will result in increased CPU load
 		// because of getUserReadableMetricName() calls per each logSkippedSeries call.
-		logger.Warnf("skip series %s because %s=%d reached", getUserReadableMetricName(metricNameRaw), flagName, flagValue)
+		logger.Warnf("skip series %s because %s=%d reached", mn, flagName, flagValue)
 	default:
 	}
 }

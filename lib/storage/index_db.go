@@ -582,6 +582,9 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	if err != nil {
 		return fmt.Errorf("cannot generate TSID: %w", err)
 	}
+	if !db.s.registerSeriesCardinality(dst.MetricID, mn) {
+		return errSeriesCardinalityExceeded
+	}
 	if err := db.createIndexes(dst, mn); err != nil {
 		return fmt.Errorf("cannot create indexes: %w", err)
 	}
@@ -598,6 +601,8 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	}
 	return nil
 }
+
+var errSeriesCardinalityExceeded = fmt.Errorf("cannot create series because series cardinality limit exceeded")
 
 // SetLogNewSeries updates new series logging.
 //
