@@ -6,14 +6,15 @@ import Alert from "@mui/material/Alert";
 
 interface TraceViewProps {
   tracingsData: TracingData[];
+  emptyMessage: string;
 }
 
-const TracingsView: FC<TraceViewProps> = ({tracingsData}) => {
+const TracingsView: FC<TraceViewProps> = ({tracingsData, emptyMessage}) => {
   if (!tracingsData.length) {
     return (
       <>
         <Alert color={"info"} severity="info" sx={{whiteSpace: "pre-wrap", mt: 2}}>
-          Please re-run the query to see results of the tracing
+          {emptyMessage}
         </Alert>
       </>
     );
