@@ -1,4 +1,4 @@
-import {TraceData} from "../../../api/types";
+import {TracingData} from "../../../api/types";
 import Box from "@mui/material/Box";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -11,15 +11,15 @@ import List from "@mui/material/List";
 import React from "preact/compat";
 
 interface RecursiveProps {
-  traceData: TraceData;
+  tracingData: TracingData;
   openLevels: Record<number, boolean>;
   onChange: (level: number) => void;
 }
 
 type RecursiveComponent = (props: RecursiveProps) => JSX.Element;
 
-export const recursiveComponent: RecursiveComponent = ({ traceData, openLevels, onChange})  => {
-  const {children} = traceData;
+export const recursiveComponent: RecursiveComponent = ({ tracingData, openLevels, onChange})  => {
+  const {children} = tracingData;
   const handleListClick = (level: number) => () => onChange(level);
 
   return (
@@ -55,7 +55,7 @@ export const recursiveComponent: RecursiveComponent = ({ traceData, openLevels, 
             </ListItem>
             <Collapse in={openLevels[child.duration_msec]} timeout="auto" unmountOnExit>
               <List component="div" disablePadding sx={{ pl: 4 }}>
-                {recursiveComponent({traceData: child, openLevels, onChange})}
+                {recursiveComponent({tracingData: child, openLevels, onChange})}
               </List>
             </Collapse>
           </>

@@ -1,7 +1,7 @@
-import {useEffect, useMemo, useCallback, useState} from "preact/compat";
+import {useCallback, useEffect, useMemo, useState} from "preact/compat";
 import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
 import {useAppState} from "../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult, TraceData} from "../api/types";
+import {InstantMetricResult, MetricBase, MetricResult, TracingData} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
@@ -27,14 +27,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
-  traceData?: TraceData,
+  tracingData?: TracingData,
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
-  const [traceData, setTraceData] = useState<TraceData>();
+  const [tracingData, setTracingData] = useState<TracingData>();
   const [error, setError] = useState<ErrorTypes | string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
 
@@ -42,7 +42,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     if (error) {
       setGraphData(undefined);
       setLiveData(undefined);
-      setTraceData(undefined);
+      setTracingData(undefined);
     }
   }, [error]);
 
@@ -57,7 +57,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
         const resp = await response.json();
         if (response.ok) {
           setError(undefined);
-          setTraceData(resp.trace);
+          setTracingData(resp.trace);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
             return d;
@@ -114,5 +114,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, traceData };
+  return {fetchUrl, isLoading, graphData, liveData, error, tracingData};
 };

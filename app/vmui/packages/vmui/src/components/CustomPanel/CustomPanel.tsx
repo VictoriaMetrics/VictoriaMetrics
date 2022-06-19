@@ -1,4 +1,4 @@
-import React, {FC, useState} from "preact/compat";
+import React, {FC, useState, useEffect} from "preact/compat";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -16,11 +16,13 @@ import Spinner from "../common/Spinner";
 import {useFetchQueryOptions} from "../../hooks/useFetchQueryOptions";
 import Tooltip from "@mui/material/Tooltip";
 import ListAltIcon from "@mui/icons-material/ListAlt";
-import TraceView from "./Views/TraceView";
+import {TracingData} from "../../api/types";
+import TracingsView from "./Views/TracingsView";
 
 const CustomPanel: FC = () => {
 
   const [showTracing, setShowTracing] = useState(false);
+  const [tracingsData, setTracingData] = useState<TracingData[]>([]);
   const {displayType, time: {period}, query, queryControls: {isTracingEnabled}} = useAppState();
   const { customStep, yaxis } = useGraphState();
 
@@ -39,17 +41,34 @@ const CustomPanel: FC = () => {
     setShowTracing(!showTracing);
   };
 
-
   const setPeriod = ({from, to}: {from: Date, to: Date}) => {
     dispatch({type: "SET_PERIOD", payload: {from, to}});
   };
 
   const {queryOptions} = useFetchQueryOptions();
-  const {isLoading, liveData, graphData, error, traceData} = useFetchQuery({
+  const {isLoading, liveData, graphData, error, tracingData} = useFetchQuery({
     visible: true,
     customStep
   });
-  const useTracing = traceData && isTracingEnabled && showTracing;
+
+  useEffect(() => {
+    if (tracingData) {
+      setTracingData([...tracingsData, tracingData]);
+    }
+  }, [tracingData]);
+
+  useEffect(() => {
+    setTracingData([]);
+  }, [displayType]);
+
+  useEffect(() => {
+    if (!isTracingEnabled) {
+      setShowTracing(false);
+    }
+  }, [isTracingEnabled]);
+
+  const useTracing = isTracingEnabled && showTracing;
+  const showTracingButton = (displayType === "chart" || displayType === "table") && isTracingEnabled;
   return (
     <Box p={4} display="grid" gridTemplateRows="auto 1fr" style={{minHeight: "calc(100vh - 64px)"}}>
       <QueryConfigurator error={error} queryOptions={queryOptions}/>
@@ -60,15 +79,13 @@ const CustomPanel: FC = () => {
             borderBottom={1} borderColor="divider">
             <DisplayTypeSwitch/>
             <Box display={"flex"}>
-              {(displayType === "chart" || displayType === "table") && isTracingEnabled ?
-                <Box>
-                  <Tooltip title={"Show traces"}>
-                    <Button variant="text" startIcon={<ListAltIcon />} onClick={handleShowTraceClick}>
-                      {showTracing ? "Hide tracing" : "Show tracing"}
-                    </Button>
-                  </Tooltip>
-                </Box> : null
-              }
+              {showTracingButton ? <Box>
+                <Tooltip title={"Show traces"}>
+                  <Button variant="text" startIcon={<ListAltIcon />} onClick={handleShowTraceClick}>
+                    {showTracing ? "Hide tracing" : "Show tracing"}
+                  </Button>
+                </Tooltip>
+              </Box> : null}
               {displayType === "chart" && <GraphSettings
                 yaxis={yaxis}
                 setYaxisLimits={setYaxisLimits}
@@ -77,18 +94,16 @@ const CustomPanel: FC = () => {
             </Box>
           </Box>
           {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
-          {graphData && period && (displayType === "chart") &&
-            <>
-              {useTracing && <TraceView traceData={traceData} />}
-              <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
-                setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>
-            </>}
+          {graphData && period && (displayType === "chart") && <>
+            {useTracing && <TracingsView tracingsData={tracingsData} />}
+            <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
+              setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>
+          </>}
           {liveData && (displayType === "code") && <JsonView data={liveData}/>}
-          {liveData && (displayType === "table") &&
-            <>
-              {useTracing && <TraceView traceData={traceData} />}
-              <TableView data={liveData}/>
-            </>}
+          {liveData && (displayType === "table") && <>
+            {useTracing && <TracingsView tracingsData={tracingsData} />}
+            <TableView data={liveData}/>
+          </>}
         </Box>}
       </Box>
     </Box>
