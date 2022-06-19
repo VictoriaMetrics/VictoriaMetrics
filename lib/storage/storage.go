@@ -366,7 +366,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	srcMetadataDir := srcDir + "/metadata"
 	dstMetadataDir := dstDir + "/metadata"
 	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
-		return "", fmt.Errorf("cannot copy metadata: %s", err)
+		return "", fmt.Errorf("cannot copy metadata: %w", err)
 	}
 
 	fs.MustSyncPath(dstDir)
@@ -1666,10 +1666,7 @@ var (
 // The the MetricRow.Timestamp is used for registering the metric name starting from the given timestamp.
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
-	var (
-		metricName []byte
-	)
-
+	var metricName []byte
 	var genTSID generationTSID
 	mn := GetMetricName()
 	defer PutMetricName(mn)
@@ -1680,67 +1677,35 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	for i := range mrs {
 		mr := &mrs[i]
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
-			if genTSID.generation != idb.generation {
-				// The found entry is from the previous cache generation
-				// so attempt to re-populate the current generation with this entry.
-				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
-				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw)
-				if err != nil {
-					return fmt.Errorf("cannot create indexes in the current indexdb: %w", err)
-				}
-				if created {
-					genTSID.generation = idb.generation
-					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-				}
+			if genTSID.generation == idb.generation {
+				// Fast path - mr.MetricNameRaw has been already registered in the current idb.
+				continue
 			}
-			// Fast path - mr.MetricNameRaw has been already registered.
-			continue
 		}
-
 		// Slow path - register mr.MetricNameRaw.
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			return fmt.Errorf("cannot register the metric because cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 		}
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName); err != nil {
+		date := uint64(mr.Timestamp) / msecPerDay
+		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName, date); err != nil {
 			if errors.Is(err, errSeriesCardinalityExceeded) {
 				continue
 			}
-			return fmt.Errorf("cannot register the metric because cannot create TSID for metricName %q: %w", metricName, err)
+			return fmt.Errorf("cannot create TSID for metricName %q: %w", metricName, err)
 		}
+		genTSID.generation = idb.generation
 		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-
-		// Register the metric in per-day inverted index.
-		date := uint64(mr.Timestamp) / msecPerDay
-		metricID := genTSID.TSID.MetricID
-		if s.dateMetricIDCache.Has(date, metricID) {
-			// Fast path: the metric has been already registered in per-day inverted index
-			continue
-		}
-
-		// Slow path: acutally register the metric in per-day inverted index.
-		ok, err := is.hasDateMetricID(date, metricID)
-		if err != nil {
-			return fmt.Errorf("cannot register the metric in per-date inverted index because of error when locating (date=%d, metricID=%d) in database: %w",
-				date, metricID, err)
-		}
-		if !ok {
-			// The (date, metricID) entry is missing in the indexDB. Add it there.
-			if err := is.storeDateMetricID(date, metricID, mn); err != nil {
-				return fmt.Errorf("cannot register the metric in per-date inverted index because of error when storing (date=%d, metricID=%d) in database: %w",
-					date, metricID, err)
-			}
-		}
-		// The metric must be added to cache only after it has been successfully added to indexDB.
-		s.dateMetricIDCache.Set(date, metricID)
+		s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 	}
 	return nil
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
 	idb := s.idb()
-	j := 0
+	is := idb.getIndexSearch(noDeadline)
+	defer idb.putIndexSearch(is)
 	var (
 		// These vars are used for speeding up bulk imports of multiple adjacent rows for the same metricName.
 		prevTSID          TSID
@@ -1753,6 +1718,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
+	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
 		if math.IsNaN(mr.Value) {
@@ -1805,16 +1771,18 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			prevMetricNameRaw = mr.MetricNameRaw
 
 			if genTSID.generation != idb.generation {
-				// The found entry is from the previous cache generation
+				// The found entry is from the previous cache generation,
 				// so attempt to re-populate the current generation with this entry.
 				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
-				created, err := idb.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw)
+				date := uint64(r.Timestamp) / msecPerDay
+				created, err := is.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw, date)
 				if err != nil {
-					return fmt.Errorf("cannot create indexes in the current indexdb: %w", err)
+					return fmt.Errorf("cannot create indexes: %w", err)
 				}
 				if created {
 					genTSID.generation = idb.generation
 					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+					s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 				}
 			}
 			continue
@@ -1842,7 +1810,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		sort.Slice(pendingMetricRows, func(i, j int) bool {
 			return string(pendingMetricRows[i].MetricName) < string(pendingMetricRows[j].MetricName)
 		})
-		is := idb.getIndexSearch(noDeadline)
 		prevMetricNameRaw = nil
 		var slowInsertsCount uint64
 		for i := range pendingMetricRows {
@@ -1861,7 +1828,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				continue
 			}
 			slowInsertsCount++
-			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName); err != nil {
+			date := uint64(r.Timestamp) / msecPerDay
+			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName, date); err != nil {
 				j--
 				if errors.Is(err, errSeriesCardinalityExceeded) {
 					continue
@@ -1877,11 +1845,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			genTSID.generation = idb.generation
 			genTSID.TSID = r.TSID
 			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+			s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 		}
-		idb.putIndexSearch(is)
 		putPendingMetricRows(pmrs)
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
@@ -1891,15 +1859,17 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
 
-	var firstError error
-	if err := s.tb.AddRows(rows); err != nil {
-		firstError = fmt.Errorf("cannot add rows to table: %w", err)
+	err := s.updatePerDateData(rows, dstMrs)
+	if err != nil {
+		err = fmt.Errorf("cannot update per-date data: %w", err)
+	} else {
+		err = s.tb.AddRows(rows)
+		if err != nil {
+			err = fmt.Errorf("cannot add rows to table: %w", err)
+		}
 	}
-	if err := s.updatePerDateData(rows, dstMrs); err != nil && firstError == nil {
-		firstError = fmt.Errorf("cannot update per-date data: %w", err)
-	}
-	if firstError != nil {
-		return fmt.Errorf("error occurred during rows addition: %w", firstError)
+	if err != nil {
+		return fmt.Errorf("error occurred during rows addition: %w", err)
 	}
 	return nil
 }
@@ -2125,7 +2095,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 			continue
 		}
 		if !ok {
-			// The (date, metricID) entry is missing in the indexDB. Add it there.
+			// The (date, metricID) entry is missing in the indexDB. Add it there together with per-day indexes.
 			// It is OK if the (date, metricID) entry is added multiple times to db
 			// by concurrent goroutines.
 			if err := mn.UnmarshalRaw(dmid.mr.MetricNameRaw); err != nil {
@@ -2135,9 +2105,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				continue
 			}
 			mn.sortTags()
-			if err := is.storeDateMetricID(date, metricID, mn); err != nil {
+			if err := is.createPerDayIndexes(date, metricID, mn); err != nil {
 				if firstError == nil {
-					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %w", date, metricID, err)
+					firstError = fmt.Errorf("error when storing per-date inverted index for (date=%d, metricID=%d): %w", date, metricID, err)
 				}
 				continue
 			}

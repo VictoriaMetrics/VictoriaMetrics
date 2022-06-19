@@ -93,7 +93,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 		}
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(tsid, metricName); err != nil {
+		if err := is.GetOrCreateTSIDByName(tsid, metricName, 0); err != nil {
 			panic(fmt.Errorf("cannot insert record: %w", err))
 		}
 	}
@@ -122,6 +122,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	var mn MetricName
 	var metricName []byte
 	var tsid TSID
+	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
 	addSeries := func(kvs ...string) {
 		mn.Reset()
 		for i := 0; i < len(kvs); i += 2 {
@@ -129,20 +131,20 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
-		if err := db.createTSIDByName(&tsid, metricName); err != nil {
+		if err := is.createTSIDByName(&tsid, metricName, 0); err != nil {
 			b.Fatalf("cannot insert record: %s", err)
 		}
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
 		for i := 0; i < 100000; i++ {
-			is := strconv.Itoa(i)
-			addSeries("i", is, "n", ns, "j", "foo")
+			ix := strconv.Itoa(i)
+			addSeries("i", ix, "n", ns, "j", "foo")
 			// Have some series that won't be matched, to properly test inverted matches.
-			addSeries("i", is, "n", ns, "j", "bar")
-			addSeries("i", is, "n", "0_"+ns, "j", "bar")
-			addSeries("i", is, "n", "1_"+ns, "j", "bar")
-			addSeries("i", is, "n", "2_"+ns, "j", "foo")
+			addSeries("i", ix, "n", ns, "j", "bar")
+			addSeries("i", ix, "n", "0_"+ns, "j", "bar")
+			addSeries("i", ix, "n", "1_"+ns, "j", "bar")
+			addSeries("i", ix, "n", "2_"+ns, "j", "foo")
 		}
 	}
 
@@ -313,7 +315,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	for i := 0; i < recordsCount; i++ {
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
+		if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err != nil {
 			b.Fatalf("cannot insert record: %s", err)
 		}
 	}
@@ -331,7 +333,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 			for i := 0; i < recordsPerLoop; i++ {
 				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal); err != nil {
+				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal, 0); err != nil {
 					panic(fmt.Errorf("cannot obtain tsid: %w", err))
 				}
 			}
