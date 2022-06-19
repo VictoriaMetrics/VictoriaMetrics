@@ -14,7 +14,7 @@ when restarting `vmrestore` with the same args.
 
 VictoriaMetrics must be stopped during the restore process.
 
-```bash
+```console
 vmrestore -src=gs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore>
 
 ```
@@ -40,7 +40,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
     for s3 (aws, minio or other s3 compatible storages):
 
-     ```bash
+     ```console
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
@@ -66,7 +66,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 * Usage with s3 custom url endpoint.  It is possible to use `vmrestore` with s3 api compatible storages, like  minio, cloudian and other.
   You have to add custom url endpoint with a flag:
 
-```bash
+```console
   # for minio:
   -customS3Endpoint=http://localhost:9000
 
@@ -76,7 +76,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 * Run `vmrestore -help` in order to see all the available options:
 
-```bash
+```console
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce restore duration (default 10)
   -configFilePath string
@@ -184,6 +184,6 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmrestore`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmrestore
 ```

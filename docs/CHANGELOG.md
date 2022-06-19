@@ -1006,7 +1006,7 @@ Released at 26-11-2020
 
 * FEATURE: added [Snap package for single-node VictoriaMetrics](https://snapcraft.io/victoriametrics). This simplifies installation under Ubuntu to a single command:
 
-  ```bash
+  ```console
   snap install victoriametrics
   ```
 

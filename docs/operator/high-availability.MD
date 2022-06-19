@@ -280,7 +280,7 @@ EOF
 
 Then wait for the cluster becomes ready
 
-```bash
+```console
 kubectl get vmclusters -w
 NAME                           INSERT COUNT   STORAGE COUNT   SELECT COUNT   AGE   STATUS
 example-vmcluster-persistent   2              2               2              2s    expanding
@@ -289,7 +289,7 @@ example-vmcluster-persistent   2              2               2              30s
 
 Get links for connection by executing the command:
 
-```bash
+```console
 kubectl get svc -l app.kubernetes.io/instance=example-vmcluster-persistent
 NAME                                     TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)                      AGE
 vminsert-example-vmcluster-persistent    ClusterIP   10.96.34.94   <none>        8480/TCP                     69s
