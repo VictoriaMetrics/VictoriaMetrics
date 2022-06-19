@@ -295,7 +295,7 @@ for [InfluxDB line protocol](https://docs.victoriametrics.com/Single-server-Vict
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
-```bash
+```console
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
@@ -441,7 +441,7 @@ plot this data sample on the system of coordinates, it will have the following f
 To get the value of `foo_bar` metric at some specific moment of time, for example `2022-05-10 10:03:00`, in
 VictoriaMetrics we need to issue an **instant query**:
 
-```bash
+```console
 curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T10:03:00.000Z"
 ```
 
@@ -504,7 +504,7 @@ step - step in seconds for evaluating query expression on the time range. If omi
 To get the values of `foo_bar` on time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
 need to issue a range query:
 
-```bash
+```console
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
 ```
 

@@ -58,7 +58,7 @@ Where:
 
 Start the single version of VictoriaMetrics
 
-```bash
+```console
 # single
 # start node
 ./bin/victoria-metrics --selfScrapeInterval=10s
@@ -66,19 +66,19 @@ Start the single version of VictoriaMetrics
 
 Start vmgateway
 
-```bash
+```console
 ./bin/vmgateway -eula -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
 ```
 
 Retrieve data from the database
 
-```bash
+```console
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2bV9hY2Nlc3MiOnsidGVuYW50X2lkIjp7fSwicm9sZSI6MX0sImV4cCI6MTkzOTM0NjIxMH0.5WUxEfdcV9hKo4CtQdtuZYOGpGXWwaqM9VuVivMMrVg'
 ```
 
 A request with an incorrect token or without any token will be rejected:
 
-```bash
+```console
 curl 'http://localhost:8431/api/v1/series/count'
 
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incorrect-token'
@@ -128,7 +128,7 @@ limits:
 
 cluster version of VictoriaMetrics is required for rate limiting.
 
-```bash
+```console
 # start datasource for cluster metrics
 
 cat << EOF > cluster.yaml

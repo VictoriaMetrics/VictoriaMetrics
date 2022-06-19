@@ -36,7 +36,7 @@ implementation and aims to be compatible with its syntax.
 
 To build `vmalert` from sources:
 
-```bash
+```console
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics
 cd VictoriaMetrics
 make vmalert
@@ -52,12 +52,13 @@ To start using `vmalert` you will need the following things:
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
-  compatible storage to persist rules and alerts state info;
+  compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
+  configured with multiple remote writes as a proxy;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
 
 Then configure `vmalert` accordingly:
 
-```bash
+```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
@@ -423,6 +424,21 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
 See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
+
+#### Multiple remote writes
+
+For persisting recording or alerting rule results `vmalert` requires `-remoteWrite.url` to be set.
+But this flag supports only one destination. To persist rule results to multiple destinations
+we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as fan-out proxy:
+
+<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.png">
+
+In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
+is configured to fan-out received data to two or more destinations.
+Using `vmagent` as a proxy provides additional benefits such as 
+[data persisting when storage is unreachable](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability),
+or time series modification via [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
+
 
 ### Web
 
@@ -1022,7 +1038,7 @@ It is recommended using
 
 You can build `vmalert` docker image from source and push it to your own docker repository.
 Run the following commands from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics):
-```bash
+```console
 make package-vmalert
 docker tag victoria-metrics/vmalert:version my-repo:my-version-name
 docker push my-repo:my-version-name

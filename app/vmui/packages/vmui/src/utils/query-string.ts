@@ -17,7 +17,8 @@ const stateToUrlParams = {
     "topN": "topN",
     "date": "date",
     "match": "match[]",
-    "extraLabel": "extra_label"
+    "extraLabel": "extra_label",
+    "focusLabel": "focusLabel"
   }
 };
 

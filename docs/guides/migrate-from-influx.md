@@ -72,7 +72,7 @@ supports [InfluxDB line protocol](https://docs.victoriametrics.com/#how-to-send-
 for data ingestion. For example, to write a measurement to VictoriaMetrics we need to send an HTTP POST request with
 payload in a line protocol format:
 
-```bash
+```console
 curl -d 'census,location=klamath,scientist=anderson bees=23 1566079200000' -X POST 'http://<victoriametric-addr>:8428/write'
 ```
 
@@ -83,7 +83,7 @@ Please note, an arbitrary number of lines delimited by `\n` (aka newline char) c
 
 To get the written data back let's export all series matching the `location="klamath"` filter:
 
-```bash
+```console
 curl -G 'http://<victoriametric-addr>:8428/api/v1/export' -d 'match={location="klamath"}'   
 ```
 

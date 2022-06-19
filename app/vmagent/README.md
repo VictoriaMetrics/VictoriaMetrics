@@ -73,7 +73,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 
 * Sending `SUGHUP` signal to `vmagent` process:
 
-  ```bash
+  ```console
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -252,12 +252,13 @@ Labels can be added to metrics by the following mechanisms:
 VictoriaMetrics components (including `vmagent`) support Prometheus-compatible relabeling.
 They provide the following additional actions on top of actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
-* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`.
-* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`.
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal.
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`.
-* `drop_metrics`: drops all the metrics with names matching the given `regex`.
+* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`
+* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`
+* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal
+* `keep_metrics`: keeps all the metrics with names matching the given `regex`
+* `drop_metrics`: drops all the metrics with names matching the given `regex`
+* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling)
 
 The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
@@ -304,6 +305,38 @@ You can read more about relabeling in the following articles:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+## Graphite relabeling
+
+VictoriaMetrics components support `action: graphite` relabeling rules, which allow extracting various parts from Graphite-style metrics
+into the configured labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
+Note that the `name` field must be substituted with explicit `__name__` option under `labels` section.
+If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
+
+For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
+from "app42.host123.requests.total" Graphite-style metric:
+
+```yaml
+- action: graphite
+  match: "*.*.*.total"
+  labels:
+    __name__: "${3}_total"
+    job: "$1"
+    instance: "${2}:8080"
+```
+
+Important notes about `action: graphite` relabeling rules:
+
+- The relabeling rule is applied only to metrics, which match the given `match` expression. Other metrics remain unchanged.
+- The `*` matches the maximum possible number of chars until the next dot or until the next part of the `match` expression whichever comes first.
+  It may match zero chars if the next char is `.`.
+  For example, `match: "app*foo.bar"` matches `app42foo.bar` and `42` becomes available to use at `labels` section via `$1` capture group.
+- The `$0` capture group matches the original metric name.
+- The relabeling rules are executed in order defined in the original config.
+
+The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
+Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
+
 
 ## Prometheus staleness markers
 
@@ -560,7 +593,7 @@ Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graph
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -622,13 +655,13 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
 ```
 
 * tls certificates:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
@@ -657,7 +690,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -685,7 +718,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
@@ -695,7 +728,7 @@ curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 

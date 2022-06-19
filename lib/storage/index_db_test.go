@@ -604,7 +604,7 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	mn.MetricGroup = append(mn.MetricGroup[:0], bigBytes...)
 	mn.sortTags()
 	metricName := mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName); err == nil {
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big MetricGroup")
 	}
 
@@ -617,7 +617,7 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	}}
 	mn.sortTags()
 	metricName = mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName); err == nil {
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big tag key")
 	}
 
@@ -630,7 +630,7 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	}}
 	mn.sortTags()
 	metricName = mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName); err == nil {
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big tag value")
 	}
 
@@ -645,7 +645,7 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	}
 	mn.sortTags()
 	metricName = mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName); err == nil {
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too many tags")
 	}
 
@@ -679,7 +679,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 
 		// Create tsid for the metricName.
 		var tsid TSID
-		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf); err != nil {
+		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, 0); err != nil {
 			return nil, nil, fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %w", &mn, err)
 		}
 
@@ -691,8 +691,8 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 	for i := range tsids {
 		tsid := &tsids[i]
-		if err := is.storeDateMetricID(date, tsid.MetricID, &mns[i]); err != nil {
-			return nil, nil, fmt.Errorf("error in storeDateMetricID(%d, %d): %w", date, tsid.MetricID, err)
+		if err := is.createPerDayIndexes(date, tsid.MetricID, &mns[i]); err != nil {
+			return nil, nil, fmt.Errorf("error in createPerDayIndexes(%d, %d): %w", date, tsid.MetricID, err)
 		}
 	}
 
@@ -1662,7 +1662,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var tsid TSID
-			if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf); err != nil {
+			if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, 0); err != nil {
 				t.Fatalf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err)
 			}
 			mns = append(mns, mn)
@@ -1675,8 +1675,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for i := range tsids {
 			tsid := &tsids[i]
 			metricIDs.Add(tsid.MetricID)
-			if err := is.storeDateMetricID(date, tsid.MetricID, &mns[i]); err != nil {
-				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
+			if err := is.createPerDayIndexes(date, tsid.MetricID, &mns[i]); err != nil {
+				t.Fatalf("error in createPerDayIndexes(%d, %d): %s", date, tsid.MetricID, err)
 			}
 		}
 		allMetricIDs.Union(&metricIDs)
