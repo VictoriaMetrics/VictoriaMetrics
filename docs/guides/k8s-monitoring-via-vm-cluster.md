@@ -28,7 +28,7 @@ You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics c
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 helm repo add vm https://victoriametrics.github.io/helm-charts/
 ```
 
@@ -38,7 +38,7 @@ Update Helm repositories:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 helm repo update
 ```
 
@@ -48,7 +48,7 @@ To verify that everything is set up correctly you may run this command:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 helm search repo vm/
 ```
 
@@ -56,7 +56,7 @@ helm search repo vm/
 
 The expected output is:
 
-```bash
+```console
 NAME                         	CHART VERSION	APP VERSION	DESCRIPTION                                       
 vm/victoria-metrics-agent    	0.7.20       	v1.62.0    	Victoria Metrics Agent - collects metrics from ...
 vm/victoria-metrics-alert    	0.3.34       	v1.62.0    	Victoria Metrics Alert - executes a list of giv...
@@ -100,7 +100,7 @@ EOF
 
 As a result of this command you will see the following output:
 
-```bash
+```console
 NAME: vmcluster
 LAST DEPLOYED: Thu Jul  1 09:41:57 2021
 NAMESPACE: default
@@ -159,14 +159,14 @@ Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-V
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods
 ```
 </div>
 
 The expected output is:
 
-```bash
+```console
 NAME                                                           READY   STATUS    RESTARTS   AGE
 vmcluster-victoria-metrics-cluster-vminsert-689cbc8f55-95szg   1/1     Running   0          16m
 vmcluster-victoria-metrics-cluster-vminsert-689cbc8f55-f852l   1/1     Running   0          16m
@@ -422,14 +422,14 @@ Verify that `vmagent`'s pod is up and running by executing the following command
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods | grep vmagent
 ```
 </div>
 
 The expected output is:
 
-```bash
+```console
 vmagent-victoria-metrics-agent-69974b95b4-mhjph                1/1     Running   0          11m
 ```
 
@@ -440,7 +440,7 @@ Add the Grafana Helm repository.
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 ```
@@ -512,7 +512,7 @@ The second and the third will forward Grafana to `127.0.0.1:3000`:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get secret --namespace default my-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=my-grafana" -o jsonpath="{.items[0].metadata.name}")

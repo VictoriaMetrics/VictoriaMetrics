@@ -40,7 +40,7 @@ under the current directory:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 docker pull victoriametrics/victoria-metrics:latest
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:latest
 ```
@@ -63,7 +63,7 @@ file.
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics --branch cluster && 
 cd VictoriaMetrics/deployment/docker && 
 docker-compose up
