@@ -760,6 +760,27 @@ func (s *Storage) mustRotateIndexDB() {
 	// and slowly re-populate new idb with entries from the cache via maybeCreateIndexes().
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 
+	// Flush metric id caches for the current and the previous hour,
+	// since they may contain entries missing in idbNew.
+	// This should prevent from missing data in queries when
+	// the following steps are performed for short -retentionPeriod (e.g. 1 day):
+	//
+	// 1. Add samples for some series between 3-4 UTC. These series are registered in currHourMetricIDs.
+	// 2. The indexdb rotation is performed at 4 UTC. currHourMetricIDs is moved to prevHourMetricIDs.
+	// 3. Continue adding samples for series from step 1 during time range 4-5 UTC.
+	//    These series are already registered in prevHourMetricIDs, so VM doesn't add per-day entries to the current indexdb.
+	// 4. Stop adding new samples for these series just before 5 UTC.
+	// 5. The next indexdb rotation is performed at 4 UTC next day.
+	//    The information about the series from step 5 disappears from indexdb, since the old indexdb from step 1 is deleted,
+	//    while the current indexdb doesn't contain information about the series.
+	//    So queries for the last 24 hours stop returning samples added at step 3.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2698
+	s.pendingHourEntriesLock.Lock()
+	s.pendingHourEntries = &uint64set.Set{}
+	s.pendingHourEntriesLock.Unlock()
+	s.currHourMetricIDs.Store(&hourMetricIDs{})
+	s.prevHourMetricIDs.Store(&hourMetricIDs{})
+
 	// Flush dateMetricIDCache, so idbNew can be populated with fresh data.
 	s.dateMetricIDCache.Reset()
 
@@ -2508,6 +2529,7 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	newEntries := append([]pendingHourMetricIDEntry{}, s.pendingHourEntries...)
 	s.pendingHourEntries = s.pendingHourEntries[:0]
 	s.pendingHourEntriesLock.Unlock()
+
 	hour := fasttime.UnixHour()
 	if len(newEntries) == 0 && hm.hour == hour {
 		// Fast path: nothing to update.
