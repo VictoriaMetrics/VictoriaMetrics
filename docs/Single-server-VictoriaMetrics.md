@@ -940,7 +940,7 @@ for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time
 On large databases you may experience problems with limit on the number of time series, which can be exported. In this case you need to adjust `-search.maxExportSeries` command-line flag:
 
 ```console
-# count unique timeseries in database
+# count unique time series in database
 wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
 
 # relaunch victoriametrics with search.maxExportSeries more than value from previous command
