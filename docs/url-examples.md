@@ -221,8 +221,8 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_r
 
 Additional information: 
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Instant queries](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
-* [Instant vector selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors)
+* [Instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+* [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
 
 ## /api/v1/query_range
 
@@ -260,8 +260,8 @@ curl -G http://<vmselect>:8481/select/0/prometheus/api/v1/query_range --data-url
 
 Additional information: 
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Range queries](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
-* [Range Vector Selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors)
+* [Range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+* [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
 
 ## /api/v1/series
 

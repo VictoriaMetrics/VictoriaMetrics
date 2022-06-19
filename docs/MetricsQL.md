@@ -32,7 +32,7 @@ MetricsQL implements [PromQL](https://medium.com/@valyala/promql-tutorial-for-be
 This functionality can be evaluated at [an editable Grafana dashboard](https://play-grafana.victoriametrics.com/d/4ome8yJmz/node-exporter-on-victoriametrics-demo) or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax. See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics). VictoriaMetrics also can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details. See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
-* Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)). For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`. It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
+* Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)). For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`. It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
 * [Aggregate functions](#aggregate-functions) accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query. For example, `sum(foo) @ end()` calculates `sum(foo)` at the `end` timestamp of the selected time range `[start ... end]`.
 * Arbitrary subexpression can be used as [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier). For example, `foo @ (end() - 1h)` calculates `foo` at the `end - 1 hour` timestamp on the selected time range `[start ... end]`.
@@ -69,13 +69,13 @@ MetricsQL provides the following functions:
 
 ### Rollup functions
 
-**Rollup functions** (aka range functions or window functions) calculate rollups over **raw samples** on the given lookbehind window for the [selected time series](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, `avg_over_time(temperature[24h])` calculates the average temperature over raw samples for the last 24 hours. Additional details:
+**Rollup functions** (aka range functions or window functions) calculate rollups over **raw samples** on the given lookbehind window for the [selected time series](https://docs.victoriametrics.com/keyConcepts.html#filtering). For example, `avg_over_time(temperature[24h])` calculates the average temperature over raw samples for the last 24 hours. Additional details:
 
-* If rollup functions are used for building graphs in Grafana, then the rollup is calculated independently per each point on the graph. For example, every point for `avg_over_time(temperature[24h])` graph shows the average temperature for the last 24 hours ending at this point. The interval between points is set as `step` query arg passed by Grafana to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
-* If the given [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) returns multiple time series, then rollups are calculated individually per each returned series.
-* If lookbehind window in square brackets is missing, then MetricsQL automatically sets the lookbehind window to the interval between points on the graph (aka `step` query arg at [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries), `$__interval` value from Grafana or `1i` duration in MetricsQL). For example, `rate(http_requests_total)` is equivalent to `rate(http_requests_total[$__interval])` in Grafana. It is also equivalent to `rate(http_requests_total[1i])`.
-* Every [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) in MetricsQL must be wrapped into a rollup function. Otherwise it is automatically wrapped into [default_rollup](#default_rollup). For example, `foo{bar="baz"}` is automatically converted to `default_rollup(foo{bar="baz"}[1i])` before performing the calculations.
-* If something other than [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) is passed to rollup function, then the inner arg is automatically converted to a [subquery](#subqueries).
+* If rollup functions are used for building graphs in Grafana, then the rollup is calculated independently per each point on the graph. For example, every point for `avg_over_time(temperature[24h])` graph shows the average temperature for the last 24 hours ending at this point. The interval between points is set as `step` query arg passed by Grafana to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+* If the given [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) returns multiple time series, then rollups are calculated individually per each returned series.
+* If lookbehind window in square brackets is missing, then MetricsQL automatically sets the lookbehind window to the interval between points on the graph (aka `step` query arg at [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query), `$__interval` value from Grafana or `1i` duration in MetricsQL). For example, `rate(http_requests_total)` is equivalent to `rate(http_requests_total[$__interval])` in Grafana. It is also equivalent to `rate(http_requests_total[1i])`.
+* Every [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) in MetricsQL must be wrapped into a rollup function. Otherwise it is automatically wrapped into [default_rollup](#default_rollup). For example, `foo{bar="baz"}` is automatically converted to `default_rollup(foo{bar="baz"}[1i])` before performing the calculations.
+* If something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) is passed to rollup function, then the inner arg is automatically converted to a [subquery](#subqueries).
 * All the rollup functions accept optional `keep_metric_names` modifier. If it is set, then the function keeps metric names in results. See [these docs](#keep_metric_names).
 
 See also [implicit query conversions](#implicit-query-conversions).
@@ -86,91 +86,91 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### aggr_over_time
 
-`aggr_over_time(("rollup_func1", "rollup_func2", ...), series_selector[d])` calculates all the listed `rollup_func*` for raw samples on the given lookbehind window `d`. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). `rollup_func*` can contain any rollup function. For instance, `aggr_over_time(("min_over_time", "max_over_time", "rate"), m[d])` would calculate [min_over_time](#min_over_time), [max_over_time](#max_over_time) and [rate](#rate) for `m[d]`.
+`aggr_over_time(("rollup_func1", "rollup_func2", ...), series_selector[d])` calculates all the listed `rollup_func*` for raw samples on the given lookbehind window `d`. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). `rollup_func*` can contain any rollup function. For instance, `aggr_over_time(("min_over_time", "max_over_time", "rate"), m[d])` would calculate [min_over_time](#min_over_time), [max_over_time](#max_over_time) and [rate](#rate) for `m[d]`.
 
 #### ascent_over_time
 
-`ascent_over_time(series_selector[d])` calculates ascent of raw sample values on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Useful for tracking height gains in GPS tracking. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [descent_over_time](#descent_over_time).
+`ascent_over_time(series_selector[d])` calculates ascent of raw sample values on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Useful for tracking height gains in GPS tracking. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [descent_over_time](#descent_over_time).
 
 #### avg_over_time
 
-`avg_over_time(series_selector[d])` calculates the average value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This function is supported by PromQL. See also [median_over_time](#median_over_time).
+`avg_over_time(series_selector[d])` calculates the average value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is supported by PromQL. See also [median_over_time](#median_over_time).
 
 #### changes
 
-`changes(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Unlike `changes()` in Prometheus it takes into account the change from the last sample before the given lookbehind window `d`. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [changes_prometheus](#changes_prometheus).
+`changes(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Unlike `changes()` in Prometheus it takes into account the change from the last sample before the given lookbehind window `d`. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [changes_prometheus](#changes_prometheus).
 
 #### changes_prometheus
 
-`changes_prometheus(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It doesn't take into account the change from the last sample before the given lookbehind window `d` in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [changes](#changes).
+`changes_prometheus(series_selector[d])` calculates the number of times the raw samples changed on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It doesn't take into account the change from the last sample before the given lookbehind window `d` in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [changes](#changes).
 
 #### count_eq_over_time
 
-`count_eq_over_time(series_selector[d], eq)` calculates the number of raw samples on the given lookbehind window `d`, which are equal to `eq`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
+`count_eq_over_time(series_selector[d], eq)` calculates the number of raw samples on the given lookbehind window `d`, which are equal to `eq`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
 
 #### count_gt_over_time
 
-`count_gt_over_time(series_selector[d], gt)` calculates the number of raw samples on the given lookbehind window `d`, which are bigger than `gt`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
+`count_gt_over_time(series_selector[d], gt)` calculates the number of raw samples on the given lookbehind window `d`, which are bigger than `gt`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
 
 #### count_le_over_time
 
-`count_le_over_time(series_selector[d], le)` calculates the number of raw samples on the given lookbehind window `d`, which don't exceed `le`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
+`count_le_over_time(series_selector[d], le)` calculates the number of raw samples on the given lookbehind window `d`, which don't exceed `le`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
 
 #### count_ne_over_time
 
-`count_ne_over_time(series_selector[d], ne)` calculates the number of raw samples on the given lookbehind window `d`, which aren't equal to `ne`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
+`count_ne_over_time(series_selector[d], ne)` calculates the number of raw samples on the given lookbehind window `d`, which aren't equal to `ne`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [count_over_time](#count_over_time).
 
 #### count_over_time
 
-`count_over_time(series_selector[d])` calculates the number of raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [count_le_over_time](#count_le_over_time), [count_gt_over_time](#count_gt_over_time), [count_eq_over_time](#count_eq_over_time) and [count_ne_over_time](#count_ne_over_time).
+`count_over_time(series_selector[d])` calculates the number of raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [count_le_over_time](#count_le_over_time), [count_gt_over_time](#count_gt_over_time), [count_eq_over_time](#count_eq_over_time) and [count_ne_over_time](#count_ne_over_time).
 
 #### decreases_over_time
 
-`decreases_over_time(series_selector[d])` calculates the number of raw sample value decreases over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [increases_over_time](#increases_over_time).
+`decreases_over_time(series_selector[d])` calculates the number of raw sample value decreases over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [increases_over_time](#increases_over_time).
 
 #### default_rollup
 
-`default_rollup(series_selector[d])` returns the last raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+`default_rollup(series_selector[d])` returns the last raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 #### delta
 
-`delta(series_selector[d])` calculates the difference between the last sample before the given lookbehind window `d` and the last sample at the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The behaviour of `delta()` function in MetricsQL is slighly different to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
+`delta(series_selector[d])` calculates the difference between the last sample before the given lookbehind window `d` and the last sample at the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The behaviour of `delta()` function in MetricsQL is slighly different to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
 
 #### delta_prometheus
 
-`delta_prometheus(series_selector[d])` calculates the difference between the first and the last samples at the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The behaviour of `delta_prometheus()` is close to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [delta](#delta).
+`delta_prometheus(series_selector[d])` calculates the difference between the first and the last samples at the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The behaviour of `delta_prometheus()` is close to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [delta](#delta).
 
 #### deriv
 
-`deriv(series_selector[d])` calculates per-second derivative over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The derivative is calculated using linear regression. Metric names are stripped from the resulting rollups. This function is supported by PromQL. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [deriv_fast](#deriv_fast) and [ideriv](#ideriv).
+`deriv(series_selector[d])` calculates per-second derivative over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The derivative is calculated using linear regression. Metric names are stripped from the resulting rollups. This function is supported by PromQL. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [deriv_fast](#deriv_fast) and [ideriv](#ideriv).
 
 #### deriv_fast
 
-`deriv_fast(series_selector[d])` calculates per-second derivative using the first and the last raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [deriv](#deriv) and [ideriv](#ideriv).
+`deriv_fast(series_selector[d])` calculates per-second derivative using the first and the last raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [deriv](#deriv) and [ideriv](#ideriv).
 
 #### descent_over_time
 
-`descent_over_time(series_selector[d])` calculates descent of raw sample values on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Useful for tracking height loss in GPS tracking. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [ascent_over_time](#ascent_over_time).
+`descent_over_time(series_selector[d])` calculates descent of raw sample values on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Useful for tracking height loss in GPS tracking. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [ascent_over_time](#ascent_over_time).
 
 #### distinct_over_time
 
-`distinct_over_time(series_selector[d])` returns the number of distinct raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`distinct_over_time(series_selector[d])` returns the number of distinct raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### duration_over_time
 
-`duration_over_time(series_selector[d], max_interval)` returns the duration in seconds when time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) were present over the given lookbehind window `d`. It is expected that intervals between adjacent samples per each series don't exceed the `max_interval`. Otherwise such intervals are considered as gaps and aren't counted. See also [lifetime](#lifetime) and [lag](#lag).
+`duration_over_time(series_selector[d], max_interval)` returns the duration in seconds when time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) were present over the given lookbehind window `d`. It is expected that intervals between adjacent samples per each series don't exceed the `max_interval`. Otherwise such intervals are considered as gaps and aren't counted. See also [lifetime](#lifetime) and [lag](#lag).
 
 #### first_over_time
 
-`first_over_time(series_selector[d])` returns the first raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). See also [last_over_time](#last_over_time) and [tfirst_over_time](#tfirst_over_time).
+`first_over_time(series_selector[d])` returns the first raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). See also [last_over_time](#last_over_time) and [tfirst_over_time](#tfirst_over_time).
 
 #### geomean_over_time
 
-`geomean_over_time(series_selector[d])` calculates [geometric mean](https://en.wikipedia.org/wiki/Geometric_mean) over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`geomean_over_time(series_selector[d])` calculates [geometric mean](https://en.wikipedia.org/wiki/Geometric_mean) over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### histogram_over_time
 
-`histogram_over_time(series_selector[d])` calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) over raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The resulting histograms are useful to pass to [histogram_quantile](#histogram_quantile) for calculating quantiles over multiple gauges. For example, the following query calculates median temperature by country over the last 24 hours: `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmrange,country))`.
+`histogram_over_time(series_selector[d])` calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) over raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The resulting histograms are useful to pass to [histogram_quantile](#histogram_quantile) for calculating quantiles over multiple [gauges](https://docs.victoriametrics.com/keyConcepts.html#gauge). For example, the following query calculates median temperature by country over the last 24 hours: `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmrange,country))`.
 
 #### hoeffding_bound_lower
 
@@ -182,71 +182,71 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### holt_winters
 
-`holt_winters(series_selector[d], sf, tf)` calculates Holt-Winters value (aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing)) for raw samples over the given lookbehind window `d` using the given smoothing factor `sf` and the given trend factor `tf`. Both `sf` and `tf` must be in the range `[0...1]`. It is expected that the [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) returns time series of [gauge type](https://prometheus.io/docs/concepts/metric_types/#gauge). This function is supported by PromQL.
+`holt_winters(series_selector[d], sf, tf)` calculates Holt-Winters value (aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing)) for raw samples over the given lookbehind window `d` using the given smoothing factor `sf` and the given trend factor `tf`. Both `sf` and `tf` must be in the range `[0...1]`. It is expected that the [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) returns time series of [gauge type](https://docs.victoriametrics.com/keyConcepts.html#gauge). This function is supported by PromQL.
 
 #### idelta
 
-`idelta(series_selector[d])` calculates the difference between the last two raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).  Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
+`idelta(series_selector[d])` calculates the difference between the last two raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).  Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
 
 #### ideriv
 
-`ideriv(series_selector[d])` calculates the per-second derivative based on the last two raw samples over the given lookbehind window `d`. The derivative is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [deriv](#deriv).
+`ideriv(series_selector[d])` calculates the per-second derivative based on the last two raw samples over the given lookbehind window `d`. The derivative is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [deriv](#deriv).
 
 #### increase
 
-`increase(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Unlike Prometheus it takes into account the last sample before the given lookbehind window `d` when calculating the result. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [increase_pure](#increase_pure), [increase_prometheus](#increase_prometheus) and [delta](#delta).
+`increase(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter). Unlike Prometheus it takes into account the last sample before the given lookbehind window `d` when calculating the result. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [increase_pure](#increase_pure), [increase_prometheus](#increase_prometheus) and [delta](#delta).
 
 #### increase_prometheus
 
-`increase_prometheus(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [increase_pure](#increase_pure) and [increase](#increase).
+`increase_prometheus(series_selector[d])` calculates the increase over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter). It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [increase_pure](#increase_pure) and [increase](#increase).
 
 #### increase_pure
 
-`increase_pure(series_selector[d])` works the same as [increase](#increase) except of the following corner case - it assumes that [counters](https://prometheus.io/docs/concepts/metric_types/#counter) always start from 0, while [increase](#increase) ignores the first value in a series if it is too big.
+`increase_pure(series_selector[d])` works the same as [increase](#increase) except of the following corner case - it assumes that [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) always start from 0, while [increase](#increase) ignores the first value in a series if it is too big.
 
 #### increases_over_time
 
-`increases_over_time(series_selector[d])` calculates the number of raw sample value increases over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [decreases_over_time](#decreases_over_time).
+`increases_over_time(series_selector[d])` calculates the number of raw sample value increases over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [decreases_over_time](#decreases_over_time).
 
 #### integrate
 
-`integrate(series_selector[d])` calculates the integral over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`integrate(series_selector[d])` calculates the integral over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### irate
 
-`irate(series_selector[d])` calculates the "instant" per-second increase rate over the last two raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [rate](#rate).
+`irate(series_selector[d])` calculates the "instant" per-second increase rate over the last two raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [rate](#rate).
 
 #### lag
 
-`lag(series_selector[d])` returns the duration in seconds between the last sample on the given lookbehind window `d` and the timestamp of the current point. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [lifetime](#lifetime) and [duration_over_time](#duration_over_time).
+`lag(series_selector[d])` returns the duration in seconds between the last sample on the given lookbehind window `d` and the timestamp of the current point. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [lifetime](#lifetime) and [duration_over_time](#duration_over_time).
 
 #### last_over_time
 
-`last_over_time(series_selector[d])` returns the last raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This function is supported by PromQL. See also [first_over_time](#first_over_time) and [tlast_over_time](#tlast_over_time).
+`last_over_time(series_selector[d])` returns the last raw sample value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is supported by PromQL. See also [first_over_time](#first_over_time) and [tlast_over_time](#tlast_over_time).
 
 #### lifetime
 
-`lifetime(series_selector[d])` returns the duration in seconds between the last and the first sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [duration_over_time](#duration_over_time) and [lag](#lag).
+`lifetime(series_selector[d])` returns the duration in seconds between the last and the first sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [duration_over_time](#duration_over_time) and [lag](#lag).
 
 #### max_over_time
 
-`max_over_time(series_selector[d])` calculates the maximum value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This function is supported by PromQL. See also [tmax_over_time](#tmax_over_time).
+`max_over_time(series_selector[d])` calculates the maximum value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is supported by PromQL. See also [tmax_over_time](#tmax_over_time).
 
 #### median_over_time
 
-`median_over_time(series_selector[d])` calculates median value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). See also [avg_over_time](#avg_over_time).
+`median_over_time(series_selector[d])` calculates median value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). See also [avg_over_time](#avg_over_time).
 
 #### min_over_time
 
-`min_over_time(series_selector[d])` calculates the minimum value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This function is supported by PromQL. See also [tmin_over_time](#tmin_over_time).
+`min_over_time(series_selector[d])` calculates the minimum value over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is supported by PromQL. See also [tmin_over_time](#tmin_over_time).
 
 #### mode_over_time
 
-`mode_over_time(series_selector[d])` calculates [mode](https://en.wikipedia.org/wiki/Mode_(statistics)) for raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that raw sample values are discrete.
+`mode_over_time(series_selector[d])` calculates [mode](https://en.wikipedia.org/wiki/Mode_(statistics)) for raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that raw sample values are discrete.
 
 #### predict_linear
 
-`predict_linear(series_selector[d], t)` calculates the value `t` seconds in the future using linear interpolation over raw samples on the given lookbehind window `d`. The predicted value is calculated individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This function is supported by PromQL.
+`predict_linear(series_selector[d], t)` calculates the value `t` seconds in the future using linear interpolation over raw samples on the given lookbehind window `d`. The predicted value is calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is supported by PromQL.
 
 #### present_over_time
 
@@ -254,103 +254,103 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### quantile_over_time
 
-`quantile_over_time(phi, series_selector[d])` calculates `phi`-quantile over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The `phi` value must be in the range `[0...1]`. This function is supported by PromQL. See also [quantiles_over_time](#quantiles_over_time).
+`quantile_over_time(phi, series_selector[d])` calculates `phi`-quantile over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The `phi` value must be in the range `[0...1]`. This function is supported by PromQL. See also [quantiles_over_time](#quantiles_over_time).
 
 #### quantiles_over_time
 
-`quantiles_over_time("phiLabel", phi1, ..., phiN, series_selector[d])` calculates `phi*`-quantiles over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). The function returns individual series per each `phi*` with `{phiLabel="phi*"}` label. `phi*` values must be in the range `[0...1]`. See also [quantile_over_time](#quantile_over_time).
+`quantiles_over_time("phiLabel", phi1, ..., phiN, series_selector[d])` calculates `phi*`-quantiles over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The function returns individual series per each `phi*` with `{phiLabel="phi*"}` label. `phi*` values must be in the range `[0...1]`. See also [quantile_over_time](#quantile_over_time).
 
 #### range_over_time
 
-`range_over_time(series_selector[d])` calculates value range over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). E.g. it calculates `max_over_time(series_selector[d]) - min_over_time(series_selector[d])`. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`range_over_time(series_selector[d])` calculates value range over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). E.g. it calculates `max_over_time(series_selector[d]) - min_over_time(series_selector[d])`. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### rate
 
-`rate(series_selector[d])` calculates the average per-second increase rate over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
+`rate(series_selector[d])` calculates the average per-second increase rate over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
 
 #### rate_over_sum
 
-`rate_over_sum(series_selector[d])` calculates per-second rate over the sum of raw samples on the given lookbehind window `d`. The calculations are performed indiviually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`rate_over_sum(series_selector[d])` calculates per-second rate over the sum of raw samples on the given lookbehind window `d`. The calculations are performed indiviually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### resets
 
-`resets(series_selector[d])` returns the number of [counter](https://prometheus.io/docs/concepts/metric_types/#counter) resets over the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). It is expected that the `series_selector` returns time series of [counter type](https://prometheus.io/docs/concepts/metric_types/#counter). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
+`resets(series_selector[d])` returns the number of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) resets over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
 
 #### rollup
 
-`rollup(series_selector[d])` calculates `min`, `max` and `avg` values for raw samples on the given lookbehind window `d`. These values are calculated individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+`rollup(series_selector[d])` calculates `min`, `max` and `avg` values for raw samples on the given lookbehind window `d`. These values are calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 #### rollup_candlestick
 
-`rollup_candlestick(series_selector[d])` calculates `open`, `high`, `low` and `close` values (aka OHLC) over raw samples on the given lookbehind window `d`. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This function is useful for financial applications.
+`rollup_candlestick(series_selector[d])` calculates `open`, `high`, `low` and `close` values (aka OHLC) over raw samples on the given lookbehind window `d`. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
 
 #### rollup_delta
 
-`rollup_delta(series_selector[d])` calculates differences between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences. The calculations are performed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_increase](#rollup_increase).
+`rollup_delta(series_selector[d])` calculates differences between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_increase](#rollup_increase).
 
 #### rollup_deriv
 
-`rollup_deriv(series_selector[d])` calculates per-second derivatives for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second derivatives. The calculations are performed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`rollup_deriv(series_selector[d])` calculates per-second derivatives for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second derivatives. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### rollup_increase
 
-`rollup_increase(series_selector[d])` calculates increases for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated increases. The calculations are performed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
+`rollup_increase(series_selector[d])` calculates increases for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated increases. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
 #### rollup_rate
 
-`rollup_rate(series_selector[d])` calculates per-second change rates for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`rollup_rate(series_selector[d])` calculates per-second change rates for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### rollup_scrape_interval
 
-`rollup_scrape_interval(series_selector[d])` calculates the interval in seconds between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval. The calculations are perfomed individually per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
+`rollup_scrape_interval(series_selector[d])` calculates the interval in seconds between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
 
 #### scrape_interval
 
-`scrape_interval(series_selector[d])` calculates the average interval in seconds between raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_scrape_interval](#rollup_scrape_interval).
+`scrape_interval(series_selector[d])` calculates the average interval in seconds between raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_scrape_interval](#rollup_scrape_interval).
 
 #### share_gt_over_time
 
-`share_gt_over_time(series_selector[d], gt)` returns share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are bigger than `gt`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. Useful for calculating SLI and SLO. Example: `share_gt_over_time(up[24h], 0)` - returns service availability for the last 24 hours. See also [share_le_over_time](#share_le_over_time).
+`share_gt_over_time(series_selector[d], gt)` returns share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are bigger than `gt`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. Useful for calculating SLI and SLO. Example: `share_gt_over_time(up[24h], 0)` - returns service availability for the last 24 hours. See also [share_le_over_time](#share_le_over_time).
 
 #### share_le_over_time
 
-`share_le_over_time(series_selector[d], le)` returns share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are smaller or equal to `le`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. Useful for calculating SLI and SLO. Example: `share_le_over_time(memory_usage_bytes[24h], 100*1024*1024)` returns the share of time series values for the last 24 hours when memory usage was below or equal to 100MB. See also [share_gt_over_time](#share_gt_over_time).
+`share_le_over_time(series_selector[d], le)` returns share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are smaller or equal to `le`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. Useful for calculating SLI and SLO. Example: `share_le_over_time(memory_usage_bytes[24h], 100*1024*1024)` returns the share of time series values for the last 24 hours when memory usage was below or equal to 100MB. See also [share_gt_over_time](#share_gt_over_time).
 
 #### stale_samples_over_time
 
-`stale_samples_over_time(series_selector[d])` calculates the number of [staleness markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) on the given lookbehind window `d` per each time series matching the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`stale_samples_over_time(series_selector[d])` calculates the number of [staleness markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) on the given lookbehind window `d` per each time series matching the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### stddev_over_time
 
-`stddev_over_time(series_selector[d])` calculates standard deviation over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [stdvar_over_time](#stdvar_over_time).
+`stddev_over_time(series_selector[d])` calculates standard deviation over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [stdvar_over_time](#stdvar_over_time).
 
 #### stdvar_over_time
 
-`stdvar_over_time(series_selector[d])` calculates stadnard variance over raw samples on the given lookbheind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
+`stdvar_over_time(series_selector[d])` calculates stadnard variance over raw samples on the given lookbheind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
 
 #### sum_over_time
 
-`sum_over_time(series_selector[d])` calculates the sum of raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
+`sum_over_time(series_selector[d])` calculates the sum of raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL.
 
 #### sum2_over_time
 
-`sum2_over_time(series_selector[d])` calculates the sum of squares for raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`sum2_over_time(series_selector[d])` calculates the sum of squares for raw sample values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### timestamp
 
-`timestamp(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [timestamp_with_name](#timestamp_with_name).
+`timestamp(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [timestamp_with_name](#timestamp_with_name).
 
 #### timestamp_with_name
 
-`timestamp_with_name(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are preserved in the resulting rollups. See also [timestamp](#timestamp).
+`timestamp_with_name(series_selector[d])` returns the timestamp in seconds for the last raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are preserved in the resulting rollups. See also [timestamp](#timestamp).
 
 #### tfirst_over_time
 
-`tfirst_over_time(series_selector[d])` returns the timestamp in seconds for the first raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [first_over_time](#first_over_time).
+`tfirst_over_time(series_selector[d])` returns the timestamp in seconds for the first raw sample on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [first_over_time](#first_over_time).
 
 #### tlast_change_over_time
 
-`tlast_change_over_time(series_selector[d])` returns the timestamp in seconds for the last change per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) on the given lookbehind window `d`. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [last_over_time](#last_over_time).
+`tlast_change_over_time(series_selector[d])` returns the timestamp in seconds for the last change per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) on the given lookbehind window `d`. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [last_over_time](#last_over_time).
 
 #### tlast_over_time
 
@@ -358,21 +358,21 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### tmax_over_time
 
-`tmax_over_time(series_selector[d])` returns the timestamp in seconds for the raw sample with the maximum value on the given lookbehind window `d`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [max_over_time](#max_over_time).
+`tmax_over_time(series_selector[d])` returns the timestamp in seconds for the raw sample with the maximum value on the given lookbehind window `d`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [max_over_time](#max_over_time).
 
 #### tmin_over_time
 
-`tmin_over_time(series_selector[d])` returns the timestamp in seconds for the raw sample with the minimum value on the given lookbehind window `d`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [min_over_time](#min_over_time).
+`tmin_over_time(series_selector[d])` returns the timestamp in seconds for the raw sample with the minimum value on the given lookbehind window `d`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [min_over_time](#min_over_time).
 
 #### zscore_over_time
 
-`zscore_over_time(series_selector[d])` calculates returns [z-score](https://en.wikipedia.org/wiki/Standard_score) for raw samples on the given lookbehind window `d`. It is calculated independently per each time series returned from the given [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`zscore_over_time(series_selector[d])` calculates returns [z-score](https://en.wikipedia.org/wiki/Standard_score) for raw samples on the given lookbehind window `d`. It is calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 ### Transform functions
 
 **Transform functions** calculate transformations over rollup results. For example, `abs(delta(temperature[24h]))` calculates the absolute value for every point of every time series returned from the rollup `delta(temperature[24h])`. Additional details:
 
-* If transform function is applied directly to a [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors), then the [default_rollup()](#default_rollup) function is automatically applied before calculating the transformations. For example, `abs(temperature)` is implicitly transformed to `abs(default_rollup(temperature[1i]))`.
+* If transform function is applied directly to a [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering), then the [default_rollup()](#default_rollup) function is automatically applied before calculating the transformations. For example, `abs(temperature)` is implicitly transformed to `abs(default_rollup(temperature[1i]))`.
 * All the transform functions accept optional `keep_metric_names` modifier. If it is set, then the function doesn't drop metric names from the resulting time series. See [these docs](#keep_metric_names).
 
 See also [implicit query conversions](#implicit-query-conversions).
@@ -467,7 +467,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### end
 
-`end()` returns the unix timestamp in seconds for the last point. See also [start](#start). It is known as `end` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+`end()` returns the unix timestamp in seconds for the last point. See also [start](#start). It is known as `end` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 
 #### exp
 
@@ -679,11 +679,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### start
 
-`start()` returns unix timestamp in seconds for the first point. See also [end](#end). It is known as `start` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+`start()` returns unix timestamp in seconds for the first point. See also [end](#end). It is known as `start` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 
 #### step
 
-`step()` returns the step in seconds (aka interval) between the returned points. It is known as `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+`step()` returns the step in seconds (aka interval) between the returned points. It is known as `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 
 #### time
 
@@ -713,7 +713,7 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 **Label manipulation functions** perform manipulations with lables on the selected rollup results. Additional details:
 
-* If label manipulation function is applied directly to a [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors), then the [default_rollup()](#default_rollup) function is automatically applied before performing the label transformation. For example, `alias(temperature, "foo")` is implicitly transformed to `alias(default_rollup(temperature[1i]), "foo")`.
+* If label manipulation function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering), then the [default_rollup()](#default_rollup) function is automatically applied before performing the label transformation. For example, `alias(temperature, "foo")` is implicitly transformed to `alias(default_rollup(temperature[1i]), "foo")`.
 
 See also [implicit query conversions](#implicit-query-conversions).
 
@@ -797,7 +797,7 @@ sum by (__name__) (
 **Aggregate functions** calculate aggregates over groups of rollup results. Additional details:
 
 * By default a single group is used for aggregation. Multiple independent groups can be set up by specifying grouping labels in `by` and `without` modifiers. For example, `count(up) by (job)` would group rollup results by `job` label value and calculate the [count](#count) aggregate function independently per each group, while `count(up) without (instance)` would group rollup results by all the labels except `instance` before calculating [count](#count) aggregate function independently per each group. Multiple labels can be put in `by` and `without` modifiers.
-* If the aggregate function is applied directly to a [series_selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors), then the [default_rollup()](#default_rollup) function is automatically applied before cacluating the aggregate. For example, `count(up)` is implicitly transformed to `count(default_rollup(up[1i]))`.
+* If the aggregate function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering), then the [default_rollup()](#default_rollup) function is automatically applied before cacluating the aggregate. For example, `count(up)` is implicitly transformed to `count(default_rollup(up[1i]))`.
 * Aggregate functions accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * Aggregate functions support optional `limit N` suffix, which can be used for limiting the number of output groups. For example, `sum(x) by (y) limit 3` limits the number of groups for the aggregation to 3. All the other groups are ignored.
 
@@ -945,22 +945,22 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 ## Subqueries
 
-MetricsQL supports and extends PromQL subqueries. See [this article](https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3) for details. Any [rollup function](#rollup-functions) for something other than [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) form a subquery. Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions). For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m[1i]))[1i:1i])`, so it becomes a subquery, since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
+MetricsQL supports and extends PromQL subqueries. See [this article](https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3) for details. Any [rollup function](#rollup-functions) for something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) form a subquery. Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions). For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m[1i]))[1i:1i])`, so it becomes a subquery, since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
 
 VictoriaMetrics performs subqueries in the following way:
 
 * It calculates the inner rollup function using the `step` value from the outer rollup function. For example, for expression `max_over_time(rate(http_requests_total[5m])[1h:30s])` the inner function `rate(http_requests_total[5m])` is calculated with `step=30s`. The resulting data points are aligned by the `step`.
-* It calculates the outer rollup function over the results of the inner rollup function using the `step` value passed by Grafana to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+* It calculates the outer rollup function over the results of the inner rollup function using the `step` value passed by Grafana to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 
 ## Implicit query conversions
 
 VictoriaMetrics performs the following implicit conversions for incoming queries before starting the calculations:
 
-* If lookbehind window in square brackets is missing inside [rollup function](#rollup-functions), then `[1i]` is automatically added there. The `[1i]` means one `step` value, which is passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries). It is also known as `$__interval` in Grafana. For example, `rate(http_requests_count)` is automatically transformed to `rate(http_requests_count[1i])`.
-* All the [series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors), which aren't wrapped into [rollup functions](#rollup-functions), are automatically wrapped into [default_rollup](#default_rollup) function. Examples:
+* If lookbehind window in square brackets is missing inside [rollup function](#rollup-functions), then `[1i]` is automatically added there. The `[1i]` means one `step` value, which is passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query). It is also known as `$__interval` in Grafana. For example, `rate(http_requests_count)` is automatically transformed to `rate(http_requests_count[1i])`.
+* All the [series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering), which aren't wrapped into [rollup functions](#rollup-functions), are automatically wrapped into [default_rollup](#default_rollup) function. Examples:
   * `foo` is transformed to `default_rollup(foo[1i])`
   * `foo + bar` is transformed to `default_rollup(foo[1i]) + default_rollup(bar[1i])`
   * `count(up)` is transformed to `count(default_rollup(up[1i]))`, because [count](#count) isn't a [rollup function](#rollup-functions) - it is [aggregate function](#aggregate-functions)
   * `abs(temperature)` is transformed to `abs(default_rollup(temperature[1i]))`, because [abs](#abs) isn't a [rollup function](#rollup-functions) - it is [transform function](#transform-functions)
 * If `step` in square brackets is missing inside [subquery](#subqueries), then `1i` step is automatically added there. For example, `avg_over_time(rate(http_requests_total[5m])[1h])` is automatically converted to `avg_over_time(rate(http_requests_total[5m])[1h:1i])`.
-* If something other than [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed. For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up[1i])))[1i:1i])`.
+* If something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed. For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up[1i])))[1i:1i])`.
