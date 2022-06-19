@@ -36,7 +36,7 @@ implementation and aims to be compatible with its syntax.
 
 To build `vmalert` from sources:
 
-```bash
+```console
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics
 cd VictoriaMetrics
 make vmalert
@@ -58,7 +58,7 @@ To start using `vmalert` you will need the following things:
 
 Then configure `vmalert` accordingly:
 
-```bash
+```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
@@ -1038,7 +1038,7 @@ It is recommended using
 
 You can build `vmalert` docker image from source and push it to your own docker repository.
 Run the following commands from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics):
-```bash
+```console
 make package-vmalert
 docker tag victoria-metrics/vmalert:version my-repo:my-version-name
 docker push my-repo:my-version-name

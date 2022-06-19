@@ -48,7 +48,7 @@ and disable CRD controller with flag: `--controller.disableCRDOwnership=true`
 ## Troubleshooting
 
 - cannot apply crd at kubernetes 1.18 + version and kubectl reports error:
-```bash
+```console
 Error from server (Invalid): error when creating "release/crds/crd.yaml": CustomResourceDefinition.apiextensions.k8s.io "vmalertmanagers.operator.victoriametrics.com" is invalid: [spec.validation.openAPIV3Schema.properties[spec].properties[initContainers].items.properties[ports].items.properties[protocol].default: Required value: this property is in x-kubernetes-list-map-keys, so it must have a default or be a required property, spec.validation.openAPIV3Schema.properties[spec].properties[containers].items.properties[ports].items.properties[protocol].default: Required value: this property is in x-kubernetes-list-map-keys, so it must have a default or be a required property]
 Error from server (Invalid): error when creating "release/crds/crd.yaml": CustomResourceDefinition.apiextensions.k8s.io "vmalerts.operator.victoriametrics.com" is invalid: [
 ```
@@ -62,12 +62,12 @@ Error from server (Invalid): error when creating "release/crds/crd.yaml": Custom
 - minikube or kind
 
 start:
-```bash
+```console
 make run
 ```
 
 for test execution run:
-```bash
+```console
 #unit tests
 
 make test 

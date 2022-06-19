@@ -10,7 +10,7 @@ The `-auth.config` can point to either local file or to http url.
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
 and pass the following flag to `vmauth` binary in order to start authorizing and routing requests:
 
-```bash
+```console
 /path/to/vmauth -auth.config=/path/to/auth/config.yml
 ```
 
@@ -129,7 +129,7 @@ It is expected that all the backend services protected by `vmauth` are located i
 
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
 
-```bash
+```console
   -tls
      Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
@@ -181,7 +181,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmauth`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmauth
 ```
 
@@ -193,7 +193,7 @@ ROOT_IMAGE=scratch make package-vmauth
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 ```
 
@@ -203,7 +203,7 @@ curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
 
@@ -217,7 +217,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-```bash
+```console
 ./vmauth -help
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.

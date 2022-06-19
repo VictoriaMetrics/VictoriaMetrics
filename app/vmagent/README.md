@@ -73,7 +73,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 
 * Sending `SUGHUP` signal to `vmagent` process:
 
-  ```bash
+  ```console
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -593,7 +593,7 @@ Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graph
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -655,13 +655,13 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
 ```
 
 * tls certificates:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
@@ -690,7 +690,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -718,7 +718,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
@@ -728,7 +728,7 @@ curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
