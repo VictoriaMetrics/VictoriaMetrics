@@ -398,13 +398,13 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	db.s.metricNameCache.Set(key[:], metricName)
 }
 
-// maybeCreateIndexes probabilistically creates indexes for the given (tsid, metricNameRaw) at db.
+// maybeCreateIndexes probabilistically creates global and per-day indexes for the given (tsid, metricNameRaw, date) at db.
 //
 // The probability increases from 0 to 100% during the first hour since db rotation.
 //
 // It returns true if new index entry was created, and false if it was skipped.
-func (db *indexDB) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte) (bool, error) {
-	pMin := float64(fasttime.UnixTimestamp()-db.rotationTimestamp) / 3600
+func (is *indexSearch) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte, date uint64) (bool, error) {
+	pMin := float64(fasttime.UnixTimestamp()-is.db.rotationTimestamp) / 3600
 	if pMin < 1 {
 		p := float64(uint32(fastHashUint64(tsid.MetricID))) / (1 << 32)
 		if p > pMin {
@@ -418,11 +418,14 @@ func (db *indexDB) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte) (bool, e
 		return false, fmt.Errorf("cannot unmarshal metricNameRaw %q: %w", metricNameRaw, err)
 	}
 	mn.sortTags()
-	if err := db.createIndexes(tsid, mn); err != nil {
-		return false, err
+	if err := is.createGlobalIndexes(tsid, mn); err != nil {
+		return false, fmt.Errorf("cannot create global indexes: %w", err)
+	}
+	if err := is.createPerDayIndexes(date, tsid.MetricID, mn); err != nil {
+		return false, fmt.Errorf("cannot create per-day indexes for date=%d: %w", date, err)
 	}
 	PutMetricName(mn)
-	atomic.AddUint64(&db.timeseriesRepopulated, 1)
+	atomic.AddUint64(&is.db.timeseriesRepopulated, 1)
 	return true, nil
 }
 
@@ -531,7 +534,10 @@ type indexSearch struct {
 }
 
 // GetOrCreateTSIDByName fills the dst with TSID for the given metricName.
-func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte) error {
+//
+// It also registers the metricName in global and per-day indexes
+// for the given date if the metricName->TSID entry is missing in the index.
+func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte, date uint64) error {
 	// A hack: skip searching for the TSID after many serial misses.
 	// This should improve insertion performance for big batches
 	// of new time series.
@@ -556,7 +562,7 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte) error
 	// TSID for the given name wasn't found. Create it.
 	// It is OK if duplicate TSID for mn is created by concurrent goroutines.
 	// Metric results will be merged by mn after TableSearch.
-	if err := is.db.createTSIDByName(dst, metricName); err != nil {
+	if err := is.createTSIDByName(dst, metricName, date); err != nil {
 		return fmt.Errorf("cannot create TSID by MetricName %q: %w", metricName, err)
 	}
 	return nil
@@ -591,22 +597,25 @@ func (db *indexDB) putIndexSearch(is *indexSearch) {
 	db.indexSearchPool.Put(is)
 }
 
-func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
+func (is *indexSearch) createTSIDByName(dst *TSID, metricName []byte, date uint64) error {
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 	if err := mn.Unmarshal(metricName); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
 	}
 
-	created, err := db.getOrCreateTSID(dst, metricName, mn)
+	created, err := is.db.getOrCreateTSID(dst, metricName, mn)
 	if err != nil {
 		return fmt.Errorf("cannot generate TSID: %w", err)
 	}
-	if !db.s.registerSeriesCardinality(dst.MetricID, mn) {
+	if !is.db.s.registerSeriesCardinality(dst.MetricID, mn) {
 		return errSeriesCardinalityExceeded
 	}
-	if err := db.createIndexes(dst, mn); err != nil {
-		return fmt.Errorf("cannot create indexes: %w", err)
+	if err := is.createGlobalIndexes(dst, mn); err != nil {
+		return fmt.Errorf("cannot create global indexes: %w", err)
+	}
+	if err := is.createPerDayIndexes(date, dst.MetricID, mn); err != nil {
+		return fmt.Errorf("cannot create per-day indexes for date=%d: %w", date, err)
 	}
 
 	// There is no need in invalidating tag cache, since it is invalidated
@@ -614,7 +623,7 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 
 	if created {
 		// Increase the newTimeseriesCreated counter only if tsid wasn't found in indexDB
-		atomic.AddUint64(&db.newTimeseriesCreated, 1)
+		atomic.AddUint64(&is.db.newTimeseriesCreated, 1)
 		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())
 		}
@@ -675,7 +684,7 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricID = generateUniqueMetricID()
 }
 
-func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {
+func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) error {
 	// The order of index items is important.
 	// It guarantees index consistency.
 
@@ -706,7 +715,7 @@ func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {
 	ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)
 	kbPool.Put(prefix)
 
-	return db.tb.AddItems(ii.Items)
+	return is.db.tb.AddItems(ii.Items)
 }
 
 type indexItems struct {
@@ -2712,11 +2721,11 @@ const (
 	int64Max = int64((1 << 63) - 1)
 )
 
-func (is *indexSearch) storeDateMetricID(date, metricID uint64, mn *MetricName) error {
+func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName) error {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	ii.B = is.marshalCommonPrefix(ii.B, nsPrefixDateToMetricID)
+	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateToMetricID, mn.AccountID, mn.ProjectID)
 	ii.B = encoding.MarshalUint64(ii.B, date)
 	ii.B = encoding.MarshalUint64(ii.B, metricID)
 	ii.Next()
@@ -2724,9 +2733,10 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64, mn *MetricName) 
 	// Create per-day inverted index entries for metricID.
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, mn.AccountID, mn.ProjectID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ii.registerTagIndexes(kb.B, mn, metricID)
+
 	if err := is.db.tb.AddItems(ii.Items); err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %w", metricID, err)
 	}
@@ -2840,10 +2850,10 @@ func reverseBytes(dst, src []byte) []byte {
 	return dst
 }
 
-func (is *indexSearch) hasDateMetricID(date, metricID uint64) (bool, error) {
+func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, projectID uint32) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID, accountID, projectID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
