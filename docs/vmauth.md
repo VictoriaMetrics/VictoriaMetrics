@@ -144,7 +144,11 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
+It is recommended protecting  following endpoints with authKeys:
+* `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
+* `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
+* `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
+* `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
 ## Monitoring
 
