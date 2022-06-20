@@ -48,6 +48,8 @@ var (
 	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
 	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
+
+	flagsAuthKey = flag.String("flagsAuthKey", "", "Auth key for /flags. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 )
 
 var (
@@ -284,6 +286,10 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
+		if len(*flagsAuthKey) > 0 && r.FormValue("authKey") != *flagsAuthKey {
+			http.Error(w, "The provided authKey doesn't match -flagsAuthKey", http.StatusUnauthorized)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
 		return
