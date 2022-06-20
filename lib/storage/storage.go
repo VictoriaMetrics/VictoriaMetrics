@@ -1677,6 +1677,9 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 	for i := range mrs {
 		mr := &mrs[i]
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			if err := s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw); err != nil {
+				continue
+			}
 			if genTSID.generation == idb.generation {
 				// Fast path - mr.MetricNameRaw has been already registered in the current idb.
 				continue
@@ -1689,7 +1692,7 @@ func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		date := uint64(mr.Timestamp) / msecPerDay
-		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName, date); err != nil {
+		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName, mr.MetricNameRaw, date); err != nil {
 			if errors.Is(err, errSeriesCardinalityExceeded) {
 				continue
 			}
@@ -1762,6 +1765,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			if err := s.registerSeriesCardinality(r.TSID.MetricID, mr.MetricNameRaw); err != nil {
+				j--
+				continue
+			}
 			r.TSID = genTSID.TSID
 			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
@@ -1829,7 +1836,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 			slowInsertsCount++
 			date := uint64(r.Timestamp) / msecPerDay
-			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName, date); err != nil {
+			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName, mr.MetricNameRaw, date); err != nil {
 				j--
 				if errors.Is(err, errSeriesCardinalityExceeded) {
 					continue
@@ -1874,26 +1881,29 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	return nil
 }
 
-func (s *Storage) registerSeriesCardinality(metricID uint64, mn *MetricName) bool {
+func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) error {
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		atomic.AddUint64(&s.hourlySeriesLimitRowsDropped, 1)
-		logSkippedSeries(mn, "-storage.maxHourlySeries", sl.MaxItems())
-		return false
+		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
+		return errSeriesCardinalityExceeded
 	}
 	if sl := s.dailySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		atomic.AddUint64(&s.dailySeriesLimitRowsDropped, 1)
-		logSkippedSeries(mn, "-storage.maxDailySeries", sl.MaxItems())
-		return false
+		logSkippedSeries(metricNameRaw, "-storage.maxDailySeries", sl.MaxItems())
+		return errSeriesCardinalityExceeded
 	}
-	return true
+	return nil
 }
 
-func logSkippedSeries(mn *MetricName, flagName string, flagValue int) {
+var errSeriesCardinalityExceeded = fmt.Errorf("cannot create series because series cardinality limit exceeded")
+
+func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will result in increased CPU load
 		// because of getUserReadableMetricName() calls per each logSkippedSeries call.
-		logger.Warnf("skip series %s because %s=%d reached", mn, flagName, flagValue)
+		userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+		logger.Warnf("skip series %s because %s=%d reached", userReadableMetricName, flagName, flagValue)
 	default:
 	}
 }
