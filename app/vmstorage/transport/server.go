@@ -590,21 +590,12 @@ func (s *Server) processVMSelectRegisterMetricNames(ctx *vmselectRequestCtx) err
 	return nil
 }
 
-const maxTagFiltersSize = 64 * 1024
-
 func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 	vmselectDeleteMetricsRequests.Inc()
 
 	// Read request
-	if err := ctx.readDataBufBytes(maxTagFiltersSize); err != nil {
-		return fmt.Errorf("cannot read labelName: %w", err)
-	}
-	tail, err := ctx.sq.Unmarshal(ctx.dataBuf)
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
-	}
-	if len(tail) > 0 {
-		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
+	if err := ctx.readSearchQuery(); err != nil {
+		return err
 	}
 
 	// Setup ctx.tfss
