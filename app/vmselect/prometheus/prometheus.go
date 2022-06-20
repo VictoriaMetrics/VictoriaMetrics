@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -73,7 +74,8 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxFederateSeries)
 	rss, err := netstorage.ProcessSearchQuery(nil, sq, true, cp.deadline)
 	if err != nil {
-		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		err = fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		return errWithContext(err, "-search.maxFederateSeries")
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -134,7 +136,8 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	if !reduceMemUsage {
 		rss, err := netstorage.ProcessSearchQuery(nil, sq, true, cp.deadline)
 		if err != nil {
-			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+			err = fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+			return errWithContext(err, "-search.maxExportSeries")
 		}
 		go func() {
 			err := rss.RunParallel(nil, func(rs *netstorage.Result, workerID uint) error {
@@ -215,7 +218,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	// Marshal native blocks.
 	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 		if err := bw.Error(); err != nil {
-			return err
+			return errWithContext(err, "-search.maxExportSeries")
 		}
 		dstBuf := bbPool.Get()
 		tmpBuf := bbPool.Get()
@@ -336,7 +339,8 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 	if !reduceMemUsage {
 		rss, err := netstorage.ProcessSearchQuery(qt, sq, true, cp.deadline)
 		if err != nil {
-			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+			err = fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+			return errWithContext(err, "-search.maxExportSeries")
 		}
 		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
@@ -456,7 +460,8 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
 	labelValues, err := netstorage.GetLabelValues(qt, labelName, sq, limit, cp.deadline)
 	if err != nil {
-		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
+		err = fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
+		return errWithContext(err, "-search.maxUniqueTimeseries")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -521,7 +526,8 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	sq := storage.NewSearchQuery(start, end, cp.filterss, *maxTSDBStatusSeries)
 	status, err := netstorage.GetTSDBStatus(qt, sq, focusLabel, topN, cp.deadline)
 	if err != nil {
-		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
+		err = fmt.Errorf("cannot obtain tsdb stats: %w", err)
+		return errWithContext(err, "-search.maxTSDBStatusSeries")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -553,7 +559,8 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
 	labels, err := netstorage.GetLabelNames(qt, sq, limit, cp.deadline)
 	if err != nil {
-		return fmt.Errorf("cannot obtain labels: %w", err)
+		err = fmt.Errorf("cannot obtain labels: %w", err)
+		return errWithContext(err, "-search.maxUniqueTimeseries")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -615,7 +622,8 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
 		mns, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 		if err != nil {
-			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+			err = fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+			return errWithContext(err, "-search.maxSeries")
 		}
 		w.Header().Set("Content-Type", "application/json")
 		bw := bufferedwriter.Get(w)
@@ -781,7 +789,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	}
 	result, err := promql.Exec(qt, &ec, query, true)
 	if err != nil {
-		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
+		err = fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
+		return errWithContext(err, "-search.maxUniqueTimeseries")
 	}
 	if queryOffset > 0 {
 		for i := range result {
@@ -877,7 +886,8 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
-		return fmt.Errorf("cannot execute query: %w", err)
+		err = fmt.Errorf("cannot execute query: %w", err)
+		return errWithContext(err, "-search.maxUniqueTimeseries")
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
 		queryOffset := getLatencyOffsetMilliseconds()
@@ -1132,4 +1142,28 @@ func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch 
 		filterss:         filterss,
 	}
 	return cp, nil
+}
+
+func errWithContext(err error, context string) error {
+	if err == nil {
+		return nil
+	}
+	str := err.Error()
+	if !strings.Contains(str, storage.ErrSeriesLimit.Error()) {
+		return err
+	}
+
+	str = strings.Replace(str, storage.FlagSeriesLimit, context, -1)
+	nErr := errors.New(str)
+
+	// preserve status code if any
+	var esc *httpserver.ErrorWithStatusCode
+	if errors.As(err, &esc) {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        nErr,
+			StatusCode: esc.StatusCode,
+		}
+	}
+
+	return nErr
 }

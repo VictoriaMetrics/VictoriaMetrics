@@ -2217,8 +2217,7 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
-				"or increase -search.max* command-line flag values at vmselect; see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
+			return nil, fmt.Errorf("the number of matching timeseries exceeds %d; %w", maxMetrics, ErrSeriesLimit)
 		}
 	}
 	return metricIDs, nil
@@ -2240,8 +2239,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metr
 	m, err := is.getMetricIDsForDateAndFilters(qt, 0, tfs, maxMetrics)
 	if err != nil {
 		if errors.Is(err, errFallbackToGlobalSearch) {
-			return fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
-				"or increase -search.max* command-line flag values at vmselect", maxMetrics)
+			return fmt.Errorf("the number of matching timeseries exceeds %d; %w", maxMetrics, ErrSeriesLimit)
 		}
 		return err
 	}
