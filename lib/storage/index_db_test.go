@@ -622,7 +622,8 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	mn.MetricGroup = append(mn.MetricGroup[:0], bigBytes...)
 	mn.sortTags()
 	metricName := mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
+	metricNameRaw := mn.marshalRaw(nil)
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big MetricGroup")
 	}
 
@@ -635,7 +636,8 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	}}
 	mn.sortTags()
 	metricName = mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
+	metricNameRaw = mn.marshalRaw(nil)
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big tag key")
 	}
 
@@ -648,7 +650,8 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	}}
 	mn.sortTags()
 	metricName = mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
+	metricNameRaw = mn.marshalRaw(nil)
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big tag value")
 	}
 
@@ -663,7 +666,8 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	}
 	mn.sortTags()
 	metricName = mn.Marshal(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, 0); err == nil {
+	metricNameRaw = mn.marshalRaw(nil)
+	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
 		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too many tags")
 	}
 
@@ -679,6 +683,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	defer db.putIndexSearch(is)
 
 	var metricNameBuf []byte
+	var metricNameRawBuf []byte
 	for i := 0; i < 4e2+1; i++ {
 		var mn MetricName
 		mn.AccountID = uint32((i + 2) % accountsCount)
@@ -696,10 +701,11 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		}
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
+		metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 
 		// Create tsid for the metricName.
 		var tsid TSID
-		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, 0); err != nil {
+		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, metricNameRawBuf, 0); err != nil {
 			return nil, nil, fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %w", &mn, err)
 		}
 		if tsid.AccountID != mn.AccountID {
@@ -1701,6 +1707,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	now := uint64(timestampFromTime(theDay))
 	baseDate := now / msecPerDay
 	var metricNameBuf []byte
+	var metricNameRawBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
 	labelNames := []string{
@@ -1733,8 +1740,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn.sortTags()
 
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 			var tsid TSID
-			if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, 0); err != nil {
+			if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, metricNameRawBuf, 0); err != nil {
 				t.Fatalf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err)
 			}
 			if tsid.AccountID != accountID {
