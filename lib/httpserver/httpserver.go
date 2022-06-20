@@ -49,7 +49,7 @@ var (
 	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
 
-	flagsAuthKey = flag.String("flagsAuthKey", "", "Auth key for /flags. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	flagsAuthKey = flag.String("flagsAuthKey", "", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 )
 
 var (

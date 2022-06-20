@@ -142,9 +142,9 @@ Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termi
 
 It is recommended protecting  following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
-* `/flags` with `flagsAuthkey` command-line flag, so external users couldn't get application configuriton.
-* `/metrics` with `metricsAuthkey` command-line flag, so external users couldn't get application metrics.
-* `/debug/pprof` with `pprofAuthKey` command-line flag, so external users couldn't get access to application profiling information.
+* `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
+* `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
+* `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
 ## Monitoring
 
