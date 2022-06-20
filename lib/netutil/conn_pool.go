@@ -26,6 +26,12 @@ type ConnPool struct {
 	compressionLevel int
 
 	conns []connWithTimestamp
+
+	// lastDialError contains the last error seen when dialing remote addr.
+	// When it is non-nil and conns is empty, then ConnPool.Get() return this error.
+	// This reduces the time needed for dialing unavailable remote storage systems.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711#issuecomment-1160363187
+	lastDialError error
 }
 
 type connWithTimestamp struct {
@@ -47,11 +53,21 @@ func NewConnPool(name, addr string, handshakeFunc handshake.Func, compressionLev
 		handshakeFunc:    handshakeFunc,
 		compressionLevel: compressionLevel,
 	}
+	cp.checkAvailability(true)
 	_ = metrics.NewGauge(fmt.Sprintf(`vm_tcpdialer_conns_idle{name=%q, addr=%q}`, name, addr), func() float64 {
 		cp.mu.Lock()
 		n := len(cp.conns)
 		cp.mu.Unlock()
 		return float64(n)
+	})
+	_ = metrics.NewGauge(fmt.Sprintf(`vm_tcpdialer_addr_available{name=%q, addr=%q}`, name, addr), func() float64 {
+		cp.mu.Lock()
+		isAvailable := len(cp.conns) > 0 || cp.lastDialError == nil
+		cp.mu.Unlock()
+		if isAvailable {
+			return 1
+		}
+		return 0
 	})
 	connPoolsMu.Lock()
 	connPools = append(connPools, cp)
@@ -66,10 +82,18 @@ func (cp *ConnPool) Addr() string {
 
 // Get returns free connection from the pool.
 func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
-	if bc := cp.tryGetConn(); bc != nil {
+	bc, err := cp.tryGetConn()
+	if err != nil {
+		return nil, err
+	}
+	if bc != nil {
+		// Fast path - obtained the connection from pool.
 		return bc, nil
 	}
+	return cp.getConnSlow()
+}
 
+func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 	// Limit the number of concurrent dials.
 	// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
 	cp.concurrentDialsCh <- struct{}{}
@@ -78,34 +102,50 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 	}()
 	// Make an attempt to get already established connections from the pool.
 	// It may appear there while waiting for cp.concurrentDialsCh.
-	if bc := cp.tryGetConn(); bc != nil {
+	bc, err := cp.tryGetConn()
+	if err != nil {
+		return nil, err
+	}
+	if bc != nil {
 		return bc, nil
 	}
 	// Pool is empty. Create new connection.
+	return cp.dialAndHandshake()
+}
+
+func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 	c, err := cp.d.Dial()
 	if err != nil {
-		return nil, fmt.Errorf("cannot dial %s: %w", cp.d.Addr(), err)
+		err = fmt.Errorf("cannot dial %s: %w", cp.d.Addr(), err)
+	}
+	cp.mu.Lock()
+	cp.lastDialError = err
+	cp.mu.Unlock()
+	if err != nil {
+		return nil, err
 	}
 	bc, err := cp.handshakeFunc(c, cp.compressionLevel)
 	if err != nil {
+		// Do not put handshake error to cp.lastDialError, because handshake
+		// is perfomed on an already established connection.
 		err = fmt.Errorf("cannot perform %q handshake with server %q: %w", cp.name, cp.d.Addr(), err)
 		_ = c.Close()
 		return nil, err
 	}
-	return bc, nil
+	return bc, err
 }
 
-func (cp *ConnPool) tryGetConn() *handshake.BufferedConn {
+func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 	if len(cp.conns) == 0 {
-		return nil
+		return nil, cp.lastDialError
 	}
 	c := cp.conns[len(cp.conns)-1]
 	bc := c.bc
 	c.bc = nil
 	cp.conns = cp.conns[:len(cp.conns)-1]
-	return bc
+	return bc, nil
 }
 
 // Put puts bc back to the pool.
@@ -146,18 +186,44 @@ func (cp *ConnPool) closeIdleConns() {
 	cp.mu.Unlock()
 }
 
+func (cp *ConnPool) checkAvailability(force bool) {
+	cp.mu.Lock()
+	hasDialError := cp.lastDialError != nil
+	cp.mu.Unlock()
+	if hasDialError || force {
+		bc, _ := cp.dialAndHandshake()
+		if bc != nil {
+			cp.Put(bc)
+		}
+	}
+}
+
 func init() {
 	go func() {
 		for {
 			time.Sleep(17 * time.Second)
-			connPoolsMu.Lock()
-			for _, cp := range connPools {
+			forEachConnPool(func(cp *ConnPool) {
 				cp.closeIdleConns()
-			}
-			connPoolsMu.Unlock()
+			})
+		}
+	}()
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			forEachConnPool(func(cp *ConnPool) {
+				cp.checkAvailability(false)
+			})
 		}
 	}()
 }
 
 var connPoolsMu sync.Mutex
 var connPools []*ConnPool
+
+func forEachConnPool(f func(cp *ConnPool)) {
+	connPoolsMu.Lock()
+	for _, cp := range connPools {
+		f(cp)
+	}
+	connPoolsMu.Unlock()
+}
