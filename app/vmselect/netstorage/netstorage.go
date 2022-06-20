@@ -1347,9 +1347,6 @@ type storageNodesRequest struct {
 func startStorageNodesRequest(qt *querytracer.Tracer, denyPartialResponse bool, f func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{}) *storageNodesRequest {
 	resultsCh := make(chan interface{}, len(storageNodes))
 	for idx, sn := range storageNodes {
-		if sn.disconnected {
-			continue
-		}
 		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
 		go func(idx int, sn *storageNode) {
 			result := f(qtChild, idx, sn)
@@ -1428,8 +1425,9 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 
 type storageNode struct {
 	connPool *netutil.ConnPool
-	// Mark storage disconnected if it lost connection
-	disconnected bool
+	// broken is set to non-zero if the given vmstorage node is temporarily unhealthy.
+	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
+	broken uint32
 
 	// The number of concurrent queries to storageNode.
 	concurrentQueries *metrics.Counter
@@ -1493,6 +1491,14 @@ type storageNode struct {
 
 	// The number of read metric rows.
 	metricRowsRead *metrics.Counter
+}
+
+func (sn *storageNode) isBroken() bool {
+	return atomic.LoadUint32(&sn.broken) == 1
+}
+
+func (sn *storageNode) markBroken() {
+	atomic.StoreUint32(&sn.broken, 0)
 }
 
 func (sn *storageNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
@@ -1631,6 +1637,9 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
+	if sn.isBroken() {
+		return fmt.Errorf("cannot obtain connection from a pool")
+	}
 	err := sn.execOnConn(qtChild, funcName, f, deadline)
 	qtChild.Done()
 	if err == nil {
@@ -1662,10 +1671,9 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
-		sn.disconnected = true
+		sn.markBroken()
 		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
 	}
-	sn.disconnected = false
 	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
 	// without the need to break the connection.
 	connDeadline := d.Add(2 * time.Second)
@@ -2310,6 +2318,7 @@ func InitStorageNodes(addrs []string) {
 		}
 		storageNodes = append(storageNodes, sn)
 	}
+	go storageNodeHealthCheck()
 }
 
 // Stop gracefully stops netstorage.
@@ -2342,4 +2351,19 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 		}
 	}
 	return dst, nil
+}
+
+func storageNodeHealthCheck() {
+	ticker := time.NewTicker(time.Millisecond * 500)
+	for range ticker.C {
+		for _, sn := range storageNodes {
+			if sn.isBroken() {
+				if _, err := sn.connPool.Get(); err != nil {
+					atomic.StoreUint32(&sn.broken, 1)
+				} else {
+					atomic.StoreUint32(&sn.broken, 0)
+				}
+			}
+		}
+	}
 }
