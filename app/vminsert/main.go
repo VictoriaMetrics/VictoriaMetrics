@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/seriesupdate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -202,6 +203,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(at, r); err != nil {
 			prometheusWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "prometheus/api/v1/update/series":
+		// todo logging and errors.
+		if err := seriesupdate.InsertHandler(at, r); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}

@@ -515,6 +515,48 @@ By default `vminsert` tries to route all the samples for a single time series to
 * when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
 * when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
+## Alter/Update series
+
+ VictoriaMetrics supports data modification and update with following limitations:
+- modified data cannot be changed with back-filling.
+- modified data must be sent to `vminsert` component.
+- only json-line format is supported.
+
+ How it works:
+* Export series for modification with `/api/v1/export/prometheus` from `vmselect`.
+* Modify values,timestamps with needed values. You can delete, add or modify timestamps and values.
+* Send modified series to the `vminsert`'s API `/prometheus/api/v1/update/series` with POST request.
+* `vminsert` adds unique monotonically increasing `__generation_id` label to each series during the update, so their samples could replace the original samples.
+* at query requests `vmselect` merges original series with series updates sequentially according to their `__generation_id`.
+
+ How vmselect merges updates:
+* example 1 - delete timestamps at time range
+  original series timestamps: [10,20,30,40,50] values: [1,2,3,4,5]
+  modified series timestamps: [20,50] values: [2,5]
+  query result series timestamps: [10,20,50] values: [1,2,5]
+* example 2 - modify values
+  origin series timestamps: [10,20,30,40,50] values: [1,2,3,4,5]
+  modified series timestamps: [20,30,40] values: [22,33,44]
+  query result series timestamps: [10,20,30,40,50] values: [1,22,33,44,5]
+* example 3 - modify timestamps
+  origin series timestamps: [10,20,30,40,50] values: [1,2,3,4,5]
+  modified series timestamps: [0,5,10,15,20,25,30] values: [0.1,0.5,1,1.5,2,2.5,30]
+  modified series timestamps: [0,5,10,15,20,25,30,40,50] values: [0.1,0.5,1,1.5,2,2.5,30,4,5]
+
+ How to check which series were modified:
+* execute metrics export request with following params query params:
+  * `reduce_mem_usage=true`
+  * `extra_filter={__generation_id!=""}`
+ Example request
+```bash
+curl localhost:8481/select/0/prometheus/api/v1/export -g -d 'match[]={__name__="vmagent_rows_inserted_total",type="datadog"}'  -d 'reduce_mem_usage=true' -d 'extra_filters={__generation_id!=""}' 
+```
+ example output:
+```json
+{"metric":{"__name__":"vmagent_rows_inserted_total","job":"vminsert","type":"datadog","instance":"localhost:8429","__generation_id":"1658153678907548000"},"values":[0,0,0,0,256,253,135,15],"timestamps":[1658153559703,1658153569703,1658153579703,1658153589703,1658153599703,1658153609703,1658153619703,1658153621703]}
+```
+ There was single series modify request with `__generation_id="1658153678907548000"`
+
 
 ## Backups
 

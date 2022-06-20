@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -277,8 +278,132 @@ var (
 var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
-	metricName string
-	addrs      []tmpBlockAddr
+	metricName  string
+	addrs       []tmpBlockAddr
+	updateAddrs sortedTimeseriesUpdateAddrs
+}
+
+type sortedTimeseriesUpdateAddrs [][]tmpBlockAddr
+
+// merges  dst Result with update result
+// may allocate memory
+// dst and update must be sorted by Timestamps
+// keeps order by Timestamps
+func mergeResult(dst, update *Result) {
+	// ignore timestamps with not enough points
+	if len(dst.Timestamps) == 0 || len(update.Timestamps) == 0 {
+		return
+	}
+
+	firstDstTs := dst.Timestamps[0]
+	lastDstTs := dst.Timestamps[len(dst.Timestamps)-1]
+	firstUpdateTs := update.Timestamps[0]
+	lastUpdateTs := update.Timestamps[len(update.Timestamps)-1]
+
+	// edge case, update single data point
+	if len(update.Timestamps) == 1 {
+		pos := position(dst.Timestamps, firstUpdateTs)
+		if dst.Timestamps[pos] == firstUpdateTs {
+			dst.Values[pos] = update.Values[0]
+		}
+		return
+	}
+	// check lower bound
+	if firstUpdateTs < firstDstTs {
+		// fast path
+		pos := position(dst.Timestamps, lastUpdateTs)
+		if lastUpdateTs == dst.Timestamps[pos] {
+			pos++
+		}
+		tailTs := dst.Timestamps[pos:]
+		tailVs := dst.Values[pos:]
+
+		if len(update.Timestamps) <= pos {
+			// fast path, no need in memory reallocation
+			dst.Timestamps = append(dst.Timestamps[:0], update.Timestamps...)
+			dst.Timestamps = append(dst.Timestamps, tailTs...)
+			dst.Values = append(dst.Values[:0], update.Values...)
+			dst.Values = append(dst.Values, tailVs...)
+			return
+		}
+		// slow path, reallocate memory
+		reallocatedLen := len(tailTs) + len(update.Timestamps)
+		dst.Timestamps = make([]int64, 0, reallocatedLen)
+		dst.Values = make([]float64, 0, reallocatedLen)
+		dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
+		dst.Timestamps = append(dst.Timestamps, tailTs...)
+		dst.Values = append(dst.Values, update.Values...)
+		dst.Values = append(dst.Values, tailVs...)
+		return
+	}
+
+	// check upper bound
+	if lastUpdateTs > lastDstTs {
+		// fast path, memory allocation possible
+		pos := position(dst.Timestamps, firstUpdateTs)
+		dst.Timestamps = append(dst.Timestamps[:pos], update.Timestamps...)
+		dst.Values = append(dst.Values[:pos], update.Values...)
+		return
+	}
+
+	// changes inside given range
+	firstPos := position(dst.Timestamps, firstUpdateTs)
+	lastPos := position(dst.Timestamps, lastUpdateTs)
+	// corner case last timestamp overlaps
+	if lastUpdateTs == dst.Timestamps[lastPos] {
+		lastPos++
+	}
+	headTs := dst.Timestamps[:firstPos]
+	tailTs := dst.Timestamps[lastPos:]
+	headVs := dst.Values[:firstPos]
+	tailValues := dst.Values[lastPos:]
+	if len(update.Timestamps) <= lastPos {
+		// fast path, no need to reallocate
+		dst.Timestamps = append(dst.Timestamps[:0], headTs...)
+		dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
+		dst.Timestamps = append(dst.Timestamps, tailTs...)
+
+		dst.Values = append(dst.Values[:0], headVs...)
+		dst.Values = append(headVs, update.Values...)
+		dst.Values = append(dst.Values, tailValues...)
+		return
+	}
+	// slow path, allocate new slice and copy values
+	reallocateLen := len(headTs) + len(update.Timestamps) + len(tailTs)
+	dst.Timestamps = make([]int64, 0, reallocateLen)
+	dst.Values = make([]float64, 0, reallocateLen)
+
+	dst.Timestamps = append(dst.Timestamps, headTs...)
+	dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
+	dst.Timestamps = append(dst.Timestamps, tailTs...)
+
+	dst.Values = append(dst.Values, headVs...)
+	dst.Values = append(dst.Values, update.Values...)
+	dst.Values = append(dst.Values, tailValues...)
+}
+
+// position searches element position at given src with binary search
+// copied and modified from sort.SearchInts
+func position(src []int64, value int64) int {
+	// fast path
+	if len(src) < 1 || src[0] > value {
+		return 0
+	}
+	// Define f(-1) == false and f(n) == true.
+	// Invariant: f(i-1) == false, f(j) == true.
+	i, j := int64(0), int64(len(src))
+	for i < j {
+		h := int64(uint(i+j) >> 1) // avoid overflow when computing h
+		// i ≤ h < j
+		// return a[i] >= x
+		if !(src[h] >= value) {
+			i = h + 1 // preserves f(i-1) == false
+		} else {
+			j = h // preserves f(j) == true
+		}
+	}
+	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+	return int(i)
 }
 
 type unpackWorkItem struct {
@@ -393,6 +518,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr stora
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
 	}
 
+	dedupInterval := storage.GetDedupInterval()
 	// Spin up local workers.
 	// Do not use global workers pool, since it increases inter-CPU memory ping-poing,
 	// which reduces the scalability on systems with many CPU cores.
@@ -418,55 +544,69 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr stora
 			unpackWorker(workChs[workerID])
 		}(i)
 	}
-
-	// Feed workers with work
-	upws := make([]*unpackWork, 0, 1+addrsLen/unpackBatchSize)
-	upw := getUnpackWork()
-	upw.tbfs = tbfs
-	for _, addr := range pts.addrs {
-		if len(upw.ws) >= unpackBatchSize {
-			scheduleUnpackWork(workChs, upw)
-			upws = append(upws, upw)
-			upw = getUnpackWork()
-			upw.tbfs = tbfs
+	scheduleUnpackWorkForBlocks := func(blockAddrs []tmpBlockAddr) []*unpackWork {
+		upws := make([]*unpackWork, 0, len(blockAddrs)/unpackBatchSize)
+		upw := getUnpackWork()
+		upw.tbfs = tbfs
+		for _, addr := range blockAddrs {
+			if len(upw.ws) > unpackBatchSize {
+				scheduleUnpackWork(workChs, upw)
+				upws = append(upws, upw)
+				upw = getUnpackWork()
+				upw.tbfs = tbfs
+			}
+			upw.ws = append(upw.ws, unpackWorkItem{
+				addr: addr,
+				tr:   tr,
+			})
 		}
-		upw.ws = append(upw.ws, unpackWorkItem{
-			addr: addr,
-			tr:   tr,
-		})
+		scheduleUnpackWork(workChs, upw)
+		upws = append(upws, upw)
+		return upws
 	}
-	scheduleUnpackWork(workChs, upw)
-	upws = append(upws, upw)
-	pts.addrs = pts.addrs[:0]
 
+	var updateWss [][]*unpackWork
+	for _, addrs := range pts.updateAddrs {
+		updateWss = append(updateWss, scheduleUnpackWorkForBlocks(addrs))
+	}
+	pts.updateAddrs = pts.updateAddrs[:0]
+	seriesWs := scheduleUnpackWorkForBlocks(pts.addrs)
+	pts.addrs = pts.addrs[:0]
 	// Wait until work is complete
 	samples := 0
-	sbs := make([]*sortBlock, 0, addrsLen)
 	var firstErr error
-	for _, upw := range upws {
-		if err := <-upw.doneCh; err != nil && firstErr == nil {
-			// Return the first error only, since other errors are likely the same.
-			firstErr = err
-		}
-		if firstErr == nil {
-			for _, sb := range upw.sbs {
-				samples += len(sb.Timestamps)
+	collectSortBlocks := func(upws []*unpackWork) []*sortBlock {
+		sbs := make([]*sortBlock, 0, addrsLen)
+		for _, upw := range upws {
+			if err := <-upw.doneCh; err != nil && firstErr == nil {
+				// Return the first error only, since other errors are likely the same.
+				firstErr = err
 			}
-			if *maxSamplesPerSeries <= 0 || samples < *maxSamplesPerSeries {
-				sbs = append(sbs, upw.sbs...)
-			} else {
-				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
-					"or reduce time range for the query", *maxSamplesPerSeries)
+			if firstErr == nil {
+				for _, sb := range upw.sbs {
+					samples += len(sb.Timestamps)
+				}
+				if *maxSamplesPerSeries <= 0 || samples < *maxSamplesPerSeries {
+					sbs = append(sbs, upw.sbs...)
+				} else {
+					firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+						"or reduce time range for the query", *maxSamplesPerSeries)
+				}
 			}
-		}
-		if firstErr != nil {
-			for _, sb := range upw.sbs {
-				putSortBlock(sb)
+			if firstErr != nil {
+				for _, sb := range upw.sbs {
+					putSortBlock(sb)
+				}
 			}
+			putUnpackWork(upw)
 		}
-		putUnpackWork(upw)
+		return sbs
 	}
-
+	seriesSbs := collectSortBlocks(seriesWs)
+	var seriesUpdateSbss [][]*sortBlock
+	for _, updateWs := range updateWss {
+		seriesUpdateSbss = append(seriesUpdateSbss, collectSortBlocks(updateWs))
+	}
 	// Shut down local workers
 	for _, workCh := range workChs {
 		close(workCh)
@@ -476,8 +616,17 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr stora
 	if firstErr != nil {
 		return firstErr
 	}
-	dedupInterval := storage.GetDedupInterval()
-	mergeSortBlocks(dst, sbs, dedupInterval)
+	mergeSortBlocks(dst, seriesSbs, dedupInterval)
+	// apply updates
+	if len(seriesUpdateSbss) > 0 {
+		var updateDst Result
+		for _, seriesUpdateSbs := range seriesUpdateSbss {
+			updateDst.reset()
+			mergeSortBlocks(&updateDst, seriesUpdateSbs, dedupInterval)
+			mergeResult(dst, &updateDst)
+		}
+	}
+
 	return nil
 }
 
@@ -1117,9 +1266,11 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 }
 
 type tmpBlocksFileWrapper struct {
-	tbfs                []*tmpBlocksFile
-	ms                  []map[string][]tmpBlockAddr
-	orderedMetricNamess [][]string
+	tbfs []*tmpBlocksFile
+	ms   []map[string][]tmpBlockAddr
+	// updates grouped by metric name and generation ID
+	seriesUpdatesByMetricName map[string]map[int64][]tmpBlockAddr
+	orderedMetricNamess       [][]string
 }
 
 func newTmpBlocksFileWrapper() *tmpBlocksFileWrapper {
@@ -1133,9 +1284,10 @@ func newTmpBlocksFileWrapper() *tmpBlocksFileWrapper {
 		ms[i] = make(map[string][]tmpBlockAddr)
 	}
 	return &tmpBlocksFileWrapper{
-		tbfs:                tbfs,
-		ms:                  ms,
-		orderedMetricNamess: make([][]string, n),
+		tbfs:                      tbfs,
+		ms:                        ms,
+		seriesUpdatesByMetricName: make(map[string]map[int64][]tmpBlockAddr),
+		orderedMetricNamess:       make([][]string, n),
 	}
 }
 
@@ -1148,6 +1300,20 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 		return err
 	}
 	metricName := mb.MetricName
+	// process data blocks with metric updates
+	if mb.GenerationID > 0 {
+		ups := tbfw.seriesUpdatesByMetricName[string(metricName)]
+		if ups == nil {
+			// fast path
+			tbfw.seriesUpdatesByMetricName[string(metricName)] = map[int64][]tmpBlockAddr{mb.GenerationID: {addr}}
+			return nil
+		}
+		// todo memory optimization for metricNames, use interning?
+		addrs := tbfw.seriesUpdatesByMetricName[string(metricName)][mb.GenerationID]
+		addrs = append(addrs, addr)
+		tbfw.seriesUpdatesByMetricName[string(metricName)][mb.GenerationID] = addrs
+		return nil
+	}
 	m := tbfw.ms[workerIdx]
 	addrs := m[string(metricName)]
 	addrs = append(addrs, addr)
@@ -1216,6 +1382,11 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		mn := metricNamePool.Get().(*storage.MetricName)
 		if err := mn.Unmarshal(mb.MetricName); err != nil {
 			return fmt.Errorf("cannot unmarshal metricName: %w", err)
+		}
+		// add generation id label
+		// it should help user migrate data between instance
+		if mb.GenerationID > 0 {
+			mn.AddTag("__generation_id", strconv.FormatInt(mb.GenerationID, 10))
 		}
 		if err := f(mn, &mb.Block, tr); err != nil {
 			return err
@@ -1337,9 +1508,25 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	rss.tbfs = tbfw.tbfs
 	pts := make([]packedTimeseries, len(orderedMetricNames))
 	for i, metricName := range orderedMetricNames {
+		seriesUpdateGenerations := tbfw.seriesUpdatesByMetricName[metricName]
+		var stua sortedTimeseriesUpdateAddrs
+		if len(seriesUpdateGenerations) > 0 {
+			stua = make(sortedTimeseriesUpdateAddrs, 0, len(seriesUpdateGenerations))
+			orderedGenerationIDs := make([]int64, 0, len(seriesUpdateGenerations))
+			for generationID := range seriesUpdateGenerations {
+				orderedGenerationIDs = append(orderedGenerationIDs, generationID)
+			}
+			sort.Slice(orderedGenerationIDs, func(i, j int) bool {
+				return orderedGenerationIDs[i] < orderedGenerationIDs[j]
+			})
+			for _, genID := range orderedGenerationIDs {
+				stua = append(stua, seriesUpdateGenerations[genID])
+			}
+		}
 		pts[i] = packedTimeseries{
-			metricName: metricName,
-			addrs:      addrsByMetricName[metricName],
+			metricName:  metricName,
+			addrs:       addrsByMetricName[metricName],
+			updateAddrs: stua,
 		}
 	}
 	rss.packedTimeseries = pts
@@ -1705,7 +1892,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 		}
 		return nil
 	}
-	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
+	return sn.execOnConnWithPossibleRetry(qt, "search_v8", f, deadline)
 }
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {

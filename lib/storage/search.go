@@ -58,12 +58,22 @@ type MetricBlock struct {
 	// MetricName is metric name for the given Block.
 	MetricName []byte
 
+	// GenerationID unique ID for series update, extracted from Tag __generation_id at runtime
+	GenerationID int64
+
 	// Block is a block for the given MetricName
 	Block Block
 }
 
 // Marshal marshals MetricBlock to dst
 func (mb *MetricBlock) Marshal(dst []byte) []byte {
+	dst = encoding.MarshalBytes(dst, mb.MetricName)
+	dst = encoding.MarshalInt64(dst, mb.GenerationID)
+	return MarshalBlock(dst, &mb.Block)
+}
+
+// MarshalV7 marshals MetricBlock to dst at v7 api version
+func (mb *MetricBlock) MarshalV7(dst []byte) []byte {
 	dst = encoding.MarshalBytes(dst, mb.MetricName)
 	return MarshalBlock(dst, &mb.Block)
 }
@@ -93,7 +103,8 @@ func (mb *MetricBlock) Unmarshal(src []byte) ([]byte, error) {
 	}
 	mb.MetricName = append(mb.MetricName[:0], mn...)
 	src = tail
-
+	mb.GenerationID = encoding.UnmarshalInt64(src)
+	src = src[8:]
 	return UnmarshalBlock(&mb.Block, src)
 }
 

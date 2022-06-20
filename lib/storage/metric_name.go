@@ -276,6 +276,28 @@ func (mn *MetricName) RemoveTag(tagKey string) {
 	}
 }
 
+// RemoveTagWithResult removes a tag with the given tagKey and returns removed Tag
+func (mn *MetricName) RemoveTagWithResult(tagKey string) *Tag {
+	if tagKey == "__name__" {
+		mn.ResetMetricGroup()
+		return nil
+	}
+	tags := mn.Tags
+	mn.Tags = mn.Tags[:0]
+	var foundTag *Tag
+	for i := range tags {
+		tag := &tags[i]
+		if string(tag.Key) != tagKey {
+			mn.AddTagBytes(tag.Key, tag.Value)
+			continue
+		}
+		var t Tag
+		t.copyFrom(tag)
+		foundTag = &t
+	}
+	return foundTag
+}
+
 // RemoveTagsIgnoring removes all the tags included in ignoringTags.
 func (mn *MetricName) RemoveTagsIgnoring(ignoringTags []string) {
 	if len(ignoringTags) == 0 {
