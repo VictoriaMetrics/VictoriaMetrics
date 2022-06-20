@@ -12,12 +12,10 @@ import (
 //
 // The name is used in metric tags for the returned dialer.
 // The name must be unique among dialers.
-func NewTCPDialer(name, addr string) *TCPDialer {
+func NewTCPDialer(name, addr string, dialTimeout time.Duration) *TCPDialer {
 	d := &TCPDialer{
 		d: &net.Dialer{
-			// The timeout for establishing a TCP connection.
-			// 5 seconds should be enough for the majority of cases.
-			Timeout: 5 * time.Second,
+			Timeout: dialTimeout,
 
 			// How frequently to send keep-alive packets over established TCP connections.
 			KeepAlive: time.Second,

@@ -36,8 +36,9 @@ import (
 var (
 	replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
 		"See -replicationFactor command-line flag for vminsert nodes")
-	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
-	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
+	maxSamplesPerSeries  = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
+	maxSamplesPerQuery   = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
+	vmstorageDialTimeout = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vmselect to vmstorage")
 )
 
 // Result is a single timeseries result.
@@ -2275,7 +2276,7 @@ func InitStorageNodes(addrs []string) {
 		}
 		sn := &storageNode{
 			// There is no need in requests compression, since they are usually very small.
-			connPool: netutil.NewConnPool("vmselect", addr, handshake.VMSelectClient, 0),
+			connPool: netutil.NewConnPool("vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout),
 
 			concurrentQueries: metrics.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 

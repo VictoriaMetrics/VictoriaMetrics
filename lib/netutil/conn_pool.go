@@ -38,9 +38,9 @@ type connWithTimestamp struct {
 // Name is used in exported metrics.
 // handshakeFunc is used for handshaking after the connection establishing.
 // The compression is disabled if compressionLevel <= 0.
-func NewConnPool(name, addr string, handshakeFunc handshake.Func, compressionLevel int) *ConnPool {
+func NewConnPool(name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout time.Duration) *ConnPool {
 	cp := &ConnPool{
-		d:                 NewTCPDialer(name, addr),
+		d:                 NewTCPDialer(name, addr, dialTimeout),
 		concurrentDialsCh: make(chan struct{}, 8),
 
 		name:             name,
