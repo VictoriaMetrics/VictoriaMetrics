@@ -29,7 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/metrics"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/fastrand"
 )
 
@@ -1346,6 +1346,9 @@ type storageNodesRequest struct {
 func startStorageNodesRequest(qt *querytracer.Tracer, denyPartialResponse bool, f func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{}) *storageNodesRequest {
 	resultsCh := make(chan interface{}, len(storageNodes))
 	for idx, sn := range storageNodes {
+		if sn.disconnected {
+			continue
+		}
 		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
 		go func(idx int, sn *storageNode) {
 			result := f(qtChild, idx, sn)
@@ -1424,6 +1427,8 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 
 type storageNode struct {
 	connPool *netutil.ConnPool
+	// Mark storage disconnected if it lost connection
+	disconnected bool
 
 	// The number of concurrent queries to storageNode.
 	concurrentQueries *metrics.Counter
@@ -1656,8 +1661,10 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
+		sn.disconnected = true
 		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
 	}
+	sn.disconnected = false
 	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
 	// without the need to break the connection.
 	connDeadline := d.Add(2 * time.Second)
