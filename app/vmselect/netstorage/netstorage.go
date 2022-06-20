@@ -2353,16 +2353,21 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 	return dst, nil
 }
 
+const healthCheckInterval = 500 * time.Millisecond
+
 func storageNodeHealthCheck() {
-	ticker := time.NewTicker(time.Millisecond * 500)
-	for range ticker.C {
+	ticker := time.NewTicker(healthCheckInterval)
+	for {
+		<-ticker.C
 		for _, sn := range storageNodes {
-			if sn.isBroken() {
-				if _, err := sn.connPool.Get(); err != nil {
-					atomic.StoreUint32(&sn.broken, 1)
-				} else {
-					atomic.StoreUint32(&sn.broken, 0)
-				}
+			if !sn.isBroken() {
+				continue
+			}
+			if bc, err := sn.connPool.Get(); err != nil {
+				atomic.StoreUint32(&sn.broken, 1)
+			} else {
+				sn.connPool.Put(bc)
+				atomic.StoreUint32(&sn.broken, 0)
 			}
 		}
 	}
