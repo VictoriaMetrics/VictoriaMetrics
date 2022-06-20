@@ -2,6 +2,8 @@ package netutil
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -66,6 +68,9 @@ func (cp *ConnPool) Addr() string {
 
 // Get returns free connection from the pool.
 func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
+	if err := cp.checkConnection(); err != nil {
+		return nil, err
+	}
 	if bc := cp.tryGetConn(); bc != nil {
 		return bc, nil
 	}
@@ -106,6 +111,28 @@ func (cp *ConnPool) tryGetConn() *handshake.BufferedConn {
 	c.bc = nil
 	cp.conns = cp.conns[:len(cp.conns)-1]
 	return bc
+}
+
+func (cp *ConnPool) checkConnection() error {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+	one := make([]byte, 1)
+	for _, conn := range cp.conns {
+		if err := conn.bc.SetReadDeadline(time.Now()); err != nil {
+			return err
+		}
+		_, err := conn.bc.Read(one)
+		if err == io.EOF {
+			return fmt.Errorf("detected closed LAN connection for address: %s", conn.bc.RemoteAddr())
+		}
+		if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+			return fmt.Errorf("timeout error happend for address: %s", conn.bc.RemoteAddr())
+		}
+		if err := conn.bc.SetReadDeadline(time.Time{}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Put puts bc back to the pool.

@@ -1,12 +1,15 @@
 package netutil
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var timeoutForEstablishTCPConnection = flag.Duration("timeoutForEstablishTCPConnection", 5*time.Second, "The timeout for establishing a TCP connection between instances")
 
 // NewTCPDialer returns new dialer for dialing the given addr.
 //
@@ -17,7 +20,7 @@ func NewTCPDialer(name, addr string) *TCPDialer {
 		d: &net.Dialer{
 			// The timeout for establishing a TCP connection.
 			// 5 seconds should be enough for the majority of cases.
-			Timeout: 5 * time.Second,
+			Timeout: *timeoutForEstablishTCPConnection,
 
 			// How frequently to send keep-alive packets over established TCP connections.
 			KeepAlive: time.Second,
