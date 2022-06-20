@@ -152,6 +152,24 @@
     "release_level": "beta",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/baremetalsolution/apiv2": {
+    "distribution_name": "cloud.google.com/go/baremetalsolution/apiv2",
+    "description": "Bare Metal Solution API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/baremetalsolution/latest/apiv2",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
+  "cloud.google.com/go/batch/apiv1": {
+    "distribution_name": "cloud.google.com/go/batch/apiv1",
+    "description": "Batch API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/batch/latest/apiv1",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/bigquery": {
     "distribution_name": "cloud.google.com/go/bigquery",
     "description": "BigQuery",
@@ -1669,7 +1687,7 @@
     "description": "Cloud Vision API",
     "language": "Go",
     "client_library_type": "generated",
-    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/vision/latest/v2/apiv1",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/vision/v2/latest/apiv1",
     "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },

@@ -537,7 +537,7 @@ type indexSearch struct {
 //
 // It also registers the metricName in global and per-day indexes
 // for the given date if the metricName->TSID entry is missing in the index.
-func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte, date uint64) error {
+func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRaw []byte, date uint64) error {
 	// A hack: skip searching for the TSID after many serial misses.
 	// This should improve insertion performance for big batches
 	// of new time series.
@@ -545,7 +545,7 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte, date 
 		err := is.getTSIDByMetricName(dst, metricName)
 		if err == nil {
 			is.tsidByNameMisses = 0
-			return nil
+			return is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw)
 		}
 		if err != io.EOF {
 			return fmt.Errorf("cannot search TSID by MetricName %q: %w", metricName, err)
@@ -562,7 +562,7 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte, date 
 	// TSID for the given name wasn't found. Create it.
 	// It is OK if duplicate TSID for mn is created by concurrent goroutines.
 	// Metric results will be merged by mn after TableSearch.
-	if err := is.createTSIDByName(dst, metricName, date); err != nil {
+	if err := is.createTSIDByName(dst, metricName, metricNameRaw, date); err != nil {
 		return fmt.Errorf("cannot create TSID by MetricName %q: %w", metricName, err)
 	}
 	return nil
@@ -597,7 +597,7 @@ func (db *indexDB) putIndexSearch(is *indexSearch) {
 	db.indexSearchPool.Put(is)
 }
 
-func (is *indexSearch) createTSIDByName(dst *TSID, metricName []byte, date uint64) error {
+func (is *indexSearch) createTSIDByName(dst *TSID, metricName, metricNameRaw []byte, date uint64) error {
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 	if err := mn.Unmarshal(metricName); err != nil {
@@ -608,8 +608,8 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName []byte, date uint6
 	if err != nil {
 		return fmt.Errorf("cannot generate TSID: %w", err)
 	}
-	if !is.db.s.registerSeriesCardinality(dst.MetricID, mn) {
-		return errSeriesCardinalityExceeded
+	if err := is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw); err != nil {
+		return err
 	}
 	if err := is.createGlobalIndexes(dst, mn); err != nil {
 		return fmt.Errorf("cannot create global indexes: %w", err)
@@ -630,8 +630,6 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName []byte, date uint6
 	}
 	return nil
 }
-
-var errSeriesCardinalityExceeded = fmt.Errorf("cannot create series because series cardinality limit exceeded")
 
 // SetLogNewSeries updates new series logging.
 //
