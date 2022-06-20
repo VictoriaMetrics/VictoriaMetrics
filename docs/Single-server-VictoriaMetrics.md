@@ -1396,6 +1396,7 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
 * `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
 * `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
+* `-flagsAuthKey` for protecting `/flags` endpoint.
 * `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
 * `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
 
