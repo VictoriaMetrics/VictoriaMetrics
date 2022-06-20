@@ -1498,7 +1498,7 @@ func (sn *storageNode) isBroken() bool {
 }
 
 func (sn *storageNode) markBroken() {
-	atomic.StoreUint32(&sn.broken, 0)
+	atomic.StoreUint32(&sn.broken, 1)
 }
 
 func (sn *storageNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
