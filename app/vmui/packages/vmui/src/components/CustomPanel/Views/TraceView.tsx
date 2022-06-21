@@ -10,19 +10,17 @@ import Box from "@mui/material/Box";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import AddCircleRoundedIcon from "@mui/icons-material/AddCircleRounded";
 import {recursiveComponent} from "../NestedNav/NestedNav";
-import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 
 
 interface TraceViewProps {
   tracingData: TracingData;
-  onDeleteClick: () => void;
 }
 
 interface OpenLevels {
   [x: number]: boolean
 }
 
-const TraceView: FC<TraceViewProps> = ({tracingData, onDeleteClick}) => {
+const TraceView: FC<TraceViewProps> = ({tracingData}) => {
 
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
   const handleClick = (param: number) => {
@@ -42,14 +40,16 @@ const TraceView: FC<TraceViewProps> = ({tracingData, onDeleteClick}) => {
             primary={`duration: ${tracingData.duration_msec} ms`}
             secondary={tracingData.message}
           />
-          <ListItemIcon>
-            <RemoveCircleIcon fontSize={"large"} color={"error"} onClick={onDeleteClick}/>
-          </ListItemIcon>
         </ListItemButton>
       </ListItem>
       <Collapse in={openLevels[tracingData.duration_msec]} timeout="auto" unmountOnExit>
         <List component="div" disablePadding sx={{ pl: 4 }}>
-          {recursiveComponent({ tracingData, openLevels, onChange: handleClick })}
+          {recursiveComponent({
+            tracingData: tracingData.children,
+            openLevels,
+            totalMicrosec: tracingData.duration_msec,
+            onChange: handleClick
+          })}
         </List>
       </Collapse>
     </Box>
