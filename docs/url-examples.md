@@ -12,7 +12,29 @@ Single:
 <div class="with-copy" markdown="1">
 
 ```console
-curl 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+curl -v 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+```
+
+</div>
+
+The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
+
+<div class="with-copy" markdown="1">
+
+```console
+*   Trying 127.0.0.1:8428...
+* Connected to 127.0.0.1 (127.0.0.1) port 8428 (#0)
+> GET /api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total HTTP/1.1
+> Host: 127.0.0.1:8428
+> User-Agent: curl/7.81.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 204 No Content
+< X-Server-Hostname: eba075fb0e1a
+< Date: Tue, 21 Jun 2022 07:33:35 GMT
+< 
+* Connection #0 to host 127.0.0.1 left intact
 ```
 
 </div>
@@ -21,7 +43,29 @@ Cluster:
 <div class="with-copy" markdown="1">
 
 ```console
-curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+curl -v'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+```
+
+</div>
+
+The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
+
+<div class="with-copy" markdown="1">
+
+```console
+*   Trying 127.0.0.1:8481...
+* Connected to 127.0.0.1 (127.0.0.1) port 8481 (#0)
+> GET /delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total HTTP/1.1
+> Host: 127.0.0.1:8481
+> User-Agent: curl/7.81.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 204 No Content
+< X-Server-Hostname: 101ed7a45c94
+< Date: Tue, 21 Jun 2022 07:21:36 GMT
+< 
+* Connection #0 to host 127.0.0.1 left intact
 ```
 
 </div>
