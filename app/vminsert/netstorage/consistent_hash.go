@@ -1,7 +1,7 @@
 package netstorage
 
 import (
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 )
 
 // See the following docs:
