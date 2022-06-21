@@ -657,6 +657,8 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -697,7 +699,7 @@ The shortlist of configuration flags is the following:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
      Optional basic auth password for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -751,7 +753,7 @@ The shortlist of configuration flags is the following:
      Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
      Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
