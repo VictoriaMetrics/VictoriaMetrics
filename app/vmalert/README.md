@@ -417,6 +417,18 @@ or reducing resolution) and push results to "cold" cluster.
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
+`vmalert` passes the configuration [recording rules](https://docs.victoriametrics.com/vmalert.html#recording-rules). These rules execute arbitrary MetricsQL expression and write the received result back to remote write destination.
+
+For example, for `downsampling` of the total number of requests within five minutes, the configuration file can be as follows
+
+```
+groups:
+  - name: downsampling
+    rules:
+      - record: requests:avg5m   
+        expr: avg_over_time(my_requests_total[5m])   
+```
+
 <img alt="vmalert multi cluster" src="vmalert_multicluster.png">
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
