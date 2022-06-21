@@ -21,16 +21,20 @@ type RecursiveComponent = (props: RecursiveProps) => JSX.Element;
 export const recursiveComponent: RecursiveComponent = ({ tracingData, openLevels, onChange})  => {
   const {children} = tracingData;
   const handleListClick = (level: number) => () => onChange(level);
-
+  const renderData = children.sort((a, b) => {
+    if (a.duration_msec > b.duration_msec) return 1;
+    if (a.duration_msec < b.duration_msec) return -1;
+    return 0;
+  });
   return (
     <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
-      {children.map((child) => {
+      {renderData.map((child) => {
         const hasChildren = child.children && child.children.length;
         if (!hasChildren) {
           return (
             <>
-              <ListItem>
-                <ListItemButton>
+              <ListItem sx={{p:0, pl:7}}>
+                <ListItemButton sx={{ pt: 0, pb: 0}}>
                   <ListItemText
                     primary={`duration: ${child.duration_msec} ms`}
                     secondary={child.message} />
@@ -41,8 +45,8 @@ export const recursiveComponent: RecursiveComponent = ({ tracingData, openLevels
         }
         return (
           <>
-            <ListItem onClick={handleListClick(child.duration_msec)}>
-              <ListItemButton alignItems={"flex-start"}>
+            <ListItem onClick={handleListClick(child.duration_msec)} sx={{p:0}}>
+              <ListItemButton alignItems={"flex-start"} sx={{ pt: 0, pb: 0}}>
                 <ListItemIcon>
                   {openLevels[child.duration_msec] ?
                     <ExpandLess fontSize={"large"} color={"info"} /> :

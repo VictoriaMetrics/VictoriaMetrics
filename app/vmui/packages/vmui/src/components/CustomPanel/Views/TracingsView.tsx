@@ -7,9 +7,10 @@ import Alert from "@mui/material/Alert";
 interface TraceViewProps {
   tracingsData: TracingData[];
   emptyMessage: string;
+  onDeleteClick: (tracingData: TracingData) => void;
 }
 
-const TracingsView: FC<TraceViewProps> = ({tracingsData, emptyMessage}) => {
+const TracingsView: FC<TraceViewProps> = ({tracingsData, emptyMessage, onDeleteClick}) => {
   if (!tracingsData.length) {
     return (
       <>
@@ -19,9 +20,20 @@ const TracingsView: FC<TraceViewProps> = ({tracingsData, emptyMessage}) => {
       </>
     );
   }
-  return <>{tracingsData.map((tracingData, idx) => <>
-    <Typography variant="h4" gutterBottom component="div">{`Query ${idx+1} tracing`}</Typography>
-    <TraceView tracingData={tracingData}/>
+
+  const handleDeleteClick = (tracingData: TracingData) => () => {
+    onDeleteClick(tracingData);
+  };
+
+  const getQuery = (message: string): string => {
+    const query = message.match(/query=(.*):/);
+    if (query) return query[1];
+    return "";
+  };
+
+  return <>{tracingsData.map((tracingData) => <>
+    <Typography variant="h4" gutterBottom component="div">{`Query ${getQuery(tracingData.message)} tracing`}</Typography>
+    <TraceView tracingData={tracingData} onDeleteClick={handleDeleteClick(tracingData)} />
   </>)}</>;
 };
 
