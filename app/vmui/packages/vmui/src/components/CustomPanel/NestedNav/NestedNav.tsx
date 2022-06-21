@@ -8,7 +8,7 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import AddCircleRoundedIcon from "@mui/icons-material/AddCircleRounded";
 import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
-import React from "preact/compat";
+import React, {useMemo} from "preact/compat";
 import {BorderLinearProgressWithLabel} from "../../BorderLineProgress/BorderLinearProgress";
 
 interface RecursiveProps {
@@ -22,11 +22,11 @@ type RecursiveComponent = (props: RecursiveProps) => JSX.Element;
 
 export const recursiveComponent: RecursiveComponent = ({ tracingData, openLevels, totalMicrosec, onChange})  => {
   const handleListClick = (level: number) => () => onChange(level);
-  const renderData = tracingData.sort((a, b) => {
+  const renderData = useMemo(() => tracingData.sort((a, b) => {
     if (a.duration_msec > b.duration_msec) return 1;
     if (a.duration_msec < b.duration_msec) return -1;
     return 0;
-  });
+  }), [tracingData]);
   return (
     <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
       {renderData.map((child) => {
