@@ -42,7 +42,7 @@ const TraceView: FC<TraceViewProps> = ({tracingData}) => {
           />
         </ListItemButton>
       </ListItem>
-      <Collapse in={openLevels[tracingData.duration_msec]} timeout="auto" unmountOnExit>
+      <Collapse in={openLevels[tracingData.duration_msec]}>
         <List component="div" disablePadding sx={{ pl: 4 }}>
           {recursiveComponent({
             tracingData: tracingData.children,
