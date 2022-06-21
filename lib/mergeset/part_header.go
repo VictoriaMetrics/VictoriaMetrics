@@ -136,7 +136,6 @@ func (ph *partHeader) ParseFromPath(partPath string) error {
 	if ph.itemsCount != phj.ItemsCount {
 		return fmt.Errorf("invalid ItemsCount in %q; got %d; want %d", metadataPath, phj.ItemsCount, ph.itemsCount)
 	}
-	ph.blocksCount = phj.BlocksCount
 	if ph.blocksCount != phj.BlocksCount {
 		return fmt.Errorf("invalid BlocksCount in %q; got %d; want %d", metadataPath, phj.BlocksCount, ph.blocksCount)
 	}
