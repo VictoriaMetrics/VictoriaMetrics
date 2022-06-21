@@ -39,7 +39,6 @@ The expected output will look like:
 
 </div>
 
-
 Cluster:
 <div class="with-copy" markdown="1">
 
