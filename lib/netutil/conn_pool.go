@@ -222,8 +222,14 @@ var connPools []*ConnPool
 
 func forEachConnPool(f func(cp *ConnPool)) {
 	connPoolsMu.Lock()
+	var wg sync.WaitGroup
 	for _, cp := range connPools {
-		f(cp)
+		wg.Add(1)
+		go func(cp *ConnPool) {
+			defer wg.Done()
+			f(cp)
+		}(cp)
 	}
+	wg.Wait()
 	connPoolsMu.Unlock()
 }
