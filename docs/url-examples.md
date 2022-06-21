@@ -12,12 +12,12 @@ Single:
 <div class="with-copy" markdown="1">
 
 ```console
-curl 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+curl -v 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
 ```
 
 </div>
 
-The expected output will look like:
+The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
 
 <div class="with-copy" markdown="1">
 
@@ -43,12 +43,12 @@ Cluster:
 <div class="with-copy" markdown="1">
 
 ```console
-curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+curl -v'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
 ```
 
 </div>
 
-The expected output will look like:
+The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
 
 <div class="with-copy" markdown="1">
 
