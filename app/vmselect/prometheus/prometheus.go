@@ -41,7 +41,9 @@ var (
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
 		"By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
 		"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. "+
-		"See also '-search.maxLookback' flag, which has the same meaning due to historical reasons")
+		"See also '-search.setLookbackToStep' flag")
+	setLookbackToStep = flag.Bool("search.setLookbackToStep", false, "Whether to fix lookback interval to 'step' query arg value. "+
+		"If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 	selectNodes = flagutil.NewArray("selectNode", "Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
@@ -1052,7 +1054,19 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	if d == 0 {
 		d = maxStalenessInterval.Milliseconds()
 	}
-	return searchutils.GetDuration(r, "max_lookback", d)
+	maxLookback, err := searchutils.GetDuration(r, "max_lookback", d)
+	if err != nil {
+		return 0, err
+	}
+	d = maxLookback
+	if *setLookbackToStep {
+		step, err := searchutils.GetDuration(r, "step", d)
+		if err != nil {
+			return 0, err
+		}
+		d = step
+	}
+	return d, nil
 }
 
 func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {

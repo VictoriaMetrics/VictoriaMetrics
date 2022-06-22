@@ -774,7 +774,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxSeries int
      The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
   -search.maxStalenessInterval duration
-     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
+     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
      The maximum duration for /api/v1/status/* requests (default 5m0s)
   -search.maxStepForPointsAdjustment duration
@@ -793,6 +793,8 @@ Below is the output for `/path/to/vmselect -help`:
      The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey string
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
+  -search.setLookbackToStep
+     Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
