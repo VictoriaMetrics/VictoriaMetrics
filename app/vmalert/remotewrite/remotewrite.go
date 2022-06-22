@@ -245,9 +245,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
 	if c.authCfg != nil {
-		if auth := c.authCfg.GetAuthHeader(); auth != "" {
-			req.Header.Set("Authorization", auth)
-		}
+		c.authCfg.SetHeaders(req, true)
 	}
 	if !*disablePathAppend {
 		req.URL.Path = path.Join(req.URL.Path, "/api/v1/write")

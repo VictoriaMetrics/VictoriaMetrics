@@ -1134,6 +1134,8 @@ to a file containing a list of [relabel_config](https://prometheus.io/docs/prome
 The `-relabelConfig` also can point to http or https url. For example, `-relabelConfig=https://config-server/relabel_config.yml`.
 See [this article with relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
 
+The `-relabelConfig` files can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
+
 Example contents for `-relabelConfig` file:
 
 ```yml
@@ -1147,8 +1149,7 @@ Example contents for `-relabelConfig` file:
   regex: true
 ```
 
-VictoriaMetrics components provide additional relabeling features such as Graphite-style relabeling.
-See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
+VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
 
 
 ## Federation

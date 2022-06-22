@@ -187,6 +187,16 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
 
 `vmagent` also support the following additional options in `scrape_configs` section:
 
+* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target needs custom authorization and authentication. For example:
+
+```yaml
+scrape_configs:
+- job_name: custom_headers
+  headers:
+  - "TenantID: abc"
+  - "My-Auth: TopSecret"
+```
+
 * `disable_compression: true` - to disable response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
@@ -300,6 +310,8 @@ The relabeling can be defined in the following places:
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to all the scraped metrics in the given `scrape_config`. This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
 * At the `-remoteWrite.relabelConfig` file. This relabeling is applied to all the collected metrics before sending them to remote storage. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`. This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
+
+All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
 
 You can read more about relabeling in the following articles:
 
@@ -428,9 +440,11 @@ scrape_configs:
 Proxy can be configured with the following optional settings:
 
 * `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
-* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
+* `proxy_oauth2` for OAuth2 config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
+* `proxy_headers` for passing additional HTTP headers in requests to proxy.
 
 For example:
 
@@ -447,6 +461,8 @@ scrape_configs:
     key_file: /path/to/key
     ca_file: /path/to/ca
     server_name: real-server-name
+  proxy_headers:
+  - "Proxy-Auth: top-secret"
 ```
 
 ## Cardinality limiter
