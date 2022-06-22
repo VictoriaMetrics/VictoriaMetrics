@@ -15,10 +15,11 @@ import Spinner from "../common/Spinner";
 import {useFetchQueryOptions} from "../../hooks/useFetchQueryOptions";
 import {TracingData} from "../../api/types";
 import TracingsView from "./Views/TracingsView";
+import Trace from "./Trace/Trace";
 
 const CustomPanel: FC = () => {
 
-  const [tracingsData, setTracingData] = useState<TracingData[]>([]);
+  const [tracingsData, setTracingData] = useState<Trace[]>([]);
   const {displayType, time: {period}, query, queryControls: {isTracingEnabled}} = useAppState();
   const { customStep, yaxis } = useGraphState();
 
@@ -43,8 +44,8 @@ const CustomPanel: FC = () => {
     customStep
   });
 
-  const handleTraceDelete = (tracingData: TracingData) => {
-    const updatedTracings = tracingsData.filter((data) => data.message !== tracingData.message);
+  const handleTraceDelete = (tracingData: Trace) => {
+    const updatedTracings = tracingsData.filter((data) => data.idValue !== tracingData.idValue);
     setTracingData([...updatedTracings]);
   };
 
@@ -79,7 +80,6 @@ const CustomPanel: FC = () => {
           {graphData && period && (displayType === "chart") && <>
             {isTracingEnabled && <TracingsView
               tracingsData={tracingsData}
-              emptyMessage={"Please re-run the query to see results of the tracing"}
               onDeleteClick={handleTraceDelete}
             />}
             <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
@@ -89,7 +89,6 @@ const CustomPanel: FC = () => {
           {liveData && (displayType === "table") && <>
             {isTracingEnabled && <TracingsView
               tracingsData={tracingsData}
-              emptyMessage={"Please re-run the query to see results of the tracing"}
               onDeleteClick={handleTraceDelete}
             />}
             <TableView data={liveData}/>

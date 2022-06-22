@@ -1,41 +1,34 @@
 import React, {FC} from "preact/compat";
-import {TracingData} from "../../../api/types";
 import Typography from "@mui/material/Typography";
 import TraceView from "./TraceView";
 import Alert from "@mui/material/Alert";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import Button from "@mui/material/Button";
+import Trace from "../Trace/Trace";
 
 interface TraceViewProps {
-  tracingsData: TracingData[];
-  emptyMessage: string;
-  onDeleteClick: (tracingData: TracingData) => void;
+  tracingsData: Trace[];
+  onDeleteClick: (tracingData: Trace) => void;
 }
 
-const TracingsView: FC<TraceViewProps> = ({tracingsData, emptyMessage, onDeleteClick}) => {
+const EMPTY_MESSAGE = "Please re-run the query to see results of the tracing";
+
+const TracingsView: FC<TraceViewProps> = ({tracingsData, onDeleteClick}) => {
   if (!tracingsData.length) {
     return (
-      <>
-        <Alert color={"info"} severity="info" sx={{whiteSpace: "pre-wrap", mt: 2}}>
-          {emptyMessage}
-        </Alert>
-      </>
+      <Alert color={"info"} severity="info" sx={{whiteSpace: "pre-wrap", mt: 2}}>
+        {EMPTY_MESSAGE}
+      </Alert>
     );
   }
 
-  const handleDeleteClick = (tracingData: TracingData) => () => {
+  const handleDeleteClick = (tracingData: Trace) => () => {
     onDeleteClick(tracingData);
-  };
-
-  const getQuery = (message: string): string => {
-    const query = message.match(/query=(.*):/);
-    if (query) return query[1];
-    return "";
   };
 
   return <>{tracingsData.map((tracingData) => <>
     <Typography variant="h4" gutterBottom component="div">
-      {`Query ${getQuery(tracingData.message)} tracing`}
+      {"Tracing for"} {tracingData.queryValue}
       <Button onClick={handleDeleteClick(tracingData)}>
         <RemoveCircleIcon fontSize={"large"} color={"error"} />
       </Button>

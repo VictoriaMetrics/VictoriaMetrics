@@ -1,3 +1,4 @@
+import React from "preact/compat";
 import {TracingData} from "../../../api/types";
 import Box from "@mui/material/Box";
 import ListItem from "@mui/material/ListItem";
@@ -8,7 +9,6 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import AddCircleRoundedIcon from "@mui/icons-material/AddCircleRounded";
 import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
-import React, {useMemo} from "preact/compat";
 import {BorderLinearProgressWithLabel} from "../../BorderLineProgress/BorderLinearProgress";
 
 interface RecursiveProps {
@@ -22,32 +22,25 @@ type RecursiveComponent = (props: RecursiveProps) => JSX.Element;
 
 export const recursiveComponent: RecursiveComponent = ({ tracingData, openLevels, totalMicrosec, onChange})  => {
   const handleListClick = (level: number) => () => onChange(level);
-  const renderData = useMemo(() => tracingData.sort((a, b) => {
-    if (a.duration_msec > b.duration_msec) return 1;
-    if (a.duration_msec < b.duration_msec) return -1;
-    return 0;
-  }), [tracingData]);
   return (
     <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
-      {renderData.map((child) => {
+      {tracingData.map((child) => {
         const hasChildren = child.children && child.children.length;
         const progress = child.duration_msec / totalMicrosec * 100;
         if (!hasChildren) {
           return (
-            <>
-              <ListItem sx={{p:0, pl:7}}>
-                <ListItemButton sx={{ pt: 0, pb: 0}}>
-                  <Box display="flex" flexDirection="column" flexGrow={0.5} sx={{ ml: 4, mr: 4, width: "100%" }}>
-                    <ListItemText
-                      primary={`duration: ${child.duration_msec} ms`}
-                      secondary={child.message} />
-                    <ListItemText>
-                      <BorderLinearProgressWithLabel variant="determinate" value={progress} />
-                    </ListItemText>
-                  </Box>
-                </ListItemButton>
-              </ListItem>
-            </>
+            <ListItem sx={{p:0, pl:7}}>
+              <ListItemButton sx={{ pt: 0, pb: 0}}>
+                <Box display="flex" flexDirection="column" flexGrow={0.5} sx={{ ml: 4, mr: 4, width: "100%" }}>
+                  <ListItemText
+                    primary={`duration: ${child.duration_msec} ms`}
+                    secondary={child.message} />
+                  <ListItemText>
+                    <BorderLinearProgressWithLabel variant="determinate" value={progress} />
+                  </ListItemText>
+                </Box>
+              </ListItemButton>
+            </ListItem>
           );
         }
         return (
@@ -77,7 +70,7 @@ export const recursiveComponent: RecursiveComponent = ({ tracingData, openLevels
             </Collapse>
           </>
         );
-      }).reverse()}
+      })}
     </Box>
   );
 };

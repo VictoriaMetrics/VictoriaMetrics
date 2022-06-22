@@ -10,6 +10,7 @@ import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwi
 import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
 import {arrayEquals} from "../utils/array";
+import Trace from "../components/CustomPanel/Trace/Trace";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -27,14 +28,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
-  tracingData?: TracingData,
+  tracingData?: Trace,
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
-  const [tracingData, setTracingData] = useState<TracingData>();
+  const [tracingData, setTracingData] = useState<Trace>();
   const [error, setError] = useState<ErrorTypes | string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
 
@@ -45,6 +46,15 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       setTracingData(undefined);
     }
   }, [error]);
+
+  const updateTracingData = (query: string [], tracing: TracingData) => {
+    query.forEach((query) => {
+      const {message} = tracing;
+      if (message.includes(query)) {
+        setTracingData(new Trace(tracing, query));
+      }
+    });
+  };
 
   const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType) => {
     const controller = new AbortController();
@@ -57,7 +67,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
         const resp = await response.json();
         if (response.ok) {
           setError(undefined);
-          setTracingData(resp.trace);
+          updateTracingData(query, resp.trace);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
             return d;
