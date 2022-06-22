@@ -207,8 +207,8 @@ type groupWatcher struct {
 	selectors          []Selector
 	attachNodeMetadata bool
 
-	getAuthHeader func() string
-	client        *http.Client
+	setHeaders func(req *http.Request)
+	client     *http.Client
 
 	mu sync.Mutex
 	m  map[string]*urlWatcher
@@ -235,9 +235,9 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		selectors:          selectors,
 		attachNodeMetadata: attachNodeMetadata,
 
-		getAuthHeader: ac.GetAuthHeader,
-		client:        client,
-		m:             make(map[string]*urlWatcher),
+		setHeaders: func(req *http.Request) { ac.SetHeaders(req, true) },
+		client:     client,
+		m:          make(map[string]*urlWatcher),
 	}
 }
 
@@ -407,9 +407,7 @@ func (gw *groupWatcher) doRequest(requestURL string) (*http.Response, error) {
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
 	}
-	if ah := gw.getAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
+	gw.setHeaders(req)
 	resp, err := gw.client.Do(req)
 	if err != nil {
 		return nil, err

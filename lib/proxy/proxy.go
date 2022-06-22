@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -60,8 +61,26 @@ func (u *URL) String() string {
 	return pu.String()
 }
 
-// GetAuthHeader returns Proxy-Authorization auth header for the given u and ac.
-func (u *URL) GetAuthHeader(ac *promauth.Config) string {
+// SetHeaders sets headers to req according to u and ac configs.
+func (u *URL) SetHeaders(ac *promauth.Config, req *http.Request) {
+	ah := u.getAuthHeader(ac)
+	if ah != "" {
+		req.Header.Set("Proxy-Authorization", ah)
+	}
+	ac.SetHeaders(req, false)
+}
+
+// SetFasthttpHeaders sets headers to req according to u and ac configs.
+func (u *URL) SetFasthttpHeaders(ac *promauth.Config, req *fasthttp.Request) {
+	ah := u.getAuthHeader(ac)
+	if ah != "" {
+		req.Header.Set("Proxy-Authorization", ah)
+	}
+	ac.SetFasthttpHeaders(req, false)
+}
+
+// getAuthHeader returns Proxy-Authorization auth header for the given u and ac.
+func (u *URL) getAuthHeader(ac *promauth.Config) string {
 	authHeader := ""
 	if ac != nil {
 		authHeader = ac.GetAuthHeader()
@@ -130,9 +149,10 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		if isTLS {
 			proxyConn = tls.Client(proxyConn, tlsCfg)
 		}
-		authHeader := u.GetAuthHeader(ac)
+		authHeader := u.getAuthHeader(ac)
 		if authHeader != "" {
 			authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
+			authHeader += ac.HeadersNoAuthString()
 		}
 		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {
