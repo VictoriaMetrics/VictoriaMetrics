@@ -31,7 +31,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   tracingData?: Trace,
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
-  console.log("QUERY =>", query);
+
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();

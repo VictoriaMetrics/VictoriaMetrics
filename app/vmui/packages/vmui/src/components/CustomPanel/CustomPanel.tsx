@@ -13,7 +13,6 @@ import {useGraphDispatch, useGraphState} from "../../state/graph/GraphStateConte
 import {AxisRange} from "../../state/graph/reducer";
 import Spinner from "../common/Spinner";
 import {useFetchQueryOptions} from "../../hooks/useFetchQueryOptions";
-import {TracingData} from "../../api/types";
 import TracingsView from "./Views/TracingsView";
 import Trace from "./Trace/Trace";
 

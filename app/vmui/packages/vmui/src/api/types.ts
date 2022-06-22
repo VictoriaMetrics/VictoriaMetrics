@@ -14,13 +14,6 @@ export interface InstantMetricResult extends MetricBase {
   value: [number, string]
 }
 
-export interface QueryRangeResponse {
-  status: string;
-  data: {
-    result: MetricResult[];
-    resultType: "matrix";
-  }
-}
 export interface TracingData {
   message: string;
   duration_msec: number;
