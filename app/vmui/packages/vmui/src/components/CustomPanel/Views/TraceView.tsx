@@ -1,6 +1,6 @@
 import React, {FC, useState} from "preact/compat";
 import List from "@mui/material/List";
-import RecursiveComponent from "../NestedNav/NestedNav";
+import NestedNav from "../NestedNav/NestedNav";
 import Trace from "../Trace/Trace";
 
 interface TraceViewProps {
@@ -18,7 +18,7 @@ const TraceView: FC<TraceViewProps> = ({trace}) => {
     setOpenLevels((prevState:OpenLevels) => ({...prevState, [level]: !prevState[level]}));
   };
   return (<List sx={{ width: "100%" }} component="nav">
-    <RecursiveComponent
+    <NestedNav
       trace={trace}
       openLevels={openLevels}
       totalMicrosec={trace.duration}

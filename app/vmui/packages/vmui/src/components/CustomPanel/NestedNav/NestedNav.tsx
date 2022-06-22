@@ -18,9 +18,7 @@ interface RecursiveProps {
   onChange: (level: number) => void;
 }
 
-type RecursiveComponent = (props: RecursiveProps) => JSX.Element;
-
-const RecursiveComponent: FC<RecursiveProps> = ({ trace, openLevels, totalMicrosec, onChange})  => {
+const NestedNav: FC<RecursiveProps> = ({ trace, openLevels, totalMicrosec, onChange})  => {
   const handleListClick = (traceID: number) => () => onChange(traceID);
   const hasChildren = trace.children && trace.children.length;
   const progress = trace.duration / totalMicrosec * 100;
@@ -48,7 +46,7 @@ const RecursiveComponent: FC<RecursiveProps> = ({ trace, openLevels, totalMicros
         <Collapse in={openLevels[trace.duration]} timeout="auto" unmountOnExit>
           <List component="div" disablePadding sx={{ pl: 4 }}>
             {hasChildren ?
-              trace.children.map((trace) => <RecursiveComponent
+              trace.children.map((trace) => <NestedNav
                 key={trace.duration}
                 trace={trace}
                 openLevels={openLevels}
@@ -62,4 +60,4 @@ const RecursiveComponent: FC<RecursiveProps> = ({ trace, openLevels, totalMicros
   );
 };
 
-export default RecursiveComponent;
+export default NestedNav;
