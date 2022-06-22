@@ -130,7 +130,7 @@ func getCloudEnvByName(name string) (*cloudEnvironmentEndpoints, error) {
 			supportedEnvs = append(supportedEnvs, envName)
 		}
 
-		return nil, fmt.Errorf("incorrect value for azure env parametr: %q, supported values: %s", name, strings.Join(supportedEnvs, ","))
+		return nil, fmt.Errorf("incorrect value for azure `environment` param: %q, supported values: %s", name, strings.Join(supportedEnvs, ","))
 	}
 	return env, nil
 }
@@ -138,11 +138,11 @@ func getCloudEnvByName(name string) (*cloudEnvironmentEndpoints, error) {
 func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, error) {
 	fileContent, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read cloud env endpoints from file: %q : %w", filePath, err)
+		return nil, fmt.Errorf("cannot read cloud env endpoints from file %q:  %w", filePath, err)
 	}
 	var cee cloudEnvironmentEndpoints
 	if err := json.Unmarshal(fileContent, &cee); err != nil {
-		return nil, fmt.Errorf("cannot parse cloud env endpoints content: %q from file: %q: %w", string(fileContent), filePath, err)
+		return nil, fmt.Errorf("cannot parse cloud env endpoints from file %q: %w", filePath, err)
 	}
 	return &cee, nil
 }
@@ -169,7 +169,7 @@ func newTokenRefresher(sdc *SDConfig, ac, proxyAc *promauth.Config, cloudEndpoin
 		endpoint := resolveMSIEndpoint()
 		endpointURL, err := url.Parse(endpoint)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse MSI endpoint url: %q : %w", endpoint, err)
+			return nil, fmt.Errorf("cannot parse MSI endpoint url %q: %w", endpoint, err)
 		}
 		q := endpointURL.Query()
 

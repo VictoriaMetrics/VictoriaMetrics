@@ -55,7 +55,7 @@ func (sdc *SDConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	checkRequired := func(name, value string) error {
 		if len(value) == 0 {
-			return fmt.Errorf("required param for azure sd: %q is not set", name)
+			return fmt.Errorf("param %q is required for azure SD", name)
 		}
 		return nil
 	}
@@ -75,7 +75,7 @@ func (sdc *SDConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	case "ManagedIdentity":
 	default:
-		return fmt.Errorf("unsupported `authentication_method`: %q for azure_sd_configs, only `OAuth` and `ManagedIdentity` supported by vmagent", sdc.AuthenticationMethod)
+		return fmt.Errorf("unsupported `authentication_method: %q` for azure SD, only `OAuth` and `ManagedIdentity` are supported", sdc.AuthenticationMethod)
 	}
 	return nil
 }
