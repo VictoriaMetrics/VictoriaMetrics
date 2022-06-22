@@ -549,7 +549,7 @@ var (
 	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/delSeries"}`)
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/delSeries"}`)
 
-	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_request_total{path="/functions"}`)
+	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
 
 	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
