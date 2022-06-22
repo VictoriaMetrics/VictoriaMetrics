@@ -31,7 +31,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   tracingData?: Trace,
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
-
+  console.log("QUERY =>", query);
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
@@ -47,10 +47,9 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     }
   }, [error]);
 
-  const updateTracingData = (query: string[], tracing: TracingData) => {
+  const updateTracingData = (tracing: TracingData, queries: string[]) => {
     if (tracing) {
-      const expr = predefinedQuery ?? query;
-      expr.forEach((query) => {
+      queries.forEach((query) => {
         const {message} = tracing;
         if (message.includes(query)) {
           setTracingData(new Trace(tracing, query));
@@ -59,7 +58,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     }
   };
 
-  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType) => {
+  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     try {
@@ -69,10 +68,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       for await (const response of responses) {
         const resp = await response.json();
         if (response.ok) {
-          const expr = predefinedQuery ?? query;
-          console.log(expr);
           setError(undefined);
-          updateTracingData(query, resp.trace);
+          updateTracingData(resp.trace, query);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
             return d;
@@ -119,7 +116,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   useEffect(() => {
     if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl)) || !fetchUrl?.length) return;
     setIsLoading(true);
-    throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
+    const expr = predefinedQuery ?? query;
+    throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr);
   }, [fetchUrl, visible]);
 
   useEffect(() => {
