@@ -33,7 +33,7 @@ const TracingsView: FC<TraceViewProps> = ({tracingsData, onDeleteClick}) => {
         <RemoveCircleIcon fontSize={"large"} color={"error"} />
       </Button>
     </Typography>
-    <TraceView tracingData={tracingData} />
+    <TraceView trace={tracingData} />
   </>)}</>;
 };
 

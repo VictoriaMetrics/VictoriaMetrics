@@ -47,13 +47,16 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     }
   }, [error]);
 
-  const updateTracingData = (query: string [], tracing: TracingData) => {
-    query.forEach((query) => {
-      const {message} = tracing;
-      if (message.includes(query)) {
-        setTracingData(new Trace(tracing, query));
-      }
-    });
+  const updateTracingData = (query: string[], tracing: TracingData) => {
+    if (tracing) {
+      const expr = predefinedQuery ?? query;
+      expr.forEach((query) => {
+        const {message} = tracing;
+        if (message.includes(query)) {
+          setTracingData(new Trace(tracing, query));
+        }
+      });
+    }
   };
 
   const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType) => {
@@ -66,6 +69,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       for await (const response of responses) {
         const resp = await response.json();
         if (response.ok) {
+          const expr = predefinedQuery ?? query;
+          console.log(expr);
           setError(undefined);
           updateTracingData(query, resp.trace);
           tempData.push(...resp.data.result.map((d: MetricBase) => {
