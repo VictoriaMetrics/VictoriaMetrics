@@ -886,7 +886,6 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
-		err = fmt.Errorf("cannot execute query: %w", err)
 		return errWithContext(err, "-search.maxUniqueTimeseries")
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
