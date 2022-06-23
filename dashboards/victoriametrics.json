@@ -7282,8 +7282,8 @@
       {
         "current": {
           "selected": false,
-          "text": "1015",
-          "value": "1015"
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
