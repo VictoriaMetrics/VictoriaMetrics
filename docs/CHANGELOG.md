@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* BUGFIX:  [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): Return correct query response if some vmstorages at cluster is not available, but response from others met replicationFactor.
 * FEATURE: add `-search.setLookbackToStep` command-line flag, which enables InfluxDB-like gap filling during querying. See [these docs](https://docs.victoriametrics.com/guides/migrate-from-influx.html) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to specify additional HTTP headers to send to scrape targets via `headers` section in `scrape_configs`. This can be used when the scrape target requires custom authorization and authentication like in [this stackoverflow question](https://stackoverflow.com/questions/66032498/prometheus-scrape-metric-with-custom-header). For example, the following config instructs sending `My-Auth: top-secret` and `TenantID: FooBar` headers with each request to `http://host123:8080/metrics`:
 
