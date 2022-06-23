@@ -104,13 +104,14 @@ func main() {
 	registerStorageMetrics(strg)
 
 	common.StartUnmarshalWorkers()
-	srv, err := transport.NewServer(*vminsertAddr, *vmselectAddr, strg)
+	vminsertSrv, err := transport.NewVMInsertServer(*vminsertAddr, strg)
 	if err != nil {
-		logger.Fatalf("cannot create a server with vminsertAddr=%s, vmselectAddr=%s: %s", *vminsertAddr, *vmselectAddr, err)
+		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
 	}
-
-	go srv.RunVMInsert()
-	go srv.RunVMSelect()
+	vmselectSrv, err := transport.NewVMSelectServer(*vmselectAddr, strg)
+	if err != nil {
+		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
+	}
 
 	requestHandler := newRequestHandler(strg)
 	go func() {
@@ -130,7 +131,8 @@ func main() {
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 	stopStaleSnapshotsRemover()
-	srv.MustClose()
+	vmselectSrv.MustClose()
+	vminsertSrv.MustClose()
 	common.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 
