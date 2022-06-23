@@ -1388,6 +1388,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				return false, err
 			}
 			errsPartial = append(errsPartial, err)
+			if snr.denyPartialResponse && len(errsPartial) >= *replicationFactor {
+				// Return the error to the caller if partial responses are denied
+				// and the number of partial responses reach -replicationFactor,
+				// since this means that the response is partial.
+				return false, err
+			}
 			continue
 		}
 		resultsCollected++
@@ -1401,12 +1407,10 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			return false, nil
 		}
 	}
-	// allow partial responses if result met replication factor.
-	// it should help mitigate issues with cluster reachability.
-	if resultsCollected > len(storageNodes)-*replicationFactor {
+	if len(errsPartial) == 0 {
 		return false, nil
 	}
-	if snr.denyPartialResponse || len(errsPartial) == len(storageNodes) {
+	if len(errsPartial) == len(storageNodes) {
 		// All the vmstorage nodes returned error.
 		// Return only the first error, since it has no sense in returning all errors.
 		return false, errsPartial[0]
