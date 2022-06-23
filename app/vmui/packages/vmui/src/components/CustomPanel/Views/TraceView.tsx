@@ -21,7 +21,7 @@ const TraceView: FC<TraceViewProps> = ({trace}) => {
     <NestedNav
       trace={trace}
       openLevels={openLevels}
-      totalMicrosec={trace.duration}
+      totalMsec={trace.duration}
       onChange={handleClick}
     />
   </List>);

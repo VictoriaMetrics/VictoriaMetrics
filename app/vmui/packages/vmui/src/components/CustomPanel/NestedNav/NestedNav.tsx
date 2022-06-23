@@ -13,15 +13,15 @@ import Trace from "../Trace/Trace";
 
 interface RecursiveProps {
   trace: Trace;
-  totalMicrosec: number;
+  totalMsec: number;
   openLevels: Record<number, boolean>;
   onChange: (level: number) => void;
 }
 
-const NestedNav: FC<RecursiveProps> = ({ trace, openLevels, totalMicrosec, onChange})  => {
+const NestedNav: FC<RecursiveProps> = ({ trace, openLevels, totalMsec, onChange})  => {
   const handleListClick = (traceID: number) => () => onChange(traceID);
   const hasChildren = trace.children && trace.children.length;
-  const progress = trace.duration / totalMicrosec * 100;
+  const progress = trace.duration / totalMsec * 100;
   return (
     <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
       <ListItem onClick={handleListClick(trace.duration)} sx={!hasChildren ? {p:0, pl: 7} : {p:0}}>
@@ -50,7 +50,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, openLevels, totalMicrosec, onCha
                 key={trace.duration}
                 trace={trace}
                 openLevels={openLevels}
-                totalMicrosec={totalMicrosec}
+                totalMsec={totalMsec}
                 onChange={onChange}
               />) : null}
           </List>
