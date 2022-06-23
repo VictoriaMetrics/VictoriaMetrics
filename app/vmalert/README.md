@@ -36,7 +36,7 @@ implementation and aims to be compatible with its syntax.
 
 To build `vmalert` from sources:
 
-```bash
+```console
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics
 cd VictoriaMetrics
 make vmalert
@@ -52,12 +52,13 @@ To start using `vmalert` you will need the following things:
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
-  compatible storage to persist rules and alerts state info;
+  compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
+  configured with multiple remote writes as a proxy;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
 
 Then configure `vmalert` accordingly:
 
-```bash
+```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
@@ -401,6 +402,36 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
+`vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
+via [recording rules](#recording-rules) and backfill results to the configured `-remoteWrite.url`.
+This ability allows to aggregate data. For example, the following rule will calculate the average value for
+metric `http_requests` on the `5m` interval:
+
+```yaml
+  - record: http_requests:avg5m   
+    expr: avg_over_time(http_requests[5m])   
+```
+
+Every time this rule will be evaluated, `vmalert` will backfill its results as a new time series `http_requests:avg5m`
+to the configured `-remoteWrite.url`.
+
+`vmalert` executes rules with specified interval (configured via flag `-evaluationInterval`
+or as [group's](#groups) `interval` param). The interval helps to control "resolution" of the produced series.
+This ability allows to downsample data. For example, the following config will execute the rule only once every `5m`:
+
+```yaml
+groups:
+  - name: my_group
+    interval: 5m
+    rules:  
+    - record: http_requests:avg5m
+      expr: avg_over_time(http_requests[5m])   
+```
+
+Ability of `vmalert` to be configured with different `datasource.url` and `remoteWrite.url` allows
+reading data from one data source and backfilling results to another. This helps to build a system
+for aggregating and downsampling the data.
+
 The following example shows how to build a topology where `vmalert` will process data from one cluster
 and write results into another. Such clusters may be called as "hot" (low retention,
 high-speed disks, used for operative monitoring) and "cold" (long term retention,
@@ -423,6 +454,21 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
 See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
+
+#### Multiple remote writes
+
+For persisting recording or alerting rule results `vmalert` requires `-remoteWrite.url` to be set.
+But this flag supports only one destination. To persist rule results to multiple destinations
+we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as fan-out proxy:
+
+<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.png">
+
+In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
+is configured to fan-out received data to two or more destinations.
+Using `vmagent` as a proxy provides additional benefits such as 
+[data persisting when storage is unreachable](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability),
+or time series modification via [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
+
 
 ### Web
 
@@ -494,7 +540,7 @@ max range per request:  8h20m0s
 
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
 executed sequentially as well (`concurrency` setting is ignored). Vmalert sends rule's expression
-to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) endpoint
+to [/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
@@ -637,6 +683,8 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -677,7 +725,7 @@ The shortlist of configuration flags is the following:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
      Optional basic auth password for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -731,7 +779,7 @@ The shortlist of configuration flags is the following:
      Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
      Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
@@ -1022,7 +1070,7 @@ It is recommended using
 
 You can build `vmalert` docker image from source and push it to your own docker repository.
 Run the following commands from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics):
-```bash
+```console
 make package-vmalert
 docker tag victoria-metrics/vmalert:version my-repo:my-version-name
 docker push my-repo:my-version-name

@@ -83,7 +83,7 @@ func TestVMInstantQuery(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
+	authCfg, err := baCfg.NewConfig(".")
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
@@ -206,7 +206,7 @@ func TestVMRangeQuery(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
+	authCfg, err := baCfg.NewConfig(".")
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
@@ -247,7 +247,7 @@ func TestVMRangeQuery(t *testing.T) {
 }
 
 func TestRequestParams(t *testing.T) {
-	authCfg, err := promauth.NewConfig(".", nil, baCfg, "", "", nil, nil)
+	authCfg, err := baCfg.NewConfig(".")
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}

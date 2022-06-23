@@ -22,7 +22,7 @@ See how to work with a [VictoriaMetrics Helm repository in previous guide](https
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 helm install operator vm/victoria-metrics-operator
 ```
 
@@ -30,7 +30,7 @@ helm install operator vm/victoria-metrics-operator
 
 The expected output is:
 
-```bash
+```console
 NAME: vmoperator
 LAST DEPLOYED: Thu Sep 30 17:30:30 2021
 NAMESPACE: default
@@ -49,13 +49,13 @@ Run the following command to check that VM Operator is up and running:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl --namespace default get pods -l "app.kubernetes.io/instance=vmoperator"
 ```
 </div>
 
 The expected output:
-```bash
+```console
 NAME                                                    READY   STATUS    RESTARTS   AGE
 vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0          77s
 ```
@@ -68,7 +68,7 @@ Run the following command to install [VictoriaMetrics Cluster](https://docs.vict
 
 <div class="with-copy" markdown="1" id="example-cluster-config">
 
-```bash
+```console
 cat << EOF | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMCluster
@@ -89,7 +89,7 @@ EOF
 
 The expected output:
 
-```bash
+```console
 vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
@@ -100,13 +100,13 @@ vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 Please note that it may take some time for the pods to start. To check that the pods are started, run the following command:
 <div class="with-copy" markdown="1" id="example-cluster-config">
 
-```bash
+```console
 kubectl get pods | grep vmcluster
 ```
 </div>
 
 The expected output:
-```bash
+```console
 NAME                                                     READY   STATUS    RESTARTS   AGE
 vminsert-example-vmcluster-persistent-845849cb84-9vb6f   1/1     Running   0          5m15s
 vminsert-example-vmcluster-persistent-845849cb84-r7mmk   1/1     Running   0          5m15s
@@ -119,13 +119,13 @@ vmstorage-example-vmcluster-persistent-1                 1/1     Running   0    
 There is an extra command to get information about the cluster state:
 <div class="with-copy" markdown="1" id="services">
 
-```bash
+```console
 kubectl get vmclusters
 ```
 </div>
 
 The expected output:
-```bash
+```console
 NAME                           INSERT COUNT   STORAGE COUNT   SELECT COUNT   AGE     STATUS
 example-vmcluster-persistent   2              2               2              5m53s   operational
 ```
@@ -136,14 +136,14 @@ To get the name of `vminsert` services, please run the following command:
 
 <div class="with-copy" markdown="1" id="services">
 
-```bash
+```console
 kubectl get svc | grep vminsert
 ```
 </div>
 
 The expected output:
 
-```bash
+```console
 vminsert-example-vmcluster-persistent    ClusterIP   10.107.47.136   <none>        8480/TCP                     5m58s
 ```
 
@@ -153,7 +153,7 @@ Here is an example of the full configuration that we need to apply:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 cat <<EOF | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAgent
@@ -177,7 +177,7 @@ EOF
 
 
 The expected output:
-```bash
+```console
 vmagent.operator.victoriametrics.com/example-vmagent created
 ```
 
@@ -188,14 +188,14 @@ Verify that `VMAgent` is up and running by executing the following command:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 kubectl get pods | grep vmagent
 ```
 </div>
 
 The expected output is:
 
-```bash
+```console
 vmagent-example-vmagent-7996844b5f-b5rzs                 2/2     Running   0          9s
 ```
 
@@ -207,13 +207,13 @@ Run the following command to make `VMAgent`'s port accessible from the local mac
 
 </div>
 
-```bash
+```console
 kubectl port-forward svc/vmagent-example-vmagent 8429:8429
 ```
 
 The expected output is:
 
-```bash
+```console
 Forwarding from 127.0.0.1:8429 -> 8429
 Forwarding from [::1]:8429 -> 8429
 ```
@@ -235,14 +235,14 @@ To get the new service name, please run the following command:
 
 <div class="with-copy" markdown="1" id="services">
 
-```bash
+```console
 kubectl get svc | grep vmselect
 ```
 </div>
 
 The expected output:
 
-```bash
+```console
 vmselect-example-vmcluster-persistent    ClusterIP   None             <none>        8481/TCP                     7m
 ```
 

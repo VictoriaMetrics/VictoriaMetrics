@@ -7,6 +7,7 @@ export interface CardinalityState {
   date: string | null
   match: string | null
   extraLabel: string | null
+  focusLabel: string | null
 }
 
 export type Action =
@@ -14,12 +15,15 @@ export type Action =
   | { type: "SET_DATE", payload: string | null }
   | { type: "SET_MATCH", payload: string | null }
   | { type: "SET_EXTRA_LABEL", payload: string | null }
+  | { type: "SET_FOCUS_LABEL", payload: string | null }
   | { type: "RUN_QUERY" }
+
 
 export const initialState: CardinalityState = {
   runQuery: 0,
   topN: getQueryStringValue("topN", 10) as number,
   date: getQueryStringValue("date", dayjs(new Date()).format("YYYY-MM-DD")) as string,
+  focusLabel: getQueryStringValue("focusLabel", "") as string,
   match: (getQueryStringValue("match", []) as string[]).join("&"),
   extraLabel: getQueryStringValue("extra_label", "") as string,
 };
@@ -45,6 +49,11 @@ export function reducer(state: CardinalityState, action: Action): CardinalitySta
       return {
         ...state,
         extraLabel: action.payload
+      };
+    case "SET_FOCUS_LABEL":
+      return {
+        ...state,
+        focusLabel: action.payload,
       };
     case "RUN_QUERY":
       return {

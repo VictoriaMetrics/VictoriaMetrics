@@ -16,7 +16,8 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 	default:
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslice` or `ingress`", role)
 	}
-	ac, err := sdc.HTTPClientConfig.NewConfig(baseDir)
+	cc := &sdc.HTTPClientConfig
+	ac, err := cc.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
@@ -30,7 +31,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		if err != nil {
 			return nil, fmt.Errorf("cannot build kube config from the specified `kubeconfig_file` config option: %w", err)
 		}
-		acNew, err := promauth.NewConfig(".", nil, kc.basicAuth, kc.token, kc.tokenFile, nil, kc.tlsConfig)
+		acNew, err := promauth.NewConfig(".", nil, kc.basicAuth, kc.token, kc.tokenFile, cc.OAuth2, kc.tlsConfig, cc.Headers)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize auth config from `kubeconfig_file: %q`: %w", sdc.KubeConfigFile, err)
 		}
@@ -57,7 +58,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 		tlsConfig := promauth.TLSConfig{
 			CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 		}
-		acNew, err := promauth.NewConfig(".", nil, nil, "", "/var/run/secrets/kubernetes.io/serviceaccount/token", nil, &tlsConfig)
+		acNew, err := promauth.NewConfig(".", nil, nil, "", "/var/run/secrets/kubernetes.io/serviceaccount/token", cc.OAuth2, &tlsConfig, cc.Headers)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize service account auth: %w; probably, `kubernetes_sd_config->api_server` is missing in Prometheus configs?", err)
 		}

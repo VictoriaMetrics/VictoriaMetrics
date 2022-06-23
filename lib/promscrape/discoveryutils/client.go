@@ -42,10 +42,10 @@ type Client struct {
 
 	apiServer string
 
-	hostPort           string
-	getAuthHeader      func() string
-	getProxyAuthHeader func() string
-	sendFullURL        bool
+	hostPort                string
+	setFasthttpHeaders      func(req *fasthttp.Request)
+	setFasthttpProxyHeaders func(req *fasthttp.Request)
+	sendFullURL             bool
 }
 
 // NewClient returns new Client for the given args.
@@ -70,7 +70,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		tlsCfg = ac.NewTLSConfig()
 	}
 	sendFullURL := !isTLS && proxyURL.IsHTTPOrHTTPS()
-	getProxyAuthHeader := func() string { return "" }
+	setFasthttpProxyHeaders := func(req *fasthttp.Request) {}
 	if sendFullURL {
 		// Send full urls in requests to a proxy host for non-TLS apiServer
 		// like net/http package from Go does.
@@ -82,8 +82,8 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 			tlsCfg = proxyAC.NewTLSConfig()
 		}
 		proxyURLOrig := proxyURL
-		getProxyAuthHeader = func() string {
-			return proxyURLOrig.GetAuthHeader(proxyAC)
+		setFasthttpProxyHeaders = func(req *fasthttp.Request) {
+			proxyURLOrig.SetFasthttpHeaders(proxyAC, req)
 		}
 		proxyURL = &proxy.URL{}
 	}
@@ -123,18 +123,18 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		MaxConns:            64 * 1024,
 		Dial:                dialFunc,
 	}
-	getAuthHeader := func() string { return "" }
+	setFasthttpHeaders := func(req *fasthttp.Request) {}
 	if ac != nil {
-		getAuthHeader = ac.GetAuthHeader
+		setFasthttpHeaders = func(req *fasthttp.Request) { ac.SetFasthttpHeaders(req, true) }
 	}
 	return &Client{
-		hc:                 hc,
-		blockingClient:     blockingClient,
-		apiServer:          apiServer,
-		hostPort:           hostPort,
-		getAuthHeader:      getAuthHeader,
-		getProxyAuthHeader: getProxyAuthHeader,
-		sendFullURL:        sendFullURL,
+		hc:                      hc,
+		blockingClient:          blockingClient,
+		apiServer:               apiServer,
+		hostPort:                hostPort,
+		setFasthttpHeaders:      setFasthttpHeaders,
+		setFasthttpProxyHeaders: setFasthttpProxyHeaders,
+		sendFullURL:             sendFullURL,
 	}, nil
 }
 
@@ -202,12 +202,8 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	}
 	req.Header.SetHost(c.hostPort)
 	req.Header.Set("Accept-Encoding", "gzip")
-	if ah := c.getAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
-	if ah := c.getProxyAuthHeader(); ah != "" {
-		req.Header.Set("Proxy-Authorization", ah)
-	}
+	c.setFasthttpHeaders(&req)
+	c.setFasthttpProxyHeaders(&req)
 	if modifyRequest != nil {
 		modifyRequest(&req)
 	}

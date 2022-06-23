@@ -11,8 +11,30 @@ sort: 21
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
-curl 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+```console
+curl -v 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+```
+
+</div>
+
+The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
+
+<div class="with-copy" markdown="1">
+
+```console
+*   Trying 127.0.0.1:8428...
+* Connected to 127.0.0.1 (127.0.0.1) port 8428 (#0)
+> GET /api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total HTTP/1.1
+> Host: 127.0.0.1:8428
+> User-Agent: curl/7.81.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 204 No Content
+< X-Server-Hostname: eba075fb0e1a
+< Date: Tue, 21 Jun 2022 07:33:35 GMT
+< 
+* Connection #0 to host 127.0.0.1 left intact
 ```
 
 </div>
@@ -20,8 +42,30 @@ curl 'http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
-curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+```console
+curl -v'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total'
+```
+
+</div>
+
+The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
+
+<div class="with-copy" markdown="1">
+
+```console
+*   Trying 127.0.0.1:8481...
+* Connected to 127.0.0.1 (127.0.0.1) port 8481 (#0)
+> GET /delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total HTTP/1.1
+> Host: 127.0.0.1:8481
+> User-Agent: curl/7.81.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 204 No Content
+< X-Server-Hostname: 101ed7a45c94
+< Date: Tue, 21 Jun 2022 07:21:36 GMT
+< 
+* Connection #0 to host 127.0.0.1 left intact
 ```
 
 </div>
@@ -37,7 +81,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl 'http://<victoriametrics-addr>:8428/api/v1/export/csv?format=__name__,__value__,__timestamp__:unix_s&match=vm_http_request_errors_total' > filename.txt
 ```
 
@@ -46,7 +90,7 @@ curl 'http://<victoriametrics-addr>:8428/api/v1/export/csv?format=__name__,__val
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv?format=__name__,__value__,__timestamp__:unix_s&match=vm_http_request_errors_total' > filename.txt
 ```
 
@@ -64,7 +108,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=vm_http_request_errors_total' > filename.txt
 ```
 
@@ -73,7 +117,7 @@ curl -G 'http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=vm_http
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/native?match=vm_http_request_errors_total' > filename.txt
 ```
 
@@ -90,7 +134,7 @@ More information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl --data-binary "@import.txt" -X POST 'http://destination-victoriametrics:8428/api/v1/import'
 ```
 
@@ -99,7 +143,7 @@ curl --data-binary "@import.txt" -X POST 'http://destination-victoriametrics:842
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import'
 ```
 
@@ -107,7 +151,7 @@ curl --data-binary "@import.txt" -X POST 'http://<vminsert>:8480/insert/0/promet
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -d 'metric_name{foo="bar"} 123' -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus'
 ```
 
@@ -124,7 +168,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl --data-binary "@import.txt" -X POST 'http://localhost:8428/api/v1/import/prometheus'
 curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
@@ -134,7 +178,7 @@ curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl --data-binary "@import.txt" -X POST  'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv'
 curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
@@ -153,7 +197,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/prometheus/api/v1/labels'
 ```
 
@@ -162,7 +206,7 @@ curl -G 'http://localhost:8428/prometheus/api/v1/labels'
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/labels'
 ```
 
@@ -179,7 +223,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/prometheus/api/v1/label/job/values'
 ```
 
@@ -188,7 +232,7 @@ curl -G 'http://localhost:8428/prometheus/api/v1/label/job/values'
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values'
 ```
 
@@ -204,7 +248,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/prometheus/api/v1/query?query=vm_http_request_errors_total&time=2021-02-22T19:10:30.781Z'
 ```
 
@@ -213,7 +257,7 @@ curl -G 'http://localhost:8428/prometheus/api/v1/query?query=vm_http_request_err
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_request_errors_total&time=2021-02-22T19:10:30.781Z'
 ```
 
@@ -221,8 +265,8 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query?query=vm_http_r
 
 Additional information: 
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Instant queries](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
-* [Instant vector selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors)
+* [Instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+* [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
 
 ## /api/v1/query_range
 
@@ -231,7 +275,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z&step=20m'
 ```
 
@@ -240,7 +284,7 @@ curl -G 'http://localhost:8428/prometheus/api/v1/query_range?query=vm_http_reque
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z&step=20m'
 ```
 
@@ -248,11 +292,11 @@ curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range?query=vm_http_request_errors_total&start=-1h&step=10m'
 ```
 
-```bash
+```console
 curl -G http://<vmselect>:8481/select/0/prometheus/api/v1/query_range --data-urlencode 'query=sum(increase(vm_http_request_errors_total{status=""}[5m])) by (status)'
 ```
 
@@ -260,8 +304,8 @@ curl -G http://<vmselect>:8481/select/0/prometheus/api/v1/query_range --data-url
 
 Additional information: 
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Range queries](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
-* [Range Vector Selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors)
+* [Range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+* [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
 
 ## /api/v1/series
 
@@ -270,7 +314,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/prometheus/api/v1/series?match[]=vm_http_request_errors_total&start=-1h'
 ```
 
@@ -279,7 +323,7 @@ curl -G 'http://localhost:8428/prometheus/api/v1/series?match[]=vm_http_request_
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/series?match[]=vm_http_request_errors_total&start=-1h'
 ```
 
@@ -296,7 +340,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/prometheus/api/v1/status/tsdb'
 ```
 
@@ -305,7 +349,7 @@ curl -G 'http://localhost:8428/prometheus/api/v1/status/tsdb'
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb'
 ```
 
@@ -324,7 +368,7 @@ Should be sent to vmagent/VMsingle
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmsingle>:8428/api/v1/targets' 
 ```
 
@@ -332,7 +376,7 @@ curl -G 'http://<vmsingle>:8428/api/v1/targets'
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmagent>:8429/api/v1/targets' 
 ```
 
@@ -349,7 +393,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 echo '
 {
   "series": [
@@ -376,7 +420,7 @@ echo '
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 echo '
 {
   "series": [
@@ -411,7 +455,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/federate?match[]=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z'
 ```
 
@@ -420,7 +464,7 @@ curl -G 'http://localhost:8428/federate?match[]=vm_http_request_errors_total&sta
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/prometheus/federate?match[]=vm_http_request_errors_total&start=2021-02-22T19:10:30.781Z'
 ```
 
@@ -438,7 +482,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://localhost:8428/graphite/metrics/find?query=vm_http_request_errors_total'
 ```
 
@@ -447,7 +491,7 @@ curl -G 'http://localhost:8428/graphite/metrics/find?query=vm_http_request_error
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -G 'http://<vmselect>:8481/select/0/graphite/metrics/find?query=vm_http_request_errors_total'
 ```
 
@@ -466,7 +510,7 @@ Additional information:
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
@@ -475,7 +519,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<vminsert>:8480/insert/0/influx/write'
 ```
 
@@ -495,7 +539,7 @@ Turned off by default. Enable OpenTSDB receiver in VictoriaMetrics by setting `-
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
@@ -504,7 +548,7 @@ echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2 VictoriaMetrics_AccountID=0" | nc -N http://<vminsert> 4242
 ```
 
@@ -515,7 +559,7 @@ Enable HTTP server for OpenTSDB /api/put requests by setting `-opentsdbHTTPListe
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
@@ -524,7 +568,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]'
  'http://<vminsert>:8480/insert/42/opentsdb/api/put'
 ```
@@ -543,7 +587,7 @@ Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` com
 Single:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" |
  nc -N localhost 2003
 ```
@@ -553,7 +597,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" |
 Cluster:
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date +%s`" | nc -N http://<vminsert> 2003
 ```
 

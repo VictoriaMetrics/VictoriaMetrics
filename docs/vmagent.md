@@ -77,7 +77,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 
 * Sending `SUGHUP` signal to `vmagent` process:
 
-  ```bash
+  ```console
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -187,6 +187,16 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
 
 `vmagent` also support the following additional options in `scrape_configs` section:
 
+* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target needs custom authorization and authentication. For example:
+
+```yaml
+scrape_configs:
+- job_name: custom_headers
+  headers:
+  - "TenantID: abc"
+  - "My-Auth: TopSecret"
+```
+
 * `disable_compression: true` - to disable response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
@@ -256,12 +266,13 @@ Labels can be added to metrics by the following mechanisms:
 VictoriaMetrics components (including `vmagent`) support Prometheus-compatible relabeling.
 They provide the following additional actions on top of actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
-* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`.
-* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`.
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal.
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`.
-* `drop_metrics`: drops all the metrics with names matching the given `regex`.
+* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`
+* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`
+* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal
+* `keep_metrics`: keeps all the metrics with names matching the given `regex`
+* `drop_metrics`: drops all the metrics with names matching the given `regex`
+* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling)
 
 The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
@@ -300,6 +311,8 @@ The relabeling can be defined in the following places:
 * At the `-remoteWrite.relabelConfig` file. This relabeling is applied to all the collected metrics before sending them to remote storage. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`. This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
 
+All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
+
 You can read more about relabeling in the following articles:
 
 * [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
@@ -308,6 +321,38 @@ You can read more about relabeling in the following articles:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+## Graphite relabeling
+
+VictoriaMetrics components support `action: graphite` relabeling rules, which allow extracting various parts from Graphite-style metrics
+into the configured labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
+Note that the `name` field must be substituted with explicit `__name__` option under `labels` section.
+If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
+
+For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
+from "app42.host123.requests.total" Graphite-style metric:
+
+```yaml
+- action: graphite
+  match: "*.*.*.total"
+  labels:
+    __name__: "${3}_total"
+    job: "$1"
+    instance: "${2}:8080"
+```
+
+Important notes about `action: graphite` relabeling rules:
+
+- The relabeling rule is applied only to metrics, which match the given `match` expression. Other metrics remain unchanged.
+- The `*` matches the maximum possible number of chars until the next dot or until the next part of the `match` expression whichever comes first.
+  It may match zero chars if the next char is `.`.
+  For example, `match: "app*foo.bar"` matches `app42foo.bar` and `42` becomes available to use at `labels` section via `$1` capture group.
+- The `$0` capture group matches the original metric name.
+- The relabeling rules are executed in order defined in the original config.
+
+The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
+Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
+
 
 ## Prometheus staleness markers
 
@@ -395,9 +440,11 @@ scrape_configs:
 Proxy can be configured with the following optional settings:
 
 * `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
-* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
+* `proxy_oauth2` for OAuth2 config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
+* `proxy_headers` for passing additional HTTP headers in requests to proxy.
 
 For example:
 
@@ -414,6 +461,8 @@ scrape_configs:
     key_file: /path/to/key
     ca_file: /path/to/ca
     server_name: real-server-name
+  proxy_headers:
+  - "Proxy-Auth: top-secret"
 ```
 
 ## Cardinality limiter
@@ -564,7 +613,7 @@ Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graph
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -626,13 +675,13 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
 ```
 
 * tls certificates:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
@@ -661,7 +710,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -689,7 +738,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
@@ -699,7 +748,7 @@ curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
@@ -739,6 +788,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Prefix for environment variables if -envflag.enable is set
   -eula
      By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -837,7 +888,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
   -opentsdbListenAddr string
@@ -850,7 +901,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.cluster.memberNum string
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int

@@ -10,7 +10,7 @@ when restarting `vmrestore` with the same args.
 
 VictoriaMetrics must be stopped during the restore process.
 
-```bash
+```console
 vmrestore -src=gs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore>
 
 ```
@@ -36,7 +36,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
     for s3 (aws, minio or other s3 compatible storages):
 
-     ```bash
+     ```console
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
@@ -62,7 +62,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 * Usage with s3 custom url endpoint.  It is possible to use `vmrestore` with s3 api compatible storages, like  minio, cloudian and other.
   You have to add custom url endpoint with a flag:
 
-```bash
+```console
   # for minio:
   -customS3Endpoint=http://localhost:9000
 
@@ -72,7 +72,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 * Run `vmrestore -help` in order to see all the available options:
 
-```bash
+```console
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce restore duration (default 10)
   -configFilePath string
@@ -91,6 +91,10 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
+  -eula
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -134,9 +138,9 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -skipBackupCompleteCheck
@@ -146,11 +150,14 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -storageDataPath string
      Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
 ```
@@ -180,6 +187,6 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmrestore`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmrestore
 ```

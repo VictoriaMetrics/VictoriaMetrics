@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 )
 
 // parsedRelabelConfig contains parsed `relabel_config`.
@@ -25,6 +25,9 @@ type parsedRelabelConfig struct {
 	Action       string
 	If           *IfExpression
 
+	graphiteMatchTemplate *graphiteMatchTemplate
+	graphiteLabelRules    []graphiteLabelRule
+
 	regexOriginal                *regexp.Regexp
 	hasCaptureGroupInTargetLabel bool
 	hasCaptureGroupInReplacement bool
@@ -32,8 +35,8 @@ type parsedRelabelConfig struct {
 
 // String returns human-readable representation for prc.
 func (prc *parsedRelabelConfig) String() string {
-	return fmt.Sprintf("SourceLabels=%s, Separator=%s, TargetLabel=%s, Regex=%s, Modulus=%d, Replacement=%s, Action=%s",
-		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex.String(), prc.Modulus, prc.Replacement, prc.Action)
+	return fmt.Sprintf("SourceLabels=%s, Separator=%s, TargetLabel=%s, Regex=%s, Modulus=%d, Replacement=%s, Action=%s, If=%s, graphiteMatchTemplate=%s, graphiteLabelRules=%s",
+		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex, prc.Modulus, prc.Replacement, prc.Action, prc.If, prc.graphiteMatchTemplate, prc.graphiteLabelRules)
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
@@ -147,6 +150,26 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return labels
 	}
 	switch prc.Action {
+	case "graphite":
+		metricName := GetLabelValueByName(src, "__name__")
+		gm := graphiteMatchesPool.Get().(*graphiteMatches)
+		var ok bool
+		gm.a, ok = prc.graphiteMatchTemplate.Match(gm.a[:0], metricName)
+		if !ok {
+			// Fast path - name mismatch
+			graphiteMatchesPool.Put(gm)
+			return labels
+		}
+		// Slow path - extract labels from graphite metric name
+		bb := relabelBufPool.Get()
+		for _, gl := range prc.graphiteLabelRules {
+			bb.B = gl.grt.Expand(bb.B[:0], gm.a)
+			valueStr := string(bb.B)
+			labels = setLabelValue(labels, labelsOffset, gl.targetLabel, valueStr)
+		}
+		relabelBufPool.Put(bb)
+		graphiteMatchesPool.Put(gm)
+		return labels
 	case "replace":
 		// Store `replacement` at `target_label` if the `regex` matches `source_labels` joined with `separator`
 		bb := relabelBufPool.Get()

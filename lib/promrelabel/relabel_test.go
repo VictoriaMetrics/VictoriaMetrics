@@ -1580,7 +1580,6 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
-
 	t.Run("upper-lower-case", func(t *testing.T) {
 		f(`
 - action: uppercase
@@ -1618,8 +1617,7 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "bar;foo",
 			},
 		})
-	})
-	f(`
+		f(`
 - action: lowercase
   source_labels: ["foo"]
   target_label: baz
@@ -1627,15 +1625,58 @@ func TestApplyRelabelConfigs(t *testing.T) {
   source_labels: ["bar"]
   target_label: baz
 `, []prompbmarshal.Label{
-		{
-			Name:  "qux",
-			Value: "quux",
-		},
-	}, true, []prompbmarshal.Label{
-		{
-			Name:  "qux",
-			Value: "quux",
-		},
+			{
+				Name:  "qux",
+				Value: "quux",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "qux",
+				Value: "quux",
+			},
+		})
+	})
+	t.Run("graphite-match", func(t *testing.T) {
+		f(`
+- action: graphite
+  match: foo.*.baz
+  labels:
+    __name__: aaa
+    job: ${1}-zz
+`, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo.bar.baz",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "aaa",
+			},
+			{
+				Name:  "job",
+				Value: "bar-zz",
+			},
+		})
+	})
+	t.Run("graphite-mismatch", func(t *testing.T) {
+		f(`
+- action: graphite
+  match: foo.*.baz
+  labels:
+    __name__: aaa
+    job: ${1}-zz
+`, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo.bar.bazz",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo.bar.bazz",
+			},
+		})
 	})
 }
 

@@ -14,7 +14,7 @@ The `-auth.config` can point to either local file or to http url.
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
 and pass the following flag to `vmauth` binary in order to start authorizing and routing requests:
 
-```bash
+```console
 /path/to/vmauth -auth.config=/path/to/auth/config.yml
 ```
 
@@ -133,7 +133,7 @@ It is expected that all the backend services protected by `vmauth` are located i
 
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
 
-```bash
+```console
   -tls
      Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
@@ -144,7 +144,11 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-It is recommended protecting `/-/reload` endpoint with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
+It is recommended protecting  following endpoints with authKeys:
+* `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
+* `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
+* `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
+* `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
 ## Monitoring
 
@@ -185,7 +189,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmauth`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmauth
 ```
 
@@ -197,7 +201,7 @@ ROOT_IMAGE=scratch make package-vmauth
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 ```
 
@@ -207,7 +211,7 @@ curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
 
@@ -221,7 +225,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-```bash
+```console
 ./vmauth -help
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
@@ -238,6 +242,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Prefix for environment variables if -envflag.enable is set
   -eula
      By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -282,9 +288,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -reloadAuthKey string
      Auth key for /-/reload http endpoint. It must be passed as authKey=...
   -tls

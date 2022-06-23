@@ -6,13 +6,13 @@
 2. API Token can be generated on [https://cloud.digitalocean.com/account/api/tokens](https://cloud.digitalocean.com/account/api/tokens) or use already generated from OnePassword.
 3. Set variable `DIGITALOCEAN_API_TOKEN` for environment:
 
-```bash
+```console
 export DIGITALOCEAN_API_TOKEN="your_token_here"
 ```
 
 or set it by with make:
 
-```bash
+```console
 make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOKEN="your_token_here"
 ```
 
