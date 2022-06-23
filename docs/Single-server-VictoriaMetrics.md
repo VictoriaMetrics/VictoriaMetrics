@@ -247,7 +247,8 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables. It also provides support for [cardinality explorer](#cardinality-explorer).
+The UI allows exploring query results via graphs and tables.
+It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query tracec](#query-tracing).
 
 Graphs in vmui support scrolling and zooming:
 
@@ -1474,6 +1475,7 @@ VictoriaMetrics provides an UI on top of `/api/v1/status/tsdb` - see [cardinalit
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
+This is like `EXPLAIN ANALYZE` from Postgresql.
 
 Query tracing can be enabled for a specific query by passing `trace=1` query arg.
 In this case VictoriaMetrics puts query trace into `trace` field in the output JSON.
@@ -1532,6 +1534,8 @@ would return the following trace:
 All the durations and timestamps in traces are in milliseconds.
 
 Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
+
+[VMUI](#vmui) provides an UI for query tracing - just click `Enable query tracing` checkbox and re-run the query in order to investigate its' trace.
 
 
 ## Cardinality limiter
