@@ -172,7 +172,7 @@ Released at 12-04-2022
 
 Released at 07-04-2022
 
-**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes may log communication errors because vmselect is not processing any read requests sent to `query_range` and `query` handlers until the upgrade is complete. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release.
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes may log communication errors because vmselect is not processing any read requests sent to `query_range` and `query` handlers until the upgrade is complete. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release.
 
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add ability to verify files obtained via [native export](https://docs.victoriametrics.com/#how-to-export-data-in-native-format). See [these docs](https://docs.victoriametrics.com/vmctl.html#verifying-exported-blocks-from-victoriametrics) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2362).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add pre-defined dashboards for per-job CPU usage, memory usage and disk IO usage. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2243) for details.
