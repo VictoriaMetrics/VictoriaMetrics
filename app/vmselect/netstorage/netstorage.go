@@ -1380,11 +1380,6 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
 		if err := f(result); err != nil {
-			if snr.denyPartialResponse {
-				// Immediately return the error to the caller if partial responses are denied.
-				// There is no need to wait for responses from other vmstorage nodes - they will be processed in background.
-				return false, err
-			}
 			var er *errRemote
 			if errors.As(err, &er) {
 				// Immediately return the error reported by vmstorage to the caller,
@@ -1393,6 +1388,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				return false, err
 			}
 			errsPartial = append(errsPartial, err)
+			if snr.denyPartialResponse && len(errsPartial) >= *replicationFactor {
+				// Return the error to the caller if partial responses are denied
+				// and the number of partial responses reach -replicationFactor,
+				// since this means that the response is partial.
+				return false, err
+			}
 			continue
 		}
 		resultsCollected++
