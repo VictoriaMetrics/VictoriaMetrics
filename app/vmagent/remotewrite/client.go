@@ -219,7 +219,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		InsecureSkipVerify: tlsInsecureSkipVerify.GetOptionalArg(argIdx),
 	}
 
-	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg)
+	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}
@@ -306,9 +306,7 @@ again:
 	h.Set("Content-Type", "application/x-protobuf")
 	h.Set("Content-Encoding", "snappy")
 	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
-	if ah := c.authCfg.GetAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
+	c.authCfg.SetHeaders(req, true)
 	if c.awsCfg != nil {
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
 			// there is no need in retry, request will be rejected by client.Do and retried by code below

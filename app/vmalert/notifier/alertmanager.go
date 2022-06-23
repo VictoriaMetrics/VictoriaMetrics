@@ -79,9 +79,7 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 	req = req.WithContext(ctx)
 
 	if am.authCfg != nil {
-		if auth := am.authCfg.GetAuthHeader(); auth != "" {
-			req.Header.Set("Authorization", auth)
-		}
+		am.authCfg.SetHeaders(req, true)
 	}
 	resp, err := am.client.Do(req)
 	if err != nil {

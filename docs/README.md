@@ -1134,6 +1134,8 @@ to a file containing a list of [relabel_config](https://prometheus.io/docs/prome
 The `-relabelConfig` also can point to http or https url. For example, `-relabelConfig=https://config-server/relabel_config.yml`.
 See [this article with relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
 
+The `-relabelConfig` files can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
+
 Example contents for `-relabelConfig` file:
 
 ```yml
@@ -1147,8 +1149,7 @@ Example contents for `-relabelConfig` file:
   regex: true
 ```
 
-VictoriaMetrics components provide additional relabeling features such as Graphite-style relabeling.
-See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
+VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
 
 
 ## Federation
@@ -1599,8 +1600,8 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
   If the gaps are related to irregular intervals between samples, then try adjusting `-search.minStalenessInterval` command-line flag
   to value close to the maximum interval between samples.
 
-* If you are switching from InfluxDB or TimescaleDB, then take a look at `-search.maxStalenessInterval` command-line flag.
-  It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
+* If you are switching from InfluxDB or TimescaleDB, then it may be needed to set `-search.setLookbackToStep` command-line flag.
+  This suppresses default gap filling algorithm used by VictoriaMetrics - by default it assumes
   each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
 * Metrics and labels leading to [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) or [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) can be determined via [cardinality explorer](#cardinality-explorer) and via [/api/v1/status/tsdb](#tsdb-stats) endpoint.
@@ -2108,7 +2109,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxSeries int
      The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
   -search.maxStalenessInterval duration
-     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
+     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
      The maximum duration for /api/v1/status/* requests (default 5m0s)
   -search.maxStepForPointsAdjustment duration
@@ -2133,6 +2134,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey string
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
+  -search.setLookbackToStep
+     Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selfScrapeInstance string

@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -116,6 +117,9 @@ type HTTPClientConfig struct {
 	BearerTokenFile string           `yaml:"bearer_token_file,omitempty"`
 	OAuth2          *OAuth2Config    `yaml:"oauth2,omitempty"`
 	TLSConfig       *TLSConfig       `yaml:"tls_config,omitempty"`
+
+	// Headers contains optional HTTP headers, which must be sent in the request to the server
+	Headers []string `yaml:"headers,omitempty"`
 }
 
 // ProxyClientConfig represents proxy client config.
@@ -124,7 +128,11 @@ type ProxyClientConfig struct {
 	BasicAuth       *BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
 	BearerToken     *Secret          `yaml:"proxy_bearer_token,omitempty"`
 	BearerTokenFile string           `yaml:"proxy_bearer_token_file,omitempty"`
+	OAuth2          *OAuth2Config    `yaml:"proxy_oauth2,omitempty"`
 	TLSConfig       *TLSConfig       `yaml:"proxy_tls_config,omitempty"`
+
+	// Headers contains optional HTTP headers, which must be sent in the request to the proxy
+	Headers []string `yaml:"proxy_headers,omitempty"`
 }
 
 // OAuth2Config represent OAuth2 configuration
@@ -257,7 +265,69 @@ type Config struct {
 	authHeader         string
 	authHeaderDeadline uint64
 
+	headers []keyValue
+
 	authDigest string
+}
+
+type keyValue struct {
+	key   string
+	value string
+}
+
+func parseHeaders(headers []string) ([]keyValue, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	kvs := make([]keyValue, len(headers))
+	for i, h := range headers {
+		n := strings.IndexByte(h, ':')
+		if n < 0 {
+			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
+		}
+		kv := &kvs[i]
+		kv.key = strings.TrimSpace(h[:n])
+		kv.value = strings.TrimSpace(h[n+1:])
+	}
+	return kvs, nil
+}
+
+// HeadersNoAuthString returns string representation of ac headers
+func (ac *Config) HeadersNoAuthString() string {
+	if len(ac.headers) == 0 {
+		return ""
+	}
+	a := make([]string, len(ac.headers))
+	for i, h := range ac.headers {
+		a[i] = h.key + ": " + h.value + "\r\n"
+	}
+	return strings.Join(a, "")
+}
+
+// SetHeaders sets the configuted ac headers to req.
+func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) {
+	reqHeaders := req.Header
+	for _, h := range ac.headers {
+		reqHeaders.Set(h.key, h.value)
+	}
+	if setAuthHeader {
+		if ah := ac.GetAuthHeader(); ah != "" {
+			reqHeaders.Set("Authorization", ah)
+		}
+	}
+}
+
+// SetFasthttpHeaders sets the configured ac headers to req.
+func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) {
+	reqHeaders := &req.Header
+	for _, h := range ac.headers {
+		reqHeaders.Set(h.key, h.value)
+	}
+	if setAuthHeader {
+		if ah := ac.GetAuthHeader(); ah != "" {
+			reqHeaders.Set("Authorization", ah)
+		}
+	}
 }
 
 // GetAuthHeader returns optional `Authorization: ...` http header.
@@ -281,8 +351,8 @@ func (ac *Config) GetAuthHeader() string {
 // It is also used for comparing Config objects for equality. If two Config
 // objects have the same string representation, then they are considered equal.
 func (ac *Config) String() string {
-	return fmt.Sprintf("AuthDigest=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v, TLSMinVersion=%d",
-		ac.authDigest, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify, ac.TLSMinVersion)
+	return fmt.Sprintf("AuthDigest=%s, Headers=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v, TLSMinVersion=%d",
+		ac.authDigest, ac.headers, ac.tlsRootCAString(), ac.tlsCertDigest, ac.TLSServerName, ac.TLSInsecureSkipVerify, ac.TLSMinVersion)
 }
 
 func (ac *Config) tlsRootCAString() string {
@@ -330,21 +400,26 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 
 // NewConfig creates auth config for the given hcc.
 func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken.String(), hcc.BearerTokenFile, hcc.OAuth2, hcc.TLSConfig)
+	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken.String(), hcc.BearerTokenFile, hcc.OAuth2, hcc.TLSConfig, hcc.Headers)
 }
 
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken.String(), pcc.BearerTokenFile, nil, pcc.TLSConfig)
+	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken.String(), pcc.BearerTokenFile, pcc.OAuth2, pcc.TLSConfig, pcc.Headers)
 }
 
 // NewConfig creates auth config for the given o.
 func (o *OAuth2Config) NewConfig(baseDir string) (*Config, error) {
-	return NewConfig(baseDir, nil, nil, "", "", nil, o.TLSConfig)
+	return NewConfig(baseDir, nil, nil, "", "", nil, o.TLSConfig, nil)
+}
+
+// NewConfig creates auth config for the given ba.
+func (ba *BasicAuthConfig) NewConfig(baseDir string) (*Config, error) {
+	return NewConfig(baseDir, nil, ba, "", "", nil, nil, nil)
 }
 
 // NewConfig creates auth config from the given args.
-func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, o *OAuth2Config, tlsConfig *TLSConfig) (*Config, error) {
+func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, o *OAuth2Config, tlsConfig *TLSConfig, headers []string) (*Config, error) {
 	var getAuthHeader func() string
 	authDigest := ""
 	if az != nil {
@@ -517,6 +592,10 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 			tlsMinVersion = v
 		}
 	}
+	parsedHeaders, err := parseHeaders(headers)
+	if err != nil {
+		return nil, err
+	}
 	ac := &Config{
 		TLSRootCA:             tlsRootCA,
 		TLSServerName:         tlsServerName,
@@ -527,6 +606,7 @@ func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, be
 		tlsCertDigest: tlsCertDigest,
 
 		getAuthHeader: getAuthHeader,
+		headers:       parsedHeaders,
 		authDigest:    authDigest,
 	}
 	return ac, nil

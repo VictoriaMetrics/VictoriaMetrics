@@ -48,8 +48,10 @@ type client struct {
 	scrapeTimeoutSecondsStr string
 	host                    string
 	requestURI              string
-	getAuthHeader           func() string
-	getProxyAuthHeader      func() string
+	setHeaders              func(req *http.Request)
+	setProxyHeaders         func(req *http.Request)
+	setFasthttpHeaders      func(req *fasthttp.Request)
+	setFasthttpProxyHeaders func(req *fasthttp.Request)
 	denyRedirects           bool
 	disableCompression      bool
 	disableKeepAlive        bool
@@ -65,7 +67,8 @@ func newClient(sw *ScrapeWork) *client {
 	if isTLS {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
-	getProxyAuthHeader := func() string { return "" }
+	setProxyHeaders := func(req *http.Request) {}
+	setFasthttpProxyHeaders := func(req *fasthttp.Request) {}
 	proxyURL := sw.ProxyURL
 	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
@@ -79,8 +82,11 @@ func newClient(sw *ScrapeWork) *client {
 			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
 		}
 		proxyURLOrig := proxyURL
-		getProxyAuthHeader = func() string {
-			return proxyURLOrig.GetAuthHeader(sw.ProxyAuthConfig)
+		setProxyHeaders = func(req *http.Request) {
+			proxyURLOrig.SetHeaders(sw.ProxyAuthConfig, req)
+		}
+		setFasthttpProxyHeaders = func(req *fasthttp.Request) {
+			proxyURLOrig.SetFasthttpHeaders(sw.ProxyAuthConfig, req)
 		}
 		proxyURL = &proxy.URL{}
 	}
@@ -148,8 +154,10 @@ func newClient(sw *ScrapeWork) *client {
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
 		host:                    host,
 		requestURI:              requestURI,
-		getAuthHeader:           sw.AuthConfig.GetAuthHeader,
-		getProxyAuthHeader:      getProxyAuthHeader,
+		setHeaders:              func(req *http.Request) { sw.AuthConfig.SetHeaders(req, true) },
+		setProxyHeaders:         setProxyHeaders,
+		setFasthttpHeaders:      func(req *fasthttp.Request) { sw.AuthConfig.SetFasthttpHeaders(req, true) },
+		setFasthttpProxyHeaders: setFasthttpProxyHeaders,
 		denyRedirects:           sw.DenyRedirects,
 		disableCompression:      sw.DisableCompression,
 		disableKeepAlive:        sw.DisableKeepAlive,
@@ -173,12 +181,8 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	if ah := c.getAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
-	if ah := c.getProxyAuthHeader(); ah != "" {
-		req.Header.Set("Proxy-Authorization", ah)
-	}
+	c.setHeaders(req)
+	c.setProxyHeaders(req)
 	resp, err := c.sc.Do(req)
 	if err != nil {
 		cancel()
@@ -224,12 +228,8 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	if ah := c.getAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
-	if ah := c.getProxyAuthHeader(); ah != "" {
-		req.Header.Set("Proxy-Authorization", ah)
-	}
+	c.setFasthttpHeaders(req)
+	c.setFasthttpProxyHeaders(req)
 	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}
