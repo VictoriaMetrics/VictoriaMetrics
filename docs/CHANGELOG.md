@@ -28,6 +28,8 @@ scrape_configs:
   - targets: ["host123:8080"]
 ```
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that [stale markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are generated with the actual timestamp when unsuccessful scrape occurs. This should prevent from possible time series overlap on scrape target restart in dynmaic envirnoments such as Kubernetes.
+
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
 Released at 20-06-2022
