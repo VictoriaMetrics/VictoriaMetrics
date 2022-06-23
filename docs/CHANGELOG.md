@@ -34,7 +34,7 @@ scrape_configs:
 
 Released at 20-06-2022
 
-**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing), so `vmselect` and `vmstorage` nodes may log communication errors during the upgrade. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release. It is safe to downgrade to previous releases.
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing), so `vmselect` and `vmstorage` nodes will experience communication errors and read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases.
 
 * SECURITY: add `-flagsAuthKey` command-line flag for protecting `/flags` endpoint from unauthorized access. Though this endpoint already hides values for command-line flags with `key` and `password` substrings in their names, other sensitive information could be exposed there. See [This issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2753).
 
@@ -156,7 +156,7 @@ Released at 05-05-2022
 
 Released at 12-04-2022
 
-**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes may log communication errors during the upgrade. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release. It is safe to downgrade to previous releases.
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes will experience communication errors and read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases.
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support for `alert_relabel_configs` option at `-notifier.config`. This option allows configuring relabeling rules for alerts before sending them to configured notifiers. See [these docs](https://docs.victoriametrics.com/vmalert.html#notifier-configuration-file) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmalert.html): allow passing StatefulSet pod names to `-promscrape.cluster.memberNum` command-line flag. In this case the member number is automatically extracted from the pod name, which must end with the number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `vmagent-0`, `vmagent-1`, etc. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2359) and [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
@@ -172,7 +172,7 @@ Released at 12-04-2022
 
 Released at 07-04-2022
 
-**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes may log communication errors during the upgrade. These errors should stop after all the `vmselect` and `vmstorage` nodes are updated to new release.
+**Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics, so `vmselect` and `vmstorage` nodes will experience communication errors and read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases.
 
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add ability to verify files obtained via [native export](https://docs.victoriametrics.com/#how-to-export-data-in-native-format). See [these docs](https://docs.victoriametrics.com/vmctl.html#verifying-exported-blocks-from-victoriametrics) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2362).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add pre-defined dashboards for per-job CPU usage, memory usage and disk IO usage. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2243) for details.
