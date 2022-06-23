@@ -3,6 +3,7 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "AUTH_TYPE"
     | "AUTOCOMPLETE"
     | "NO_CACHE"
+    | "QUERY_TRACING"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
