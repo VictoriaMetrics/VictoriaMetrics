@@ -22,8 +22,8 @@ func StreamFooter(qw422016 *qt422016.Writer) {
 //line app/vmalert/tpl/footer.qtpl:1
 	qw422016.N().S(`
         </main>
-        <script src="static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
-        <script src="static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <script src="/static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
+        <script src="/static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <script type="text/javascript">
             function expandAll() {
                $('.collapse').addClass('show');
