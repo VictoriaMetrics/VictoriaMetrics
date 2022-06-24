@@ -35,7 +35,7 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
 	}
 //line app/vmalert/tpl/header.qtpl:5
 	qw422016.N().S(`</title>
-    <link href="static/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet" />
     <style>
         body{
           min-height: 75rem;
