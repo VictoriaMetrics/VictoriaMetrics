@@ -2312,13 +2312,13 @@ func Stop() {
 }
 
 var (
-	partialLabelNamesResults        = metrics.NewCounter(`vm_partial_results_total{type="labels_names", name="vmselect"}`)
-	partialLabelValuesResults       = metrics.NewCounter(`vm_partial_results_total{type="label_values", name="vmselect"}`)
-	partialTagValueSuffixesResults  = metrics.NewCounter(`vm_partial_results_total{type="tag_value_suffixes", name="vmselect"}`)
-	partialTSDBStatusResults        = metrics.NewCounter(`vm_partial_results_total{type="tsdb_status", name="vmselect"}`)
-	partialSeriesCountResults       = metrics.NewCounter(`vm_partial_results_total{type="series_count", name="vmselect"}`)
-	partialSearchMetricNamesResults = metrics.NewCounter(`vm_partial_results_total{type="search_metric_names", name="vmselect"}`)
-	partialSearchResults            = metrics.NewCounter(`vm_partial_results_total{type="search", name="vmselect"}`)
+	partialLabelNamesResults        = metrics.NewCounter(`vm_partial_results_total{action="labelNames", name="vmselect"}`)
+	partialLabelValuesResults       = metrics.NewCounter(`vm_partial_results_total{action="labelValues", name="vmselect"}`)
+	partialTagValueSuffixesResults  = metrics.NewCounter(`vm_partial_results_total{action="tagValueSuffixes", name="vmselect"}`)
+	partialTSDBStatusResults        = metrics.NewCounter(`vm_partial_results_total{action="tsdbStatus", name="vmselect"}`)
+	partialSeriesCountResults       = metrics.NewCounter(`vm_partial_results_total{action="seriesCount", name="vmselect"}`)
+	partialSearchMetricNamesResults = metrics.NewCounter(`vm_partial_results_total{action="searchMetricNames", name="vmselect"}`)
+	partialSearchResults            = metrics.NewCounter(`vm_partial_results_total{action="search", name="vmselect"}`)
 )
 
 func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
