@@ -456,7 +456,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 		return err
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
-	labelValues, err := netstorage.GetLabelValues(qt, labelName, sq, limit, cp.deadline)
+	labelValues, err := netstorage.LabelValues(qt, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
 	}
@@ -521,7 +521,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	start := int64(date*secsPerDay) * 1000
 	end := int64((date+1)*secsPerDay)*1000 - 1
 	sq := storage.NewSearchQuery(start, end, cp.filterss, *maxTSDBStatusSeries)
-	status, err := netstorage.GetTSDBStatus(qt, sq, focusLabel, topN, cp.deadline)
+	status, err := netstorage.TSDBStatus(qt, sq, focusLabel, topN, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
 	}
@@ -553,7 +553,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return err
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
-	labels, err := netstorage.GetLabelNames(qt, sq, limit, cp.deadline)
+	labels, err := netstorage.LabelNames(qt, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
 	}
@@ -575,7 +575,7 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	defer seriesCountDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	n, err := netstorage.GetSeriesCount(nil, deadline)
+	n, err := netstorage.SeriesCount(nil, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}

@@ -611,8 +611,8 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	return vmstorage.DeleteMetrics(tfss)
 }
 
-// GetLabelNames returns label names matching the given sq until the given deadline.
-func GetLabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline searchutils.Deadline) ([]string, error) {
+// LabelNames returns label names matching the given sq until the given deadline.
+func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get labels: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -639,15 +639,15 @@ func GetLabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelName
 	return labels, nil
 }
 
-// GetGraphiteTags returns Graphite tags until the given deadline.
-func GetGraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
+// GraphiteTags returns Graphite tags until the given deadline.
+func GraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get graphite tags: filter=%s, limit=%d", filter, limit)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 	sq := storage.NewSearchQuery(0, 0, nil, 0)
-	labels, err := GetLabelNames(qt, sq, 0, deadline)
+	labels, err := LabelNames(qt, sq, 0, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -687,8 +687,8 @@ func hasString(a []string, s string) bool {
 	return false
 }
 
-// GetLabelValues returns label values matching the given labelName and sq until the given deadline.
-func GetLabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQuery, maxLabelValues int, deadline searchutils.Deadline) ([]string, error) {
+// LabelValues returns label values matching the given labelName and sq until the given deadline.
+func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQuery, maxLabelValues int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get values for label %s: %s", labelName, sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -715,8 +715,8 @@ func GetLabelValues(qt *querytracer.Tracer, labelName string, sq *storage.Search
 	return labelValues, nil
 }
 
-// GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
-func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
+// GraphiteTagValues returns tag values for the given tagName until the given deadline.
+func GraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -726,7 +726,7 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 		tagName = ""
 	}
 	sq := storage.NewSearchQuery(0, 0, nil, 0)
-	tagValues, err := GetLabelValues(qt, tagName, sq, 0, deadline)
+	tagValues, err := LabelValues(qt, tagName, sq, 0, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -742,10 +742,10 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, tagName, filter string, limit 
 	return tagValues, nil
 }
 
-// GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
+// TagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
-func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline searchutils.Deadline) ([]string, error) {
+func TagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, timeRange=%s", tagKey, tagValuePrefix, &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -764,10 +764,10 @@ func GetTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, t
 	return suffixes, nil
 }
 
-// GetTSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+// TSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It accepts aribtrary filters on time series in sq.
-func GetTSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
+func TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, error) {
 	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -789,8 +789,8 @@ func GetTSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel s
 	return status, nil
 }
 
-// GetSeriesCount returns the number of unique series.
-func GetSeriesCount(qt *querytracer.Tracer, deadline searchutils.Deadline) (uint64, error) {
+// SeriesCount returns the number of unique series.
+func SeriesCount(qt *querytracer.Tracer, deadline searchutils.Deadline) (uint64, error) {
 	qt = qt.NewChild("get series count")
 	defer qt.Done()
 	if deadline.Exceeded() {
