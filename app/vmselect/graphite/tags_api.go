@@ -179,11 +179,11 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 	}
 	isPartial := false
 	if len(exprs) == 0 && len(etfs) == 0 {
-		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTagValues.
+		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTagValues.
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, isPartial, err = netstorage.GetGraphiteTagValues(nil, at, denyPartialResponse, tag, filter, limit, deadline)
+		tagValues, isPartial, err = netstorage.GraphiteTagValues(nil, at, denyPartialResponse, tag, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -264,12 +264,12 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 	var labels []string
 	isPartial := false
 	if len(exprs) == 0 && len(etfs) == 0 {
-		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTags.
+		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTags.
 
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, isPartial, err = netstorage.GetGraphiteTags(nil, at, denyPartialResponse, filter, limit, deadline)
+		labels, isPartial, err = netstorage.GraphiteTags(nil, at, denyPartialResponse, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -403,7 +403,7 @@ func TagValuesHandler(startTime time.Time, at *auth.Token, tagName string, w htt
 	}
 	filter := r.FormValue("filter")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	tagValues, isPartial, err := netstorage.GetGraphiteTagValues(nil, at, denyPartialResponse, tagName, filter, limit, deadline)
+	tagValues, isPartial, err := netstorage.GraphiteTagValues(nil, at, denyPartialResponse, tagName, filter, limit, deadline)
 	if err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func TagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *
 	}
 	filter := r.FormValue("filter")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	labels, isPartial, err := netstorage.GetGraphiteTags(nil, at, denyPartialResponse, filter, limit, deadline)
+	labels, isPartial, err := netstorage.GraphiteTags(nil, at, denyPartialResponse, filter, limit, deadline)
 	if err != nil {
 		return err
 	}

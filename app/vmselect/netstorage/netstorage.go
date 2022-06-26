@@ -684,8 +684,8 @@ func DeleteSeries(qt *querytracer.Tracer, at *auth.Token, sq *storage.SearchQuer
 	return deletedTotal, nil
 }
 
-// GetLabelNames returns label names matching the given sq until the given deadline.
-func GetLabelNames(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, maxLabelNames int, deadline searchutils.Deadline) ([]string, bool, error) {
+// LabelNames returns label names matching the given sq until the given deadline.
+func LabelNames(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, maxLabelNames int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get labels: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -737,15 +737,15 @@ func GetLabelNames(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse b
 	return labelNames, isPartial, nil
 }
 
-// GetGraphiteTags returns Graphite tags until the given deadline.
-func GetGraphiteTags(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+// GraphiteTags returns Graphite tags until the given deadline.
+func GraphiteTags(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tags: filter=%s, limit=%d", filter, limit)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, nil, 0)
-	labels, isPartial, err := GetLabelNames(qt, at, denyPartialResponse, sq, 0, deadline)
+	labels, isPartial, err := LabelNames(qt, at, denyPartialResponse, sq, 0, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -785,8 +785,8 @@ func hasString(a []string, s string) bool {
 	return false
 }
 
-// GetLabelValues returns label values matching the given labelName and sq until the given deadline.
-func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, sq *storage.SearchQuery,
+// LabelValues returns label values matching the given labelName and sq until the given deadline.
+func LabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, labelName string, sq *storage.SearchQuery,
 	maxLabelValues int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get values for label %s: %s", labelName, sq)
 	defer qt.Done()
@@ -840,8 +840,8 @@ func GetLabelValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse 
 	return labelValues, isPartial, nil
 }
 
-// GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
-func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+// GraphiteTagValues returns tag values for the given tagName until the given deadline.
+func GraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -851,7 +851,7 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 		tagName = ""
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, nil, 0)
-	tagValues, isPartial, err := GetLabelValues(qt, at, denyPartialResponse, tagName, sq, 0, deadline)
+	tagValues, isPartial, err := LabelValues(qt, at, denyPartialResponse, tagName, sq, 0, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -867,10 +867,10 @@ func GetGraphiteTagValues(qt *querytracer.Tracer, at *auth.Token, denyPartialRes
 	return tagValues, isPartial, nil
 }
 
-// GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
+// TagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
-func GetTagValueSuffixes(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
+func TagValueSuffixes(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, timeRange=%s", tagKey, tagValuePrefix, &tr)
 	defer qt.Done()
@@ -931,10 +931,10 @@ func deduplicateStrings(a []string) []string {
 	return a
 }
 
-// GetTSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+// TSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It accepts aribtrary filters on time series in sq.
-func GetTSDBStatus(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+func TSDBStatus(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
 	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1039,8 +1039,8 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 	return a
 }
 
-// GetSeriesCount returns the number of unique series for the given at.
-func GetSeriesCount(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) (uint64, bool, error) {
+// SeriesCount returns the number of unique series for the given at.
+func SeriesCount(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) (uint64, bool, error) {
 	qt = qt.NewChild("get series count")
 	defer qt.Done()
 	if deadline.Exceeded() {

@@ -516,7 +516,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
-	labelValues, isPartial, err := netstorage.GetLabelValues(qt, at, denyPartialResponse, labelName, sq, limit, cp.deadline)
+	labelValues, isPartial, err := netstorage.LabelValues(qt, at, denyPartialResponse, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
 	}
@@ -582,7 +582,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	start := int64(date*secsPerDay) * 1000
 	end := int64((date+1)*secsPerDay)*1000 - 1
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, cp.filterss, *maxTSDBStatusSeries)
-	status, isPartial, err := netstorage.GetTSDBStatus(qt, at, denyPartialResponse, sq, focusLabel, topN, cp.deadline)
+	status, isPartial, err := netstorage.TSDBStatus(qt, at, denyPartialResponse, sq, focusLabel, topN, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
 	}
@@ -615,7 +615,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
-	labels, isPartial, err := netstorage.GetLabelNames(qt, at, denyPartialResponse, sq, limit, cp.deadline)
+	labels, isPartial, err := netstorage.LabelNames(qt, at, denyPartialResponse, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
 	}
@@ -638,7 +638,7 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	n, isPartial, err := netstorage.GetSeriesCount(nil, at, denyPartialResponse, deadline)
+	n, isPartial, err := netstorage.SeriesCount(nil, at, denyPartialResponse, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
