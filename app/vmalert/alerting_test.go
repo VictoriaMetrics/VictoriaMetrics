@@ -731,14 +731,14 @@ func TestAlertingRule_Template(t *testing.T) {
 					"instance": "{{ $labels.instance }}",
 				},
 				Annotations: map[string]string{
-					"summary":     `Too high connection number for "{{ $labels.instance }}"`,
+					"summary":     `{{ $labels.__name__ }}: Too high connection number for "{{ $labels.instance }}"`,
 					"description": `{{ $labels.alertname}}: It is {{ $value }} connections for "{{ $labels.instance }}"`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
 			},
 			[]datasource.Metric{
-				metricWithValueAndLabels(t, 2, "instance", "foo", alertNameLabel, "override"),
-				metricWithValueAndLabels(t, 10, "instance", "bar", alertNameLabel, "override"),
+				metricWithValueAndLabels(t, 2, "__name__", "first", "instance", "foo", alertNameLabel, "override"),
+				metricWithValueAndLabels(t, 10, "__name__", "second", "instance", "bar", alertNameLabel, "override"),
 			},
 			map[uint64]*notifier.Alert{
 				hash(map[string]string{alertNameLabel: "override label", "instance": "foo"}): {
@@ -747,7 +747,7 @@ func TestAlertingRule_Template(t *testing.T) {
 						"instance":     "foo",
 					},
 					Annotations: map[string]string{
-						"summary":     `Too high connection number for "foo"`,
+						"summary":     `first: Too high connection number for "foo"`,
 						"description": `override: It is 2 connections for "foo"`,
 					},
 				},
@@ -757,7 +757,7 @@ func TestAlertingRule_Template(t *testing.T) {
 						"instance":     "bar",
 					},
 					Annotations: map[string]string{
-						"summary":     `Too high connection number for "bar"`,
+						"summary":     `second: Too high connection number for "bar"`,
 						"description": `override: It is 10 connections for "bar"`,
 					},
 				},
