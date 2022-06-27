@@ -129,7 +129,7 @@ func registerMetrics(startTime time.Time, w http.ResponseWriter, r *http.Request
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
 		mr.Timestamp = ct
 	}
-	if err := vmstorage.RegisterMetricNames(mrs); err != nil {
+	if err := vmstorage.RegisterMetricNames(nil, mrs); err != nil {
 		return fmt.Errorf("cannot register paths: %w", err)
 	}
 

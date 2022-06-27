@@ -604,11 +604,11 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return 0, err
 	}
-	return vmstorage.DeleteMetrics(tfss)
+	return vmstorage.DeleteMetrics(qt, tfss)
 }
 
 // LabelNames returns label names matching the given sq until the given deadline.
@@ -625,7 +625,7 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -701,7 +701,7 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -751,7 +751,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagV
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	suffixes, err := vmstorage.SearchTagValueSuffixes(tr, []byte(tagKey), []byte(tagValuePrefix), delimiter, *maxTagValueSuffixesPerSearch, deadline.Deadline())
+	suffixes, err := vmstorage.SearchTagValueSuffixes(qt, tr, []byte(tagKey), []byte(tagValuePrefix), delimiter, *maxTagValueSuffixesPerSearch, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during search for suffixes for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s: %w",
 			tagKey, tagValuePrefix, delimiter, tr.String(), err)
@@ -777,7 +777,7 @@ func TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel stri
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -837,7 +837,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return err
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return err
 	}
@@ -951,7 +951,7 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -981,7 +981,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, fetchDa
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
-	tfss, err := setupTfss(tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1074,7 +1074,7 @@ type blockRef struct {
 	addr    tmpBlockAddr
 }
 
-func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
+func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(tagFilterss))
 	for _, tagFilters := range tagFilterss {
 		tfs := storage.NewTagFilters()
@@ -1082,7 +1082,7 @@ func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetri
 			tf := &tagFilters[i]
 			if string(tf.Key) == "__graphite__" {
 				query := tf.Value
-				paths, err := vmstorage.SearchGraphitePaths(tr, query, maxMetrics, deadline.Deadline())
+				paths, err := vmstorage.SearchGraphitePaths(qt, tr, query, maxMetrics, deadline.Deadline())
 				if err != nil {
 					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
 				}
