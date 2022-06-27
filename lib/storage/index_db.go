@@ -1061,8 +1061,12 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
-func (db *indexDB) SearchTagValueSuffixes(accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix []byte,
+func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix []byte,
 	delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search tag value suffixes for accountID=%d, projectID=%d, timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
+		accountID, projectID, &tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	defer qt.Done()
+
 	// TODO: cache results?
 
 	tvss := make(map[string]struct{})
@@ -1075,7 +1079,9 @@ func (db *indexDB) SearchTagValueSuffixes(accountID, projectID uint32, tr TimeRa
 	if len(tvss) < maxTagValueSuffixes {
 		ok := db.doExtDB(func(extDB *indexDB) {
 			is := extDB.getIndexSearch(accountID, projectID, deadline)
+			qtChild := qt.NewChild("search tag value suffixes in the previous indexdb")
 			err = is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+			qtChild.Done()
 			extDB.putIndexSearch(is)
 		})
 		if ok && err != nil {
@@ -1092,6 +1098,7 @@ func (db *indexDB) SearchTagValueSuffixes(accountID, projectID uint32, tr TimeRa
 		suffixes = suffixes[:maxTagValueSuffixes]
 	}
 	// Do not sort suffixes, since they must be sorted by vmselect.
+	qt.Printf("found %d suffixes", len(suffixes))
 	return suffixes, nil
 }
 
@@ -1581,7 +1588,9 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 // The caller must reset all the caches which may contain the deleted TSIDs.
 //
 // Returns the number of metrics deleted.
-func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
+func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
+	qt = qt.NewChild("deleting series for %s", tfss)
+	defer qt.Done()
 	if len(tfss) == 0 {
 		return 0, nil
 	}
@@ -1592,7 +1601,7 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 		MaxTimestamp: (1 << 63) - 1,
 	}
 	is := db.getIndexSearch(tfss[0].accountID, tfss[0].projectID, noDeadline)
-	metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
+	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, 2e9)
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
@@ -1605,7 +1614,9 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	deletedCount := len(metricIDs)
 	if db.doExtDB(func(extDB *indexDB) {
 		var n int
-		n, err = extDB.DeleteTSIDs(tfss)
+		qtChild := qt.NewChild("deleting series from the previos indexdb")
+		n, err = extDB.DeleteTSIDs(qtChild, tfss)
+		qtChild.Donef("deleted %d series", n)
 		deletedCount += n
 	}) {
 		if err != nil {

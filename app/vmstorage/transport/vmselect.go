@@ -489,7 +489,7 @@ func (s *VMSelectServer) processRegisterMetricNames(ctx *vmselectRequestCtx) err
 	}
 
 	// Register metric names from mrs.
-	if err := s.storage.RegisterMetricNames(mrs); err != nil {
+	if err := s.storage.RegisterMetricNames(ctx.qt, mrs); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
 
@@ -518,7 +518,7 @@ func (s *VMSelectServer) processDeleteMetrics(ctx *vmselectRequestCtx) error {
 	}
 
 	// Delete the given metrics.
-	deletedCount, err := s.storage.DeleteMetrics(ctx.tfss)
+	deletedCount, err := s.storage.DeleteMetrics(ctx.qt, ctx.tfss)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -665,7 +665,7 @@ func (s *VMSelectServer) processTagValueSuffixes(ctx *vmselectRequestCtx) error 
 	}
 
 	// Search for tag value suffixes
-	suffixes, err := s.storage.SearchTagValueSuffixes(accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, *maxTagValueSuffixesPerSearch, ctx.deadline)
+	suffixes, err := s.storage.SearchTagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, *maxTagValueSuffixesPerSearch, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -965,7 +965,7 @@ func (ctx *vmselectRequestCtx) setupTfss(s *storage.Storage, tr storage.TimeRang
 			if string(tf.Key) == "__graphite__" {
 				query := tf.Value
 				maxMetrics := ctx.getMaxMetrics()
-				paths, err := s.SearchGraphitePaths(accountID, projectID, tr, query, maxMetrics, ctx.deadline)
+				paths, err := s.SearchGraphitePaths(ctx.qt, accountID, projectID, tr, query, maxMetrics, ctx.deadline)
 				if err != nil {
 					return fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
 				}
