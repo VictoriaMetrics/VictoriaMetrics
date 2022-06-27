@@ -1407,7 +1407,9 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			return false, nil
 		}
 	}
-	if len(errsPartial) == 0 {
+	if len(errsPartial) < *replicationFactor {
+		// Assume that the result is full if the the number of failing vmstorage nodes
+		// is smaller than the -replicationFactor.
 		return false, nil
 	}
 	if len(errsPartial) == len(storageNodes) {
@@ -1417,12 +1419,15 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	}
 	// Return partial results.
 	// This allows gracefully degrade vmselect in the case
-	// if a part of storageNodes are temporarily unavailable.
+	// if a part of vmstorage nodes are temporarily unavailable.
+	partialResultsCounter.Inc()
 	// Do not return the error, since it may spam logs on busy vmselect
 	// serving high amounts of requests.
-	partialResultsCounter.Inc()
+	partialErrorsLogger.Warnf("%d out of %d vmstorage nodes were unavailable during the query; a sample error: %s", len(errsPartial), len(storageNodes), errsPartial[0])
 	return true, nil
 }
+
+var partialErrorsLogger = logger.WithThrottler("partialErrors", 10*time.Second)
 
 type storageNode struct {
 	connPool *netutil.ConnPool
