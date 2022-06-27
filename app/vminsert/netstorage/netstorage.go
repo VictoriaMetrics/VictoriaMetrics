@@ -61,9 +61,8 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	}
 	if *dropSamplesOnOverload && atomic.LoadUint32(&sn.isReadOnly) == 0 {
 		sn.rowsDroppedOnOverload.Add(rows)
-		logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second).Warnf(
-			"some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
-				"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
+		dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
+			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
 		return nil
 	}
 	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
@@ -72,6 +71,8 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	}
 	return nil
 }
+
+var dropSamplesOnOverloadLogger = logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second)
 
 func (sn *storageNode) rerouteBufToOtherStorageNodes(buf []byte, rows int) error {
 	sn.brLock.Lock()
@@ -204,18 +205,16 @@ func sendBufToReplicasNonblocking(br *bufRows, snIdx, replicas int) bool {
 			if attempts > len(storageNodes) {
 				if i == 0 {
 					// The data wasn't replicated at all.
-					logger.WithThrottler("cannotReplicateDataBecauseNoStorageNodes", 5*time.Second).Warnf(
-						"cannot push %d bytes with %d rows to storage nodes, since all the nodes are temporarily unavailable; "+
-							"re-trying to send the data soon", len(br.buf), br.rows)
+					cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to storage nodes, since all the nodes are temporarily unavailable; "+
+						"re-trying to send the data soon", len(br.buf), br.rows)
 					return false
 				}
 				// The data is partially replicated, so just emit a warning and return true.
 				// We could retry sending the data again, but this may result in uncontrolled duplicate data.
 				// So it is better returning true.
 				rowsIncompletelyReplicatedTotal.Add(br.rows)
-				logger.WithThrottler("incompleteReplication", 5*time.Second).Warnf(
-					"cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d rows, "+
-						"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
+				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d rows, "+
+					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
 				return true
 			}
 			if idx >= len(storageNodes) {
@@ -238,6 +237,11 @@ func sendBufToReplicasNonblocking(br *bufRows, snIdx, replicas int) bool {
 	}
 	return true
 }
+
+var (
+	cannotReplicateLogger       = logger.WithThrottler("cannotReplicateDataBecauseNoStorageNodes", 5*time.Second)
+	incompleteReplicationLogger = logger.WithThrottler("incompleteReplication", 5*time.Second)
+)
 
 func (sn *storageNode) checkHealth() {
 	sn.bcLock.Lock()
@@ -296,9 +300,8 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	// Couldn't flush buf to sn. Mark sn as broken.
-	logger.WithThrottler("cannotSendBufRows", 5*time.Second).Warnf(
-		"cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
-			"re-routing this data to healthy storage nodes", len(br.buf), br.rows, sn.dialer.Addr(), err)
+	cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
+		"re-routing this data to healthy storage nodes", len(br.buf), br.rows, sn.dialer.Addr(), err)
 	if err = sn.bc.Close(); err != nil {
 		logger.WithThrottler("cannotCloseStorageNodeConn", 5*time.Second).Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
@@ -308,6 +311,8 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	sn.connectionErrors.Inc()
 	return false
 }
+
+var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
 func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	if len(buf) == 0 {
@@ -663,8 +668,7 @@ func getNotReadyStorageNodeIdxsBlocking(dst []int, snExtra *storageNode) []int {
 	if len(dst) < len(storageNodes) {
 		return dst
 	}
-	logger.WithThrottler("storageNodesUnavailable", 5*time.Second).Warnf(
-		"all the vmstorage nodes are unavailable; stopping data processing util at least a single node becomes available")
+	noStorageNodesLogger.Warnf("all the vmstorage nodes are unavailable; stopping data processing util at least a single node becomes available")
 	for {
 		time.Sleep(time.Second)
 		dst = getNotReadyStorageNodeIdxs(dst[:0], snExtra)
@@ -674,6 +678,8 @@ func getNotReadyStorageNodeIdxsBlocking(dst []int, snExtra *storageNode) []int {
 		}
 	}
 }
+
+var noStorageNodesLogger = logger.WithThrottler("storageNodesUnavailable", 5*time.Second)
 
 func getNotReadyStorageNodeIdxs(dst []int, snExtra *storageNode) []int {
 	dst = dst[:0]

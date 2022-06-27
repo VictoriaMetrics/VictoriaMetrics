@@ -1970,7 +1970,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
-		logger.WithThrottler("storageAddRows", 5*time.Second).Warnf("warn occurred during rows addition: %s", firstWarn)
+		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
@@ -1989,6 +1989,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	}
 	return nil
 }
+
+var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
 
 func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) error {
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {

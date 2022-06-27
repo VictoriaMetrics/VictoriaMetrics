@@ -345,13 +345,12 @@ again:
 	if statusCode == 409 || statusCode == 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		l := logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 		if err != nil {
-			l.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; "+
+			remoteWriteRejectedLogger.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; "+
 				"failed to read response body: %s",
 				len(block), c.sanitizedURL, statusCode, err)
 		} else {
-			l.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; response body: %s",
+			remoteWriteRejectedLogger.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; response body: %s",
 				len(block), c.sanitizedURL, statusCode, string(body))
 		}
 		// Just drop block on 409 and 400 status codes like Prometheus does.
@@ -387,6 +386,8 @@ again:
 	c.retriesCount.Inc()
 	goto again
 }
+
+var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 
 type rateLimiter struct {
 	perSecondLimit int64
