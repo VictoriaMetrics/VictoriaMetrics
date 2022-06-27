@@ -1477,14 +1477,14 @@ type storageNode struct {
 	// The number of errors during requests to seriesCount.
 	seriesCountErrors *metrics.Counter
 
-	// The number of 'search metric names' requests to storageNode.
+	// The number of searchMetricNames requests to storageNode.
 	searchMetricNamesRequests *metrics.Counter
+
+	// The number of searchMetricNames errors to storageNode.
+	searchMetricNamesErrors *metrics.Counter
 
 	// The number of search requests to storageNode.
 	searchRequests *metrics.Counter
-
-	// The number of 'search metric names' errors to storageNode.
-	searchMetricNamesErrors *metrics.Counter
 
 	// The number of search request errors to storageNode.
 	searchErrors *metrics.Counter
@@ -2301,11 +2301,12 @@ func InitStorageNodes(addrs []string) {
 			seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchMetricNamesErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchErrors:                metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			metricBlocksRead:            metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:              metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+
+			metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+			metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 		}
 		storageNodes = append(storageNodes, sn)
 	}
