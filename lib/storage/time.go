@@ -26,7 +26,15 @@ type TimeRange struct {
 }
 
 func (tr *TimeRange) String() string {
-	return fmt.Sprintf("[%d..%d]", tr.MinTimestamp, tr.MaxTimestamp)
+	start := TimestampToHumanReadableFormat(tr.MinTimestamp)
+	end := TimestampToHumanReadableFormat(tr.MaxTimestamp)
+	return fmt.Sprintf("[%s..%s]", start, end)
+}
+
+// TimestampToHumanReadableFormat converts the given timestamp to human-readable format.
+func TimestampToHumanReadableFormat(timestamp int64) string {
+	t := timestampToTime(timestamp).UTC()
+	return t.Format("2006-01-02T15:04:05.999Z")
 }
 
 // timestampToPartitionName returns partition name for the given timestamp.

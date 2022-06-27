@@ -348,7 +348,9 @@ func (sq *SearchQuery) String() string {
 	for i, tfs := range sq.TagFilterss {
 		a[i] = tagFiltersToString(tfs)
 	}
-	return fmt.Sprintf("filters=%s, timeRange=[%d..%d]", a, sq.MinTimestamp, sq.MaxTimestamp)
+	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
+	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
 }
 
 func tagFiltersToString(tfs []TagFilter) string {
