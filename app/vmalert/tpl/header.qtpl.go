@@ -6,36 +6,51 @@ package tpl
 
 //line app/vmalert/tpl/header.qtpl:1
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+)
+
+//line app/vmalert/tpl/header.qtpl:5
+import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmalert/tpl/header.qtpl:1
+//line app/vmalert/tpl/header.qtpl:5
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmalert/tpl/header.qtpl:1
+//line app/vmalert/tpl/header.qtpl:5
 func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
-//line app/vmalert/tpl/header.qtpl:1
+//line app/vmalert/tpl/header.qtpl:5
+	qw422016.N().S(`
+`)
+//line app/vmalert/tpl/header.qtpl:6
+	pathPrefix := httpserver.GetPathPrefix()
+
+//line app/vmalert/tpl/header.qtpl:6
 	qw422016.N().S(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <title>vmalert`)
-//line app/vmalert/tpl/header.qtpl:5
+//line app/vmalert/tpl/header.qtpl:10
 	if title != "" {
-//line app/vmalert/tpl/header.qtpl:5
+//line app/vmalert/tpl/header.qtpl:10
 		qw422016.N().S(` - `)
-//line app/vmalert/tpl/header.qtpl:5
+//line app/vmalert/tpl/header.qtpl:10
 		qw422016.E().S(title)
-//line app/vmalert/tpl/header.qtpl:5
+//line app/vmalert/tpl/header.qtpl:10
 	}
-//line app/vmalert/tpl/header.qtpl:5
+//line app/vmalert/tpl/header.qtpl:10
 	qw422016.N().S(`</title>
-    <link href="/static/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="`)
+//line app/vmalert/tpl/header.qtpl:11
+	qw422016.E().S(pathPrefix)
+//line app/vmalert/tpl/header.qtpl:11
+	qw422016.N().S(`/static/css/bootstrap.min.css" rel="stylesheet" />
     <style>
         body{
           min-height: 75rem;
@@ -85,37 +100,37 @@ func StreamHeader(qw422016 *qt422016.Writer, title string, pages []NavItem) {
 </head>
 <body>
     `)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:60
 	StreamPrintNavItems(qw422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:60
 	qw422016.N().S(`
     <main class="px-2">
 `)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 }
 
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 func WriteHeader(qq422016 qtio422016.Writer, title string, pages []NavItem) {
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	StreamHeader(qw422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 }
 
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 func Header(title string, pages []NavItem) string {
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	WriteHeader(qb422016, title, pages)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:62
 }
