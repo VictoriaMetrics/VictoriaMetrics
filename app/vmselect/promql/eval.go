@@ -178,6 +178,12 @@ func (ec *EvalConfig) mayCache() bool {
 	return true
 }
 
+func (ec *EvalConfig) timeRangeString() string {
+	start := storage.TimestampToHumanReadableFormat(ec.Start)
+	end := storage.TimestampToHumanReadableFormat(ec.End)
+	return fmt.Sprintf("[%s..%s]", start, end)
+}
+
 func (ec *EvalConfig) getSharedTimestamps() []int64 {
 	ec.timestampsOnce.Do(ec.timestampsInit)
 	return ec.timestamps
@@ -213,7 +219,7 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 	if qt.Enabled() {
 		query := e.AppendString(nil)
 		mayCache := ec.mayCache()
-		qt = qt.NewChild("eval: query=%s, timeRange=[%d..%d], step=%d, mayCache=%v", query, ec.Start, ec.End, ec.Step, mayCache)
+		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
 	rv, err := evalExprInternal(qt, ec, e)
 	if err != nil {
@@ -875,10 +881,12 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
 	var rollupMemorySize int64
 	window := windowExpr.Duration(ec.Step)
-	qt = qt.NewChild("rollup %s(): timeRange=[%d..%d], step=%d, window=%d", funcName, ec.Start, ec.End, ec.Step, window)
-	defer func() {
-		qt.Donef("neededMemoryBytes=%d", rollupMemorySize)
-	}()
+	if qt.Enabled() {
+		qt = qt.NewChild("rollup %s(): timeRange=%s, step=%d, window=%d", funcName, ec.timeRangeString(), ec.Step, window)
+		defer func() {
+			qt.Donef("neededMemoryBytes=%d", rollupMemorySize)
+		}()
+	}
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
 	}
