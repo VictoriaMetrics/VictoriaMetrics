@@ -31,7 +31,7 @@ require (
 	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9
 	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb
 	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
-	google.golang.org/api v0.84.0
+	google.golang.org/api v0.85.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
