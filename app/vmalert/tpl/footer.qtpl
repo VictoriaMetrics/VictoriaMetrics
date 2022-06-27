@@ -1,7 +1,12 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+) %}
+
 {% func Footer() %}
+	{% code pathPrefix := httpserver.GetPathPrefix() %}
         </main>
-        <script src="/static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
-        <script src="/static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <script src="{%s pathPrefix %}/static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
+        <script src="{%s pathPrefix %}/static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <script type="text/javascript">
             function expandAll() {
                $('.collapse').addClass('show');
