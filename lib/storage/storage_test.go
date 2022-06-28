@@ -654,7 +654,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		if n := metricBlocksCount(tfs); n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
-		deletedCount, err := s.DeleteMetrics([]*TagFilters{tfs})
+		deletedCount, err := s.DeleteMetrics(nil, []*TagFilters{tfs})
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
@@ -666,7 +666,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		}
 
 		// Try deleting empty tfss
-		deletedCount, err = s.DeleteMetrics(nil)
+		deletedCount, err = s.DeleteMetrics(nil, nil)
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
@@ -783,8 +783,8 @@ func testStorageRegisterMetricNames(s *Storage) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.RegisterMetricNames(mrs); err != nil {
-			return fmt.Errorf("unexpected error in AddMetrics: %w", err)
+		if err := s.RegisterMetricNames(nil, mrs); err != nil {
+			return fmt.Errorf("unexpected error in RegisterMetricNames: %w", err)
 		}
 	}
 	var addIDsExpected []string

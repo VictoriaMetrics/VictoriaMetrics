@@ -243,7 +243,8 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables. It also provides support for [cardinality explorer](#cardinality-explorer).
+The UI allows exploring query results via graphs and tables.
+It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query tracec](#query-tracing).
 
 Graphs in vmui support scrolling and zooming:
 
@@ -1205,6 +1206,7 @@ By default VictoriaMetrics is tuned for an optimal resource usage under typical 
 - `-search.maxSeries` limits the number of time series, which may be returned from [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers). This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
 - `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
 - `-search.maxTagValues` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
+- `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
 
 See also [cardinality limiter](#cardinality-limiter) and [capacity planning docs](#capacity-planning).
 
@@ -1470,6 +1472,7 @@ VictoriaMetrics provides an UI on top of `/api/v1/status/tsdb` - see [cardinalit
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
+This is like `EXPLAIN ANALYZE` from Postgresql.
 
 Query tracing can be enabled for a specific query by passing `trace=1` query arg.
 In this case VictoriaMetrics puts query trace into `trace` field in the output JSON.
@@ -1528,6 +1531,8 @@ would return the following trace:
 All the durations and timestamps in traces are in milliseconds.
 
 Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
+
+[VMUI](#vmui) provides an UI for query tracing - just click `Enable query tracing` checkbox and re-run the query in order to investigate its' trace.
 
 
 ## Cardinality limiter

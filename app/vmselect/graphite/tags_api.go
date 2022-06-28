@@ -129,7 +129,7 @@ func registerMetrics(startTime time.Time, w http.ResponseWriter, r *http.Request
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
 		mr.Timestamp = ct
 	}
-	if err := vmstorage.RegisterMetricNames(mrs); err != nil {
+	if err := vmstorage.RegisterMetricNames(nil, mrs); err != nil {
 		return fmt.Errorf("cannot register paths: %w", err)
 	}
 
@@ -178,11 +178,11 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
 	if len(exprs) == 0 && len(etfs) == 0 {
-		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTagValues.
+		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTagValues.
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, err = netstorage.GetGraphiteTagValues(nil, tag, filter, limit, deadline)
+		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -260,12 +260,12 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
 	if len(exprs) == 0 && len(etfs) == 0 {
-		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTags.
+		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTags.
 
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, err = netstorage.GetGraphiteTags(nil, filter, limit, deadline)
+		labels, err = netstorage.GraphiteTags(nil, filter, limit, deadline)
 		if err != nil {
 			return err
 		}
@@ -396,7 +396,7 @@ func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter
 		return err
 	}
 	filter := r.FormValue("filter")
-	tagValues, err := netstorage.GetGraphiteTagValues(nil, tagName, filter, limit, deadline)
+	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, limit, deadline)
 	if err != nil {
 		return err
 	}
@@ -424,7 +424,7 @@ func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 	filter := r.FormValue("filter")
-	labels, err := netstorage.GetGraphiteTags(nil, filter, limit, deadline)
+	labels, err := netstorage.GraphiteTags(nil, filter, limit, deadline)
 	if err != nil {
 		return err
 	}

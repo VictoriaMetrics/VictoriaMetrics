@@ -198,7 +198,7 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	jsonp := r.FormValue("jsonp")
 	sq := storage.NewSearchQuery(0, 0, nil, 0)
-	metricNames, err := netstorage.GetLabelValues(nil, "__name__", sq, 0, deadline)
+	metricNames, err := netstorage.LabelValues(nil, "__name__", sq, 0, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}
@@ -219,7 +219,7 @@ func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byt
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail
-		suffixes, err := netstorage.GetTagValueSuffixes(nil, tr, label, query, delimiter, deadline)
+		suffixes, err := netstorage.TagValueSuffixes(nil, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -239,7 +239,7 @@ func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byt
 	}
 	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
 		query := qHead + qTail[:len(qTail)-1]
-		suffixes, err := netstorage.GetTagValueSuffixes(nil, tr, label, query, delimiter, deadline)
+		suffixes, err := netstorage.TagValueSuffixes(nil, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, err
 		}

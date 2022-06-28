@@ -68,14 +68,9 @@ type PartRef struct {
 }
 
 // MustReadBlock reads block from br to dst.
-//
-// if fetchData is false, then only block header is read, otherwise all the data is read.
-func (br *BlockRef) MustReadBlock(dst *Block, fetchData bool) {
+func (br *BlockRef) MustReadBlock(dst *Block) {
 	dst.Reset()
 	dst.bh = br.bh
-	if !fetchData {
-		return
-	}
 
 	dst.timestampsData = bytesutil.ResizeNoCopyMayOverallocate(dst.timestampsData, int(br.bh.TimestampsBlockSize))
 	br.p.timestampsFile.MustReadAt(dst.timestampsData, int64(br.bh.TimestampsBlockOffset))
@@ -348,7 +343,9 @@ func (sq *SearchQuery) String() string {
 	for i, tfs := range sq.TagFilterss {
 		a[i] = tagFiltersToString(tfs)
 	}
-	return fmt.Sprintf("filters=%s, timeRange=[%d..%d]", a, sq.MinTimestamp, sq.MaxTimestamp)
+	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
+	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
 }
 
 func tagFiltersToString(tfs []TagFilter) string {

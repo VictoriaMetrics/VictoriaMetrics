@@ -6,24 +6,43 @@ package tpl
 
 //line app/vmalert/tpl/footer.qtpl:1
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+)
+
+//line app/vmalert/tpl/footer.qtpl:5
+import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmalert/tpl/footer.qtpl:1
+//line app/vmalert/tpl/footer.qtpl:5
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmalert/tpl/footer.qtpl:1
+//line app/vmalert/tpl/footer.qtpl:5
 func StreamFooter(qw422016 *qt422016.Writer) {
-//line app/vmalert/tpl/footer.qtpl:1
+//line app/vmalert/tpl/footer.qtpl:5
+	qw422016.N().S(`
+	`)
+//line app/vmalert/tpl/footer.qtpl:6
+	pathPrefix := httpserver.GetPathPrefix()
+
+//line app/vmalert/tpl/footer.qtpl:6
 	qw422016.N().S(`
         </main>
-        <script src="static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
-        <script src="static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <script src="`)
+//line app/vmalert/tpl/footer.qtpl:8
+	qw422016.E().S(pathPrefix)
+//line app/vmalert/tpl/footer.qtpl:8
+	qw422016.N().S(`/static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
+        <script src="`)
+//line app/vmalert/tpl/footer.qtpl:9
+	qw422016.E().S(pathPrefix)
+//line app/vmalert/tpl/footer.qtpl:9
+	qw422016.N().S(`/static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <script type="text/javascript">
             function expandAll() {
                $('.collapse').addClass('show');
@@ -56,31 +75,31 @@ func StreamFooter(qw422016 *qt422016.Writer) {
     </body>
 </html>
 `)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 }
 
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 func WriteFooter(qq422016 qtio422016.Writer) {
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	StreamFooter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 }
 
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 func Footer() string {
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	WriteFooter(qb422016)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 	return qs422016
-//line app/vmalert/tpl/footer.qtpl:36
+//line app/vmalert/tpl/footer.qtpl:41
 }

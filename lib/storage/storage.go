@@ -1271,8 +1271,8 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // DeleteMetrics deletes all the metrics matching the given tfss.
 //
 // Returns the number of metrics deleted.
-func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
-	deletedCount, err := s.idb().DeleteTSIDs(tfss)
+func (s *Storage) DeleteMetrics(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
+	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
@@ -1301,14 +1301,15 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
 //
 // If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
-func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
-	return s.idb().SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix []byte,
+	delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
-func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
-	return s.searchGraphitePaths(tr, nil, query, maxPaths, deadline)
+	return s.searchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -1353,12 +1354,12 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 	}
 }
 
-func (s *Storage) searchGraphitePaths(tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
+func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
-		suffixes, err := s.SearchTagValueSuffixes(tr, nil, qHead, '.', 1, deadline)
+		suffixes, err := s.SearchTagValueSuffixes(qt, tr, nil, qHead, '.', 1, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -1373,7 +1374,7 @@ func (s *Storage) searchGraphitePaths(tr TimeRange, qHead, qTail []byte, maxPath
 		return []string{string(qHead)}, nil
 	}
 	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := s.SearchTagValueSuffixes(tr, nil, qHead, '.', maxPaths, deadline)
+	suffixes, err := s.SearchTagValueSuffixes(qt, tr, nil, qHead, '.', maxPaths, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1410,7 +1411,7 @@ func (s *Storage) searchGraphitePaths(tr TimeRange, qHead, qTail []byte, maxPath
 			continue
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := s.searchGraphitePaths(tr, qHead, qTail, maxPaths, deadline)
+		ps, err := s.searchGraphitePaths(qt, tr, qHead, qTail, maxPaths, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -1665,7 +1666,9 @@ var (
 //
 // The the MetricRow.Timestamp is used for registering the metric name starting from the given timestamp.
 // Th MetricRow.Value field is ignored.
-func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
+func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) error {
+	qt = qt.NewChild("registering %d series", len(mrs))
+	defer qt.Done()
 	var metricName []byte
 	var genTSID generationTSID
 	mn := GetMetricName()
@@ -1861,7 +1864,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
-		logger.WithThrottler("storageAddRows", 5*time.Second).Warnf("warn occurred during rows addition: %s", firstWarn)
+		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
@@ -1880,6 +1883,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	}
 	return nil
 }
+
+var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
 
 func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) error {
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {

@@ -143,9 +143,7 @@ func copyStringsWithMemory(a []string) []string {
 type SeriesVisitor func(metricName []byte, values []float64, timestamps []int64)
 
 // VisitSeries calls f for each series found in the pdb.
-//
-// If fetchData is false, then empty values and timestamps are passed to f.
-func VisitSeries(sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline, f SeriesVisitor) error {
+func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f SeriesVisitor) error {
 	if *prometheusDataPath == "" {
 		return nil
 	}
@@ -180,16 +178,14 @@ func VisitSeries(sq *storage.SearchQuery, fetchData bool, deadline searchutils.D
 		metricName = mn.SortAndMarshal(metricName[:0])
 		values = values[:0]
 		timestamps = timestamps[:0]
-		if fetchData {
-			it := s.Iterator()
-			for it.Next() {
-				ts, v := it.At()
-				values = append(values, v)
-				timestamps = append(timestamps, ts)
-			}
-			if err := it.Err(); err != nil {
-				return fmt.Errorf("error when iterating Prometheus series: %w", err)
-			}
+		it := s.Iterator()
+		for it.Next() {
+			ts, v := it.At()
+			values = append(values, v)
+			timestamps = append(timestamps, ts)
+		}
+		if err := it.Err(); err != nil {
+			return fmt.Errorf("error when iterating Prometheus series: %w", err)
 		}
 		f(metricName, values, timestamps)
 	}
