@@ -6,17 +6,23 @@
 {% stripspace %}
 SeriesResponse generates response for /api/v1/series.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-{% func SeriesResponse(mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) %}
+{% func SeriesResponse(metricNames []string, qt *querytracer.Tracer, qtDone func()) %}
 {
 	"status":"success",
 	"data":[
-		{% for i := range mns %}
-			{%= metricNameObject(&mns[i]) %}
-			{% if i+1 < len(mns) %},{% endif %}
+		{% code var mn storage.MetricName %}
+		{% for i, metricName := range metricNames %}
+			{% code err := mn.UnmarshalString(metricName) %}
+			{% if err != nil %}
+				{%q= err.Error() %}
+			{% else %}
+				{%= metricNameObject(&mn) %}
+			{% endif %}
+			{% if i+1 < len(metricNames) %},{% endif %}
 		{% endfor %}
 	]
 	{% code
-		qt.Printf("generate response: series=%d", len(mns))
+		qt.Printf("generate response: series=%d", len(metricNames))
 		qtDone()
 	%}
 	{%= dumpQueryTrace(qt) %}

@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -382,6 +383,14 @@ func (mn *MetricName) Marshal(dst []byte) []byte {
 		dst = t.Marshal(dst)
 	}
 	return dst
+}
+
+// UnmarshalString unmarshals mn from s
+func (mn *MetricName) UnmarshalString(s string) error {
+	b := bytesutil.ToUnsafeBytes(s)
+	err := mn.Unmarshal(b)
+	runtime.KeepAlive(s)
+	return err
 }
 
 // Unmarshal unmarshals mn from src.

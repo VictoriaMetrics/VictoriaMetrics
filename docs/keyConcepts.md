@@ -131,36 +131,36 @@ functions used with gauges are [aggregation and grouping functions](#aggregation
 Histogram is a set of [counter](#counter) metrics with different labels for tracking the dispersion
 and [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles) of the observed value. For example, in
 VictoriaMetrics we track how many rows is processed per query using the histogram with the
-name `vm_per_query_rows_processed_count`. The exposition format for this histogram has the following form:
+name `vm_rows_read_per_query`. The exposition format for this histogram has the following form:
 
 ```
-vm_per_query_rows_processed_count_bucket{vmrange="4.084e+02...4.642e+02"} 2
-vm_per_query_rows_processed_count_bucket{vmrange="5.275e+02...5.995e+02"} 1
-vm_per_query_rows_processed_count_bucket{vmrange="8.799e+02...1.000e+03"} 1
-vm_per_query_rows_processed_count_bucket{vmrange="1.468e+03...1.668e+03"} 3
-vm_per_query_rows_processed_count_bucket{vmrange="1.896e+03...2.154e+03"} 4
-vm_per_query_rows_processed_count_sum 15582
-vm_per_query_rows_processed_count_count 11
+vm_rows_read_per_query_bucket{vmrange="4.084e+02...4.642e+02"} 2
+vm_rows_read_per_query_bucket{vmrange="5.275e+02...5.995e+02"} 1
+vm_rows_read_per_query_bucket{vmrange="8.799e+02...1.000e+03"} 1
+vm_rows_read_per_query_bucket{vmrange="1.468e+03...1.668e+03"} 3
+vm_rows_read_per_query_bucket{vmrange="1.896e+03...2.154e+03"} 4
+vm_rows_read_per_query_sum 15582
+vm_rows_read_per_query_count 11
 ```
 
-In practice, histogram `vm_per_query_rows_processed_count` may be used in the following way:
+In practice, histogram `vm_rows_read_per_query` may be used in the following way:
 
 ```go
 // define the histogram
-perQueryRowsProcessed := metrics.NewHistogram(`vm_per_query_rows_processed_count`)
+rowsReadPerQuery := metrics.NewHistogram(`vm_rows_read_per_query`)
 
 // use the histogram during processing
 for _, query := range queries {
-    perQueryRowsProcessed.Update(len(query.Rows))
+    rowsReadPerQuery.Update(float64(len(query.Rows)))
 }
 ```
 
-Now let's see what happens each time when `perQueryRowsProcessed.Update` is called:
+Now let's see what happens each time when `rowsReadPerQuery.Update` is called:
 
-* counter `vm_per_query_rows_processed_count_sum` increments by value of `len(query.Rows)` expression and accounts for
+* counter `vm_rows_read_per_query_sum` increments by value of `len(query.Rows)` expression and accounts for
   total sum of all observed values;
-* counter `vm_per_query_rows_processed_count_count` increments by 1 and accounts for total number of observations;
-* counter `vm_per_query_rows_processed_count_bucket` gets incremented only if observed value is within the
+* counter `vm_rows_read_per_query_count` increments by 1 and accounts for total number of observations;
+* counter `vm_rows_read_per_query_bucket` gets incremented only if observed value is within the
   range (`bucket`) defined in `vmrange`.
 
 Such a combination of `counter` metrics allows

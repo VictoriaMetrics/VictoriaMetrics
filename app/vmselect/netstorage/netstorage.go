@@ -243,12 +243,13 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 			// Return just the first error, since other errors are likely duplicate the first error.
 			firstErr = err
 		}
+		rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 		rowsProcessedTotal += tsw.rowsProcessed
 		putTimeseriesWork(tsw)
 	}
 
-	perQueryRowsProcessed.Update(float64(rowsProcessedTotal))
-	perQuerySeriesProcessed.Update(float64(seriesProcessedTotal))
+	rowsReadPerQuery.Update(float64(rowsProcessedTotal))
+	seriesReadPerQuery.Update(float64(seriesProcessedTotal))
 
 	// Shut down local workers
 	for _, workCh := range workChs {
@@ -260,8 +261,11 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	return firstErr
 }
 
-var perQueryRowsProcessed = metrics.NewHistogram(`vm_per_query_rows_processed_count`)
-var perQuerySeriesProcessed = metrics.NewHistogram(`vm_per_query_series_processed_count`)
+var (
+	rowsReadPerSeries  = metrics.NewHistogram(`vm_rows_read_per_series`)
+	rowsReadPerQuery   = metrics.NewHistogram(`vm_rows_read_per_query`)
+	seriesReadPerQuery = metrics.NewHistogram(`vm_series_read_per_query`)
+)
 
 var gomaxprocs = cgroup.AvailableCPUs()
 
@@ -931,7 +935,9 @@ var exportWorkPool = &sync.Pool{
 }
 
 // SearchMetricNames returns all the metric names matching sq until the given deadline.
-func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, error) {
+//
+// The returned metric names must be unmarshaled via storage.MetricName.UnmarshalString().
+func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]string, error) {
 	qt = qt.NewChild("fetch metric names: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -951,11 +957,13 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 		return nil, err
 	}
 
-	mns, err := vmstorage.SearchMetricNames(qt, tfss, tr, sq.MaxMetrics, deadline.Deadline())
+	metricNames, err := vmstorage.SearchMetricNames(qt, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("cannot find metric names: %w", err)
 	}
-	return mns, nil
+	sort.Strings(metricNames)
+	qt.Printf("sort %d metric names", len(metricNames))
+	return metricNames, nil
 }
 
 // ProcessSearchQuery performs sq until the given deadline.
