@@ -610,7 +610,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		cp.start = cp.end - defaultStep
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	mns, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
+	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 	}
@@ -620,7 +620,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
-	WriteSeriesResponse(bw, mns, qt, qtDone)
+	WriteSeriesResponse(bw, metricNames, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
