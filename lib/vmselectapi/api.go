@@ -47,9 +47,7 @@ type BlockIterator interface {
 	// NextBlock reads the next block into mb.
 	//
 	// It returns true on success, false on error or if no blocks to read.
-	//
-	// If fetchData is false, then only mb.MetricName is read. Otherwise mb.Block is also read.
-	NextBlock(mb *storage.MetricBlock, fetchData bool) bool
+	NextBlock(mb *storage.MetricBlock) bool
 
 	// MustClose frees up resources allocated by BlockIterator.
 	MustClose()

@@ -7,7 +7,7 @@ package prometheus
 //line app/vmselect/prometheus/series_response.qtpl:1
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/valyala/quicktemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // SeriesResponse generates response for /api/v1/series.See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
@@ -26,86 +26,68 @@ var (
 )
 
 //line app/vmselect/prometheus/series_response.qtpl:9
-func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) {
+func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) {
 //line app/vmselect/prometheus/series_response.qtpl:9
-	qw422016.N().S(`{`)
-//line app/vmselect/prometheus/series_response.qtpl:11
-	seriesCount := 0
-
-//line app/vmselect/prometheus/series_response.qtpl:11
-	qw422016.N().S(`"status":"success","isPartial":`)
-//line app/vmselect/prometheus/series_response.qtpl:13
+	qw422016.N().S(`{"status":"success","isPartial":`)
+//line app/vmselect/prometheus/series_response.qtpl:12
 	if isPartial {
-//line app/vmselect/prometheus/series_response.qtpl:13
+//line app/vmselect/prometheus/series_response.qtpl:12
 		qw422016.N().S(`true`)
-//line app/vmselect/prometheus/series_response.qtpl:13
+//line app/vmselect/prometheus/series_response.qtpl:12
 	} else {
-//line app/vmselect/prometheus/series_response.qtpl:13
+//line app/vmselect/prometheus/series_response.qtpl:12
 		qw422016.N().S(`false`)
-//line app/vmselect/prometheus/series_response.qtpl:13
+//line app/vmselect/prometheus/series_response.qtpl:12
 	}
-//line app/vmselect/prometheus/series_response.qtpl:13
+//line app/vmselect/prometheus/series_response.qtpl:12
 	qw422016.N().S(`,"data":[`)
+//line app/vmselect/prometheus/series_response.qtpl:14
+	for i := range mns {
 //line app/vmselect/prometheus/series_response.qtpl:15
-	bb, ok := <-resultsCh
-
+		streammetricNameObject(qw422016, &mns[i])
 //line app/vmselect/prometheus/series_response.qtpl:16
-	if ok {
-//line app/vmselect/prometheus/series_response.qtpl:17
-		qw422016.N().Z(bb.B)
-//line app/vmselect/prometheus/series_response.qtpl:19
-		quicktemplate.ReleaseByteBuffer(bb)
-		seriesCount++
-
-//line app/vmselect/prometheus/series_response.qtpl:22
-		for bb := range resultsCh {
-//line app/vmselect/prometheus/series_response.qtpl:22
+		if i+1 < len(mns) {
+//line app/vmselect/prometheus/series_response.qtpl:16
 			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/series_response.qtpl:23
-			qw422016.N().Z(bb.B)
-//line app/vmselect/prometheus/series_response.qtpl:25
-			quicktemplate.ReleaseByteBuffer(bb)
-			seriesCount++
-
-//line app/vmselect/prometheus/series_response.qtpl:28
+//line app/vmselect/prometheus/series_response.qtpl:16
 		}
-//line app/vmselect/prometheus/series_response.qtpl:29
+//line app/vmselect/prometheus/series_response.qtpl:17
 	}
-//line app/vmselect/prometheus/series_response.qtpl:29
+//line app/vmselect/prometheus/series_response.qtpl:17
 	qw422016.N().S(`]`)
-//line app/vmselect/prometheus/series_response.qtpl:32
-	qt.Printf("generate response: series=%d", seriesCount)
+//line app/vmselect/prometheus/series_response.qtpl:20
+	qt.Printf("generate response: series=%d", len(mns))
 	qtDone()
 
-//line app/vmselect/prometheus/series_response.qtpl:35
+//line app/vmselect/prometheus/series_response.qtpl:23
 	streamdumpQueryTrace(qw422016, qt)
-//line app/vmselect/prometheus/series_response.qtpl:35
+//line app/vmselect/prometheus/series_response.qtpl:23
 	qw422016.N().S(`}`)
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:37
-func WriteSeriesResponse(qq422016 qtio422016.Writer, isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) {
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
+func WriteSeriesResponse(qq422016 qtio422016.Writer, isPartial bool, mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/series_response.qtpl:25
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/series_response.qtpl:37
-	StreamSeriesResponse(qw422016, isPartial, resultsCh, qt, qtDone)
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
+	StreamSeriesResponse(qw422016, isPartial, mns, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:25
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:37
-func SeriesResponse(isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) string {
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
+func SeriesResponse(isPartial bool, mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) string {
+//line app/vmselect/prometheus/series_response.qtpl:25
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/series_response.qtpl:37
-	WriteSeriesResponse(qb422016, isPartial, resultsCh, qt, qtDone)
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
+	WriteSeriesResponse(qb422016, isPartial, mns, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:25
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
 	return qs422016
-//line app/vmselect/prometheus/series_response.qtpl:37
+//line app/vmselect/prometheus/series_response.qtpl:25
 }

@@ -119,12 +119,12 @@ func getBlockIterator() *blockIterator {
 	return v.(*blockIterator)
 }
 
-func (bi *blockIterator) NextBlock(mb *storage.MetricBlock, fetchData bool) bool {
+func (bi *blockIterator) NextBlock(mb *storage.MetricBlock) bool {
 	if !bi.sr.NextMetricBlock() {
 		return false
 	}
 	mb.MetricName = bi.sr.MetricBlockRef.MetricName
-	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block, fetchData)
+	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
 	return true
 }
 

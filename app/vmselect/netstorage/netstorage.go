@@ -61,10 +61,9 @@ func (r *Result) reset() {
 
 // Results holds results returned from ProcessSearchQuery.
 type Results struct {
-	at        *auth.Token
-	tr        storage.TimeRange
-	fetchData bool
-	deadline  searchutils.Deadline
+	at       *auth.Token
+	tr       storage.TimeRange
+	deadline searchutils.Deadline
 
 	tbf *tmpBlocksFile
 
@@ -151,11 +150,11 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
-	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr, rss.fetchData, rss.at); err != nil {
+	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr, rss.at); err != nil {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
-	if len(r.Timestamps) > 0 || !rss.fetchData {
+	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			atomic.StoreUint32(tsw.mustStop, 1)
 			return err
@@ -387,14 +386,10 @@ var tmpBlockPool sync.Pool
 var unpackBatchSize = 5000
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
+func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange, at *auth.Token) error {
 	dst.reset()
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
-	}
-	if !fetchData {
-		// Do not spend resources on data reading and unpacking.
-		return nil
 	}
 
 	// Spin up local workers.
@@ -1167,7 +1162,7 @@ func ExportBlocks(qt *querytracer.Tracer, at *auth.Token, sq *storage.SearchQuer
 		atomic.AddUint64(&samples, uint64(mb.Block.RowsCount()))
 		return nil
 	}
-	_, err := processSearchQuery(qt, at, true, sq, true, processBlock, deadline)
+	_, err := processSearchQuery(qt, at, true, sq, processBlock, deadline)
 
 	// Make sure processBlock isn't called anymore in order to prevent from data races.
 	atomic.StoreUint32(&stopped, 1)
@@ -1239,9 +1234,8 @@ func SearchMetricNames(qt *querytracer.Tracer, at *auth.Token, denyPartialRespon
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery,
-	fetchData bool, deadline searchutils.Deadline) (*Results, bool, error) {
-	qt = qt.NewChild("fetch matching series: %s, fetchData=%v", sq, fetchData)
+func ProcessSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutils.Deadline) (*Results, bool, error) {
+	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
@@ -1266,10 +1260,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialRespo
 		if atomic.LoadUint32(&stopped) != 0 {
 			return nil
 		}
-		if !fetchData {
-			tbfw.RegisterEmptyBlock(mb)
-			return nil
-		}
 		atomic.AddUint64(&blocksRead, 1)
 		n := atomic.AddUint64(&samples, uint64(mb.Block.RowsCount()))
 		if *maxSamplesPerQuery > 0 && n > uint64(*maxSamplesPerQuery) {
@@ -1280,7 +1270,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialRespo
 		}
 		return nil
 	}
-	isPartial, err := processSearchQuery(qt, at, denyPartialResponse, sq, fetchData, processBlock, deadline)
+	isPartial, err := processSearchQuery(qt, at, denyPartialResponse, sq, processBlock, deadline)
 
 	// Make sure processBlock isn't called anymore in order to protect from data races.
 	atomic.StoreUint32(&stopped, 1)
@@ -1299,7 +1289,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialRespo
 	var rss Results
 	rss.at = at
 	rss.tr = tr
-	rss.fetchData = fetchData
 	rss.deadline = deadline
 	rss.tbf = tbfw.tbf
 	pts := make([]packedTimeseries, len(tbfw.orderedMetricNames))
@@ -1313,14 +1302,14 @@ func ProcessSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialRespo
 	return &rss, isPartial, nil
 }
 
-func processSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, fetchData bool,
+func processSearchQuery(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) (bool, error) {
 	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.searchRequests.Inc()
-		err := sn.processSearchQuery(qt, requestData, fetchData, processBlock, deadline)
+		err := sn.processSearchQuery(qt, requestData, processBlock, deadline)
 		if err != nil {
 			sn.searchErrors.Inc()
 			err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1619,15 +1608,14 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 	return metricNames, nil
 }
 
-func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, fetchData bool,
-	processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) error {
+func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) error {
 	f := func(bc *handshake.BufferedConn) error {
-		if err := sn.processSearchQueryOnConn(bc, requestData, fetchData, processBlock); err != nil {
+		if err := sn.processSearchQueryOnConn(bc, requestData, processBlock); err != nil {
 			return err
 		}
 		return nil
 	}
-	return sn.execOnConnWithPossibleRetry(qt, "search_v6", f, deadline)
+	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
 }
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
@@ -2119,13 +2107,10 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 
 const maxMetricNameSize = 64 * 1024
 
-func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte, fetchData bool, processBlock func(mb *storage.MetricBlock) error) error {
+func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte, processBlock func(mb *storage.MetricBlock) error) error {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return fmt.Errorf("cannot write requestData: %w", err)
-	}
-	if err := writeBool(bc, fetchData); err != nil {
-		return fmt.Errorf("cannot write fetchData=%v: %w", fetchData, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return fmt.Errorf("cannot flush requestData to conn: %w", err)

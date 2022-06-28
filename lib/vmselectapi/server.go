@@ -474,7 +474,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
-	case "search_v6":
+	case "search_v7":
 		return s.processSeriesSearch(ctx)
 	case "searchMetricNames_v3":
 		return s.processSearchMetricNames(ctx)
@@ -892,10 +892,6 @@ func (s *Server) processSeriesSearch(ctx *vmselectRequestCtx) error {
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-	fetchData, err := ctx.readBool()
-	if err != nil {
-		return fmt.Errorf("cannot read `fetchData` bool: %w", err)
-	}
 
 	// Initiaialize the search.
 	startTime := time.Now()
@@ -922,7 +918,7 @@ func (s *Server) processSeriesSearch(ctx *vmselectRequestCtx) error {
 
 	// Send found blocks to vmselect.
 	blocksRead := 0
-	for bi.NextBlock(&ctx.mb, fetchData) {
+	for bi.NextBlock(&ctx.mb) {
 		blocksRead++
 		s.metricBlocksRead.Inc()
 		s.metricRowsRead.Add(ctx.mb.Block.RowsCount())

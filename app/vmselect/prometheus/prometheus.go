@@ -78,7 +78,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxFederateSeries)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, cp.deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -145,7 +145,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, true, cp.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -350,7 +350,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, true, cp.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -674,67 +674,20 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		cp.start = cp.end - defaultStep
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	qtDone := func() {
-		qt.Donef("start=%d, end=%d", cp.start, cp.end)
-	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	if cp.end-cp.start > 24*3600*1000 {
-		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
-		mns, isPartial, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
-		if err != nil {
-			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		bw := bufferedwriter.Get(w)
-		defer bufferedwriter.Put(bw)
-		resultsCh := make(chan *quicktemplate.ByteBuffer)
-		go func() {
-			for i := range mns {
-				bb := quicktemplate.AcquireByteBuffer()
-				writemetricNameObject(bb, &mns[i])
-				resultsCh <- bb
-			}
-			close(resultsCh)
-		}()
-		// WriteSeriesResponse must consume all the data from resultsCh.
-		WriteSeriesResponse(bw, isPartial, resultsCh, qt, qtDone)
-		if err := bw.Flush(); err != nil {
-			return err
-		}
-		seriesDuration.UpdateDuration(startTime)
-		return nil
-	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, false, cp.deadline)
+	mns, isPartial, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
-		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	resultsCh := make(chan *quicktemplate.ByteBuffer)
-	doneCh := make(chan error)
-	go func() {
-		err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-			if err := bw.Error(); err != nil {
-				return err
-			}
-			bb := quicktemplate.AcquireByteBuffer()
-			writemetricNameObject(bb, &rs.MetricName)
-			resultsCh <- bb
-			return nil
-		})
-		close(resultsCh)
-		doneCh <- err
-	}()
-	// WriteSeriesResponse must consume all the data from resultsCh.
-	WriteSeriesResponse(bw, isPartial, resultsCh, qt, qtDone)
-	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("cannot flush series response to remote client: %w", err)
+	qtDone := func() {
+		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
-	err = <-doneCh
-	if err != nil {
-		return fmt.Errorf("cannot send series response to remote client: %w", err)
+	WriteSeriesResponse(bw, isPartial, mns, qt, qtDone)
+	if err := bw.Flush(); err != nil {
+		return err
 	}
 	return nil
 }
