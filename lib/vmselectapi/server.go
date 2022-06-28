@@ -61,7 +61,11 @@ type Server struct {
 	searchRequests              *metrics.Counter
 
 	metricBlocksRead *metrics.Counter
-	metricRowsRead   *metrics.Counter
+
+	// seriesPerQueryRead records series read per query
+	seriesPerQueryRead *metrics.Histogram
+	// samplesPerSeriesRead records samples read per series
+	samplesPerSeriesRead *metrics.Histogram
 }
 
 // Limits contains various limits for Server.
@@ -108,7 +112,9 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
 
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
-		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
+
+		seriesPerQueryRead:   metrics.NewHistogram(fmt.Sprintf(`vm_vmselect_series_per_query{addr=%q}`, addr)),
+		samplesPerSeriesRead: metrics.NewHistogram(fmt.Sprintf(`vm_vmselect_samples_per_series{addr=%q}`, addr)),
 	}
 	s.connsMap.Init()
 	s.wg.Add(1)
@@ -918,11 +924,11 @@ func (s *Server) processSeriesSearch(ctx *vmselectRequestCtx) error {
 
 	// Send found blocks to vmselect.
 	blocksRead := 0
+	seriesStats := make(map[string]int)
 	for bi.NextBlock(&ctx.mb) {
 		blocksRead++
 		s.metricBlocksRead.Inc()
-		s.metricRowsRead.Add(ctx.mb.Block.RowsCount())
-
+		seriesStats[string(ctx.mb.MetricName)] += ctx.mb.Block.RowsCount()
 		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {
 			return fmt.Errorf("cannot send MetricBlock: %w", err)
@@ -931,8 +937,13 @@ func (s *Server) processSeriesSearch(ctx *vmselectRequestCtx) error {
 	if err := bi.Error(); err != nil {
 		return fmt.Errorf("search error: %w", err)
 	}
-	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
 
+	s.seriesPerQueryRead.Update(float64(len(seriesStats)))
+	for _, v := range seriesStats {
+		s.samplesPerSeriesRead.Update(float64(v))
+	}
+
+	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send 'end of response' marker")
