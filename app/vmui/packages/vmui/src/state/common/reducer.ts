@@ -81,7 +81,7 @@ export const initialState: AppState = {
     autoRefresh: false,
     autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
     nocache: getFromStorage("NO_CACHE") as boolean || false,
-    isTracingEnabled: getFromStorage("QUERY_TRACING") as boolean || false,
+    isTracingEnabled: false,
   }
 };
 

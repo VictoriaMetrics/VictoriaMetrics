@@ -2,12 +2,15 @@ import {TracingData} from "../../../api/types";
 
 export default class Trace {
   private readonly tracing: TracingData;
+  private readonly tracingChildren: Trace[];
   private readonly query: string;
   private readonly id: number;
   constructor(tracingData: TracingData, query: string) {
     this.tracing = tracingData;
     this.query = query;
     this.id = new Date().getTime();
+    const arr: Trace[] = [];
+    this.tracingChildren = this.recursiveMap(this.tracing.children, this.createTrace, arr);
   }
 
   recursiveMap(oldArray: TracingData[], callback: (tr: TracingData) => Trace, newArray: Trace[]): Trace[] {
@@ -37,8 +40,7 @@ export default class Trace {
     return this.id;
   }
   get children(): Trace[] {
-    const arr: Trace[] = [];
-    return this.recursiveMap(this.tracing.children, this.createTrace, arr);
+    return this.tracingChildren;
   }
   get message(): string {
     return this.tracing.message;

@@ -1,4 +1,4 @@
-import React, {FC} from "preact/compat";
+import React, {FC, useState} from "preact/compat";
 import Box from "@mui/material/Box";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -14,20 +14,28 @@ import Trace from "../Trace/Trace";
 interface RecursiveProps {
   trace: Trace;
   totalMsec: number;
-  openLevels: Record<number, boolean>;
-  onChange: (level: number) => void;
 }
 
-const NestedNav: FC<RecursiveProps> = ({ trace, openLevels, totalMsec, onChange})  => {
-  const handleListClick = (traceID: number) => () => onChange(traceID);
+interface OpenLevels {
+  [x: number]: boolean
+}
+
+const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec})  => {
+  const [openLevels, setOpenLevels] = useState({} as OpenLevels);
+
+  const handleListClick = (level: number) => () => {
+    setOpenLevels((prevState:OpenLevels) => {
+      return {...prevState, [level]: !prevState[level]};
+    });
+  };
   const hasChildren = trace.children && trace.children.length;
   const progress = trace.duration / totalMsec * 100;
   return (
     <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
-      <ListItem onClick={handleListClick(trace.duration)} sx={!hasChildren ? {p:0, pl: 7} : {p:0}}>
+      <ListItem onClick={handleListClick(trace.idValue)} sx={!hasChildren ? {p:0, pl: 7} : {p:0}}>
         <ListItemButton alignItems={"flex-start"} sx={{ pt: 0, pb: 0}}>
           {hasChildren ? <ListItemIcon>
-            {openLevels[trace.duration] ?
+            {openLevels[trace.idValue] ?
               <ExpandLess fontSize={"large"} color={"info"} /> :
               <AddCircleRoundedIcon fontSize={"large"} color={"info"} />}
           </ListItemIcon>: null}
@@ -43,15 +51,13 @@ const NestedNav: FC<RecursiveProps> = ({ trace, openLevels, totalMsec, onChange}
         </ListItemButton>
       </ListItem>
       <>
-        <Collapse in={openLevels[trace.duration]} timeout="auto" unmountOnExit>
+        <Collapse in={openLevels[trace.idValue]} timeout="auto" unmountOnExit>
           <List component="div" disablePadding sx={{ pl: 4 }}>
             {hasChildren ?
               trace.children.map((trace) => <NestedNav
                 key={trace.duration}
                 trace={trace}
-                openLevels={openLevels}
                 totalMsec={totalMsec}
-                onChange={onChange}
               />) : null}
           </List>
         </Collapse>
