@@ -786,9 +786,12 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		}
 		return values, timestamps
 	})
+	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
 	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal)
 	return tss, nil
 }
+
+var rowsScannedPerQuery = metrics.NewHistogram(`vm_rows_scanned_per_query`)
 
 func getKeepMetricNames(expr metricsql.Expr) bool {
 	if ae, ok := expr.(*metricsql.AggrFuncExpr); ok {
@@ -1017,6 +1020,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 		return nil, err
 	}
 	tss := iafc.finalizeTimeseries()
+	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
 	qt.Printf("series after aggregation with %s(): %d; samplesScanned=%d", iafc.ae.Name, len(tss), samplesScannedTotal)
 	return tss, nil
 }
@@ -1049,10 +1053,11 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 		}
 		return nil
 	})
-	qt.Printf("samplesScanned=%d", samplesScannedTotal)
 	if err != nil {
 		return nil, err
 	}
+	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
+	qt.Printf("samplesScanned=%d", samplesScannedTotal)
 	return tss, nil
 }
 
