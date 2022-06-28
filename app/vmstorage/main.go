@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/transport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -104,11 +104,11 @@ func main() {
 	registerStorageMetrics(strg)
 
 	common.StartUnmarshalWorkers()
-	vminsertSrv, err := transport.NewVMInsertServer(*vminsertAddr, strg)
+	vminsertSrv, err := servers.NewVMInsertServer(*vminsertAddr, strg)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
 	}
-	vmselectSrv, err := transport.NewVMSelectServer(*vmselectAddr, strg)
+	vmselectSrv, err := servers.NewVMSelectServer(*vmselectAddr, strg)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
