@@ -416,6 +416,12 @@ type rollupConfig struct {
 	isDefaultRollup bool
 }
 
+func (rc *rollupConfig) String() string {
+	start := storage.TimestampToHumanReadableFormat(rc.Start)
+	end := storage.TimestampToHumanReadableFormat(rc.End)
+	return fmt.Sprintf("timeRange=[%s..%s], step=%d, window=%d, points=%d", start, end, rc.Step, rc.Window, len(rc.Timestamps))
+}
+
 var (
 	nan = math.NaN()
 	inf = math.Inf(1)
@@ -483,18 +489,20 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 // timestamps must cover time range [rc.Start - rc.Window - maxSilenceInterval ... rc.End].
 //
 // Do cannot be called from concurrent goroutines.
-func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) []float64 {
+func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) ([]float64, uint64) {
 	return rc.doInternal(dstValues, nil, values, timestamps)
 }
 
 // DoTimeseriesMap calculates rollups for the given timestamps and values and puts them to tsm.
-func (rc *rollupConfig) DoTimeseriesMap(tsm *timeseriesMap, values []float64, timestamps []int64) {
+func (rc *rollupConfig) DoTimeseriesMap(tsm *timeseriesMap, values []float64, timestamps []int64) uint64 {
 	ts := getTimeseries()
-	ts.Values = rc.doInternal(ts.Values[:0], tsm, values, timestamps)
+	var samplesScanned uint64
+	ts.Values, samplesScanned = rc.doInternal(ts.Values[:0], tsm, values, timestamps)
 	putTimeseries(ts)
+	return samplesScanned
 }
 
-func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, values []float64, timestamps []int64) []float64 {
+func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, values []float64, timestamps []int64) ([]float64, uint64) {
 	// Sanity checks.
 	if rc.Step <= 0 {
 		logger.Panicf("BUG: Step must be bigger than 0; got %d", rc.Step)
@@ -544,6 +552,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	ni := 0
 	nj := 0
 	f := rc.Func
+	var samplesScanned uint64
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -575,11 +584,12 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		rfa.currTimestamp = tEnd
 		value := f(rfa)
 		rfa.idx++
+		samplesScanned += uint64(len(rfa.values))
 		dstValues = append(dstValues, value)
 	}
 	putRollupFuncArg(rfa)
 
-	return dstValues
+	return dstValues, samplesScanned
 }
 
 func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint int) int {
