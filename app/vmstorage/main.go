@@ -176,11 +176,11 @@ func DeleteMetrics(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, err
 }
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
-func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
+func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	mns, err := Storage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+	metricNames, err := Storage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	WG.Done()
-	return mns, err
+	return metricNames, err
 }
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for tag keys matching the given tfss on tr.
