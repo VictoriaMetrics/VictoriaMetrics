@@ -1121,6 +1121,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
 		}
 	}
+	qt.Printf("loaded %d metric names", len(mns))
 	return mns, nil
 }
 
