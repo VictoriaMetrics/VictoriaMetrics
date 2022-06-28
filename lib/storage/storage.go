@@ -1144,8 +1144,10 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 	return time.Duration(deadline-t) * time.Millisecond
 }
 
-// SearchMetricNames returns metric names matching the given tfss on the given tr.
-func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
+// SearchMetricNames returns marshaled metric names matching the given tfss on the given tr.
+//
+// The marshaled metric names must be unmarshaled via MetricName.UnmarshalString().
+func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
@@ -1161,7 +1163,8 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	accountID := tsids[0].AccountID
 	projectID := tsids[0].ProjectID
 	idb := s.idb()
-	mns := make([]MetricName, 0, len(tsids))
+	metricNames := make([]string, 0, len(tsids))
+	metricNamesSeen := make(map[string]struct{}, len(tsids))
 	var metricName []byte
 	for i := range tsids {
 		if i&paceLimiterSlowIterationsMask == 0 {
@@ -1180,14 +1183,15 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 			}
 			return nil, fmt.Errorf("error when searching metricName for metricID=%d: %w", metricID, err)
 		}
-		mns = mns[:len(mns)+1]
-		mn := &mns[len(mns)-1]
-		if err = mn.Unmarshal(metricName); err != nil {
-			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		if _, ok := metricNamesSeen[string(metricName)]; ok {
+			// The given metric name was already seen; skip it
+			continue
 		}
+		metricNames = append(metricNames, string(metricName))
+		metricNamesSeen[metricNames[len(metricNames)-1]] = struct{}{}
 	}
-	qt.Printf("loaded %d metric names", len(mns))
-	return mns, nil
+	qt.Printf("loaded %d metric names", len(metricNames))
+	return metricNames, nil
 }
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.

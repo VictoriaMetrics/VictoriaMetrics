@@ -26,7 +26,7 @@ var (
 )
 
 //line app/vmselect/prometheus/series_response.qtpl:9
-func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) {
+func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, metricNames []string, qt *querytracer.Tracer, qtDone func()) {
 //line app/vmselect/prometheus/series_response.qtpl:9
 	qw422016.N().S(`{"status":"success","isPartial":`)
 //line app/vmselect/prometheus/series_response.qtpl:12
@@ -42,52 +42,66 @@ func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, mns []stora
 //line app/vmselect/prometheus/series_response.qtpl:12
 	qw422016.N().S(`,"data":[`)
 //line app/vmselect/prometheus/series_response.qtpl:14
-	for i := range mns {
+	var mn storage.MetricName
+
 //line app/vmselect/prometheus/series_response.qtpl:15
-		streammetricNameObject(qw422016, &mns[i])
+	for i, metricName := range metricNames {
 //line app/vmselect/prometheus/series_response.qtpl:16
-		if i+1 < len(mns) {
-//line app/vmselect/prometheus/series_response.qtpl:16
-			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/series_response.qtpl:16
-		}
+		err := mn.UnmarshalString(metricName)
+
 //line app/vmselect/prometheus/series_response.qtpl:17
-	}
-//line app/vmselect/prometheus/series_response.qtpl:17
-	qw422016.N().S(`]`)
+		if err != nil {
+//line app/vmselect/prometheus/series_response.qtpl:18
+			qw422016.N().Q(err.Error())
+//line app/vmselect/prometheus/series_response.qtpl:19
+		} else {
 //line app/vmselect/prometheus/series_response.qtpl:20
-	qt.Printf("generate response: series=%d", len(mns))
+			streammetricNameObject(qw422016, &mn)
+//line app/vmselect/prometheus/series_response.qtpl:21
+		}
+//line app/vmselect/prometheus/series_response.qtpl:22
+		if i+1 < len(metricNames) {
+//line app/vmselect/prometheus/series_response.qtpl:22
+			qw422016.N().S(`,`)
+//line app/vmselect/prometheus/series_response.qtpl:22
+		}
+//line app/vmselect/prometheus/series_response.qtpl:23
+	}
+//line app/vmselect/prometheus/series_response.qtpl:23
+	qw422016.N().S(`]`)
+//line app/vmselect/prometheus/series_response.qtpl:26
+	qt.Printf("generate response: series=%d", len(metricNames))
 	qtDone()
 
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:29
 	streamdumpQueryTrace(qw422016, qt)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:29
 	qw422016.N().S(`}`)
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:25
-func WriteSeriesResponse(qq422016 qtio422016.Writer, isPartial bool, mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) {
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
+func WriteSeriesResponse(qq422016 qtio422016.Writer, isPartial bool, metricNames []string, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/series_response.qtpl:31
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/series_response.qtpl:25
-	StreamSeriesResponse(qw422016, isPartial, mns, qt, qtDone)
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
+	StreamSeriesResponse(qw422016, isPartial, metricNames, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:31
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:25
-func SeriesResponse(isPartial bool, mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) string {
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
+func SeriesResponse(isPartial bool, metricNames []string, qt *querytracer.Tracer, qtDone func()) string {
+//line app/vmselect/prometheus/series_response.qtpl:31
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/series_response.qtpl:25
-	WriteSeriesResponse(qb422016, isPartial, mns, qt, qtDone)
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
+	WriteSeriesResponse(qb422016, isPartial, metricNames, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:31
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
 	return qs422016
-//line app/vmselect/prometheus/series_response.qtpl:25
+//line app/vmselect/prometheus/series_response.qtpl:31
 }

@@ -58,7 +58,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, tfss []*storage.TagF
 	return bi, nil
 }
 
-func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
+func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 }
 

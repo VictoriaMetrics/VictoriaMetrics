@@ -475,7 +475,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
 	case "search_v7":
-		return s.processSeriesSearch(ctx)
+		return s.processSearch(ctx)
 	case "searchMetricNames_v3":
 		return s.processSearchMetricNames(ctx)
 	case "labelValues_v5":
@@ -860,7 +860,7 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
-	mns, err := s.api.SearchMetricNames(ctx.qt, tfss, tr, maxMetrics, ctx.deadline)
+	metricNames, err := s.api.SearchMetricNames(ctx.qt, tfss, tr, maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -871,21 +871,20 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	}
 
 	// Send response.
-	metricNamesCount := len(mns)
+	metricNamesCount := len(metricNames)
 	if err := ctx.writeUint64(uint64(metricNamesCount)); err != nil {
 		return fmt.Errorf("cannot send metricNamesCount: %w", err)
 	}
-	for i, mn := range mns {
-		ctx.dataBuf = mn.Marshal(ctx.dataBuf[:0])
-		if err := ctx.writeDataBufBytes(); err != nil {
+	for i, metricName := range metricNames {
+		if err := ctx.writeString(metricName); err != nil {
 			return fmt.Errorf("cannot send metricName #%d: %w", i+1, err)
 		}
 	}
-	ctx.qt.Printf("sent %d series to vmselect", len(mns))
+	ctx.qt.Printf("sent %d series to vmselect", len(metricNames))
 	return nil
 }
 
-func (s *Server) processSeriesSearch(ctx *vmselectRequestCtx) error {
+func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	s.searchRequests.Inc()
 
 	// Read request.

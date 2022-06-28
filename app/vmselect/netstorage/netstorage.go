@@ -1176,7 +1176,9 @@ func ExportBlocks(qt *querytracer.Tracer, at *auth.Token, sq *storage.SearchQuer
 }
 
 // SearchMetricNames returns all the metric names matching sq until the given deadline.
-func SearchMetricNames(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, bool, error) {
+//
+// The returned metric names must be unmarshaled via storage.MetricName.UnmarshalString().
+func SearchMetricNames(qt *querytracer.Tracer, at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("fetch metric names: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1186,7 +1188,7 @@ func SearchMetricNames(qt *querytracer.Tracer, at *auth.Token, denyPartialRespon
 
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
-		metricNames [][]byte
+		metricNames []string
 		err         error
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
@@ -1203,14 +1205,14 @@ func SearchMetricNames(qt *querytracer.Tracer, at *auth.Token, denyPartialRespon
 	})
 
 	// Collect results.
-	metricNames := make(map[string]struct{})
+	metricNamesMap := make(map[string]struct{})
 	isPartial, err := snr.collectResults(partialSearchMetricNamesResults, func(result interface{}) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
 		}
 		for _, metricName := range nr.metricNames {
-			metricNames[string(metricName)] = struct{}{}
+			metricNamesMap[metricName] = struct{}{}
 		}
 		return nil
 	})
@@ -1218,17 +1220,13 @@ func SearchMetricNames(qt *querytracer.Tracer, at *auth.Token, denyPartialRespon
 		return nil, isPartial, fmt.Errorf("cannot fetch metric names from vmstorage nodes: %w", err)
 	}
 
-	// Unmarshal metricNames
-	mns := make([]storage.MetricName, len(metricNames))
-	i := 0
-	for metricName := range metricNames {
-		mn := &mns[i]
-		if err := mn.Unmarshal(bytesutil.ToUnsafeBytes(metricName)); err != nil {
-			return nil, false, fmt.Errorf("cannot unmarshal metric name obtained from vmstorage: %w; metricName=%q", err, metricName)
-		}
-		i++
+	metricNames := make([]string, len(metricNamesMap))
+	for metricName := range metricNamesMap {
+		metricNames = append(metricNames, metricName)
 	}
-	return mns, isPartial, nil
+	sort.Strings(metricNames)
+	qt.Printf("sort %d metric names", len(metricNames))
+	return metricNames, isPartial, nil
 }
 
 // ProcessSearchQuery performs sq until the given deadline.
@@ -1592,8 +1590,8 @@ func (sn *storageNode) getSeriesCount(qt *querytracer.Tracer, accountID, project
 	return n, nil
 }
 
-func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) ([][]byte, error) {
-	var metricNames [][]byte
+func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) ([]string, error) {
+	var metricNames []string
 	f := func(bc *handshake.BufferedConn) error {
 		mns, err := sn.processSearchMetricNamesOnConn(bc, requestData)
 		if err != nil {
@@ -2071,7 +2069,7 @@ const maxMetricBlockSize = 1024 * 1024
 // from vmstorage.
 const maxErrorMessageSize = 64 * 1024
 
-func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn, requestData []byte) ([][]byte, error) {
+func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn, requestData []byte) ([]string, error) {
 	// Send the requst to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return nil, fmt.Errorf("cannot write requestData: %w", err)
@@ -2094,13 +2092,13 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 	if err != nil {
 		return nil, fmt.Errorf("cannot read metricNamesCount: %w", err)
 	}
-	metricNames := make([][]byte, metricNamesCount)
+	metricNames := make([]string, metricNamesCount)
 	for i := int64(0); i < int64(metricNamesCount); i++ {
 		buf, err = readBytes(buf[:0], bc, maxMetricNameSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read metricName #%d: %w", i+1, err)
 		}
-		metricNames[i] = append(metricNames[i][:0], buf...)
+		metricNames[i] = string(buf)
 	}
 	return metricNames, nil
 }

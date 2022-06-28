@@ -934,14 +934,21 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err := tfs.Add([]byte("add_id"), []byte("0"), false, false); err != nil {
 		return fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	mns, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
+	metricNames, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames: %w", err)
 	}
-	if len(mns) < metricsPerAdd {
-		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(mns), int(metricsPerAdd))
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal metric names: %w", err)
 	}
-	for i, mn := range mns {
+	if len(metricNames) < metricsPerAdd {
+		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(metricNames), int(metricsPerAdd))
+	}
+	var mn MetricName
+	for i, metricName := range metricNames {
+		if err := mn.UnmarshalString(metricName); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		}
 		addID := mn.GetTagValue("add_id")
 		if string(addID) != "0" {
 			return fmt.Errorf("unexpected addID for metricName #%d; got %q; want %q", i, addID, "0")
@@ -957,12 +964,12 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err := tfs.Add([]byte("add_id"), []byte("0"), false, false); err != nil {
 		return fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	mns, err = s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
+	metricNames, err = s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames for incorrect accountID, projectID: %w", err)
 	}
-	if len(mns) > 0 {
-		return fmt.Errorf("SearchMetricNames with incorrect accountID, projectID returns unexpected non-empty result:\n%+v", mns)
+	if len(metricNames) > 0 {
+		return fmt.Errorf("SearchMetricNames with incorrect accountID, projectID returns unexpected non-empty result:\n%+v", metricNames)
 	}
 
 	return nil
