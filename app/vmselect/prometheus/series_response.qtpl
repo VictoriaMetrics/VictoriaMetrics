@@ -1,34 +1,22 @@
 {% import (
-	"github.com/valyala/quicktemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 ) %}
 
 {% stripspace %}
 SeriesResponse generates response for /api/v1/series.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-{% func SeriesResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) %}
+{% func SeriesResponse(mns []storage.MetricName, qt *querytracer.Tracer, qtDone func()) %}
 {
-	{% code seriesCount := 0 %}
 	"status":"success",
 	"data":[
-		{% code bb, ok := <-resultsCh %}
-		{% if ok %}
-			{%z= bb.B %}
-			{% code
-				quicktemplate.ReleaseByteBuffer(bb)
-				seriesCount++
-			%}
-			{% for bb := range resultsCh %}
-				,{%z= bb.B %}
-				{% code
-					quicktemplate.ReleaseByteBuffer(bb)
-					seriesCount++
-				%}
-			{% endfor %}
-		{% endif %}
+		{% for i := range mns %}
+			{%= metricNameObject(&mns[i]) %}
+			{% if i+1 < len(mns) %},{% endif %}
+		{% endfor %}
 	]
 	{% code
-		qt.Printf("generate response: series=%d", seriesCount)
+		qt.Printf("generate response: series=%d", len(mns))
 		qtDone()
 	%}
 	{%= dumpQueryTrace(qt) %}

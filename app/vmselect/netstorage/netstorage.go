@@ -51,9 +51,8 @@ func (r *Result) reset() {
 
 // Results holds results returned from ProcessSearchQuery.
 type Results struct {
-	tr        storage.TimeRange
-	fetchData bool
-	deadline  searchutils.Deadline
+	tr       storage.TimeRange
+	deadline searchutils.Deadline
 
 	packedTimeseries []packedTimeseries
 	sr               *storage.Search
@@ -146,11 +145,11 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
-	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr, rss.fetchData); err != nil {
+	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr); err != nil {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
-	if len(r.Timestamps) > 0 || !rss.fetchData {
+	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			atomic.StoreUint32(tsw.mustStop, 1)
 			return err
@@ -377,14 +376,10 @@ var tmpBlockPool sync.Pool
 var unpackBatchSize = 5000
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange, fetchData bool) error {
+func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange) error {
 	dst.reset()
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
-	}
-	if !fetchData {
-		// Do not spend resources on data reading and unpacking.
-		return nil
 	}
 
 	// Spin up local workers.
@@ -559,7 +554,7 @@ func (sb *sortBlock) reset() {
 func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br blockRef, tr storage.TimeRange) error {
 	tmpBlock.Reset()
 	brReal := tbf.MustReadBlockRefAt(br.partRef, br.addr)
-	brReal.MustReadBlock(tmpBlock, true)
+	brReal.MustReadBlock(tmpBlock)
 	if err := tmpBlock.UnmarshalData(); err != nil {
 		return fmt.Errorf("cannot unmarshal block: %w", err)
 	}
@@ -895,7 +890,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 			return fmt.Errorf("cannot unmarshal metricName for block #%d: %w", blocksRead, err)
 		}
 		br := sr.MetricBlockRef.BlockRef
-		br.MustReadBlock(&xw.b, true)
+		br.MustReadBlock(&xw.b)
 		samples += br.RowsCount()
 		workCh <- xw
 	}
@@ -966,8 +961,8 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, error) {
-	qt = qt.NewChild("fetch matching series: %s, fetchData=%v", sq, fetchData)
+func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (*Results, error) {
+	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
@@ -1052,7 +1047,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, fetchDa
 
 	var rss Results
 	rss.tr = tr
-	rss.fetchData = fetchData
 	rss.deadline = deadline
 	pts := make([]packedTimeseries, len(orderedMetricNames))
 	for i, metricName := range orderedMetricNames {
