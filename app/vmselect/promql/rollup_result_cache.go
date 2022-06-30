@@ -201,7 +201,8 @@ func ResetRollupResultCache() {
 
 func (rrc *rollupResultCache) Get(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
 	if qt.Enabled() {
-		query := expr.AppendString(nil)
+		query := string(expr.AppendString(nil))
+		query = bytesutil.LimitStringLen(query, 300)
 		qt = qt.NewChild("rollup cache get: query=%s, timeRange=%s, step=%d, window=%d", query, ec.timeRangeString(), ec.Step, window)
 		defer qt.Done()
 	}
@@ -301,7 +302,8 @@ var resultBufPool bytesutil.ByteBufferPool
 
 func (rrc *rollupResultCache) Put(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
 	if qt.Enabled() {
-		query := expr.AppendString(nil)
+		query := string(expr.AppendString(nil))
+		query = bytesutil.LimitStringLen(query, 300)
 		qt = qt.NewChild("rollup cache put: query=%s, timeRange=%s, step=%d, window=%d, series=%d", query, ec.timeRangeString(), ec.Step, window, len(tss))
 		defer qt.Done()
 	}

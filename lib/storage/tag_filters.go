@@ -291,30 +291,35 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 
 // String returns human-readable tf value.
 func (tf *tagFilter) String() string {
-	op := "="
-	if tf.isNegative {
-		op = "!="
-		if tf.isRegexp {
-			op = "!~"
-		}
-	} else if tf.isRegexp {
-		op = "=~"
-	}
+	op := tf.getOp()
+	value := bytesutil.LimitStringLen(string(tf.value), 60)
 	if bytes.Equal(tf.key, graphiteReverseTagKey) {
-		return fmt.Sprintf("__graphite_reverse__%s%q", op, tf.value)
+		return fmt.Sprintf("__graphite_reverse__%s%q", op, value)
 	}
 	if tf.isComposite() {
 		metricName, key, err := unmarshalCompositeTagKey(tf.key)
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal composite tag key: %s", err)
 		}
-		return fmt.Sprintf("composite(%s,%s)%s%q", metricName, key, op, tf.value)
+		return fmt.Sprintf("composite(%s,%s)%s%q", metricName, key, op, value)
 	}
-	key := tf.key
-	if len(key) == 0 {
-		key = []byte("__name__")
+	if len(tf.key) == 0 {
+		return fmt.Sprintf("__name__%s%q", op, value)
 	}
-	return fmt.Sprintf("%s%s%q", key, op, tf.value)
+	return fmt.Sprintf("%s%s%q", tf.key, op, value)
+}
+
+func (tf *tagFilter) getOp() string {
+	if tf.isNegative {
+		if tf.isRegexp {
+			return "!~"
+		}
+		return "!="
+	}
+	if tf.isRegexp {
+		return "=~"
+	}
+	return "="
 }
 
 // Marshal appends marshaled tf to dst
