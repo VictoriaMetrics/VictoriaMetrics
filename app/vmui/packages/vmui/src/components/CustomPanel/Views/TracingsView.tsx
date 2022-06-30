@@ -25,10 +25,10 @@ const TracingsView: FC<TraceViewProps> = ({traces, onDeleteClick}) => {
   };
 
   return <>{traces.map((trace: Trace) => <>
-    <Typography variant="h4" gutterBottom component="div">
-      {"Tracing for"} {trace.queryValue}
+    <Typography variant="h5" component="div">
+      Trace for <b>{trace.queryValue}</b>
       <Button onClick={handleDeleteClick(trace)}>
-        <RemoveCircleIcon fontSize={"large"} color={"error"} />
+        <RemoveCircleIcon fontSize={"medium"} color={"error"} />
       </Button>
     </Typography>
     <TraceView trace={trace} />

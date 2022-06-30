@@ -248,7 +248,7 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
 The UI allows exploring query results via graphs and tables.
-It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query tracec](#query-tracing).
+It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query traces](#query-tracing).
 
 Graphs in vmui support scrolling and zooming:
 
@@ -259,7 +259,7 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
 
