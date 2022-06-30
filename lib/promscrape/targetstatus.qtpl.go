@@ -323,7 +323,7 @@ func ServiceDiscoveryResponse(tsr *targetsStatusResult, filter *requestFilter) s
 //line lib/promscrape/targetstatus.qtpl:98
 func streamcommonHeader(qw422016 *qt422016.Writer) {
 //line lib/promscrape/targetstatus.qtpl:98
-	qw422016.N().S(`<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link href="static/css/bootstrap.min.css" rel="stylesheet" />`)
+	qw422016.N().S(`<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link href="/static/css/bootstrap.min.css" rel="stylesheet" />`)
 //line lib/promscrape/targetstatus.qtpl:102
 }
 

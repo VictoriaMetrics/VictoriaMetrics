@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -158,6 +159,11 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	pathPrefix := httpserver.GetPathPrefix()
+	if pathPrefix == "" {
+		pathPrefix = "/"
+	}
+
 	if r.URL.Path == "/" {
 		if r.Method != "GET" {
 			return false
@@ -167,24 +173,24 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent.html'>https://docs.victoriametrics.com/vmagent.html</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
-			{"targets", "status for discovered active targets"},
-			{"service-discovery", "labels before and after relabeling for discovered targets"},
-			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
-			{"config", "-promscrape.config contents"},
-			{"metrics", "available service metrics"},
-			{"flags", "command-line flags"},
-			{"-/reload", "reload configuration"},
+			{path.Join(pathPrefix, "targets"), "status for discovered active targets"},
+			{path.Join(pathPrefix, "service-discovery"), "labels before and after relabeling for discovered targets"},
+			{path.Join(pathPrefix, "api/v1/targets"), "advanced information about discovered targets in JSON format"},
+			{path.Join(pathPrefix, "config"), "-promscrape.config contents"},
+			{path.Join(pathPrefix, "metrics"), "available service metrics"},
+			{path.Join(pathPrefix, "flags"), "command-line flags"},
+			{path.Join(pathPrefix, "-/reload"), "reload configuration"},
 		})
 		return true
 	}
 
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
-	if strings.HasPrefix(path, "datadog/") {
+	updatedPath := strings.Replace(r.URL.Path, "//", "/", -1)
+	if strings.HasPrefix(updatedPath, "datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
-		path = strings.TrimSuffix(path, "/")
+		updatedPath = strings.TrimSuffix(updatedPath, "/")
 	}
-	switch path {
+	switch updatedPath {
 	case "/api/v1/write":
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(nil, r); err != nil {
@@ -350,7 +356,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		if remotewrite.MultitenancyEnabled() {
-			return processMultitenantRequest(w, r, path)
+			return processMultitenantRequest(w, r, updatedPath)
 		}
 		return false
 	}
