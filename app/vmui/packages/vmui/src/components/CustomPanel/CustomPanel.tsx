@@ -18,7 +18,7 @@ import Trace from "./Trace/Trace";
 
 const CustomPanel: FC = () => {
 
-  const [tracingsData, setTracingData] = useState<Trace[]>([]);
+  const [tracesState, setTracesState] = useState<Trace[]>([]);
   const {displayType, time: {period}, query, queryControls: {isTracingEnabled}} = useAppState();
   const { customStep, yaxis } = useGraphState();
 
@@ -38,24 +38,24 @@ const CustomPanel: FC = () => {
   };
 
   const {queryOptions} = useFetchQueryOptions();
-  const {isLoading, liveData, graphData, error, tracingData} = useFetchQuery({
+  const {isLoading, liveData, graphData, error, traces} = useFetchQuery({
     visible: true,
     customStep
   });
 
-  const handleTraceDelete = (tracingData: Trace) => {
-    const updatedTracings = tracingsData.filter((data) => data.idValue !== tracingData.idValue);
-    setTracingData([...updatedTracings]);
+  const handleTraceDelete = (trace: Trace) => {
+    const updatedTraces = tracesState.filter((data) => data.idValue !== trace.idValue);
+    setTracesState([...updatedTraces]);
   };
 
   useEffect(() => {
-    if (tracingData) {
-      setTracingData([...tracingsData, tracingData]);
+    if (traces) {
+      setTracesState([...tracesState, ...traces]);
     }
-  }, [tracingData]);
+  }, [traces]);
 
   useEffect(() => {
-    setTracingData([]);
+    setTracesState([]);
   }, [displayType]);
 
   return (
@@ -78,7 +78,7 @@ const CustomPanel: FC = () => {
           {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
           {graphData && period && (displayType === "chart") && <>
             {isTracingEnabled && <TracingsView
-              tracingsData={tracingsData}
+              traces={tracesState}
               onDeleteClick={handleTraceDelete}
             />}
             <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
@@ -87,7 +87,7 @@ const CustomPanel: FC = () => {
           {liveData && (displayType === "code") && <JsonView data={liveData}/>}
           {liveData && (displayType === "table") && <>
             {isTracingEnabled && <TracingsView
-              tracingsData={tracingsData}
+              traces={tracesState}
               onDeleteClick={handleTraceDelete}
             />}
             <TableView data={liveData}/>

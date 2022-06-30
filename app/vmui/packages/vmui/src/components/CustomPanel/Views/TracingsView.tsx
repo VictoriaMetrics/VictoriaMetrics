@@ -7,17 +7,15 @@ import Button from "@mui/material/Button";
 import Trace from "../Trace/Trace";
 
 interface TraceViewProps {
-  tracingsData: Trace[];
-  onDeleteClick: (tracingData: Trace) => void;
+  traces: Trace[];
+  onDeleteClick: (trace: Trace) => void;
 }
 
-const EMPTY_MESSAGE = "Please re-run the query to see results of the tracing";
-
-const TracingsView: FC<TraceViewProps> = ({tracingsData, onDeleteClick}) => {
-  if (!tracingsData.length) {
+const TracingsView: FC<TraceViewProps> = ({traces, onDeleteClick}) => {
+  if (!traces.length) {
     return (
       <Alert color={"info"} severity="info" sx={{whiteSpace: "pre-wrap", mt: 2}}>
-        {EMPTY_MESSAGE}
+        Please re-run the query to see results of the tracing
       </Alert>
     );
   }
@@ -26,14 +24,14 @@ const TracingsView: FC<TraceViewProps> = ({tracingsData, onDeleteClick}) => {
     onDeleteClick(tracingData);
   };
 
-  return <>{tracingsData.map((tracingData) => <>
+  return <>{traces.map((trace: Trace) => <>
     <Typography variant="h4" gutterBottom component="div">
-      {"Tracing for"} {tracingData.queryValue}
-      <Button onClick={handleDeleteClick(tracingData)}>
+      {"Tracing for"} {trace.queryValue}
+      <Button onClick={handleDeleteClick(trace)}>
         <RemoveCircleIcon fontSize={"large"} color={"error"} />
       </Button>
     </Typography>
-    <TraceView trace={tracingData} />
+    <TraceView trace={trace} />
   </>)}</>;
 };
 
