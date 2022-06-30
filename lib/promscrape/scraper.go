@@ -163,6 +163,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
 			data = dataNew
+			marshaledData = cfgNew.marshal()
 			configData.Store(&marshaledData)
 		case <-globalStopCh:
 			cfg.mustStop()
