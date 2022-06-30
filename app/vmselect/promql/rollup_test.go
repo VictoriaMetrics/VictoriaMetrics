@@ -100,10 +100,11 @@ func TestRemoveCounterResets(t *testing.T) {
 	timestampsExpected := []int64{0, 1, 2, 3}
 	testRowsEqual(t, values, timestampsExpected, valuesExpected, timestampsExpected)
 
-	// verify how jitter from `Prometheus HA pairs` is handled
-	values = []float64{100, 95, 120, 140, 137, 50}
+	// verify how partial counter reset is handled.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2787
+	values = []float64{100, 95, 120, 119, 139, 50}
 	removeCounterResets(values)
-	valuesExpected = []float64{100, 100, 120, 140, 140, 190}
+	valuesExpected = []float64{100, 100, 125, 125, 145, 195}
 	timestampsExpected = []int64{0, 1, 2, 3, 4, 5}
 	testRowsEqual(t, values, timestampsExpected, valuesExpected, timestampsExpected)
 }
