@@ -32,17 +32,17 @@ const AdditionalSettings: FC = () => {
 
   return <Box display="flex" alignItems="center">
     <Box>
-      <FormControlLabel label="Enable autocomplete"
+      <FormControlLabel label="Autocomplete"
         control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
       />
     </Box>
     <Box ml={2}>
-      <FormControlLabel label="Enable cache"
-        control={<BasicSwitch checked={!nocache} onChange={onChangeCache}/>}
+      <FormControlLabel label="Disable cache"
+        control={<BasicSwitch checked={nocache} onChange={onChangeCache}/>}
       />
     </Box>
     <Box ml={2}>
-      <FormControlLabel label="Enable query tracing"
+      <FormControlLabel label="Trace query"
         control={<BasicSwitch checked={isTracingEnabled} onChange={onChangeQueryTracing} />}
       />
     </Box>

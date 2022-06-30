@@ -80,8 +80,8 @@ export const initialState: AppState = {
   queryControls: {
     autoRefresh: false,
     autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
-    nocache: getFromStorage("NO_CACHE") as boolean || false,
-    isTracingEnabled: getFromStorage("QUERY_TRACING") as boolean || false,
+    nocache: false,
+    isTracingEnabled: false,
   }
 };
 
