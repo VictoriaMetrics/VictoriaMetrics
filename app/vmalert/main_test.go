@@ -41,7 +41,9 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	if exp := "https://victoriametrics.com/path/api/v1/42/2/status"; exp != fn(testAlert) {
+	exp := fmt.Sprintf("https://victoriametrics.com/path/api/v1/alert/status?%s=%d&%s=%d",
+		paramGroupID, testAlert.GroupID, paramAlertID, testAlert.ID)
+	if exp != fn(testAlert) {
 		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 	_, err = getAlertURLGenerator(nil, "foo?{{invalid}}", true)

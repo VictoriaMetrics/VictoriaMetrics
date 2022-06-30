@@ -61,19 +61,19 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 group got %d", length)
 		}
 	})
-	t.Run("/api/v1/0/0/status", func(t *testing.T) {
+	t.Run("/api/v1/alert/status?group_id=0&alert_id=0", func(t *testing.T) {
 		alert := &APIAlert{}
-		getResp(ts.URL+"/api/v1/0/0/status", alert, 200)
+		getResp(ts.URL+"/api/v1/alert/status?group_id=0&alert_id=0", alert, 200)
 		expAlert := ar.newAlertAPI(*ar.alerts[0])
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
 		}
 	})
-	t.Run("/api/v1/0/1/status", func(t *testing.T) {
-		getResp(ts.URL+"/api/v1/0/1/status", nil, 404)
+	t.Run("/api/v1/alert/status?group_id=0&alert_id=1", func(t *testing.T) {
+		getResp(ts.URL+"/api/v1/alert/status?group_id=0&alert_id=1", nil, 404)
 	})
-	t.Run("/api/v1/1/0/status", func(t *testing.T) {
-		getResp(ts.URL+"/api/v1/1/0/status", nil, 404)
+	t.Run("/api/v1/alert/status?group_id=1&alert_id=0", func(t *testing.T) {
+		getResp(ts.URL+"/api/v1/alert/status?group_id=1&alert_id=0", nil, 404)
 	})
 	t.Run("/", func(t *testing.T) {
 		getResp(ts.URL, nil, 200)

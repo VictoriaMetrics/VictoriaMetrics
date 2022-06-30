@@ -41,6 +41,10 @@ scrape_configs:
   * `vm_rows_read_per_series` - the number of raw samples read per queried series.
   * `vm_series_read_per_query` - the number of series read per query.
 
+* CHANGE: [vmalert](https://docs.victoriametrics.com/vmalert.html): deprecate link format `/api/v1/groupID/alertID/status` for accessing alert's state.
+  The new link format `/api/v1/alert/status?group_id=<int>&alert_id=<int>` will be used instead. The deprecated format
+  will be supported for a limited time until complete removal.
+
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
 
 {% raw %}
@@ -54,6 +58,7 @@ scrape_configs:
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly reload changed `-promscrape.config` file when `-promscrape.configCheckInterval` option is set. The changed config file wasn't reloaded in this case since [v1.69.0](#v1690). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2786). Thanks to @ttyv for the fix.
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): assume that the response is complete if `-search.denyPartialResponse` is enabled and up to `-replicationFactor - 1` `vmstorage` nodes are unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1767).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/#vmselect): update `vm_partial_results_total` metric labels to be consistent with `vm_requests_total` labels.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmselect): allow accessing all vmalert's pages via vmselect when `-vmalert.proxyURL` is configured.
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 

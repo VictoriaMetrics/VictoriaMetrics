@@ -411,6 +411,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		alertsRequests.Inc()
 		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"alerts":[]}}`)
 		return true
+	case "/groups", "/notifiers", "/alert/status", "api/v1/alert/status":
+		mayProxyVMAlertRequests(w, r, "")
+		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 		metadataRequests.Inc()
@@ -553,16 +556,24 @@ var (
 
 	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	vmalertRequests        = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
 )
 
 func mayProxyVMAlertRequests(w http.ResponseWriter, r *http.Request, stubResponse string) {
+	vmalertRequests.Inc()
 	if len(*vmalertProxyURL) == 0 {
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
+		sc := http.StatusBadRequest
+		resp := `{"status":"error","error":"--vmalertProxyURL isn't configured"}`
+		if stubResponse != "" {
+			resp = stubResponse
+			sc = http.StatusOK
+		}
+		w.WriteHeader(sc)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", stubResponse)
+		fmt.Fprintf(w, "%s", resp)
 		return
 	}
 	defer func() {

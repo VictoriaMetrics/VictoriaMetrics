@@ -38,7 +38,9 @@ func initLinks() {
 	apiLinks = [][2]string{
 		{path.Join(pathPrefix, "api/v1/rules"), "list all loaded groups and rules"},
 		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
-		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "get alert status by ID"},
+		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "[DEPRECATED]: use `api/v1/alert/status` instead. Get alert status by ID"},
+		{path.Join(pathPrefix, "api/v1/alert/status"),
+			fmt.Sprintf("get alert status by passing %q and %q GET params", paramGroupID, paramAlertID)},
 		{path.Join(pathPrefix, "flags"), "command-line flags"},
 		{path.Join(pathPrefix, "metrics"), "list of application metrics"},
 		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
@@ -81,6 +83,28 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/notifiers":
 		WriteListTargets(w, notifier.GetTargets())
+		return true
+	case "/alert/status":
+		alert, err := rh.getAlert(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		WriteAlert(w, pathPrefix, alert)
+		return true
+	case "/api/v1/alert/status":
+		alert, err := rh.getAlert(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", errResponse(err, http.StatusNotFound))
+			return true
+		}
+		data, err := json.Marshal(alert)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
 		return true
 	case "/api/v1/rules":
 		data, err := rh.listGroups()
@@ -236,10 +260,24 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	return b, nil
 }
 
-func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
-	rh.m.groupsMu.RLock()
-	defer rh.m.groupsMu.RUnlock()
+const (
+	paramGroupID = "group_id"
+	paramAlertID = "alert_id"
+)
 
+func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+	}
+	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %s", paramAlertID, err)
+	}
+	return rh.m.AlertAPI(groupID, alertID)
+}
+
+func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
 	parts := strings.SplitN(strings.TrimLeft(path, "/"), "/", 3)
 	if len(parts) != 3 {
 		return nil, &httpserver.ErrorWithStatusCode{

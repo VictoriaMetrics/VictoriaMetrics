@@ -182,7 +182,7 @@
                                 </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
-                                    <a href="{%s path.Join(pathPrefix, g.ID, ar.ID, "status") %}">Details</a>
+                                    <a href="{%s path.Join(pathPrefix, ar.WebLink()) %}">Details</a>
                                 </td>
                             </tr>
                         {% endfor %}

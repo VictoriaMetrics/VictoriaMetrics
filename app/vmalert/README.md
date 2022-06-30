@@ -477,7 +477,8 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status"` - get alert status by ID.
+* `/api/v1/groupID/alertID/status` - [DEPRECATED]: use `api/v1/alert/status` instead. Get alert status by ID;
+* `/api/v1/alert/status?group_id=<int>&alert_id=<int>` - get alert status by passing `group_id` and `alert_id` GET params.
   Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.

@@ -618,7 +618,7 @@ func StreamListAlerts(qw422016 *qt422016.Writer, pathPrefix string, groupAlerts 
                                 <td>
                                     <a href="`)
 //line app/vmalert/web.qtpl:185
-					qw422016.E().S(path.Join(pathPrefix, g.ID, ar.ID, "status"))
+					qw422016.E().S(path.Join(pathPrefix, ar.WebLink()))
 //line app/vmalert/web.qtpl:185
 					qw422016.N().S(`">Details</a>
                                 </td>

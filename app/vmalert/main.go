@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -237,7 +236,8 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
 	if externalAlertSource == "" {
 		return func(alert notifier.Alert) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", externalURL, strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10))
+			return fmt.Sprintf("%s/api/v1/alert/status?%s=%d&%s=%d",
+				externalURL, paramGroupID, alert.GroupID, paramAlertID, alert.ID)
 		}, nil
 	}
 	if validateTemplate {
