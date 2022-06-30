@@ -248,7 +248,7 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
 The UI allows exploring query results via graphs and tables.
-It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query tracec](#query-tracing).
+It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query traces](#query-tracing).
 
 Graphs in vmui support scrolling and zooming:
 
@@ -259,7 +259,7 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Enable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
 
@@ -1443,23 +1443,11 @@ Graphs on the dashboards contain useful hints - hover the `i` icon in the top le
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
 via [vmalert](https://docs.victoriametrics.com/vmalert.html) or via Prometheus.
 
-The most interesting health metrics are the following:
-
-* `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
-  aka [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
-* `increase(vm_new_timeseries_created_total[1h])` - time series [churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) during the previous hour.
-* `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
-* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted in the database per second.
-* `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
-* `sum(vm_data_size_bytes)` - the total size of data on disk.
-* `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
-  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
-* `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
-  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  of the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
-
 VictoriaMetrics exposes currently running queries and their execution times at `/api/v1/status/active_queries` page.
+
+VictoriaMetrics exposes queries, which take the most time to execute, at `/api/v1/status/top_queries` page.
+
+See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## TSDB stats
 
@@ -1624,6 +1612,8 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics. See [these docs](#selecting-graphite-metrics) for details.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
+
+See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## Cache removal
 

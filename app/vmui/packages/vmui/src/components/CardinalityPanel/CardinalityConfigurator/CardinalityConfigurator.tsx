@@ -81,7 +81,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
             onChange={onFocusLabelChange} />
         </Box>
         <Box>
-          <FormControlLabel label="Enable autocomplete"
+          <FormControlLabel label="Autocomplete"
             control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
           />
         </Box>

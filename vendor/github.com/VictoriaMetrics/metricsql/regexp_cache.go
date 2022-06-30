@@ -60,13 +60,6 @@ type regexpCacheValue struct {
 	err error
 }
 
-func (rcv *regexpCacheValue) RegexpLen() int {
-	if r := rcv.r; r != nil {
-		return len(r.String())
-	}
-	return len(rcv.err.Error())
-}
-
 type regexpCache struct {
 	// Move atomic counters to the top of struct for 8-byte alignment on 32-bit arch.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
@@ -131,10 +124,10 @@ func (rc *regexpCache) Put(regexp string, rcv *regexpCacheValue) {
 	if rc.charsCurrent > rc.charsLimit {
 		// Remove items accounting for 10% chars from the cache.
 		overflow := int(float64(rc.charsLimit) * 0.1)
-		for k, v := range rc.m {
+		for k := range rc.m {
 			delete(rc.m, k)
 
-			size := len(k) + v.RegexpLen()
+			size := len(k)
 			overflow -= size
 			rc.charsCurrent -= size
 
@@ -144,6 +137,6 @@ func (rc *regexpCache) Put(regexp string, rcv *regexpCacheValue) {
 		}
 	}
 	rc.m[regexp] = rcv
-	rc.charsCurrent += len(regexp) + rcv.RegexpLen()
+	rc.charsCurrent += len(regexp)
 	rc.mu.Unlock()
 }

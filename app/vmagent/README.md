@@ -582,6 +582,8 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
     regex: true
   ```
 
+See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+
 ## Kafka integration
 
 [Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
@@ -976,40 +978,43 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -remoteWrite.aws.accessKey array
-     Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.region array
-     Optional AWS region to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.roleARN array
-     Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS roleARN to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.secretKey array
-     Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS SecretKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.serice array
-     Optional AWS Service to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url. Defaults to "aps".
+     Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. Defaults to "aps"
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.useSigv4 array
-     Enables SigV4 request signing for -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Enables SigV4 request signing for the corresponding -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.password array
-     Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional basic auth password to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.passwordFile array
-     Optional path to basic auth password to use for -remoteWrite.url. The file is re-read every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to basic auth password to use for the corresponding -remoteWrite.url. The file is re-read every second
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.username array
-     Optional basic auth username to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional basic auth username to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.bearerToken array
-     Optional bearer auth token to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional bearer auth token to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.bearerTokenFile array
-     Optional path to bearer token file to use for -remoteWrite.url. The token is re-read from the file every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to bearer token file to use for the corresponding -remoteWrite.url. The token is re-read from the file every second
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
+  -remoteWrite.headers array
+     Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
+     Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.label array
      Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1029,27 +1034,27 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Base path for multitenant remote storage URL to write data to. See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientID array
-     Optional OAuth2 clientID to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 clientID to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientSecret array
-     Optional OAuth2 clientSecret to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 clientSecret to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientSecretFile array
-     Optional OAuth2 clientSecretFile to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.scopes array
-     Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.tokenUrl array
-     Optional OAuth2 tokenURL to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.proxyURL array
-     Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
+     Optional proxy URL for writing data to the corresponding -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.queues int
      The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs (default 8)
   -remoteWrite.rateLimit array
-     Optional rate limit in bytes per second for data sent to -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
+     Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabel_config entries. The path can point either to local file or to http url. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
@@ -1059,7 +1064,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.sendTimeout array
-     Timeout for sending a single block of data to -remoteWrite.url
+     Timeout for sending a single block of data to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
@@ -1067,19 +1072,19 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The number of significant figures to leave in metric values before writing them to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsCAFile array
-     Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to TLS CA file to use for verifying connections to the corresponding -remoteWrite.url. By default system CA is used
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsCertFile array
-     Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to client-side TLS certificate file to use when connecting to the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsInsecureSkipVerify array
-     Whether to skip tls verification when connecting to -remoteWrite.url
+     Whether to skip tls verification when connecting to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsKeyFile array
-     Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to client-side TLS certificate key to use when connecting to the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsServerName array
-     Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional TLS server name to use for connections to the corresponding -remoteWrite.url. By default the server name from -remoteWrite.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tmpDataPath string
      Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")

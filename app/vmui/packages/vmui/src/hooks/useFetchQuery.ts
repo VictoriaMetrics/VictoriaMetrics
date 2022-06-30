@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from "preact/compat";
 import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
 import {useAppState} from "../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult, TracingData} from "../api/types";
+import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
@@ -28,14 +28,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
-  tracingData?: Trace,
+  traces?: Trace[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
-  const [tracingData, setTracingData] = useState<Trace>();
+  const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
 
@@ -43,20 +43,9 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     if (error) {
       setGraphData(undefined);
       setLiveData(undefined);
-      setTracingData(undefined);
+      setTraces(undefined);
     }
   }, [error]);
-
-  const updateTracingData = (tracing: TracingData, queries: string[]) => {
-    if (tracing) {
-      queries.forEach((query) => {
-        const {message} = tracing;
-        if (message.includes(query)) {
-          setTracingData(new Trace(tracing, query));
-        }
-      });
-    }
-  };
 
   const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
     const controller = new AbortController();
@@ -64,12 +53,16 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     try {
       const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
       const tempData = [];
+      const tempTraces: Trace[] = [];
       let counter = 1;
       for await (const response of responses) {
         const resp = await response.json();
         if (response.ok) {
           setError(undefined);
-          updateTracingData(resp.trace, query);
+          if (resp.trace) {
+            const trace = new Trace(resp.trace, query[counter-1]);
+            tempTraces.push(trace);
+          }
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
             return d;
@@ -80,6 +73,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
         }
       }
       displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
+      setTraces(tempTraces);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
@@ -127,5 +121,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return {fetchUrl, isLoading, graphData, liveData, error, tracingData};
+  return {fetchUrl, isLoading, graphData, liveData, error, traces};
 };

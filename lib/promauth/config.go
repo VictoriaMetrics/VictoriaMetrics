@@ -419,6 +419,8 @@ func (ba *BasicAuthConfig) NewConfig(baseDir string) (*Config, error) {
 }
 
 // NewConfig creates auth config from the given args.
+//
+// headers must be in the form 'HeaderName: header value'
 func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, o *OAuth2Config, tlsConfig *TLSConfig, headers []string) (*Config, error) {
 	var getAuthHeader func() string
 	authDigest := ""
