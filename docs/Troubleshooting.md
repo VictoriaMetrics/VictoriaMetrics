@@ -134,7 +134,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    according to the following recommendations:
 
    - 50% of free CPU
-   - 30% of free memory
+   - 50% of free memory
    - 20% of free disk space
 
    If VictoriaMetrics components have lower amounts of free resources, then this may lead
@@ -223,8 +223,10 @@ There are the following most common sources of out of memory (aka OOM) crashes i
 
 3. Lack of free memory for processing workload spikes. If VictoriaMetrics components use almost all the available memory
    under the current workload, then it is recommended migrating to a host with bigger amounts of memory
-   in order to protect from possible OOM crashes on workload spikes. It is recommended to have at least 30%
+   in order to protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
    of free memory for graceful handling of possible workload spikes.
+   See [capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/#capacity-planning)
+   and [capacity planning for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning).
 
 
 ## Cluster instability
