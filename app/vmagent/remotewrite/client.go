@@ -37,6 +37,10 @@ var (
 	tlsServerName = flagutil.NewArray("remoteWrite.tlsServerName", "Optional TLS server name to use for connections to -remoteWrite.url. "+
 		"By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 
+	headers = flagutil.NewArray("remoteWrite.headers", "Optional HTTP headers to send with each request to -remoteWrite.url. "+
+		"For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to -remoteWrite.url. "+
+		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
+
 	basicAuthUsername = flagutil.NewArray("remoteWrite.basicAuth.username", "Optional basic auth username to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	basicAuthPassword = flagutil.NewArray("remoteWrite.basicAuth.password", "Optional basic auth password to use for -remoteWrite.url. "+
@@ -183,6 +187,11 @@ func (c *client) MustStop() {
 }
 
 func getAuthConfig(argIdx int) (*promauth.Config, error) {
+	headersValue := headers.GetOptionalArg(argIdx)
+	var headers []string
+	if headersValue != "" {
+		headers = strings.Split(headersValue, "^^")
+	}
 	username := basicAuthUsername.GetOptionalArg(argIdx)
 	password := basicAuthPassword.GetOptionalArg(argIdx)
 	passwordFile := basicAuthPasswordFile.GetOptionalArg(argIdx)
@@ -219,7 +228,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		InsecureSkipVerify: tlsInsecureSkipVerify.GetOptionalArg(argIdx),
 	}
 
-	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg, nil)
+	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg, headers)
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}
@@ -301,12 +310,12 @@ again:
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}
+	c.authCfg.SetHeaders(req, true)
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
 	h.Set("Content-Encoding", "snappy")
 	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
-	c.authCfg.SetHeaders(req, true)
 	if c.awsCfg != nil {
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
 			// there is no need in retry, request will be rejected by client.Do and retried by code below
