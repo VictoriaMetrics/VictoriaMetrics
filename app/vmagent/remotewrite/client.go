@@ -172,9 +172,9 @@ func (c *client) MustStop() {
 
 func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	headersValue := headers.GetOptionalArg(argIdx)
-	var headers []string
+	var hdrs []string
 	if headersValue != "" {
-		headers = strings.Split(headersValue, "^^")
+		hdrs = strings.Split(headersValue, "^^")
 	}
 	username := basicAuthUsername.GetOptionalArg(argIdx)
 	password := basicAuthPassword.GetOptionalArg(argIdx)
@@ -212,7 +212,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		InsecureSkipVerify: tlsInsecureSkipVerify.GetOptionalArg(argIdx),
 	}
 
-	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg, headers)
+	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg, hdrs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}
