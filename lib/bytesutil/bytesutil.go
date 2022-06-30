@@ -79,3 +79,14 @@ func ToUnsafeBytes(s string) (b []byte) {
 	slh.Cap = sh.Len
 	return b
 }
+
+// LimitStringLen limits the length of s to maxLen.
+//
+// If len(s) > maxLen, then the function concatenates s prefix with s suffix.
+func LimitStringLen(s string, maxLen int) string {
+	if maxLen <= 4 || len(s) <= maxLen {
+		return s
+	}
+	n := maxLen/2 - 1
+	return s[:n] + ".." + s[len(s)-n:]
+}

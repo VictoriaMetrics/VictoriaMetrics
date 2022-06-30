@@ -2235,8 +2235,8 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		ok, err := is.hasDateMetricID(date, metricID, dmid.accountID, dmid.projectID)
 		if err != nil {
 			if firstError == nil {
-				firstError = fmt.Errorf("error when locating (date=%d, metricID=%d, accountID=%d, projectID=%d) in database: %w",
-					date, metricID, dmid.accountID, dmid.projectID, err)
+				firstError = fmt.Errorf("error when locating (date=%s, metricID=%d, accountID=%d, projectID=%d) in database: %w",
+					dateToString(date), metricID, dmid.accountID, dmid.projectID, err)
 			}
 			continue
 		}
@@ -2253,7 +2253,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 			mn.sortTags()
 			if err := is.createPerDayIndexes(date, metricID, mn); err != nil {
 				if firstError == nil {
-					firstError = fmt.Errorf("error when storing per-date inverted index for (date=%d, metricID=%d): %w", date, metricID, err)
+					firstError = fmt.Errorf("error when storing per-date inverted index for (date=%s, metricID=%d): %w", dateToString(date), metricID, err)
 				}
 				continue
 			}

@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+func dateToString(date uint64) string {
+	if date == 0 {
+		return "1970-01-01"
+	}
+	t := time.Unix(int64(date*24*3600), 0).UTC()
+	return t.Format("2006-01-02")
+}
+
 // timestampToTime returns time representation of the given timestamp.
 //
 // The returned time is in UTC timezone.

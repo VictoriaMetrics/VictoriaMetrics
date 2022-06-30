@@ -218,7 +218,8 @@ func getTimestamps(start, end, step int64) []int64 {
 
 func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 	if qt.Enabled() {
-		query := e.AppendString(nil)
+		query := string(e.AppendString(nil))
+		query = bytesutil.LimitStringLen(query, 300)
 		mayCache := ec.mayCache()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}

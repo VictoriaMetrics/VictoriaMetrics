@@ -422,7 +422,7 @@ func (is *indexSearch) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte, date
 		return false, fmt.Errorf("cannot create global indexes: %w", err)
 	}
 	if err := is.createPerDayIndexes(date, tsid.MetricID, mn); err != nil {
-		return false, fmt.Errorf("cannot create per-day indexes for date=%d: %w", date, err)
+		return false, fmt.Errorf("cannot create per-day indexes for date=%s: %w", dateToString(date), err)
 	}
 	PutMetricName(mn)
 	atomic.AddUint64(&is.db.timeseriesRepopulated, 1)
@@ -615,7 +615,7 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName, metricNameRaw []b
 		return fmt.Errorf("cannot create global indexes: %w", err)
 	}
 	if err := is.createPerDayIndexes(date, dst.MetricID, mn); err != nil {
-		return fmt.Errorf("cannot create per-day indexes for date=%d: %w", date, err)
+		return fmt.Errorf("cannot create per-day indexes for date=%s: %w", dateToString(date), err)
 	}
 
 	// There is no need in invalidating tag cache, since it is invalidated
@@ -800,7 +800,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
-		qtChild := qt.NewChild("search for label names: filters=%s, date=%d", tfss, date)
+		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		go func(date uint64) {
 			defer func() {
 				qtChild.Done()
@@ -956,7 +956,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.T
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
-		qtChild := qt.NewChild("search for label names: filters=%s, date=%d", tfss, date)
+		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		go func(date uint64) {
 			defer func() {
 				qtChild.Done()
@@ -2486,7 +2486,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, 
 	var errGlobal error
 	var mu sync.Mutex // protects metricIDs + errGlobal vars from concurrent access below
 	for minDate <= maxDate {
-		qtChild := qt.NewChild("parallel thread for date=%d", minDate)
+		qtChild := qt.NewChild("parallel thread for date=%s", dateToString(minDate))
 		wg.Add(1)
 		go func(date uint64) {
 			defer func() {
@@ -2522,8 +2522,10 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, 
 }
 
 func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, date uint64, tfs *TagFilters, maxMetrics int) (*uint64set.Set, error) {
-	qt = qt.NewChild("search for metric ids on a particular day: filters=%s, date=%d, maxMetrics=%d", tfs, date, maxMetrics)
-	defer qt.Done()
+	if qt.Enabled() {
+		qt = qt.NewChild("search for metric ids on a particular day: filters=%s, date=%s, maxMetrics=%d", tfs, dateToString(date), maxMetrics)
+		defer qt.Done()
+	}
 	// Sort tfs by loopsCount needed for performing each filter.
 	// This stats is usually collected from the previous queries.
 	// This way we limit the amount of work below by applying fast filters at first.
@@ -2869,18 +2871,20 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, project
 		if err == io.EOF {
 			return false, nil
 		}
-		return false, fmt.Errorf("error when searching for (date=%d, metricID=%d) entry: %w", date, metricID, err)
+		return false, fmt.Errorf("error when searching for (date=%s, metricID=%d) entry: %w", dateToString(date), metricID, err)
 	}
 	if string(ts.Item) != string(kb.B) {
-		return false, fmt.Errorf("unexpected entry for (date=%d, metricID=%d); got %q; want %q", date, metricID, ts.Item, kb.B)
+		return false, fmt.Errorf("unexpected entry for (date=%s, metricID=%d); got %q; want %q", dateToString(date), metricID, ts.Item, kb.B)
 	}
 	return true, nil
 }
 
 func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte,
 	maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
-	qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%d, maxMetrics=%d, maxLoopsCount=%d", tf, date, maxMetrics, maxLoopsCount)
-	defer qt.Done()
+	if qt.Enabled() {
+		qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
+		defer qt.Done()
+	}
 	if !bytes.HasPrefix(tf.prefix, commonPrefix) {
 		logger.Panicf("BUG: unexpected tf.prefix %q; must start with commonPrefix %q", tf.prefix, commonPrefix)
 	}
