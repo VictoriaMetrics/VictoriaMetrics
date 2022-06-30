@@ -47,6 +47,7 @@ scrape_configs:
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): assume that the response is complete if `-search.denyPartialResponse` is enabled and up to `-replicationFactor - 1` `vmstorage` nodes are unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1767).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/#vmselect): update `vm_partial_results_total` metric labels to be consistent with `vm_requests_total` labels.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): update path for css files.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): correctly update `scrape_configs` when `-promscrape.configCheckInterval` is configured. Thanks @ttyv for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2786). 
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
