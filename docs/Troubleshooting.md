@@ -10,7 +10,7 @@ This document contains troubleshooting guides for most common issues when workin
 - [Slow data ingestion](#slow-data-ingestion)
 - [Slow queries](#slow-queries)
 - [Out of memory errors](#out-of-memory-errors)
-
+- [Cluster instability](#cluster-instability)
 
 ## Unexpected query results
 
@@ -31,7 +31,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
 2. If the simplest query continues returning unexpected / unreliable results, then export raw samples
    for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
-   on the given '[start..end]' time range and check whether they are expected:
+   on the given `[start..end]` time range and check whether they are expected:
 
    ```console
    curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
@@ -224,3 +224,43 @@ There are the following most common sources of out of memory (aka OOM) crashes i
    under the current workload, then it is recommended migrating to a host with bigger amounts of memory
    in order to protect from possible OOM crashes on workload spikes. It is recommended to have at least 30%
    of free memory for graceful handling of possible workload spikes.
+
+
+## Cluster instability
+
+VictoriaMetrics cluster may become unstable if there is no enough free resources (CPU, RAM, disk IO, network bandwidth)
+for processing the current workload.
+
+The most common sources of cluster instability are:
+
+- Workload spike. For example, if the number of active time series increases by 2x while
+  the cluster has no enough free resources for processing the increased workload,
+  then it may become unstable.
+
+- Various maintenance tasks such as rolling upgrades or rolling restarts during configuration changes.
+  For example, if a cluster contains `N=3` `vmstorage` nodes and they are restarted one-by-one (aka rolling restart),
+  then the cluster will have only `N-1=2` healthy `vmstorage` nodes during the rolling restart.
+  This means that the load on healthy `vmstorage` nodes increases by at least `100%/(N-1)=50%`
+  comparing to the load before rolling restart. E.g. they need to process 50% more incoming
+  data and return 50% more data during queries. In reality the load on the remaining `vmstorage`
+  nodes increases even more because they need to register new time series, which were re-routed
+  from temporarily unavailable `vmstorage` node. If `vmstorage` nodes had less than 50%
+  of free resources (CPU, RAM, disk IO) before the rolling restart, then the rolling restart
+  can lead to cluster overload and instability for both data ingestion and querying.
+
+  As you can see, the workload increase during rolling restart can be reduced by increasing
+  the number of `vmstorage` nodes in the cluster. For example, if VictoriaMetrics cluster contains
+  `N=11` `vmstorage` nodes, then the workload increase during rolling restart of `vmstorage` nodes
+  would be `100%/(N-1)=10%`. So it is recommended to have at least 8 `vmstorage` nodes in the cluster.
+  The recommended number of `vmstorage` nodes should be multiplied by `-replicationFactor` if replication is enabled -
+  see [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
+  for details.
+
+The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
+have enough free resources for graceful processing the increased workload.
+See [capacity planning docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
+and [cluster resizing and scalability docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-resizing-and-scalability)
+for details.
+
+VictoriaMetrics provides various configuration settings, which can be used for limiting unexpected workload spikes.
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits) for details.
