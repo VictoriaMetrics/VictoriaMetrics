@@ -29,6 +29,11 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    - Remove the outer `rate`: `http_requests_total`. Additional label filters may be added here in order
      to reduce the number of returned series.
 
+   Sometimes the query may be improperly constructed, so it returns unexpected results.
+   It is recommended reading and understanding [MetricsQL docs](https://docs.victoriametrics.com/MetricsQL.html),
+   especially [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries)
+   and [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) sections.
+
 2. If the simplest query continues returning unexpected / unreliable results, then export raw samples
    for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
    on the given `[start..end]` time range and check whether they are expected:
@@ -179,7 +184,7 @@ Some queries may take more time and resources (CPU, RAM, network bandwidth) than
 VictoriaMetrics logs slow queries if their execution time exceeds the duration passed
 to `-search.logSlowQueryDuration` command-line flag.
 VictoriaMetrics also provides `/api/v1/status/top_queries` endpoint, which returns
-queries took the most time to execute.
+queries that took the most time to execute.
 See [these docs](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements) for details.
 
 There are the following solutions exist for slow queries:
@@ -195,6 +200,8 @@ There are the following solutions exist for slow queries:
   which can help determine the source of slow query.
   See also [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986),
   which explains how to determine and optimize slow queries.
+
+  In practice many slow queries are generated because of improper use of [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries).
 
 
 ## Out of memory errors
