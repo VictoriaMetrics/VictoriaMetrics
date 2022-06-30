@@ -87,46 +87,46 @@ There are the following most commons reasons for slow data ingestion in Victoria
 
 1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
-  VictoriaMetrics (or `vmstorage` in cluster version of VictoriaMetrics) maintains an in-memory cache
-  for quick search for internal series ids per each incoming metric.
-  This cache is named `storage/tsid`. VictoriaMetrics automatically determines the maximum size for this cache
-  depending on the available memory on the host where VictoriaMetrics (or `vmstorage`) runs. If the cache size isn't enough
-  for holding all the entries for active time series, then VictoriaMetrics locates the needed data on disk,
-  unpacks it, re-constructs the missing entry and puts it into the cache. This takes additional CPU time and disk read IO.
+   VictoriaMetrics (or `vmstorage` in cluster version of VictoriaMetrics) maintains an in-memory cache
+   for quick search for internal series ids per each incoming metric.
+   This cache is named `storage/tsid`. VictoriaMetrics automatically determines the maximum size for this cache
+   depending on the available memory on the host where VictoriaMetrics (or `vmstorage`) runs. If the cache size isn't enough
+   for holding all the entries for active time series, then VictoriaMetrics locates the needed data on disk,
+   unpacks it, re-constructs the missing entry and puts it into the cache. This takes additional CPU time and disk read IO.
 
-  The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
-  contain `Slow inserts` graph, which shows the cache miss percentage for `storage/tsid` cache
-  during data ingestion. If `slow inserts` graph shows values greater than 5% for more than 10 minutes,
-  then it is likely the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series)
-  cannot fit the `storage/tsid` cache.
+   The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
+   contain `Slow inserts` graph, which shows the cache miss percentage for `storage/tsid` cache
+   during data ingestion. If `slow inserts` graph shows values greater than 5% for more than 10 minutes,
+   then it is likely the current number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series)
+   cannot fit the `storage/tsid` cache.
 
-  There are the following solutions exist for this issue:
+   There are the following solutions exist for this issue:
 
-  - To increase the available memory on the host where VictoriaMetrics runs until `slow inserts` percentage
-    will become lower than 5%. If you run VictoriaMetrics cluster, then you need increasing total available
-    memory at `vmstorage` nodes. This can be done in two ways: either increasing the available memory
-    per each existing `vmstorage` node or to add more `vmstorage` nodes to the cluster.
+   - To increase the available memory on the host where VictoriaMetrics runs until `slow inserts` percentage
+     will become lower than 5%. If you run VictoriaMetrics cluster, then you need increasing total available
+     memory at `vmstorage` nodes. This can be done in two ways: either increasing the available memory
+     per each existing `vmstorage` node or to add more `vmstorage` nodes to the cluster.
 
-  - To reduce the number of active time series. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
-    contain a graph showing the number of active time series. Recent versions of VictoriaMetrics
-    provide [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
-    which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality).
+   - To reduce the number of active time series. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
+     contain a graph showing the number of active time series. Recent versions of VictoriaMetrics
+     provide [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
+     which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality).
 
 2. [High churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate),
-  e.g. when old time series are substituted with new time series at a high rate.
-  When VitoriaMetrics encounters a sample for new time series, it needs to register the time series
-  in the internal index (aka `indexdb`), so it can be quickly located on subsequent select queries.
-  The process of registering new time series in the internal index is an order of magnitude slower
-  than the process of adding new sample to already registered time series.
-  So VictoriaMetrics may work slower than expected under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+   e.g. when old time series are substituted with new time series at a high rate.
+   When VitoriaMetrics encounters a sample for new time series, it needs to register the time series
+   in the internal index (aka `indexdb`), so it can be quickly located on subsequent select queries.
+   The process of registering new time series in the internal index is an order of magnitude slower
+   than the process of adding new sample to already registered time series.
+   So VictoriaMetrics may work slower than expected under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
-  The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
-  provides `Churn rate` graph, which shows the average number of new time series registered
-  during the last 24 hours. If this number exceeds the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series),
-  then you need to identify and fix the source of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
-  The most commons source of high churn rate is a label, which frequently change its value. Try avoiding such labels.
-  The [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help identifying
-  such labels.
+   The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
+   provides `Churn rate` graph, which shows the average number of new time series registered
+   during the last 24 hours. If this number exceeds the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series),
+   then you need to identify and fix the source of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+   The most commons source of high churn rate is a label, which frequently change its value. Try avoiding such labels.
+   The [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help identifying
+   such labels.
 
 3. Resource shortage. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
    contain `resource usage` graphs, which show memory usage, CPU usage, disk IO usage and free disk size.
