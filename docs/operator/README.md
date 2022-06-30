@@ -1,5 +1,5 @@
 ---
-sort: 23
+sort: 25
 ---
 
 # VictoriaMetrics Operator

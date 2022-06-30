@@ -187,6 +187,10 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
 
+## Troubleshooting
+
+See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+
 ## Readonly mode
 
 `vmstorage` nodes automatically switch to readonly mode when the directory pointed by `-storageDataPath` contains less than `-storage.minFreeDiskSpaceBytes` of free space. `vminsert` nodes stop sending data to such nodes and start re-routing the data to the remaining `vmstorage` nodes.

@@ -586,6 +586,8 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
     regex: true
   ```
 
+See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+
 ## Kafka integration
 
 [Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
