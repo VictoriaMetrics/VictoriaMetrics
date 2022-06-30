@@ -6568,7 +6568,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{5.5, 4.5, 6.5, 4.5, 2.5, 0.5},
+			Values:     []float64{0, 0, 6.5, 4.5, 2.5, 0.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6579,7 +6579,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s] offset 100s)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{6, 5, 7.5, 5.5, 3.5, 1.5},
+			Values:     []float64{0, 0, 3.5, 5.5, 3.5, 1.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6590,7 +6590,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s] offset 100s)[:] offset 100s`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{7, 6, 5, 7.5, 5.5, 3.5},
+			Values:     []float64{0, 0, 0, 3.5, 5.5, 3.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6746,10 +6746,24 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`remove_resets()`, func(t *testing.T) {
 		t.Parallel()
-		q := `remove_resets( abs(1500-time()) )`
+		q := `remove_resets(abs(1500-time()))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{500, 800, 900, 900, 1100, 1300},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`remove_resets(sum)`, func(t *testing.T) {
+		t.Parallel()
+		q := `remove_resets(sum(
+			alias(time(), "full"),
+			alias(time()/5 < 300, "partial"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1200, 1440, 1680, 1680, 1880, 2080},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6945,10 +6959,10 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`aggr_over_time(single-func)`, func(t *testing.T) {
 		t.Parallel()
-		q := `aggr_over_time("increase", rand(0)[:10s])`
+		q := `round(aggr_over_time("increase", rand(0)[:10s]),0.01)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{5.465672601448873, 6.642207999066246, 6.8400051805114295, 7.182425481980655, 5.1677922402706, 6.594060518641982},
+			Values:     []float64{5.47, 6.64, 6.84, 7.24, 5.17, 6.59},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.Tags = []storage.Tag{{

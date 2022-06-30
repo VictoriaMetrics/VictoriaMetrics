@@ -2329,9 +2329,9 @@ func removeCounterResetsMaybeNaNs(values []float64) {
 		d := v - prevValue
 		if d < 0 {
 			if (-d * 8) < prevValue {
-				// This is likely jitter from `Prometheus HA pairs`.
-				// Just substitute v with prevValue.
-				v = prevValue
+				// This is likely a partial counter reset.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2787
+				correction += prevValue - v
 			} else {
 				correction += prevValue
 			}
