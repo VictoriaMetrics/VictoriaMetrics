@@ -152,6 +152,7 @@ release-vmutils: \
 	release-vmutils-linux-arm \
 	release-vmutils-darwin-arm \
 	release-vmutils-arm64 \
+	release-vmutils-linux-arm64 \
 	release-vmutils-darwin-arm64 \
 
 release-vmutils-amd64:
@@ -174,6 +175,12 @@ release-vmutils-linux-arm:
 
 release-vmutils-darwin-arm:
 	OSARCH=darwin-arm $(MAKE) release-vmutils-generic
+
+release-vmutils-arm64:
+	OSARCH=arm64 $(MAKE) release-vmutils-generic
+
+release-vmutils-linux-arm64:
+	OSARCH=linux-arm64 $(MAKE) release-vmutils-generic
 
 release-vmutils-darwin-arm64:
 	OSARCH=darwin-arm64 $(MAKE) release-vmutils-generic
