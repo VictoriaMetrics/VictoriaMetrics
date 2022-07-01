@@ -99,22 +99,38 @@ release: \
 
 release-victoria-metrics: \
 	release-victoria-metrics-amd64 \
-	release-victoria-metrics-arm \
-	release-victoria-metrics-arm64 \
+	release-victoria-metrics-linux-amd64 \
 	release-victoria-metrics-darwin-amd64 \
+	release-victoria-metrics-arm \
+	release-victoria-metrics-linux-arm \
+	release-victoria-metrics-darwin-arm \
+	release-victoria-metrics-arm64 \
+	release-victoria-metrics-linux-arm64 \
 	release-victoria-metrics-darwin-arm64
 
 release-victoria-metrics-amd64:
 	OSARCH=amd64 $(MAKE) release-victoria-metrics-generic
 
+release-victoria-metrics-linux-amd64:
+	OSARCH=linux-amd64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-darwin-amd64:
+	OSARCH=darwin-amd64 $(MAKE) release-victoria-metrics-generic
+
 release-victoria-metrics-arm:
 	OSARCH=arm $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-linux-arm:
+	OSARCH=linux-arm $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-darwin-arm:
+	OSARCH=darwin-arm $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-arm64:
 	OSARCH=arm64 $(MAKE) release-victoria-metrics-generic
 
-release-victoria-metrics-darwin-amd64:
-	OSARCH=darwin-amd64 $(MAKE) release-victoria-metrics-generic
+release-victoria-metrics-linux-arm64:
+	OSARCH=linux-arm64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-arm64:
 	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
@@ -129,29 +145,38 @@ release-victoria-metrics-generic: victoria-metrics-$(OSARCH)-prod
 
 release-vmutils: \
 	release-vmutils-amd64 \
-	release-vmutils-arm64 \
+	release-vmutils-linux-amd64 \
+	release-vmutils-darwin-amd64 \
+	release-vmutils-windows-amd64 \
 	release-vmutils-arm \
-	release-vmutils-darwin-amd64  \
+	release-vmutils-linux-arm \
+	release-vmutils-darwin-arm \
+	release-vmutils-arm64 \
 	release-vmutils-darwin-arm64 \
-	release-vmutils-windows-amd64
 
 release-vmutils-amd64:
 	OSARCH=amd64 $(MAKE) release-vmutils-generic
 
-release-vmutils-arm64:
-	OSARCH=arm64 $(MAKE) release-vmutils-generic
+release-vmutils-linux-amd64:
+	OSARCH=linux-amd64 $(MAKE) release-vmutils-linux-generic
+
+release-vmutils-darwin-amd64:
+	OSARCH=darwin-amd64 $(MAKE) release-vmutils-darwin-generic
+
+release-vmutils-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
 
 release-vmutils-arm:
 	OSARCH=arm $(MAKE) release-vmutils-generic
 
-release-vmutils-darwin-amd64:
-	OSARCH=darwin-amd64 $(MAKE) release-vmutils-generic
+release-vmutils-linux-arm:
+	OSARCH=linux-arm $(MAKE) release-vmutils-generic
+
+release-vmutils-darwin-arm:
+	OSARCH=darwin-arm $(MAKE) release-vmutils-generic
 
 release-vmutils-darwin-arm64:
 	OSARCH=darwin-arm64 $(MAKE) release-vmutils-generic
-
-release-vmutils-windows-amd64:
-	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
 
 release-vmutils-generic: \
 	vmagent-$(OSARCH)-prod \
