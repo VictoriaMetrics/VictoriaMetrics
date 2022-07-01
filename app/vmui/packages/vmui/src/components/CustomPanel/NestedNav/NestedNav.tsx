@@ -33,7 +33,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec})  => {
   return (
     <Box sx={{ bgcolor: "rgba(201, 227, 246, 0.4)" }}>
       <ListItem onClick={handleListClick(trace.idValue)} sx={!hasChildren ? {p:0, pl: 7} : {p:0}}>
-        <ListItemButton alignItems={"flex-start"} sx={{ pt: 0, pb: 0}}>
+        <ListItemButton alignItems={"flex-start"} sx={{ pt: 0, pb: 0}} style={{ userSelect: "text" }} disableRipple>
           {hasChildren ? <ListItemIcon>
             {openLevels[trace.idValue] ?
               <ExpandLess fontSize={"large"} color={"info"} /> :
