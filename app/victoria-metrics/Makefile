@@ -18,8 +18,14 @@ victoria-metrics-amd64-prod:
 victoria-metrics-arm-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm
 
+victoria-metrics-linux-arm-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-arm
+
 victoria-metrics-arm64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm64
+
+victoria-metrics-linux-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-arm64
 
 victoria-metrics-ppc64le-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-ppc64le
@@ -32,6 +38,9 @@ victoria-metrics-darwin-amd64-prod:
 
 victoria-metrics-darwin-arm64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-arm64
+
+victoria-metrics-linux-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-amd64
 
 package-victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker

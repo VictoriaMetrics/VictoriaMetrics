@@ -103,7 +103,6 @@ release-victoria-metrics: \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-arm \
 	release-victoria-metrics-linux-arm \
-	release-victoria-metrics-darwin-arm \
 	release-victoria-metrics-arm64 \
 	release-victoria-metrics-linux-arm64 \
 	release-victoria-metrics-darwin-arm64
@@ -123,9 +122,6 @@ release-victoria-metrics-arm:
 release-victoria-metrics-linux-arm:
 	OSARCH=linux-arm $(MAKE) release-victoria-metrics-generic
 
-release-victoria-metrics-darwin-arm:
-	OSARCH=darwin-arm $(MAKE) release-victoria-metrics-generic
-
 release-victoria-metrics-arm64:
 	OSARCH=arm64 $(MAKE) release-victoria-metrics-generic
 
@@ -137,7 +133,7 @@ release-victoria-metrics-darwin-arm64:
 
 release-victoria-metrics-generic: victoria-metrics-$(OSARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(OSARCH)||" -czf victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
+		gtar --transform="flags=r;s|-$(OSARCH)||" -czf victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(OSARCH)-prod \
 		&& sha256sum victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(OSARCH)-prod \
@@ -150,7 +146,6 @@ release-vmutils: \
 	release-vmutils-windows-amd64 \
 	release-vmutils-arm \
 	release-vmutils-linux-arm \
-	release-vmutils-darwin-arm \
 	release-vmutils-arm64 \
 	release-vmutils-linux-arm64 \
 	release-vmutils-darwin-arm64 \
@@ -172,9 +167,6 @@ release-vmutils-arm:
 
 release-vmutils-linux-arm:
 	OSARCH=linux-arm $(MAKE) release-vmutils-generic
-
-release-vmutils-darwin-arm:
-	OSARCH=darwin-arm $(MAKE) release-vmutils-generic
 
 release-vmutils-arm64:
 	OSARCH=arm64 $(MAKE) release-vmutils-generic
