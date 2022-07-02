@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 vmagent:
 	APP_NAME=vmagent $(MAKE) app-local
 
@@ -12,30 +13,45 @@ vmagent-prod:
 vmagent-pure-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-pure
 
+# GORACH=amd64
 vmagent-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-amd64
 
-vmagent-arm-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-arm
-
-vmagent-arm64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-arm64
-
-vmagent-ppc64le-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-ppc64le
-
-vmagent-386-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-386
+vmagent-linux-amd64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-linux-amd64
 
 vmagent-darwin-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-amd64
 
-vmagent-darwin-arm64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-arm64
-
 vmagent-windows-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64
 
+# GORACH=arm64
+vmagent-arm64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-arm64
+
+vmagent-linux-arm64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-linux-arm64
+
+vmagent-darwin-arm64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-arm64
+
+# GORACH=arm
+vmagent-arm-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-arm
+
+vmagent-linux-arm-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-linux-arm
+
+# GOARCH=ppc64le
+vmagent-ppc64le-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+vmagent-386-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-386
+
+# Package build
 package-vmagent:
 	APP_NAME=vmagent $(MAKE) package-via-docker
 

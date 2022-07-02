@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 vmrestore:
 	APP_NAME=vmrestore $(MAKE) app-local
 
@@ -12,27 +13,42 @@ vmrestore-prod:
 vmrestore-pure-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-pure
 
+# GOARCH=amd64
 vmrestore-amd64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-amd64
 
-vmrestore-arm-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-arm
-
-vmrestore-arm64-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-arm64
-
-vmrestore-ppc64le-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-ppc64le
-
-vmrestore-386-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-386
+vmrestore-linux-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-amd64
 
 vmrestore-darwin-amd64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-amd64
 
+# GOARCH=arm64
+vmrestore-arm64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-arm64
+
+vmrestore-linux-arm64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm64
+
 vmrestore-darwin-arm64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-arm64
 
+# GOARCH=arm
+vmrestore-arm-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-arm
+
+vmrestore-linux-arm-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm
+
+# GOARCH=ppc64le
+vmrestore-ppc64le-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+vmrestore-386-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-386
+
+# Package build
 package-vmrestore:
 	APP_NAME=vmrestore $(MAKE) package-via-docker
 

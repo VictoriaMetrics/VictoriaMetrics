@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 vmctl:
 	APP_NAME=vmctl $(MAKE) app-local
 
@@ -12,30 +13,45 @@ vmctl-prod:
 vmctl-pure-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-pure
 
+# GOARCH=amd64
 vmctl-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-amd64
 
-vmctl-arm-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-arm
-
-vmctl-arm64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-arm64
-
-vmctl-ppc64le-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-ppc64le
-
-vmctl-386-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-386
+vmctl-linux-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-amd64
 
 vmctl-darwin-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
 
-vmctl-darwin-arm64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-arm64
-
 vmctl-windows-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
 
+# GOARCH=arm64
+vmctl-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-arm64
+
+vmctl-linux-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm64
+
+vmctl-darwin-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-arm64
+
+# GOARCH=arm
+vmctl-arm-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-arm
+
+vmctl-linux-arm-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm
+
+# GOARCH=ppc64le
+vmctl-ppc64le-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+vmctl-386-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-386
+
+# Package build
 package-vmctl:
 	APP_NAME=vmctl $(MAKE) package-via-docker
 

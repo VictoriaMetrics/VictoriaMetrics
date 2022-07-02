@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 vmauth:
 	APP_NAME=vmauth $(MAKE) app-local
 
@@ -12,30 +13,45 @@ vmauth-prod:
 vmauth-pure-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-pure
 
+# GOARCH=amd64
 vmauth-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-amd64
 
-vmauth-arm-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-arm
-
-vmauth-arm64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-arm64
-
-vmauth-ppc64le-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-ppc64le
-
-vmauth-386-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-386
+vmauth-linux-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-amd64
 
 vmauth-darwin-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
 
-vmauth-darwin-arm64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-arm64
-
 vmauth-windows-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
 
+# GOARCH=arm64
+vmauth-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-arm64
+
+vmauth-linux-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm64
+
+vmauth-darwin-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-arm64
+
+# GOARCH=arm
+vmauth-arm-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-arm
+
+vmauth-linux-arm-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm
+
+# GOARCH=ppc64le
+vmauth-ppc64le-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+vmauth-386-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-386
+
+# Package build
 package-vmauth:
 	APP_NAME=vmauth $(MAKE) package-via-docker
 

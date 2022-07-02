@@ -131,7 +131,8 @@ release-victoria-metrics-linux-arm64:
 release-victoria-metrics-darwin-arm64:
 	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
 
-release-victoria-metrics-generic: victoria-metrics-$(OSARCH)-prod
+release-victoria-metrics-generic: \
+	victoria-metrics-$(OSARCH)-prod
 	cd bin && \
 		gtar --transform="flags=r;s|-$(OSARCH)||" -czf victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(OSARCH)-prod \
@@ -154,10 +155,10 @@ release-vmutils-amd64:
 	OSARCH=amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-linux-amd64:
-	OSARCH=linux-amd64 $(MAKE) release-vmutils-linux-generic
+	OSARCH=linux-amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-darwin-amd64:
-	OSARCH=darwin-amd64 $(MAKE) release-vmutils-darwin-generic
+	OSARCH=darwin-amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
@@ -185,7 +186,7 @@ release-vmutils-generic: \
 	vmrestore-$(OSARCH)-prod \
 	vmctl-$(OSARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(OSARCH)||" -czf vmutils-$(OSARCH)-$(PKG_TAG).tar.gz \
+		gtar --transform="flags=r;s|-$(OSARCH)||" -czf vmutils-$(OSARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(OSARCH)-prod \
 			vmalert-$(OSARCH)-prod \
 			vmauth-$(OSARCH)-prod \
