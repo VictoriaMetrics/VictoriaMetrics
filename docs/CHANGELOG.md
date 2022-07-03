@@ -60,6 +60,10 @@ scrape_configs:
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
+**Warning (03-07-2022):** some users report issues with incomplete data returned from queries. The problem is currently
+under investigation. This message will be updated as soon as the problem will be localized and solved.
+Meanwhile, we recommend postpone updating to 1.78.0.
+
 Released at 20-06-2022
 
 **Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing), so `vmselect` and `vmstorage` nodes will experience communication errors and read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases.
