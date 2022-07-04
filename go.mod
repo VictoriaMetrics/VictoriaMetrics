@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.44.1
-	github.com/aws/aws-sdk-go v1.44.43
+	github.com/aws/aws-sdk-go v1.44.47
 	github.com/cespare/xxhash/v2 v2.1.2
 
 	// TODO: switch back to https://github.com/cheggaaa/pb/v3 when v3-pooling branch
@@ -20,7 +20,7 @@ require (
 	github.com/dmitryk-dk/pb/v3 v3.0.9
 	github.com/golang/snappy v0.0.4
 	github.com/influxdata/influxdb v1.9.7
-	github.com/klauspost/compress v1.15.6
+	github.com/klauspost/compress v1.15.7
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
 	github.com/urfave/cli/v2 v2.10.3
 	github.com/valyala/fastjson v1.6.3
@@ -28,15 +28,15 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
-	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2
-	golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b
-	google.golang.org/api v0.85.0
+	golang.org/x/net v0.0.0-20220630215102-69896b714898
+	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0
+	golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e
+	google.golang.org/api v0.86.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
-	cloud.google.com/go v0.102.1 // indirect
+	cloud.google.com/go v0.103.0 // indirect
 	cloud.google.com/go/compute v1.7.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
@@ -76,7 +76,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220627200112-0a929928cb33 // indirect
+	google.golang.org/genproto v0.0.0-20220630174209-ad1d48641aa7 // indirect
 	google.golang.org/grpc v1.47.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )
