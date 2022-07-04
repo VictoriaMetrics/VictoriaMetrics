@@ -11,6 +11,7 @@ This document contains troubleshooting guides for most common issues when workin
 - [Slow queries](#slow-queries)
 - [Out of memory errors](#out-of-memory-errors)
 - [Cluster instability](#cluster-instability)
+- [Monitoring](#monitoring)
 
 ## Unexpected query results
 
