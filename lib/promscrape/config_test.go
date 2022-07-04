@@ -1656,11 +1656,17 @@ scrape_configs:
 		},
 	})
 
-	ac, err := promauth.NewConfig(".", nil, nil, "", "", nil, nil, []string{"My-Auth: foo-Bar"})
+	opts := &promauth.Options{
+		Headers: []string{"My-Auth: foo-Bar"},
+	}
+	ac, err := opts.NewConfig()
 	if err != nil {
 		t.Fatalf("unexpected error when creating promauth.Config: %s", err)
 	}
-	proxyAC, err := promauth.NewConfig(".", nil, nil, "", "", nil, nil, []string{"Foo:bar"})
+	opts = &promauth.Options{
+		Headers: []string{"Foo:bar"},
+	}
+	proxyAC, err := opts.NewConfig()
 	if err != nil {
 		t.Fatalf("unexpected error when creating promauth.Config for proxy: %s", err)
 	}
