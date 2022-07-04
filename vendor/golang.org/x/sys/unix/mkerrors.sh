@@ -128,6 +128,7 @@ includes_FreeBSD='
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#include <sys/ptrace.h>
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -529,7 +530,7 @@ ccflags="$@"
 		$2 ~ /^(MS|MNT|MOUNT|UMOUNT)_/ ||
 		$2 ~ /^NS_GET_/ ||
 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
-		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT|TFD)_/ ||
+		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT|PIOD|TFD)_/ ||
 		$2 ~ /^KEXEC_/ ||
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||

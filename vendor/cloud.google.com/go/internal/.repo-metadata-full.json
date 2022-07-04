@@ -122,7 +122,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/assuredworkloads/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/assuredworkloads/apiv1beta1": {
@@ -320,7 +320,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/binaryauthorization/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/binaryauthorization/apiv1beta1": {
@@ -491,7 +491,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/dataplex/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/dataproc/apiv1": {
@@ -536,7 +536,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/datastream/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/datastream/apiv1alpha1": {
@@ -824,7 +824,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/ids/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/iot/apiv1": {
@@ -1031,7 +1031,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/notebooks/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/notebooks/apiv1beta1": {
@@ -1049,7 +1049,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/optimization/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/orchestration/airflow/service/apiv1": {
@@ -1634,7 +1634,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/video/latest/livestream/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/video/stitcher/apiv1": {
@@ -1643,7 +1643,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/video/latest/stitcher/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/video/transcoder/apiv1": {
@@ -1673,6 +1673,15 @@
     "release_level": "beta",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/videointelligence/apiv1p3beta1": {
+    "distribution_name": "cloud.google.com/go/videointelligence/apiv1p3beta1",
+    "description": "Cloud Video Intelligence API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/videointelligence/latest/apiv1p3beta1",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/vision/apiv1p1beta1": {
     "distribution_name": "cloud.google.com/go/vision/apiv1p1beta1",
     "description": "Cloud Vision API",
@@ -1697,7 +1706,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/vmmigration/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/vpcaccess/apiv1": {
@@ -1742,7 +1751,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/workflows/latest/apiv1",
-    "release_level": "beta",
+    "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/workflows/apiv1beta": {
