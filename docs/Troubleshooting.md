@@ -20,13 +20,15 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
   `sum(rate(http_requests_total[5m])) by (job)`, then check whether the following queries return
    expected results:
 
-   - Remove the outer `sum`: `rate(http_requests_total[5m])`. If this query returns too many time series,
-     then try adding more specific label filters to it. For example, if you see that the original query
-     returns unexpected results for the `job="foo"`, then use `rate(http_requests_total{job="foo"}[5m])` query.
+   - Remove the outer `sum` and execute `rate(http_requests_total[5m])`,
+     since aggregations could hide some missing series, gaps in data or anomalies in existing series.
+     If this query returns too many time series, then try adding more specific label filters to it. 
+     For example, if you see that the original query returns unexpected results for the `job="foo"`, 
+     then use `rate(http_requests_total{job="foo"}[5m])` query.
      If this isn't enough, then continue adding more specific label filters, so the resulting query returns
      manageable number of time series.
 
-   - Remove the outer `rate`: `http_requests_total`. Additional label filters may be added here in order
+   - Remove the outer `rate` and execute `http_requests_total`. Additional label filters may be added here in order
      to reduce the number of returned series.
 
    Sometimes the query may be improperly constructed, so it returns unexpected results.
@@ -34,8 +36,8 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    especially [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries)
    and [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) sections.
 
-2. If the simplest query continues returning unexpected / unreliable results, then export raw samples
-   for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
+2. If the simplest query continues returning unexpected / unreliable results, then try verifying correctness
+   of raw unprocessed samples for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
    on the given `[start..end]` time range and check whether they are expected:
 
    ```console
@@ -165,24 +167,26 @@ There are the following most commons reasons for slow data ingestion in Victoria
    are located in the same network with short network latency between them.
    `vminsert` packs incoming data into in-memory packets and sends them to `vmstorage` on-by-one.
    It waits until `vmstorage` returns back `ack` response before sending the next packet.
-   If the network latency between `vminsert` and `vmstorage` is big (for example, if they run in different datacenters),
+   If the network latency between `vminsert` and `vmstorage` is high (for example, if they run in different datacenters),
    then this may become limiting factor for data ingestion speed.
 
    The [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
-   contain `connection saturation` graph for `vminsert` components. If this graph reaches 100%,
+   contain `connection saturation` graph for `vminsert` components. If this graph reaches 100% (1s),
    then it is likely you have issues with network latency between `vminsert` and `vmstorage`.
    Another possible issue for 100% connection saturation between `vminsert` and `vmstorage`
    is resource shortage at `vmstorage` nodes. In this case you need to increase amounts
    of available resources (CPU, RAM, disk IO) at `vmstorage` nodes or to add more `vmstorage` nodes to the cluster.
 
-5. Noisy neighboor. Make sure VictoriaMetrics components run in envirnoments without other resource-hungry apps.
+5. Noisy neighbor. Make sure VictoriaMetrics components run in an envirnoments without other resource-hungry apps.
    Such apps may steal RAM, CPU, disk IO and network bandwidth, which is needed for VictoriaMetrics components.
+   Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+   and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
 
 ## Slow queries
 
 Some queries may take more time and resources (CPU, RAM, network bandwidth) than others.
 VictoriaMetrics logs slow queries if their execution time exceeds the duration passed
-to `-search.logSlowQueryDuration` command-line flag.
+to `-search.logSlowQueryDuration` command-line flag (5s by default).
 VictoriaMetrics also provides `/api/v1/status/top_queries` endpoint, which returns
 queries that took the most time to execute.
 See [these docs](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements) for details.
@@ -191,7 +195,11 @@ There are the following solutions exist for slow queries:
 
 - Adding more CPU and memory to VictoriaMetrics, so it may perform the slow query faster.
   If you use cluster version of VictoriaMetrics, then migration of `vmselect` nodes to machines
-  with more CPU and RAM should help improving speed for slow queries.
+  with more CPU and RAM should help improving speed for slow queries. Remember that query performance
+  is always limited by resources of one vmselect which processes the query. For example, if 2vCPU on vmselect
+  isn't enough to process query fast enough, then prefer vertical scaling to horizontal for vmselects.
+  If on [ffficial Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+  panel `Concurrent selects` is close to the limit, then prefer horizontal scaling for vmselects.
   Sometimes adding more `vmstorage` nodes also can help improving the speed for slow queries.
 
 - Rewriting slow queries, so they become faster. Unfortunately it is hard determining
@@ -209,28 +217,27 @@ There are the following solutions exist for slow queries:
 There are the following most common sources of out of memory (aka OOM) crashes in VictoriaMetrics:
 
 1. Improper command-line flag values. Inspect command-line flags passed to VictoriaMetrics components.
-   If you don't understand clearly the purpose or the effect of some flags, then remove them
-   from the list of flags passed to VictoriaMetrics components, because some command-line flags
-   may lead to increased memory usage and increased CPU usage. The increased memory usage increases chances for OOM crashes.
+   If you don't understand clearly the purpose or the effect of some flags - remove them
+   from the list of flags passed to VictoriaMetrics components. Improper command-line flags values
+   may lead to increased memory and CPU usage. The increased memory usage increases chances for OOM crashes.
    VictoriaMetrics is optimized for running with default flag values (e.g. when they aren't set explicitly).
 
-   For example, it isn't recommended tuning cache sizes in VictoriaMetrics, since it frequently leads to OOM.
+   For example, it isn't recommended tuning cache sizes in VictoriaMetrics, since it frequently leads to OOM exceptions.
    [These docs](https://docs.victoriametrics.com/#cache-tuning) refer command-line flags, which aren't
    recommended to tune. If you see that VictoriaMetrics needs increasing some cache sizes for the current workload,
-   then it is better migrating to a host with more memory instead of trying to tune cache sizes.
+   then it is better migrating to a host with more memory instead of trying to tune cache sizes manually.
 
-2. Unexpected heavy queries. The query is considered heavy if it needs to select and process millions of unique time series.
-   Such query may lead to OOM, since VictoriaMetrics needs to keep some per-series data in memory.
-   VictoriaMetrics provides various settings, which can help limiting resource usage in this case -
-   see [these docs](https://docs.victoriametrics.com/#resource-usage-limits).
-   See also [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986),
-   which explains how to detect and optimize heavy queries.
-   VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing),
-   which may help identifying the source of heavy query.
+2. Unexpected heavy queries. The query is considered as heavy if it needs to select and process millions of unique time series.
+   Such query may lead to OOM exception, since VictoriaMetrics needs to keep some of per-series data in memory.
+   VictoriaMetrics provides [various settings](https://docs.victoriametrics.com/#resource-usage-limits), 
+   which can help limit resource usage.
+   For more context, see [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
+   VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing) 
+   to help identify the source of heavy query.
 
 3. Lack of free memory for processing workload spikes. If VictoriaMetrics components use almost all the available memory
-   under the current workload, then it is recommended migrating to a host with bigger amounts of memory
-   in order to protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
+   under the current workload, then it is recommended migrating to a host with bigger amounts of memory.
+   This would protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
    of free memory for graceful handling of possible workload spikes.
    See [capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/#capacity-planning)
    and [capacity planning for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning).
@@ -254,22 +261,38 @@ The most common sources of cluster instability are:
   then the cluster will have only `N-1=2` healthy `vmstorage` nodes during the rolling restart.
   This means that the load on healthy `vmstorage` nodes increases by at least `100%/(N-1)=50%`
   comparing to the load before rolling restart. E.g. they need to process 50% more incoming
-  data and to return 50% more data during queries. In reality the load on the remaining `vmstorage`
+  data and to return 50% more data during queries. In reality, the load on the remaining `vmstorage`
   nodes increases even more because they need to register new time series, which were re-routed
   from temporarily unavailable `vmstorage` node. If `vmstorage` nodes had less than 50%
-  of free resources (CPU, RAM, disk IO) before the rolling restart, then the rolling restart
+  of free resources (CPU, RAM, disk IO) before the rolling restart, then it
   can lead to cluster overload and instability for both data ingestion and querying.
 
-  As you can see, the workload increase during rolling restart can be reduced by increasing
+  The workload increase during rolling restart can be reduced by increasing
   the number of `vmstorage` nodes in the cluster. For example, if VictoriaMetrics cluster contains
   `N=11` `vmstorage` nodes, then the workload increase during rolling restart of `vmstorage` nodes
-  would be `100%/(N-1)=10%`. So it is recommended to have at least 8 `vmstorage` nodes in the cluster.
+  would be `100%/(N-1)=10%`. It is recommended to have at least 8 `vmstorage` nodes in the cluster.
   The recommended number of `vmstorage` nodes should be multiplied by `-replicationFactor` if replication is enabled -
   see [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
   for details.
 
 The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
-have enough free resources for graceful processing the increased workload.
+have enough free resources for graceful processing of the increased workload.
 See [capacity planning docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
 and [cluster resizing and scalability docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-resizing-and-scalability)
 for details.
+
+
+## Monitoring
+
+Having proper [monitoring](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring)
+would help identify and prevent most of the issues listed above.
+
+[Grafana dasbhoards](https://grafana.com/orgs/victoriametrics/dashboards) contain panels reflecting the
+health state, resource usage and other specific metrics for VictoriaMetrics components.
+
+Alerting rules for [single-node](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
+and [cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml) versions
+of VictoriaMetrics will notify about issues with Victoriametrics components and provide recommendations for how to solve them.
+
+Internally, we heavily rely both on dashboards and alerts, and constantly improve them.
+It is important to stay up to date with such changes.
