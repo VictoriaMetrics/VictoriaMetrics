@@ -35,6 +35,7 @@ scrape_configs:
 
 * FEATURE: [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing): show timestamps in query traces in human-readable format (aka `RFC3339` in UTC timezone) instead of milliseconds since Unix epoch. For example, `2022-06-27T10:32:54.506Z` instead of `1656325974506`. This improves traces' readability.
 * FEATURE: improve performance of [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers) requests, which return big number of time series.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle partial counter resets in [remove_resets](https://docs.victoriametrics.com/MetricsQL.html#remove_resets) function. Now `remove_resets(sum(m))` should returns the expected increasing line when some time series matching `m` disappear on the selected time range. Previously such a query would return horizontal line after the disappeared series.
 * FEATURE: expose additional histogram metrics at `http://victoriametrics:8428/metrics`, which may help understanding query workload:
 
   * `vm_rows_read_per_query` - the number of raw samples read per query.
@@ -51,12 +52,17 @@ scrape_configs:
 {% endraw %}
 
 * BUGFIX: limit max memory occupied by the cache, which stores parsed regular expressions. Previously too long regular expressions passed in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html) could result in big amounts of used memory (e.g. multiple of gigabytes). Now the max cache size for parsed regexps is limited to a a few megabytes.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle partial counter resets when calculating [rate](https://docs.victoriametrics.com/MetricsQL.html#rate), [irate](https://docs.victoriametrics.com/MetricsQL.html#irate) and [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) functions. Previously these functions could return zero values after partial counter resets until the counter increases to the last value before partial counter reset. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2787).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that [stale markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are generated with the actual timestamp when unsuccessful scrape occurs. This should prevent from possible time series overlap on scrape target restart in dynmaic envirnoments such as Kubernetes.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly reload changed `-promscrape.config` file when `-promscrape.configCheckInterval` option is set. The changed config file wasn't reloaded in this case since [v1.69.0](#v1690). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2786). Thanks to @ttyv for the fix.
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): assume that the response is complete if `-search.denyPartialResponse` is enabled and up to `-replicationFactor - 1` `vmstorage` nodes are unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1767).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/#vmselect): update `vm_partial_results_total` metric labels to be consistent with `vm_requests_total` labels.
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
+
+**Warning (03-07-2022):** some users report issues with incomplete data returned from queries for cluster version. 
+The problem is currently under investigation. This message will be updated as soon as the problem 
+will be localized and solved. Meanwhile, we recommend postpone updating to 1.78.0.
 
 Released at 20-06-2022
 
