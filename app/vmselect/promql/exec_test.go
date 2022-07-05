@@ -3849,14 +3849,14 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`histogram_quantile(nan-bucket-count-some)`, func(t *testing.T) {
 		t.Parallel()
-		q := `histogram_quantile(0.6,
+		q := `round(histogram_quantile(0.6,
 			label_set(90, "foo", "bar", "le", "10")
 			or label_set(NaN, "foo", "bar", "le", "30")
 			or label_set(300, "foo", "bar", "le", "+Inf")
-		)`
+		),0.01)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{30, 30, 30, 30, 30, 30},
+			Values:     []float64{18.57, 18.57, 18.57, 18.57, 18.57, 18.57},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{
