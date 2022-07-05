@@ -657,7 +657,7 @@ func DeleteSeries(qt *querytracer.Tracer, at *auth.Token, sq *storage.SearchQuer
 	}
 	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.deleteSeriesRequests.Inc()
-		deletedCount, err := sn.deleteMetrics(qt, requestData, deadline)
+		deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 		if err != nil {
 			sn.deleteSeriesErrors.Inc()
 		}
@@ -1497,17 +1497,17 @@ func (sn *storageNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage
 	return sn.execOnConnWithPossibleRetry(qt, "registerMetricNames_v3", f, deadline)
 }
 
-func (sn *storageNode) deleteMetrics(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) (int, error) {
+func (sn *storageNode) deleteSeries(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) (int, error) {
 	var deletedCount int
 	f := func(bc *handshake.BufferedConn) error {
-		n, err := sn.deleteMetricsOnConn(bc, requestData)
+		n, err := sn.deleteSeriesOnConn(bc, requestData)
 		if err != nil {
 			return err
 		}
 		deletedCount = n
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "deleteMetrics_v5", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "deleteSeries_v5", f, deadline); err != nil {
 		return 0, err
 	}
 	return deletedCount, nil
@@ -1784,13 +1784,13 @@ func (sn *storageNode) registerMetricNamesOnConn(bc *handshake.BufferedConn, mrs
 	return nil
 }
 
-func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestData []byte) (int, error) {
+func (sn *storageNode) deleteSeriesOnConn(bc *handshake.BufferedConn, requestData []byte) (int, error) {
 	// Send the request to sn
 	if err := writeBytes(bc, requestData); err != nil {
-		return 0, fmt.Errorf("cannot send deleteMetrics request to conn: %w", err)
+		return 0, fmt.Errorf("cannot send deleteSeries request to conn: %w", err)
 	}
 	if err := bc.Flush(); err != nil {
-		return 0, fmt.Errorf("cannot flush deleteMetrics request to conn: %w", err)
+		return 0, fmt.Errorf("cannot flush deleteSeries request to conn: %w", err)
 	}
 
 	// Read response error.

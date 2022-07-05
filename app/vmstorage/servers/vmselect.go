@@ -86,8 +86,8 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, accountID, projectID
 	return api.s.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) DeleteMetrics(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int, deadline uint64) (int, error) {
-	return api.s.DeleteMetrics(qt, tfss)
+func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int, deadline uint64) (int, error) {
+	return api.s.DeleteSeries(qt, tfss)
 }
 
 func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {

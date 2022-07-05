@@ -51,7 +51,7 @@ type Server struct {
 	indexSearchDuration *metrics.Histogram
 
 	registerMetricNamesRequests *metrics.Counter
-	deleteMetricsRequests       *metrics.Counter
+	deleteSeriesRequests        *metrics.Counter
 	labelNamesRequests          *metrics.Counter
 	labelValuesRequests         *metrics.Counter
 	tagValueSuffixesRequests    *metrics.Counter
@@ -98,7 +98,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		indexSearchDuration: metrics.NewHistogram(fmt.Sprintf(`vm_index_search_duration_seconds{addr=%q}`, addr)),
 
 		registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="registerMetricNames",addr=%q}`, addr)),
-		deleteMetricsRequests:       metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="deleteMetrics",addr=%q}`, addr)),
+		deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="deleteSeries",addr=%q}`, addr)),
 		labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
 		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
 		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
@@ -488,8 +488,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processSeriesCount(ctx)
 	case "tsdbStatus_v5":
 		return s.processTSDBStatus(ctx)
-	case "deleteMetrics_v5":
-		return s.processDeleteMetrics(ctx)
+	case "deleteSeries_v5":
+		return s.processDeleteSeries(ctx)
 	case "registerMetricNames_v3":
 		return s.processRegisterMetricNames(ctx)
 	default:
@@ -537,8 +537,8 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func (s *Server) processDeleteMetrics(ctx *vmselectRequestCtx) error {
-	s.deleteMetricsRequests.Inc()
+func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
+	s.deleteSeriesRequests.Inc()
 
 	// Read request
 	if err := ctx.readSearchQuery(); err != nil {
@@ -555,7 +555,7 @@ func (s *Server) processDeleteMetrics(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
-	deletedCount, err := s.api.DeleteMetrics(ctx.qt, tfss, maxMetrics, ctx.deadline)
+	deletedCount, err := s.api.DeleteSeries(ctx.qt, tfss, maxMetrics, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

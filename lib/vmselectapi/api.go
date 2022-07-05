@@ -30,8 +30,8 @@ type API interface {
 	// TSDBStatus returns tsdb status for the given sq.
 	TSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*storage.TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error)
 
-	// DeleteMetrics deletes metrics matching the given tfss.
-	DeleteMetrics(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int, deadline uint64) (int, error)
+	// DeleteSeries deletes series matching the given tfss.
+	DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int, deadline uint64) (int, error)
 
 	// RegisterMetricNames registers the given mrs in the storage.
 	RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error
