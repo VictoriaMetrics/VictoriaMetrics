@@ -6,43 +6,47 @@ package tpl
 
 //line app/vmalert/tpl/footer.qtpl:1
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"net/http"
+	"strings"
 )
 
-//line app/vmalert/tpl/footer.qtpl:5
+//line app/vmalert/tpl/footer.qtpl:7
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmalert/tpl/footer.qtpl:5
+//line app/vmalert/tpl/footer.qtpl:7
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmalert/tpl/footer.qtpl:5
-func StreamFooter(qw422016 *qt422016.Writer) {
-//line app/vmalert/tpl/footer.qtpl:5
+//line app/vmalert/tpl/footer.qtpl:7
+func StreamFooter(qw422016 *qt422016.Writer, r *http.Request) {
+//line app/vmalert/tpl/footer.qtpl:7
 	qw422016.N().S(`
-	`)
-//line app/vmalert/tpl/footer.qtpl:6
-	pathPrefix := httpserver.GetPathPrefix()
+`)
+//line app/vmalert/tpl/footer.qtpl:9
+	prefix := "/vmalert/"
+	if strings.HasPrefix(r.URL.Path, prefix) {
+		prefix = ""
+	}
 
-//line app/vmalert/tpl/footer.qtpl:6
+//line app/vmalert/tpl/footer.qtpl:13
 	qw422016.N().S(`
         </main>
         <script src="`)
-//line app/vmalert/tpl/footer.qtpl:8
-	qw422016.E().S(pathPrefix)
-//line app/vmalert/tpl/footer.qtpl:8
-	qw422016.N().S(`/static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
+//line app/vmalert/tpl/footer.qtpl:15
+	qw422016.E().S(prefix)
+//line app/vmalert/tpl/footer.qtpl:15
+	qw422016.N().S(`static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
         <script src="`)
-//line app/vmalert/tpl/footer.qtpl:9
-	qw422016.E().S(pathPrefix)
-//line app/vmalert/tpl/footer.qtpl:9
-	qw422016.N().S(`/static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+//line app/vmalert/tpl/footer.qtpl:16
+	qw422016.E().S(prefix)
+//line app/vmalert/tpl/footer.qtpl:16
+	qw422016.N().S(`static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <script type="text/javascript">
             function expandAll() {
                $('.collapse').addClass('show');
@@ -75,31 +79,31 @@ func StreamFooter(qw422016 *qt422016.Writer) {
     </body>
 </html>
 `)
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
 }
 
-//line app/vmalert/tpl/footer.qtpl:41
-func WriteFooter(qq422016 qtio422016.Writer) {
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
+func WriteFooter(qq422016 qtio422016.Writer, r *http.Request) {
+//line app/vmalert/tpl/footer.qtpl:48
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/footer.qtpl:41
-	StreamFooter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
+	StreamFooter(qw422016, r)
+//line app/vmalert/tpl/footer.qtpl:48
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
 }
 
-//line app/vmalert/tpl/footer.qtpl:41
-func Footer() string {
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
+func Footer(r *http.Request) string {
+//line app/vmalert/tpl/footer.qtpl:48
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/footer.qtpl:41
-	WriteFooter(qb422016)
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
+	WriteFooter(qb422016, r)
+//line app/vmalert/tpl/footer.qtpl:48
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
 	return qs422016
-//line app/vmalert/tpl/footer.qtpl:41
+//line app/vmalert/tpl/footer.qtpl:48
 }
