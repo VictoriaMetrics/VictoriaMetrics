@@ -1708,7 +1708,6 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) e
 		}
 		genTSID.generation = idb.generation
 		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-		s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 	}
 	return nil
 }
@@ -1797,7 +1796,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				if created {
 					genTSID.generation = idb.generation
 					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-					s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 				}
 			}
 			continue
@@ -1860,7 +1858,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			genTSID.generation = idb.generation
 			genTSID.TSID = r.TSID
 			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-			s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw

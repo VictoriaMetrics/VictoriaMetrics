@@ -43,6 +43,7 @@ scrape_configs:
   * `vm_rows_read_per_series` - the number of raw samples read per queried series.
   * `vm_series_read_per_query` - the number of series read per query.
 
+* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
 
 {% raw %}
@@ -61,11 +62,10 @@ scrape_configs:
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
-**Warning (03-07-2022):** some users report issues with incomplete data returned from queries for cluster version. 
-The problem is currently under investigation. This message will be updated as soon as the problem 
-will be localized and solved. Meanwhile, we recommend postpone updating to 1.78.0.
-
 Released at 20-06-2022
+
+**Warning (03-07-2022):** VictoriaMetrics v1.78.0 contains a bug, which may result in missing time series during queries.
+It is recommended downgrading to [v1.77.2](#v1772) until the bugfix release.
 
 **Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing), so `vmselect` and `vmstorage` nodes will experience communication errors and read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases.
 
