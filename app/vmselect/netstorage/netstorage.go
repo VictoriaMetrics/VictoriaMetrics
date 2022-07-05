@@ -598,10 +598,7 @@ func (sbh *sortBlocksHeap) Pop() interface{} {
 func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (int, error) {
 	qt = qt.NewChild("delete series: %s", sq)
 	defer qt.Done()
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return 0, err
@@ -619,10 +616,7 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 	if maxLabelNames > *maxTagKeysPerSearch || maxLabelNames <= 0 {
 		maxLabelNames = *maxTagKeysPerSearch
 	}
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -695,10 +689,7 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 	if maxLabelValues > *maxTagValuesPerSearch || maxLabelValues <= 0 {
 		maxLabelValues = *maxTagValuesPerSearch
 	}
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -771,10 +762,7 @@ func TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel stri
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -828,10 +816,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	if deadline.Exceeded() {
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return err
 	}
@@ -944,10 +929,7 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 	}
 
 	// Setup search.
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
@@ -976,10 +958,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	}
 
 	// Setup search.
-	tr := storage.TimeRange{
-		MinTimestamp: sq.MinTimestamp,
-		MaxTimestamp: sq.MaxTimestamp,
-	}
+	tr := sq.GetTimeRange()
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
