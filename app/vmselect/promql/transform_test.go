@@ -25,10 +25,10 @@ func TestFixBrokenBuckets(t *testing.T) {
 	}
 	f(nil, []float64{})
 	f([]float64{1}, []float64{1})
-	f([]float64{1,2}, []float64{1,2})
-	f([]float64{2,1}, []float64{1,1})
-	f([]float64{1,2,3,nan,nan},[]float64{1,2,3,3,3})
-	f([]float64{5,1,2,3,nan}, []float64{1,1,2,3,3})
-	f([]float64{1,5,2,nan,6,3}, []float64{1,2,2,3,3,3})
-	f([]float64{5,10,4,3}, []float64{3,3,3,3})
+	f([]float64{1, 2}, []float64{1, 2})
+	f([]float64{2, 1}, []float64{1, 1})
+	f([]float64{1, 2, 3, nan, nan}, []float64{1, 2, 3, 3, 3})
+	f([]float64{5, 1, 2, 3, nan}, []float64{1, 1, 2, 3, 3})
+	f([]float64{1, 5, 2, nan, 6, 3}, []float64{1, 2, 2, 3, 3, 3})
+	f([]float64{5, 10, 4, 3}, []float64{3, 3, 3, 3})
 }
