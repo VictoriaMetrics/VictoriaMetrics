@@ -19,7 +19,7 @@ type API interface {
 	LabelValues(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*storage.TagFilters, tr storage.TimeRange, labelName string, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error)
 
 	// TagValueSuffixes returns tag value suffixes for the given args.
-	TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error)
+	TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error)
 
 	// LabelNames returns lable names for series matching the given tfss.
 	LabelNames(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*storage.TagFilters, tr storage.TimeRange, maxLableNames, maxMetrics int, deadline uint64) ([]string, error)

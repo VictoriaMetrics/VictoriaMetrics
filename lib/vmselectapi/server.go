@@ -692,11 +692,11 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
 		return fmt.Errorf("cannot read tagKey: %w", err)
 	}
-	tagKey := append([]byte{}, ctx.dataBuf...)
+	tagKey := string(ctx.dataBuf)
 	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
 		return fmt.Errorf("cannot read tagValuePrefix: %w", err)
 	}
-	tagValuePrefix := append([]byte{}, ctx.dataBuf...)
+	tagValuePrefix := string(ctx.dataBuf)
 	delimiter, err := ctx.readByte()
 	if err != nil {
 		return fmt.Errorf("cannot read delimiter: %w", err)
