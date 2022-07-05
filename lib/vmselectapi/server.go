@@ -66,9 +66,6 @@ type Server struct {
 
 // Limits contains various limits for Server.
 type Limits struct {
-	// MaxMetrics is the maximum number of time series, which may be returned from various API calls.
-	MaxMetrics int
-
 	// MaxLabelNames is the maximum label names, which may be returned from labelNames request.
 	MaxLabelNames int
 
@@ -526,7 +523,7 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	}
 
 	// Register metric names from mrs.
-	if err := s.api.RegisterMetricNames(ctx.qt, mrs); err != nil {
+	if err := s.api.RegisterMetricNames(ctx.qt, mrs, ctx.deadline); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
 
@@ -546,16 +543,7 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request.
-	tr := storage.TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: time.Now().UnixNano() / 1e6,
-	}
-	maxMetrics := s.getMaxMetrics(ctx)
-	tfss, err := s.setupTfss(ctx.qt, &ctx.sq, tr, maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	deletedCount, err := s.api.DeleteSeries(ctx.qt, tfss, maxMetrics, ctx.deadline)
+	deletedCount, err := s.api.DeleteSeries(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -587,16 +575,7 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	tr := storage.TimeRange{
-		MinTimestamp: ctx.sq.MinTimestamp,
-		MaxTimestamp: ctx.sq.MaxTimestamp,
-	}
-	maxMetrics := s.getMaxMetrics(ctx)
-	tfss, err := s.setupTfss(ctx.qt, &ctx.sq, tr, maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	labelNames, err := s.api.LabelNames(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, ctx.deadline)
+	labelNames, err := s.api.LabelNames(ctx.qt, &ctx.sq, maxLabelNames, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -641,16 +620,7 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	tr := storage.TimeRange{
-		MinTimestamp: ctx.sq.MinTimestamp,
-		MaxTimestamp: ctx.sq.MaxTimestamp,
-	}
-	maxMetrics := s.getMaxMetrics(ctx)
-	tfss, err := s.setupTfss(ctx.qt, &ctx.sq, tr, maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	labelValues, err := s.api.LabelValues(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, tfss, tr, labelName, maxLabelValues, maxMetrics, ctx.deadline)
+	labelValues, err := s.api.LabelValues(ctx.qt, &ctx.sq, labelName, maxLabelValues, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -785,17 +755,7 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	tr := storage.TimeRange{
-		MinTimestamp: ctx.sq.MinTimestamp,
-		MaxTimestamp: ctx.sq.MaxTimestamp,
-	}
-	maxMetrics := s.getMaxMetrics(ctx)
-	tfss, err := s.setupTfss(ctx.qt, &ctx.sq, tr, maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	date := uint64(ctx.sq.MinTimestamp) / (24 * 3600 * 1000)
-	status, err := s.api.TSDBStatus(ctx.qt, ctx.sq.AccountID, ctx.sq.ProjectID, tfss, date, focusLabel, int(topN), maxMetrics, ctx.deadline)
+	status, err := s.api.TSDBStatus(ctx.qt, &ctx.sq, focusLabel, int(topN), ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -858,16 +818,7 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute request.
-	tr := storage.TimeRange{
-		MinTimestamp: ctx.sq.MinTimestamp,
-		MaxTimestamp: ctx.sq.MaxTimestamp,
-	}
-	maxMetrics := s.getMaxMetrics(ctx)
-	tfss, err := s.setupTfss(ctx.qt, &ctx.sq, tr, maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	metricNames, err := s.api.SearchMetricNames(ctx.qt, tfss, tr, maxMetrics, ctx.deadline)
+	metricNames, err := s.api.SearchMetricNames(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -901,16 +852,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 
 	// Initiaialize the search.
 	startTime := time.Now()
-	tr := storage.TimeRange{
-		MinTimestamp: ctx.sq.MinTimestamp,
-		MaxTimestamp: ctx.sq.MaxTimestamp,
-	}
-	maxMetrics := s.getMaxMetrics(ctx)
-	tfss, err := s.setupTfss(ctx.qt, &ctx.sq, tr, maxMetrics, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	bi, err := s.api.InitSearch(ctx.qt, tfss, tr, maxMetrics, ctx.deadline)
+	bi, err := s.api.InitSearch(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -944,48 +886,4 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send 'end of response' marker")
 	}
 	return nil
-}
-
-func (s *Server) getMaxMetrics(ctx *vmselectRequestCtx) int {
-	maxMetrics := ctx.sq.MaxMetrics
-	maxMetricsLimit := s.limits.MaxMetrics
-	if maxMetricsLimit <= 0 {
-		maxMetricsLimit = 2e9
-	}
-	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
-		maxMetrics = maxMetricsLimit
-	}
-	return maxMetrics
-}
-
-func (s *Server) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
-	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
-	accountID := sq.AccountID
-	projectID := sq.ProjectID
-	for _, tagFilters := range sq.TagFilterss {
-		tfs := storage.NewTagFilters(accountID, projectID)
-		for i := range tagFilters {
-			tf := &tagFilters[i]
-			if string(tf.Key) == "__graphite__" {
-				query := tf.Value
-				qtChild := qt.NewChild("searching for series matching __graphite__=%q", query)
-				paths, err := s.api.SearchGraphitePaths(qtChild, accountID, projectID, tr, query, maxMetrics, deadline)
-				qtChild.Donef("found %d series", len(paths))
-				if err != nil {
-					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
-				}
-				if len(paths) >= maxMetrics {
-					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
-						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes", maxMetrics, query)
-				}
-				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
-				continue
-			}
-			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
-				return nil, fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
-			}
-		}
-		tfss = append(tfss, tfs)
-	}
-	return tfss, nil
 }

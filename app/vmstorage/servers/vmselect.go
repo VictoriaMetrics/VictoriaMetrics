@@ -32,7 +32,6 @@ func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, er
 		s: s,
 	}
 	limits := vmselectapi.Limits{
-		MaxMetrics:          *maxUniqueTimeseries,
 		MaxLabelNames:       *maxTagKeys,
 		MaxLabelValues:      *maxTagValues,
 		MaxTagValueSuffixes: *maxTagValueSuffixesPerSearch,
@@ -40,14 +39,23 @@ func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, er
 	return vmselectapi.NewServer(addr, api, limits, *disableRPCCompression)
 }
 
-// vmstorageAPI impelemnts vmselectapi.API
+// vmstorageAPI impelements vmselectapi.API
 type vmstorageAPI struct {
 	s *storage.Storage
 }
 
-func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) (vmselectapi.BlockIterator, error) {
+func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+	tr := sq.GetTimeRange()
 	if err := checkTimeRange(api.s, tr); err != nil {
 		return nil, err
+	}
+	maxMetrics := getMaxMetrics(sq)
+	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(tfss) == 0 {
+		return nil, fmt.Errorf("missing tag filters")
 	}
 	bi := getBlockIterator()
 	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, deadline)
@@ -58,45 +66,114 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, tfss []*storage.TagF
 	return bi, nil
 }
 
-func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+	tr := sq.GetTimeRange()
+	maxMetrics := getMaxMetrics(sq)
+	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(tfss) == 0 {
+		return nil, fmt.Errorf("missing tag filters")
+	}
 	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*storage.TagFilters, tr storage.TimeRange, labelName string,
-	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	return api.s.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+	tr := sq.GetTimeRange()
+	maxMetrics := getMaxMetrics(sq)
+	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	return api.s.SearchLabelValuesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
 func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
-	return api.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+	suffixes, err := api.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(suffixes) >= maxSuffixes {
+		return nil, fmt.Errorf("more than -search.maxTagValueSuffixesPerSearch=%d suffixes returned; "+
+			"either narrow down the search or increase -search.maxTagValueSuffixesPerSearch command-line flag value", maxSuffixes)
+	}
+	return suffixes, nil
 }
 
-func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*storage.TagFilters, tr storage.TimeRange, maxLabelNames,
-	maxMetrics int, deadline uint64) ([]string, error) {
-	return api.s.SearchLabelNamesWithFiltersOnTimeRange(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
+func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+	tr := sq.GetTimeRange()
+	maxMetrics := getMaxMetrics(sq)
+	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	return api.s.SearchLabelNamesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
 func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
-func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*storage.TagFilters, date uint64, focusLabel string,
-	topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
-	return api.s.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+	tr := sq.GetTimeRange()
+	maxMetrics := getMaxMetrics(sq)
+	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	date := uint64(sq.MinTimestamp) / (24 * 3600 * 1000)
+	return api.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int, deadline uint64) (int, error) {
+func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+	tr := sq.GetTimeRange()
+	maxMetrics := getMaxMetrics(sq)
+	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		return 0, err
+	}
+	if len(tfss) == 0 {
+		return 0, fmt.Errorf("missing tag filters")
+	}
 	return api.s.DeleteSeries(qt, tfss)
 }
 
-func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
 	return api.s.RegisterMetricNames(qt, mrs)
 }
 
-func (api *vmstorageAPI) SearchGraphitePaths(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, query []byte,
-	maxMetrics int, deadline uint64) ([]string, error) {
-	return api.s.SearchGraphitePaths(qt, accountID, projectID, tr, query, maxMetrics, deadline)
+func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
+	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
+	accountID := sq.AccountID
+	projectID := sq.ProjectID
+	for _, tagFilters := range sq.TagFilterss {
+		tfs := storage.NewTagFilters(accountID, projectID)
+		for i := range tagFilters {
+			tf := &tagFilters[i]
+			if string(tf.Key) == "__graphite__" {
+				query := tf.Value
+				qtChild := qt.NewChild("searching for series matching __graphite__=%q", query)
+				paths, err := api.s.SearchGraphitePaths(qtChild, accountID, projectID, tr, query, maxMetrics, deadline)
+				qtChild.Donef("found %d series", len(paths))
+				if err != nil {
+					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
+				}
+				if len(paths) >= maxMetrics {
+					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
+						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes", maxMetrics, query)
+				}
+				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
+				continue
+			}
+			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
+				return nil, fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
+			}
+		}
+		tfss = append(tfss, tfs)
+	}
+	return tfss, nil
 }
 
 // blockIterator implements vmselectapi.BlockIterator
@@ -147,4 +224,16 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 			&tr, float64(retentionMsecs)/(24*3600*1000)),
 		StatusCode: http.StatusServiceUnavailable,
 	}
+}
+
+func getMaxMetrics(sq *storage.SearchQuery) int {
+	maxMetrics := sq.MaxMetrics
+	maxMetricsLimit := *maxUniqueTimeseries
+	if maxMetricsLimit <= 0 {
+		maxMetricsLimit = 2e9
+	}
+	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
+		maxMetrics = maxMetricsLimit
+	}
+	return maxMetrics
 }
