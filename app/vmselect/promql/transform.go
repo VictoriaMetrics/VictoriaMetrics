@@ -1002,7 +1002,7 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 	if len(xss) < 2 {
 		return
 	}
-	for j := len(xss)-1; j>=0; j-- {
+	for j := len(xss) - 1; j >= 0; j-- {
 		v := xss[j].ts.Values[i]
 		if !math.IsNaN(v) {
 			j++
@@ -1014,7 +1014,7 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 		}
 	}
 	vNext := xss[len(xss)-1].ts.Values[i]
-	for j := len(xss)-2; j >= 0; j-- {
+	for j := len(xss) - 2; j >= 0; j-- {
 		v := xss[j].ts.Values[i]
 		if math.IsNaN(v) || v > vNext {
 			xss[j].ts.Values[i] = vNext
