@@ -607,7 +607,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	if err != nil {
 		return 0, err
 	}
-	return vmstorage.DeleteMetrics(qt, tfss)
+	return vmstorage.DeleteSeries(qt, tfss)
 }
 
 // LabelNames returns label names matching the given sq until the given deadline.

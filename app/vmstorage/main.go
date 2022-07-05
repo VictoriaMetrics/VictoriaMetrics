@@ -162,12 +162,12 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error 
 	return err
 }
 
-// DeleteMetrics deletes metrics matching tfss.
+// DeleteSeries deletes series matching tfss.
 //
-// Returns the number of deleted metrics.
-func DeleteMetrics(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
+// Returns the number of deleted series.
+func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
 	WG.Add(1)
-	n, err := Storage.DeleteMetrics(qt, tfss)
+	n, err := Storage.DeleteSeries(qt, tfss)
 	WG.Done()
 	return n, err
 }
