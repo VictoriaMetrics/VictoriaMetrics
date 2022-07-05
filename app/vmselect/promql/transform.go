@@ -994,16 +994,32 @@ func groupLeTimeseries(tss []*timeseries) map[string][]leTimeseries {
 }
 
 func fixBrokenBuckets(i int, xss []leTimeseries) {
-	// Fix broken buckets.
-	// They are already sorted by le, so their values must be in ascending order,
+	// Buckets are already sorted by le, so their values must be in ascending order,
 	// since the next bucket includes all the previous buckets.
-	vPrev := float64(0)
-	for _, xs := range xss {
-		v := xs.ts.Values[i]
-		if v < vPrev || math.IsNaN(v) {
-			xs.ts.Values[i] = vPrev
+	// If the next bucket has lower value than the current bucket,
+	// then the current bucket must be substituted with the next bucket value.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819
+	if len(xss) < 2 {
+		return
+	}
+	for j := len(xss)-1; j>=0; j-- {
+		v := xss[j].ts.Values[i]
+		if !math.IsNaN(v) {
+			j++
+			for j < len(xss) {
+				xss[j].ts.Values[i] = v
+				j++
+			}
+			break
+		}
+	}
+	vNext := xss[len(xss)-1].ts.Values[i]
+	for j := len(xss)-2; j >= 0; j-- {
+		v := xss[j].ts.Values[i]
+		if math.IsNaN(v) || v > vNext {
+			xss[j].ts.Values[i] = vNext
 		} else {
-			vPrev = v
+			vNext = v
 		}
 	}
 }
