@@ -404,7 +404,7 @@ func (mn *MetricName) UnmarshalString(s string) error {
 // Unmarshal unmarshals mn from src.
 func (mn *MetricName) Unmarshal(src []byte) error {
 	if len(src) < 8 {
-		return fmt.Errorf("too short src: %d bytes; must be at least % bytes", len(src), 8)
+		return fmt.Errorf("too short src: %d bytes; must be at least 8 bytes", len(src))
 	}
 	mn.AccountID = encoding.UnmarshalUint32(src)
 	mn.ProjectID = encoding.UnmarshalUint32(src[4:])
