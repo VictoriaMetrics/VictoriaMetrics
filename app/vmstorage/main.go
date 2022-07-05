@@ -131,8 +131,8 @@ func main() {
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 	stopStaleSnapshotsRemover()
-	vmselectSrv.MustClose()
-	vminsertSrv.MustClose()
+	vmselectSrv.MustStop()
+	vminsertSrv.MustStop()
 	common.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 

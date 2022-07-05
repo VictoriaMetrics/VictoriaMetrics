@@ -95,7 +95,7 @@ func (s *VMInsertServer) run() {
 			bc, err := handshake.VMInsertServer(c, compressionLevel)
 			if err != nil {
 				if s.isStopping() {
-					// c is stopped inside VMInsertServer.MustClose
+					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
 				logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
@@ -131,8 +131,8 @@ var (
 	vminsertMetricsRead = metrics.NewCounter("vm_vminsert_metrics_read_total")
 )
 
-// MustClose gracefully closes s so it no longer touches s.storage after returning.
-func (s *VMInsertServer) MustClose() {
+// MustStop gracefully stops s so it no longer touches s.storage after returning.
+func (s *VMInsertServer) MustStop() {
 	// Mark the server as stoping.
 	s.setIsStopping()
 

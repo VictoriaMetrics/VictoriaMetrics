@@ -160,7 +160,7 @@ func (s *Server) run() {
 			bc, err := handshake.VMSelectServer(c, compressionLevel)
 			if err != nil {
 				if s.isStopping() {
-					// c is closed inside Server.MustClose
+					// c is closed inside Server.MustStop
 					return
 				}
 				logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
@@ -187,8 +187,8 @@ func (s *Server) run() {
 	}
 }
 
-// MustClose gracefully closes s, so it no longer touches s.api after returning.
-func (s *Server) MustClose() {
+// MustStop gracefully stops s, so it no longer touches s.api after returning.
+func (s *Server) MustStop() {
 	// Mark the server as stoping.
 	s.setIsStopping()
 
