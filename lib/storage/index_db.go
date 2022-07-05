@@ -2751,6 +2751,7 @@ func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName
 	if err := is.db.tb.AddItems(ii.Items); err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %w", metricID, err)
 	}
+	is.db.s.dateMetricIDCache.Set(date, metricID)
 	return nil
 }
 
