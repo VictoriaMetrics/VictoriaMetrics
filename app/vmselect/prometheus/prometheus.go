@@ -78,7 +78,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxFederateSeries)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, cp.deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -145,7 +145,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(nil, at, denyPartialResponse, sq, cp.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -168,7 +168,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		}()
 	} else {
 		go func() {
-			err := netstorage.ExportBlocks(nil, at, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -226,7 +226,7 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(nil, at, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -350,7 +350,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(qt, at, denyPartialResponse, sq, cp.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(qt, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -376,7 +376,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 	} else {
 		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
-			err := netstorage.ExportBlocks(qtChild, at, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(qtChild, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -443,7 +443,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, 0)
-	deletedCount, err := netstorage.DeleteSeries(nil, at, sq, cp.deadline)
+	deletedCount, err := netstorage.DeleteSeries(nil, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
 	}
@@ -516,7 +516,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
-	labelValues, isPartial, err := netstorage.LabelValues(qt, at, denyPartialResponse, labelName, sq, limit, cp.deadline)
+	labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
 	}
@@ -582,7 +582,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	start := int64(date*secsPerDay) * 1000
 	end := int64((date+1)*secsPerDay)*1000 - 1
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, cp.filterss, *maxTSDBStatusSeries)
-	status, isPartial, err := netstorage.TSDBStatus(qt, at, denyPartialResponse, sq, focusLabel, topN, cp.deadline)
+	status, isPartial, err := netstorage.TSDBStatus(qt, denyPartialResponse, sq, focusLabel, topN, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
 	}
@@ -615,7 +615,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
-	labels, isPartial, err := netstorage.LabelNames(qt, at, denyPartialResponse, sq, limit, cp.deadline)
+	labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
 	}
@@ -638,7 +638,7 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	n, isPartial, err := netstorage.SeriesCount(nil, at, denyPartialResponse, deadline)
+	n, isPartial, err := netstorage.SeriesCount(nil, at.AccountID, at.ProjectID, denyPartialResponse, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
@@ -675,7 +675,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	metricNames, isPartial, err := netstorage.SearchMetricNames(qt, at, denyPartialResponse, sq, cp.deadline)
+	metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 	}
