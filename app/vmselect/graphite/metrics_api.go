@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -17,6 +18,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var maxTagValueSuffixes = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 
 // MetricsFindHandler implements /metrics/find handler.
 //
@@ -228,7 +231,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail
-		suffixes, isPartial, err := netstorage.TagValueSuffixes(nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, deadline)
+		suffixes, isPartial, err := netstorage.TagValueSuffixes(nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, *maxTagValueSuffixes, deadline)
 		if err != nil {
 			return nil, false, err
 		}
@@ -248,7 +251,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 	}
 	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
 		query := qHead + qTail[:len(qTail)-1]
-		suffixes, isPartial, err := netstorage.TagValueSuffixes(nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, deadline)
+		suffixes, isPartial, err := netstorage.TagValueSuffixes(nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, *maxTagValueSuffixes, deadline)
 		if err != nil {
 			return nil, false, err
 		}

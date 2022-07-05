@@ -863,8 +863,8 @@ func GraphiteTagValues(qt *querytracer.Tracer, accountID, projectID uint32, deny
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, timeRange=%s", tagKey, tagValuePrefix, &tr)
+	delimiter byte, maxSuffixes int, deadline searchutils.Deadline) ([]string, bool, error) {
+	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, maxSuffixes=%d, timeRange=%s", tagKey, tagValuePrefix, maxSuffixes, &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
@@ -876,7 +876,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 	}
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.tagValueSuffixesRequests.Inc()
-		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, deadline)
+		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
 			sn.tagValueSuffixesErrors.Inc()
 			err = fmt.Errorf("cannot get tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c from vmstorage %s: %w",
@@ -1538,17 +1538,17 @@ func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, labelName string, 
 }
 
 func (sn *storageNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, deadline searchutils.Deadline) ([]string, error) {
+	delimiter byte, maxSuffixes int, deadline searchutils.Deadline) ([]string, error) {
 	var suffixes []string
 	f := func(bc *handshake.BufferedConn) error {
-		ss, err := sn.getTagValueSuffixesOnConn(bc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter)
+		ss, err := sn.getTagValueSuffixesOnConn(bc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
 		if err != nil {
 			return err
 		}
 		suffixes = ss
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tagValueSuffixes_v3", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "tagValueSuffixes_v4", f, deadline); err != nil {
 		return nil, err
 	}
 	return suffixes, nil
@@ -1891,7 +1891,7 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 }
 
 func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32,
-	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte) ([]string, error) {
+	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
@@ -1907,6 +1907,9 @@ func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, acc
 	}
 	if err := writeByte(bc, delimiter); err != nil {
 		return nil, fmt.Errorf("cannot send delimiter=%c to conn: %w", delimiter, err)
+	}
+	if err := writeLimit(bc, maxSuffixes); err != nil {
+		return nil, fmt.Errorf("cannot send maxSuffixes=%d to conn: %w", maxSuffixes, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush request to conn: %w", err)

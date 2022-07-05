@@ -480,7 +480,7 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processSearchMetricNames(ctx)
 	case "labelValues_v5":
 		return s.processLabelValues(ctx)
-	case "tagValueSuffixes_v3":
+	case "tagValueSuffixes_v4":
 		return s.processTagValueSuffixes(ctx)
 	case "labelNames_v5":
 		return s.processLabelNames(ctx)
@@ -701,9 +701,16 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read delimiter: %w", err)
 	}
+	maxSuffixes, err := ctx.readLimit()
+	if err != nil {
+		return fmt.Errorf("cannot read maxTagValueSuffixes: %d", err)
+	}
+	if maxSuffixes <= 0 || maxSuffixes > s.limits.MaxTagValueSuffixes {
+		maxSuffixes = s.limits.MaxTagValueSuffixes
+	}
 
 	// Execute the request
-	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, s.limits.MaxTagValueSuffixes, ctx.deadline)
+	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
