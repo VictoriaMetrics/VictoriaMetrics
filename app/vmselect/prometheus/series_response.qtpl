@@ -15,7 +15,7 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by
 		{% for i, metricName := range metricNames %}
 			{% code err := mn.UnmarshalString(metricName) %}
 			{% if err != nil %}
-				{%q= err.Error() %}
+				{%q= "cannot unmarshal metricName: " + err.Error() %}
 			{% else %}
 				{%= metricNameObject(&mn) %}
 			{% endif %}

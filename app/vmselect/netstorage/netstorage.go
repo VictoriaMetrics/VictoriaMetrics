@@ -1217,7 +1217,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		return nil, isPartial, fmt.Errorf("cannot fetch metric names from vmstorage nodes: %w", err)
 	}
 
-	metricNames := make([]string, len(metricNamesMap))
+	metricNames := make([]string, 0, len(metricNamesMap))
 	for metricName := range metricNamesMap {
 		metricNames = append(metricNames, metricName)
 	}

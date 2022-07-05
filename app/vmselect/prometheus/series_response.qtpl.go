@@ -52,7 +52,7 @@ func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, metricNames
 //line app/vmselect/prometheus/series_response.qtpl:17
 		if err != nil {
 //line app/vmselect/prometheus/series_response.qtpl:18
-			qw422016.N().Q(err.Error())
+			qw422016.N().Q("cannot unmarshal metricName: " + err.Error())
 //line app/vmselect/prometheus/series_response.qtpl:19
 		} else {
 //line app/vmselect/prometheus/series_response.qtpl:20
