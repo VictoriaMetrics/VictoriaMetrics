@@ -46,7 +46,7 @@ scrape_configs:
   * `vm_rows_read_per_series` - the number of raw samples read per queried series.
   * `vm_series_read_per_query` - the number of series read per query.
 
-* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780).
+* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2798).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
 
 {% raw %}
