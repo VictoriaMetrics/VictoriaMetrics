@@ -38,8 +38,11 @@ func parseEndpointSlice(data []byte) (object, error) {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpointslices
 func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string {
+	// The associated service name is stored in kubernetes.io/service-name label.
+	// See https://kubernetes.io/docs/reference/labels-annotations-taints/#kubernetesioservice-name
+	svcName := eps.Metadata.Labels.GetByName("kubernetes.io/service-name")
 	var svc *Service
-	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, svcName); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
