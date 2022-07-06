@@ -48,6 +48,16 @@ type Client struct {
 	sendFullURL             bool
 }
 
+func addMissingPort(addr string, isTLS bool) string {
+	if strings.Contains(addr, ":") {
+		return addr
+	}
+	if isTLS {
+		return addr + ":443"
+	}
+	return addr + ":80"
+}
+
 // NewClient returns new Client for the given args.
 func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config) (*Client, error) {
 	var u fasthttp.URI
@@ -64,6 +74,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	}
 
 	hostPort := string(u.Host())
+	dialAddr := hostPort
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
@@ -76,7 +87,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
 		pu := proxyURL.GetURL()
-		hostPort = pu.Host
+		dialAddr = pu.Host
 		isTLS = pu.Scheme == "https"
 		if isTLS {
 			tlsCfg = proxyAC.NewTLSConfig()
@@ -87,13 +98,8 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		}
 		proxyURL = &proxy.URL{}
 	}
-	if !strings.Contains(hostPort, ":") {
-		port := "80"
-		if isTLS {
-			port = "443"
-		}
-		hostPort = net.JoinHostPort(hostPort, port)
-	}
+	hostPort = addMissingPort(hostPort, isTLS)
+	dialAddr = addMissingPort(dialAddr, isTLS)
 	if dialFunc == nil {
 		var err error
 		dialFunc, err = proxyURL.NewDialFunc(proxyAC)
@@ -102,7 +108,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		}
 	}
 	hc := &fasthttp.HostClient{
-		Addr:                hostPort,
+		Addr:                dialAddr,
 		Name:                "vm_promscrape/discovery",
 		IsTLS:               isTLS,
 		TLSConfig:           tlsCfg,
@@ -113,7 +119,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		Dial:                dialFunc,
 	}
 	blockingClient := &fasthttp.HostClient{
-		Addr:                hostPort,
+		Addr:                dialAddr,
 		Name:                "vm_promscrape/discovery",
 		IsTLS:               isTLS,
 		TLSConfig:           tlsCfg,

@@ -46,7 +46,7 @@ type client struct {
 
 	scrapeURL               string
 	scrapeTimeoutSecondsStr string
-	host                    string
+	hostPort                string
 	requestURI              string
 	setHeaders              func(req *http.Request)
 	setProxyHeaders         func(req *http.Request)
@@ -57,10 +57,21 @@ type client struct {
 	disableKeepAlive        bool
 }
 
+func addMissingPort(addr string, isTLS bool) string {
+	if strings.Contains(addr, ":") {
+		return addr
+	}
+	if isTLS {
+		return addr + ":443"
+	}
+	return addr + ":80"
+}
+
 func newClient(sw *ScrapeWork) *client {
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
-	host := string(u.Host())
+	hostPort := string(u.Host())
+	dialAddr := hostPort
 	requestURI := string(u.RequestURI())
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
@@ -75,7 +86,7 @@ func newClient(sw *ScrapeWork) *client {
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
 		pu := proxyURL.GetURL()
-		host = pu.Host
+		dialAddr = pu.Host
 		requestURI = sw.ScrapeURL
 		isTLS = pu.Scheme == "https"
 		if isTLS {
@@ -90,19 +101,14 @@ func newClient(sw *ScrapeWork) *client {
 		}
 		proxyURL = &proxy.URL{}
 	}
-	if !strings.Contains(host, ":") {
-		if !isTLS {
-			host += ":80"
-		} else {
-			host += ":443"
-		}
-	}
+	hostPort = addMissingPort(hostPort, isTLS)
+	dialAddr = addMissingPort(dialAddr, isTLS)
 	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
 	hc := &fasthttp.HostClient{
-		Addr:                         host,
+		Addr:                         dialAddr,
 		Name:                         "vm_promscrape",
 		Dial:                         dialFunc,
 		IsTLS:                        isTLS,
@@ -152,7 +158,7 @@ func newClient(sw *ScrapeWork) *client {
 		sc:                      sc,
 		scrapeURL:               sw.ScrapeURL,
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
-		host:                    host,
+		hostPort:                hostPort,
 		requestURI:              requestURI,
 		setHeaders:              func(req *http.Request) { sw.AuthConfig.SetHeaders(req, true) },
 		setProxyHeaders:         setProxyHeaders,
@@ -218,7 +224,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	deadline := time.Now().Add(c.hc.ReadTimeout)
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
-	req.Header.SetHost(c.host)
+	req.Header.SetHost(c.hostPort)
 	// The following `Accept` header has been copied from Prometheus sources.
 	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
 	// This is needed as a workaround for scraping stupid Java-based servers such as Spring Boot.

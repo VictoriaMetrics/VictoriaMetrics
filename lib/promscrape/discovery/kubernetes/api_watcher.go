@@ -345,7 +345,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 		gw.startWatchersForRole("pod", nil)
 		gw.startWatchersForRole("service", nil)
 	}
-	if gw.attachNodeMetadata && role == "pod" {
+	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
 		gw.startWatchersForRole("node", nil)
 	}
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
@@ -803,8 +803,8 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}
-		if attachNodeMetadata && role == "node" && uwx.role == "pod" {
-			// pod objects depend on node objects if attachNodeMetadata is set
+		if attachNodeMetadata && role == "node" && (uwx.role == "pod" || uwx.role == "endpoints" || uwx.role == "endpointslice") {
+			// pod, endpoints and enpointslices objects depend on node objects if attachNodeMetadata is set
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}
