@@ -689,6 +689,29 @@ Below is the output for `/path/to/vmselect -help`:
      Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.disableCompression
+     Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. This reduces CPU usage at the cost of higher network bandwidth usage
+  -clusternative.maxTagKeys int
+     The maximum number of tag keys returned per search at -clusternativeListenAddr (default 100000)
+  -clusternative.maxTagValueSuffixesPerSearch int
+     The maximum number of tag value suffixes returned from /metrics/find at -clusternativeListenAddr (default 100000)
+  -clusternative.maxTagValues int
+     The maximum number of tag values returned per search at -clusternativeListenAddr (default 100000)
+  -clusternative.tls
+     Whether to use TLS when accepting connections at -clusternativeListenAddr. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.tlsCAFile string
+     Path to TLS CA file to use for verifying certificates provided by vmselect, which connects at -clusternativeListenAddr if -clusternative.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.tlsCertFile string
+     Path to server-side TLS certificate file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.tlsCipherSuites array
+     Optional list of TLS cipher suites used for connections at -clusternativeListenAddr if -clusternative.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
+  -clusternative.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by vmselect, which connects to -clusternativeListenAddr if -clusternative.tls flag is set. Note that disabled TLS certificate verification breaks security
+  -clusternative.tlsKeyFile string
+     Path to server-side TLS key file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternativeListenAddr string
+     TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8401 must be set. Doesn't work if empty
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueryTracing
@@ -793,7 +816,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxSamplesPerSeries int
      The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery (default 30000000)
   -search.maxSeries int
-     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
+     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 30000)
   -search.maxStalenessInterval duration
      The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
@@ -802,6 +825,8 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
+  -search.maxTagValueSuffixesPerSearch int
+     The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.minStalenessInterval duration
