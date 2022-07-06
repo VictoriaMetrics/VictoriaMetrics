@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,30 +23,24 @@ var (
 	navItems []tpl.NavItem
 )
 
-var (
-	//go:embed static
-	staticFiles  embed.FS
-	staticServer = http.FileServer(http.FS(staticFiles))
-)
-
 func initLinks() {
-	pathPrefix := httpserver.GetPathPrefix()
-	if pathPrefix == "" {
-		pathPrefix = "/"
-	}
 	apiLinks = [][2]string{
-		{path.Join(pathPrefix, "api/v1/rules"), "list all loaded groups and rules"},
-		{path.Join(pathPrefix, "api/v1/alerts"), "list all active alerts"},
-		{path.Join(pathPrefix, "api/v1/groupID/alertID/status"), "get alert status by ID"},
-		{path.Join(pathPrefix, "flags"), "command-line flags"},
-		{path.Join(pathPrefix, "metrics"), "list of application metrics"},
-		{path.Join(pathPrefix, "-/reload"), "reload configuration"},
+		// api links are relative since they can be used by external clients
+		// such as Grafana and proxied via vmselect.
+		{"api/v1/rules", "list all loaded groups and rules"},
+		{"api/v1/alerts", "list all active alerts"},
+		{"api/v1/groupID/alertID/status", "get alert status by ID"},
+
+		// system links
+		{"/flags", "command-line flags"},
+		{"/metrics", "list of application metrics"},
+		{"/-/reload", "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: path.Join(pathPrefix, "/")},
-		{Name: "Groups", Url: path.Join(pathPrefix, "groups")},
-		{Name: "Alerts", Url: path.Join(pathPrefix, "alerts")},
-		{Name: "Notifiers", Url: path.Join(pathPrefix, "notifiers")},
+		{Name: "vmalert", Url: "home"},
+		{Name: "Groups", Url: "groups"},
+		{Name: "Alerts", Url: "alerts"},
+		{Name: "Notifiers", Url: "notifiers"},
 		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
 	}
 }
@@ -56,33 +49,50 @@ type requestHandler struct {
 	m *manager
 }
 
+var (
+	//go:embed static
+	staticFiles   embed.FS
+	staticHandler = http.FileServer(http.FS(staticFiles))
+	staticServer  = http.StripPrefix("/vmalert", staticHandler)
+)
+
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	once.Do(func() {
 		initLinks()
 	})
 
-	pathPrefix := httpserver.GetPathPrefix()
-	if pathPrefix == "" {
-		pathPrefix = "/"
+	if strings.HasPrefix(r.URL.Path, "/vmalert/static") {
+		staticServer.ServeHTTP(w, r)
+		return true
 	}
 
 	switch r.URL.Path {
-	case "/":
+	case "/", "/vmalert", "/vmalert/home":
 		if r.Method != "GET" {
 			return false
 		}
-		WriteWelcome(w)
+		WriteWelcome(w, r)
 		return true
-	case "/alerts":
-		WriteListAlerts(w, pathPrefix, rh.groupAlerts())
+	case "/vmalert/alerts":
+		WriteListAlerts(w, r, rh.groupAlerts())
 		return true
-	case "/groups", "/rules":
-		WriteListGroups(w, rh.groups())
+	case "/vmalert/groups":
+		WriteListGroups(w, r, rh.groups())
 		return true
-	case "/notifiers":
-		WriteListTargets(w, notifier.GetTargets())
+	case "/vmalert/notifiers":
+		WriteListTargets(w, r, notifier.GetTargets())
 		return true
-	case "/api/v1/rules":
+
+	// special cases for Grafana requests,
+	// served without `vmalert` prefix:
+	case "/rules":
+		// Grafana makes an extra request to `/rules`
+		// handler in addition to `/api/v1/rules` calls in alerts UI,
+		WriteListGroups(w, r, rh.groups())
+		return true
+
+	case "/vmalert/api/v1/rules", "/api/v1/rules":
+		// path used by Grafana for ng alerting
 		data, err := rh.listGroups()
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
@@ -91,7 +101,8 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
-	case "/api/v1/alerts":
+	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
+		// path used by Grafana for ng alerting
 		data, err := rh.listAlerts()
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
@@ -100,17 +111,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+
 	case "/-/reload":
 		logger.Infof("api config reload was called, sending sighup")
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
-	default:
-		if strings.HasPrefix(r.URL.Path, "/static") {
-			staticServer.ServeHTTP(w, r)
-			return true
-		}
 
+	default:
 		if !strings.HasSuffix(r.URL.Path, "/status") {
 			return false
 		}
@@ -133,7 +141,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		// <groupID>/<alertID>/status
-		WriteAlert(w, pathPrefix, alert)
+		WriteAlert(w, r, alert)
 		return true
 	}
 }

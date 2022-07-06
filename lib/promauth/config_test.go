@@ -9,25 +9,16 @@ import (
 )
 
 func TestNewConfig(t *testing.T) {
-	type args struct {
-		baseDir         string
-		az              *Authorization
-		basicAuth       *BasicAuthConfig
-		bearerToken     string
-		bearerTokenFile string
-		oauth           *OAuth2Config
-		tlsConfig       *TLSConfig
-	}
 	tests := []struct {
 		name         string
-		args         args
+		opts         Options
 		wantErr      bool
 		expectHeader string
 	}{
 		{
 			name: "OAuth2 config",
-			args: args{
-				oauth: &OAuth2Config{
+			opts: Options{
+				OAuth2: &OAuth2Config{
 					ClientID:     "some-id",
 					ClientSecret: NewSecret("some-secret"),
 					TokenURL:     "http://localhost:8511",
@@ -37,8 +28,8 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name: "OAuth2 config with file",
-			args: args{
-				oauth: &OAuth2Config{
+			opts: Options{
+				OAuth2: &OAuth2Config{
 					ClientID:         "some-id",
 					ClientSecretFile: "testdata/test_secretfile.txt",
 					TokenURL:         "http://localhost:8511",
@@ -48,8 +39,8 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name: "OAuth2 want err",
-			args: args{
-				oauth: &OAuth2Config{
+			opts: Options{
+				OAuth2: &OAuth2Config{
 					ClientID:         "some-id",
 					ClientSecret:     NewSecret("some-secret"),
 					ClientSecretFile: "testdata/test_secretfile.txt",
@@ -60,8 +51,8 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name: "basic Auth config",
-			args: args{
-				basicAuth: &BasicAuthConfig{
+			opts: Options{
+				BasicAuth: &BasicAuthConfig{
 					Username: "user",
 					Password: NewSecret("password"),
 				},
@@ -70,8 +61,8 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name: "basic Auth config with file",
-			args: args{
-				basicAuth: &BasicAuthConfig{
+			opts: Options{
+				BasicAuth: &BasicAuthConfig{
 					Username:     "user",
 					PasswordFile: "testdata/test_secretfile.txt",
 				},
@@ -80,8 +71,8 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name: "want Authorization",
-			args: args{
-				az: &Authorization{
+			opts: Options{
+				Authorization: &Authorization{
 					Type:        "Bearer",
 					Credentials: NewSecret("Value"),
 				},
@@ -90,16 +81,16 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name: "token file",
-			args: args{
-				bearerTokenFile: "testdata/test_secretfile.txt",
+			opts: Options{
+				BearerTokenFile: "testdata/test_secretfile.txt",
 			},
 			expectHeader: "Bearer secret-content",
 		},
 		{
 			name: "token with tls",
-			args: args{
-				bearerToken: "some-token",
-				tlsConfig: &TLSConfig{
+			opts: Options{
+				BearerToken: "some-token",
+				TLSConfig: &TLSConfig{
 					InsecureSkipVerify: true,
 				},
 			},
@@ -108,7 +99,7 @@ func TestNewConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.args.oauth != nil {
+			if tt.opts.OAuth2 != nil {
 				r := http.NewServeMux()
 				r.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
@@ -116,9 +107,9 @@ func TestNewConfig(t *testing.T) {
 
 				})
 				mock := httptest.NewServer(r)
-				tt.args.oauth.TokenURL = mock.URL
+				tt.opts.OAuth2.TokenURL = mock.URL
 			}
-			got, err := NewConfig(tt.args.baseDir, tt.args.az, tt.args.basicAuth, tt.args.bearerToken, tt.args.bearerTokenFile, tt.args.oauth, tt.args.tlsConfig, nil)
+			got, err := tt.opts.NewConfig()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -140,7 +131,6 @@ func TestNewConfig(t *testing.T) {
 					t.Fatalf("unexpected auth header from fasthttp request; got %q; want %q", ahb, tt.expectHeader)
 				}
 			}
-
 		})
 	}
 }
@@ -186,7 +176,10 @@ func TestConfigHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse headers: %s", err)
 		}
-		c, err := NewConfig("", nil, nil, "", "", nil, nil, headers)
+		opts := Options{
+			Headers: headers,
+		}
+		c, err := opts.NewConfig()
 		if err != nil {
 			t.Fatalf("cannot create config: %s", err)
 		}

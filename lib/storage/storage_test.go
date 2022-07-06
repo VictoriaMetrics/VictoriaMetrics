@@ -495,8 +495,8 @@ func testStorageRandTimestamps(s *Storage) error {
 	return nil
 }
 
-func TestStorageDeleteMetrics(t *testing.T) {
-	path := "TestStorageDeleteMetrics"
+func TestStorageDeleteSeries(t *testing.T) {
+	path := "TestStorageDeleteSeries"
 	s, err := OpenStorage(path, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
@@ -513,7 +513,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
-			if err = testStorageDeleteMetrics(s, 0); err != nil {
+			if err = testStorageDeleteSeries(s, 0); err != nil {
 				t.Fatalf("unexpected error on iteration %d: %s", i, err)
 			}
 
@@ -533,7 +533,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 			go func(workerNum int) {
 				var err error
 				for j := 0; j < 2; j++ {
-					err = testStorageDeleteMetrics(s, workerNum)
+					err = testStorageDeleteSeries(s, workerNum)
 					if err != nil {
 						break
 					}
@@ -568,7 +568,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	}
 }
 
-func testStorageDeleteMetrics(s *Storage, workerNum int) error {
+func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	const rowsPerMetric = 100
 	const metricsCount = 30
 
@@ -654,7 +654,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		if n := metricBlocksCount(tfs); n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
-		deletedCount, err := s.DeleteMetrics(nil, []*TagFilters{tfs})
+		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs})
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
@@ -662,11 +662,11 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 			return fmt.Errorf("expecting non-zero number of deleted metrics on iteration %d", i)
 		}
 		if n := metricBlocksCount(tfs); n != 0 {
-			return fmt.Errorf("expecting zero metric blocks after DeleteMetrics call for tfs=%s; got %d blocks", tfs, n)
+			return fmt.Errorf("expecting zero metric blocks after DeleteSeries call for tfs=%s; got %d blocks", tfs, n)
 		}
 
 		// Try deleting empty tfss
-		deletedCount, err = s.DeleteMetrics(nil, nil)
+		deletedCount, err = s.DeleteSeries(nil, nil)
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}

@@ -34,7 +34,7 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
-	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules")
+	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -211,6 +211,19 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "%s", `{}`)
 		return true
 	}
+
+	if strings.HasPrefix(path, "/vmalert") {
+		vmalertRequests.Inc()
+		if len(*vmalertProxyURL) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
+			return true
+		}
+		proxyVMAlertRequests(w, r)
+		return true
+	}
+
 	switch path {
 	case "/api/v1/query":
 		queryRequests.Inc()
@@ -402,14 +415,24 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/api/v1/rules", "/rules":
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
-		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"groups":[]}}`)
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"groups":[]}}`)
 		return true
 	case "/api/v1/alerts", "/alerts":
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
-		mayProxyVMAlertRequests(w, r, `{"status":"success","data":{"alerts":[]}}`)
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
@@ -551,20 +574,16 @@ var (
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
 
-	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
-	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
+	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
+	alertsRequests  = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
 )
 
-func mayProxyVMAlertRequests(w http.ResponseWriter, r *http.Request, stubResponse string) {
-	if len(*vmalertProxyURL) == 0 {
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", stubResponse)
-		return
-	}
+func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {

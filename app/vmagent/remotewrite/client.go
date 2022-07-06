@@ -212,7 +212,15 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		InsecureSkipVerify: tlsInsecureSkipVerify.GetOptionalArg(argIdx),
 	}
 
-	authCfg, err := promauth.NewConfig(".", nil, basicAuthCfg, token, tokenFile, oauth2Cfg, tlsCfg, hdrs)
+	opts := &promauth.Options{
+		BasicAuth:       basicAuthCfg,
+		BearerToken:     token,
+		BearerTokenFile: tokenFile,
+		OAuth2:          oauth2Cfg,
+		TLSConfig:       tlsCfg,
+		Headers:         hdrs,
+	}
+	authCfg, err := opts.NewConfig()
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}

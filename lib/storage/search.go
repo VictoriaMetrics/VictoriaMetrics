@@ -236,6 +236,14 @@ type SearchQuery struct {
 	MaxMetrics int
 }
 
+// GetTimeRange returns time range for the given sq.
+func (sq *SearchQuery) GetTimeRange() TimeRange {
+	return TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+}
+
 // NewSearchQuery creates new search query for the given args.
 func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
 	if maxMetrics <= 0 {

@@ -18,6 +18,7 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -1273,10 +1274,10 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, tsids []TSID, dead
 // ErrDeadlineExceeded is returned when the request times out.
 var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
-// DeleteMetrics deletes all the metrics matching the given tfss.
+// DeleteSeries deletes all the series matching the given tfss.
 //
 // Returns the number of metrics deleted.
-func (s *Storage) DeleteMetrics(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
+func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
 	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
@@ -1306,7 +1307,7 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
 //
 // If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
-func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix []byte,
+func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	return s.idb().SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
@@ -1364,7 +1365,7 @@ func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHea
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
-		suffixes, err := s.SearchTagValueSuffixes(qt, tr, nil, qHead, '.', 1, deadline)
+		suffixes, err := s.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -1379,7 +1380,7 @@ func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHea
 		return []string{string(qHead)}, nil
 	}
 	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := s.SearchTagValueSuffixes(qt, tr, nil, qHead, '.', maxPaths, deadline)
+	suffixes, err := s.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1708,7 +1709,6 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) e
 		}
 		genTSID.generation = idb.generation
 		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-		s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 	}
 	return nil
 }
@@ -1781,7 +1781,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
 			// contain MetricName->TSID entries for deleted time series.
-			// See Storage.DeleteMetrics code for details.
+			// See Storage.DeleteSeries code for details.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 
@@ -1797,7 +1797,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				if created {
 					genTSID.generation = idb.generation
 					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-					s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 				}
 			}
 			continue
@@ -1860,7 +1859,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			genTSID.generation = idb.generation
 			genTSID.TSID = r.TSID
 			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-			s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
 
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw

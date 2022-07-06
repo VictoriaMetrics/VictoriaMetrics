@@ -165,12 +165,12 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error 
 	return err
 }
 
-// DeleteMetrics deletes metrics matching tfss.
+// DeleteSeries deletes series matching tfss.
 //
-// Returns the number of deleted metrics.
-func DeleteMetrics(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
+// Returns the number of deleted series.
+func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
 	WG.Add(1)
-	n, err := Storage.DeleteMetrics(qt, tfss)
+	n, err := Storage.DeleteSeries(qt, tfss)
 	WG.Done()
 	return n, err
 }
@@ -203,7 +203,7 @@ func SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName s
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
-func SearchTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+func SearchTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	WG.Add(1)
 	suffixes, err := Storage.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	WG.Done()
