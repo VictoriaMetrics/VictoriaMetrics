@@ -68,6 +68,12 @@ func (mb *MetricBlock) Marshal(dst []byte) []byte {
 	return MarshalBlock(dst, &mb.Block)
 }
 
+// CopyFrom copies src to mb.
+func (mb *MetricBlock) CopyFrom(src *MetricBlock) {
+	mb.MetricName = append(mb.MetricName[:0], src.MetricName...)
+	mb.Block.CopyFrom(&src.Block)
+}
+
 // MarshalBlock marshals b to dst.
 //
 // b.MarshalData must be called on b before calling MarshalBlock.

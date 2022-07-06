@@ -181,6 +181,9 @@ func GetDenyPartialResponse(r *http.Request) bool {
 	if *denyPartialResponse {
 		return true
 	}
+	if r == nil {
+		return false
+	}
 	return GetBool(r, "deny_partial_response")
 }
 
@@ -204,6 +207,13 @@ func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) De
 	}
 }
 
+// DeadlineFromTimestamp returns deadline from the given timestamp in seconds.
+func DeadlineFromTimestamp(timestamp uint64) Deadline {
+	startTime := time.Now()
+	timeout := time.Unix(int64(timestamp), 0).Sub(startTime)
+	return NewDeadline(startTime, timeout, "")
+}
+
 // Exceeded returns true if deadline is exceeded.
 func (d *Deadline) Exceeded() bool {
 	return fasttime.UnixTimestamp() > d.deadline
@@ -218,7 +228,11 @@ func (d *Deadline) Deadline() uint64 {
 func (d *Deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
 	elapsed := time.Since(startTime)
-	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds); the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), elapsed.Seconds(), d.flagHint)
+	msg := fmt.Sprintf("%.3f seconds (elapsed %.3f seconds)", d.timeout.Seconds(), elapsed.Seconds())
+	if d.flagHint != "" {
+		msg += fmt.Sprintf("; the timeout can be adjusted with `%s` command-line flag", d.flagHint)
+	}
+	return msg
 }
 
 // GetExtraTagFilters returns additional label filters from request.

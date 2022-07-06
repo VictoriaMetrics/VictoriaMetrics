@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
@@ -30,10 +31,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
+	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
+		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8401 must be set. Doesn't work if empty")
 	httpListenAddr        = flag.String("httpListenAddr", ":8481", "Address to listen for http connections")
 	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. Cache isn't saved if empty")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
@@ -92,6 +96,16 @@ func main() {
 	}
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
+	var vmselectapiServer *vmselectapi.Server
+	if *clusternativeListenAddr != "" {
+		logger.Infof("starting vmselectapi server at %q", *clusternativeListenAddr)
+		s, err := clusternative.NewVMSelectServer(*clusternativeListenAddr)
+		if err != nil {
+			logger.Fatalf("cannot initialize vmselectapi server: %s", err)
+		}
+		vmselectapiServer = s
+		logger.Infof("started vmselectapi server at %q", *clusternativeListenAddr)
+	}
 
 	go func() {
 		httpserver.Serve(*httpListenAddr, requestHandler)
@@ -106,6 +120,12 @@ func main() {
 		logger.Fatalf("cannot stop http service: %s", err)
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
+
+	if vmselectapiServer != nil {
+		logger.Infof("stopping vmselectapi server...")
+		vmselectapiServer.MustStop()
+		logger.Infof("stopped vmselectapi server")
+	}
 
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()

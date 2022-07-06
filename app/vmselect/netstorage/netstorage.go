@@ -879,7 +879,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
 			sn.tagValueSuffixesErrors.Inc()
-			err = fmt.Errorf("cannot get tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c from vmstorage %s: %w",
+			err = fmt.Errorf("cannot get tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c from vmstorage %s: %w",
 				tr.String(), tagKey, tagValuePrefix, delimiter, sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -1159,7 +1159,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		atomic.AddUint64(&samples, uint64(mb.Block.RowsCount()))
 		return nil
 	}
-	_, err := processSearchQuery(qt, true, sq, processBlock, deadline)
+	_, err := ProcessBlocks(qt, true, sq, processBlock, deadline)
 
 	// Make sure processBlock isn't called anymore in order to prevent from data races.
 	atomic.StoreUint32(&stopped, 1)
@@ -1265,7 +1265,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		}
 		return nil
 	}
-	isPartial, err := processSearchQuery(qt, denyPartialResponse, sq, processBlock, deadline)
+	isPartial, err := ProcessBlocks(qt, denyPartialResponse, sq, processBlock, deadline)
 
 	// Make sure processBlock isn't called anymore in order to protect from data races.
 	atomic.StoreUint32(&stopped, 1)
@@ -1296,7 +1296,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	return &rss, isPartial, nil
 }
 
-func processSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
+// ProcessBlocks calls processBlock per each block matching the given sq.
+func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) (bool, error) {
 	requestData := sq.Marshal(nil)
 
@@ -2136,7 +2137,7 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 		}
 		tail, err := mb.Unmarshal(buf)
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal MetricBlock #%d: %w", blocksRead, err)
+			return fmt.Errorf("cannot unmarshal MetricBlock #%d from %d bytes: %w", blocksRead, len(buf), err)
 		}
 		if len(tail) != 0 {
 			return fmt.Errorf("non-empty tail after unmarshaling MetricBlock #%d: (len=%d) %q", blocksRead, len(tail), tail)
