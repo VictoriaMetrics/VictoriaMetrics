@@ -114,7 +114,7 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 	}
 }
 
-func TestGetEndpointLabels(t *testing.T) {
+func TestGetEndpointsLabels(t *testing.T) {
 	type testArgs struct {
 		containerPorts map[string][]ContainerPort
 		endpointPorts  []EndpointPort
