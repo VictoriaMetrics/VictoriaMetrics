@@ -217,7 +217,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag "-vmalert.proxyURL" must be configured"}`)
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
 			return true
 		}
 		proxyVMAlertRequests(w, r)
