@@ -1717,6 +1717,16 @@ and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
+## vmalert
+
+A single-node VictoriaMetrics is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert.html)
+when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
+* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+* for accessing vmalert's UI through single-node VictoriaMetrics Web interface.
+
+For accessing vmalert's UI through single-node VictoriaMetrics configure `-vmalert.proxyURL` flag and visit
+`http://<victoriametrics-addr>:8428/vmalert/home` link.
+
 ## Benchmarks
 
 Note, that vendors (including VictoriaMetrics) are often biased when doing such tests. E.g. they try highlighting
@@ -2185,5 +2195,5 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string
-     Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules
+     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
 ```
