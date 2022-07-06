@@ -325,7 +325,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag "-vmalert.proxyURL" must be configured"}`)
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
 			return true
 		}
 		proxyVMAlertRequests(w, r, p.Suffix)
