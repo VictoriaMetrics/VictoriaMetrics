@@ -3,7 +3,6 @@ package datadog
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
@@ -57,15 +56,7 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 		ctx.AddLabel("", ss.Metric)
 		ctx.AddLabel("host", ss.Host)
 		for _, tag := range ss.Tags {
-			n := strings.IndexByte(tag, ':')
-			var name, value string
-			if n < 0 {
-				name = tag
-				value = "no_label_value"
-			} else {
-				name = tag[:n]
-				value = tag[n+1:]
-			}
+			name, value := parser.SplitTag(tag)
 			if name == "host" {
 				name = "exported_host"
 			}
