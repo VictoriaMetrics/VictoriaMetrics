@@ -44,7 +44,7 @@ var (
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
-	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules")
+	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
 	storageNodes         = flagutil.NewArray("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN")
 )
 
@@ -320,6 +320,18 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	}
 
+	if strings.HasPrefix(p.Suffix, "prometheus/vmalert") {
+		vmalertRequests.Inc()
+		if len(*vmalertProxyURL) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag "-vmalert.proxyURL" must be configured"}`)
+			return true
+		}
+		proxyVMAlertRequests(w, r, p.Suffix)
+		return true
+	}
+
 	switch p.Suffix {
 	case "prometheus/api/v1/query":
 		queryRequests.Inc()
@@ -506,14 +518,24 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "prometheus/api/v1/rules", "prometheus/rules":
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 		rulesRequests.Inc()
-		mayProxyVMAlertRequests(w, r, p.Suffix, `{"status":"success","data":{"groups":[]}}`)
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r, p.Suffix)
+			return true
+		}
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"groups":[]}}`)
 		return true
 	case "prometheus/api/v1/alerts", "prometheus/alerts":
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		alertsRequests.Inc()
-		mayProxyVMAlertRequests(w, r, p.Suffix, `{"status":"success","data":{"alerts":[]}}`)
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r, p.Suffix)
+			return true
+		}
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
 	case "prometheus/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
@@ -660,8 +682,10 @@ var (
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/functions"}`)
 
-	rulesRequests          = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
-	alertsRequests         = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
+	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/vmalert"}`)
+	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
+	alertsRequests  = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
+
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/query_exemplars"}`)
@@ -679,13 +703,7 @@ See the docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html .
 	flagutil.Usage(s)
 }
 
-func mayProxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path, stubResponse string) {
-	if len(*vmalertProxyURL) == 0 {
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", stubResponse)
-		return
-	}
+func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
