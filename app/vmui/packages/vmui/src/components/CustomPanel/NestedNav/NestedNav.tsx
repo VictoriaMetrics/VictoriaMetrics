@@ -40,13 +40,13 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec})  => {
               <AddCircleRoundedIcon fontSize={"large"} color={"info"} />}
           </ListItemIcon>: null}
           <Box display="flex" flexDirection="column" flexGrow={0.5} sx={{ ml: 4, mr: 4, width: "100%" }}>
-            <ListItemText
-              primary={`duration: ${trace.duration} ms`}
-              secondary={trace.message}
-            />
             <ListItemText>
               <BorderLinearProgressWithLabel variant="determinate" value={progress} />
             </ListItemText>
+            <ListItemText
+              primary={trace.message}
+              secondary={`duration: ${trace.duration} ms`}
+            />
           </Box>
         </ListItemButton>
       </ListItem>
