@@ -364,6 +364,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped 2 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
+		scrape_samples_limit 1 123
 		scrape_series_added 0 123
 		scrape_timeout_seconds 42 123
 	`)
