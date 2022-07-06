@@ -3,9 +3,22 @@ package datadog
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
+
+// SplitTag splits DataDog tag into tag name and value.
+//
+// See https://docs.datadoghq.com/getting_started/tagging/#define-tags
+func SplitTag(tag string) (string, string) {
+	n := strings.IndexByte(tag, ':')
+	if n < 0 {
+		// No tag value.
+		return tag, "no_label_value"
+	}
+	return tag[:n], tag[n+1:]
+}
 
 // Request represents DataDog POST request to /api/v1/series
 //

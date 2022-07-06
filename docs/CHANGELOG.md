@@ -63,6 +63,8 @@ scrape_configs:
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly reload changed `-promscrape.config` file when `-promscrape.configCheckInterval` option is set. The changed config file wasn't reloaded in this case since [v1.69.0](#v1690). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2786). Thanks to @ttyv for the fix.
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): assume that the response is complete if `-search.denyPartialResponse` is enabled and up to `-replicationFactor - 1` `vmstorage` nodes are unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1767).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/#vmselect): update `vm_partial_results_total` metric labels to be consistent with `vm_requests_total` labels.
+* FEATURE: accept tags without values when reading data in [DataDog format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent). Thanks to @PerGon for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2839).
+
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
