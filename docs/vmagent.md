@@ -16,7 +16,7 @@ While VictoriaMetrics provides an efficient solution to store and observe metric
 and RAM friendly to scrape metrics from Prometheus-compatible exporters into VictoriaMetrics.
 Also, we found that our user's infrastructure are like snowflakes in that no two are alike. Therefore we decided to add more flexibility
 to `vmagent` such as the ability to [accept metrics via popular push protocols](#how-to-push-data-to-vmagent)
-additionally to [pulling them](#how-to-collect-metrics-in-prometheus-format).
+additionally to [discovering Prometheus-compatible targets and scraping metrics from them](#how-to-collect-metrics-in-prometheus-format).
 
 ## Features
 
