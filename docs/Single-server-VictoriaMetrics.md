@@ -259,11 +259,11 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling), it may be useful disabling response cache by clicking `Disable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling) or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results), it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
 
-VMUI allows investigating correlations between two queries on the same graph. Just click `+Query` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
+VMUI allows investigating correlations between two queries on the same graph. Just click `+` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -1524,7 +1524,7 @@ All the durations and timestamps in traces are in milliseconds.
 
 Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
 
-[VMUI](#vmui) provides an UI for query tracing - just click `Enable query tracing` checkbox and re-run the query in order to investigate its' trace.
+[VMUI](#vmui) provides an UI for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
 
 
 ## Cardinality limiter
@@ -2116,7 +2116,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxSamplesPerSeries int
      The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage (default 30000000)
   -search.maxSeries int
-     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
+     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 30000)
   -search.maxStalenessInterval duration
      The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
