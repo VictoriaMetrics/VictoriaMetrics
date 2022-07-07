@@ -15,7 +15,12 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
-* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780).
+## [v1.78.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.1)
+
+Released at 08-07-2022
+
+* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2798) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2793) issues.
+
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
