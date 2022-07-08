@@ -2,15 +2,12 @@
     "strings"
     "net/http"
     "path"
+
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 ) %}
 
 {% func Header(r *http.Request, navItems []NavItem, title string) %}
-{%code
-    prefix := "/vmalert/"
-    if strings.HasPrefix(r.URL.Path, prefix) {
-        prefix = ""
-    }
-%}
+    {%code prefix := utils.Prefix(r.URL.Path) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>

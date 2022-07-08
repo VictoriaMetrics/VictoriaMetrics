@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -31,6 +32,18 @@ type APIAlert struct {
 	SourceLink string `json:"source"`
 	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
+}
+
+// WebLink returns a link to the alert which can be used in UI.
+func (aa *APIAlert) WebLink() string {
+	return fmt.Sprintf("alert?%s=%s&%s=%s",
+		paramGroupID, aa.GroupID, paramAlertID, aa.ID)
+}
+
+// APILink returns a link to the alert's JSON representation.
+func (aa *APIAlert) APILink() string {
+	return fmt.Sprintf("api/v1/alert?%s=%s&%s=%s",
+		paramGroupID, aa.GroupID, paramAlertID, aa.ID)
 }
 
 // APIGroup represents Group for WEB view

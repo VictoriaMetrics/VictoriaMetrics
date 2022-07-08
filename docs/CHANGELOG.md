@@ -18,6 +18,12 @@ The following tip changes can be tested by building VictoriaMetrics components f
 **Update notes:** this release introduces backwards-incompatible changes to `vm_partial_results_total` metric by changing its labels to be consistent with `vm_requests_total` metric.
 If you use alerting rules or Grafana dashboards, which rely on this metric, then they must be updated. The official dashboards for VictoriaMetrics don't use this metric.
 
+[vmalert](https://docs.victoriametrics.com/vmalert.html) routing was updated according to [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825).
+The change may affect users with `-http.pathPrefix` flag configured for vmalert. With the update, configuring this flag is no longer needed. Here's [why](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2799#issuecomment-1171392005).
+
+* CHANGE: [vmalert](https://docs.victoriametrics.com/vmalert.html): deprecate alert's status link `/api/v1/<groupID>/<alertID>/status` in favour of `api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"`.
+The old alert's status link will be still supported for a few versions but will be removed in the future.
+
 * FEATURE: [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add support for querying lower-level `vmselect` nodes from upper-level `vmselect` nodes. This makes possible to build multi-level cluster setups for global querying view and HA purposes without the need to use [Promxy](https://github.com/jacksontj/promxy). See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2778).
 * FEATURE: add `-search.setLookbackToStep` command-line flag, which enables InfluxDB-like gap filling during querying. See [these docs](https://docs.victoriametrics.com/guides/migrate-from-influx.html) for details.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add an UI for [query tracing](https://docs.victoriametrics.com/#query-tracing). It can be enabled by clicking `trace query` checkbox and re-running the query. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2703).
