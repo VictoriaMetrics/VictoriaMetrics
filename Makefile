@@ -142,7 +142,7 @@ release-vmutils-darwin-amd64:
 	OSARCH=darwin-amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-windows-amd64:
-	OSARCH=windows-amd64 $(MAKE) release-vmutils-windows-generic
+	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
 
 release-vmutils-linux-arm:
 	OSARCH=linux-arm $(MAKE) release-vmutils-generic
