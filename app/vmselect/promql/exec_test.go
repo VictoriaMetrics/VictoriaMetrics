@@ -214,10 +214,12 @@ func TestExecSuccess(t *testing.T) {
 	t.Run("timezone_offset(America/New_York)", func(t *testing.T) {
 		t.Parallel()
 		q := `timezone_offset("America/New_York")`
-		offset, err := getTimezoneOffset("America/New_York")
+		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			t.Fatalf("cannot obtain timezone: %s", err)
 		}
+		at := time.Unix(timestampsExpected[0]/1000, 0)
+		_, offset := at.In(loc).Zone()
 		off := float64(offset)
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
@@ -230,10 +232,12 @@ func TestExecSuccess(t *testing.T) {
 	t.Run("timezone_offset(Local)", func(t *testing.T) {
 		t.Parallel()
 		q := `timezone_offset("Local")`
-		offset, err := getTimezoneOffset("Local")
+		loc, err := time.LoadLocation("Local")
 		if err != nil {
 			t.Fatalf("cannot obtain timezone: %s", err)
 		}
+		at := time.Unix(timestampsExpected[0]/1000, 0)
+		_, offset := at.In(loc).Zone()
 		off := float64(offset)
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
