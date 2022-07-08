@@ -25,11 +25,11 @@ var (
 
 func initLinks() {
 	apiLinks = [][2]string{
-		// api links are relative since they can be used by external clients
-		// such as Grafana and proxied via vmselect.
+		// api links are relative since they can be used by external clients,
+		// such as Grafana, and proxied via vmselect.
 		{"api/v1/rules", "list all loaded groups and rules"},
 		{"api/v1/alerts", "list all active alerts"},
-		{fmt.Sprintf("api/v1/alerts?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by ID"},
+		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
 
 		// system links
 		{"/flags", "command-line flags"},
@@ -74,13 +74,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteWelcome(w, r)
 		return true
 	case "/vmalert/alerts":
-		if r.FormValue(paramGroupID) == "" && r.FormValue(paramAlertID) == "" {
-			// show all alerts
-			WriteListAlerts(w, r, rh.groupAlerts())
-			return true
-		}
-
-		// show status for specific alert
+		WriteListAlerts(w, r, rh.groupAlerts())
+		return true
+	case "/vmalert/alert":
 		alert, err := rh.getAlert(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
@@ -114,20 +110,16 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Write(data)
 		return true
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
-		if r.FormValue(paramGroupID) == "" && r.FormValue(paramAlertID) == "" {
-			// show all alerts
-			// path used by Grafana for ng alerting
-			data, err := rh.listAlerts()
-			if err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(data)
+		// path used by Grafana for ng alerting
+		data, err := rh.listAlerts()
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-
-		// show status for specific alert
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
+	case "/vmalert/api/v1/alert", "/api/v1/alert":
 		alert, err := rh.getAlert(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)

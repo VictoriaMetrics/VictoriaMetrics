@@ -21,7 +21,7 @@ If you use alerting rules or Grafana dashboards, which rely on this metric, then
 [vmalert](https://docs.victoriametrics.com/vmalert.html) routing was updated according to [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825).
 The change may affect users with `-http.pathPrefix` flag configured for vmalert. With the update, configuring this flag is no longer needed. Here's [why](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2799#issuecomment-1171392005).
 
-* CHANGE: [vmalert](https://docs.victoriametrics.com/vmalert.html): deprecate alert's status link `/api/v1/<groupID>/<alertID>/status` in favour of `api/v1/alerts?group_id=<group_id>&alert_id=<alert_id>"`.
+* CHANGE: [vmalert](https://docs.victoriametrics.com/vmalert.html): deprecate alert's status link `/api/v1/<groupID>/<alertID>/status` in favour of `api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"`.
 The old alert's status link will be still supported for a few versions but will be removed in the future.
 
 * FEATURE: [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add support for querying lower-level `vmselect` nodes from upper-level `vmselect` nodes. This makes possible to build multi-level cluster setups for global querying view and HA purposes without the need to use [Promxy](https://github.com/jacksontj/promxy). See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) for details.

@@ -68,7 +68,7 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 alert got %d", length)
 		}
 	})
-	t.Run("/api/v1/alerts?alertID&groupID", func(t *testing.T) {
+	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
 		expAlert := ar.newAlertAPI(*ar.alerts[0])
 		alert := &APIAlert{}
 		getResp(ts.URL+"/"+expAlert.APILink(), alert, 200)
@@ -83,19 +83,19 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("/api/v1/alerts?badParams", func(t *testing.T) {
+	t.Run("/api/v1/alert?badParams", func(t *testing.T) {
 		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramAlertID)
-		getResp(ts.URL+"/api/v1/alerts"+params, nil, 404)
-		getResp(ts.URL+"/vmalert/api/v1/alerts"+params, nil, 404)
+		getResp(ts.URL+"/api/v1/alert"+params, nil, 404)
+		getResp(ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)
 
 		params = fmt.Sprintf("?%s=1&%s=0", paramGroupID, paramAlertID)
-		getResp(ts.URL+"/api/v1/alerts"+params, nil, 404)
-		getResp(ts.URL+"/vmalert/api/v1/alerts"+params, nil, 404)
+		getResp(ts.URL+"/api/v1/alert"+params, nil, 404)
+		getResp(ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)
 
 		// bad request, alertID is missing
 		params = fmt.Sprintf("?%s=1", paramGroupID)
-		getResp(ts.URL+"/api/v1/alerts"+params, nil, 400)
-		getResp(ts.URL+"/vmalert/api/v1/alerts"+params, nil, 400)
+		getResp(ts.URL+"/api/v1/alert"+params, nil, 400)
+		getResp(ts.URL+"/vmalert/api/v1/alert"+params, nil, 400)
 	})
 
 	t.Run("/api/v1/rules", func(t *testing.T) {
