@@ -88,10 +88,7 @@ vmutils-windows-amd64: \
 
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release copy-linux publish && \
-	git checkout $(TAG)-cluster && $(MAKE) release copy-linux-cluster publish && \
-	git checkout $(TAG)-enterprise && $(MAKE) release copy-linux-enterprise publish && \
-	git checkout $(TAG)-enterprise-cluster && $(MAKE) release copy-linux-enterprise-cluster publish
+	git checkout $(TAG) && $(MAKE) release copy-linux
 
 release: \
 	release-victoria-metrics \
@@ -99,9 +96,9 @@ release: \
 
 release-victoria-metrics: \
 	release-victoria-metrics-linux-amd64 \
-	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-linux-arm \
 	release-victoria-metrics-linux-arm64 \
+	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64
 
 release-victoria-metrics-linux-amd64:
@@ -130,11 +127,11 @@ release-victoria-metrics-generic: \
 
 release-vmutils: \
 	release-vmutils-linux-amd64 \
-	release-vmutils-darwin-amd64 \
-	release-vmutils-windows-amd64 \
 	release-vmutils-linux-arm \
 	release-vmutils-linux-arm64 \
+	release-vmutils-darwin-amd64 \
 	release-vmutils-darwin-arm64 \
+	release-vmutils-windows-amd64
 
 release-vmutils-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmutils-generic
