@@ -88,21 +88,14 @@ vmutils-windows-amd64: \
 
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release publish && \
-	git checkout $(TAG)-cluster && $(MAKE) release publish && \
-	git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-	git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release copy-linux publish && \
+	git checkout $(TAG)-cluster && $(MAKE) release copy-linux-cluster publish && \
+	git checkout $(TAG)-enterprise && $(MAKE) release copy-linux-enterprise publish && \
+	git checkout $(TAG)-enterprise-cluster && $(MAKE) release copy-linux-enterprise-cluster publish
 
 release: \
 	release-victoria-metrics \
 	release-vmutils
-	cd bin && \
-		cp victoria-metrics-linux-amd64-$(PKG_TAG).tar.gz victoria-metrics-amd64-$(PKG_TAG).tar.gz && \
-		cp victoria-metrics-linux-arm-$(PKG_TAG).tar.gz victoria-metrics-arm-$(PKG_TAG).tar.gz && \
-		cp victoria-metrics-linux-arm64-$(PKG_TAG).tar.gz victoria-metrics-arm64-$(PKG_TAG).tar.gz && \
-		cp vmutils-linux-amd64-$(PKG_TAG).tar.gz vmutils-amd64-$(PKG_TAG).tar.gz && \
-		cp vmutils-linux-arm-$(PKG_TAG).tar.gz vmutils-arm-$(PKG_TAG).tar.gz && \
-		cp vmutils-linux-arm64-$(PKG_TAG).tar.gz vmutils-arm64-$(PKG_TAG).tar.gz
 
 release-victoria-metrics: \
 	release-victoria-metrics-linux-amd64 \
@@ -317,3 +310,40 @@ docs-sync:
 	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
 	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+
+# temporary operation to maintain compatibility
+copy-linux:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG).tar.gz victoria-metrics-amd64-$(PKG_TAG).tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG).tar.gz victoria-metrics-arm-$(PKG_TAG).tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG).tar.gz victoria-metrics-arm64-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG).tar.gz vmutils-amd64-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG).tar.gz vmutils-arm-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG).tar.gz vmutils-arm64-$(PKG_TAG).tar.gz
+
+copy-linux-cluster:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-cluster.tar.gz victoria-metrics-amd64-$(PKG_TAG)-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-cluster.tar.gz victoria-metrics-arm-$(PKG_TAG)-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-cluster.tar.gz victoria-metrics-arm64-$(PKG_TAG)-cluster.tar.gz
+		cp vmutils-linux-amd64-$(PKG_TAG)-cluster.tar.gz vmutils-amd64-$(PKG_TAG)-cluster.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-cluster.tar.gz vmutils-arm-$(PKG_TAG)-cluster.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-cluster.tar.gz vmutils-arm64-$(PKG_TAG)-cluster.tar.gz
+
+copy-linux-enterprise:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-amd64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-arm-$(PKG_TAG)-enterprise.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-arm64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG)-enterprise.tar.gz vmutils-amd64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-enterprise.tar.gz vmutils-arm-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-enterprise.tar.gz vmutils-arm64-$(PKG_TAG)-enterprise.tar.gz
+
+copy-linux-enterprise-cluster:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-arm-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-arm-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz
