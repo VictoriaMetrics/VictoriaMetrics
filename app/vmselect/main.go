@@ -213,6 +213,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if strings.HasPrefix(path, "/vmalert") {
+		if strings.HasSuffix(path, "/") {
+			newURL := strings.TrimSuffix(path, "/")
+			http.Redirect(w, r, newURL, http.StatusFound)
+			return true
+		}
+		// redirect to default home page
+		if strings.HasSuffix(path, "/vmalert") {
+			newURL := path + "/home"
+			http.Redirect(w, r, newURL, http.StatusFound)
+			return true
+		}
+
 		vmalertRequests.Inc()
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
