@@ -121,7 +121,7 @@ release-victoria-metrics-darwin-arm64:
 
 release-victoria-metrics-generic: victoria-metrics-$(OSARCH)-prod
 	cd bin && \
-		gtar --transform="flags=r;s|-$(OSARCH)||" -czf victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
+		tar --transform="flags=r;s|-$(OSARCH)||" -czf victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(OSARCH)-prod \
 		&& sha256sum victoria-metrics-$(OSARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(OSARCH)-prod \
@@ -161,7 +161,7 @@ release-vmutils-generic: \
 	vmrestore-$(OSARCH)-prod \
 	vmctl-$(OSARCH)-prod
 	cd bin && \
-		gtar --transform="flags=r;s|-$(OSARCH)||" -czf vmutils-$(OSARCH)-$(PKG_TAG).tar.gz \
+		tar --transform="flags=r;s|-$(OSARCH)||" -czf vmutils-$(OSARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(OSARCH)-prod \
 			vmalert-$(OSARCH)-prod \
 			vmauth-$(OSARCH)-prod \
