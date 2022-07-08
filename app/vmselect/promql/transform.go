@@ -2178,21 +2178,22 @@ func transformTimezoneOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get timezone name: %w", err)
 	}
-	tzOffset, err := getTimezoneOffset(tzString)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get timezone offset for %q: %w", tzString, err)
-	}
-	rv := evalNumber(tfa.ec, float64(tzOffset))
-	return rv, nil
-}
-
-func getTimezoneOffset(tzString string) (int, error) {
 	loc, err := time.LoadLocation(tzString)
 	if err != nil {
-		return 0, fmt.Errorf("cannot load timezone %q: %w", tzString, err)
+		return nil, fmt.Errorf("cannot load timezone %q: %w", tzString, err)
 	}
-	_, tzOffset := time.Now().In(loc).Zone()
-	return tzOffset, nil
+
+	var ts timeseries
+	ts.denyReuse = true
+	timestamps := tfa.ec.getSharedTimestamps()
+	values := make([]float64, len(timestamps))
+	for i, v := range timestamps {
+		_, offset := time.Unix(v/1000, 0).In(loc).Zone()
+		values[i] = float64(offset)
+	}
+	ts.Values = values
+	ts.Timestamps = timestamps
+	return []*timeseries{&ts}, nil
 }
 
 func transformTime(tfa *transformFuncArg) ([]*timeseries, error) {

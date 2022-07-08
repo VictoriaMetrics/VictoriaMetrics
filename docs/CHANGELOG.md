@@ -64,6 +64,7 @@ scrape_configs:
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): assume that the response is complete if `-search.denyPartialResponse` is enabled and up to `-replicationFactor - 1` `vmstorage` nodes are unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1767).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/#vmselect): update `vm_partial_results_total` metric labels to be consistent with `vm_requests_total` labels.
 * BUGFIX: accept tags without values when reading data in [DataDog format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent). Thanks to @PerGon for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2839).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly evaluate [timezone_offset](https://docs.victoriametrics.com/MetricsQL.html#timezone_offset) function over time interval. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2771).
 
 ## [v1.78.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.1)
 
