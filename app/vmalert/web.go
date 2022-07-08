@@ -25,11 +25,11 @@ var (
 
 func initLinks() {
 	apiLinks = [][2]string{
-		// api links are relative since they can be used by external clients
-		// such as Grafana and proxied via vmselect.
+		// api links are relative since they can be used by external clients,
+		// such as Grafana, and proxied via vmselect.
 		{"api/v1/rules", "list all loaded groups and rules"},
 		{"api/v1/alerts", "list all active alerts"},
-		{"api/v1/groupID/alertID/status", "get alert status by ID"},
+		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
 
 		// system links
 		{"/flags", "command-line flags"},
@@ -76,6 +76,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/alerts":
 		WriteListAlerts(w, r, rh.groupAlerts())
 		return true
+	case "/vmalert/alert":
+		alert, err := rh.getAlert(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		WriteAlert(w, r, alert)
+		return true
 	case "/vmalert/groups":
 		WriteListGroups(w, r, rh.groups())
 		return true
@@ -111,7 +119,20 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
-
+	case "/vmalert/api/v1/alert", "/api/v1/alert":
+		alert, err := rh.getAlert(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, err := json.Marshal(alert)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/-/reload":
 		logger.Infof("api config reload was called, sending sighup")
 		procutil.SelfSIGHUP()
@@ -119,6 +140,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 
 	default:
+		// Support of deprecated links:
+		// * /api/v1/<groupID>/<alertID>/status
+		// * <groupID>/<alertID>/status
+		// TODO: to remove in next versions
+
 		if !strings.HasSuffix(r.URL.Path, "/status") {
 			return false
 		}
@@ -128,22 +154,34 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 
-		// /api/v1/<groupID>/<alertID>/status
+		redirectURL := alert.WebLink()
 		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
-			data, err := json.Marshal(alert)
-			if err != nil {
-				httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
-				return true
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(data)
-			return true
+			redirectURL = alert.APILink()
 		}
-
-		// <groupID>/<alertID>/status
-		WriteAlert(w, r, alert)
+		http.Redirect(w, r, "/"+redirectURL, http.StatusPermanentRedirect)
 		return true
 	}
+}
+
+const (
+	paramGroupID = "group_id"
+	paramAlertID = "alert_id"
+)
+
+func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+	}
+	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %s", paramAlertID, err)
+	}
+	a, err := rh.m.AlertAPI(groupID, alertID)
+	if err != nil {
+		return nil, errResponse(err, http.StatusNotFound)
+	}
+	return a, nil
 }
 
 type listGroupsResponse struct {
@@ -245,10 +283,10 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 }
 
 func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
-	rh.m.groupsMu.RLock()
-	defer rh.m.groupsMu.RUnlock()
-
-	parts := strings.SplitN(strings.TrimLeft(path, "/"), "/", 3)
+	if strings.HasPrefix(path, "/vmalert") {
+		path = strings.TrimLeft(path, "/vmalert")
+	}
+	parts := strings.SplitN(strings.TrimLeft(path, "/"), "/", -1)
 	if len(parts) != 3 {
 		return nil, &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf(`path %q cointains /status suffix but doesn't match pattern "/groupID/alertID/status"`, path),
