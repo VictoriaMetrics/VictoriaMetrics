@@ -212,19 +212,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	if strings.HasPrefix(path, "/vmalert") {
-		if strings.HasSuffix(path, "/") {
-			newURL := strings.TrimSuffix(path, "/")
-			http.Redirect(w, r, newURL, http.StatusFound)
-			return true
-		}
-		// redirect to default home page
-		if strings.HasSuffix(path, "/vmalert") {
-			newURL := path + "/home"
-			http.Redirect(w, r, newURL, http.StatusFound)
-			return true
-		}
-
+	if path == "/vmalert" {
+		http.Redirect(w, r, path+"/", http.StatusMovedPermanently)
+	}
+	if strings.HasPrefix(path, "/vmalert/") {
 		vmalertRequests.Inc()
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
