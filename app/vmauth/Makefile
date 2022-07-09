@@ -13,35 +13,26 @@ vmauth-prod:
 vmauth-pure-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-pure
 
-# GOARCH=amd64
-vmauth-amd64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-amd64
-
+# GOOS=linux
 vmauth-linux-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-linux-amd64
-
-vmauth-darwin-amd64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
-
-vmauth-windows-amd64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
-
-# GOARCH=arm64
-vmauth-arm64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-arm64
 
 vmauth-linux-arm64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm64
 
+vmauth-linux-arm-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm
+
+# GOOS=darwin
+vmauth-darwin-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
+
 vmauth-darwin-arm64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-arm64
 
-# GOARCH=arm
-vmauth-arm-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-arm
-
-vmauth-linux-arm-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm
+# GOOS=windows
+vmauth-windows-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
 
 # GOARCH=ppc64le
 vmauth-ppc64le-prod:

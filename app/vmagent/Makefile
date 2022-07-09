@@ -13,35 +13,26 @@ vmagent-prod:
 vmagent-pure-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-pure
 
-# GORACH=amd64
-vmagent-amd64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-amd64
-
+# GOOS=linux
 vmagent-linux-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-linux-amd64
-
-vmagent-darwin-amd64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-amd64
-
-vmagent-windows-amd64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64
-
-# GORACH=arm64
-vmagent-arm64-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-arm64
 
 vmagent-linux-arm64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-linux-arm64
 
+vmagent-linux-arm-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-linux-arm
+
+#GOOS=darwin
+vmagent-darwin-amd64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-amd64
+
 vmagent-darwin-arm64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-arm64
 
-# GORACH=arm
-vmagent-arm-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-arm
-
-vmagent-linux-arm-prod:
-	APP_NAME=vmagent $(MAKE) app-via-docker-linux-arm
+#GOOS=windows
+vmagent-windows-amd64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64
 
 # GOARCH=ppc64le
 vmagent-ppc64le-prod:

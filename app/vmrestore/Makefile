@@ -13,32 +13,22 @@ vmrestore-prod:
 vmrestore-pure-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-pure
 
-# GOARCH=amd64
-vmrestore-amd64-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-amd64
-
+# GOOS=linux
 vmrestore-linux-amd64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-amd64
-
-vmrestore-darwin-amd64-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-amd64
-
-# GOARCH=arm64
-vmrestore-arm64-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-arm64
 
 vmrestore-linux-arm64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm64
 
-vmrestore-darwin-arm64-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-arm64
-
-# GOARCH=arm
-vmrestore-arm-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-arm
-
 vmrestore-linux-arm-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm
+
+# GOOS=darwin
+vmrestore-darwin-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-amd64
+
+vmrestore-darwin-arm64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-arm64
 
 # GOARCH=ppc64le
 vmrestore-ppc64le-prod:

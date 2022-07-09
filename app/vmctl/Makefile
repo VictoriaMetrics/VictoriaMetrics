@@ -13,35 +13,26 @@ vmctl-prod:
 vmctl-pure-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-pure
 
-# GOARCH=amd64
-vmctl-amd64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-amd64
-
+# GOOS=linux
 vmctl-linux-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-linux-amd64
-
-vmctl-darwin-amd64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
-
-vmctl-windows-amd64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
-
-# GOARCH=arm64
-vmctl-arm64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-arm64
 
 vmctl-linux-arm64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm64
 
+vmctl-linux-arm-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm
+
+# GOOS=darwin
+vmctl-darwin-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
+
 vmctl-darwin-arm64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-arm64
 
-# GOARCH=arm
-vmctl-arm-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-arm
-
-vmctl-linux-arm-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm
+# GOOS=window
+vmctl-windows-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
 
 # GOARCH=ppc64le
 vmctl-ppc64le-prod:

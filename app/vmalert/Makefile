@@ -13,35 +13,26 @@ vmalert-prod:
 vmalert-pure-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-pure
 
-# GOARCH=amd64
-vmalert-amd64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-amd64
-
+# GOOS=linux
 vmalert-linux-amd64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-linux-amd64
-
-vmalert-darwin-amd64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-amd64
-
-vmalert-windows-amd64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
-
-# GOARCH=arm64
-vmalert-arm64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-arm64
 
 vmalert-linux-arm64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-linux-arm64
 
+vmalert-linux-arm-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-linux-arm
+
+# GOOS=darwin
+vmalert-darwin-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-amd64
+
 vmalert-darwin-arm64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-arm64
 
-# GOARCH=arm
-vmalert-arm-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-arm
-
-vmalert-linux-arm-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-linux-arm
+# GOOS=windows
+vmalert-windows-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
 
 # GOARCH=ppc64le
 vmalert-ppc64le-prod:

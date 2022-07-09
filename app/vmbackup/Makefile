@@ -13,32 +13,22 @@ vmbackup-prod:
 vmbackup-pure-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-pure
 
-# GOARCH=amd64
-vmbackup-amd64-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-amd64
-
+# GOOS=linux
 vmbackup-linux-amd64-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-amd64
-
-vmbackup-darwin-amd64-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-amd64
-
-# GOARCH=arm64
-vmbackup-arm64-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-arm64
 
 vmbackup-linux-arm64-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-arm64
 
-vmbackup-darwin-arm64-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-arm64
-
-# GOARCH=arm
-vmbackup-arm-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-arm
-
 vmbackup-linux-arm-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-arm
+
+# GOOS=darwin
+vmbackup-darwin-amd64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-amd64
+
+vmbackup-darwin-arm64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-arm64
 
 # GOARCH=ppc64le
 vmbackup-ppc64le-prod:
