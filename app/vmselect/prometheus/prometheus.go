@@ -609,7 +609,14 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
+	maxSeriesLimit := *maxSeriesLimit
+	if cp.limit > maxSeriesLimit {
+		return fmt.Errorf("limit can't be more than -search.maxSeries flag")
+	}
+	if cp.limit > 0 {
+		maxSeriesLimit = cp.limit
+	}
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
@@ -1022,6 +1029,7 @@ type commonParams struct {
 	end              int64
 	currentTimestamp int64
 	filterss         [][]storage.TagFilter
+	limit            int
 }
 
 func (cp *commonParams) IsDefaultTimeRange() bool {
@@ -1054,7 +1062,7 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 // - match[]
 // - extra_label
 // - extra_filters[]
-//
+// - limit
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	start, err := searchutils.GetTime(r, "start", 0)
@@ -1063,6 +1071,10 @@ func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch 
 	}
 	ct := startTime.UnixNano() / 1e6
 	end, err := searchutils.GetTime(r, "end", ct)
+	if err != nil {
+		return nil, err
+	}
+	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return nil, err
 	}
@@ -1097,6 +1109,7 @@ func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch 
 		end:              end,
 		currentTimestamp: ct,
 		filterss:         filterss,
+		limit:            limit,
 	}
 	return cp, nil
 }
