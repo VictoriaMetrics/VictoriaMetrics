@@ -609,6 +609,10 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
+	limit, err := searchutils.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
@@ -619,6 +623,9 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	defer bufferedwriter.Put(bw)
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
+	}
+	if limit > 0 && limit < len(metricNames) {
+		metricNames = metricNames[:limit]
 	}
 	WriteSeriesResponse(bw, metricNames, qt, qtDone)
 	if err := bw.Flush(); err != nil {

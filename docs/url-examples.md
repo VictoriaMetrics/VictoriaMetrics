@@ -28,12 +28,12 @@ The expected output should return [HTTP Status 204](https://datatracker.ietf.org
 > Host: 127.0.0.1:8428
 > User-Agent: curl/7.81.0
 > Accept: */*
-> 
+>
 * Mark bundle as not supporting multiuse
 < HTTP/1.1 204 No Content
 < X-Server-Hostname: eba075fb0e1a
 < Date: Tue, 21 Jun 2022 07:33:35 GMT
-< 
+<
 * Connection #0 to host 127.0.0.1 left intact
 ```
 
@@ -59,12 +59,12 @@ The expected output should return [HTTP Status 204](https://datatracker.ietf.org
 > Host: 127.0.0.1:8481
 > User-Agent: curl/7.81.0
 > Accept: */*
-> 
+>
 * Mark bundle as not supporting multiuse
 < HTTP/1.1 204 No Content
 < X-Server-Hostname: 101ed7a45c94
 < Date: Tue, 21 Jun 2022 07:21:36 GMT
-< 
+<
 * Connection #0 to host 127.0.0.1 left intact
 ```
 
@@ -401,6 +401,7 @@ Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Finding series by label matchers](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
+VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 ## /api/v1/status/tsdb
 
