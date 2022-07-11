@@ -627,9 +627,10 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
-	if cp.limit != 0 && cp.limit <= len(metricNames) {
-		metricNames = metricNames[:cp.limit-1]
+	if cp.limit >= len(metricNames) {
+		cp.limit = len(metricNames)
 	}
+	metricNames = metricNames[:cp.limit]
 	WriteSeriesResponse(bw, metricNames, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return err
