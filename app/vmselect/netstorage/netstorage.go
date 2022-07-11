@@ -554,8 +554,8 @@ func equalTimestampsPrefix(a, b []int64) int {
 func binarySearchTimestamps(timestamps []int64, ts int64) int {
 	// The code has been adapted from sort.Search.
 	n := len(timestamps)
-	if n > 0 && timestamps[n-1] < ts {
-		// Fast path for values scanned in ascending order.
+	if n > 0 && timestamps[n-1] <= ts {
+		// Fast path for timestamps scanned in ascending order.
 		return n
 	}
 	i, j := 0, n
