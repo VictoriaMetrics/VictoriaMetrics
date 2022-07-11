@@ -509,7 +509,15 @@ If each target is scraped by multiple `vmagent` instances, then data deduplicati
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
-If multiple `vmagent` clusters scrape the same set of targets, then each cluster must have unique value for the `-promscrape.cluster.name` command-line flag.
+## High availability
+
+It is possible to run multiple identically configured `vmagent` instances or `vmagent` [clusters](#scraping-big-number-of-targets),
+so they [scrape](#how-to-collect-metrics-in-prometheus-format) the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems.
+
+In this case the deduplication must be configured at VictoriaMetrics in order to de-duplicate samples received from multiple identically configured `vmagent` instances or clusters.
+See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+
+It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` instance or per each `vmagent` cluster in HA setup.
 This is needed for proper data de-duplication. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
