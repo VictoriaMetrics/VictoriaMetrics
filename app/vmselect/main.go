@@ -283,20 +283,21 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/active_queries">active queries</a><br>`)
 		return true
 	}
-	if strings.HasPrefix(p.Suffix, "vmui") || strings.HasPrefix(p.Suffix, "prometheus/vmui") {
-		// vmui access.
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
-		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/vmui", "/vmui", 1)
-		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
-		return true
-	}
-	if p.Suffix == "graph" || p.Suffix == "prometheus/graph" {
-		// Redirect to /graph/, otherwise vmui redirects to /vmui/, which can be inaccessible in user env.
+	if p.Suffix == "vmui" || p.Suffix == "graph" || p.Suffix == "prometheus/vmui" || p.Suffix == "prometheus/graph" {
+		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		_ = r.ParseForm()
-		newURL := "graph/?" + r.Form.Encode()
-		http.Redirect(w, r, newURL, http.StatusFound)
+		suffix := strings.Replace(p.Suffix, "prometheus/", "../prometheus/", 1)
+		newURL := suffix + "/?" + r.Form.Encode()
+		http.Redirect(w, r, newURL, http.StatusMovedPermanently)
+		return true
+	}
+	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
+		// vmui access.
+		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/vmui/", "/vmui/", 1)
+		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "graph/") || strings.HasPrefix(p.Suffix, "prometheus/graph/") {
@@ -342,7 +343,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 
 	if p.Suffix == "prometheus/vmalert" {
-		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
+		path := "../" + p.Suffix + "/"
+		http.Redirect(w, r, path, http.StatusMovedPermanently)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/vmalert/") {
