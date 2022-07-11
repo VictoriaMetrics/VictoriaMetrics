@@ -621,11 +621,11 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	qtDone := func() {
-		qt.Donef("start=%d, end=%d", cp.start, cp.end)
-	}
 	if limit > 0 && limit < len(metricNames) {
 		metricNames = metricNames[:limit]
+	}
+	qtDone := func() {
+		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
 	WriteSeriesResponse(bw, metricNames, qt, qtDone)
 	if err := bw.Flush(); err != nil {
