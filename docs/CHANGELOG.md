@@ -15,10 +15,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
-**Update notes:** this release introduces backwards-incompatible changes to `vm_partial_results_total` metric by changing its labels to be consistent with `vm_requests_total` metric.
-If you use alerting rules or Grafana dashboards, which rely on this metric, then they must be updated. The official dashboards for VictoriaMetrics don't use this metric.
+**Update note1:** this release introduces backwards-incompatible changes to `vm_partial_results_total` metric by changing its labels to be consistent with `vm_requests_total` metric. If you use alerting rules or Grafana dashboards, which rely on this metric, then they must be updated. The official dashboards for VictoriaMetrics don't use this metric.
+**Update note2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) adds `/vmalert/` prefix to [web urls](https://docs.victoriametrics.com/vmalert.html#web) according to [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825). This may affect `vmalert` instances with non-empty `-http.pathPrefix` command-line flag. After the update, configuring this flag is no longer needed. Here's [why](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2799#issuecomment-1171392005).
 
-* FEATURE: [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add support for querying lower-level `vmselect` nodes from upper-level `vmselect` nodes. This makes possible to build multi-level cluster setups for global querying view and HA purposes without the need to use [Promxy](https://github.com/jacksontj/promxy). See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): deprecate alert's status link `/api/v1/<groupID>/<alertID>/status` in favour of `api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"`. The old alert's status link is still supported, but will be removed in future releases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825).
+* FEATURE: [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add support for querying lower-level `vmselect` nodes from upper-level `vmselect` nodes. This makes possible to build multi-level cluster setups for global querying view and HA purposes without the need to use [Promxy](https://github.com/jacksontj/promxy). See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2778).
 * FEATURE: add `-search.setLookbackToStep` command-line flag, which enables InfluxDB-like gap filling during querying. See [these docs](https://docs.victoriametrics.com/guides/migrate-from-influx.html) for details.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add an UI for [query tracing](https://docs.victoriametrics.com/#query-tracing). It can be enabled by clicking `trace query` checkbox and re-running the query. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2703).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `-remoteWrite.headers` command-line option for specifying optional HTTP headers to send to the configured `-remoteWrite.url`. For example, `-remoteWrite.headers='Foo:Bar^^Baz:x'` would send `Foo: Bar` and `Baz: x` HTTP headers with every request to `-remoteWrite.url`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2805).
@@ -38,6 +39,7 @@ scrape_configs:
 
 * FEATURE: [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing): show timestamps in query traces in human-readable format (aka `RFC3339` in UTC timezone) instead of milliseconds since Unix epoch. For example, `2022-06-27T10:32:54.506Z` instead of `1656325974506`. This improves traces' readability.
 * FEATURE: improve performance of [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers) requests, which return big number of time series.
+* FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve query performance when [replication is enabled](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle partial counter resets in [remove_resets](https://docs.victoriametrics.com/MetricsQL.html#remove_resets) function. Now `remove_resets(sum(m))` should returns the expected increasing line when some time series matching `m` disappear on the selected time range. Previously such a query would return horizontal line after the disappeared series.
 * FEATURE: expose additional histogram metrics at `http://victoriametrics:8428/metrics`, which may help understanding query workload:
 
@@ -46,7 +48,6 @@ scrape_configs:
   * `vm_rows_read_per_series` - the number of raw samples read per queried series.
   * `vm_series_read_per_query` - the number of series read per query.
 
-* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2798) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2793) issues.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
 
 {% raw %}
@@ -58,6 +59,7 @@ scrape_configs:
 * BUGFIX: limit max memory occupied by the cache, which stores parsed regular expressions. Previously too long regular expressions passed in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html) could result in big amounts of used memory (e.g. multiple of gigabytes). Now the max cache size for parsed regexps is limited to a a few megabytes.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle partial counter resets when calculating [rate](https://docs.victoriametrics.com/MetricsQL.html#rate), [irate](https://docs.victoriametrics.com/MetricsQL.html#irate) and [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) functions. Previously these functions could return zero values after partial counter resets until the counter increases to the last value before partial counter reset. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2787).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile) over Prometheus buckets with unexpected values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly evaluate [timezone_offset](https://docs.victoriametrics.com/MetricsQL.html#timezone_offset) function over time range covering time zone offset switches. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2771).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly add service-level labels (`__meta_kubernetes_service_*`) to discovered targets for `role: endpointslice` in [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config). Previously these labels were missing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2823).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): make sure that [stale markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are generated with the actual timestamp when unsuccessful scrape occurs. This should prevent from possible time series overlap on scrape target restart in dynmaic envirnoments such as Kubernetes.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly reload changed `-promscrape.config` file when `-promscrape.configCheckInterval` option is set. The changed config file wasn't reloaded in this case since [v1.69.0](#v1690). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2786). Thanks to @ttyv for the fix.
@@ -65,14 +67,21 @@ scrape_configs:
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): assume that the response is complete if `-search.denyPartialResponse` is enabled and up to `-replicationFactor - 1` `vmstorage` nodes are unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1767).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/#vmselect): update `vm_partial_results_total` metric labels to be consistent with `vm_requests_total` labels.
 * BUGFIX: accept tags without values when reading data in [DataDog format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent). Thanks to @PerGon for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2839).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly pass the end of the selected time range to `time` query arg to [/api/v1/query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries) when displaying the requested data in JSON and table views. Previously the `time` query arg wasn't set, so `/api/v1/query` was always returning query results for the current time regardless of the selected time range. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2781).
 
+## [v1.78.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.1)
+
+Released at 08-07-2022
+
+**Update notes:** it is recommended [clearing caches](https://docs.victoriametrics.com/#cache-removal) after the upgrade from [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0) in order to immediately fix the issue for newly ingested data. Otherwise the issue may exist for newly ingested data for up to a day after the upgrade.
+
+* BUGFIX: properly register time series in per-day inverted index. Previously some series could miss registration in the per-day inverted index. This could result in missing time series during querying. The issue has been introduced in [v1.78.0](#v1780). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2798) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2793) issues.
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
 Released at 20-06-2022
 
-**Warning (03-07-2022):** VictoriaMetrics v1.78.0 contains a bug, which may result in missing time series during queries.
-It is recommended downgrading to [v1.77.2](#v1772) until the bugfix release.
+**Warning (03-07-2022):** VictoriaMetrics v1.78.0 contains a bug, which may result in missing time series during queries. It is recommended upgrading to [v1.78.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.1), which fixes the bug.
 
 **Update notes:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing), so `vmselect` and `vmstorage` nodes will experience communication errors and read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases.
 

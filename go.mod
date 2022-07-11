@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.44.1
-	github.com/aws/aws-sdk-go v1.44.47
+	github.com/aws/aws-sdk-go v1.44.51
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 
@@ -22,22 +22,22 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-kit/kit v0.12.0
 	github.com/golang/snappy v0.0.4
-	github.com/influxdata/influxdb v1.9.7
+	github.com/influxdata/influxdb v1.9.8
 	github.com/klauspost/compress v1.15.7
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/prometheus/common v0.35.0 // indirect
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
-	github.com/urfave/cli/v2 v2.10.3
+	github.com/urfave/cli/v2 v2.11.0
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20220630215102-69896b714898
+	golang.org/x/net v0.0.0-20220708220712-1185a9018129
 	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0
-	golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e
+	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d
 	google.golang.org/api v0.86.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -76,7 +76,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220630174209-ad1d48641aa7 // indirect
+	google.golang.org/genproto v0.0.0-20220711132622-b6f31b0ceb50 // indirect
 	google.golang.org/grpc v1.47.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )

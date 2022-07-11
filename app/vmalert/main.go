@@ -59,7 +59,7 @@ absolute path to all .tpl files in root.`)
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
+eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/vmalert/api/v1/alert?group_id=&alert_id=' is used`)
 	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
@@ -236,8 +236,9 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 
 func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
 	if externalAlertSource == "" {
-		return func(alert notifier.Alert) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", externalURL, strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10))
+		return func(a notifier.Alert) string {
+			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
+			return fmt.Sprintf("%s/vmalert/api/v1/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
 		}, nil
 	}
 	if validateTemplate {
