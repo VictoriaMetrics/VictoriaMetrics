@@ -673,6 +673,10 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
+	limit, err := searchutils.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
@@ -682,6 +686,9 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
+	if limit > 0 && limit < len(metricNames) {
+		metricNames = metricNames[:limit]
+	}
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
