@@ -1036,7 +1036,6 @@ func (cp *commonParams) IsDefaultTimeRange() bool {
 // - match[]
 // - extra_label
 // - extra_filters[]
-//
 func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error) {
 	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
@@ -1054,7 +1053,6 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 // - match[]
 // - extra_label
 // - extra_filters[]
-//
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	start, err := searchutils.GetTime(r, "start", 0)
