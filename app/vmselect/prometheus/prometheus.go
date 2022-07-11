@@ -613,8 +613,8 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if cp.limit > maxSeriesLimit {
 		return fmt.Errorf("limit can't be more than -search.maxSeries flag")
 	}
-	if cp.limit > 0 {
-		maxSeriesLimit = cp.limit
+	if cp.limit <= 0 {
+		cp.limit = maxSeriesLimit
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
@@ -626,6 +626,9 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	defer bufferedwriter.Put(bw)
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
+	}
+	if cp.limit != 0 && cp.limit <= len(metricNames) {
+		metricNames = metricNames[:cp.limit-1]
 	}
 	WriteSeriesResponse(bw, metricNames, qt, qtDone)
 	if err := bw.Flush(); err != nil {
