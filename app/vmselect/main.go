@@ -161,18 +161,19 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = path[len("/graphite"):]
 	}
 	// vmui access.
-	if strings.HasPrefix(path, "/vmui") {
-		r.URL.Path = path
-		vmuiFileServer.ServeHTTP(w, r)
-		return true
-	}
-	if path == "/graph" {
-		// Redirect to /graph/, otherwise vmui redirects to /vmui/, which can be inaccessible in user env.
+	if path == "/vmui" || path == "/graph" {
+		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		_ = r.ParseForm()
-		newURL := "graph/?" + r.Form.Encode()
-		http.Redirect(w, r, newURL, http.StatusFound)
+		path = strings.TrimPrefix(path, "/")
+		newURL := path + "/?" + r.Form.Encode()
+		http.Redirect(w, r, newURL, http.StatusMovedPermanently)
+		return true
+	}
+	if strings.HasPrefix(path, "/vmui/") {
+		r.URL.Path = path
+		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
 	if strings.HasPrefix(path, "/graph/") {
@@ -213,7 +214,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/vmalert" {
-		http.Redirect(w, r, path+"/", http.StatusMovedPermanently)
+		// vmalert access via incomplete url without `/` in the end. Redirecto to complete url.
+		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		http.Redirect(w, r, "vmalert/", http.StatusMovedPermanently)
 		return true
 	}
 	if strings.HasPrefix(path, "/vmalert/") {
