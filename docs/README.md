@@ -15,17 +15,20 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
-Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
+Just download [the latest version of VictoriaMetrics](https://docs.victoriametrics.com/CHANGELOG.html)
+and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
 The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
-[QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
+[quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
 Enterprise binaries can be downloaded and evaluated for free 
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 
 ## Prominent features
 
@@ -110,11 +113,20 @@ The following command-line flags are used the most:
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
-See how to [ingest data to VictoriaMetrics](#how-to-import-time-series-data), how to [query VictoriaMetrics via Grafana](#grafana-setup), how to [query VictoriaMetrics via Graphite API](#graphite-api-usage) and how to [handle alerts](#alerting).
+The following docs may be useful during initial VictoriaMetrics setup:
+* [How to set up scraping of Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+* [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
+* [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-setup)
+* [How to query VictoriaMetrics via Grafana](#grafana-setup)
+* [How to query VictoriaMetrics via Graphite API](#graphite-api-usage)
+* [How to handle alerts](#alerting)
 
 VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
+
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
+
 
 ### Environment variables
 
@@ -227,6 +239,8 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
 ## How to upgrade VictoriaMetrics
+
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/CHANGELOG.html) and performing regular upgrades.
 
 It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
