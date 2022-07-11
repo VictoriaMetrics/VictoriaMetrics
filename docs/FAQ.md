@@ -325,3 +325,18 @@ The query engine may behave differently for some functions. Please see [this art
 ## If downsampling and deduplication are enabled how will this work?
 
 [Deduplication](https://docs.victoriametrics.com/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
+
+## Why set `-dedup.minScrapeInterval=1ms` when the replication is enabled?
+
+VictoriaMetrics stores timestamps with millisecond precision. Setting interval to 1ms  means that only datapoints with identical timestams will be deduplicated. Which is exactly the case for replication, where the same data is written N times to the storage nodes.
+
+## What to set when deduplicating data from HA Prometheus pair?
+
+`dedup.minScrapeInterval=prometheus.ScrapeInterval` This assumes that both Prometheus in pair will scrape the same targets within the `prometheus.ScrapeInterval`  and send this data to VictoriaMetrics. And VictoriaMetrics will keep only the last (by timestamp) received value within the `dedup.minScrapeInterval` intervals.
+
+## What is the relation between `-dedup.minScrapeInterval=1ms` and `-replicationFactor` flags?
+
+There is no direct relation. Replication factor configures `vminsert`  to send N copies of data, where N is the replication factor. `vminsert` also ensures, that each copy will be sent to different storage. That's it.
+Deduplication flag configures `vmselect` to leave only one data point for each specific time series on configured interval. So if querying metric `foo` and it returns datapoints `1000 1` , `1010 2` , `1020 1`  (where first number is a timestamp, and second is value) with `-dedup.minScrapeInterval=30ms`  - then only `1020 1`  will be returned and the rest is dropped. If `-dedup.minScrapeInterval=5ms` set - all values will be returned, because interval of 5s does not intersect more than 1 datapoint.
+When replication factor is set, we recommend setting `dedup.minScrapeInterval=1ms`  because `vmselect` will get N copies of identical data with equal timestamps.
+If `-dedup.minScrapeInterval=1ms` setting is omitted - all datapoints without deduplication will be received.
