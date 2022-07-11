@@ -52,7 +52,6 @@ func TestHandler(t *testing.T) {
 	t.Run("/", func(t *testing.T) {
 		getResp(ts.URL, nil, 200)
 		getResp(ts.URL+"/vmalert", nil, 200)
-		getResp(ts.URL+"/vmalert/home", nil, 200)
 	})
 
 	t.Run("/api/v1/alerts", func(t *testing.T) {
