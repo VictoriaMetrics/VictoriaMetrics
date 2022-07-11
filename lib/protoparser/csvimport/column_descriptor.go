@@ -34,19 +34,19 @@ const maxColumnsPerRow = 64 * 1024
 //
 // s must have comma-separated list of the following entries:
 //
-//     <column_pos>:<column_type>:<extension>
+//	<column_pos>:<column_type>:<extension>
 //
 // Where:
 //
 //   - <column_pos> is numeric csv column position. The first column has position 1.
 //   - <column_type> is one of the following types:
-//     - time - the corresponding column contains timestamp. Timestamp format is determined by <extension>. The following formats are supported:
-//       - unix_s - unix timestamp in seconds
-//       - unix_ms - unix timestamp in milliseconds
-//       - unix_ns - unix_timestamp in nanoseconds
-//       - rfc3339 - RFC3339 format in the form `2006-01-02T15:04:05Z07:00`
-//     - label - the corresponding column contains metric label with the name set in <extension>.
-//     - metric - the corresponding column contains metric value with the name set in <extension>.
+//   - time - the corresponding column contains timestamp. Timestamp format is determined by <extension>. The following formats are supported:
+//   - - unix_s - unix timestamp in seconds
+//   - - unix_ms - unix timestamp in milliseconds
+//   - - unix_ns - unix_timestamp in nanoseconds
+//   - - rfc3339 - RFC3339 format in the form `2006-01-02T15:04:05Z07:00`
+//   - label - the corresponding column contains metric label with the name set in <extension>.
+//   - metric - the corresponding column contains metric value with the name set in <extension>.
 //
 // s must contain at least a single 'metric' column and no more than a single `time` column.
 func ParseColumnDescriptors(s string) ([]ColumnDescriptor, error) {

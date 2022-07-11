@@ -63,8 +63,9 @@ type Config struct {
 }
 
 // StaticConfig contains list of static targets in the following form:
-// 	targets:
-//  	[ - '<host>' ]
+//
+//	targets:
+//	[ - '<host>' ]
 type StaticConfig struct {
 	Targets []string `yaml:"targets"`
 }

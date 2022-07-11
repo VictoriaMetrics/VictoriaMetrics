@@ -239,10 +239,13 @@ func (d *Deadline) String() string {
 //
 // Label filters can be present in extra_label and extra_filters[] query args.
 // They are combined. For example, the following query args:
-//   extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
+//
+//	extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
+//
 // should be translated to the following filters joined with "or":
-//   {env="prod",team="devops",t1="v1",t2="v2"}
-//   {env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
+//
+//	{env="prod",team="devops",t1="v1",t2="v2"}
+//	{env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
 func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	var tagFilters []storage.TagFilter
 	for _, match := range r.Form["extra_label"] {
