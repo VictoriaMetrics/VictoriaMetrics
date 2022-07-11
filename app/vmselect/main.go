@@ -212,7 +212,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	if strings.HasPrefix(path, "/vmalert") {
+	if path == "/vmalert" {
+		http.Redirect(w, r, path+"/", http.StatusMovedPermanently)
+		return true
+	}
+	if strings.HasPrefix(path, "/vmalert/") {
 		vmalertRequests.Inc()
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
