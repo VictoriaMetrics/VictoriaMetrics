@@ -343,6 +343,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 
 	if p.Suffix == "prometheus/vmalert" {
 		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
+		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/vmalert/") {
 		vmalertRequests.Inc()
