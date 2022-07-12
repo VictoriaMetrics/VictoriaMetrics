@@ -4,15 +4,21 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts "+
 		"state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
 		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
+
+	unparsedHeader = flagutil.NewArray("remoteRead.header", "Optional header in the form 'name=value' for -remoteRead.url. "+
+		"Pass multiple -remoteRead.header flags in order to add multiple headers.")
 
 	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
 	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
@@ -36,6 +42,32 @@ var (
 	oauth2Scopes           = flag.String("remoteRead.oauth2.scopes", "", "Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.")
 )
 
+var header http.Header
+
+// initHeader must be called after parsing command-line flags.
+func initHeader() {
+	if *unparsedHeader == nil {
+		return
+	}
+
+	header = make(http.Header)
+	for _, h := range *unparsedHeader {
+		if len(h) == 0 {
+			continue
+		}
+		n := strings.IndexByte(h, '=')
+		if n < 0 {
+			logger.Fatalf("missing '=' in `-remoteRead.header`. It must contain header in the form `name=value`; got %q", h)
+		}
+		if v, ok := header[h[:n]]; ok {
+			header[h[:n]] = append(v, h[n+1:])
+		} else {
+			header[h[:n]] = []string{h[n+1:]}
+		}
+	}
+
+}
+
 // Init creates a Querier from provided flag values.
 // Returns nil if addr flag wasn't set.
 func Init() (datasource.QuerierBuilder, error) {
@@ -55,5 +87,5 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, authCfg, 0, 0, false, c), nil
+	return datasource.NewVMStorage(*addr, authCfg, 0, 0, false, c, header), nil
 }

@@ -87,7 +87,8 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	header := http.Header{"TestHeader": {"TestValue"}}
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client(), header)
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
@@ -210,7 +211,8 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	header := http.Header{"TestHeader": {"TestValue"}}
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client(), header)
 
 	p := NewPrometheusType()
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
@@ -247,6 +249,7 @@ func TestVMRangeQuery(t *testing.T) {
 }
 
 func TestRequestParams(t *testing.T) {
+	header := http.Header{"TestHeader": {"TestValue"}}
 	authCfg, err := baCfg.NewConfig(".")
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
@@ -338,6 +341,15 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("end=%d&query=%s&start=%d", timestamp.Unix(), query, timestamp.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"header",
+			false,
+			&VMStorage{header: header},
+			func(t *testing.T, r *http.Request) {
+				h := r.Header
+				checkEqualHeader(t, header, h)
 			},
 		},
 		{
@@ -537,6 +549,13 @@ func TestAuthConfig(t *testing.T) {
 			}
 			tt.checkFn(t, req)
 		})
+	}
+}
+
+func checkEqualHeader(t *testing.T, exp http.Header, got http.Header) {
+	t.Helper()
+	if !reflect.DeepEqual(exp, got) {
+		t.Errorf("expected to get: \n%q; \ngot: \n%q", exp, got)
 	}
 }
 

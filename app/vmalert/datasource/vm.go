@@ -15,6 +15,7 @@ import (
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
 	c                *http.Client
+	header           http.Header
 	authCfg          *promauth.Config
 	datasourceURL    string
 	appendTypePrefix bool
@@ -30,6 +31,7 @@ type VMStorage struct {
 func (s *VMStorage) Clone() *VMStorage {
 	return &VMStorage{
 		c:                s.c,
+		header:           s.header,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
 		lookBack:         s.lookBack,
@@ -55,9 +57,10 @@ func (s *VMStorage) BuildWithParams(params QuerierParams) Querier {
 }
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client, header http.Header) *VMStorage {
 	return &VMStorage{
 		c:                c,
+		header:           header,
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
 		appendTypePrefix: appendTypePrefix,
@@ -145,6 +148,9 @@ func (s *VMStorage) newRequestPOST() (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if s.header != nil {
+		req.Header = s.header
+	}
 	if s.authCfg != nil {
 		s.authCfg.SetHeaders(req, true)
 	}

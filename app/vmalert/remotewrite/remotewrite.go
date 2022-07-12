@@ -185,11 +185,13 @@ func (c *Client) run(ctx context.Context) {
 }
 
 var (
-	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
-	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
-	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
-	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
-	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+	globalRowsPushedBeforeRelabel = metrics.NewCounter(`vmalert_remotewrite_global_rows_pushed_before_relabel_total`)
+	rowsDroppedByGlobalRelabel    = metrics.NewCounter(`vmalert_remotewrite_global_relabel_metrics_dropped_total`)
+	sentRows                      = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
+	sentBytes                     = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	droppedRows                   = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
+	droppedBytes                  = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
+	bufferFlushDuration           = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
 )
 
 // flush is a blocking function that marshals WriteRequest and sends
@@ -201,6 +203,26 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	}
 	defer prompbmarshal.ResetWriteRequest(wr)
 	defer bufferFlushDuration.UpdateDuration(time.Now())
+
+	var rctx *relabelCtx
+	rowsCount := getRowsCount(wr.Timeseries)
+	globalRowsPushedBeforeRelabel.Add(rowsCount)
+	if len(labelsGlobal) > 0 {
+		rctx = getRelabelCtx()
+	}
+
+	if rctx != nil {
+		rowsCountBeforeRelabel := getRowsCount(wr.Timeseries)
+		wr.Timeseries = rctx.applyRelabeling(wr.Timeseries, labelsGlobal)
+		rowsCountAfterRelabel := getRowsCount(wr.Timeseries)
+		rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
+	}
+
+	defer func() {
+		if rctx != nil {
+			putRelabelCtx(rctx)
+		}
+	}()
 
 	data, err := wr.Marshal()
 	if err != nil {
@@ -262,4 +284,12 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
 	return nil
+}
+
+func getRowsCount(tss []prompbmarshal.TimeSeries) int {
+	rowsCount := 0
+	for _, ts := range tss {
+		rowsCount += len(ts.Samples)
+	}
+	return rowsCount
 }
