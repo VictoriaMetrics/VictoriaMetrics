@@ -292,13 +292,13 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 }
 
 func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
-	args, err := evalExprs(qt, ec, fe.Args)
-	if err != nil {
-		return nil, err
-	}
 	tf := getTransformFunc(fe.Name)
 	if tf == nil {
 		return nil, fmt.Errorf(`unknown func %q`, fe.Name)
+	}
+	args, err := evalExprs(qt, ec, fe.Args)
+	if err != nil {
+		return nil, err
 	}
 	tfa := &transformFuncArg{
 		ec:   ec,
