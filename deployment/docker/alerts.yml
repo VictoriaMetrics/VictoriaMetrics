@@ -72,7 +72,7 @@ groups:
               sum(vm_data_size_bytes{type!="indexdb"}) /
               sum(vm_rows{type!="indexdb"})
              )
-          ) < 3 * 24 * 3600
+          ) < 3 * 24 * 3600 > 0
         for: 30m
         labels:
           severity: critical
