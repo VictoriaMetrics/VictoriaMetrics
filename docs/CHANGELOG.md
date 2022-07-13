@@ -76,6 +76,7 @@ scrape_configs:
 * BUGFIX: accept tags without values when reading data in [DataDog format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent). Thanks to @PerGon for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2839).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly pass the end of the selected time range to `time` query arg to [/api/v1/query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries) when displaying the requested data in JSON and table views. Previously the `time` query arg wasn't set, so `/api/v1/query` was always returning query results for the current time regardless of the selected time range. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2781).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): allow clicking on the suggestion from autocomplete list. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2804).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): apply the selected time range in date picker only after clicking the `Apply` button. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2811).
 
 ## [v1.78.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.1)
 
