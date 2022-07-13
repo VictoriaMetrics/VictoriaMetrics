@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/azure"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
@@ -228,6 +229,7 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
+	AzureSDConfigs        []azure.SDConfig        `yaml:"azure_sd_configs,omitempty"`
 	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
 	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
 	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
@@ -273,6 +275,9 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 }
 
 func (sc *ScrapeConfig) mustStop() {
+	for i := range sc.AzureSDConfigs {
+		sc.AzureSDConfigs[i].MustStop()
+	}
 	for i := range sc.ConsulSDConfigs {
 		sc.ConsulSDConfigs[i].MustStop()
 	}
@@ -448,6 +453,33 @@ func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
 		m[sw.jobNameOriginal] = append(m[sw.jobNameOriginal], sw)
 	}
 	return m
+}
+
+// getAzureSDScrapeWork returns `azure_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getAzureSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for _, sc := range cfg.ScrapeConfigs {
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.AzureSDConfigs {
+			sdc := &sc.AzureSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "azure_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering azure targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
 }
 
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.

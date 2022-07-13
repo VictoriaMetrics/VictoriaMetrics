@@ -1,4 +1,5 @@
 import React, {FC, useEffect, useState, useMemo} from "preact/compat";
+import {KeyboardEvent} from "react";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {dateFromSeconds, formatDateForNativeInput} from "../../../../utils/time";
 import TimeDurationSelector from "./TimeDurationSelector";
@@ -13,6 +14,7 @@ import Paper from "@mui/material/Paper";
 import Divider from "@mui/material/Divider";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Tooltip from "@mui/material/Tooltip";
+import AlarmAdd from "@mui/icons-material/AlarmAdd";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
@@ -35,6 +37,7 @@ const classes = {
 
 export const TimeSelector: FC = () => {
 
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
 
@@ -63,8 +66,30 @@ export const TimeSelector: FC = () => {
     };
   }, [start, end]);
 
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const open = Boolean(anchorEl);
+  const setTimeAndClosePicker = () => {
+    if (from) {
+      dispatch({type: "SET_FROM", payload: new Date(from)});
+    }
+    if (until) {
+      dispatch({type: "SET_UNTIL", payload: new Date(until)});
+    }
+    setAnchorEl(null);
+  };
+  const onFromChange = (from: dayjs.Dayjs | null) => setFrom(from?.format(formatDate));
+  const onUntilChange = (until: dayjs.Dayjs | null) => setUntil(until?.format(formatDate));
+  const onApplyClick = () => setTimeAndClosePicker();
+  const onSwitchToNow = () => dispatch({type: "RUN_QUERY_TO_NOW"});
+  const onCancelClick = () => {
+    setUntil(formatDateForNativeInput(dateFromSeconds(end)));
+    setFrom(formatDateForNativeInput(dateFromSeconds(start)));
+    setAnchorEl(null);
+  };
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.keyCode === 13) {
+      setTimeAndClosePicker();
+    }
+  };
 
   return <>
     <Tooltip title="Time range controls">
@@ -95,11 +120,11 @@ export const TimeSelector: FC = () => {
                   label="From"
                   ampm={false}
                   value={from}
-                  onChange={date => date && dispatch({type: "SET_FROM", payload: date as unknown as Date})}
+                  onChange={onFromChange}
                   onError={console.log}
                   inputFormat={formatDate}
                   mask="____-__-__ __:__:__"
-                  renderInput={(params) => <TextField {...params} variant="standard"/>}
+                  renderInput={(params) => <TextField {...params} variant="standard" onKeyDown={onKeyDown}/>}
                   maxDate={dayjs(until)}
                   PopperProps={{disablePortal: true}}/>
               </Box>
@@ -108,18 +133,21 @@ export const TimeSelector: FC = () => {
                   label="To"
                   ampm={false}
                   value={until}
-                  onChange={date => date && dispatch({type: "SET_UNTIL", payload: date as unknown as Date})}
+                  onChange={onUntilChange}
                   onError={console.log}
                   inputFormat={formatDate}
                   mask="____-__-__ __:__:__"
-                  renderInput={(params) => <TextField {...params} variant="standard"/>}
+                  renderInput={(params) => <TextField {...params} variant="standard" onKeyDown={onKeyDown}/>}
                   PopperProps={{disablePortal: true}}/>
               </Box>
               <Box display="grid" gridTemplateColumns="auto 1fr" gap={1}>
-                <Button variant="outlined" onClick={() => setAnchorEl(null)}>
+                <Button variant="outlined" onClick={onCancelClick}>
                   Cancel
                 </Button>
-                <Button variant="contained" onClick={() => dispatch({type: "RUN_QUERY_TO_NOW"})}>
+                <Button variant="outlined" onClick={onApplyClick} color={"success"}>
+                  Apply
+                </Button>
+                <Button startIcon={<AlarmAdd />} onClick={onSwitchToNow}>
                   switch to now
                 </Button>
               </Box>

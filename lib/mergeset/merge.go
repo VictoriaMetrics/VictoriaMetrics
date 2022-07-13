@@ -203,15 +203,15 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 
 type bsrHeap []*blockStreamReader
 
-func (h bsrHeap) getNextReader() *blockStreamReader {
-	if len(h) < 2 {
+func (bh bsrHeap) getNextReader() *blockStreamReader {
+	if len(bh) < 2 {
 		return nil
 	}
-	if len(h) < 3 {
-		return h[1]
+	if len(bh) < 3 {
+		return bh[1]
 	}
-	a := h[1]
-	b := h[2]
+	a := bh[1]
+	b := bh[2]
 	if string(a.bh.firstItem) <= string(b.bh.firstItem) {
 		return a
 	}
