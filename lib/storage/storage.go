@@ -511,6 +511,8 @@ type Metrics struct {
 	PrefetchedMetricIDsSize      uint64
 	PrefetchedMetricIDsSizeBytes uint64
 
+	NextRetentionSeconds uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -600,6 +602,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
 	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
 	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
+
+	m.NextRetentionSeconds = uint64(nextRetentionDuration(s.retentionMsecs).Seconds())
 
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
