@@ -15,9 +15,11 @@ import Spinner from "../common/Spinner";
 import {useFetchQueryOptions} from "../../hooks/useFetchQueryOptions";
 import TracingsView from "./Views/TracingsView";
 import Trace from "./Trace/Trace";
+import TableSettings from "../Table/TableSettings";
 
 const CustomPanel: FC = () => {
 
+  const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const {displayType, time: {period}, query, queryControls: {isTracingEnabled}} = useAppState();
   const { customStep, yaxis } = useGraphState();
@@ -73,6 +75,11 @@ const CustomPanel: FC = () => {
                 setYaxisLimits={setYaxisLimits}
                 toggleEnableLimits={toggleEnableLimits}
               />}
+              {displayType === "table" && <TableSettings
+                data={liveData || []}
+                defaultColumns={displayColumns}
+                onChange={setDisplayColumns}
+              />}
             </Box>
           </Box>
           {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
@@ -90,7 +97,7 @@ const CustomPanel: FC = () => {
               traces={tracesState}
               onDeleteClick={handleTraceDelete}
             />}
-            <TableView data={liveData}/>
+            <TableView data={liveData} displayColumns={displayColumns}/>
           </>}
         </Box>}
       </Box>
