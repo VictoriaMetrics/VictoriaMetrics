@@ -11,7 +11,7 @@ import (
 func TestAppendMachineLabels(t *testing.T) {
 	f := func(name string, vms []virtualMachine, expectedLabels [][]prompbmarshal.Label) {
 		t.Run(name, func(t *testing.T) {
-			labelss := appendMachineLabels(vms, &SDConfig{Port: 80, SubscriptionID: "some-id"})
+			labelss := appendMachineLabels(vms, 80, &SDConfig{SubscriptionID: "some-id"})
 			var sortedLabelss [][]prompbmarshal.Label
 			for _, labels := range labelss {
 				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))

@@ -19,39 +19,40 @@ import (
 
 var configMap = discoveryutils.NewConfigMap()
 
+// Extract from the needed params from https://github.com/Azure/go-autorest/blob/7dd32b67be4e6c9386b9ba7b1c44a51263f05270/autorest/azure/environments.go#L61
 type cloudEnvironmentEndpoints struct {
 	ActiveDirectoryEndpoint string `json:"activeDirectoryEndpoint"`
 	ResourceManagerEndpoint string `json:"resourceManagerEndpoint"`
 }
 
 // well-known azure cloud endpoints
+// See https://github.com/Azure/go-autorest/blob/7dd32b67be4e6c9386b9ba7b1c44a51263f05270/autorest/azure/environments.go#L34
 var cloudEnvironments = map[string]*cloudEnvironmentEndpoints{
-	"AZURECHINACLOUD":        &chinaCloud,
-	"AZUREGERMANCLOUD":       &germanCloud,
-	"AZURECLOUD":             &publicCloud,
-	"AZUREPUBLICCLOUD":       &publicCloud,
-	"AZUREUSGOVERNMENT":      &usGovernmentCloud,
-	"AZUREUSGOVERNMENTCLOUD": &usGovernmentCloud,
-}
-
-var (
-	chinaCloud = cloudEnvironmentEndpoints{
+	"AZURECHINACLOUD": {
 		ActiveDirectoryEndpoint: "https://login.chinacloudapi.cn",
 		ResourceManagerEndpoint: "https://management.chinacloudapi.cn",
-	}
-	germanCloud = cloudEnvironmentEndpoints{
+	},
+	"AZUREGERMANCLOUD": {
 		ActiveDirectoryEndpoint: "https://login.microsoftonline.de",
 		ResourceManagerEndpoint: "https://management.microsoftazure.de",
-	}
-	publicCloud = cloudEnvironmentEndpoints{
+	},
+	"AZURECLOUD": {
 		ActiveDirectoryEndpoint: "https://login.microsoftonline.com",
 		ResourceManagerEndpoint: "https://management.azure.com",
-	}
-	usGovernmentCloud = cloudEnvironmentEndpoints{
+	},
+	"AZUREPUBLICCLOUD": {
+		ActiveDirectoryEndpoint: "https://login.microsoftonline.com",
+		ResourceManagerEndpoint: "https://management.azure.com",
+	},
+	"AZUREUSGOVERNMENT": {
 		ActiveDirectoryEndpoint: "https://login.microsoftonline.us",
 		ResourceManagerEndpoint: "https://management.usgovcloudapi.net",
-	}
-)
+	},
+	"AZUREUSGOVERNMENTCLOUD": {
+		ActiveDirectoryEndpoint: "https://login.microsoftonline.us",
+		ResourceManagerEndpoint: "https://management.usgovcloudapi.net",
+	},
+}
 
 // apiConfig contains config for API server.
 type apiConfig struct {
@@ -61,14 +62,14 @@ type apiConfig struct {
 	subscriptionID string
 	tenantID       string
 
-	refreshToken tokenRefresher
-	// guards auth token and expiration
-	tokenLock  sync.Mutex
-	authToken  string
-	expiration time.Time
+	refreshToken refreshTokenFunc
+	// tokenLock guards auth token and tokenExpireDeadline
+	tokenLock           sync.Mutex
+	token               string
+	tokenExpireDeadline time.Time
 }
 
-type tokenRefresher func() (string, time.Duration, error)
+type refreshTokenFunc func() (string, time.Duration, error)
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
@@ -79,9 +80,15 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	hcc := sdc.HTTPClientConfig
+	if sdc.SubscriptionID == "" {
+		return nil, fmt.Errorf("missing `subscription_id` config option")
+	}
+	port := sdc.Port
+	if port == 0 {
+		port = 80
+	}
 
-	ac, err := hcc.NewConfig(baseDir)
+	ac, err := sdc.HTTPClientConfig.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
@@ -90,36 +97,39 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
 
-	cloudEndpoints, err := getCloudEnvByName(sdc.Environment)
+	environment := sdc.Environment
+	if environment == "" {
+		environment = "AZURECLOUD"
+	}
+	env, err := getCloudEnvByName(environment)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read configs for `environment: %q`: %w", environment, err)
+	}
+
+	refreshToken, err := getRefreshTokenFunc(sdc, ac, proxyAC, env)
 	if err != nil {
 		return nil, err
 	}
-
-	tr, err := newTokenRefresher(sdc, ac, proxyAC, cloudEndpoints)
+	c, err := discoveryutils.NewClient(env.ResourceManagerEndpoint, ac, sdc.ProxyURL, proxyAC)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create client for %q: %w", env.ResourceManagerEndpoint, err)
 	}
-
-	client, err := discoveryutils.NewClient(cloudEndpoints.ResourceManagerEndpoint, ac, sdc.ProxyURL, proxyAC)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", cloudEndpoints.ResourceManagerEndpoint, err)
-	}
-	cfg := apiConfig{
-		c:              client,
-		subscriptionID: sdc.SubscriptionID,
-		refreshToken:   tr,
+	cfg := &apiConfig{
+		c:              c,
+		port:           port,
 		resourceGroup:  sdc.ResourceGroup,
-		port:           sdc.Port,
+		subscriptionID: sdc.SubscriptionID,
 		tenantID:       sdc.TenantID,
-	}
 
-	return &cfg, nil
+		refreshToken: refreshToken,
+	}
+	return cfg, nil
 }
 
 func getCloudEnvByName(name string) (*cloudEnvironmentEndpoints, error) {
-
 	name = strings.ToUpper(name)
-	// special case, azure cloud k8s cluster, read content from file
+	// Special case, azure cloud k8s cluster, read content from file.
+	// See https://github.com/Azure/go-autorest/blob/7dd32b67be4e6c9386b9ba7b1c44a51263f05270/autorest/azure/environments.go#L301
 	if name == "AZURESTACKCLOUD" {
 		return readCloudEndpointsFromFile(os.Getenv("AZURE_ENVIRONMENT_FILEPATH"))
 	}
@@ -129,44 +139,59 @@ func getCloudEnvByName(name string) (*cloudEnvironmentEndpoints, error) {
 		for envName := range cloudEnvironments {
 			supportedEnvs = append(supportedEnvs, envName)
 		}
-
-		return nil, fmt.Errorf("incorrect value for azure `environment` param: %q, supported values: %s", name, strings.Join(supportedEnvs, ","))
+		return nil, fmt.Errorf("unsupported `environment: %q`; supported values: %s", name, strings.Join(supportedEnvs, ","))
 	}
 	return env, nil
 }
 
 func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, error) {
-	fileContent, err := ioutil.ReadFile(filePath)
+	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read cloud env endpoints from file %q:  %w", filePath, err)
+		return nil, fmt.Errorf("cannot file %q: %w", filePath, err)
 	}
 	var cee cloudEnvironmentEndpoints
-	if err := json.Unmarshal(fileContent, &cee); err != nil {
-		return nil, fmt.Errorf("cannot parse cloud env endpoints from file %q: %w", filePath, err)
+	if err := json.Unmarshal(data, &cee); err != nil {
+		return nil, fmt.Errorf("cannot parse cloud environment endpoints from file %q: %w", filePath, err)
 	}
 	return &cee, nil
 }
 
-func newTokenRefresher(sdc *SDConfig, ac, proxyAc *promauth.Config, cloudEndpoints *cloudEnvironmentEndpoints) (tokenRefresher, error) {
-
+func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloudEnvironmentEndpoints) (refreshTokenFunc, error) {
 	var tokenEndpoint, tokenAPIPath string
 	var modifyRequest func(request *fasthttp.Request)
-	switch sdc.AuthenticationMethod {
-	case "OAuth":
-		q := make(url.Values)
-		q.Set("grant_type", "client_credentials")
-		q.Set("client_id", sdc.ClientID)
-		q.Set("client_secret", sdc.ClientSecret.String())
-		q.Set("resource", cloudEndpoints.ResourceManagerEndpoint)
+	authenticationMethod := sdc.AuthenticationMethod
+	if authenticationMethod == "" {
+		authenticationMethod = "OAuth"
+	}
+	switch strings.ToLower(authenticationMethod) {
+	case "oauth":
+		if sdc.TenantID == "" {
+			return nil, fmt.Errorf("missing `tenant_id` config option for `authentication_method: Oauth`")
+		}
+		if sdc.ClientID == "" {
+			return nil, fmt.Errorf("missing `client_id` config option for `authentication_method: OAuth`")
+		}
+		if sdc.ClientSecret.String() == "" {
+			return nil, fmt.Errorf("missing `client_secrect` config option for `authentication_method: OAuth`")
+		}
+		q := url.Values{
+			"grant_type":    []string{"client_credentials"},
+			"client_id":     []string{sdc.ClientID},
+			"client_secret": []string{sdc.ClientSecret.String()},
+			"resource":      []string{env.ResourceManagerEndpoint},
+		}
 		authParams := q.Encode()
-		tokenAPIPath = "/" + sdc.TenantID + "/oauth2/token" // + authParams
-		tokenEndpoint = cloudEndpoints.ActiveDirectoryEndpoint
+		tokenAPIPath = "/" + sdc.TenantID + "/oauth2/token"
+		tokenEndpoint = env.ActiveDirectoryEndpoint
 		modifyRequest = func(request *fasthttp.Request) {
-			request.SetBody([]byte(authParams))
+			request.SetBodyString(authParams)
 			request.Header.SetMethod("POST")
 		}
-	case "ManagedIdentity":
-		endpoint := resolveMSIEndpoint()
+	case "managedidentity":
+		endpoint := "http://169.254.169.254/metadata/identity/oauth2/token"
+		if ep := os.Getenv("MSI_ENDPOINT"); ep != "" {
+			endpoint = ep
+		}
 		endpointURL, err := url.Parse(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse MSI endpoint url %q: %w", endpoint, err)
@@ -176,49 +201,47 @@ func newTokenRefresher(sdc *SDConfig, ac, proxyAc *promauth.Config, cloudEndpoin
 		msiSecret := os.Getenv("MSI_SECRET")
 		clientIDParam := "client_id"
 		apiVersion := "2018-02-01"
-		isAppService := len(msiSecret) > 0
-		if isAppService {
+		if msiSecret != "" {
 			clientIDParam = "clientid"
 			apiVersion = "2017-09-01"
 		}
 		q.Set("api-version", apiVersion)
 		q.Set(clientIDParam, sdc.ClientID)
-		q.Set("resource", cloudEndpoints.ResourceManagerEndpoint)
+		q.Set("resource", env.ResourceManagerEndpoint)
 		endpointURL.RawQuery = q.Encode()
 		tokenAPIPath = endpointURL.RequestURI()
-
 		tokenEndpoint = endpointURL.Scheme + "://" + endpointURL.Host
 		modifyRequest = func(request *fasthttp.Request) {
-			if !isAppService {
-				request.Header.Set("Metadata", "true")
-			}
-			if len(msiSecret) > 0 {
+			if msiSecret != "" {
 				request.Header.Set("secret", msiSecret)
+			} else {
+				request.Header.Set("Metadata", "true")
 			}
 		}
 	default:
-		logger.Fatalf("BUG, unexpected value: %s", sdc.AuthenticationMethod)
+		return nil, fmt.Errorf("unsupported `authentication_method: %q` only `OAuth` and `ManagedIdentity` are supported", authenticationMethod)
 	}
 
-	authClient, err := discoveryutils.NewClient(tokenEndpoint, ac, sdc.ProxyURL, proxyAc)
+	authClient, err := discoveryutils.NewClient(tokenEndpoint, ac, sdc.ProxyURL, proxyAC)
 	if err != nil {
-		return nil, fmt.Errorf("cannot build authorization client: %w", err)
+		return nil, fmt.Errorf("cannot build auth client: %w", err)
 	}
-	return func() (string, time.Duration, error) {
+	refreshToken := func() (string, time.Duration, error) {
 		data, err := authClient.GetAPIResponseWithReqParams(tokenAPIPath, modifyRequest)
 		if err != nil {
 			return "", 0, err
 		}
 		var tr tokenResponse
 		if err := json.Unmarshal(data, &tr); err != nil {
-			return "", 0, fmt.Errorf("cannot parse token auth response: %q : %w", string(data), err)
+			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", string(data), err)
 		}
 		expiresInSeconds, err := strconv.ParseInt(tr.ExpiresIn, 10, 64)
 		if err != nil {
-			return "", 0, fmt.Errorf("cannot parse auth token expiresIn param: expects int64 value, got: %s", tr.ExpiresIn)
+			return "", 0, fmt.Errorf("cannot parse expiresIn param in token auth %q: %w", tr.ExpiresIn, err)
 		}
 		return tr.AccessToken, time.Second * time.Duration(expiresInSeconds), nil
-	}, nil
+	}
+	return refreshToken, nil
 }
 
 // mustGetAuthToken returns auth token
@@ -226,41 +249,25 @@ func newTokenRefresher(sdc *SDConfig, ac, proxyAc *promauth.Config, cloudEndpoin
 func (ac *apiConfig) mustGetAuthToken() string {
 	ac.tokenLock.Lock()
 	defer ac.tokenLock.Unlock()
-	if time.Until(ac.expiration) > time.Second*30 {
-		return ac.authToken
-	}
+
 	ct := time.Now()
+	if ac.tokenExpireDeadline.Sub(ct) > time.Second*30 {
+		return ac.token
+	}
 	token, expiresDuration, err := ac.refreshToken()
 	if err != nil {
 		logger.Errorf("cannot refresh azure auth token: %s", err)
 		return ""
 	}
-	ac.authToken = token
-	ac.expiration = ct.Add(expiresDuration)
-	return ac.authToken
+	ac.token = token
+	ac.tokenExpireDeadline = ct.Add(expiresDuration)
+	return ac.token
 }
 
 // tokenResponse represent response from oauth2 azure token service
+//
 // https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-go
 type tokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    string `json:"expires_in"`
-	ExpiresOn    string `json:"expires_on"`
-	NotBefore    string `json:"not_before"`
-	Resource     string `json:"resource"`
-	TokenType    string `json:"token_type"`
-}
-
-// resolveMSIEndpoint returns endpoint for token request
-// possible endpoints:
-// MSI - for standard Virtual machines
-// AppService - for lambda function apps
-// CloudShell - not supported, for web browsers
-func resolveMSIEndpoint() string {
-	msiEndpoint := os.Getenv("MSI_ENDPOINT")
-	if len(msiEndpoint) > 0 {
-		return msiEndpoint
-	}
-	return "http://169.254.169.254/metadata/identity/oauth2/token"
+	AccessToken string `json:"access_token"`
+	ExpiresIn   string `json:"expires_in"`
 }

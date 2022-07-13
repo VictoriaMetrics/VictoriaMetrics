@@ -59,7 +59,7 @@ type listAPIResponse struct {
 	Value    []json.RawMessage `json:"value"`
 }
 
-// visitAllAPIObjects iterates over list API with pagination and applies callback for each response object
+// visitAllAPIObjects iterates over list API with pagination and applies cb for each response object
 func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessage) error) error {
 	nextLink := apiURL
 	for nextLink != "" {
@@ -67,11 +67,11 @@ func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessa
 			request.Header.Set("Authorization", "Bearer "+ac.mustGetAuthToken())
 		})
 		if err != nil {
-			return fmt.Errorf("cannot execute azure api request for url: %s : %w", nextLink, err)
+			return fmt.Errorf("cannot execute azure api request at %s: %w", nextLink, err)
 		}
 		var lar listAPIResponse
 		if err := json.Unmarshal(resp, &lar); err != nil {
-			return fmt.Errorf("cannot parse azure api response: %q at url: %s, err: %w", string(resp), nextLink, err)
+			return fmt.Errorf("cannot parse azure api response %q obtained from %s: %w", resp, nextLink, err)
 		}
 		for i := range lar.Value {
 			if err := cb(lar.Value[i]); err != nil {
@@ -95,62 +95,69 @@ func getVirtualMachines(ac *apiConfig) ([]virtualMachine, error) {
 	}
 	ssvms, err := listScaleSetVMs(ac, scaleSetRefs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot list scaleSets virtual machines: %w", err)
+		return nil, fmt.Errorf("cannot list virtual machines for scaleSets: %w", err)
 	}
 	vms = append(vms, ssvms...)
-	// operations IO bound, it's ok to spawn move goroutines then CPU
-	concurrency := cgroup.AvailableCPUs() * 10
-	limiter := make(chan struct{}, concurrency)
-	var wg sync.WaitGroup
-	var firstErr error
-	var errLock sync.Mutex
-	for i := range vms {
-		limiter <- struct{}{}
-		vm := &vms[i]
-		wg.Add(1)
-		go func(vm *virtualMachine) {
-			defer wg.Done()
-			if err := enrichVMNetworkInterface(ac, vm); err != nil {
-				errLock.Lock()
-				if firstErr == nil {
-					firstErr = fmt.Errorf("cannot enrich network interface for vm: %w", err)
-				}
-				errLock.Unlock()
-			}
-			<-limiter
-		}(vm)
-	}
-	wg.Wait()
-	if firstErr != nil {
-		return nil, firstErr
+	if err := enrichVirtualMachinesNetworkInterfaces(ac, vms); err != nil {
+		return nil, fmt.Errorf("cannot discover network interfaces for virtual machines: %w", err)
 	}
 	return vms, nil
 }
 
-// https://docs.microsoft.com/en-us/rest/api/compute/virtual-machines/list-all
-// https://docs.microsoft.com/en-us/rest/api/compute/virtual-machines/list
+func enrichVirtualMachinesNetworkInterfaces(ac *apiConfig, vms []virtualMachine) error {
+	concurrency := cgroup.AvailableCPUs() * 10
+	workCh := make(chan *virtualMachine, concurrency)
+	resultCh := make(chan error, concurrency)
+	var wg sync.WaitGroup
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for vm := range workCh {
+				err := enrichVMNetworkInterfaces(ac, vm)
+				resultCh <- err
+			}
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := range vms {
+			workCh <- &vms[i]
+		}
+		close(workCh)
+	}()
+	var firstErr error
+	for range vms {
+		err := <-resultCh
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	wg.Wait()
+	return firstErr
+}
+
+// See https://docs.microsoft.com/en-us/rest/api/compute/virtual-machines/list-all
 func listVMs(ac *apiConfig) ([]virtualMachine, error) {
-	var vms []virtualMachine
 	// https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Compute/virtualMachines?api-version=2022-03-01
 	apiURL := "/subscriptions/" + ac.subscriptionID
-	if len(ac.resourceGroup) > 0 {
+	if ac.resourceGroup != "" {
 		// special case filter by resourceGroup
 		// https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachines?api-version=2022-03-01
 		apiURL += "/resourceGroups/" + ac.resourceGroup
 	}
 	apiURL += "/providers/Microsoft.Compute/virtualMachines?api-version=2022-03-01"
+	var vms []virtualMachine
 	err := visitAllAPIObjects(ac, apiURL, func(data json.RawMessage) error {
 		var vm virtualMachine
 		if err := json.Unmarshal(data, &vm); err != nil {
-			return fmt.Errorf("cannot parse list VirtualMachines API response: %q : %w", string(data), err)
+			return fmt.Errorf("cannot parse virtualMachine list API response %q: %w", data, err)
 		}
 		vms = append(vms, vm)
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return vms, nil
+	return vms, err
 }
 
 type scaleSet struct {
@@ -158,37 +165,34 @@ type scaleSet struct {
 	ID   string `json:"id"`
 }
 
-// https://docs.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/list-all
-// GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01
+// See https://docs.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/list-all
 func listScaleSetRefs(ac *apiConfig) ([]scaleSet, error) {
-	var ssrs []scaleSet
+	// https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01
 	apiURL := "/subscriptions/" + ac.subscriptionID + "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"
+	var sss []scaleSet
 	err := visitAllAPIObjects(ac, apiURL, func(data json.RawMessage) error {
 		var ss scaleSet
 		if err := json.Unmarshal(data, &ss); err != nil {
-			return err
+			return fmt.Errorf("cannot parse scaleSet list API response %q: %w", data, err)
 		}
-		ssrs = append(ssrs, ss)
+		sss = append(sss, ss)
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return ssrs, nil
+	return sss, err
 }
 
-// https://docs.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-set-vms/list
-// GET https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachineScaleSets/{virtualMachineScaleSetName}/virtualMachines?api-version=2022-03-01
-func listScaleSetVMs(ac *apiConfig, ssrs []scaleSet) ([]virtualMachine, error) {
+// See https://docs.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-set-vms/list
+func listScaleSetVMs(ac *apiConfig, sss []scaleSet) ([]virtualMachine, error) {
+	// https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachineScaleSets/{virtualMachineScaleSetName}/virtualMachines?api-version=2022-03-01
 	var vms []virtualMachine
-	for _, ssr := range ssrs {
-		apiURI := ssr.ID + "/virtualMachines?api-version=2022-03-01"
+	for _, ss := range sss {
+		apiURI := ss.ID + "/virtualMachines?api-version=2022-03-01"
 		err := visitAllAPIObjects(ac, apiURI, func(data json.RawMessage) error {
 			var vm virtualMachine
 			if err := json.Unmarshal(data, &vm); err != nil {
-				return fmt.Errorf("cannot parse ScaleSet list API response: %q: %w", string(data), err)
+				return fmt.Errorf("cannot parse virtualMachine list API response %q: %w", data, err)
 			}
-			vm.scaleSet = ssr.Name
+			vm.scaleSet = ss.Name
 			vms = append(vms, vm)
 			return nil
 		})

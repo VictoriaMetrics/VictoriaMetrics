@@ -35,46 +35,46 @@ type publicIPProperties struct {
 	IPAddress string `json:"ipAddress,omitempty"`
 }
 
-func enrichVMNetworkInterface(ac *apiConfig, vm *virtualMachine) error {
+func enrichVMNetworkInterfaces(ac *apiConfig, vm *virtualMachine) error {
 	for _, nicRef := range vm.Properties.NetworkProfile.NetworkInterfaces {
-		isScaleSetVM := len(vm.scaleSet) > 0
+		isScaleSetVM := vm.scaleSet != ""
 		nic, err := getNIC(ac, nicRef.ID, isScaleSetVM)
 		if err != nil {
 			return err
 		}
 		// only primary interface is relevant for us
-		// mimic prometheus logic
+		// mimic Prometheus logic
 		if nic.Properties.Primary {
 			for _, ipCfg := range nic.Properties.IPConfigurations {
 				vm.ipAddresses = append(vm.ipAddresses, vmIPAddress{
 					publicIP:  ipCfg.Properties.PublicIPAddress.Properties.IPAddress,
-					privateIP: ipCfg.Properties.PrivateIPAddress},
-				)
+					privateIP: ipCfg.Properties.PrivateIPAddress,
+				})
 			}
 		}
 	}
 	return nil
 }
 
-// https://docs.microsoft.com/en-us/rest/api/virtualnetwork/network-interfaces/get
-// GET https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/networkInterfaces/{networkInterfaceName}?api-version=2021-08-01
+// See https://docs.microsoft.com/en-us/rest/api/virtualnetwork/network-interfaces/get
 func getNIC(ac *apiConfig, id string, isScaleSetVM bool) (*networkInterface, error) {
-	apiQueryParams := "?api-version=2021-08-01&$expand=ipConfigurations/publicIPAddress"
+	// https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/networkInterfaces/{networkInterfaceName}?api-version=2021-08-01
+	apiQueryParams := "api-version=2021-08-01&$expand=ipConfigurations/publicIPAddress"
 	// special case for VMs managed by ScaleSet
 	// it's not documented at API docs.
 	if isScaleSetVM {
-		apiQueryParams = "?api-version=2021-03-01&$expand=ipConfigurations/publicIPAddress"
+		apiQueryParams = "api-version=2021-03-01&$expand=ipConfigurations/publicIPAddress"
 	}
-	apiURL := id + apiQueryParams
+	apiURL := id + "?" + apiQueryParams
 	resp, err := ac.c.GetAPIResponseWithReqParams(apiURL, func(request *fasthttp.Request) {
 		request.Header.Set("Authorization", "Bearer "+ac.mustGetAuthToken())
 	})
 	if err != nil {
-		return nil, fmt.Errorf("cannot execute api request at :%q :%w", apiURL, err)
+		return nil, fmt.Errorf("cannot execute api request at %s :%w", apiURL, err)
 	}
 	var nic networkInterface
 	if err := json.Unmarshal(resp, &nic); err != nil {
-		return nil, fmt.Errorf("cannot parse network-interface GET api request: %q : %w", string(resp), err)
+		return nil, fmt.Errorf("cannot parse network-interface api response %q: %w", resp, err)
 	}
 	return &nic, nil
 }
