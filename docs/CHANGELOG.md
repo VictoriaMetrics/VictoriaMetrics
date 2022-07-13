@@ -43,6 +43,7 @@ scrape_configs:
 * FEATURE: improve performance of [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers) requests, which return big number of time series.
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve query performance when [replication is enabled](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle partial counter resets in [remove_resets](https://docs.victoriametrics.com/MetricsQL.html#remove_resets) function. Now `remove_resets(sum(m))` should returns the expected increasing line when some time series matching `m` disappear on the selected time range. Previously such a query would return horizontal line after the disappeared series.
+* FEATURE: expose `vm_next_retention_seconds` metric at `http://victoriametrics:8428/metrics`, which shows the number of seconds left until the next `indexdb` rotation. Thanks to @guidao for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2863).
 * FEATURE: expose additional histogram metrics at `http://victoriametrics:8428/metrics`, which may help understanding query workload:
 
   * `vm_rows_read_per_query` - the number of raw samples read per query.
