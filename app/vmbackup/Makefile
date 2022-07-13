@@ -1,6 +1,5 @@
 # All these commands must run from repository root.
 
-# Application build
 vmbackup:
 	APP_NAME=vmbackup $(MAKE) app-local
 
@@ -13,32 +12,33 @@ vmbackup-prod:
 vmbackup-pure-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-pure
 
-# GOOS=linux
 vmbackup-linux-amd64-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-amd64
-
-vmbackup-linux-arm64-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-arm64
 
 vmbackup-linux-arm-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-arm
 
-# GOOS=darwin
+vmbackup-linux-arm64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-arm64
+
+vmbackup-linux-ppc64le-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-ppc64le
+
+vmbackup-linux-386-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-linux-386
+
 vmbackup-darwin-amd64-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-amd64
 
 vmbackup-darwin-arm64-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-darwin-arm64
 
-# GOARCH=ppc64le
-vmbackup-ppc64le-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-ppc64le
+vmbackup-freebsd-amd64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-freebsd-amd64
 
-# GOARCH=386
-vmbackup-386-prod:
-	APP_NAME=vmbackup $(MAKE) app-via-docker-386
+vmbackup-openbsd-amd64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-openbsd-amd64
 
-# Package build
 package-vmbackup:
 	APP_NAME=vmbackup $(MAKE) package-via-docker
 
@@ -63,23 +63,32 @@ package-vmbackup-386:
 publish-vmbackup:
 	APP_NAME=vmbackup $(MAKE) publish-via-docker
 
-vmbackup-amd64:
-	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmbackup-local-with-goarch
+vmbackup-linux-amd64:
+	APP_NAME=vmbackup CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-vmbackup-arm:
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmbackup-local-with-goarch
+vmbackup-linux-arm:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-vmbackup-arm64:
-	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmbackup-local-with-goarch
+vmbackup-linux-arm64:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-vmbackup-ppc64le:
-	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmbackup-local-with-goarch
+vmbackup-linux-ppc64le:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-vmbackup-386:
-	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmbackup-local-with-goarch
+vmbackup-linux-386:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
-vmbackup-local-with-goarch:
-	APP_NAME=vmbackup $(MAKE) app-local-with-goarch
+vmbackup-darwin-amd64:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmbackup-darwin-arm64:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-local-goos-goarch
+
+vmbackup-freebsd-amd64:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmbackup-openbsd-amd64:
+	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmbackup-pure:
 	APP_NAME=vmbackup $(MAKE) app-local-pure

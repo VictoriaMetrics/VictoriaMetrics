@@ -15,10 +15,10 @@ fi
 # Map to Debian architecture
 if [[ "$ARCH" == "amd64" ]]; then
     RPM_ARCH=x86_64
-	EXENAME_SRC="victoria-metrics-prod"
+	EXENAME_SRC="victoria-metrics-linux-amd64-prod"
 elif [[ "$ARCH" == "arm64" ]]; then
     RPM_ARCH=aarch64
-    EXENAME_SRC="victoria-metrics-arm64-prod"
+    EXENAME_SRC="victoria-metrics-linux-arm64-prod"
 else
     echo "*** Unknown arch $ARCH"
     exit 1

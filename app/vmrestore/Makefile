@@ -1,6 +1,5 @@
 # All these commands must run from repository root.
 
-# Application build
 vmrestore:
 	APP_NAME=vmrestore $(MAKE) app-local
 
@@ -13,32 +12,33 @@ vmrestore-prod:
 vmrestore-pure-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-pure
 
-# GOOS=linux
 vmrestore-linux-amd64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-amd64
-
-vmrestore-linux-arm64-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm64
 
 vmrestore-linux-arm-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm
 
-# GOOS=darwin
+vmrestore-linux-arm64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-arm64
+
+vmrestore-linux-ppc64le-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-ppc64le
+
+vmrestore-linux-386-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-linux-386
+
 vmrestore-darwin-amd64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-amd64
 
 vmrestore-darwin-arm64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-darwin-arm64
 
-# GOARCH=ppc64le
-vmrestore-ppc64le-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-ppc64le
+vmrestore-freebsd-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-freebsd-amd64
 
-# GOARCH=386
-vmrestore-386-prod:
-	APP_NAME=vmrestore $(MAKE) app-via-docker-386
+vmrestore-openbsd-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-openbsd-amd64
 
-# Package build
 package-vmrestore:
 	APP_NAME=vmrestore $(MAKE) package-via-docker
 
@@ -63,23 +63,32 @@ package-vmrestore-386:
 publish-vmrestore:
 	APP_NAME=vmrestore $(MAKE) publish-via-docker
 
-vmrestore-amd64:
-	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmrestore-local-with-goarch
+vmrestore-linux-amd64:
+	APP_NAME=vmrestore CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-vmrestore-arm:
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmrestore-local-with-goarch
+vmrestore-linux-arm:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-vmrestore-arm64:
-	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmrestore-local-with-goarch
+vmrestore-linux-arm64:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-vmrestore-ppc64le:
-	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmrestore-local-with-goarch
+vmrestore-linux-ppc64le:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-vmrestore-386:
-	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmrestore-local-with-goarch
+vmrestore-linux-386:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
-vmrestore-local-with-goarch:
-	APP_NAME=vmrestore $(MAKE) app-local-with-goarch
+vmrestore-darwin-amd64:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmrestore-darwin-arm64:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-local-goos-goarch
+
+vmrestore-freebsd-amd64:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmrestore-openbsd-amd64:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmrestore-pure:
 	APP_NAME=vmrestore $(MAKE) app-local-pure
