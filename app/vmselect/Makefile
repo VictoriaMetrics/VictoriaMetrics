@@ -34,6 +34,12 @@ vmselect-linux-ppc64le-prod:
 vmselect-linux-386-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-linux-386
 
+vmselect-freebsd-amd64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-freebsd-amd64
+
+vmselect-openbsd-amd64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-openbsd-amd64
+
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
 
@@ -63,6 +69,12 @@ vmselect-linux-ppc64le:
 
 vmselect-linux-386:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
+
+vmselect-freebsd-amd64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmselect-openbsd-amd64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmselect-pure:
 	APP_NAME=vmselect $(MAKE) app-local-pure

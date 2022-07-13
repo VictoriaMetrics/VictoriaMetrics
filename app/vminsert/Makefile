@@ -30,6 +30,12 @@ vminsert-linux-ppc64le-prod:
 vminsert-linux-386-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-linux-386
 
+vminsert-freebsd-amd64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-freebsd-amd64
+
+vminsert-openbsd-amd64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-openbsd-amd64
+
 vminsert-prod-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) app-via-docker
 
@@ -59,6 +65,12 @@ vminsert-linux-ppc64le:
 
 vminsert-linux-386:
 	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
+
+vminsert-freebsd-amd64:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vminsert-openbsd-amd64:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vminsert-pure:
 	APP_NAME=vminsert $(MAKE) app-local-pure

@@ -34,6 +34,12 @@ vmstorage-linux-ppc64le-prod:
 vmstorage-linux-386-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-386
 
+vmstorage-freebsd-amd64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-freebsd-amd64
+
+vmstorage-openbsd-amd64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-openbsd-amd64
+
 vmstorage-prod-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) app-via-docker
 
@@ -63,6 +69,12 @@ vmstorage-linux-ppc64le:
 
 vmstorage-linux-386:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
+
+vmstorage-freebsd-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmstorage-openbsd-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmstorage-pure:
 	APP_NAME=vmstorage $(MAKE) app-local-pure
