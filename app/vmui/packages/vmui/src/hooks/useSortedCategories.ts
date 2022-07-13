@@ -6,7 +6,7 @@ export type MetricCategory = {
   variations: number;
 }
 
-export const useSortedCategories = (data: MetricBase[]): MetricCategory[]  => useMemo(() => {
+export const useSortedCategories = (data: MetricBase[], displayColumns?: string[]): MetricCategory[]  => useMemo(() => {
   const columns: { [key: string]: { options: Set<string> } } = {};
   data.forEach(d =>
     Object.entries(d.metric).forEach(e =>
@@ -14,8 +14,10 @@ export const useSortedCategories = (data: MetricBase[]): MetricCategory[]  => us
     )
   );
 
-  return Object.entries(columns).map(e => ({
+  const sortedColumns = Object.entries(columns).map(e => ({
     key: e[0],
     variations: e[1].options.size
   })).sort((a1, a2) => a1.variations - a2.variations);
-}, [data]);
+
+  return displayColumns ? sortedColumns.filter(col => displayColumns.includes(col.key)) : sortedColumns;
+}, [data, displayColumns]);
