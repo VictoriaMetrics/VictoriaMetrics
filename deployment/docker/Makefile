@@ -66,8 +66,13 @@ package-via-docker: package-base
 
 publish-via-docker: \
 	app-via-docker-amd64 \
+	app-via-docker-linux-amd64 \
+	app-via-docker-darwin-amd64 \
 	app-via-docker-arm \
+	app-via-docker-linux-arm \
 	app-via-docker-arm64 \
+	app-via-docker-linux-arm64 \
+	app-via-docker-darwin-arm64 \
 	app-via-docker-ppc64le \
 	app-via-docker-386
 	docker buildx build \
@@ -99,6 +104,15 @@ app-via-docker-darwin-amd64:
 
 app-via-docker-darwin-arm64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-linux-amd64:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-linux-arm64:
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-linux-arm:
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-goos-goarch:
 	APP_SUFFIX='-$(GOOS)-$(GOARCH)' \

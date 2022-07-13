@@ -88,33 +88,33 @@ vmutils-windows-amd64: \
 
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release copy-linux publish && \
+	git checkout $(TAG)-cluster && $(MAKE) release copy-linux-cluster publish && \
+	git checkout $(TAG)-enterprise && $(MAKE) release copy-linux-enterprise publish && \
+	git checkout $(TAG)-enterprise-cluster && $(MAKE) release copy-linux-enterprise-cluster publish
 
 release: \
 	release-victoria-metrics \
 	release-vmutils
 
 release-victoria-metrics: \
-	release-victoria-metrics-amd64 \
-	release-victoria-metrics-arm \
-	release-victoria-metrics-arm64 \
+	release-victoria-metrics-linux-amd64 \
+	release-victoria-metrics-linux-arm \
+	release-victoria-metrics-linux-arm64 \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64
 
-release-victoria-metrics-amd64:
-	OSARCH=amd64 $(MAKE) release-victoria-metrics-generic
-
-release-victoria-metrics-arm:
-	OSARCH=arm $(MAKE) release-victoria-metrics-generic
-
-release-victoria-metrics-arm64:
-	OSARCH=arm64 $(MAKE) release-victoria-metrics-generic
+release-victoria-metrics-linux-amd64:
+	OSARCH=linux-amd64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-amd64:
 	OSARCH=darwin-amd64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-linux-arm:
+	OSARCH=linux-arm $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-linux-arm64:
+	OSARCH=linux-arm64 $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-darwin-arm64:
 	OSARCH=darwin-arm64 $(MAKE) release-victoria-metrics-generic
@@ -128,30 +128,30 @@ release-victoria-metrics-generic: victoria-metrics-$(OSARCH)-prod
 			| sed s/-$(OSARCH)-prod/-prod/ > victoria-metrics-$(OSARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
-	release-vmutils-amd64 \
-	release-vmutils-arm64 \
-	release-vmutils-arm \
-	release-vmutils-darwin-amd64  \
+	release-vmutils-linux-amd64 \
+	release-vmutils-linux-arm \
+	release-vmutils-linux-arm64 \
+	release-vmutils-darwin-amd64 \
 	release-vmutils-darwin-arm64 \
 	release-vmutils-windows-amd64
 
-release-vmutils-amd64:
-	OSARCH=amd64 $(MAKE) release-vmutils-generic
-
-release-vmutils-arm64:
-	OSARCH=arm64 $(MAKE) release-vmutils-generic
-
-release-vmutils-arm:
-	OSARCH=arm $(MAKE) release-vmutils-generic
+release-vmutils-linux-amd64:
+	OSARCH=linux-amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-darwin-amd64:
 	OSARCH=darwin-amd64 $(MAKE) release-vmutils-generic
 
-release-vmutils-darwin-arm64:
-	OSARCH=darwin-arm64 $(MAKE) release-vmutils-generic
-
 release-vmutils-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
+
+release-vmutils-linux-arm:
+	OSARCH=linux-arm $(MAKE) release-vmutils-generic
+
+release-vmutils-linux-arm64:
+	OSARCH=linux-arm64 $(MAKE) release-vmutils-generic
+
+release-vmutils-darwin-arm64:
+	OSARCH=darwin-arm64 $(MAKE) release-vmutils-generic
 
 release-vmutils-generic: \
 	vmagent-$(OSARCH)-prod \
@@ -309,3 +309,40 @@ docs-sync:
 	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
 	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+
+# temporary operation to maintain compatibility
+copy-linux:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG).tar.gz victoria-metrics-amd64-$(PKG_TAG).tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG).tar.gz victoria-metrics-arm-$(PKG_TAG).tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG).tar.gz victoria-metrics-arm64-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG).tar.gz vmutils-amd64-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG).tar.gz vmutils-arm-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG).tar.gz vmutils-arm64-$(PKG_TAG).tar.gz
+
+copy-linux-cluster:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-cluster.tar.gz victoria-metrics-amd64-$(PKG_TAG)-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-cluster.tar.gz victoria-metrics-arm-$(PKG_TAG)-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-cluster.tar.gz victoria-metrics-arm64-$(PKG_TAG)-cluster.tar.gz
+		cp vmutils-linux-amd64-$(PKG_TAG)-cluster.tar.gz vmutils-amd64-$(PKG_TAG)-cluster.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-cluster.tar.gz vmutils-arm-$(PKG_TAG)-cluster.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-cluster.tar.gz vmutils-arm64-$(PKG_TAG)-cluster.tar.gz
+
+copy-linux-enterprise:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-amd64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-arm-$(PKG_TAG)-enterprise.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-arm64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG)-enterprise.tar.gz vmutils-amd64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-enterprise.tar.gz vmutils-arm-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-enterprise.tar.gz vmutils-arm64-$(PKG_TAG)-enterprise.tar.gz
+
+copy-linux-enterprise-cluster:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-arm-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-arm-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz

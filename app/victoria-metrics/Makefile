@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) app-local
 
@@ -12,27 +13,42 @@ victoria-metrics-prod:
 victoria-metrics-pure-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-pure
 
+# GOARCH=amd64
 victoria-metrics-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-amd64
 
-victoria-metrics-arm-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm
-
-victoria-metrics-arm64-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm64
-
-victoria-metrics-ppc64le-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-ppc64le
-
-victoria-metrics-386-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-386
+victoria-metrics-linux-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-amd64
 
 victoria-metrics-darwin-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-amd64
 
+# GOARCH=arm64
+victoria-metrics-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm64
+
+victoria-metrics-linux-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-arm64
+
 victoria-metrics-darwin-arm64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-arm64
 
+# GOARCH=arm
+victoria-metrics-arm-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm
+
+victoria-metrics-linux-arm-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-arm
+
+# GOARCH=ppc64le
+victoria-metrics-ppc64le-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+victoria-metrics-386-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-386
+
+# Package build
 package-victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker
 
