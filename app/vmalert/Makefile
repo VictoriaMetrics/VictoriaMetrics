@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 vmalert:
 	APP_NAME=vmalert $(MAKE) app-local
 
@@ -12,30 +13,36 @@ vmalert-prod:
 vmalert-pure-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-pure
 
-vmalert-amd64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-amd64
+# GOOS=linux
+vmalert-linux-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-linux-amd64
 
-vmalert-arm-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-arm
+vmalert-linux-arm64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-linux-arm64
 
-vmalert-arm64-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-arm64
+vmalert-linux-arm-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-linux-arm
 
-vmalert-ppc64le-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-ppc64le
-
-vmalert-386-prod:
-	APP_NAME=vmalert $(MAKE) app-via-docker-386
-
+# GOOS=darwin
 vmalert-darwin-amd64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-amd64
 
 vmalert-darwin-arm64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-arm64
 
+# GOOS=windows
 vmalert-windows-amd64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64
 
+# GOARCH=ppc64le
+vmalert-ppc64le-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+vmalert-386-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-386
+
+# Package build
 package-vmalert:
 	APP_NAME=vmalert $(MAKE) package-via-docker
 

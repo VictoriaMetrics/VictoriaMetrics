@@ -19,20 +19,20 @@ vmstorage-prod:
 vmstorage-pure-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-pure
 
-vmstorage-amd64-prod:
-	APP_NAME=vmstorage $(MAKE) app-via-docker-amd64
+vmstorage-linux-amd64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-amd64
 
-vmstorage-arm-prod:
-	APP_NAME=vmstorage $(MAKE) app-via-docker-arm
+vmstorage-linux-arm-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-arm
 
-vmstorage-arm64-prod:
-	APP_NAME=vmstorage $(MAKE) app-via-docker-arm64
+vmstorage-linux-arm64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-arm64
 
-vmstorage-ppc64le-prod:
-	APP_NAME=vmstorage $(MAKE) app-via-docker-ppc64le
+vmstorage-linux-ppc64le-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-ppc64le
 
-vmstorage-386-prod:
-	APP_NAME=vmstorage $(MAKE) app-via-docker-386
+vmstorage-linux-386-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-386
 
 vmstorage-prod-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) app-via-docker
@@ -49,23 +49,20 @@ publish-vmstorage:
 publish-vmstorage-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) publish-via-docker
 
-vmstorage-amd64:
-	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmstorage-local-with-goarch
+vmstorage-linux-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-vmstorage-arm:
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmstorage-local-with-goarch
+vmstorage-linux-arm:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-vmstorage-arm64:
-	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmstorage-local-with-goarch
+vmstorage-linux-arm64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-vmstorage-ppc64le:
-	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmstorage-local-with-goarch
+vmstorage-linux-ppc64le:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-vmstorage-386:
-	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmstorage-local-with-goarch
-
-vmstorage-local-with-goarch:
-	APP_NAME=vmstorage $(MAKE) app-local-with-goarch
+vmstorage-linux-386:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
 vmstorage-pure:
 	APP_NAME=vmstorage $(MAKE) app-local-pure

@@ -15,20 +15,20 @@ vminsert-prod:
 vminsert-pure-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-pure
 
-vminsert-amd64-prod:
-	APP_NAME=vminsert $(MAKE) app-via-docker-amd64
+vminsert-linux-amd64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-linux-amd64
 
-vminsert-arm-prod:
-	APP_NAME=vminsert $(MAKE) app-via-docker-arm
+vminsert-linux-arm-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-linux-arm
 
-vminsert-arm64-prod:
-	APP_NAME=vminsert $(MAKE) app-via-docker-arm64
+vminsert-linux-arm64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-linux-arm64
 
-vminsert-ppc64le-prod:
-	APP_NAME=vminsert $(MAKE) app-via-docker-ppc64le
+vminsert-linux-ppc64le-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-linux-ppc64le
 
-vminsert-386-prod:
-	APP_NAME=vminsert $(MAKE) app-via-docker-386
+vminsert-linux-386-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-linux-386
 
 vminsert-prod-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) app-via-docker
@@ -45,23 +45,20 @@ publish-vminsert:
 publish-vminsert-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) publish-via-docker
 
-vminsert-amd64:
-	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vminsert-local-with-goarch
+vminsert-linux-amd64:
+	APP_NAME=vminsert CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-vminsert-arm:
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) vminsert-local-with-goarch
+vminsert-linux-arm:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-vminsert-arm64:
-	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vminsert-local-with-goarch
+vminsert-linux-arm64:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-vminsert-ppc64le:
-	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vminsert-local-with-goarch
+vminsert-linux-ppc64le:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-vminsert-386:
-	CGO_ENABLED=0 GOARCH=386 $(MAKE) vminsert-local-with-goarch
-
-vminsert-local-with-goarch:
-	APP_NAME=vminsert $(MAKE) app-local-with-goarch
+vminsert-linux-386:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
 vminsert-pure:
 	APP_NAME=vminsert $(MAKE) app-local-pure

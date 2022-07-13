@@ -19,20 +19,20 @@ vmselect-prod:
 vmselect-pure-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-pure
 
-vmselect-amd64-prod:
-	APP_NAME=vmselect $(MAKE) app-via-docker-amd64
+vmselect-linux-amd64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-linux-amd64
 
-vmselect-arm-prod:
-	APP_NAME=vmselect $(MAKE) app-via-docker-arm
+vmselect-linux-arm-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-linux-arm
 
-vmselect-arm64-prod:
-	APP_NAME=vmselect $(MAKE) app-via-docker-arm64
+vmselect-linux-arm64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-linux-arm64
 
-vmselect-ppc64le-prod:
-	APP_NAME=vmselect $(MAKE) app-via-docker-ppc64le
+vmselect-linux-ppc64le-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-linux-ppc64le
 
-vmselect-386-prod:
-	APP_NAME=vmselect $(MAKE) app-via-docker-386
+vmselect-linux-386-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-linux-386
 
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
@@ -49,23 +49,20 @@ publish-vmselect:
 publish-vmselect-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) publish-via-docker
 
-vmselect-amd64:
-	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmselect-local-with-goarch
+vmselect-linux-amd64:
+	APP_NAME=vmselect CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-vmselect-arm:
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmselect-local-with-goarch
+vmselect-linux-arm:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-vmselect-arm64:
-	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmselect-local-with-goarch
+vmselect-linux-arm64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-vmselect-ppc64le:
-	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmselect-local-with-goarch
+vmselect-linux-ppc64le:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-vmselect-386:
-	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmselect-local-with-goarch
-
-vmselect-local-with-goarch:
-	APP_NAME=vmselect $(MAKE) app-local-with-goarch
+vmselect-linux-386:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
 vmselect-pure:
 	APP_NAME=vmselect $(MAKE) app-local-pure

@@ -40,38 +40,38 @@ package: \
 	package-vmstorage
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release copy-linux publish && \
+	git checkout $(TAG)-cluster && $(MAKE) release copy-linux-cluster publish && \
+	git checkout $(TAG)-enterprise && $(MAKE) release copy-linux-enterprise publish && \
+	git checkout $(TAG)-enterprise-cluster && $(MAKE) release copy-linux-enterprise-cluster publish
 
 release: \
 	release-vmcluster
 
 release-vmcluster: \
-	release-vmcluster-amd64 \
-	release-vmcluster-arm64
+	release-vmcluster-linux-amd64 \
+	release-vmcluster-linux-arm64
 
-release-vmcluster-amd64:
-	GOARCH=amd64 $(MAKE) release-vmcluster-generic
+release-vmcluster-linux-amd64:
+	GOOS=linux GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
 
-release-vmcluster-arm64:
-	GOARCH=arm64 $(MAKE) release-vmcluster-generic
+release-vmcluster-linux-arm64:
+	GOOX=linux GOARCH=arm64 $(MAKE) release-vmcluster-goos-goarch
 
-release-vmcluster-generic: \
-	vminsert-$(GOARCH)-prod \
-	vmselect-$(GOARCH)-prod \
-	vmstorage-$(GOARCH)-prod
+release-vmcluster-goos-goarch: \
+	vminsert-$(GOOS)-$(GOARCH)-prod \
+	vmselect-$(GOOS)-$(GOARCH)-prod \
+	vmstorage-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOARCH)||" -czf victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vminsert-$(GOARCH)-prod \
-			vmselect-$(GOARCH)-prod \
-			vmstorage-$(GOARCH)-prod \
-		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vminsert-$(GOARCH)-prod \
-			vmselect-$(GOARCH)-prod \
-			vmstorage-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
+		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vminsert-$(GOOS)-$(GOARCH)-prod \
+			vmselect-$(GOOS)-$(GOARCH)-prod \
+			vmstorage-$(GOOS)-$(GOARCH)-prod \
+		&& sha256sum victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vminsert-$(GOOS)-$(GOARCH)-prod \
+			vmselect-$(GOOS)-$(GOARCH)-prod \
+			vmstorage-$(GOOS)-$(GOARCH)-prod \
+			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -185,3 +185,40 @@ docs-sync:
 	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
 	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+
+# temporary operation to maintain compatibility
+copy-linux:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG).tar.gz victoria-metrics-amd64-$(PKG_TAG).tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG).tar.gz victoria-metrics-arm-$(PKG_TAG).tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG).tar.gz victoria-metrics-arm64-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG).tar.gz vmutils-amd64-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG).tar.gz vmutils-arm-$(PKG_TAG).tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG).tar.gz vmutils-arm64-$(PKG_TAG).tar.gz
+
+copy-linux-cluster:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-cluster.tar.gz victoria-metrics-amd64-$(PKG_TAG)-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-cluster.tar.gz victoria-metrics-arm-$(PKG_TAG)-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-cluster.tar.gz victoria-metrics-arm64-$(PKG_TAG)-cluster.tar.gz
+		cp vmutils-linux-amd64-$(PKG_TAG)-cluster.tar.gz vmutils-amd64-$(PKG_TAG)-cluster.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-cluster.tar.gz vmutils-arm-$(PKG_TAG)-cluster.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-cluster.tar.gz vmutils-arm64-$(PKG_TAG)-cluster.tar.gz
+
+copy-linux-enterprise:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-amd64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-arm-$(PKG_TAG)-enterprise.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-enterprise.tar.gz victoria-metrics-arm64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG)-enterprise.tar.gz vmutils-amd64-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-enterprise.tar.gz vmutils-arm-$(PKG_TAG)-enterprise.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-enterprise.tar.gz vmutils-arm64-$(PKG_TAG)-enterprise.tar.gz
+
+copy-linux-enterprise-cluster:
+	cd bin && \
+		cp victoria-metrics-linux-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-arm-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp victoria-metrics-linux-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz victoria-metrics-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-amd64-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-arm-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-arm-$(PKG_TAG)-enterprise-cluster.tar.gz && \
+		cp vmutils-linux-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz vmutils-arm64-$(PKG_TAG)-enterprise-cluster.tar.gz

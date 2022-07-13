@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+# Application build
 vmctl:
 	APP_NAME=vmctl $(MAKE) app-local
 
@@ -12,30 +13,36 @@ vmctl-prod:
 vmctl-pure-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-pure
 
-vmctl-amd64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-amd64
+# GOOS=linux
+vmctl-linux-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-amd64
 
-vmctl-arm-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-arm
+vmctl-linux-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm64
 
-vmctl-arm64-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-arm64
+vmctl-linux-arm-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-arm
 
-vmctl-ppc64le-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-ppc64le
-
-vmctl-386-prod:
-	APP_NAME=vmctl $(MAKE) app-via-docker-386
-
+# GOOS=darwin
 vmctl-darwin-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
 
 vmctl-darwin-arm64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-arm64
 
+# GOOS=window
 vmctl-windows-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
 
+# GOARCH=ppc64le
+vmctl-ppc64le-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-ppc64le
+
+# GOARCH=386
+vmctl-386-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-386
+
+# Package build
 package-vmctl:
 	APP_NAME=vmctl $(MAKE) package-via-docker
 
