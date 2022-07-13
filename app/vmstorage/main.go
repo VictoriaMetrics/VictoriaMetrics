@@ -753,6 +753,10 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_collisions_total{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheCollisions)
 	})
+
+	metrics.NewGauge(`vm_next_retention_seconds`, func() float64 {
+		return float64(m().NextRetentionSeconds)
+	})
 }
 
 func jsonResponseError(w http.ResponseWriter, err error) {
