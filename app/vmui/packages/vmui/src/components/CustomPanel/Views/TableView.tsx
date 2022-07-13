@@ -1,4 +1,4 @@
-import React, {FC, useMemo, useState} from "preact/compat";
+import React, {FC, useEffect, useMemo, useRef, useState} from "preact/compat";
 import {InstantMetricResult} from "../../../api/types";
 import {InstantDataSeries} from "../../../types";
 import Table from "@mui/material/Table";
@@ -10,14 +10,16 @@ import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
 import {useSortedCategories} from "../../../hooks/useSortedCategories";
 import Alert from "@mui/material/Alert";
+import {useAppState} from "../../../state/common/StateContext";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
+  displayColumns?: string[]
 }
 
-const TableView: FC<GraphViewProps> = ({data}) => {
+const TableView: FC<GraphViewProps> = ({data, displayColumns}) => {
 
-  const sortedColumns = useSortedCategories(data);
+  const sortedColumns = useSortedCategories(data, displayColumns);
 
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
@@ -43,16 +45,24 @@ const TableView: FC<GraphViewProps> = ({data}) => {
     setOrderBy(key);
   };
 
+  const {query} = useAppState();
+  const [tableContainerHeight, setTableContainerHeight] = useState("");
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!tableContainerRef.current) return;
+    const {top} = tableContainerRef.current.getBoundingClientRect();
+    setTableContainerHeight(`calc(100vh - ${top + 32}px)`);
+  }, [tableContainerRef, query]);
 
   return (
     <>
       {(rows.length > 0)
-        ? <TableContainer>
-          <Table aria-label="simple table">
+        ? <TableContainer ref={tableContainerRef} sx={{width: "calc(100vw - 68px)", height: tableContainerHeight}}>
+          <Table stickyHeader aria-label="simple table">
             <TableHead>
               <TableRow>
                 {sortedColumns.map((col, index) => (
-                  <TableCell key={index} style={{textTransform: "capitalize"}}>
+                  <TableCell key={index} style={{textTransform: "capitalize", paddingTop: 0}}>
                     <TableSortLabel
                       active={orderBy === col.key}
                       direction={orderDir}
@@ -79,7 +89,9 @@ const TableView: FC<GraphViewProps> = ({data}) => {
                   {row.metadata.map((rowMeta, index2) => {
                     const prevRowValue = rows[index - 1] && rows[index - 1].metadata[index2];
                     return (
-                      <TableCell sx={prevRowValue === rowMeta ? {opacity: 0.4} : {}}
+                      <TableCell
+                        sx={prevRowValue === rowMeta ? {opacity: 0.4} : {}}
+                        style={{whiteSpace: "nowrap"}}
                         key={index2}>{rowMeta}</TableCell>
                     );
                   }
