@@ -119,7 +119,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       onKeyDown={handleKeyDown}
       onChange={(e) => setQuery(e.target.value, index)}
     />
-    <Popper open={openAutocomplete} anchorEl={autocompleteAnchorEl.current} placement="bottom-start">
+    <Popper open={openAutocomplete} anchorEl={autocompleteAnchorEl.current} placement="bottom-start" sx={{zIndex: 3}}>
       <Paper elevation={3} sx={{ maxHeight: 300, overflow: "auto" }}>
         <MenuList ref={wrapperEl} dense>
           {actualOptions.map((item, i) =>
