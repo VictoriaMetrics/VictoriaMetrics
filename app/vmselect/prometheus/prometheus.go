@@ -609,6 +609,10 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
+	limit, err := searchutils.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
@@ -617,6 +621,9 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
+	if limit > 0 && limit < len(metricNames) {
+		metricNames = metricNames[:limit]
+	}
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
@@ -1036,7 +1043,6 @@ func (cp *commonParams) IsDefaultTimeRange() bool {
 // - match[]
 // - extra_label
 // - extra_filters[]
-//
 func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error) {
 	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
@@ -1054,7 +1060,6 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 // - match[]
 // - extra_label
 // - extra_filters[]
-//
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	start, err := searchutils.GetTime(r, "start", 0)

@@ -166,6 +166,8 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
   * if `zone` arg equals to `"*"`, then `vmagent` discovers all the zones for the given project;
   * `zone` may contain a list of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
+* `azure_sd_configs` - is for scraping the targets registered in Azure Cloud.
+  See [azure_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config) for details.
 * `consul_sd_configs` is for discovering and scraping targets registered in Consul. See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
 * `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details. [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
@@ -509,7 +511,15 @@ If each target is scraped by multiple `vmagent` instances, then data deduplicati
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
-If multiple `vmagent` clusters scrape the same set of targets, then each cluster must have unique value for the `-promscrape.cluster.name` command-line flag.
+## High availability
+
+It is possible to run multiple identically configured `vmagent` instances or `vmagent` [clusters](#scraping-big-number-of-targets),
+so they [scrape](#how-to-collect-metrics-in-prometheus-format) the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems.
+
+In this case the deduplication must be configured at VictoriaMetrics in order to de-duplicate samples received from multiple identically configured `vmagent` instances or clusters.
+See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+
+It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` instance or per each `vmagent` cluster in HA setup.
 This is needed for proper data de-duplication. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
@@ -809,14 +819,14 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
-2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
-   It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
+2. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
+   It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmagent-arm-prod` or `vmagent-arm64-prod` binary respectively and puts it into the `bin` folder.
+2. Run `make vmagent-linux-arm-prod` or `make vmagent-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmagent-linux-arm-prod` or `vmagent-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ## Profiling
 
@@ -990,6 +1000,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -promscrape.azureSDCheckInterval duration
+        Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config for details (default 1m0s)
   -promscrape.cluster.memberNum string
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int

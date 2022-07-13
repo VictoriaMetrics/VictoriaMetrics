@@ -26,7 +26,7 @@
   "description": "Stores and retrieves potentially large, immutable data objects.",
   "discoveryVersion": "v1",
   "documentationLink": "https://developers.google.com/storage/docs/json_api/",
-  "etag": "\"3130353432333136333236323133333532323835\"",
+  "etag": "\"3134363638303431303535363634343235383633\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -3005,7 +3005,7 @@
       }
     }
   },
-  "revision": "20220608",
+  "revision": "20220705",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "Bucket": {
@@ -3995,7 +3995,7 @@
           "type": "string"
         },
         "updated": {
-          "description": "The modification time of the object metadata in RFC 3339 format.",
+          "description": "The modification time of the object metadata in RFC 3339 format. Set initially to object creation time and then updated whenever any metadata of the object changes. This includes changes made by a requester, such as modifying custom metadata, as well as changes made by Cloud Storage on behalf of a requester, such as changing the storage class based on an Object Lifecycle Configuration.",
           "format": "date-time",
           "type": "string"
         }

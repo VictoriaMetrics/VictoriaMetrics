@@ -507,14 +507,13 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64) {
 	heap.Init(&sbh)
 	for {
 		top := sbh[0]
-		heap.Pop(&sbh)
-		if len(sbh) == 0 {
+		if len(sbh) == 1 {
 			dst.Timestamps = append(dst.Timestamps, top.Timestamps[top.NextIdx:]...)
 			dst.Values = append(dst.Values, top.Values[top.NextIdx:]...)
 			putSortBlock(top)
 			break
 		}
-		sbNext := sbh[0]
+		sbNext := sbh.getNextBlock()
 		tsNext := sbNext.Timestamps[sbNext.NextIdx]
 		topTimestamps := top.Timestamps
 		topNextIdx := top.NextIdx
@@ -528,8 +527,9 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64) {
 			dst.Values = append(dst.Values, top.Values[topNextIdx:top.NextIdx]...)
 		}
 		if top.NextIdx < len(topTimestamps) {
-			heap.Push(&sbh, top)
+			heap.Fix(&sbh, 0)
 		} else {
+			heap.Pop(&sbh)
 			putSortBlock(top)
 		}
 	}
@@ -554,8 +554,8 @@ func equalTimestampsPrefix(a, b []int64) int {
 func binarySearchTimestamps(timestamps []int64, ts int64) int {
 	// The code has been adapted from sort.Search.
 	n := len(timestamps)
-	if n > 0 && timestamps[n-1] < ts {
-		// Fast path for values scanned in ascending order.
+	if n > 0 && timestamps[n-1] <= ts {
+		// Fast path for timestamps scanned in ascending order.
 		return n
 	}
 	i, j := 0, n
@@ -596,6 +596,21 @@ func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br 
 }
 
 type sortBlocksHeap []*sortBlock
+
+func (sbh sortBlocksHeap) getNextBlock() *sortBlock {
+	if len(sbh) < 2 {
+		return nil
+	}
+	if len(sbh) < 3 {
+		return sbh[1]
+	}
+	a := sbh[1]
+	b := sbh[2]
+	if a.Timestamps[a.NextIdx] <= b.Timestamps[b.NextIdx] {
+		return a
+	}
+	return b
+}
 
 func (sbh sortBlocksHeap) Len() int {
 	return len(sbh)
