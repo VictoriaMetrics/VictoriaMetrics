@@ -14,11 +14,12 @@ import {useAppState} from "../../../state/common/StateContext";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
+  displayColumns?: string[]
 }
 
-const TableView: FC<GraphViewProps> = ({data}) => {
+const TableView: FC<GraphViewProps> = ({data, displayColumns}) => {
 
-  const sortedColumns = useSortedCategories(data);
+  const sortedColumns = useSortedCategories(data, displayColumns);
 
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
