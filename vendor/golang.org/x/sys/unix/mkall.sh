@@ -110,6 +110,11 @@ freebsd_arm64)
 	mksysnum="go run mksysnum.go 'https://cgit.freebsd.org/src/plain/sys/kern/syscalls.master?h=stable/12'"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+freebsd_riscv64)
+	mkerrors="$mkerrors -m64"
+	mksysnum="go run mksysnum.go 'https://cgit.freebsd.org/src/plain/sys/kern/syscalls.master?h=stable/12'"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	;;
 netbsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="go run mksyscall.go -l32 -netbsd"
