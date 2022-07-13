@@ -27,7 +27,7 @@ func BenchmarkMergeSortBlocks(b *testing.B) {
 			benchmarkMergeSortBlocks(b, blocks)
 		})
 	}
-	b.Run("overlapped-blocks", func(b *testing.B) {
+	b.Run("overlapped-blocks-bestcase", func(b *testing.B) {
 		const samplesPerBlock = 8192
 		var blocks []*sortBlock
 		for j := 0; j < 10; j++ {
@@ -48,6 +48,33 @@ func BenchmarkMergeSortBlocks(b *testing.B) {
 			for i := 0; i < samplesPerBlock/2; i++ {
 				prev[i+samplesPerBlock/2], curr[i] = curr[i], prev[i+samplesPerBlock/2]
 			}
+		}
+		benchmarkMergeSortBlocks(b, blocks)
+	})
+	b.Run("overlapped-blocks-worstcase", func(b *testing.B) {
+		const samplesPerBlock = 8192
+		var blocks []*sortBlock
+		for j := 0; j < 5; j++ {
+			timestamps := make([]int64, samplesPerBlock)
+			values := make([]float64, samplesPerBlock)
+			for i := range timestamps {
+				timestamps[i] = int64(2 * (j*samplesPerBlock + i))
+				values[i] = float64(2 * (j*samplesPerBlock + i))
+			}
+			blocks = append(blocks, &sortBlock{
+				Timestamps: timestamps,
+				Values:     values,
+			})
+			timestamps = make([]int64, samplesPerBlock)
+			values = make([]float64, samplesPerBlock)
+			for i := range timestamps {
+				timestamps[i] = int64(2*(j*samplesPerBlock+i) + 1)
+				values[i] = float64(2*(j*samplesPerBlock+i) + 1)
+			}
+			blocks = append(blocks, &sortBlock{
+				Timestamps: timestamps,
+				Values:     values,
+			})
 		}
 		benchmarkMergeSortBlocks(b, blocks)
 	})

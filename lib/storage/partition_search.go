@@ -58,7 +58,7 @@ func (pts *partitionSearch) reset() {
 // tsids must be sorted.
 // tsids cannot be modified after the Init call, since it is owned by pts.
 //
-/// MustClose must be called when partition search is done.
+// MustClose must be called when partition search is done.
 func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	if pts.needClosing {
 		logger.Panicf("BUG: missing partitionSearch.MustClose call before the next call to Init")

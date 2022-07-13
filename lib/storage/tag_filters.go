@@ -567,16 +567,17 @@ func newMatchFuncForOrSuffixes(orValues []string) (reMatch func(b []byte) bool, 
 }
 
 // getOptimizedReMatchFunc tries returning optimized function for matching the given expr.
-//   '.*'
-//   '.+'
-//   'literal.*'
-//   'literal.+'
-//   '.*literal'
-//   '.+literal
-//   '.*literal.*'
-//   '.*literal.+'
-//   '.+literal.*'
-//   '.+literal.+'
+//
+//	'.*'
+//	'.+'
+//	'literal.*'
+//	'literal.+'
+//	'.*literal'
+//	'.+literal
+//	'.*literal.*'
+//	'.*literal.+'
+//	'.+literal.*'
+//	'.+literal.+'
 //
 // It returns reMatch if it cannot find optimized function.
 //

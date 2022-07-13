@@ -19,17 +19,20 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
-Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
+Just download [the latest version of VictoriaMetrics](https://docs.victoriametrics.com/CHANGELOG.html)
+and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
 The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
-[QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
+[quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
 Enterprise binaries can be downloaded and evaluated for free 
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 
 ## Prominent features
 
@@ -114,11 +117,20 @@ The following command-line flags are used the most:
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
-See how to [ingest data to VictoriaMetrics](#how-to-import-time-series-data), how to [query VictoriaMetrics via Grafana](#grafana-setup), how to [query VictoriaMetrics via Graphite API](#graphite-api-usage) and how to [handle alerts](#alerting).
+The following docs may be useful during initial VictoriaMetrics setup:
+* [How to set up scraping of Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+* [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
+* [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-setup)
+* [How to query VictoriaMetrics via Grafana](#grafana-setup)
+* [How to query VictoriaMetrics via Graphite API](#graphite-api-usage)
+* [How to handle alerts](#alerting)
 
 VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
+
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
+
 
 ### Environment variables
 
@@ -231,6 +243,8 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
 ## How to upgrade VictoriaMetrics
+
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/CHANGELOG.html) and performing regular upgrades.
 
 It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
@@ -640,6 +654,7 @@ VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v
 VictoriaMetrics accepts `limit` query arg for `/api/v1/labels` and `/api/v1/label/<labelName>/values` handlers for limiting the number of returned entries. For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels. If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values, then limits specified in the command-line flags are used.
 
 By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
+VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 Additionally, VictoriaMetrics provides the following handlers:
 
@@ -734,14 +749,14 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
-2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
+2. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-arm-prod` or `make victoria-metrics-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `victoria-metrics-arm-prod` or `victoria-metrics-arm64-prod` binary respectively and puts it into the `bin` folder.
+2. Run `make victoria-metrics-linux-arm-prod` or `make victoria-metrics-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `victoria-metrics-linux-arm-prod` or `victoria-metrics-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ### Pure Go build (CGO_ENABLED=0)
 
@@ -1259,13 +1274,15 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 
 VictoriaMetrics leaves a single raw sample with the biggest timestamp per each `-dedup.minScrapeInterval` discrete interval if `-dedup.minScrapeInterval` is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with the biggest timestamp per each discrete 60s interval. If multiple raw samples have the same biggest timestamp on the given `-dedup.minScrapeInterval` discrete interval, then an arbitrary sample out of these samples is left. This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
-The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. It is safe to use deduplication and downsampling simultaneously.
+The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. So it is safe to use deduplication and downsampling simultaneously.
 
 The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. It is recommended to have a single `scrape_interval` across all the scrape targets. See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
 
 The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series. See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+
+It is recommended passing different `-promscrape.cluster.name` values to HA paris of `vmagent` instances, so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples from other `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
 
 ## Storage
 

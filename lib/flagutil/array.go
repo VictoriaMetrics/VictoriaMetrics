@@ -51,13 +51,12 @@ func NewArrayInt(name string, description string) *ArrayInt {
 //
 // The following example sets equivalent flag array with two items (value1, value2):
 //
-//     -foo=value1 -foo=value2
-//     -foo=value1,value2
+//	-foo=value1 -foo=value2
+//	-foo=value1,value2
 //
 // Flag values may be quoted. For instance, the following arg creates an array of ("a", "b, c") items:
 //
-//    -foo='a,"b, c"'
-//
+//	-foo='a,"b, c"'
 type Array []string
 
 // String implements flag.Value interface

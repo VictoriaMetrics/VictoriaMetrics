@@ -12,26 +12,32 @@ victoria-metrics-prod:
 victoria-metrics-pure-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-pure
 
-victoria-metrics-amd64-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-amd64
+victoria-metrics-linux-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-amd64
 
-victoria-metrics-arm-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm
+victoria-metrics-linux-arm-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-arm
 
-victoria-metrics-arm64-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm64
+victoria-metrics-linux-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-arm64
 
-victoria-metrics-ppc64le-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-ppc64le
+victoria-metrics-linux-ppc64le-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-ppc64le
 
-victoria-metrics-386-prod:
-	APP_NAME=victoria-metrics $(MAKE) app-via-docker-386
+victoria-metrics-linux-386-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-386
 
 victoria-metrics-darwin-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-amd64
 
 victoria-metrics-darwin-arm64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-arm64
+
+victoria-metrics-freebsd-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-freebsd-amd64
+
+victoria-metrics-openbsd-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-openbsd-amd64
 
 package-victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker
@@ -64,60 +70,68 @@ run-victoria-metrics:
 	ARGS='-graphiteListenAddr=:2003 -opentsdbListenAddr=:4242 -retentionPeriod=12 -search.maxUniqueTimeseries=1000000 -search.maxQueryDuration=10m' \
 	$(MAKE) run-via-docker
 
-victoria-metrics-amd64:
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-amd64 ./app/victoria-metrics
+victoria-metrics-linux-amd64:
+	APP_NAME=victoria-metrics CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-victoria-metrics-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm ./app/victoria-metrics
+victoria-metrics-linux-arm:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-victoria-metrics-arm64:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm64 ./app/victoria-metrics
+victoria-metrics-linux-arm64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-victoria-metrics-ppc64le:
-	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-ppc64le ./app/victoria-metrics
+victoria-metrics-linux-ppc64le:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-victoria-metrics-386:
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-386 ./app/victoria-metrics
+victoria-metrics-linux-386:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
+
+victoria-metrics-darwin-amd64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+victoria-metrics-darwin-arm64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-local-goos-goarch
+
+victoria-metrics-freebsd-amd64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+victoria-metrics-openbsd-amd64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 victoria-metrics-pure:
 	APP_NAME=victoria-metrics $(MAKE) app-local-pure
 
 ### Packaging as DEB - amd64
-victoria-metrics-package-deb: victoria-metrics-prod
+victoria-metrics-package-deb-amd64: victoria-metrics-linux-amd64-prod
 	./package/package_deb.sh amd64
 
 ### Packaging as DEB - arm64
-victoria-metrics-package-deb-arm64: victoria-metrics-arm64-prod
+victoria-metrics-package-deb-arm: victoria-metrics-linux-arm-prod
+	./package/package_deb.sh arm
+
+### Packaging as DEB - arm64
+victoria-metrics-package-deb-arm64: victoria-metrics-linux-arm64-prod
 	./package/package_deb.sh arm64
 
 ### Packaging as DEB - all
-victoria-metrics-package-deb-all: \
-        victoria-metrics-package-deb \
+victoria-metrics-package-deb: \
+        victoria-metrics-package-deb-amd64 \
+        victoria-metrics-package-deb-arm \
         victoria-metrics-package-deb-arm64
 
 ### Packaging as RPM - amd64
-victoria-metrics-package-rpm: victoria-metrics-prod
+victoria-metrics-package-rpm-amd64: victoria-metrics-linux-amd64-prod
 	./package/package_rpm.sh amd64
 
 ### Packaging as RPM - arm64
-victoria-metrics-package-rpm-arm64: victoria-metrics-arm64-prod
+victoria-metrics-package-rpm-arm64: victoria-metrics-linux-arm64-prod
 	./package/package_rpm.sh arm64
 
 ### Packaging as RPM - all
-victoria-metrics-package-rpm-all: \
-        victoria-metrics-package-rpm \
+victoria-metrics-package-rpm: \
+        victoria-metrics-package-rpm-amd64 \
         victoria-metrics-package-rpm-arm64
 
 ### Packaging as both DEB and RPM - all
-victoria-metrics-package-deb-rpm-all: \
+victoria-metrics-package-deb-rpm: \
         victoria-metrics-package-deb \
-        victoria-metrics-package-deb-arm64 \
-        victoria-metrics-package-rpm \
-        victoria-metrics-package-rpm-arm64
-
-### Packaging as snap
-victoria-metrics-package-snap:
-	which snapcraft || snap install snapcraft
-	which multipass || snap install multipass
-	snapcraft
-
+        victoria-metrics-package-rpm
