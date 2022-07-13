@@ -53,6 +53,7 @@ scrape_configs:
   * `vm_series_read_per_query` - the number of series read per query.
 
 * FEATURE: publish binaries for FreeBSD and OpenBSD at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): allow selecting the needed columns at table view. This functionaly may help when the selected time series contain many different labels. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2817) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2867).
 
 * BUGFIX: consistently name binaries at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) in the form `$(APP_NAME)-$(GOOS)-$(GOARCH)-$(VERSION).tar.gz`. For example, `victoria-metrics-linux-amd64-v1.79.0.tar.gz`. Previously the `$(GOOS)` part was missing in binaries for Linux.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
