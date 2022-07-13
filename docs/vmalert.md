@@ -40,7 +40,7 @@ implementation and aims to be compatible with its syntax.
 
 To build `vmalert` from sources:
 
-```bash
+```console
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics
 cd VictoriaMetrics
 make vmalert
@@ -62,7 +62,7 @@ To start using `vmalert` you will need the following things:
 
 Then configure `vmalert` accordingly:
 
-```bash
+```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
@@ -394,6 +394,10 @@ Alertmanagers.
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
 The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
+If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
+command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps. 
+But due of backfilling (data delivered to the datasource with some delay) values of such results may differ, 
+which would affect deduplication logic and result into "jumping" datapoints.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
 all `vmalert`s are having the same config.
@@ -405,6 +409,36 @@ This example uses single-node VM server for the sake of simplicity.
 Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed.
 
 #### Downsampling and aggregation via vmalert
+
+`vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
+via [recording rules](#recording-rules) and backfill results to the configured `-remoteWrite.url`.
+This ability allows to aggregate data. For example, the following rule will calculate the average value for
+metric `http_requests` on the `5m` interval:
+
+```yaml
+  - record: http_requests:avg5m   
+    expr: avg_over_time(http_requests[5m])   
+```
+
+Every time this rule will be evaluated, `vmalert` will backfill its results as a new time series `http_requests:avg5m`
+to the configured `-remoteWrite.url`.
+
+`vmalert` executes rules with specified interval (configured via flag `-evaluationInterval`
+or as [group's](#groups) `interval` param). The interval helps to control "resolution" of the produced series.
+This ability allows to downsample data. For example, the following config will execute the rule only once every `5m`:
+
+```yaml
+groups:
+  - name: my_group
+    interval: 5m
+    rules:  
+    - record: http_requests:avg5m
+      expr: avg_over_time(http_requests[5m])   
+```
+
+Ability of `vmalert` to be configured with different `datasource.url` and `remoteWrite.url` allows
+reading data from one data source and backfilling results to another. This helps to build a system
+for aggregating and downsampling the data.
 
 The following example shows how to build a topology where `vmalert` will process data from one cluster
 and write results into another. Such clusters may be called as "hot" (low retention,
@@ -451,7 +485,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status"` - get alert status by ID.
+* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"` - get alert status by ID.
   Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
@@ -514,7 +548,7 @@ max range per request:  8h20m0s
 
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
 executed sequentially as well (`concurrency` setting is ignored). Vmalert sends rule's expression
-to [/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) endpoint
+to [/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
@@ -651,12 +685,14 @@ The shortlist of configuration flags is the following:
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-     eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
+     eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/vmalert/api/v1/alert?group_id=&alert_id=' is used
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -697,7 +733,7 @@ The shortlist of configuration flags is the following:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
      Optional basic auth password for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -751,7 +787,7 @@ The shortlist of configuration flags is the following:
      Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
      Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
@@ -1042,7 +1078,7 @@ It is recommended using
 
 You can build `vmalert` docker image from source and push it to your own docker repository.
 Run the following commands from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics):
-```bash
+```console
 make package-vmalert
 docker tag victoria-metrics/vmalert:version my-repo:my-version-name
 docker push my-repo:my-version-name
@@ -1076,11 +1112,11 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
-2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
+2. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmalert-linux-arm` or `vmalert-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmalert-arm-prod` or `make vmalert-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmalert-arm-prod` or `vmalert-arm64-prod` binary respectively and puts it into the `bin` folder.
+2. Run `make vmalert-linux-arm-prod` or `make vmalert-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmalert-linux-arm-prod` or `vmalert-linux-arm64-prod` binary respectively and puts it into the `bin` folder.

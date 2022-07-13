@@ -28,7 +28,7 @@ Using this schema, you can achieve:
 
 * You need to pass two `-remoteWrite.url` command-line options to `vmagent`:
 
-```bash
+```console
 /path/to/vmagent-prod \
   -remoteWrite.url=<ground-control-1-remote-write> \
   -remoteWrite.url=<ground-control-2-remote-write>

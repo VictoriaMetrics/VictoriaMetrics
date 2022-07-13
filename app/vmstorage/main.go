@@ -155,29 +155,29 @@ func AddRows(mrs []storage.MetricRow) error {
 var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
-func RegisterMetricNames(mrs []storage.MetricRow) error {
+func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
 	WG.Add(1)
-	err := Storage.RegisterMetricNames(mrs)
+	err := Storage.RegisterMetricNames(qt, mrs)
 	WG.Done()
 	return err
 }
 
-// DeleteMetrics deletes metrics matching tfss.
+// DeleteSeries deletes series matching tfss.
 //
-// Returns the number of deleted metrics.
-func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
+// Returns the number of deleted series.
+func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
 	WG.Add(1)
-	n, err := Storage.DeleteMetrics(tfss)
+	n, err := Storage.DeleteSeries(qt, tfss)
 	WG.Done()
 	return n, err
 }
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
-func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
+func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	mns, err := Storage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+	metricNames, err := Storage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	WG.Done()
-	return mns, err
+	return metricNames, err
 }
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for tag keys matching the given tfss on tr.
@@ -200,17 +200,17 @@ func SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName s
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
-func SearchTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+func SearchTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	suffixes, err := Storage.SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+	suffixes, err := Storage.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	WG.Done()
 	return suffixes, err
 }
 
 // SearchGraphitePaths returns all the metric names matching the given Graphite query.
-func SearchGraphitePaths(tr storage.TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+func SearchGraphitePaths(qt *querytracer.Tracer, tr storage.TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	paths, err := Storage.SearchGraphitePaths(tr, query, maxPaths, deadline)
+	paths, err := Storage.SearchGraphitePaths(qt, tr, query, maxPaths, deadline)
 	WG.Done()
 	return paths, err
 }
@@ -845,6 +845,10 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_cache_collisions_total{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheCollisions)
+	})
+
+	metrics.NewGauge(`vm_next_retention_seconds`, func() float64 {
+		return float64(m().NextRetentionSeconds)
 	})
 }
 

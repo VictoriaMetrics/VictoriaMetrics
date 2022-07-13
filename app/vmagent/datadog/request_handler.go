@@ -1,9 +1,7 @@
 package datadog
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
@@ -59,12 +57,7 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 			Value: ss.Host,
 		})
 		for _, tag := range ss.Tags {
-			n := strings.IndexByte(tag, ':')
-			if n < 0 {
-				return fmt.Errorf("cannot find ':' in tag %q", tag)
-			}
-			name := tag[:n]
-			value := tag[n+1:]
+			name, value := parser.SplitTag(tag)
 			if name == "host" {
 				name = "exported_host"
 			}

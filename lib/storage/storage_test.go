@@ -495,8 +495,8 @@ func testStorageRandTimestamps(s *Storage) error {
 	return nil
 }
 
-func TestStorageDeleteMetrics(t *testing.T) {
-	path := "TestStorageDeleteMetrics"
+func TestStorageDeleteSeries(t *testing.T) {
+	path := "TestStorageDeleteSeries"
 	s, err := OpenStorage(path, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
@@ -513,7 +513,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
-			if err = testStorageDeleteMetrics(s, 0); err != nil {
+			if err = testStorageDeleteSeries(s, 0); err != nil {
 				t.Fatalf("unexpected error on iteration %d: %s", i, err)
 			}
 
@@ -533,7 +533,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 			go func(workerNum int) {
 				var err error
 				for j := 0; j < 2; j++ {
-					err = testStorageDeleteMetrics(s, workerNum)
+					err = testStorageDeleteSeries(s, workerNum)
 					if err != nil {
 						break
 					}
@@ -568,7 +568,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	}
 }
 
-func testStorageDeleteMetrics(s *Storage, workerNum int) error {
+func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	const rowsPerMetric = 100
 	const metricsCount = 30
 
@@ -654,7 +654,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		if n := metricBlocksCount(tfs); n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
-		deletedCount, err := s.DeleteMetrics([]*TagFilters{tfs})
+		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs})
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
@@ -662,11 +662,11 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 			return fmt.Errorf("expecting non-zero number of deleted metrics on iteration %d", i)
 		}
 		if n := metricBlocksCount(tfs); n != 0 {
-			return fmt.Errorf("expecting zero metric blocks after DeleteMetrics call for tfs=%s; got %d blocks", tfs, n)
+			return fmt.Errorf("expecting zero metric blocks after DeleteSeries call for tfs=%s; got %d blocks", tfs, n)
 		}
 
 		// Try deleting empty tfss
-		deletedCount, err = s.DeleteMetrics(nil)
+		deletedCount, err = s.DeleteSeries(nil, nil)
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
@@ -783,8 +783,8 @@ func testStorageRegisterMetricNames(s *Storage) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.RegisterMetricNames(mrs); err != nil {
-			return fmt.Errorf("unexpected error in AddMetrics: %w", err)
+		if err := s.RegisterMetricNames(nil, mrs); err != nil {
+			return fmt.Errorf("unexpected error in RegisterMetricNames: %w", err)
 		}
 	}
 	var addIDsExpected []string
@@ -854,14 +854,21 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err := tfs.Add([]byte("add_id"), []byte("0"), false, false); err != nil {
 		return fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	mns, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
+	metricNames, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames: %w", err)
 	}
-	if len(mns) < metricsPerAdd {
-		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(mns), int(metricsPerAdd))
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal metric names: %w", err)
 	}
-	for i, mn := range mns {
+	if len(metricNames) < metricsPerAdd {
+		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(metricNames), int(metricsPerAdd))
+	}
+	var mn MetricName
+	for i, metricName := range metricNames {
+		if err := mn.UnmarshalString(metricName); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		}
 		addID := mn.GetTagValue("add_id")
 		if string(addID) != "0" {
 			return fmt.Errorf("unexpected addID for metricName #%d; got %q; want %q", i, addID, "0")

@@ -74,9 +74,10 @@ var (
 
 // Init returns a function for retrieving actual list of Notifier objects.
 // Init works in two mods:
-//   * configuration via flags (for backward compatibility). Is always static
+//   - configuration via flags (for backward compatibility). Is always static
 //     and don't support live reloads.
-//   * configuration via file. Supports live reloads and service discovery.
+//   - configuration via file. Supports live reloads and service discovery.
+//
 // Init returns an error if both mods are used.
 func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (func() []Notifier, error) {
 	if externalLabels != nil || externalURL != "" {
@@ -145,7 +146,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 		}
 
 		addr = strings.TrimSuffix(addr, "/")
-		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, time.Minute)
+		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, time.Second*10)
 		if err != nil {
 			return nil, err
 		}

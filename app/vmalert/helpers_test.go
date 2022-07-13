@@ -87,6 +87,18 @@ func (fn *fakeNotifier) getAlerts() []notifier.Alert {
 	return fn.alerts
 }
 
+type faultyNotifier struct {
+	fakeNotifier
+}
+
+func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert) error {
+	d, ok := ctx.Deadline()
+	if ok {
+		time.Sleep(time.Until(d))
+	}
+	return fmt.Errorf("send failed")
+}
+
 func metricWithValueAndLabels(t *testing.T, value float64, labels ...string) datasource.Metric {
 	return metricWithValuesAndLabels(t, []float64{value}, labels...)
 }

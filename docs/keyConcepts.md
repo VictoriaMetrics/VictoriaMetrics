@@ -131,36 +131,36 @@ functions used with gauges are [aggregation and grouping functions](#aggregation
 Histogram is a set of [counter](#counter) metrics with different labels for tracking the dispersion
 and [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles) of the observed value. For example, in
 VictoriaMetrics we track how many rows is processed per query using the histogram with the
-name `vm_per_query_rows_processed_count`. The exposition format for this histogram has the following form:
+name `vm_rows_read_per_query`. The exposition format for this histogram has the following form:
 
 ```
-vm_per_query_rows_processed_count_bucket{vmrange="4.084e+02...4.642e+02"} 2
-vm_per_query_rows_processed_count_bucket{vmrange="5.275e+02...5.995e+02"} 1
-vm_per_query_rows_processed_count_bucket{vmrange="8.799e+02...1.000e+03"} 1
-vm_per_query_rows_processed_count_bucket{vmrange="1.468e+03...1.668e+03"} 3
-vm_per_query_rows_processed_count_bucket{vmrange="1.896e+03...2.154e+03"} 4
-vm_per_query_rows_processed_count_sum 15582
-vm_per_query_rows_processed_count_count 11
+vm_rows_read_per_query_bucket{vmrange="4.084e+02...4.642e+02"} 2
+vm_rows_read_per_query_bucket{vmrange="5.275e+02...5.995e+02"} 1
+vm_rows_read_per_query_bucket{vmrange="8.799e+02...1.000e+03"} 1
+vm_rows_read_per_query_bucket{vmrange="1.468e+03...1.668e+03"} 3
+vm_rows_read_per_query_bucket{vmrange="1.896e+03...2.154e+03"} 4
+vm_rows_read_per_query_sum 15582
+vm_rows_read_per_query_count 11
 ```
 
-In practice, histogram `vm_per_query_rows_processed_count` may be used in the following way:
+In practice, histogram `vm_rows_read_per_query` may be used in the following way:
 
 ```go
 // define the histogram
-perQueryRowsProcessed := metrics.NewHistogram(`vm_per_query_rows_processed_count`)
+rowsReadPerQuery := metrics.NewHistogram(`vm_rows_read_per_query`)
 
 // use the histogram during processing
 for _, query := range queries {
-    perQueryRowsProcessed.Update(len(query.Rows))
+    rowsReadPerQuery.Update(float64(len(query.Rows)))
 }
 ```
 
-Now let's see what happens each time when `perQueryRowsProcessed.Update` is called:
+Now let's see what happens each time when `rowsReadPerQuery.Update` is called:
 
-* counter `vm_per_query_rows_processed_count_sum` increments by value of `len(query.Rows)` expression and accounts for
+* counter `vm_rows_read_per_query_sum` increments by value of `len(query.Rows)` expression and accounts for
   total sum of all observed values;
-* counter `vm_per_query_rows_processed_count_count` increments by 1 and accounts for total number of observations;
-* counter `vm_per_query_rows_processed_count_bucket` gets incremented only if observed value is within the
+* counter `vm_rows_read_per_query_count` increments by 1 and accounts for total number of observations;
+* counter `vm_rows_read_per_query_bucket` gets incremented only if observed value is within the
   range (`bucket`) defined in `vmrange`.
 
 Such a combination of `counter` metrics allows
@@ -295,7 +295,7 @@ for [InfluxDB line protocol](https://docs.victoriametrics.com/Single-server-Vict
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
-```bash
+```console
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
@@ -441,7 +441,7 @@ plot this data sample on the system of coordinates, it will have the following f
 To get the value of `foo_bar` metric at some specific moment of time, for example `2022-05-10 10:03:00`, in
 VictoriaMetrics we need to issue an **instant query**:
 
-```bash
+```console
 curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T10:03:00.000Z"
 ```
 
@@ -504,7 +504,7 @@ step - step in seconds for evaluating query expression on the time range. If omi
 To get the values of `foo_bar` on time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
 need to issue a range query:
 
-```bash
+```console
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
 ```
 

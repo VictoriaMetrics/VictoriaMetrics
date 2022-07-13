@@ -6,7 +6,7 @@ sort: 3
 
 `vmagent` is a tiny but mighty agent which helps you collect metrics from various sources
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
-or any other Prometheus-compatible storage systems that support the `remote_write` protocol.
+or any other Prometheus-compatible storage systems with Prometheus `remote_write` protocol support.
 
 <img alt="vmagent" src="vmagent.png">
 
@@ -15,7 +15,8 @@ or any other Prometheus-compatible storage systems that support the `remote_writ
 While VictoriaMetrics provides an efficient solution to store and observe metrics, our users needed something fast
 and RAM friendly to scrape metrics from Prometheus-compatible exporters into VictoriaMetrics.
 Also, we found that our user's infrastructure are like snowflakes in that no two are alike. Therefore we decided to add more flexibility
-to `vmagent` such as the ability to push metrics additionally to pulling them. We did our best and will continue to improve `vmagent`.
+to `vmagent` such as the ability to [accept metrics via popular push protocols](#how-to-push-data-to-vmagent)
+additionally to [discovering Prometheus-compatible targets and scraping metrics from them](#how-to-collect-metrics-in-prometheus-format).
 
 ## Features
 
@@ -23,16 +24,7 @@ to `vmagent` such as the ability to push metrics additionally to pulling them. W
 * Can read data from Kafka. See [these docs](#reading-metrics-from-kafka).
 * Can write data to Kafka. See [these docs](#writing-metrics-to-kafka).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
-* Accepts data via all ingestion protocols supported by VictoriaMetrics:
-  * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent).
-  * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
-  * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
-  * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
-  * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
-  * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
-  * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format).
-  * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
-  * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data).
+* Accepts data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
 * Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
@@ -45,29 +37,42 @@ to `vmagent` such as the ability to push metrics additionally to pulling them. W
 
 ## Quick Start
 
-Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
-and configure the following flags to the `vmagent` binary in order to start scraping Prometheus targets:
+Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) (`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)), unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets:
 
-* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`). The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` additional command-line flag, so `vmagent` will ignore unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
+* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`). The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag, so `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
 * `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified multiple times to replicate data concurrently to an arbitrary number of remote storage systems.
 
 Example command line:
 
-```
+```console
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-If you only need to collect InfluxDB data, then the following command is sufficient:
+See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
-```
+If you don't need to scrape Prometheus-compatible targets, then the `-promscrape.config` option isn't needed. For example, the following command is sufficient for accepting data via [supported "push"-based protocols](#how-to-push-data-to-vmagent) and sending it to the provided `-remoteWrite.url`:
+
+```console
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-Then send InfluxDB data to `http://vmagent-host:8429`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
-
-`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
+See [troubleshooting docs](#troubleshooting) if you encounter common issues with `vmagent`.
 
 Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
+
+## How to push data to vmagent
+
+`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data) additionally to pull-based Prometheus-compatible targets' scraping:
+
+* DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent).
+* InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+* Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+* OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
+* Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
+* JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
+* Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format).
+* Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
+* Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data).
 
 ## Configuration update
 
@@ -77,7 +82,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 
 * Sending `SUGHUP` signal to `vmagent` process:
 
-  ```bash
+  ```console
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -89,19 +94,23 @@ There is also `-promscrape.configCheckInterval` command-line option, which can b
 
 ### IoT and Edge monitoring
 
-`vmagent` can run and collect metrics in IoT and industrial networks with unreliable or scheduled connections to their remote storage.
+`vmagent` can run and collect metrics in IoT environments and industrial networks with unreliable or scheduled connections to their remote storage.
 It buffers the collected data in local files until the connection to remote storage becomes available and then sends the buffered
-data to the remote storage. It re-tries sending the data to remote storage until any errors are resolved.
-The maximum buffer size can be limited with `-remoteWrite.maxDiskUsagePerURL`.
+data to the remote storage. It re-tries sending the data to remote storage until errors are resolved.
+The maximum on-disk size for the buffered metrics can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 
 `vmagent` works on various architectures from the IoT world - 32-bit arm, 64-bit arm, ppc64, 386, amd64.
 See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/Makefile) for details.
 
 ### Drop-in replacement for Prometheus
 
-If you use Prometheus only for scraping metrics from various targets and forwarding those metrics to remote storage
+If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage
 then `vmagent` can replace Prometheus. Typically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
+
+### Flexible metrics relay
+
+`vmagent` can accept metrics in [various popular data ingestion protocols](#how-to-push-data-to-vmagent), apply [relabeling](#relabeling) to the accepted metrics (for example, change metric names/labels or drop unneeded metrics) and then forward the relabeled metrics to other remote storage systems, which support Prometheus `remote_write` protocol (including other `vmagent` instances).
 
 ### Replication and high availability
 
@@ -146,65 +155,60 @@ sections from [Prometheus config file](https://prometheus.io/docs/prometheus/lat
 * `scrape_configs`
 
 All other sections are ignored, including the [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
-Use `-remoteWrite.*` command-line flag instead for configuring remote write settings.
+Use `-remoteWrite.*` command-line flag instead for configuring remote write settings. See [the list of unsupported config sections](#unsupported-prometheus-config-sections).
+
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 The following scrape types in [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) section are supported:
 
-* `static_configs` - is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config) for details.
-* `file_sd_configs` - is for scraping targets defined in external files (aka file-based service discover).
-  See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details
-* `kubernetes_sd_configs` - for scraping targets in Kubernetes (k8s).
-  See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
-* `ec2_sd_configs` - is for scraping targets in Amazon EC2.
-  See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
-  `vmagent` doesn't support the `profile` config param yet.
-* `gce_sd_configs` - is for scraping targets in Google Compute Engine (GCE).
-  See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
-  `vmagent` provides the following additional functionality for `gce_sd_config`:
+* `static_configs` is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config) for details.
+* `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details.
+* `kubernetes_sd_configs` is for discovering and scraping Kubernetes (K8S) targets. See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
+* `ec2_sd_configs` is for discovering and scraping Amazon EC2 targets. See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details. `vmagent` doesn't support the `profile` config param yet.
+* `gce_sd_configs` is for discovering and scraping Google Compute Engine (GCE) targets. See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details. `vmagent` provides the following additional functionality for `gce_sd_config`:
   * if `project` arg is missing then `vmagent` uses the project for the instance where it runs;
   * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
-  * if `zone` arg is equal to `"*"`, then `vmagent` discovers all the zones for the given project;
-  * `zone` may contain an arbitrary number of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
+  * if `zone` arg equals to `"*"`, then `vmagent` discovers all the zones for the given project;
+  * `zone` may contain a list of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
 * `azure_sd_configs` - is for scraping the targets registered in Azure Cloud.
   See [azure_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config) for details.
-* `consul_sd_configs` - is for scraping the targets registered in Consul.
-  See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
-* `dns_sd_configs` - is for scraping targets discovered from DNS records (SRV, A and AAAA).
-  See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
-* `openstack_sd_configs` - is for scraping OpenStack targets.
-  See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details.
-  [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
-* `docker_sd_configs` - is for scraping Docker targets.
-  See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config) for details.
-* `dockerswarm_sd_configs` - is for scraping Docker Swarm targets.
-  See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config) for details.
-* `eureka_sd_configs` - is for scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka).
-  See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config) for details.
-* `digitalocean_sd_configs` is for scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/)
-  See [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config) for details.
-* `http_sd_configs` is for scraping targerts registered in http service discovery.
-  See [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config) for details.
-
-Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
-
-`vmagent` also support the following additional options in `scrape_configs` section:
-
-* `disable_compression: true` - to disable response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
-  to save network bandwidth.
-* `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
-  By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
-* `series_limit: N` - for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
-* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics. See [these docs](#stream-parsing-mode).
-* `scrape_align_interval: duration` - for aligning scrapes to the given interval instead of using random offset in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
-* `scrape_offset: duration` - for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
-* `relabel_debug: true` - for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
-* `metric_relabel_debug: true` - for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
+* `consul_sd_configs` is for discovering and scraping targets registered in Consul. See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
+* `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
+* `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details. [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
+* `docker_sd_configs` is for discovering and scraping Docker targets. See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config) for details.
+* `dockerswarm_sd_configs` is for discovering and scraping Docker Swarm targets. See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config) for details.
+* `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config) for details.
+* `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config) for details.
+* `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config) for details.
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` in order to see default values for the `-promscrape.*CheckInterval` flags.
 
-The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
+Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
+
+## scrape_config enhancements
+
+`vmagent` supports the following additional options in `scrape_configs` section:
+
+* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target needs custom authorization and authentication. For example:
+
+```yaml
+scrape_configs:
+- job_name: custom_headers
+  headers:
+  - "TenantID: abc"
+  - "My-Auth: TopSecret"
+```
+
+* `disable_compression: true` for disabling response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets for saving network bandwidth.
+* `disable_keepalive: true` for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis. By default `vmagent` uses keep-alive connections to scrape targets for reducing overhead on connection re-establishing.
+* `series_limit: N` for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
+* `stream_parse: true` for scraping targets in a streaming manner. This may be useful when targets export big number of metrics. See [these docs](#stream-parsing-mode).
+* `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
+* `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
+* `relabel_debug: true` for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
+* `metric_relabel_debug: true` for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
 ## Loading scrape configs from multiple files
 
@@ -228,14 +232,14 @@ Every referred file can contain arbitrary number of [supported scrape configs](#
   - role: pod
 ```
 
-`vmagent` dynamically reloads these files on `SIGHUP` signal or on the request to `http://vmagent:8429/-/reload`.
+`vmagent` is able to dynamically reload these files - see [these docs](#configuration-update).
 
 ## Unsupported Prometheus config sections
 
 `vmagent` doesn't support the following sections in Prometheus config file passed to `-promscrape.config` command-line flag:
 
-* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via push protocols such as InfluxDB, Graphite, OpenTSDB, DataDog, etc. In this case the `-promscrape.config` file isn't needed. See [these docs](#features) for details.
-* `remote_read`. This section isn't supported at all.
+* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via [supported push protocols](#how-to-push-data-to-vmagent). In this case the `-promscrape.config` file isn't needed.
+* `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API. It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics. See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
 * `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/vmalert.html).
 
 The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
@@ -244,27 +248,141 @@ Additionally `vmagent` doesn't support `refresh_interval` option at service disc
 
 ## Adding labels to metrics
 
-Labels can be added to metrics by the following mechanisms:
+Extra labels can be added to metrics collected by `vmagent` via the following mechanisms:
 
-* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data).
-* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`. For example, the following command will start `vmagent`, which will add `{datacenter="foobar"}` label to all the metrics pushed to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
+* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](#how-to-push-data-to-vmagent).
+* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`. For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
 
 ```
 /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
 ```
 
+* Via relabeling. See [these docs](#relabeling).
+
+
+## Automatically generated metrics
+
+`vmagent` automatically generates the following metrics per each scrape of every [Prometheus-compatible target](#how-to-collect-metrics-in-prometheus-format):
+
+* `up` - this metric exposes `1` value on successful scrape and `0` value on unsuccessful scrape. This allows monitoring failing scrapes with the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html):
+
+  ```metricsql
+  up == 0
+  ```
+
+* `scrape_duration_seconds` - this metric exposes scrape duration. This allows monitoring slow scrapes. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes, which take more than 1.5 seconds to complete:
+
+  ```metricsql
+  scrape_duration_seconds > 1.5
+  ```
+
+* `scrape_timeout_seconds` - this metric exposes the configured timeout for the current scrape target (aka `scrape_timeout`). This allows detecting targets with scrape durations close to the configured scrape timeout. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label), which take more than 80% of the configured `scrape_timeout` during scrapes:
+
+  ```metricsql
+  scrape_duration_seconds / scrape_timeout_seconds > 0.8
+  ```
+
+* `scrape_samples_scraped` - this metric exposes the number of samples (aka metrics) parsed per each scrape. This allows detecting targets, which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which expose more than 10000 metrics:
+
+  ```metricsql
+  scrape_samples_scraped > 10000
+  ```
+
+* `scrape_samples_limit` - this metric exposes the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config). This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
+
+  ```metricsql
+  scrape_samples_scraped / scrape_samples_limit > 0.8
+  ```
+
+* `scrape_samples_post_metric_relabeling` - this metric exposes the number of samples (aka metrics) left after applying metric-level relabeling from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details). This allows detecting targets with too many metrics after the relabeling. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets with more than 10000 metrics after the relabeling:
+
+  ```metricsql
+  scrape_samples_post_metric_relabeling > 10000
+  ```
+
+* `scrape_series_added` - this metric exposes **an approximate** number of new series the given target generates during the current scrape. This metric allows detecting targets (identified by `instance` label), which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which generate more than 1000 new series during the last hour:
+
+  ```metricsql
+  sum_over_time(scrape_series_added[1h]) > 1000
+  ```
+
+  `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option (e.g. when [staleness markers](#prometheus-staleness-markers) are disabled).
+
+
 ## Relabeling
 
-VictoriaMetrics components (including `vmagent`) support Prometheus-compatible relabeling.
-They provide the following additional actions on top of actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
+VictoriaMetrics components (including `vmagent`) support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) with [additional enhancements](#relabeling-enhancements) at various stages of data processing. The relabeling can be defined in the following places processed by `vmagent`:
 
-* `replace_all`: replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`
-* `labelmap_all`: replaces all of the occurences of `regex` in all the label names with the `replacement`
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`
-* `drop_metrics`: drops all the metrics with names matching the given `regex`
-* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling)
+* At the `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is used for modifying labels in discovered targets and for dropping unneded targets. This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
+* At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics. This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
+* At the `-remoteWrite.relabelConfig` file. This relabeling is used for modifying labels for all the collected metrics (inluding [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics before sending them to all the configured `-remoteWrite.url` addresses. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
+* At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`. This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
+
+All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
+
+The following articles contain useful information about Prometheus relabeling:
+
+* [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
+* [Life of a label](https://www.robustperception.io/life-of-a-label)
+* [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
+* [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
+* [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
+* [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+[This relabeler playground](https://relabeler.promlabs.com/) can help debugging issues related to relabeling.
+
+
+## Relabeling enhancements
+
+VictoriaMetrics provides the following additional relabeling actions on top of standard actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
+
+* `replace_all` replaces all of the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurences of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
+
+  ```yaml
+  - action: replace_all
+    source_labels: ["__name__"]
+    target_label: "__name__"
+    regex: "-"
+    replacement: "_"
+  ```
+
+* `labelmap_all` replaces all of the occurences of `regex` in all the label names with the `replacement`. For example, the following relabeling config replaces all the occurences of `-` char in all the label names with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
+
+  ```yaml
+  - action: labelmap_all
+    regex: "-"
+    replacement: "_"
+  ```
+
+* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal, while dropping all the other entries. For example, the following relabeling config keeps targets if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
+
+  ```yaml
+  - action: keep_if_equal
+    source_labels: ["instance", "host"]
+  ```
+
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal, while keeping all the other entries. For example, the following relabeling config drops targets if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
+
+  ```yaml
+  - action: drop_if_equal
+    source_labels: ["instance", "host"]
+  ```
+
+* `keep_metrics`: keeps all the metrics with names matching the given `regex`, while dropping all the other metrics. For example, the following relabeling config keeps metrics with `fo` and `bar` names, while dropping all the other metrics:
+
+  ```yaml
+  - action: keep_metrics
+    regex: "foo|bar"
+  ```
+
+* `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics. For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
+
+  ```yaml
+  - action: drop_metrics
+    regex: "foo|bar"
+  ```
+
+* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
 
 The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
@@ -281,36 +399,20 @@ The `regex` value can be split into multiple lines for improved readability and 
   - "foo_.+"
 ```
 
-VictoriaMetrics components support an optional `if` filter, which can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops targets, which don't match `foo{bar="baz"}` series selector:
+VictoriaMetrics components support an optional `if` filter in relabeling configs, which can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
 
 ```yaml
 - action: keep
   if: 'foo{bar="baz"}'
 ```
 
-This is equivalent to less clear traditional relabeling rule:
+This is equivalent to less clear Prometheus-compatible relabeling rule:
 
 ```yaml
 - action: keep
   source_labels: [__name__, bar]
   regex: 'foo;baz'
 ```
-
-The relabeling can be defined in the following places:
-
-* At the `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to target labels. This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
-* At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to all the scraped metrics in the given `scrape_config`. This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
-* At the `-remoteWrite.relabelConfig` file. This relabeling is applied to all the collected metrics before sending them to remote storage. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
-* At the `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`. This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
-
-You can read more about relabeling in the following articles:
-
-* [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
-* [Life of a label](https://www.robustperception.io/life-of-a-label)
-* [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
-* [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
-* [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
-* [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
 
 ## Graphite relabeling
 
@@ -413,7 +515,15 @@ If each target is scraped by multiple `vmagent` instances, then data deduplicati
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
-If multiple `vmagent` clusters scrape the same set of targets, then each cluster must have unique value for the `-promscrape.cluster.name` command-line flag.
+## High availability
+
+It is possible to run multiple identically configured `vmagent` instances or `vmagent` [clusters](#scraping-big-number-of-targets),
+so they [scrape](#how-to-collect-metrics-in-prometheus-format) the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems.
+
+In this case the deduplication must be configured at VictoriaMetrics in order to de-duplicate samples received from multiple identically configured `vmagent` instances or clusters.
+See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+
+It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` instance or per each `vmagent` cluster in HA setup.
 This is needed for proper data de-duplication. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
@@ -430,9 +540,11 @@ scrape_configs:
 Proxy can be configured with the following optional settings:
 
 * `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
-* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
+* `proxy_oauth2` for OAuth2 config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
+* `proxy_headers` for passing additional HTTP headers in requests to proxy.
 
 For example:
 
@@ -449,6 +561,8 @@ scrape_configs:
     key_file: /path/to/key
     ca_file: /path/to/ca
     server_name: real-server-name
+  proxy_headers:
+  - "Proxy-Auth: top-secret"
 ```
 
 ## Cardinality limiter
@@ -572,6 +686,8 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
     regex: true
   ```
 
+See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+
 ## Kafka integration
 
 [Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
@@ -599,7 +715,7 @@ Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graph
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -661,13 +777,13 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
 ```
 
 * tls certificates:
 
-```bash
+```console
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
@@ -696,7 +812,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -707,14 +823,14 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
-2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
-   It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
+2. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
+   It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmagent-arm-prod` or `vmagent-arm64-prod` binary respectively and puts it into the `bin` folder.
+2. Run `make vmagent-linux-arm-prod` or `make vmagent-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmagent-linux-arm-prod` or `vmagent-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ## Profiling
 
@@ -724,7 +840,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
@@ -734,7 +850,7 @@ curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
@@ -774,6 +890,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Prefix for environment variables if -envflag.enable is set
   -eula
      By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -872,7 +990,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
   -opentsdbListenAddr string
@@ -885,9 +1003,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.azureSDCheckInterval duration
-        Interval for checking for changes in Azure. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config for details (default 1m0s)
+        Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config for details (default 1m0s)
   -promscrape.cluster.memberNum string
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
@@ -966,40 +1084,43 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -remoteWrite.aws.accessKey array
-     Optional AWS AccessKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.region array
-     Optional AWS region to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.roleARN array
-     Optional AWS roleARN to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS roleARN to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.secretKey array
-     Optional AWS SecretKey to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional AWS SecretKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.serice array
-     Optional AWS Service to use for -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url. Defaults to "aps".
+     Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. Defaults to "aps"
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.useSigv4 array
-     Enables SigV4 request signing for -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Enables SigV4 request signing for the corresponding -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.password array
-     Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional basic auth password to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.passwordFile array
-     Optional path to basic auth password to use for -remoteWrite.url. The file is re-read every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to basic auth password to use for the corresponding -remoteWrite.url. The file is re-read every second
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.basicAuth.username array
-     Optional basic auth username to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional basic auth username to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.bearerToken array
-     Optional bearer auth token to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional bearer auth token to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.bearerTokenFile array
-     Optional path to bearer token file to use for -remoteWrite.url. The token is re-read from the file every second. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to bearer token file to use for the corresponding -remoteWrite.url. The token is re-read from the file every second
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
+  -remoteWrite.headers array
+     Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
+     Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.label array
      Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1019,27 +1140,27 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Base path for multitenant remote storage URL to write data to. See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientID array
-     Optional OAuth2 clientID to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 clientID to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientSecret array
-     Optional OAuth2 clientSecret to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 clientSecret to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientSecretFile array
-     Optional OAuth2 clientSecretFile to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.scopes array
-     Optional OAuth2 scopes to use for -remoteWrite.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.tokenUrl array
-     Optional OAuth2 tokenURL to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.proxyURL array
-     Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
+     Optional proxy URL for writing data to the corresponding -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.queues int
      The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs (default 8)
   -remoteWrite.rateLimit array
-     Optional rate limit in bytes per second for data sent to -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
+     Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabel_config entries. The path can point either to local file or to http url. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
@@ -1049,7 +1170,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.sendTimeout array
-     Timeout for sending a single block of data to -remoteWrite.url
+     Timeout for sending a single block of data to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
@@ -1057,19 +1178,19 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The number of significant figures to leave in metric values before writing them to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsCAFile array
-     Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to TLS CA file to use for verifying connections to the corresponding -remoteWrite.url. By default system CA is used
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsCertFile array
-     Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to client-side TLS certificate file to use when connecting to the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsInsecureSkipVerify array
-     Whether to skip tls verification when connecting to -remoteWrite.url
+     Whether to skip tls verification when connecting to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsKeyFile array
-     Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional path to client-side TLS certificate key to use when connecting to the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsServerName array
-     Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+     Optional TLS server name to use for connections to the corresponding -remoteWrite.url. By default the server name from -remoteWrite.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tmpDataPath string
      Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")

@@ -3,15 +3,16 @@
 {% import (
     "time"
     "sort"
-    "path"
+    "net/http"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 ) %}
 
 
-{% func Welcome() %}
-    {%= tpl.Header("vmalert", navItems) %}
+{% func Welcome(r *http.Request) %}
+    {%= tpl.Header(r, navItems, "vmalert") %}
     <p>
         API:<br>
         {% for _, p := range apiLinks  %}
@@ -21,11 +22,11 @@
         	<a href="{%s p %}">{%s p %}</a> - {%s doc %}<br/>
         {% endfor %}
     </p>
-    {%= tpl.Footer() %}
+    {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(groups []APIGroup) %}
-    {%= tpl.Header("Groups", navItems) %}
+{% func ListGroups(r *http.Request, groups []APIGroup) %}
+    {%= tpl.Header(r, navItems, "Groups") %}
     {%  if len(groups) > 0 %}
         {%code
             rOk := make(map[string]int)
@@ -112,13 +113,14 @@
         </div>
     {% endif %}
 
-    {%= tpl.Footer() %}
+    {%= tpl.Footer(r) %}
 
 {% endfunc %}
 
 
-{% func ListAlerts(pathPrefix string, groupAlerts []GroupAlerts) %}
-    {%= tpl.Header("Alerts", navItems) %}
+{% func ListAlerts(r *http.Request, groupAlerts []GroupAlerts) %}
+    {%code prefix := utils.Prefix(r.URL.Path) %}
+    {%= tpl.Header(r, navItems, "Alerts") %}
     {% if len(groupAlerts) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -182,7 +184,7 @@
                                 </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
-                                    <a href="{%s path.Join(pathPrefix, g.ID, ar.ID, "status") %}">Details</a>
+                                    <a href="{%s prefix+ar.WebLink() %}">Details</a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -199,12 +201,12 @@
         </div>
     {% endif %}
 
-    {%= tpl.Footer() %}
+    {%= tpl.Footer(r) %}
 
 {% endfunc %}
 
-{% func ListTargets(targets map[notifier.TargetType][]notifier.Target) %}
-    {%= tpl.Header("Notifiers", navItems) %}
+{% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
+    {%= tpl.Header(r, navItems, "Notifiers") %}
     {% if len(targets) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -255,12 +257,13 @@
         </div>
     {% endif %}
 
-    {%= tpl.Footer() %}
+    {%= tpl.Footer(r) %}
 
 {% endfunc %}
 
-{% func Alert(pathPrefix string, alert *APIAlert) %}
-    {%= tpl.Header("", navItems) %}
+{% func Alert(r *http.Request, alert *APIAlert) %}
+    {%code prefix := utils.Prefix(r.URL.Path) %}
+    {%= tpl.Header(r, navItems, "") %}
     {%code
         var labelKeys []string
         for k := range alert.Labels {
@@ -326,7 +329,7 @@
           Group
         </div>
         <div class="col">
-           <a target="_blank" href="{%s path.Join(pathPrefix,"groups") %}#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
+           <a target="_blank" href="{%s prefix %}groups#group-{%s alert.GroupID %}">{%s alert.GroupID %}</a>
         </div>
       </div>
     </div>
@@ -340,7 +343,7 @@
         </div>
       </div>
     </div>
-    {%= tpl.Footer() %}
+    {%= tpl.Footer(r) %}
 
 {% endfunc %}
 

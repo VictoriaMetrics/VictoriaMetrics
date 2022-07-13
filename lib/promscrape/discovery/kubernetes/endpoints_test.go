@@ -114,202 +114,250 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 	}
 }
 
-func TestGetEndpointLabels(t *testing.T) {
+func TestGetEndpointsLabels(t *testing.T) {
 	type testArgs struct {
 		containerPorts map[string][]ContainerPort
 		endpointPorts  []EndpointPort
 	}
-	f := func(name string, args testArgs, wantLabels [][]prompbmarshal.Label) {
-		t.Run(name, func(t *testing.T) {
-			eps := Endpoints{
-				Metadata: ObjectMeta{
-					Name:      "test-eps",
-					Namespace: "default",
-				},
-				Subsets: []EndpointSubset{
-					{
-						Ports: args.endpointPorts,
-						Addresses: []EndpointAddress{
-							{
-								IP: "10.13.15.15",
-								TargetRef: ObjectReference{
-									Kind:      "Pod",
-									Namespace: "default",
-									Name:      "test-pod",
-								},
+	f := func(t *testing.T, args testArgs, wantLabels [][]prompbmarshal.Label) {
+		t.Helper()
+		eps := Endpoints{
+			Metadata: ObjectMeta{
+				Name:      "test-eps",
+				Namespace: "default",
+			},
+			Subsets: []EndpointSubset{
+				{
+					Ports: args.endpointPorts,
+					Addresses: []EndpointAddress{
+						{
+							IP: "10.13.15.15",
+							TargetRef: ObjectReference{
+								Kind:      "Pod",
+								Namespace: "default",
+								Name:      "test-pod",
 							},
 						},
 					},
 				},
-			}
-			svc := Service{
-				Metadata: ObjectMeta{
-					Name:      "test-eps",
-					Namespace: "default",
-				},
-				Spec: ServiceSpec{
-					Ports: []ServicePort{
-						{
-							Name: "test-port",
-							Port: 8081,
-						},
+			},
+		}
+		svc := Service{
+			Metadata: ObjectMeta{
+				Name:      "test-eps",
+				Namespace: "default",
+			},
+			Spec: ServiceSpec{
+				ClusterIP: "1.2.3.4",
+				Type:      "service-type",
+				Ports: []ServicePort{
+					{
+						Name: "test-port",
+						Port: 8081,
 					},
 				},
-			}
-			pod := Pod{
-				Metadata: ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "default",
-				},
-				Status: PodStatus{PodIP: "192.168.15.1"},
-			}
-			for cn, ports := range args.containerPorts {
-				pod.Spec.Containers = append(pod.Spec.Containers, Container{Name: cn, Ports: ports})
-			}
-			var gw groupWatcher
-			gw.m = map[string]*urlWatcher{
-				"pod": {
-					role: "pod",
-					objectsByKey: map[string]object{
-						"default/test-pod": &pod,
+			},
+		}
+		pod := Pod{
+			Metadata: ObjectMeta{
+				UID:       "pod-uid",
+				Name:      "test-pod",
+				Namespace: "default",
+			},
+			Spec: PodSpec{
+				NodeName: "test-node",
+			},
+			Status: PodStatus{
+				Phase:  "abc",
+				PodIP:  "192.168.15.1",
+				HostIP: "4.5.6.7",
+			},
+		}
+		node := Node{
+			Metadata: ObjectMeta{
+				Labels: []prompbmarshal.Label{
+					{
+						Name:  "node-label",
+						Value: "xyz",
 					},
 				},
-				"service": {
-					role: "service",
-					objectsByKey: map[string]object{
-						"default/test-eps": &svc,
-					},
+			},
+		}
+		for cn, ports := range args.containerPorts {
+			pod.Spec.Containers = append(pod.Spec.Containers, Container{Name: cn, Ports: ports})
+		}
+		var gw groupWatcher
+		gw.m = map[string]*urlWatcher{
+			"pod": {
+				role: "pod",
+				objectsByKey: map[string]object{
+					"default/test-pod": &pod,
 				},
-			}
-			var sortedLabelss [][]prompbmarshal.Label
-			gotLabels := eps.getTargetLabels(&gw)
-			for _, lbs := range gotLabels {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(lbs))
-			}
-			if !areEqualLabelss(sortedLabelss, wantLabels) {
-				t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, wantLabels)
-
-			}
-		})
+			},
+			"service": {
+				role: "service",
+				objectsByKey: map[string]object{
+					"default/test-eps": &svc,
+				},
+			},
+			"node": {
+				role: "node",
+				objectsByKey: map[string]object{
+					"/test-node": &node,
+				},
+			},
+		}
+		gw.attachNodeMetadata = true
+		var sortedLabelss [][]prompbmarshal.Label
+		gotLabels := eps.getTargetLabels(&gw)
+		for _, lbs := range gotLabels {
+			sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(lbs))
+		}
+		if !areEqualLabelss(sortedLabelss, wantLabels) {
+			t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, wantLabels)
+		}
 	}
 
-	f("1 port from endpoint", testArgs{
-		endpointPorts: []EndpointPort{
-			{
-				Name: "web",
-				Port: 8081,
+	t.Run("1 port from endpoint", func(t *testing.T) {
+		f(t, testArgs{
+			endpointPorts: []EndpointPort{
+				{
+					Name:     "web",
+					Port:     8081,
+					Protocol: "foobar",
+				},
 			},
-		},
-	}, [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
-			"__address__": "10.13.15.15:8081",
-			"__meta_kubernetes_endpoint_address_target_kind": "Pod",
-			"__meta_kubernetes_endpoint_address_target_name": "test-pod",
-			"__meta_kubernetes_endpoint_port_name":           "web",
-			"__meta_kubernetes_endpoint_port_protocol":       "",
-			"__meta_kubernetes_endpoint_ready":               "true",
-			"__meta_kubernetes_endpoints_name":               "test-eps",
-			"__meta_kubernetes_namespace":                    "default",
-			"__meta_kubernetes_pod_host_ip":                  "",
-			"__meta_kubernetes_pod_ip":                       "192.168.15.1",
-			"__meta_kubernetes_pod_name":                     "test-pod",
-			"__meta_kubernetes_pod_node_name":                "",
-			"__meta_kubernetes_pod_phase":                    "",
-			"__meta_kubernetes_pod_ready":                    "unknown",
-			"__meta_kubernetes_pod_uid":                      "",
-			"__meta_kubernetes_service_cluster_ip":           "",
-			"__meta_kubernetes_service_name":                 "test-eps",
-			"__meta_kubernetes_service_type":                 "",
-		}),
+		}, [][]prompbmarshal.Label{
+			discoveryutils.GetSortedLabels(map[string]string{
+				"__address__": "10.13.15.15:8081",
+				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
+				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
+				"__meta_kubernetes_endpoint_port_name":           "web",
+				"__meta_kubernetes_endpoint_port_protocol":       "foobar",
+				"__meta_kubernetes_endpoint_ready":               "true",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
+				"__meta_kubernetes_namespace":                    "default",
+				"__meta_kubernetes_node_label_node_label":        "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label": "true",
+				"__meta_kubernetes_node_name":                    "test-node",
+				"__meta_kubernetes_pod_host_ip":                  "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                       "192.168.15.1",
+				"__meta_kubernetes_pod_name":                     "test-pod",
+				"__meta_kubernetes_pod_node_name":                "test-node",
+				"__meta_kubernetes_pod_phase":                    "abc",
+				"__meta_kubernetes_pod_ready":                    "unknown",
+				"__meta_kubernetes_pod_uid":                      "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":           "1.2.3.4",
+				"__meta_kubernetes_service_name":                 "test-eps",
+				"__meta_kubernetes_service_type":                 "service-type",
+			}),
+		})
 	})
 
-	f("1 port from endpoint and 1 from pod", testArgs{
-		containerPorts: map[string][]ContainerPort{"metrics": {{
-			Name:          "http-metrics",
-			ContainerPort: 8428,
-		}}},
-		endpointPorts: []EndpointPort{
-			{
-				Name: "web",
-				Port: 8081,
+	t.Run("1 port from endpoint and 1 from pod", func(t *testing.T) {
+		f(t, testArgs{
+			containerPorts: map[string][]ContainerPort{"metrics": {{
+				Name:          "http-metrics",
+				ContainerPort: 8428,
+				Protocol:      "foobar",
+			}}},
+			endpointPorts: []EndpointPort{
+				{
+					Name:     "web",
+					Port:     8081,
+					Protocol: "https",
+				},
 			},
-		},
-	}, [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
-			"__address__": "10.13.15.15:8081",
-			"__meta_kubernetes_endpoint_address_target_kind": "Pod",
-			"__meta_kubernetes_endpoint_address_target_name": "test-pod",
-			"__meta_kubernetes_endpoint_port_name":           "web",
-			"__meta_kubernetes_endpoint_port_protocol":       "",
-			"__meta_kubernetes_endpoint_ready":               "true",
-			"__meta_kubernetes_endpoints_name":               "test-eps",
-			"__meta_kubernetes_namespace":                    "default",
-			"__meta_kubernetes_pod_host_ip":                  "",
-			"__meta_kubernetes_pod_ip":                       "192.168.15.1",
-			"__meta_kubernetes_pod_name":                     "test-pod",
-			"__meta_kubernetes_pod_node_name":                "",
-			"__meta_kubernetes_pod_phase":                    "",
-			"__meta_kubernetes_pod_ready":                    "unknown",
-			"__meta_kubernetes_pod_uid":                      "",
-			"__meta_kubernetes_service_cluster_ip":           "",
-			"__meta_kubernetes_service_name":                 "test-eps",
-			"__meta_kubernetes_service_type":                 "",
-		}),
-		discoveryutils.GetSortedLabels(map[string]string{
-			"__address__":                                   "192.168.15.1:8428",
-			"__meta_kubernetes_namespace":                   "default",
-			"__meta_kubernetes_pod_container_name":          "metrics",
-			"__meta_kubernetes_pod_container_port_name":     "http-metrics",
-			"__meta_kubernetes_pod_container_port_number":   "8428",
-			"__meta_kubernetes_pod_container_port_protocol": "",
-			"__meta_kubernetes_pod_host_ip":                 "",
-			"__meta_kubernetes_pod_ip":                      "192.168.15.1",
-			"__meta_kubernetes_pod_name":                    "test-pod",
-			"__meta_kubernetes_pod_node_name":               "",
-			"__meta_kubernetes_pod_phase":                   "",
-			"__meta_kubernetes_pod_ready":                   "unknown",
-			"__meta_kubernetes_pod_uid":                     "",
-			"__meta_kubernetes_service_cluster_ip":          "",
-			"__meta_kubernetes_service_name":                "test-eps",
-			"__meta_kubernetes_service_type":                "",
-		}),
+		}, [][]prompbmarshal.Label{
+			discoveryutils.GetSortedLabels(map[string]string{
+				"__address__": "10.13.15.15:8081",
+				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
+				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
+				"__meta_kubernetes_endpoint_port_name":           "web",
+				"__meta_kubernetes_endpoint_port_protocol":       "https",
+				"__meta_kubernetes_endpoint_ready":               "true",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
+				"__meta_kubernetes_namespace":                    "default",
+				"__meta_kubernetes_node_label_node_label":        "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label": "true",
+				"__meta_kubernetes_node_name":                    "test-node",
+				"__meta_kubernetes_pod_host_ip":                  "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                       "192.168.15.1",
+				"__meta_kubernetes_pod_name":                     "test-pod",
+				"__meta_kubernetes_pod_node_name":                "test-node",
+				"__meta_kubernetes_pod_phase":                    "abc",
+				"__meta_kubernetes_pod_ready":                    "unknown",
+				"__meta_kubernetes_pod_uid":                      "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":           "1.2.3.4",
+				"__meta_kubernetes_service_name":                 "test-eps",
+				"__meta_kubernetes_service_type":                 "service-type",
+			}),
+			discoveryutils.GetSortedLabels(map[string]string{
+				"__address__":                                    "192.168.15.1:8428",
+				"__meta_kubernetes_namespace":                    "default",
+				"__meta_kubernetes_node_label_node_label":        "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label": "true",
+				"__meta_kubernetes_node_name":                    "test-node",
+				"__meta_kubernetes_pod_container_name":           "metrics",
+				"__meta_kubernetes_pod_container_port_name":      "http-metrics",
+				"__meta_kubernetes_pod_container_port_number":    "8428",
+				"__meta_kubernetes_pod_container_port_protocol":  "foobar",
+				"__meta_kubernetes_pod_host_ip":                  "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                       "192.168.15.1",
+				"__meta_kubernetes_pod_name":                     "test-pod",
+				"__meta_kubernetes_pod_node_name":                "test-node",
+				"__meta_kubernetes_pod_phase":                    "abc",
+				"__meta_kubernetes_pod_ready":                    "unknown",
+				"__meta_kubernetes_pod_uid":                      "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":           "1.2.3.4",
+				"__meta_kubernetes_service_name":                 "test-eps",
+				"__meta_kubernetes_service_type":                 "service-type",
+			}),
+		})
 	})
 
-	f("1 port from endpoint", testArgs{
-		containerPorts: map[string][]ContainerPort{"metrics": {{
-			Name:          "web",
-			ContainerPort: 8428,
-		}}},
-		endpointPorts: []EndpointPort{
-			{
-				Name: "web",
-				Port: 8428,
+	t.Run("1 port from endpoint", func(t *testing.T) {
+		f(t, testArgs{
+			containerPorts: map[string][]ContainerPort{"metrics": {{
+				Name:          "web",
+				ContainerPort: 8428,
+				Protocol:      "sdc",
+			}}},
+			endpointPorts: []EndpointPort{
+				{
+					Name:     "web",
+					Port:     8428,
+					Protocol: "xabc",
+				},
 			},
-		},
-	}, [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
-			"__address__": "10.13.15.15:8428",
-			"__meta_kubernetes_endpoint_address_target_kind": "Pod",
-			"__meta_kubernetes_endpoint_address_target_name": "test-pod",
-			"__meta_kubernetes_endpoint_port_name":           "web",
-			"__meta_kubernetes_endpoint_port_protocol":       "",
-			"__meta_kubernetes_endpoint_ready":               "true",
-			"__meta_kubernetes_endpoints_name":               "test-eps",
-			"__meta_kubernetes_namespace":                    "default",
-			"__meta_kubernetes_pod_container_name":           "metrics",
-			"__meta_kubernetes_pod_container_port_name":      "web",
-			"__meta_kubernetes_pod_container_port_number":    "8428",
-			"__meta_kubernetes_pod_container_port_protocol":  "",
-			"__meta_kubernetes_pod_host_ip":                  "",
-			"__meta_kubernetes_pod_ip":                       "192.168.15.1",
-			"__meta_kubernetes_pod_name":                     "test-pod",
-			"__meta_kubernetes_pod_node_name":                "",
-			"__meta_kubernetes_pod_phase":                    "",
-			"__meta_kubernetes_pod_ready":                    "unknown",
-			"__meta_kubernetes_pod_uid":                      "",
-			"__meta_kubernetes_service_cluster_ip":           "",
-			"__meta_kubernetes_service_name":                 "test-eps",
-			"__meta_kubernetes_service_type":                 "",
-		}),
+		}, [][]prompbmarshal.Label{
+			discoveryutils.GetSortedLabels(map[string]string{
+				"__address__": "10.13.15.15:8428",
+				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
+				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
+				"__meta_kubernetes_endpoint_port_name":           "web",
+				"__meta_kubernetes_endpoint_port_protocol":       "xabc",
+				"__meta_kubernetes_endpoint_ready":               "true",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
+				"__meta_kubernetes_namespace":                    "default",
+				"__meta_kubernetes_node_label_node_label":        "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label": "true",
+				"__meta_kubernetes_node_name":                    "test-node",
+				"__meta_kubernetes_pod_container_name":           "metrics",
+				"__meta_kubernetes_pod_container_port_name":      "web",
+				"__meta_kubernetes_pod_container_port_number":    "8428",
+				"__meta_kubernetes_pod_container_port_protocol":  "sdc",
+				"__meta_kubernetes_pod_host_ip":                  "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                       "192.168.15.1",
+				"__meta_kubernetes_pod_name":                     "test-pod",
+				"__meta_kubernetes_pod_node_name":                "test-node",
+				"__meta_kubernetes_pod_phase":                    "abc",
+				"__meta_kubernetes_pod_ready":                    "unknown",
+				"__meta_kubernetes_pod_uid":                      "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":           "1.2.3.4",
+				"__meta_kubernetes_service_name":                 "test-eps",
+				"__meta_kubernetes_service_type":                 "service-type",
+			}),
+		})
 	})
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 )
 
 var aggrFuncs = map[string]aggrFunc{

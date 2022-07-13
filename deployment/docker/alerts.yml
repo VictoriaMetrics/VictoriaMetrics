@@ -74,7 +74,7 @@ groups:
               sum(vm_data_size_bytes{type!="indexdb"}) /
               sum(vm_rows{type!="indexdb"})
              )
-          ) < 3 * 24 * 3600
+          ) < 3 * 24 * 3600 > 0
         for: 30m
         labels:
           severity: critical
@@ -125,7 +125,7 @@ groups:
             When VictoriaMetrics constantly hits the limit it means that storage is overloaded and requires more CPU."
 
       - alert: TooManyLogs
-        expr: sum(increase(vm_log_messages_total{level!="info"}[5m])) by (job, instance) > 0
+        expr: sum(increase(vm_log_messages_total{level="error"}[5m])) by (job, instance) > 0
         for: 15m
         labels:
           severity: warning

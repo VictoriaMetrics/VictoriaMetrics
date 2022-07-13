@@ -12,26 +12,32 @@ vmauth-prod:
 vmauth-pure-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-pure
 
-vmauth-amd64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-amd64
+vmauth-linux-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-amd64
 
-vmauth-arm-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-arm
+vmauth-linux-arm-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm
 
-vmauth-arm64-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-arm64
+vmauth-linux-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-arm64
 
-vmauth-ppc64le-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-ppc64le
+vmauth-linux-ppc64le-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-ppc64le
 
-vmauth-386-prod:
-	APP_NAME=vmauth $(MAKE) app-via-docker-386
+vmauth-linux-386-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-386
 
 vmauth-darwin-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
 
 vmauth-darwin-arm64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-arm64
+
+vmauth-freebsd-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-freebsd-amd64
+
+vmauth-openbsd-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-openbsd-amd64
 
 vmauth-windows-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
@@ -66,26 +72,35 @@ run-vmauth:
 	ARGS='-auth.config=app/vmauth/example_config.yml' \
 	$(MAKE) run-via-docker
 
-vmauth-amd64:
-	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmauth-local-with-goarch
+vmauth-linux-amd64:
+	APP_NAME=vmauth CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
-vmauth-arm:
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmauth-local-with-goarch
+vmauth-linux-arm:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-local-goos-goarch
 
-vmauth-arm64:
-	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmauth-local-with-goarch
+vmauth-linux-arm64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
-vmauth-ppc64le:
-	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmauth-local-with-goarch
+vmauth-linux-ppc64le:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
-vmauth-386:
-	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmauth-local-with-goarch
+vmauth-linux-386:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
-vmauth-local-with-goarch:
-	APP_NAME=vmauth $(MAKE) app-local-with-goarch
+vmauth-darwin-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-darwin-arm64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-local-goos-goarch
+
+vmauth-freebsd-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-openbsd-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmauth $(MAKE) app-local-windows-goarch
 
 vmauth-pure:
 	APP_NAME=vmauth $(MAKE) app-local-pure
-
-vmauth-windows-amd64:
-	GOARCH=amd64 APP_NAME=vmauth $(MAKE) app-local-windows-with-goarch

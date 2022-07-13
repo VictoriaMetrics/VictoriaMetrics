@@ -332,7 +332,10 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// Do not send staleness markers on graceful shutdown as Prometheus does.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079
 			default:
-				// Send staleness markers when the given target disappears.
+				// Send staleness markers to all the metrics scraped last time from the target
+				// when the given target disappears as Prometheus does.
+				// Use the current real timestamp for staleness markers, so queries
+				// stop returning data just after the time the target disappears.
 				sw.sendStaleSeries(lastScrape, "", t, true)
 			}
 			if sw.seriesLimiter != nil {
@@ -479,6 +482,11 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
+	if sw.Config.SampleLimit > 0 {
+		// Expose scrape_samples_limit metric if sample_limt config is set for the target.
+		// See https://github.com/VictoriaMetrics/operator/issues/497
+		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sw.Config.SampleLimit), scrapeTimestamp)
+	}
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = len(bodyString)
@@ -491,7 +499,9 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	}
 	// body must be released only after wc is released, since wc refers to body.
 	if !areIdenticalSeries {
-		sw.sendStaleSeries(lastScrape, bodyString, scrapeTimestamp, false)
+		// Send stale markers for disappeared metrics with the real scrape timestamp
+		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
+		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
@@ -599,7 +609,9 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
-		sw.sendStaleSeries(lastScrape, bodyString, scrapeTimestamp, false)
+		// Send stale markers for disappeared metrics with the real scrape timestamp
+		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
+		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
 		sw.storeLastScrape(sbr.body)
 	}
 	sw.finalizeLastScrape()

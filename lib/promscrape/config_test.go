@@ -141,6 +141,9 @@ scrape_configs:
     - x
   authorization:
     type: foobar
+  headers:
+  - 'TenantID: fooBar'
+  - 'X: y:z'
   relabel_configs:
   - source_labels: [abc]
   static_configs:
@@ -149,6 +152,8 @@ scrape_configs:
   relabel_debug: true
   scrape_align_interval: 1h30m0s
   proxy_bearer_token_file: file.txt
+  proxy_headers:
+  - 'My-Auth-Header: top-secret'
 `)
 
 }
@@ -332,7 +337,7 @@ scrape_configs:
 		jobNameOriginal: "blackbox",
 	}}
 	if !reflect.DeepEqual(sws, swsExpected) {
-		t.Fatalf("unexpected scrapeWork;\ngot\n%+v\nwant\n%+v", sws, swsExpected)
+		t.Fatalf("unexpected scrapeWork;\ngot\n%#v\nwant\n%#v", sws, swsExpected)
 	}
 }
 
@@ -1650,12 +1655,31 @@ scrape_configs:
 			jobNameOriginal: "aaa",
 		},
 	})
+
+	opts := &promauth.Options{
+		Headers: []string{"My-Auth: foo-Bar"},
+	}
+	ac, err := opts.NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error when creating promauth.Config: %s", err)
+	}
+	opts = &promauth.Options{
+		Headers: []string{"Foo:bar"},
+	}
+	proxyAC, err := opts.NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error when creating promauth.Config for proxy: %s", err)
+	}
 	f(`
 scrape_configs:
   - job_name: 'snmp'
     sample_limit: 100
     disable_keepalive: true
     disable_compression: true
+    headers:
+    - "My-Auth: foo-Bar"
+    proxy_headers:
+    - "Foo: bar"
     scrape_align_interval: 1s
     scrape_offset: 0.5s
     static_configs:
@@ -1727,8 +1751,8 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
-			AuthConfig:          &promauth.Config{},
-			ProxyAuthConfig:     &promauth.Config{},
+			AuthConfig:          ac,
+			ProxyAuthConfig:     proxyAC,
 			SampleLimit:         100,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,

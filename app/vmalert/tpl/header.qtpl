@@ -1,9 +1,18 @@
-{% func Header(title string, pages []NavItem) %}
+{% import (
+    "strings"
+    "net/http"
+    "path"
+
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+) %}
+
+{% func Header(r *http.Request, navItems []NavItem, title string) %}
+    {%code prefix := utils.Prefix(r.URL.Path) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <title>vmalert{% if title != "" %} - {%s title %}{% endif %}</title>
-    <link href="static/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="{%s prefix %}static/css/bootstrap.min.css" rel="stylesheet" />
     <style>
         body{
           min-height: 75rem;
@@ -52,6 +61,37 @@
     </style>
 </head>
 <body>
-    {%= PrintNavItems(title, pages) %}
+    {%= printNavItems(r, title, navItems) %}
     <main class="px-2">
+{% endfunc %}
+
+
+{% code
+type NavItem struct {
+	Name string
+	Url  string
+}
+%}
+
+{% func printNavItems(r *http.Request, current string, items []NavItem) %}
+{%code
+    prefix := "/vmalert/"
+    if strings.HasPrefix(r.URL.Path, prefix) {
+        prefix = ""
+    }
+%}
+<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            {% for _, item := range items  %}
+                <li class="nav-item">
+                    <a class="nav-link{% if current == item.Name %} active{% endif %}" href="{%s path.Join(prefix,item.Url) %}">
+                        {%s item.Name %}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+  </div>
+</nav>
 {% endfunc %}

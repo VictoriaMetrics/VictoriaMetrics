@@ -208,17 +208,24 @@ func (d *Deadline) Deadline() uint64 {
 func (d *Deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
 	elapsed := time.Since(startTime)
-	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds); the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), elapsed.Seconds(), d.flagHint)
+	msg := fmt.Sprintf("%.3f seconds (elapsed %.3f seconds)", d.timeout.Seconds(), elapsed.Seconds())
+	if d.flagHint != "" {
+		msg += fmt.Sprintf("; the timeout can be adjusted with `%s` command-line flag", d.flagHint)
+	}
+	return msg
 }
 
 // GetExtraTagFilters returns additional label filters from request.
 //
 // Label filters can be present in extra_label and extra_filters[] query args.
 // They are combined. For example, the following query args:
-//   extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
+//
+//	extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
+//
 // should be translated to the following filters joined with "or":
-//   {env="prod",team="devops",t1="v1",t2="v2"}
-//   {env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
+//
+//	{env="prod",team="devops",t1="v1",t2="v2"}
+//	{env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
 func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	var tagFilters []storage.TagFilter
 	for _, match := range r.Form["extra_label"] {

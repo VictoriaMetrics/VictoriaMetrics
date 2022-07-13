@@ -7,7 +7,7 @@ package prometheus
 //line app/vmselect/prometheus/series_response.qtpl:1
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/valyala/quicktemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // SeriesResponse generates response for /api/v1/series.See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
@@ -26,74 +26,70 @@ var (
 )
 
 //line app/vmselect/prometheus/series_response.qtpl:9
-func StreamSeriesResponse(qw422016 *qt422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) {
+func StreamSeriesResponse(qw422016 *qt422016.Writer, metricNames []string, qt *querytracer.Tracer, qtDone func()) {
 //line app/vmselect/prometheus/series_response.qtpl:9
-	qw422016.N().S(`{`)
-//line app/vmselect/prometheus/series_response.qtpl:11
-	seriesCount := 0
+	qw422016.N().S(`{"status":"success","data":[`)
+//line app/vmselect/prometheus/series_response.qtpl:13
+	var mn storage.MetricName
 
-//line app/vmselect/prometheus/series_response.qtpl:11
-	qw422016.N().S(`"status":"success","data":[`)
 //line app/vmselect/prometheus/series_response.qtpl:14
-	bb, ok := <-resultsCh
-
+	for i, metricName := range metricNames {
 //line app/vmselect/prometheus/series_response.qtpl:15
-	if ok {
-//line app/vmselect/prometheus/series_response.qtpl:16
-		qw422016.N().Z(bb.B)
-//line app/vmselect/prometheus/series_response.qtpl:18
-		quicktemplate.ReleaseByteBuffer(bb)
-		seriesCount++
+		err := mn.UnmarshalString(metricName)
 
+//line app/vmselect/prometheus/series_response.qtpl:16
+		if err != nil {
+//line app/vmselect/prometheus/series_response.qtpl:17
+			qw422016.N().Q(err.Error())
+//line app/vmselect/prometheus/series_response.qtpl:18
+		} else {
+//line app/vmselect/prometheus/series_response.qtpl:19
+			streammetricNameObject(qw422016, &mn)
+//line app/vmselect/prometheus/series_response.qtpl:20
+		}
 //line app/vmselect/prometheus/series_response.qtpl:21
-		for bb := range resultsCh {
+		if i+1 < len(metricNames) {
 //line app/vmselect/prometheus/series_response.qtpl:21
 			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/series_response.qtpl:22
-			qw422016.N().Z(bb.B)
-//line app/vmselect/prometheus/series_response.qtpl:24
-			quicktemplate.ReleaseByteBuffer(bb)
-			seriesCount++
-
-//line app/vmselect/prometheus/series_response.qtpl:27
+//line app/vmselect/prometheus/series_response.qtpl:21
 		}
-//line app/vmselect/prometheus/series_response.qtpl:28
+//line app/vmselect/prometheus/series_response.qtpl:22
 	}
-//line app/vmselect/prometheus/series_response.qtpl:28
+//line app/vmselect/prometheus/series_response.qtpl:22
 	qw422016.N().S(`]`)
-//line app/vmselect/prometheus/series_response.qtpl:31
-	qt.Printf("generate response: series=%d", seriesCount)
+//line app/vmselect/prometheus/series_response.qtpl:25
+	qt.Printf("generate response: series=%d", len(metricNames))
 	qtDone()
 
-//line app/vmselect/prometheus/series_response.qtpl:34
+//line app/vmselect/prometheus/series_response.qtpl:28
 	streamdumpQueryTrace(qw422016, qt)
-//line app/vmselect/prometheus/series_response.qtpl:34
+//line app/vmselect/prometheus/series_response.qtpl:28
 	qw422016.N().S(`}`)
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:36
-func WriteSeriesResponse(qq422016 qtio422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) {
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
+func WriteSeriesResponse(qq422016 qtio422016.Writer, metricNames []string, qt *querytracer.Tracer, qtDone func()) {
+//line app/vmselect/prometheus/series_response.qtpl:30
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/series_response.qtpl:36
-	StreamSeriesResponse(qw422016, resultsCh, qt, qtDone)
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
+	StreamSeriesResponse(qw422016, metricNames, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:30
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:36
-func SeriesResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer, qtDone func()) string {
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
+func SeriesResponse(metricNames []string, qt *querytracer.Tracer, qtDone func()) string {
+//line app/vmselect/prometheus/series_response.qtpl:30
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/series_response.qtpl:36
-	WriteSeriesResponse(qb422016, resultsCh, qt, qtDone)
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
+	WriteSeriesResponse(qb422016, metricNames, qt, qtDone)
+//line app/vmselect/prometheus/series_response.qtpl:30
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
 	return qs422016
-//line app/vmselect/prometheus/series_response.qtpl:36
+//line app/vmselect/prometheus/series_response.qtpl:30
 }

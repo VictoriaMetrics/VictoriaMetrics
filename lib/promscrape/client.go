@@ -46,57 +46,69 @@ type client struct {
 
 	scrapeURL               string
 	scrapeTimeoutSecondsStr string
-	host                    string
+	hostPort                string
 	requestURI              string
-	getAuthHeader           func() string
-	getProxyAuthHeader      func() string
+	setHeaders              func(req *http.Request)
+	setProxyHeaders         func(req *http.Request)
+	setFasthttpHeaders      func(req *fasthttp.Request)
+	setFasthttpProxyHeaders func(req *fasthttp.Request)
 	denyRedirects           bool
 	disableCompression      bool
 	disableKeepAlive        bool
 }
 
+func addMissingPort(addr string, isTLS bool) string {
+	if strings.Contains(addr, ":") {
+		return addr
+	}
+	if isTLS {
+		return addr + ":443"
+	}
+	return addr + ":80"
+}
+
 func newClient(sw *ScrapeWork) *client {
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
-	host := string(u.Host())
+	hostPort := string(u.Host())
+	dialAddr := hostPort
 	requestURI := string(u.RequestURI())
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
-	getProxyAuthHeader := func() string { return "" }
+	setProxyHeaders := func(req *http.Request) {}
+	setFasthttpProxyHeaders := func(req *fasthttp.Request) {}
 	proxyURL := sw.ProxyURL
 	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
 		pu := proxyURL.GetURL()
-		host = pu.Host
+		dialAddr = pu.Host
 		requestURI = sw.ScrapeURL
 		isTLS = pu.Scheme == "https"
 		if isTLS {
 			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
 		}
 		proxyURLOrig := proxyURL
-		getProxyAuthHeader = func() string {
-			return proxyURLOrig.GetAuthHeader(sw.ProxyAuthConfig)
+		setProxyHeaders = func(req *http.Request) {
+			proxyURLOrig.SetHeaders(sw.ProxyAuthConfig, req)
+		}
+		setFasthttpProxyHeaders = func(req *fasthttp.Request) {
+			proxyURLOrig.SetFasthttpHeaders(sw.ProxyAuthConfig, req)
 		}
 		proxyURL = &proxy.URL{}
 	}
-	if !strings.Contains(host, ":") {
-		if !isTLS {
-			host += ":80"
-		} else {
-			host += ":443"
-		}
-	}
+	hostPort = addMissingPort(hostPort, isTLS)
+	dialAddr = addMissingPort(dialAddr, isTLS)
 	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
 	hc := &fasthttp.HostClient{
-		Addr:                         host,
+		Addr:                         dialAddr,
 		Name:                         "vm_promscrape",
 		Dial:                         dialFunc,
 		IsTLS:                        isTLS,
@@ -146,10 +158,12 @@ func newClient(sw *ScrapeWork) *client {
 		sc:                      sc,
 		scrapeURL:               sw.ScrapeURL,
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
-		host:                    host,
+		hostPort:                hostPort,
 		requestURI:              requestURI,
-		getAuthHeader:           sw.AuthConfig.GetAuthHeader,
-		getProxyAuthHeader:      getProxyAuthHeader,
+		setHeaders:              func(req *http.Request) { sw.AuthConfig.SetHeaders(req, true) },
+		setProxyHeaders:         setProxyHeaders,
+		setFasthttpHeaders:      func(req *fasthttp.Request) { sw.AuthConfig.SetFasthttpHeaders(req, true) },
+		setFasthttpProxyHeaders: setFasthttpProxyHeaders,
 		denyRedirects:           sw.DenyRedirects,
 		disableCompression:      sw.DisableCompression,
 		disableKeepAlive:        sw.DisableKeepAlive,
@@ -173,12 +187,8 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	if ah := c.getAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
-	if ah := c.getProxyAuthHeader(); ah != "" {
-		req.Header.Set("Proxy-Authorization", ah)
-	}
+	c.setHeaders(req)
+	c.setProxyHeaders(req)
 	resp, err := c.sc.Do(req)
 	if err != nil {
 		cancel()
@@ -214,7 +224,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	deadline := time.Now().Add(c.hc.ReadTimeout)
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
-	req.Header.SetHost(c.host)
+	req.Header.SetHost(c.hostPort)
 	// The following `Accept` header has been copied from Prometheus sources.
 	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
 	// This is needed as a workaround for scraping stupid Java-based servers such as Spring Boot.
@@ -224,12 +234,8 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	if ah := c.getAuthHeader(); ah != "" {
-		req.Header.Set("Authorization", ah)
-	}
-	if ah := c.getProxyAuthHeader(); ah != "" {
-		req.Header.Set("Proxy-Authorization", ah)
-	}
+	c.setFasthttpHeaders(req)
+	c.setFasthttpProxyHeaders(req)
 	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}

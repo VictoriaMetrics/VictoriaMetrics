@@ -115,7 +115,7 @@ By default images are built on top of [alpine](https://hub.docker.com/_/scratch)
 It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package
 ```
 
@@ -171,6 +171,8 @@ The following optional command-line flags related to mTLS are supported:
 - `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default system-wide certificate authority is used for peer certificate verification.
 - `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
 
+When `vmselect` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
+
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
 [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
@@ -190,6 +192,10 @@ with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafan
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831). Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
+
+## Troubleshooting
+
+See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## Readonly mode
 
@@ -252,6 +258,9 @@ It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.co
   Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
   be used on a regular basis, since it carries non-zero overhead.
 
+- URL for accessing [vmalert's](https://docs.victoriametrics.com/vmalert.html) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/home`.
+  This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
+
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
   - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/#forced-merge) on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
@@ -273,7 +282,7 @@ Cluster performance and capacity can be scaled up in two ways:
 
 General recommendations for cluster scalability:
 
-- Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
+- Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples. See [this article on how to detect and optimize heavy queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
 - Adding more `vmstorage` nodes increases the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload when some of `vmstorage` nodes become unavailable.
 - Adding more CPU and RAM to existing `vmstorage` nodes increases the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle. It is preferred to add more `vmstorage` nodes over adding more CPU and RAM to existing `vmstorage` nodes, since higher number of `vmstorage` nodes increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 - Adding more `vminsert` nodes increases the maximum possible data ingestion speed, since the ingested data may be split among bigger number of `vminsert` nodes.
@@ -293,8 +302,6 @@ with new configs.
 
 Cluster should remain in working state if at least a single node of each type remains available during
 the update process. See [cluster availability](#cluster-availability) section for details.
-
-See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
 
 ## Cluster availability
 
@@ -347,8 +354,10 @@ By default cluster components of VictoriaMetrics are tuned for an optimal resour
 - `-search.maxSeries` at `vmselect` limits the number of time series, which may be returned from [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers). This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
 - `-search.maxTagKeys` at `vmselect` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
 - `-search.maxTagValues` at `vmselect` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
+- `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day.
+- `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
-See also [capacity planning docs](#capacity-planning).
+See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
 
 ## High availability
 
@@ -363,12 +372,14 @@ error rates comparing the network inside a single AZ.
 If you need multi-AZ setup, then it is recommended running independed clusters in each AZ and setting up
 [vmagent](https://docs.victoriametrics.com/vmagent.html) in front of these clusters, so it could replicate incoming data
 into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent.html#multitenancy) for details.
-Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
+Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
 
 ## Multi-level cluster setup
 
-`vminsert` nodes can accept data from another `vminsert` nodes starting from [v1.60.0](https://docs.victoriametrics.com/CHANGELOG.html#v1600) if `-clusternativeListenAddr` command-line flag is set. For example, if `vminsert` is started with `-clusternativeListenAddr=:8400` command-line flag, then it can accept data from another `vminsert` nodes at TCP port 8400 in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies with flexible configs. For example, the top level of `vminsert` nodes can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ), while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes located in the same AZ. Such setup guarantees cluster availability if some AZ becomes unavailable. The data from all the `vmstorage` nodes in all the AZs can be read via `vmselect` nodes, which are configured to query all the `vmstorage` nodes in all the availability zones (e.g. all the `vmstorage` addresses are passed via `-storageNode` command-line flag to `vmselect` nodes).
+`vmselect` nodes can be queried by other `vmselect` nodes if they run with `-clusternativeListenAddr` command-line flag. For example, if `vmselect` is started with `-clusternativeListenAddr=:8401`, then it can accept queries from another `vmselect` nodes at TCP port 8401 in the same way as `vmstorage` nodes do. This allows chaining `vmselect` nodes and building multi-level cluster topologies. For example, the top-level `vmselect` node can query second-level `vmselect` nodes in different availability zones (AZ), while the second-level `vmselect` nodes can query `vmstorage` nodes in local AZ.
+
+`vminsert` nodes can accept data from another `vminsert` nodes if they run with `-clusternativeListenAddr` command-line flag. For example, if `vminsert` is started with `-clusternativeListenAddr=:8400`, then it can accept data from another `vminsert` nodes at TCP port 8400 in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies. For example, the top-level `vminsert` node can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ), while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes in local AZ.
 
 The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
 
@@ -376,6 +387,7 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 * `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporariliy unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent.html) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent.html#multitenancy). `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
+
 
 ## Helm
 
@@ -394,11 +406,11 @@ The replication can be enabled by passing `-replicationFactor=N` command-line fl
 
 The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain the given replication factor for newly ingested data when `N-1` of storage nodes are unavailable.
 
-When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes, so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to bigger values according to [deduplication docs](#deduplication).
+VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes when the replication is enabled, so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to `scrape_interval` from scrape configs according to [deduplication docs](#deduplication).
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883), so it is recommended performing regular backups. See [these docs](#backups) for details.
 
-Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor=N` times, because `vminsert` stores `N` copies of incoming data to distinct `vmstorage` nodes and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying. So it is more cost-effective to offload the replication to underlying replicated durable storage pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), which is protected from data loss and data corruption. It also provide consistently high performance and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime. HDD-based persistent disks should be enough for the majority of use cases. It is recommended using durable replicated persistent volumes in Kubernetes.
+Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor=N` times, because `vminsert` stores `N` copies of incoming data to distinct `vmstorage` nodes and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying. So it is more cost-effective to offload the replication to underlying replicated durable storage pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), which is protected from data loss and data corruption. It also provides consistently high performance and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime. HDD-based persistent disks should be enough for the majority of use cases. It is recommended using durable replicated persistent volumes in Kubernetes.
 
 ## Deduplication
 
@@ -448,7 +460,7 @@ Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` w
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
@@ -458,11 +470,22 @@ Example command for collecting memory profile from `vminsert` (replace `0.0.0.0`
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
 
 </div>
+
+## vmalert
+
+vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert.html)
+when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
+* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+* for accessing vmalert's UI through vmselect's Web interface.
+
+For accessing vmalert's UI through vmselect configure `-vmalert.proxyURL` flag and visit
+`http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/home` link.
+
 
 ## Community and contributions
 
@@ -533,6 +556,8 @@ Below is the output for `/path/to/vminsert -help`:
      Prefix for environment variables if -envflag.enable is set
   -eula
      By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -609,7 +634,7 @@ Below is the output for `/path/to/vminsert -help`:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
   -opentsdbListenAddr string
@@ -622,7 +647,7 @@ Below is the output for `/path/to/vminsert -help`:
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
@@ -647,6 +672,8 @@ Below is the output for `/path/to/vminsert -help`:
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
      Show VictoriaMetrics version
+  -vmstorageDialTimeout duration
+     Timeout for establishing RPC connections from vminsert to vmstorage (default 5s)
 ```
 
 ### List of command-line flags for vmselect
@@ -666,6 +693,29 @@ Below is the output for `/path/to/vmselect -help`:
      Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security
   -cluster.tlsKeyFile string
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.disableCompression
+     Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. This reduces CPU usage at the cost of higher network bandwidth usage
+  -clusternative.maxTagKeys int
+     The maximum number of tag keys returned per search at -clusternativeListenAddr (default 100000)
+  -clusternative.maxTagValueSuffixesPerSearch int
+     The maximum number of tag value suffixes returned from /metrics/find at -clusternativeListenAddr (default 100000)
+  -clusternative.maxTagValues int
+     The maximum number of tag values returned per search at -clusternativeListenAddr (default 100000)
+  -clusternative.tls
+     Whether to use TLS when accepting connections at -clusternativeListenAddr. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.tlsCAFile string
+     Path to TLS CA file to use for verifying certificates provided by vmselect, which connects at -clusternativeListenAddr if -clusternative.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.tlsCertFile string
+     Path to server-side TLS certificate file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternative.tlsCipherSuites array
+     Optional list of TLS cipher suites used for connections at -clusternativeListenAddr if -clusternative.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
+  -clusternative.tlsInsecureSkipVerify
+     Whether to skip verification of TLS certificates provided by vmselect, which connects to -clusternativeListenAddr if -clusternative.tls flag is set. Note that disabled TLS certificate verification breaks security
+  -clusternative.tlsKeyFile string
+     Path to server-side TLS key file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection
+  -clusternativeListenAddr string
+     TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8401 must be set. Doesn't work if empty
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -denyQueryTracing
@@ -681,6 +731,8 @@ Below is the output for `/path/to/vmselect -help`:
      Prefix for environment variables if -envflag.enable is set
   -eula
      By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteTrimTimestamp duration
@@ -723,9 +775,9 @@ Below is the output for `/path/to/vmselect -help`:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -replicationFactor int
      How many copies of every time series is available on vmstorage nodes. See -replicationFactor command-line flag for vminsert nodes (default 1)
   -search.cacheTimestampOffset duration
@@ -768,15 +820,17 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxSamplesPerSeries int
      The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery (default 30000000)
   -search.maxSeries int
-     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 100000)
+     The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 30000)
   -search.maxStalenessInterval duration
-     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
+     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
      The maximum duration for /api/v1/status/* requests (default 5m0s)
   -search.maxStepForPointsAdjustment duration
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
+  -search.maxTagValueSuffixesPerSearch int
+     The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.minStalenessInterval duration
@@ -789,6 +843,8 @@ Below is the output for `/path/to/vmselect -help`:
      The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey string
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
+  -search.setLookbackToStep
+     Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
@@ -809,7 +865,9 @@ Below is the output for `/path/to/vmselect -help`:
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string
-     Optional URL for proxying alerting API requests from Grafana. For example, if -vmalert.proxyURL is set to http://vmalert:8880 , then requests to /api/v1/rules are proxied to http://vmalert:8880/api/v1/rules
+     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
+  -vmstorageDialTimeout duration
+     Timeout for establishing RPC connections from vmselect to vmstorage (default 5s)
 ```
 
 ### List of command-line flags for vmstorage
@@ -851,6 +909,8 @@ Below is the output for `/path/to/vmstorage -help`:
      By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
   -finalMergeDelay duration
      The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
+  -flagsAuthKey string
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -forceFlushAuthKey string
      authKey, which must be passed in query string to /internal/force_flush pages
   -forceMergeAuthKey string
@@ -897,9 +957,9 @@ Below is the output for `/path/to/vmstorage -help`:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-     Auth key for /metrics. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
-     Auth key for /debug/pprof. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
   -retentionPeriod value

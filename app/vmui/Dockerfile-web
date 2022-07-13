@@ -1,10 +1,10 @@
-FROM golang:1.18.2 as build-web-stage
+FROM golang:1.18.4 as build-web-stage
 COPY build /build
 
 WORKDIR /build
 COPY web/ /build/
-RUN GOOS=linux GOARCH=amd64 GO111MODULE=on CGO_ENABLED=0 go build -o web-amd64 github.com/VictoriMetrics/vmui/ && \
-    GOOS=windows GOARCH=amd64 GO111MODULE=on CGO_ENABLED=0 go build -o web-windows github.com/VictoriMetrics/vmui/
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o web-amd64 github.com/VictoriMetrics/vmui/ && \
+    GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o web-windows github.com/VictoriMetrics/vmui/
 
 FROM alpine:3.16.0
 USER root

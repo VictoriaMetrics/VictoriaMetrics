@@ -50,6 +50,8 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Push Prometheus metrics to VictoriaMetrics or other exporters](https://pythonawesome.com/push-prometheus-metrics-to-victoriametrics-or-other-exporters/)
 * [Install and configure VictoriaMetrics on Debian](https://www.vultr.com/docs/install-and-configure-victoriametrics-on-debian)
 * [Superset BI with Victoria Metrics](https://cer6erus.medium.com/superset-bi-with-victoria-metrics-a109d3e91bc6)
+* [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
+* [How we tried using VictoriaMetrics and Thanos at the same time](https://habr.com/ru/company/sravni/blog/672908/)
 
 ## Our articles
 

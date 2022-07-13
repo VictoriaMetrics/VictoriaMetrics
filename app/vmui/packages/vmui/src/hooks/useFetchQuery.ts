@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useCallback, useState} from "preact/compat";
+import {useCallback, useEffect, useMemo, useState} from "preact/compat";
 import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
 import {useAppState} from "../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
@@ -10,6 +10,7 @@ import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwi
 import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
 import {arrayEquals} from "../utils/array";
+import Trace from "../components/CustomPanel/Trace/Trace";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -27,12 +28,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
+  traces?: Trace[],
 } => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache}} = useAppState();
+  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
+  const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
 
@@ -40,20 +43,26 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     if (error) {
       setGraphData(undefined);
       setLiveData(undefined);
+      setTraces(undefined);
     }
   }, [error]);
 
-  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType) => {
+  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     try {
       const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
       const tempData = [];
+      const tempTraces: Trace[] = [];
       let counter = 1;
       for await (const response of responses) {
         const resp = await response.json();
         if (response.ok) {
           setError(undefined);
+          if (resp.trace) {
+            const trace = new Trace(resp.trace, query[counter-1]);
+            tempTraces.push(trace);
+          }
           tempData.push(...resp.data.result.map((d: MetricBase) => {
             d.group = counter;
             return d;
@@ -64,6 +73,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
         }
       }
       displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
+      setTraces(tempTraces);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
@@ -87,8 +97,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       const updatedPeriod = {...period};
       if (customStep.enable) updatedPeriod.step = customStep.value;
       return expr.filter(q => q.trim()).map(q => displayChart
-        ? getQueryRangeUrl(server, q, updatedPeriod, nocache)
-        : getQueryUrl(server, q, updatedPeriod));
+        ? getQueryRangeUrl(server, q, updatedPeriod, nocache, isTracingEnabled)
+        : getQueryUrl(server, q, updatedPeriod, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
@@ -100,7 +110,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   useEffect(() => {
     if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl)) || !fetchUrl?.length) return;
     setIsLoading(true);
-    throttledFetchData(fetchUrl, fetchQueue, (display || displayType));
+    const expr = predefinedQuery ?? query;
+    throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr);
   }, [fetchUrl, visible]);
 
   useEffect(() => {
@@ -110,5 +121,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error };
+  return {fetchUrl, isLoading, graphData, liveData, error, traces};
 };

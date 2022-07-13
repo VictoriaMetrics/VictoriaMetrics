@@ -36,7 +36,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -1175,7 +1175,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		droppedTargetsMap.Register(originalLabels)
 		return nil, nil
 	}
-	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
+	addressRelabeled = addMissingPort(addressRelabeled, schemeRelabeled == "https")
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
@@ -1390,18 +1390,6 @@ func appendLabel(dst []prompbmarshal.Label, name, value string) []prompbmarshal.
 		Name:  name,
 		Value: value,
 	})
-}
-
-func addMissingPort(scheme, target string) string {
-	if strings.Contains(target, ":") {
-		return target
-	}
-	if scheme == "https" {
-		target += ":443"
-	} else {
-		target += ":80"
-	}
-	return target
 }
 
 const (

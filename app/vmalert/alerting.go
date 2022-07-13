@@ -159,11 +159,11 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		processed: make(map[string]string),
 	}
 	for _, l := range m.Labels {
+		ls.origin[l.Name] = l.Value
 		// drop __name__ to be consistent with Prometheus alerting
 		if l.Name == "__name__" {
 			continue
 		}
-		ls.origin[l.Name] = l.Value
 		ls.processed[l.Name] = l.Value
 	}
 

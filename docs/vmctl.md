@@ -19,8 +19,8 @@ Features:
 To see the full list of supported modes
 run the following command:
 
-```bash
-$ ./vmctl --help                                        
+```console
+$ ./vmctl --help
 NAME:
    vmctl - VictoriaMetrics command-line tool
 
@@ -44,9 +44,9 @@ OPTIONS:
    --influx-addr value              InfluxDB server addr (default: "http://localhost:8086")
    --influx-user value              InfluxDB user [$INFLUX_USERNAME]
 ...
-   --vm-addr vmctl                             VictoriaMetrics address to perform import requests. 
-Should be the same as --httpListenAddr value for single-node version or vminsert component. 
-When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
+   --vm-addr vmctl                             VictoriaMetrics address to perform import requests.
+Should be the same as --httpListenAddr value for single-node version or vminsert component.
+When importing into the clustered version do not forget to set additionally --vm-account-id flag.
 Please note, that vmctl performs initial readiness check for the given address by checking `/health` endpoint. (default: "http://localhost:8428")
    --vm-user value        VictoriaMetrics username for basic auth [$VM_USERNAME]
    --vm-password value    VictoriaMetrics password for basic auth [$VM_PASSWORD]
@@ -111,7 +111,7 @@ $ ./vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-
 OpenTSDB import mode
 2021/04/09 11:52:50 Will collect data starting at TS 1617990770
 2021/04/09 11:52:50 Loading all metrics from OpenTSDB for filters:  [system]
-Found 9 metrics to import. Continue? [Y/n] 
+Found 9 metrics to import. Continue? [Y/n]
 2021/04/09 11:52:51 Starting work on system.load1
 23 / 402200 [>____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________] 0.01% 2 p/s
 ```
@@ -284,7 +284,7 @@ InfluxDB import mode
 2020/01/26 14:23:29 fetching fields: command: "show field keys"; database: "benchmark"; retention: "autogen"
 2020/01/26 14:23:29 found 12 fields
 2020/01/26 14:23:29 fetching series: command: "show series on benchmark from cpu where hostname='host_1703'"; database: "benchmark"; retention: "autogen"
-Found 10 timeseries to import. Continue? [Y/n] 
+Found 10 timeseries to import. Continue? [Y/n]
 ```
 
 The timeseries select query would be following:
@@ -503,10 +503,10 @@ processed and can't show the progress bar. It will show the current processing s
   --vm-native-filter-match='{job="vmagent"}' \
   --vm-native-filter-time-start='2020-01-01T20:07:00Z'
 VictoriaMetrics Native import mode
-Initing export pipe from "http://localhost:8528" with filters: 
+Initing export pipe from "http://localhost:8528" with filters:
         filter: match[]={job="vmagent"}
 Initing import process to "http://localhost:8428":
-Total: 336.75 KiB ↖ Speed: 454.46 KiB p/s                                                                                                               
+Total: 336.75 KiB ↖ Speed: 454.46 KiB p/s
 2020/10/13 17:04:59 Total time: 952.143376ms
 ```
 
@@ -528,10 +528,10 @@ and specify `accountID` param.
 
 ## Verifying exported blocks from VictoriaMetrics
 
-In this mode, `vmctl` allows verifying correctness and integrity of data exported via [native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format) from VictoriaMetrics. 
+In this mode, `vmctl` allows verifying correctness and integrity of data exported via [native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format) from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
-```bash
+```console
 # export blocks from VictoriaMetrics
 curl localhost:8428/api/v1/export/native -g -d 'match[]={__name__!=""}' -o exported_data_block
 # verify block content
@@ -654,7 +654,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```console
 ROOT_IMAGE=scratch make package-vmctl
 ```
 
@@ -665,11 +665,11 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 #### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
-2. Run `make vmctl-arm` or `make vmctl-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-arm` or `vmctl-arm64` binary respectively and puts it into the `bin` folder.
+2. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 #### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-arm-prod` or `make vmctl-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-arm-prod` or `vmctl-arm64-prod` binary respectively and puts it into the `bin` folder.
+2. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds `vmctl-linux-arm-prod` or `vmctl-linux-arm64-prod` binary respectively and puts it into the `bin` folder.

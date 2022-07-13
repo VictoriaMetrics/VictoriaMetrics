@@ -27,10 +27,20 @@ VictoriaMetrics is production-ready for the following operating systems:
 * Linux (Alpine, Ubuntu, Debian, RedHat, etc.)
 * FreeBSD
 * OpenBSD
+* Solaris/SmartOS
 
 Some VictoriaMetrics components ([vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html) and [vmauth](https://docs.victoriametrics.com/vmauth.html)) can run on Windows.
 
 VictoriaMetrics can run also on MacOS for testing and development purposes.
+
+## Supported Architectures
+
+* **Linux**: i386, amd64, arm, arm64, ppc64le
+* **FreeBSD**: i386, amd64, arm
+* **OpenBSD**: i386, amd64, arm
+* **Solaris/SmartOS**: i386, amd64
+* **MacOS**: amd64, arm64 (for testing and development purposes)
+* **Windows**: amd64 (supported by [vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html) and [vmauth](https://docs.victoriametrics.com/vmauth.html)).
 
 ## Upgrade procedure
 

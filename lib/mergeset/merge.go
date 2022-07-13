@@ -114,12 +114,13 @@ again:
 	default:
 	}
 
-	bsr := heap.Pop(&bsm.bsrHeap).(*blockStreamReader)
+	bsr := bsm.bsrHeap[0]
 
 	var nextItem []byte
 	hasNextItem := false
-	if len(bsm.bsrHeap) > 0 {
-		nextItem = bsm.bsrHeap[0].bh.firstItem
+	if len(bsm.bsrHeap) > 1 {
+		bsr := bsm.bsrHeap.getNextReader()
+		nextItem = bsr.bh.firstItem
 		hasNextItem = true
 	}
 	items := bsr.Block.items
@@ -139,19 +140,20 @@ again:
 	if bsr.blockItemIdx == len(bsr.Block.items) {
 		// bsr.Block is fully read. Proceed to the next block.
 		if bsr.Next() {
-			heap.Push(&bsm.bsrHeap, bsr)
+			heap.Fix(&bsm.bsrHeap, 0)
 			goto again
 		}
 		if err := bsr.Error(); err != nil {
 			return fmt.Errorf("cannot read storageBlock: %w", err)
 		}
+		heap.Pop(&bsm.bsrHeap)
 		goto again
 	}
 
 	// The next item in the bsr.Block exceeds nextItem.
 	// Adjust bsr.bh.firstItem and return bsr to heap.
 	bsr.bh.firstItem = append(bsr.bh.firstItem[:0], bsr.Block.items[bsr.blockItemIdx].String(bsr.Block.data)...)
-	heap.Push(&bsm.bsrHeap, bsr)
+	heap.Fix(&bsm.bsrHeap, 0)
 	goto again
 }
 
@@ -200,6 +202,21 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 }
 
 type bsrHeap []*blockStreamReader
+
+func (bh bsrHeap) getNextReader() *blockStreamReader {
+	if len(bh) < 2 {
+		return nil
+	}
+	if len(bh) < 3 {
+		return bh[1]
+	}
+	a := bh[1]
+	b := bh[2]
+	if string(a.bh.firstItem) <= string(b.bh.firstItem) {
+		return a
+	}
+	return b
+}
 
 func (bh *bsrHeap) Len() int {
 	return len(*bh)

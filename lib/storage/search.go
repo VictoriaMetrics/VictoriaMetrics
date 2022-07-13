@@ -68,14 +68,9 @@ type PartRef struct {
 }
 
 // MustReadBlock reads block from br to dst.
-//
-// if fetchData is false, then only block header is read, otherwise all the data is read.
-func (br *BlockRef) MustReadBlock(dst *Block, fetchData bool) {
+func (br *BlockRef) MustReadBlock(dst *Block) {
 	dst.Reset()
 	dst.bh = br.bh
-	if !fetchData {
-		return
-	}
 
 	dst.timestampsData = bytesutil.ResizeNoCopyMayOverallocate(dst.timestampsData, int(br.bh.TimestampsBlockSize))
 	br.p.timestampsFile.MustReadAt(dst.timestampsData, int64(br.bh.TimestampsBlockOffset))
@@ -241,6 +236,14 @@ type SearchQuery struct {
 	MaxMetrics int
 }
 
+// GetTimeRange returns time range for the given sq.
+func (sq *SearchQuery) GetTimeRange() TimeRange {
+	return TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+}
+
 // NewSearchQuery creates new search query for the given args.
 func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
 	if maxMetrics <= 0 {
@@ -265,10 +268,11 @@ type TagFilter struct {
 // String returns string representation of tf.
 func (tf *TagFilter) String() string {
 	op := tf.getOp()
+	value := bytesutil.LimitStringLen(string(tf.Value), 60)
 	if len(tf.Key) == 0 {
-		return fmt.Sprintf("__name__%s%q", op, tf.Value)
+		return fmt.Sprintf("__name__%s%q", op, value)
 	}
-	return fmt.Sprintf("%s%s%q", tf.Key, op, tf.Value)
+	return fmt.Sprintf("%s%s%q", tf.Key, op, value)
 }
 
 func (tf *TagFilter) getOp() string {
@@ -348,7 +352,9 @@ func (sq *SearchQuery) String() string {
 	for i, tfs := range sq.TagFilterss {
 		a[i] = tagFiltersToString(tfs)
 	}
-	return fmt.Sprintf("filters=%s, timeRange=[%d..%d]", a, sq.MinTimestamp, sq.MaxTimestamp)
+	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
+	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
 }
 
 func tagFiltersToString(tfs []TagFilter) string {

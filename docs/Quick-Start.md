@@ -30,6 +30,8 @@ Just download VictoriaMetrics and follow
 Then read [Prometheus setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup)
 and [Grafana setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup) docs.
 
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
+
 
 ### Starting VM-Single via Docker
 
@@ -40,7 +42,7 @@ under the current directory:
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 docker pull victoriametrics/victoria-metrics:latest
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:latest
 ```
@@ -63,7 +65,7 @@ file.
 
 <div class="with-copy" markdown="1">
 
-```bash
+```console
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics --branch cluster && 
 cd VictoriaMetrics/deployment/docker && 
 docker-compose up

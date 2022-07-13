@@ -39,6 +39,12 @@
         "automl": {
             "component": "automl"
         },
+        "baremetalsolution": {
+            "component": "baremetalsolution"
+        },
+        "batch": {
+            "component": "batch"
+        },
         "billing": {
             "component": "billing"
         },

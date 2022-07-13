@@ -836,8 +836,7 @@ func (pt *partition) ForceMergeAllParts() error {
 	maxOutBytes := fs.MustGetFreeSpace(pt.bigPartsPath)
 	if newPartSize > maxOutBytes {
 		freeSpaceNeededBytes := newPartSize - maxOutBytes
-		logger.WithThrottler("forceMerge", time.Minute).Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes",
-			pt.name, freeSpaceNeededBytes)
+		forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
 		return nil
 	}
 
@@ -847,6 +846,8 @@ func (pt *partition) ForceMergeAllParts() error {
 	}
 	return nil
 }
+
+var forceMergeLogger = logger.WithThrottler("forceMerge", time.Minute)
 
 func appendAllPartsToMerge(dst, src []*partWrapper) []*partWrapper {
 	for _, pw := range src {

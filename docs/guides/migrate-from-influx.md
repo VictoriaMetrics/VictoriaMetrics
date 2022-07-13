@@ -72,7 +72,7 @@ supports [InfluxDB line protocol](https://docs.victoriametrics.com/#how-to-send-
 for data ingestion. For example, to write a measurement to VictoriaMetrics we need to send an HTTP POST request with
 payload in a line protocol format:
 
-```bash
+```console
 curl -d 'census,location=klamath,scientist=anderson bees=23 1566079200000' -X POST 'http://<victoriametric-addr>:8428/write'
 ```
 
@@ -83,7 +83,7 @@ Please note, an arbitrary number of lines delimited by `\n` (aka newline char) c
 
 To get the written data back let's export all series matching the `location="klamath"` filter:
 
-```bash
+```console
 curl -G 'http://<victoriametric-addr>:8428/api/v1/export' -d 'match={location="klamath"}'   
 ```
 
@@ -202,8 +202,10 @@ detail [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In
 behavior by adding `fill(previous)` to the query.
 
 VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
-To limit the interval on which VictoriaMetrics will try to fill the gaps try setting `-search.maxStalenessInterval`
-command-line flag to the value equal to actual resolution between data points (for example, to `10s`).
+To limit the interval on which VictoriaMetrics will try to fill the gaps, set `-search.setLookbackToStep`
+command-line flag. This limits the gap filling to a single `step` interval passed to
+[/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+This behavior is close to InfluxDB data model.
 
 
 ### Advanced usage
