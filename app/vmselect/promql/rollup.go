@@ -644,11 +644,11 @@ func binarySearchInt64(a []int64, v int64) uint {
 	return i
 }
 
-func getScrapeInterval(timestamps []int64, defaultVal int64) int64 {
+func getScrapeInterval(timestamps []int64, defaultInterval int64) int64 {
 	if len(timestamps) < 2 {
 		// can't calculate scrape interval with less than 2 timestamps
-		// return defaultVal
-		return defaultVal
+		// return defaultInterval
+		return defaultInterval
 	}
 
 	// Estimate scrape interval as 0.6 quantile for the first 20 intervals.
@@ -667,7 +667,7 @@ func getScrapeInterval(timestamps []int64, defaultVal int64) int64 {
 	a.A = intervals
 	putFloat64s(a)
 	if scrapeInterval <= 0 {
-		return int64(maxSilenceInterval)
+		return defaultInterval
 	}
 	return scrapeInterval
 }
