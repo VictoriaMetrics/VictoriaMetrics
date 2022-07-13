@@ -520,7 +520,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	scrapeInterval := getScrapeInterval(timestamps)
+	scrapeInterval := getScrapeInterval(timestamps, rc.Step)
 	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
@@ -644,9 +644,11 @@ func binarySearchInt64(a []int64, v int64) uint {
 	return i
 }
 
-func getScrapeInterval(timestamps []int64) int64 {
+func getScrapeInterval(timestamps []int64, defaultVal int64) int64 {
 	if len(timestamps) < 2 {
-		return int64(maxSilenceInterval)
+		// can't calculate scrape interval with less than 2 timestamps
+		// return defaultVal
+		return defaultVal
 	}
 
 	// Estimate scrape interval as 0.6 quantile for the first 20 intervals.
