@@ -572,3 +572,25 @@ rules:
 `, url.Values{"nocache": {"1"}, "extra_label": {"env=prod", "job=victoriametrics"}})
 	})
 }
+
+func TestNeedSkipAlertWork(t *testing.T) {
+	f := func(key string, membersCount, memberNum int, needSkipExpected bool) {
+		t.Helper()
+		needSkip := needSkipAlertWork(key, membersCount, memberNum)
+		if needSkip != needSkipExpected {
+			t.Fatalf("unexpected needSkipScrapeWork(key=%q, membersCount=%d, memberNum=%d); got %v; want %v",
+				key, membersCount, memberNum, needSkip, needSkipExpected)
+		}
+	}
+	// Disabled clustering
+	f("bar", 0, 0, false)
+
+	// A cluster with 2 nodes
+	f("foo", 2, 0, true)
+	f("foo", 2, 1, false)
+
+	// A cluster with 3 nodes
+	f("foo", 3, 0, true)
+	f("foo", 3, 1, true)
+	f("foo", 3, 2, false)
+}

@@ -2,12 +2,16 @@ package config
 
 import (
 	"crypto/md5"
+	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/cespare/xxhash/v2"
 	"hash/fnv"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -19,6 +23,29 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
+
+var (
+	clusterMemberNum = flag.String("alert.cluster.memberNum", "0", "The number of members in the cluster of vmalerts. "+
+		"It must be an value in the range 0 ... alert.cluster.membersCount-1 across scrapers in the cluster. "+
+		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name.")
+	clusterMemberCount = flag.Int("alert.cluster.membersCount", 0, "The amount of members in a cluster of vmalerts. "+
+		"Each member must have an -alert.cluster.memberNum in the range 0 ... alert.cluster.membersCount-1 . "+
+		"Each member then evaluates roughly 1/N of all the groups. By default cluster evaluation is disabled.")
+)
+
+var clusterMemberID int
+
+func Init() {
+	s := *clusterMemberNum
+	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
+		s = s[idx+1:]
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		logger.Fatalf("cannot parse -alert.cluster.membersNum=%q: %s", *clusterMemberNum, err)
+	}
+	clusterMemberID = int(n)
+}
 
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
@@ -219,6 +246,9 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 				continue
 			}
 			uniqueGroups[g.Name] = struct{}{}
+			if needSkipAlertWork(g.Name, *clusterMemberCount, clusterMemberID) {
+				continue
+			}
 			g.File = file
 			if len(g.ExtraFilterLabels) > 0 {
 				isExtraFilterLabelsUsed = true
@@ -236,6 +266,15 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		logger.Warnf("field `extra_filter_labels` is deprecated - use `params` instead")
 	}
 	return groups, nil
+}
+
+func needSkipAlertWork(key string, membersCount, memberNum int) bool {
+	if membersCount <= 1 {
+		return false
+	}
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
+	idx := int(h % uint64(membersCount))
+	return idx != memberNum
 }
 
 func parseFile(path string) ([]Group, error) {

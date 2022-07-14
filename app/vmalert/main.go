@@ -81,6 +81,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	config.Init()
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
