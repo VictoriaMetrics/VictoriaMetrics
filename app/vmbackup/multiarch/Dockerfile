@@ -8,4 +8,4 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT ["/vmbackup-prod"]
 ARG TARGETARCH
-COPY vmbackup-${TARGETARCH}-prod ./vmbackup-prod
+COPY vmbackup-linux-${TARGETARCH}-prod ./vmbackup-prod
