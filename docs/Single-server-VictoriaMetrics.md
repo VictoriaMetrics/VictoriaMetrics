@@ -827,6 +827,7 @@ Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_s
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
 the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+
 Note that background merges may never occur for data from previous months, so storage space won't be freed for historical data.
 In this case [forced merge](#forced-merge) may help freeing up storage space.
 
@@ -849,6 +850,8 @@ Using the delete API is not recommended in the following cases, since it brings 
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
+  Note that VictoriaMetrics doesn't delete entries from inverted index (aka `indexdb`) for the deleted time series.
+  Inverted index is cleaned up once per the configured [retention](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
