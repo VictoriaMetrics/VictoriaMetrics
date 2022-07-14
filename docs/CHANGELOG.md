@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.79.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.0)
+
+Released at 14-07-2022
+
 **Update note 1:** this release introduces backwards-incompatible changes to `vm_partial_results_total` metric by changing its labels to be consistent with `vm_requests_total` metric. If you use alerting rules or Grafana dashboards, which rely on this metric, then they must be updated. The official dashboards for VictoriaMetrics don't use this metric.
 
 **Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) adds `/vmalert/` prefix to [web urls](https://docs.victoriametrics.com/vmalert.html#web) according to [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825). This may affect `vmalert` instances with non-empty `-http.pathPrefix` command-line flag. After the update, configuring this flag is no longer needed. Here's [why](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2799#issuecomment-1171392005).
