@@ -30,11 +30,6 @@ type Group struct {
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
-	// ExtraFilterLabels is a list label filters applied to every rule
-	// request withing a group. Is compatible only with VM datasources.
-	// See https://docs.victoriametrics.com#prometheus-querying-api-enhancements
-	// DEPRECATED: use Params field instead
-	ExtraFilterLabels map[string]string `yaml:"extra_filter_labels"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	// It has priority over the external labels.
 	Labels map[string]string `yaml:"labels"`
@@ -61,22 +56,6 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// change default value to prometheus datasource.
 	if g.Type.Get() == "" {
 		g.Type.Set(datasource.NewPrometheusType())
-	}
-
-	// backward compatibility with deprecated `ExtraFilterLabels` param
-	if len(g.ExtraFilterLabels) > 0 {
-		if g.Params == nil {
-			g.Params = url.Values{}
-		}
-		// Sort extraFilters for consistent order for query args across runs.
-		extraFilters := make([]string, 0, len(g.ExtraFilterLabels))
-		for k, v := range g.ExtraFilterLabels {
-			extraFilters = append(extraFilters, fmt.Sprintf("%s=%s", k, v))
-		}
-		sort.Strings(extraFilters)
-		for _, extraFilter := range extraFilters {
-			g.Params.Add("extra_label", extraFilter)
-		}
 	}
 
 	h := md5.New()
@@ -200,7 +179,6 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		fp = append(fp, matches...)
 	}
 	errGroup := new(utils.ErrGroup)
-	var isExtraFilterLabelsUsed bool
 	var groups []Group
 	for _, file := range fp {
 		uniqueGroups := map[string]struct{}{}
@@ -220,9 +198,6 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 			}
 			uniqueGroups[g.Name] = struct{}{}
 			g.File = file
-			if len(g.ExtraFilterLabels) > 0 {
-				isExtraFilterLabelsUsed = true
-			}
 			groups = append(groups, g)
 		}
 	}
@@ -231,9 +206,6 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 	}
 	if len(groups) < 1 {
 		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
-	}
-	if isExtraFilterLabelsUsed {
-		logger.Warnf("field `extra_filter_labels` is deprecated - use `params` instead")
 	}
 	return groups, nil
 }

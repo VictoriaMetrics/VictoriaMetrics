@@ -118,13 +118,6 @@ name: <string>
 # By default "prometheus" type is used.
 [ type: <string> ]
 
-# Warning: DEPRECATED
-# Please use `params` instead:
-#   params:
-#     extra_label: ["job=nodeexporter", "env=prod"]
-extra_filter_labels:
-  [ <labelname>: <labelvalue> ... ]
-
 # Optional list of HTTP URL parameters
 # applied for all rules requests within a group
 # For example:
