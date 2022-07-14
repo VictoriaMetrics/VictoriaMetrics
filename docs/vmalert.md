@@ -391,6 +391,18 @@ Alertmanagers.
 
 <img alt="vmalert ha" width="800px" src="vmalert_ha.png">
 
+Sometimes we need execute thousands of rules in a short interval, this may be not enough due to limitations on CPU, network, RAM, etc.
+In this case alert groups can be split among multiple `vmalert` instances by specifying `-alert.cluster.memberNum` flag.
+It allows them to specify the same `alert.cluster.memberNum`, which means they will execute the same rules, write state and results to
+the same destinations, and send alert notifications to multiple configured Alertmanagers.
+Also, the number of `vmalert` instances in the cluster must be passed to `-alert.cluster.membersCount` command-line flag. 
+For example, the following commands spread alert rules among a cluster of two `vmalert` instances:
+
+```
+/path/to/vmalert -alert.cluster.membersCount=2 -alert.cluster.memberNum=0 ...
+/path/to/vmalert -alert.cluster.membersCount=2 -alert.cluster.memberNum=1 ...
+```
+
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
 The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
@@ -926,6 +938,10 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -alert.cluster.memberNum int
+     The number of members in the cluster of vmalerts. It must be an value in the range 0 ... alert.cluster.membersCount-1 across scrapers in the cluster.  Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name.
+  -alert.cluster.membersCount string
+     The amount of members in a cluster of vmalerts. Each member must have an -alert.cluster.memberNum in the range 0 ... alert.cluster.membersCount-1 . Each member then evaluates roughly 1/N of all the groups. By default cluster evaluation is disabled.
   -version
      Show VictoriaMetrics version
 ```
