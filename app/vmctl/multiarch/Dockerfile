@@ -8,4 +8,4 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT ["/vmctl-prod"]
 ARG TARGETARCH
-COPY vmctl-${TARGETARCH}-prod ./vmctl-prod
+COPY vmctl-linux-${TARGETARCH}-prod ./vmctl-prod
