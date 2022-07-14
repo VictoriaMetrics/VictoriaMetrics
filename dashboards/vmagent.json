@@ -6,7 +6,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.5.3"
+      "version": "8.4.4"
     },
     {
       "type": "panel",
@@ -61,12 +61,12 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmagent v1.73.0 or higher",
+  "description": "Overview for VictoriaMetrics vmagent v1.80.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1656943336787,
+  "iteration": 1657810604530,
   "links": [
     {
       "icon": "doc",
@@ -154,7 +154,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"up\"})",
@@ -218,7 +218,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"down\"})",
@@ -285,7 +285,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
@@ -344,7 +344,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
@@ -490,7 +490,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -589,7 +589,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -702,7 +702,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -805,7 +805,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -946,7 +946,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1039,7 +1039,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1138,7 +1138,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1237,7 +1237,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1344,7 +1344,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.3",
+      "pluginVersion": "8.4.4",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -2457,7 +2457,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 43
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2480,7 +2480,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2555,7 +2555,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 43
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2578,7 +2578,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2652,7 +2652,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 61,
@@ -2675,7 +2675,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2748,7 +2748,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 65,
@@ -2771,7 +2771,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2837,7 +2837,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 59
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2881,9 +2881,10 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows saturation of every connection to remote storage. If the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vmagent won't be able to keep up. This usually means that `-remoteWrite.queues` command-line flag must be increased in order to increase the number of connections per each remote storage.\n",
+          "description": "Shows saturation of every connection to remote storage. If the threshold of 90% is reached, then the connection is saturated (busy or slow) by more than 90%, so vmagent won't be able to keep up and can start buffering data. \n\nThis usually means that `-remoteWrite.queues` command-line flag must be increased in order to increase the number of connections per each remote storage.\n",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -2896,7 +2897,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 84,
@@ -2919,7 +2920,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2930,7 +2931,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "sum(rate(vmagent_remotewrite_send_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) by (instance, url)",
+              "expr": "sum(rate(vmagent_remotewrite_send_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) by (instance, url)\n/\nmax(vmagent_remotewrite_queues{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}) by(instance, url)",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -2943,7 +2944,7 @@
               "fill": true,
               "line": true,
               "op": "gt",
-              "value": 0.9,
+              "value": 90,
               "yaxis": "left"
             }
           ],
@@ -2963,7 +2964,7 @@
           "yaxes": [
             {
               "$$hashKey": "object:662",
-              "format": "s",
+              "format": "percentunit",
               "logBase": 1,
               "min": "0",
               "show": true
@@ -2997,7 +2998,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 67
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -3053,7 +3054,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 67
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -3104,7 +3105,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 75
           },
           "hiddenSeries": false,
           "id": 88,
@@ -3124,7 +3125,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3207,7 +3208,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 75
           },
           "hiddenSeries": false,
           "id": 90,
@@ -3227,7 +3228,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.5.3",
+          "pluginVersion": "8.4.4",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -4567,7 +4568,7 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 36,
+  "schemaVersion": 35,
   "style": "dark",
   "tags": [
     "vmagent",
@@ -4577,7 +4578,9 @@
     "list": [
       {
         "current": {
-          "selected": false
+          "selected": true,
+          "text": "VM",
+          "value": "VM"
         },
         "hide": 0,
         "includeAll": false,
