@@ -16,7 +16,9 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 **Update note 1:** this release introduces backwards-incompatible changes to `vm_partial_results_total` metric by changing its labels to be consistent with `vm_requests_total` metric. If you use alerting rules or Grafana dashboards, which rely on this metric, then they must be updated. The official dashboards for VictoriaMetrics don't use this metric.
+
 **Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) adds `/vmalert/` prefix to [web urls](https://docs.victoriametrics.com/vmalert.html#web) according to [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825). This may affect `vmalert` instances with non-empty `-http.pathPrefix` command-line flag. After the update, configuring this flag is no longer needed. Here's [why](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2799#issuecomment-1171392005).
+
 **Update note 3:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added ability to query `vmselect` data from other `vmselect` nodes - see [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup), so read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases at any time.
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add [azure_sd_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config) service discovery mechanism. It allows discovering Virtual Machines at [Azure Cloud](https://azure.microsoft.com/en-us/). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1364).
