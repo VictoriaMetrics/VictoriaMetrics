@@ -154,7 +154,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
 
    - If the percentage of free CPU is close to 0, then VictoriaMetrics
      may experience arbitrary long delays during data ingestion when it cannot keep up
-     with the data ingestion rate.
+     with slightly increased data ingestion rate.
 
    - If the percentage of free memory reaches 0, then the Operating System where VictoriaMetrics components run,
      may have no enough memory for [page cache](https://en.wikipedia.org/wiki/Page_cache).
@@ -168,8 +168,8 @@ There are the following most commons reasons for slow data ingestion in Victoria
      which, in turn, slows down both data ingestion and querying. See [these docs](https://docs.victoriametrics.com/#storage) for details.
 
 4. If you run cluster version of VictoriaMetrics, then make sure `vminsert` and `vmstorage` components
-   are located in the same network with short network latency between them.
-   `vminsert` packs incoming data into in-memory packets and sends them to `vmstorage` on-by-one.
+   are located in the same network with small network latency between them.
+   `vminsert` packs incoming data into batch packets and sends them to `vmstorage` on-by-one.
    It waits until `vmstorage` returns back `ack` response before sending the next packet.
    If the network latency between `vminsert` and `vmstorage` is high (for example, if they run in different datacenters),
    then this may become limiting factor for data ingestion speed.
@@ -199,11 +199,11 @@ There are the following solutions exist for slow queries:
 
 - Adding more CPU and memory to VictoriaMetrics, so it may perform the slow query faster.
   If you use cluster version of VictoriaMetrics, then migration of `vmselect` nodes to machines
-  with more CPU and RAM should help improving speed for slow queries. Remember that query performance
-  is always limited by resources of one vmselect which processes the query. For example, if 2vCPU on vmselect
-  isn't enough to process query fast enough, then prefer vertical scaling to horizontal for vmselects.
-  If on [ffficial Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
-  panel `Concurrent selects` is close to the limit, then prefer horizontal scaling for vmselects.
+  with more CPU and RAM should help improving speed for slow queries. Query performance
+  is always limited by resources of one vmselect which processes the query. For example, if 2vCPU cores on `vmselect`
+  isn't enough to process query fast enough, then migrating `vmselect` to a machine with 4vCPU cores should increase heavy query performance by up to 2x.
+  If the line on `Concurrent select` graph form the [official Grafana dashboard for VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+  is close to the limit, then prefer adding more `vmselect` nodes to the cluster.
   Sometimes adding more `vmstorage` nodes also can help improving the speed for slow queries.
 
 - Rewriting slow queries, so they become faster. Unfortunately it is hard determining
@@ -214,6 +214,21 @@ There are the following solutions exist for slow queries:
   which explains how to determine and optimize slow queries.
 
   In practice many slow queries are generated because of improper use of [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries).
+  It is recommended avoiding subqueries if you don't understand clearly how they work.
+  It is easy to create a subquery without knowing about it.
+  For example, `rate(sum(some_metric))` is implicitly transformed into the following subquery
+  according to [implicit conversion rules for MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html#implicit-query-conversions):
+
+  ```metricsql
+  rate(
+    sum(
+      default_rollup(some_metric[1i])
+    )[1i:1i]
+  )
+  ```
+
+  It is likely this query won't return the expected results. Instead, `sum(rate(some_metric))` must be used instead.
+  See [this article](https://www.robustperception.io/rate-then-sum-never-sum-then-rate/) for more details.
 
 
 ## Out of memory errors
