@@ -30,7 +30,7 @@ func TestManagerEmptyRulesDir(t *testing.T) {
 	m := &manager{groups: make(map[uint64]*Group)}
 	cfg := loadCfg(t, []string{"foo/bar"}, true, true)
 	if err := m.update(context.Background(), cfg, false); err != nil {
-		t.Fatalf("expected to load succesfully with empty rules dir; got err instead: %v", err)
+		t.Fatalf("expected to load successfully with empty rules dir; got err instead: %v", err)
 	}
 }
 

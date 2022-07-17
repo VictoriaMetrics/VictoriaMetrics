@@ -148,7 +148,7 @@ func TestUpdateWith(t *testing.T) {
 					t.Fatalf("expected to have rule %q; got %q", want, got)
 				}
 				if err := compareRules(t, got, want); err != nil {
-					t.Fatalf("comparsion error: %s", err)
+					t.Fatalf("comparison error: %s", err)
 				}
 			}
 		})

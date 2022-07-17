@@ -185,7 +185,7 @@ func TestTemplates_Load(t *testing.T) {
 			}
 			if tc.expErr != "" && err == nil {
 				t.Error("%+w", err)
-				t.Error("expected error that didn't happend")
+				t.Error("expected error that didn't happened")
 			}
 			if err != nil && !strings.Contains(err.Error(), tc.expErr) {
 				t.Error("%+w", err)
