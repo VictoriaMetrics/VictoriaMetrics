@@ -2803,7 +2803,12 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`scalar default vector1`, func(t *testing.T) {
 		t.Parallel()
 		q := `time() > 1400 default label_set(123, "foo", "bar")`
-		resultExpected := []netstorage.Result{}
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`scalar default vector2`, func(t *testing.T) {
@@ -6092,7 +6097,18 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`ifnot-no-matching-timeseries`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") ifnot label_set(time() > 1400, "x", "y")`
-		resultExpected := []netstorage.Result{}
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`quantile(-2)`, func(t *testing.T) {
