@@ -2183,17 +2183,13 @@ func transformTimezoneOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, fmt.Errorf("cannot load timezone %q: %w", tzString, err)
 	}
 
-	var ts timeseries
-	ts.denyReuse = true
-	timestamps := tfa.ec.getSharedTimestamps()
-	values := make([]float64, len(timestamps))
-	for i, v := range timestamps {
-		_, offset := time.Unix(v/1000, 0).In(loc).Zone()
-		values[i] = float64(offset)
+	tss := evalNumber(tfa.ec, nan)
+	ts := tss[0]
+	for i, timestamp := range ts.Timestamps {
+		_, offset := time.Unix(timestamp/1000, 0).In(loc).Zone()
+		ts.Values[i] = float64(offset)
 	}
-	ts.Values = values
-	ts.Timestamps = timestamps
-	return []*timeseries{&ts}, nil
+	return tss, nil
 }
 
 func transformTime(tfa *transformFuncArg) ([]*timeseries, error) {
