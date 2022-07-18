@@ -164,7 +164,7 @@ func compareGroups(t *testing.T, a, b *Group) {
 			t.Fatalf("expected to have rule %q; got %q", want.ID(), got.ID())
 		}
 		if err := compareRules(t, want, got); err != nil {
-			t.Fatalf("comparsion error: %s", err)
+			t.Fatalf("comparison error: %s", err)
 		}
 	}
 }
