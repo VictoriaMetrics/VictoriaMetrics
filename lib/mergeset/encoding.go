@@ -56,7 +56,7 @@ func (ib *inmemoryBlock) Less(i, j int) bool {
 	a.Start += cpLen
 	b.Start += cpLen
 	data := ib.data
-	return string(items[i].Bytes(data)) < string(items[j].Bytes(data))
+	return string(a.Bytes(data)) < string(b.Bytes(data))
 }
 
 func (ib *inmemoryBlock) Swap(i, j int) {
