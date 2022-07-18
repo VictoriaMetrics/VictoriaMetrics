@@ -130,6 +130,10 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 		prevScrapeCfgByName[scPrev.JobName] = scPrev
 	}
 
+	// Restart all the scrape jobs on Global config change.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2884
+	needGlobalRestart := !areEqualGlobalConfigs(&cfg.Global, &prevCfg.Global)
+
 	// Loop over the the new jobs, start new ones and restart updated ones.
 	var started, stopped, restarted int
 	currentJobNames := make(map[string]struct{}, len(cfg.ScrapeConfigs))
@@ -142,7 +146,7 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 			started++
 			continue
 		}
-		if areEqualScrapeConfigs(scPrev, sc) {
+		if !needGlobalRestart && areEqualScrapeConfigs(scPrev, sc) {
 			// The scrape config didn't change, so no need to restart it.
 			// Use the reference to the previous job, so it could be stopped properly later.
 			cfg.ScrapeConfigs[i] = scPrev
@@ -165,6 +169,12 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 	logger.Infof("restarted service discovery routines in %.3f seconds, stopped=%d, started=%d, restarted=%d", time.Since(startTime).Seconds(), stopped, started, restarted)
 }
 
+func areEqualGlobalConfigs(a, b *GlobalConfig) bool {
+	sa := a.marshalJSON()
+	sb := b.marshalJSON()
+	return string(sa) == string(sb)
+}
+
 func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 	sa := a.marshalJSON()
 	sb := b.marshalJSON()
@@ -179,6 +189,14 @@ func (sc *ScrapeConfig) marshalJSON() []byte {
 	data, err := json.Marshal(sc)
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal ScrapeConfig: %s", err)
+	}
+	return data
+}
+
+func (gc *GlobalConfig) marshalJSON() []byte {
+	data, err := json.Marshal(gc)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal GlobalConfig: %s", err)
 	}
 	return data
 }
