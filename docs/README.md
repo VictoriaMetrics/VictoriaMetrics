@@ -411,7 +411,7 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
 * [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line. The `db` label name can be overriden via `-influxDBLabel` command-line flag.
+  unless `db` tag exists in the InfluxDB line. The `db` label name can be overridden via `-influxDBLabel` command-line flag.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -704,7 +704,7 @@ VictoriaMetrics supports the following handlers from [Graphite Metrics API](http
 VictoriaMetrics accepts the following additional query args at `/metrics/find` and `/metrics/expand`:
 
 * `label` - for selecting arbitrary label values. By default `label=__name__`, i.e. metric names are selected.
-* `delimiter` - for using different delimiters in metric name hierachy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
+* `delimiter` - for using different delimiters in metric name hierarchy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
     that start with `node_`. By default `delimiter=.`.
 
 ### Graphite Tags API usage
@@ -1139,7 +1139,7 @@ Extra labels may be added to all the imported metrics by passing `extra_label=na
 For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
 
 If timestamp is missing in `<metric> <value> <timestamp>` Prometheus exposition format line, then the current timestamp is used during data ingestion.
-It can be overriden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
+It can be overridden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
 
 VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
 
@@ -1748,7 +1748,7 @@ For accessing vmalert's UI through single-node VictoriaMetrics configure `-vmale
 
 Note, that vendors (including VictoriaMetrics) are often biased when doing such tests. E.g. they try highlighting
 the best parts of their product, while highlighting the worst parts of competing products.
-So we encourage users and all independent third parties to conduct their becnhmarks for various products
+So we encourage users and all independent third parties to conduct their benchmarks for various products
 they are evaluating in production and publish the results.
 
 As a reference, please see [benchmarks](https://docs.victoriametrics.com/Articles.html#benchmarks) conducted by
@@ -2104,7 +2104,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.graphiteMaxPointsPerSeries int
      The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overriden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
