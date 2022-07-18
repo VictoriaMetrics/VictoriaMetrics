@@ -248,7 +248,7 @@ It is also safe downgrading to older versions unless [release notes](https://git
 
 The following steps must be performed during the upgrade / downgrade procedure:
 
-* Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
+* Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it. See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
