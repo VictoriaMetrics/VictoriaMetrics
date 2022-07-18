@@ -204,7 +204,11 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 	}
 	if ecsMetaURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(ecsMetaURI) > 0 {
 		path := "http://169.254.170.2" + ecsMetaURI
-		return getECSRoleCredentialsByPath(cfg.client, path)
+		ac, err := getECSRoleCredentialsByPath(cfg.client, path)
+		if err != nil {
+			return nil, fmt.Errorf("cannot obtain ECS role credentials: %w", err)
+		}
+		acNew = ac
 	}
 
 	// we need instance credentials if dont have access keys
