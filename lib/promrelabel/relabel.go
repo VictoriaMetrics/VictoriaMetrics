@@ -297,7 +297,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return labels
 	case "labelmap_all":
-		// Replace all the occurences of `regex` at label names with `replacement`
+		// Replace all the occurrences of `regex` at label names with `replacement`
 		for i := range src {
 			label := &src[i]
 			label.Name, _ = prc.replaceStringSubmatches(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
