@@ -270,7 +270,9 @@ groups:
             Ensure that destination is up and reachable."
 
       - alert: RemoteWriteConnectionIsSaturated
-        expr: rate(vmagent_remotewrite_send_duration_seconds_total[5m]) > 0.9
+        expr: |
+          sum(rate(vmagent_remotewrite_send_duration_seconds_total[5m])) by(job, instance, url) 
+          > 0.9 * max(vmagent_remotewrite_queues) by(job, instance, url)
         for: 15m
         labels:
           severity: warning
