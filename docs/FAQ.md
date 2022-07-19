@@ -255,9 +255,9 @@ Memory usage for VictoriaMetrics components can be tuned according to the follow
 * [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting)
 * [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
 
-## How can I run VictoriaMetrics on FreeBSD?
+## How can I run VictoriaMetrics on FreeBSD/OpenBSD?
 
-VictoriaMetrics is included in FreeBSD ports, so just install it from there. See [this link](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all).
+VictoriaMetrics is included in [OpenBSD](https://github.com/openbsd/ports/blob/master/infrastructure/db/user.list#L383)/[FreeBSD](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) ports so just install it from there or use pre built binaries from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) (starting from [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790)).
 
 ## Does VictoriaMetrics support the Graphite query language?
 
