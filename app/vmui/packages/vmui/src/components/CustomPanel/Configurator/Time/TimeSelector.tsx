@@ -110,7 +110,9 @@ export const TimeSelector: FC = () => {
       open={open}
       anchorEl={anchorEl}
       placement="bottom-end"
-      modifiers={[{name: "offset", options: {offset: [0, 6]}}]}>
+      modifiers={[{name: "offset", options: {offset: [0, 6]}}]}
+      sx={{zIndex: 3, position: "relative"}}
+    >
       <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
         <Paper elevation={3}>
           <Box sx={classes.container}>
