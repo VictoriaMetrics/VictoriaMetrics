@@ -9,6 +9,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 ## Third-party articles and slides about VictoriaMetrics
 
 * [Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
+* [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
 * [Announcing Asserts](https://www.asserts.ai/blog/announcing-asserts/)
 * [Choosing a Time Series Database for High Cardinality Aggregations](https://abiosgaming.com/press/high-cardinality-aggregations/)
 * [Scaling to trillions of metric data points](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2)
