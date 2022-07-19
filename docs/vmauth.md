@@ -40,7 +40,8 @@ Each `url_prefix` in the [-auth.config](#auth-config) may contain either a singl
 
 ```yml
 # Arbitrary number of usernames may be put here.
-# Username and bearer_token values must be unique.
+# It is possible to set multiple identical usernames with different passwords.
+# Such usernames can be differentiated by `name` option.
 
 users:
   # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
