@@ -260,8 +260,6 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		return nil, fmt.Errorf("`users` section cannot be empty in AuthConfig")
 	}
 	byAuthToken := make(map[string]*UserInfo, len(uis))
-	byUsername := make(map[string]bool, len(uis))
-	byBearerToken := make(map[string]bool, len(uis))
 	for i := range uis {
 		ui := &uis[i]
 		if ui.BearerToken == "" && ui.Username == "" {
@@ -269,12 +267,6 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		}
 		if ui.BearerToken != "" && ui.Username != "" {
 			return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
-		}
-		if byBearerToken[ui.BearerToken] {
-			return nil, fmt.Errorf("duplicate bearer_token found; bearer_token: %q", ui.BearerToken)
-		}
-		if byUsername[ui.Username] {
-			return nil, fmt.Errorf("duplicate username found; username: %q", ui.Username)
 		}
 		at1, at2 := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
 		if byAuthToken[at1] != nil {
@@ -311,7 +303,6 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
-			byBearerToken[ui.BearerToken] = true
 		}
 		if ui.Username != "" {
 			name := ui.Username
@@ -319,7 +310,6 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 				name = ui.Name
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
-			byUsername[ui.Username] = true
 		}
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui
