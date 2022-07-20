@@ -26,6 +26,17 @@ var (
 		`This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter`)
 )
 
+// UserReadableError is a type of error which supposed
+// to be returned to the user without additional context.
+type UserReadableError struct {
+	Err error
+}
+
+// Error satisfies Error interface
+func (ure UserReadableError) Error() string {
+	return ure.Err.Error()
+}
+
 // Exec executes q for the given ec.
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
@@ -73,7 +84,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 		qt.Printf("round series values to %d decimal digits after the point", n)
 	}
-	return result, err
+	return result, nil
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
