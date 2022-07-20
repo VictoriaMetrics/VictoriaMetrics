@@ -583,7 +583,7 @@ func TestNeedSkipAlertWork(t *testing.T) {
 		}
 	}
 	// Disabled clustering
-	f("bar", 0, 0, false)
+	f("foo", 0, 0, false)
 
 	// A cluster with 2 nodes
 	f("foo", 2, 0, true)

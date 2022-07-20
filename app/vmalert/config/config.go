@@ -8,6 +8,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"hash/fnv"
 	"io/ioutil"
+	"math"
 	"net/url"
 	"path/filepath"
 	"sort"
@@ -35,6 +36,7 @@ var (
 
 var clusterMemberID int
 
+// Init must be called before Parse call.
 func Init() {
 	s := *clusterMemberNum
 	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
@@ -43,6 +45,9 @@ func Init() {
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		logger.Fatalf("cannot parse -alert.cluster.membersNum=%q: %s", *clusterMemberNum, err)
+	}
+	if n > math.MaxInt {
+		logger.Fatalf("-alert.cluster.membersNum is too large:%q", *clusterMemberNum)
 	}
 	clusterMemberID = int(n)
 }
