@@ -435,7 +435,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 			return nil, nil, errFirst
 		}
 		if errSecond != nil {
-			return nil, nil, errFirst
+			return nil, nil, errSecond
 		}
 		return tssFirst, tssSecond, nil
 	}
