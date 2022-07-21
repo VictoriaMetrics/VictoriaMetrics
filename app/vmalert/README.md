@@ -125,6 +125,16 @@ name: <string>
 params:
   [ <string>: [<string>, ...]]
 
+# Optional list of HTTP headers in form `header-name: value`
+# applied for all rules requests within a group
+# For example:
+#  headers:
+#    - "CustomHeader: foo"
+#    - "CustomHeader2: bar"
+# Headers set via this param have priority over headers set via `-datasource.headers` flag. 
+headers:
+  [ <string>, ...]
+
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
 # Labels are commonly used for adding environment

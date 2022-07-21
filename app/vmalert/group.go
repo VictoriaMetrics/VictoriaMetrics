@@ -35,8 +35,9 @@ type Group struct {
 	Checksum       string
 	LastEvaluation time.Time
 
-	Labels map[string]string
-	Params url.Values
+	Labels  map[string]string
+	Params  url.Values
+	Headers []datasource.Header
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -96,6 +97,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Concurrency: cfg.Concurrency,
 		Checksum:    cfg.Checksum,
 		Params:      cfg.Params,
+		Headers:     cfg.Headers,
 		Labels:      cfg.Labels,
 
 		doneCh:     make(chan struct{}),
@@ -217,6 +219,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
+	g.Headers = newGroup.Headers
 	g.Labels = newGroup.Labels
 	g.Limit = newGroup.Limit
 	g.Checksum = newGroup.Checksum

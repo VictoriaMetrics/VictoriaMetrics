@@ -15,7 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow configuring additional headers for `datasource.url`, `remoteWrite.url` and `remoteRead.url` URLs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2860) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow configuring additional headers for `datasource.url`, `remoteWrite.url` and `remoteRead.url` URLs. Headers also can be set on group level via `headers` param. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2860) for details.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): execute left and right sides of certain operations in parallel. For example, `q1 or q2`, `aggr_func(q1) <op> q2`, `q1 <op> aggr_func(q1)`. This may improve query performance if VictoriaMetrics has enough free resources for parallel processing of both sides of the operation. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2886).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmagent.html): allow duplicate username records with different passwords at configuration file. It should allow password rotation without username change.
 * FEATURE: add ability to push internal metrics (e.g. metrics exposed at `/metrics` page) to the configured remote storage from all the VictoriaMetrics components. See [these docs](https://docs.victoriametrics.com/#push-metrics).

@@ -70,6 +70,8 @@ type APIGroup struct {
 	Concurrency int `json:"concurrency"`
 	// Params contains HTTP URL parameters added to each Rule's request
 	Params []string `json:"params,omitempty"`
+	// Headers contains HTTP headers added to each Rule's request
+	Headers []string `json:"headers,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
 }

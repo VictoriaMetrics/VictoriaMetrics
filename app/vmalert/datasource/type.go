@@ -2,6 +2,7 @@ package datasource
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
 	"github.com/VictoriaMetrics/metricsql"
@@ -88,4 +89,28 @@ func (t *Type) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // MarshalYAML implements the yaml.Unmarshaler interface.
 func (t Type) MarshalYAML() (interface{}, error) {
 	return t.name, nil
+}
+
+// Header is a Key - Value struct for holding an HTTP header.
+type Header struct {
+	Key   string
+	Value string
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (h *Header) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	if s == "" {
+		return nil
+	}
+	n := strings.IndexByte(s, ':')
+	if n < 0 {
+		return fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, s)
+	}
+	h.Key = strings.TrimSpace(s[:n])
+	h.Value = strings.TrimSpace(s[n+1:])
+	return nil
 }

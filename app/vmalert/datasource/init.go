@@ -15,7 +15,7 @@ var (
 		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend")
 	appendTypePrefix = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
 
-	headers = flag.String("datasource.headers", "", "Optional HTTP headers to send with each request to the corresponding -datasource.url. "+
+	headers = flag.String("datasource.headers", "", "Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. "+
 		"For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. "+
 		"Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'")
 
