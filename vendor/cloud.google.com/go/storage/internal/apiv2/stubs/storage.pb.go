@@ -25,17 +25,17 @@ import (
 	reflect "reflect"
 	sync "sync"
 
+	empty "github.com/golang/protobuf/ptypes/empty"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	v1 "google.golang.org/genproto/googleapis/iam/v1"
 	date "google.golang.org/genproto/googleapis/type/date"
+	field_mask "google.golang.org/genproto/protobuf/field_mask"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -264,7 +264,7 @@ type GetBucketRequest struct {
 	// Mask specifying which fields to read.
 	// A "*" field may be used to indicate all fields.
 	// If no mask is specified, will default to all fields.
-	ReadMask *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
+	ReadMask *field_mask.FieldMask `protobuf:"bytes,5,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
 }
 
 func (x *GetBucketRequest) Reset() {
@@ -320,7 +320,7 @@ func (x *GetBucketRequest) GetIfMetagenerationNotMatch() int64 {
 	return 0
 }
 
-func (x *GetBucketRequest) GetReadMask() *fieldmaskpb.FieldMask {
+func (x *GetBucketRequest) GetReadMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.ReadMask
 	}
@@ -443,7 +443,7 @@ type ListBucketsRequest struct {
 	// If no mask is specified, will default to all fields except items.owner,
 	// items.acl, and items.default_object_acl.
 	// * may be used to mean "all fields".
-	ReadMask *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
+	ReadMask *field_mask.FieldMask `protobuf:"bytes,5,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
 }
 
 func (x *ListBucketsRequest) Reset() {
@@ -506,7 +506,7 @@ func (x *ListBucketsRequest) GetPrefix() string {
 	return ""
 }
 
-func (x *ListBucketsRequest) GetReadMask() *fieldmaskpb.FieldMask {
+func (x *ListBucketsRequest) GetReadMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.ReadMask
 	}
@@ -664,7 +664,7 @@ type UpdateBucketRequest struct {
 	// Not specifying any fields is an error.
 	// Not specifying a field while setting that field to a non-default value is
 	// an error.
-	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,6,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	UpdateMask *field_mask.FieldMask `protobuf:"bytes,6,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 }
 
 func (x *UpdateBucketRequest) Reset() {
@@ -734,7 +734,7 @@ func (x *UpdateBucketRequest) GetPredefinedDefaultObjectAcl() string {
 	return ""
 }
 
-func (x *UpdateBucketRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+func (x *UpdateBucketRequest) GetUpdateMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.UpdateMask
 	}
@@ -1328,7 +1328,7 @@ type ReadObjectRequest struct {
 	// If no mask is specified, will default to all fields except metadata.owner
 	// and metadata.acl.
 	// * may be used to mean "all fields".
-	ReadMask *fieldmaskpb.FieldMask `protobuf:"bytes,12,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
+	ReadMask *field_mask.FieldMask `protobuf:"bytes,12,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
 }
 
 func (x *ReadObjectRequest) Reset() {
@@ -1433,7 +1433,7 @@ func (x *ReadObjectRequest) GetCommonObjectRequestParams() *CommonObjectRequestP
 	return nil
 }
 
-func (x *ReadObjectRequest) GetReadMask() *fieldmaskpb.FieldMask {
+func (x *ReadObjectRequest) GetReadMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.ReadMask
 	}
@@ -1474,7 +1474,7 @@ type GetObjectRequest struct {
 	// If no mask is specified, will default to all fields except metadata.acl and
 	// metadata.owner.
 	// * may be used to mean "all fields".
-	ReadMask *fieldmaskpb.FieldMask `protobuf:"bytes,10,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
+	ReadMask *field_mask.FieldMask `protobuf:"bytes,10,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
 }
 
 func (x *GetObjectRequest) Reset() {
@@ -1565,7 +1565,7 @@ func (x *GetObjectRequest) GetCommonObjectRequestParams() *CommonObjectRequestPa
 	return nil
 }
 
-func (x *GetObjectRequest) GetReadMask() *fieldmaskpb.FieldMask {
+func (x *GetObjectRequest) GetReadMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.ReadMask
 	}
@@ -2058,7 +2058,7 @@ type ListObjectsRequest struct {
 	// If no mask is specified, will default to all fields except items.acl and
 	// items.owner.
 	// * may be used to mean "all fields".
-	ReadMask *fieldmaskpb.FieldMask `protobuf:"bytes,8,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
+	ReadMask *field_mask.FieldMask `protobuf:"bytes,8,opt,name=read_mask,json=readMask,proto3,oneof" json:"read_mask,omitempty"`
 	// Filter results to objects whose names are lexicographically equal to or
 	// after lexicographic_start. If lexicographic_end is also set, the objects
 	// listed have names between lexicographic_start (inclusive) and
@@ -2152,7 +2152,7 @@ func (x *ListObjectsRequest) GetVersions() bool {
 	return false
 }
 
-func (x *ListObjectsRequest) GetReadMask() *fieldmaskpb.FieldMask {
+func (x *ListObjectsRequest) GetReadMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.ReadMask
 	}
@@ -2851,7 +2851,7 @@ type UpdateObjectRequest struct {
 	// Not specifying any fields is an error.
 	// Not specifying a field while setting that field to a non-default value is
 	// an error.
-	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,7,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	UpdateMask *field_mask.FieldMask `protobuf:"bytes,7,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	// A set of parameters common to Storage API requests concerning an object.
 	CommonObjectRequestParams *CommonObjectRequestParams `protobuf:"bytes,8,opt,name=common_object_request_params,json=commonObjectRequestParams,proto3" json:"common_object_request_params,omitempty"`
 }
@@ -2930,7 +2930,7 @@ func (x *UpdateObjectRequest) GetPredefinedAcl() string {
 	return ""
 }
 
-func (x *UpdateObjectRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+func (x *UpdateObjectRequest) GetUpdateMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.UpdateMask
 	}
@@ -3382,7 +3382,7 @@ type UpdateHmacKeyRequest struct {
 	// identify the key.
 	HmacKey *HmacKeyMetadata `protobuf:"bytes,1,opt,name=hmac_key,json=hmacKey,proto3" json:"hmac_key,omitempty"`
 	// Update mask for hmac_key.
-	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	UpdateMask *field_mask.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 }
 
 func (x *UpdateHmacKeyRequest) Reset() {
@@ -3424,7 +3424,7 @@ func (x *UpdateHmacKeyRequest) GetHmacKey() *HmacKeyMetadata {
 	return nil
 }
 
-func (x *UpdateHmacKeyRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+func (x *UpdateHmacKeyRequest) GetUpdateMask() *field_mask.FieldMask {
 	if x != nil {
 		return x.UpdateMask
 	}
@@ -3599,14 +3599,14 @@ type Bucket struct {
 	// Output only. The creation time of the bucket.
 	// Attempting to set or update this field will result in a
 	// [FieldViolation][google.rpc.BadRequest.FieldViolation].
-	CreateTime *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	CreateTime *timestamp.Timestamp `protobuf:"bytes,11,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	// The bucket's [https://www.w3.org/TR/cors/][Cross-Origin Resource Sharing]
 	// (CORS) config.
 	Cors []*Bucket_Cors `protobuf:"bytes,12,rep,name=cors,proto3" json:"cors,omitempty"`
 	// Output only. The modification time of the bucket.
 	// Attempting to set or update this field will result in a
 	// [FieldViolation][google.rpc.BadRequest.FieldViolation].
-	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
+	UpdateTime *timestamp.Timestamp `protobuf:"bytes,13,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	// The default value for event-based hold on newly created objects in this
 	// bucket.  Event-based hold is a way to retain objects indefinitely until an
 	// event occurs, signified by the
@@ -3777,7 +3777,7 @@ func (x *Bucket) GetLifecycle() *Bucket_Lifecycle {
 	return nil
 }
 
-func (x *Bucket) GetCreateTime() *timestamppb.Timestamp {
+func (x *Bucket) GetCreateTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.CreateTime
 	}
@@ -3791,7 +3791,7 @@ func (x *Bucket) GetCors() []*Bucket_Cors {
 	return nil
 }
 
-func (x *Bucket) GetUpdateTime() *timestamppb.Timestamp {
+func (x *Bucket) GetUpdateTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.UpdateTime
 	}
@@ -4161,9 +4161,9 @@ type HmacKeyMetadata struct {
 	// State of the key. One of ACTIVE, INACTIVE, or DELETED.
 	State string `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
 	// The creation time of the HMAC key.
-	CreateTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	CreateTime *timestamp.Timestamp `protobuf:"bytes,6,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	// The last modification time of the HMAC key metadata.
-	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
+	UpdateTime *timestamp.Timestamp `protobuf:"bytes,7,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	// The etag of the HMAC key.
 	Etag string `protobuf:"bytes,8,opt,name=etag,proto3" json:"etag,omitempty"`
 }
@@ -4235,14 +4235,14 @@ func (x *HmacKeyMetadata) GetState() string {
 	return ""
 }
 
-func (x *HmacKeyMetadata) GetCreateTime() *timestamppb.Timestamp {
+func (x *HmacKeyMetadata) GetCreateTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.CreateTime
 	}
 	return nil
 }
 
-func (x *HmacKeyMetadata) GetUpdateTime() *timestamppb.Timestamp {
+func (x *HmacKeyMetadata) GetUpdateTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.UpdateTime
 	}
@@ -4489,7 +4489,7 @@ type Object struct {
 	// version of the object has been deleted.
 	// Attempting to set or update this field will result in a
 	// [FieldViolation][google.rpc.BadRequest.FieldViolation].
-	DeleteTime *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=delete_time,json=deleteTime,proto3" json:"delete_time,omitempty"`
+	DeleteTime *timestamp.Timestamp `protobuf:"bytes,12,opt,name=delete_time,json=deleteTime,proto3" json:"delete_time,omitempty"`
 	// Content-Type of the object data, matching
 	// [https://tools.ietf.org/html/rfc7231#section-3.1.1.5][RFC 7231 §3.1.1.5].
 	// If an object is stored without a Content-Type, it is served as
@@ -4498,7 +4498,7 @@ type Object struct {
 	// Output only. The creation time of the object.
 	// Attempting to set or update this field will result in a
 	// [FieldViolation][google.rpc.BadRequest.FieldViolation].
-	CreateTime *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	CreateTime *timestamp.Timestamp `protobuf:"bytes,14,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	// Output only. Number of underlying components that make up this object. Components are
 	// accumulated by compose operations.
 	// Attempting to set or update this field will result in a
@@ -4509,7 +4509,7 @@ type Object struct {
 	// Output only. The modification time of the object metadata.
 	// Attempting to set or update this field will result in a
 	// [FieldViolation][google.rpc.BadRequest.FieldViolation].
-	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
+	UpdateTime *timestamp.Timestamp `protobuf:"bytes,17,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	// Cloud KMS Key used to encrypt this object, if the object is encrypted by
 	// such a key.
 	KmsKey string `protobuf:"bytes,18,opt,name=kms_key,json=kmsKey,proto3" json:"kms_key,omitempty"`
@@ -4517,7 +4517,7 @@ type Object struct {
 	// object is initially created, it will be set to time_created.
 	// Attempting to set or update this field will result in a
 	// [FieldViolation][google.rpc.BadRequest.FieldViolation].
-	UpdateStorageClassTime *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=update_storage_class_time,json=updateStorageClassTime,proto3" json:"update_storage_class_time,omitempty"`
+	UpdateStorageClassTime *timestamp.Timestamp `protobuf:"bytes,19,opt,name=update_storage_class_time,json=updateStorageClassTime,proto3" json:"update_storage_class_time,omitempty"`
 	// Whether an object is under temporary hold. While this flag is set to true,
 	// the object is protected against deletion and overwrites.  A common use case
 	// of this flag is regulatory investigations where objects need to be retained
@@ -4531,7 +4531,7 @@ type Object struct {
 	// Note 2: This value can be provided even when temporary hold is set (so that
 	// the user can reason about policy without having to first unset the
 	// temporary hold).
-	RetentionExpireTime *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=retention_expire_time,json=retentionExpireTime,proto3" json:"retention_expire_time,omitempty"`
+	RetentionExpireTime *timestamp.Timestamp `protobuf:"bytes,21,opt,name=retention_expire_time,json=retentionExpireTime,proto3" json:"retention_expire_time,omitempty"`
 	// User-provided metadata, in key/value pairs.
 	Metadata map[string]string `protobuf:"bytes,22,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Whether an object is under event-based hold.
@@ -4554,7 +4554,7 @@ type Object struct {
 	// such a key.
 	CustomerEncryption *CustomerEncryption `protobuf:"bytes,25,opt,name=customer_encryption,json=customerEncryption,proto3" json:"customer_encryption,omitempty"`
 	// A user-specified timestamp set on an object.
-	CustomTime *timestamppb.Timestamp `protobuf:"bytes,26,opt,name=custom_time,json=customTime,proto3" json:"custom_time,omitempty"`
+	CustomTime *timestamp.Timestamp `protobuf:"bytes,26,opt,name=custom_time,json=customTime,proto3" json:"custom_time,omitempty"`
 }
 
 func (x *Object) Reset() {
@@ -4673,7 +4673,7 @@ func (x *Object) GetContentLanguage() string {
 	return ""
 }
 
-func (x *Object) GetDeleteTime() *timestamppb.Timestamp {
+func (x *Object) GetDeleteTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.DeleteTime
 	}
@@ -4687,7 +4687,7 @@ func (x *Object) GetContentType() string {
 	return ""
 }
 
-func (x *Object) GetCreateTime() *timestamppb.Timestamp {
+func (x *Object) GetCreateTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.CreateTime
 	}
@@ -4708,7 +4708,7 @@ func (x *Object) GetChecksums() *ObjectChecksums {
 	return nil
 }
 
-func (x *Object) GetUpdateTime() *timestamppb.Timestamp {
+func (x *Object) GetUpdateTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.UpdateTime
 	}
@@ -4722,7 +4722,7 @@ func (x *Object) GetKmsKey() string {
 	return ""
 }
 
-func (x *Object) GetUpdateStorageClassTime() *timestamppb.Timestamp {
+func (x *Object) GetUpdateStorageClassTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.UpdateStorageClassTime
 	}
@@ -4736,7 +4736,7 @@ func (x *Object) GetTemporaryHold() bool {
 	return false
 }
 
-func (x *Object) GetRetentionExpireTime() *timestamppb.Timestamp {
+func (x *Object) GetRetentionExpireTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.RetentionExpireTime
 	}
@@ -4771,7 +4771,7 @@ func (x *Object) GetCustomerEncryption() *CustomerEncryption {
 	return nil
 }
 
-func (x *Object) GetCustomTime() *timestamppb.Timestamp {
+func (x *Object) GetCustomTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.CustomTime
 	}
@@ -5692,7 +5692,7 @@ type Bucket_RetentionPolicy struct {
 
 	// Server-determined value that indicates the time from which policy was
 	// enforced and effective.
-	EffectiveTime *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=effective_time,json=effectiveTime,proto3" json:"effective_time,omitempty"`
+	EffectiveTime *timestamp.Timestamp `protobuf:"bytes,1,opt,name=effective_time,json=effectiveTime,proto3" json:"effective_time,omitempty"`
 	// Once locked, an object retention policy cannot be modified.
 	IsLocked bool `protobuf:"varint,2,opt,name=is_locked,json=isLocked,proto3" json:"is_locked,omitempty"`
 	// The duration in seconds that objects need to be retained. Retention
@@ -5734,7 +5734,7 @@ func (*Bucket_RetentionPolicy) Descriptor() ([]byte, []int) {
 	return file_google_storage_v2_storage_proto_rawDescGZIP(), []int{38, 6}
 }
 
-func (x *Bucket_RetentionPolicy) GetEffectiveTime() *timestamppb.Timestamp {
+func (x *Bucket_RetentionPolicy) GetEffectiveTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.EffectiveTime
 	}
@@ -5936,7 +5936,7 @@ type Bucket_Autoclass struct {
 	// disabled/unconfigured or set to false after being enabled. If Autoclass
 	// is enabled when the bucket is created, the toggle_time is set to the
 	// bucket creation time.
-	ToggleTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=toggle_time,json=toggleTime,proto3" json:"toggle_time,omitempty"`
+	ToggleTime *timestamp.Timestamp `protobuf:"bytes,2,opt,name=toggle_time,json=toggleTime,proto3" json:"toggle_time,omitempty"`
 }
 
 func (x *Bucket_Autoclass) Reset() {
@@ -5978,7 +5978,7 @@ func (x *Bucket_Autoclass) GetEnabled() bool {
 	return false
 }
 
-func (x *Bucket_Autoclass) GetToggleTime() *timestamppb.Timestamp {
+func (x *Bucket_Autoclass) GetToggleTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.ToggleTime
 	}
@@ -5997,7 +5997,7 @@ type Bucket_IamConfig_UniformBucketLevelAccess struct {
 	// The deadline time for changing
 	// `iamConfig.uniformBucketLevelAccess.enabled` from `true` to `false`.
 	// Mutable until the specified deadline is reached, but not afterward.
-	LockTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=lock_time,json=lockTime,proto3" json:"lock_time,omitempty"`
+	LockTime *timestamp.Timestamp `protobuf:"bytes,2,opt,name=lock_time,json=lockTime,proto3" json:"lock_time,omitempty"`
 }
 
 func (x *Bucket_IamConfig_UniformBucketLevelAccess) Reset() {
@@ -6039,7 +6039,7 @@ func (x *Bucket_IamConfig_UniformBucketLevelAccess) GetEnabled() bool {
 	return false
 }
 
-func (x *Bucket_IamConfig_UniformBucketLevelAccess) GetLockTime() *timestamppb.Timestamp {
+func (x *Bucket_IamConfig_UniformBucketLevelAccess) GetLockTime() *timestamp.Timestamp {
 	if x != nil {
 		return x.LockTime
 	}
@@ -7925,13 +7925,13 @@ var file_google_storage_v2_storage_proto_goTypes = []interface{}{
 	(*Bucket_Lifecycle_Rule_Condition)(nil),                       // 70: google.storage.v2.Bucket.Lifecycle.Rule.Condition
 	nil,                                                           // 71: google.storage.v2.Notification.CustomAttributesEntry
 	nil,                                                           // 72: google.storage.v2.Object.MetadataEntry
-	(*fieldmaskpb.FieldMask)(nil),                                 // 73: google.protobuf.FieldMask
-	(*timestamppb.Timestamp)(nil),                                 // 74: google.protobuf.Timestamp
+	(*field_mask.FieldMask)(nil),                                  // 73: google.protobuf.FieldMask
+	(*timestamp.Timestamp)(nil),                                   // 74: google.protobuf.Timestamp
 	(*date.Date)(nil),                                             // 75: google.type.Date
 	(*v1.GetIamPolicyRequest)(nil),                                // 76: google.iam.v1.GetIamPolicyRequest
 	(*v1.SetIamPolicyRequest)(nil),                                // 77: google.iam.v1.SetIamPolicyRequest
 	(*v1.TestIamPermissionsRequest)(nil),                          // 78: google.iam.v1.TestIamPermissionsRequest
-	(*emptypb.Empty)(nil),                                         // 79: google.protobuf.Empty
+	(*empty.Empty)(nil),                                           // 79: google.protobuf.Empty
 	(*v1.Policy)(nil),                                             // 80: google.iam.v1.Policy
 	(*v1.TestIamPermissionsResponse)(nil),                         // 81: google.iam.v1.TestIamPermissionsResponse
 }
@@ -8986,7 +8986,7 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type StorageClient interface {
 	// Permanently deletes an empty bucket.
-	DeleteBucket(ctx context.Context, in *DeleteBucketRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteBucket(ctx context.Context, in *DeleteBucketRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// Returns metadata for the specified bucket.
 	GetBucket(ctx context.Context, in *GetBucketRequest, opts ...grpc.CallOption) (*Bucket, error)
 	// Creates a new bucket.
@@ -9005,7 +9005,7 @@ type StorageClient interface {
 	// Updates a bucket. Equivalent to JSON API's storage.buckets.patch method.
 	UpdateBucket(ctx context.Context, in *UpdateBucketRequest, opts ...grpc.CallOption) (*Bucket, error)
 	// Permanently deletes a notification subscription.
-	DeleteNotification(ctx context.Context, in *DeleteNotificationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteNotification(ctx context.Context, in *DeleteNotificationRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// View a notification config.
 	GetNotification(ctx context.Context, in *GetNotificationRequest, opts ...grpc.CallOption) (*Notification, error)
 	// Creates a notification subscription for a given bucket.
@@ -9021,7 +9021,7 @@ type StorageClient interface {
 	// Deletes an object and its metadata. Deletions are permanent if versioning
 	// is not enabled for the bucket, or if the `generation` parameter
 	// is used.
-	DeleteObject(ctx context.Context, in *DeleteObjectRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteObject(ctx context.Context, in *DeleteObjectRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// Retrieves an object's metadata.
 	GetObject(ctx context.Context, in *GetObjectRequest, opts ...grpc.CallOption) (*Object, error)
 	// Reads an object's data.
@@ -9110,7 +9110,7 @@ type StorageClient interface {
 	// Creates a new HMAC key for the given service account.
 	CreateHmacKey(ctx context.Context, in *CreateHmacKeyRequest, opts ...grpc.CallOption) (*CreateHmacKeyResponse, error)
 	// Deletes a given HMAC key.  Key must be in an INACTIVE state.
-	DeleteHmacKey(ctx context.Context, in *DeleteHmacKeyRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteHmacKey(ctx context.Context, in *DeleteHmacKeyRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// Gets an existing HMAC key metadata for the given id.
 	GetHmacKey(ctx context.Context, in *GetHmacKeyRequest, opts ...grpc.CallOption) (*HmacKeyMetadata, error)
 	// Lists HMAC keys under a given project with the additional filters provided.
@@ -9127,8 +9127,8 @@ func NewStorageClient(cc grpc.ClientConnInterface) StorageClient {
 	return &storageClient{cc}
 }
 
-func (c *storageClient) DeleteBucket(ctx context.Context, in *DeleteBucketRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *storageClient) DeleteBucket(ctx context.Context, in *DeleteBucketRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/DeleteBucket", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9208,8 +9208,8 @@ func (c *storageClient) UpdateBucket(ctx context.Context, in *UpdateBucketReques
 	return out, nil
 }
 
-func (c *storageClient) DeleteNotification(ctx context.Context, in *DeleteNotificationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *storageClient) DeleteNotification(ctx context.Context, in *DeleteNotificationRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/DeleteNotification", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9253,8 +9253,8 @@ func (c *storageClient) ComposeObject(ctx context.Context, in *ComposeObjectRequ
 	return out, nil
 }
 
-func (c *storageClient) DeleteObject(ctx context.Context, in *DeleteObjectRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *storageClient) DeleteObject(ctx context.Context, in *DeleteObjectRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/DeleteObject", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9400,8 +9400,8 @@ func (c *storageClient) CreateHmacKey(ctx context.Context, in *CreateHmacKeyRequ
 	return out, nil
 }
 
-func (c *storageClient) DeleteHmacKey(ctx context.Context, in *DeleteHmacKeyRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *storageClient) DeleteHmacKey(ctx context.Context, in *DeleteHmacKeyRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/DeleteHmacKey", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9439,7 +9439,7 @@ func (c *storageClient) UpdateHmacKey(ctx context.Context, in *UpdateHmacKeyRequ
 // StorageServer is the server API for Storage service.
 type StorageServer interface {
 	// Permanently deletes an empty bucket.
-	DeleteBucket(context.Context, *DeleteBucketRequest) (*emptypb.Empty, error)
+	DeleteBucket(context.Context, *DeleteBucketRequest) (*empty.Empty, error)
 	// Returns metadata for the specified bucket.
 	GetBucket(context.Context, *GetBucketRequest) (*Bucket, error)
 	// Creates a new bucket.
@@ -9458,7 +9458,7 @@ type StorageServer interface {
 	// Updates a bucket. Equivalent to JSON API's storage.buckets.patch method.
 	UpdateBucket(context.Context, *UpdateBucketRequest) (*Bucket, error)
 	// Permanently deletes a notification subscription.
-	DeleteNotification(context.Context, *DeleteNotificationRequest) (*emptypb.Empty, error)
+	DeleteNotification(context.Context, *DeleteNotificationRequest) (*empty.Empty, error)
 	// View a notification config.
 	GetNotification(context.Context, *GetNotificationRequest) (*Notification, error)
 	// Creates a notification subscription for a given bucket.
@@ -9474,7 +9474,7 @@ type StorageServer interface {
 	// Deletes an object and its metadata. Deletions are permanent if versioning
 	// is not enabled for the bucket, or if the `generation` parameter
 	// is used.
-	DeleteObject(context.Context, *DeleteObjectRequest) (*emptypb.Empty, error)
+	DeleteObject(context.Context, *DeleteObjectRequest) (*empty.Empty, error)
 	// Retrieves an object's metadata.
 	GetObject(context.Context, *GetObjectRequest) (*Object, error)
 	// Reads an object's data.
@@ -9563,7 +9563,7 @@ type StorageServer interface {
 	// Creates a new HMAC key for the given service account.
 	CreateHmacKey(context.Context, *CreateHmacKeyRequest) (*CreateHmacKeyResponse, error)
 	// Deletes a given HMAC key.  Key must be in an INACTIVE state.
-	DeleteHmacKey(context.Context, *DeleteHmacKeyRequest) (*emptypb.Empty, error)
+	DeleteHmacKey(context.Context, *DeleteHmacKeyRequest) (*empty.Empty, error)
 	// Gets an existing HMAC key metadata for the given id.
 	GetHmacKey(context.Context, *GetHmacKeyRequest) (*HmacKeyMetadata, error)
 	// Lists HMAC keys under a given project with the additional filters provided.
@@ -9576,7 +9576,7 @@ type StorageServer interface {
 type UnimplementedStorageServer struct {
 }
 
-func (*UnimplementedStorageServer) DeleteBucket(context.Context, *DeleteBucketRequest) (*emptypb.Empty, error) {
+func (*UnimplementedStorageServer) DeleteBucket(context.Context, *DeleteBucketRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteBucket not implemented")
 }
 func (*UnimplementedStorageServer) GetBucket(context.Context, *GetBucketRequest) (*Bucket, error) {
@@ -9603,7 +9603,7 @@ func (*UnimplementedStorageServer) TestIamPermissions(context.Context, *v1.TestI
 func (*UnimplementedStorageServer) UpdateBucket(context.Context, *UpdateBucketRequest) (*Bucket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateBucket not implemented")
 }
-func (*UnimplementedStorageServer) DeleteNotification(context.Context, *DeleteNotificationRequest) (*emptypb.Empty, error) {
+func (*UnimplementedStorageServer) DeleteNotification(context.Context, *DeleteNotificationRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteNotification not implemented")
 }
 func (*UnimplementedStorageServer) GetNotification(context.Context, *GetNotificationRequest) (*Notification, error) {
@@ -9618,7 +9618,7 @@ func (*UnimplementedStorageServer) ListNotifications(context.Context, *ListNotif
 func (*UnimplementedStorageServer) ComposeObject(context.Context, *ComposeObjectRequest) (*Object, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ComposeObject not implemented")
 }
-func (*UnimplementedStorageServer) DeleteObject(context.Context, *DeleteObjectRequest) (*emptypb.Empty, error) {
+func (*UnimplementedStorageServer) DeleteObject(context.Context, *DeleteObjectRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteObject not implemented")
 }
 func (*UnimplementedStorageServer) GetObject(context.Context, *GetObjectRequest) (*Object, error) {
@@ -9651,7 +9651,7 @@ func (*UnimplementedStorageServer) GetServiceAccount(context.Context, *GetServic
 func (*UnimplementedStorageServer) CreateHmacKey(context.Context, *CreateHmacKeyRequest) (*CreateHmacKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateHmacKey not implemented")
 }
-func (*UnimplementedStorageServer) DeleteHmacKey(context.Context, *DeleteHmacKeyRequest) (*emptypb.Empty, error) {
+func (*UnimplementedStorageServer) DeleteHmacKey(context.Context, *DeleteHmacKeyRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteHmacKey not implemented")
 }
 func (*UnimplementedStorageServer) GetHmacKey(context.Context, *GetHmacKeyRequest) (*HmacKeyMetadata, error) {

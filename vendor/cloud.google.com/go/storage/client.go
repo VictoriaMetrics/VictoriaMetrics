@@ -66,19 +66,19 @@ type storageClient interface {
 
 	DeleteDefaultObjectACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error
 	ListDefaultObjectACLs(ctx context.Context, bucket string, opts ...storageOption) ([]ACLRule, error)
-	UpdateDefaultObjectACL(ctx context.Context, opts ...storageOption) (*ACLRule, error)
+	UpdateDefaultObjectACL(ctx context.Context, bucket string, entity ACLEntity, role ACLRole, opts ...storageOption) error
 
 	// Bucket ACL methods.
 
 	DeleteBucketACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error
 	ListBucketACLs(ctx context.Context, bucket string, opts ...storageOption) ([]ACLRule, error)
-	UpdateBucketACL(ctx context.Context, bucket string, entity ACLEntity, role ACLRole, opts ...storageOption) (*ACLRule, error)
+	UpdateBucketACL(ctx context.Context, bucket string, entity ACLEntity, role ACLRole, opts ...storageOption) error
 
 	// Object ACL methods.
 
 	DeleteObjectACL(ctx context.Context, bucket, object string, entity ACLEntity, opts ...storageOption) error
 	ListObjectACLs(ctx context.Context, bucket, object string, opts ...storageOption) ([]ACLRule, error)
-	UpdateObjectACL(ctx context.Context, bucket, object string, entity ACLEntity, role ACLRole, opts ...storageOption) (*ACLRule, error)
+	UpdateObjectACL(ctx context.Context, bucket, object string, entity ACLEntity, role ACLRole, opts ...storageOption) error
 
 	// Media operations.
 
@@ -96,11 +96,11 @@ type storageClient interface {
 
 	// HMAC Key methods.
 
-	GetHMACKey(ctx context.Context, desc *hmacKeyDesc, opts ...storageOption) (*HMACKey, error)
-	ListHMACKey(ctx context.Context, desc *hmacKeyDesc, opts ...storageOption) *HMACKeysIterator
-	UpdateHMACKey(ctx context.Context, desc *hmacKeyDesc, attrs *HMACKeyAttrsToUpdate, opts ...storageOption) (*HMACKey, error)
-	CreateHMACKey(ctx context.Context, desc *hmacKeyDesc, opts ...storageOption) (*HMACKey, error)
-	DeleteHMACKey(ctx context.Context, desc *hmacKeyDesc, opts ...storageOption) error
+	GetHMACKey(ctx context.Context, project, accessID string, opts ...storageOption) (*HMACKey, error)
+	ListHMACKeys(ctx context.Context, project, serviceAccountEmail string, showDeletedKeys bool, opts ...storageOption) *HMACKeysIterator
+	UpdateHMACKey(ctx context.Context, project, serviceAccountEmail, accessID string, attrs *HMACKeyAttrsToUpdate, opts ...storageOption) (*HMACKey, error)
+	CreateHMACKey(ctx context.Context, project, serviceAccountEmail string, opts ...storageOption) (*HMACKey, error)
+	DeleteHMACKey(ctx context.Context, project, accessID string, opts ...storageOption) error
 
 	// Notification methods.
 	ListNotifications(ctx context.Context, bucket string, opts ...storageOption) (map[string]*Notification, error)
@@ -278,22 +278,33 @@ type newRangeReaderParams struct {
 
 type composeObjectRequest struct {
 	dstBucket     string
-	dstObject     string
-	srcs          []string
+	dstObject     destinationObject
+	srcs          []sourceObject
+	predefinedACL string
+	encryptionKey []byte
+	sendCRC32C    bool
+}
+
+type sourceObject struct {
+	name          string
+	bucket        string
 	gen           int64
 	conds         *Conditions
-	predefinedACL string
+	encryptionKey []byte
+}
+
+type destinationObject struct {
+	name          string
+	bucket        string
+	conds         *Conditions
+	attrs         *ObjectAttrs // attrs to set on the destination object.
+	encryptionKey []byte
+	keyName       string
 }
 
 type rewriteObjectRequest struct {
-	srcBucket     string
-	srcObject     string
-	dstBucket     string
-	dstObject     string
-	dstKeyName    string
-	attrs         *ObjectAttrs
-	gen           int64
-	conds         *Conditions
+	srcObject     sourceObject
+	dstObject     destinationObject
 	predefinedACL string
 	token         string
 }
