@@ -18,7 +18,7 @@ The recommended filesystem for VictoriaMetrics is [ext4](https://en.wikipedia.or
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ```
 
-VictoriaMetrics should work OK with other filesystems, including network filesystems such as [NFS](https://en.wikipedia.org/wiki/Network_File_System), [Amazon EFS](https://aws.amazon.com/efs/) and [Google Filestore](https://cloud.google.com/filestore).
+VictoriaMetrics should work OK with other filesystems too.
 
 ## Operation System
 
