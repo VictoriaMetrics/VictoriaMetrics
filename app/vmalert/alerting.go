@@ -75,6 +75,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			DataSourceType:     &group.Type,
 			EvaluationInterval: group.Interval,
 			QueryParams:        group.Params,
+			Headers:            group.Headers,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
 		metrics: &alertingRuleMetrics{},

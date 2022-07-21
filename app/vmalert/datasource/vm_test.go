@@ -487,7 +487,7 @@ func TestRequestParams(t *testing.T) {
 	}
 }
 
-func TestAuthConfig(t *testing.T) {
+func TestHeaders(t *testing.T) {
 	var testCases = []struct {
 		name    string
 		vmFn    func() *VMStorage
@@ -525,6 +525,40 @@ func TestAuthConfig(t *testing.T) {
 				}
 				token := splitToken[1]
 				checkEqualString(t, "foo", token)
+			},
+		},
+		{
+			name: "custom extraHeaders",
+			vmFn: func() *VMStorage {
+				return &VMStorage{extraHeaders: []Header{
+					{Key: "Foo", Value: "bar"},
+					{Key: "Baz", Value: "qux"},
+				}}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				h1 := r.Header.Get("Foo")
+				checkEqualString(t, "bar", h1)
+				h2 := r.Header.Get("Baz")
+				checkEqualString(t, "qux", h2)
+			},
+		},
+		{
+			name: "custom header overrides basic auth",
+			vmFn: func() *VMStorage {
+				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+				if err != nil {
+					t.Errorf("Error get auth config: %s", err)
+				}
+				return &VMStorage{
+					authCfg: cfg,
+					extraHeaders: []Header{
+						{Key: "Authorization", Value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
+					}}
+			},
+			checkFn: func(t *testing.T, r *http.Request) {
+				u, p, _ := r.BasicAuth()
+				checkEqualString(t, "Aladdin", u)
+				checkEqualString(t, "open sesame", p)
 			},
 		},
 	}

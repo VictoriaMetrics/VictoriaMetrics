@@ -60,6 +60,10 @@ func TestParseBad(t *testing.T) {
 			[]string{"testdata/rules/rules1-bad.rules"},
 			"bad graphite expr",
 		},
+		{
+			[]string{"testdata/dir/rules6-bad.rules"},
+			"missing ':' in header",
+		},
 	}
 	for _, tc := range testCases {
 		_, err := Parse(tc.path, true, true)
@@ -505,6 +509,24 @@ rules:
 `, `
 name: TestGroup
 limit: 10
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`)
+	})
+
+	t.Run("`headers` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+headers:
+  - "TenantID: foo"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+headers:
+  - "TenantID: bar"
 rules:
   - alert: foo
     expr: sum by(job) (up == 1)
