@@ -39,7 +39,7 @@ jwt token must be in following format:
          "team": "dev",
          "project": "mobile"
       },
-      "extra_filters": ["{env~=\"prod|dev\",team!=\"test\"}"],
+      "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
       "mode": 1
   }
 }
