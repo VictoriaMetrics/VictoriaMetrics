@@ -58,3 +58,11 @@ func WithOAuth(clientID, clientSecret, clientSecretFile, tokenURL, scopes string
 		}
 	}
 }
+
+func WithHeaders(headers string) AuthConfigOptions {
+	return func(config *promauth.HTTPClientConfig) {
+		if headers != "" {
+			config.Headers = strings.Split(headers, "^^")
+		}
+	}
+}
