@@ -308,7 +308,7 @@ func (ac *Config) HeadersNoAuthString() string {
 	return strings.Join(a, "")
 }
 
-// SetHeaders sets the configuted ac headers to req.
+// SetHeaders sets the configured ac headers to req.
 func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) {
 	reqHeaders := req.Header
 	for _, h := range ac.headers {
