@@ -14,6 +14,10 @@ var (
 		"state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
 		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
 
+	headers = flag.String("remoteRead.headers", "", "Optional HTTP headers to send with each request to the corresponding -remoteRead.url. "+
+		"For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. "+
+		"Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'")
+
 	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
 	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
 	basicAuthPasswordFile = flag.String("remoteRead.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteRead.url")
@@ -50,7 +54,8 @@ func Init() (datasource.QuerierBuilder, error) {
 	authCfg, err := utils.AuthConfig(
 		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
 		utils.WithBearer(*bearerToken, *bearerTokenFile),
-		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes))
+		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes),
+		utils.WithHeaders(*headers))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

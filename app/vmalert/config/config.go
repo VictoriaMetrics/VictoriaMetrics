@@ -38,6 +38,8 @@ type Group struct {
 	Checksum string
 	// Optional HTTP URL parameters added to each rule request
 	Params url.Values `yaml:"params"`
+	// Headers contains optional HTTP headers added to each rule request
+	Headers []datasource.Header `yaml:"headers,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`

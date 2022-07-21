@@ -20,9 +20,9 @@ import (
 	"reflect"
 
 	"cloud.google.com/go/internal/trace"
+	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	"google.golang.org/api/googleapi"
 	raw "google.golang.org/api/storage/v1"
-	storagepb "google.golang.org/genproto/googleapis/storage/v2"
 )
 
 // ACLRole is the level of access to grant.

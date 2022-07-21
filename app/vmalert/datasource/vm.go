@@ -24,6 +24,7 @@ type VMStorage struct {
 	dataSourceType     Type
 	evaluationInterval time.Duration
 	extraParams        url.Values
+	extraHeaders       []Header
 }
 
 // Clone makes clone of VMStorage, shares http client.
@@ -46,6 +47,7 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	}
 	s.evaluationInterval = params.EvaluationInterval
 	s.extraParams = params.QueryParams
+	s.extraHeaders = params.Headers
 	return s
 }
 
@@ -147,6 +149,9 @@ func (s *VMStorage) newRequestPOST() (*http.Request, error) {
 	req.Header.Set("Content-Type", "application/json")
 	if s.authCfg != nil {
 		s.authCfg.SetHeaders(req, true)
+	}
+	for _, h := range s.extraHeaders {
+		req.Header.Set(h.Key, h.Value)
 	}
 	return req, nil
 }
