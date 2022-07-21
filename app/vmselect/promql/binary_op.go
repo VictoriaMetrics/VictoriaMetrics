@@ -36,9 +36,9 @@ var binaryOpFuncs = map[string]binaryOpFunc{
 	"unless": binaryOpUnless,
 
 	// New ops
-	"if":      newBinaryOpArithFunc(binaryop.If),
-	"ifnot":   newBinaryOpArithFunc(binaryop.Ifnot),
-	"default": newBinaryOpArithFunc(binaryop.Default),
+	"if":      binaryOpIf,
+	"ifnot":   binaryOpIfnot,
+	"default": binaryOpDefault,
 }
 
 func getBinaryOpFunc(op string) binaryOpFunc {
@@ -86,17 +86,6 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		right := bfa.right
 		op := bfa.be.Op
 		switch true {
-		case op == "ifnot":
-			left = removeEmptySeries(left)
-			// Do not remove empty series on the right side,
-			// so the left-side series could be matched against them.
-		case op == "default":
-			// Do not remove empty series on the left and the right side,
-			// since this may lead to missing result:
-			// - if empty time series are removed on the left side,
-			// then they won't be substituted by time series from the right side.
-			// - if empty time series are removed on the right side,
-			// then this may result in missing time series from the left side.
 		case metricsql.IsBinaryOpCmp(op):
 			// Do not remove empty series for comparison operations,
 			// since this may lead to missing result.
@@ -136,7 +125,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
-		if isScalar(left) && be.Op != "default" && be.Op != "if" && be.Op != "ifnot" {
+		if isScalar(left) {
 			// Fast path: `scalar op vector`
 			rvsLeft := make([]*timeseries, len(right))
 			tsLeft := left[0]
@@ -324,12 +313,21 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 		// Do not reset MetricGroup for non-boolean `compare` binary ops like Prometheus does.
 		return
 	}
-	switch be.Op {
-	case "default", "if", "ifnot":
-		// Do not reset MetricGroup for these ops.
-		return
-	}
 	ts.MetricName.ResetMetricGroup()
+}
+
+func binaryOpIf(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	var rvs []*timeseries
+	for k, tssLeft := range mLeft {
+		tssRight := seriesByKey(mRight, k)
+		if tssRight == nil {
+			continue
+		}
+		tssLeft = addRightNaNsToLeft(tssLeft, tssRight)
+		rvs = append(rvs, tssLeft...)
+	}
+	return rvs, nil
 }
 
 func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
@@ -340,24 +338,47 @@ func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		if tssLeft == nil {
 			continue
 		}
-		// Add gaps to tssLeft if there are gaps at tssRight.
-		for _, tsLeft := range tssLeft {
-			valuesLeft := tsLeft.Values
-			for i := range valuesLeft {
-				hasValue := false
-				for _, tsRight := range tssRight {
-					if !math.IsNaN(tsRight.Values[i]) {
-						hasValue = true
-						break
-					}
-				}
-				if !hasValue {
-					valuesLeft[i] = nan
+		tssLeft = addRightNaNsToLeft(tssLeft, tssRight)
+		rvs = append(rvs, tssLeft...)
+	}
+	return rvs, nil
+}
+
+func addRightNaNsToLeft(tssLeft, tssRight []*timeseries) []*timeseries {
+	for _, tsLeft := range tssLeft {
+		valuesLeft := tsLeft.Values
+		for i := range valuesLeft {
+			hasValue := false
+			for _, tsRight := range tssRight {
+				if !math.IsNaN(tsRight.Values[i]) {
+					hasValue = true
+					break
 				}
 			}
+			if !hasValue {
+				valuesLeft[i] = nan
+			}
 		}
-		tssLeft = removeEmptySeries(tssLeft)
+	}
+	return removeEmptySeries(tssLeft)
+}
+
+func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	var rvs []*timeseries
+	if len(mLeft) == 0 {
+		for _, tss := range mRight {
+			rvs = append(rvs, tss...)
+		}
+		return rvs, nil
+	}
+	for k, tssLeft := range mLeft {
 		rvs = append(rvs, tssLeft...)
+		tssRight := seriesByKey(mRight, k)
+		if tssRight == nil {
+			continue
+		}
+		fillLeftNaNsWithRightValues(tssLeft, tssRight)
 	}
 	return rvs, nil
 }
@@ -374,23 +395,42 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssRight...)
 			continue
 		}
-		// Fill gaps in tssLeft with values from tssRight as Prometheus does.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
-		for _, tsLeft := range tssLeft {
-			valuesLeft := tsLeft.Values
-			for i, v := range valuesLeft {
-				if !math.IsNaN(v) {
-					continue
-				}
-				for _, tsRight := range tssRight {
-					vRight := tsRight.Values[i]
-					if !math.IsNaN(vRight) {
-						valuesLeft[i] = vRight
-						break
-					}
+		fillLeftNaNsWithRightValues(tssLeft, tssRight)
+	}
+	return rvs, nil
+}
+
+func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
+	// Fill gaps in tssLeft with values from tssRight as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
+	for _, tsLeft := range tssLeft {
+		valuesLeft := tsLeft.Values
+		for i, v := range valuesLeft {
+			if !math.IsNaN(v) {
+				continue
+			}
+			for _, tsRight := range tssRight {
+				vRight := tsRight.Values[i]
+				if !math.IsNaN(vRight) {
+					valuesLeft[i] = vRight
+					break
 				}
 			}
 		}
+	}
+}
+
+func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	var rvs []*timeseries
+	for k, tssLeft := range mLeft {
+		tssRight := seriesByKey(mRight, k)
+		if tssRight == nil {
+			rvs = append(rvs, tssLeft...)
+			continue
+		}
+		tssLeft = addLeftNaNsIfNoRightNaNs(tssLeft, tssRight)
+		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
 }
@@ -404,22 +444,42 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssLeft...)
 			continue
 		}
-		// Add gaps to tssLeft if the are no gaps at tssRight.
-		for _, tsLeft := range tssLeft {
-			valuesLeft := tsLeft.Values
-			for i := range valuesLeft {
-				for _, tsRight := range tssRight {
-					if !math.IsNaN(tsRight.Values[i]) {
-						valuesLeft[i] = nan
-						break
-					}
-				}
-			}
-		}
-		tssLeft = removeEmptySeries(tssLeft)
+		tssLeft = addLeftNaNsIfNoRightNaNs(tssLeft, tssRight)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
+}
+
+func addLeftNaNsIfNoRightNaNs(tssLeft, tssRight []*timeseries) []*timeseries {
+	for _, tsLeft := range tssLeft {
+		valuesLeft := tsLeft.Values
+		for i := range valuesLeft {
+			for _, tsRight := range tssRight {
+				if !math.IsNaN(tsRight.Values[i]) {
+					valuesLeft[i] = nan
+					break
+				}
+			}
+		}
+	}
+	return removeEmptySeries(tssLeft)
+}
+
+func seriesByKey(m map[string][]*timeseries, key string) []*timeseries {
+	tss := m[key]
+	if tss != nil {
+		return tss
+	}
+	if len(m) != 1 {
+		return nil
+	}
+	for _, tss := range m {
+		if isScalar(tss) {
+			return tss
+		}
+		return nil
+	}
+	return nil
 }
 
 func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {

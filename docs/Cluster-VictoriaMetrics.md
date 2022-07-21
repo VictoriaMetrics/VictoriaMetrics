@@ -648,6 +648,14 @@ Below is the output for `/path/to/vminsert -help`:
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pushmetrics.extraLabels array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabels='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.interval duration
+     Interval for pushing metrics to -pushmetrics.url (default 10s)
+  -pushmetrics.url array
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Supports an array of values separated by comma or specified via multiple flags.
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
@@ -778,6 +786,14 @@ Below is the output for `/path/to/vmselect -help`:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pushmetrics.extraLabels array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabels='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.interval duration
+     Interval for pushing metrics to -pushmetrics.url (default 10s)
+  -pushmetrics.url array
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Supports an array of values separated by comma or specified via multiple flags.
   -replicationFactor int
      How many copies of every time series is available on vmstorage nodes. See -replicationFactor command-line flag for vminsert nodes (default 1)
   -search.cacheTimestampOffset duration
@@ -789,7 +805,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.graphiteMaxPointsPerSeries int
      The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overriden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
@@ -962,6 +978,14 @@ Below is the output for `/path/to/vmstorage -help`:
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
+  -pushmetrics.extraLabels array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabels='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.interval duration
+     Interval for pushing metrics to -pushmetrics.url (default 10s)
+  -pushmetrics.url array
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)

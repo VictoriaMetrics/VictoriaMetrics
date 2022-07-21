@@ -782,7 +782,7 @@ sum by (__name__) (
 
 #### label_transform
 
-`label_transform(q, "label", "regexp", "replacement")` substitutes all the `regexp` occurences by the given `replacement` in the given `label`.
+`label_transform(q, "label", "regexp", "replacement")` substitutes all the `regexp` occurrences by the given `replacement` in the given `label`.
 
 #### label_uppercase
 

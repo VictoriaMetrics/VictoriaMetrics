@@ -15,6 +15,15 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): execute left and right sides of certain operations in parallel. For example, `q1 or q2`, `aggr_func(q1) <op> q2`, `q1 <op> aggr_func(q1)`. This may improve query performance if VictoriaMetrics has enough free resources for parallel processing of both sides of the operation. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2886).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmagent.html): allow duplicate username records with different passwords at configuration file. It should allow password rotation without username change.
+* FEATURE: add ability to push internal metrics (e.g. metrics exposed at `/metrics` page) to the configured remote storage from all the VictoriaMetrics components. See [these docs](https://docs.victoriametrics.com/#push-metrics).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): restart all the scrape jobs during [config reload](https://docs.victoriametrics.com/vmagent.html#configuration-update) after `global` section is changed inside `-promscrape.config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2884).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly assume role with AWS ECS credentials. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2875). Thanks to @transacid for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2876).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): return series from `q1` if `q2` doesn't return matching time series in the query `q1 ifnot q2`. Previously series from `q1` weren't returned in this case.
+
+
 ## [v1.79.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.0)
 
 Released at 14-07-2022
@@ -25,7 +34,9 @@ Released at 14-07-2022
 
 **Update note 3:** this release introduces backwards-incompatible changes to communication protocol between `vmselect` and `vmstorage` nodes in cluster version of VictoriaMetrics because of added ability to query `vmselect` data from other `vmselect` nodes - see [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup), so read requests to `vmselect` will fail until the upgrade is complete. These errors will stop after all the `vmselect` and `vmstorage` nodes are updated to the new release. It is safe to downgrade to previous releases at any time.
 
-**Update note 4:** this release removes support of deprecated in [1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0) param `extra_filter_labels` from [vmalert's](https://docs.victoriametrics.com/vmalert.html) groups definition. This deprecated param was replaced with [params](https://docs.victoriametrics.com/vmalert.html#url-params). 
+**Update note 4:** this release removes support of deprecated in [1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0) param `extra_filter_labels` from [vmalert's](https://docs.victoriametrics.com/vmalert.html) groups definition. This deprecated param was replaced with [params](https://docs.victoriametrics.com/vmalert.html#url-params).
+
+**Update note 5:** this release changes naming for published linux binaries at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). Now names for binaries for all the supported platforms match the following template - `$(APP_NAME)-$(GOOS)-$(GOARCH)-$(VERSION).tar.gz`. For example, `victoria-metrics-linux-amd64-v1.79.0.tar.gz`. Previously linux binaries didn't have `$(GOOS)` part, e.g. they had the name `victoria-metrics-amd64-v1.79.0.tar.gz`. Please update automation scripts for upgrading VictoriaMetrics releases according to this change.
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add [azure_sd_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config) service discovery mechanism. It allows discovering Virtual Machines at [Azure Cloud](https://azure.microsoft.com/en-us/). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1364).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): deprecate alert's status link `/api/v1/<groupID>/<alertID>/status` in favour of `api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"`. The old alert's status link is still supported, but will be removed in future releases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825).

@@ -248,7 +248,7 @@ It is also safe downgrading to older versions unless [release notes](https://git
 
 The following steps must be performed during the upgrade / downgrade procedure:
 
-* Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
+* Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it. See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
@@ -411,7 +411,7 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
 * [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line. The `db` label name can be overriden via `-influxDBLabel` command-line flag.
+  unless `db` tag exists in the InfluxDB line. The `db` label name can be overridden via `-influxDBLabel` command-line flag.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -704,7 +704,7 @@ VictoriaMetrics supports the following handlers from [Graphite Metrics API](http
 VictoriaMetrics accepts the following additional query args at `/metrics/find` and `/metrics/expand`:
 
 * `label` - for selecting arbitrary label values. By default `label=__name__`, i.e. metric names are selected.
-* `delimiter` - for using different delimiters in metric name hierachy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
+* `delimiter` - for using different delimiters in metric name hierarchy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
     that start with `node_`. By default `delimiter=.`.
 
 ### Graphite Tags API usage
@@ -823,6 +823,7 @@ Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_s
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
 the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+
 Note that background merges may never occur for data from previous months, so storage space won't be freed for historical data.
 In this case [forced merge](#forced-merge) may help freeing up storage space.
 
@@ -845,6 +846,8 @@ Using the delete API is not recommended in the following cases, since it brings 
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
+  Note that VictoriaMetrics doesn't delete entries from inverted index (aka `indexdb`) for the deleted time series.
+  Inverted index is cleaned up once per the configured [retention](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -1136,7 +1139,7 @@ Extra labels may be added to all the imported metrics by passing `extra_label=na
 For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
 
 If timestamp is missing in `<metric> <value> <timestamp>` Prometheus exposition format line, then the current timestamp is used during data ingestion.
-It can be overriden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
+It can be overridden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
 
 VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
 
@@ -1629,6 +1632,20 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 
 See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
+## Push metrics
+
+All the VictoriaMetrics apps support pushing their metrics exposed at `/metrics` page to remote storage in Prometheus text exposition format. This can be done by specifying the following command-line flags:
+
+* `-pushmetrics.url` - the url to push metrics to. For example, `-pushmetrics.url=http://victoria-metrics:8428/api/v1/import/prometheus` instructs to push internal metrics to `/api/v1/import/prometheus` endpoint according to [these docs](#how-to-import-data-in-prometheus-exposition-format). The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls. The url can contain basic auth params in the form http://user:pass@hostname/api/v1/import/prometheus .
+* `-pushmetrics.interval` - the interval between pushes. By default it is set to 10 seconds.
+* `-pushmetrics.extraLabel` - label to add to all the metrics before sending them to `-pushmetrics.url`. The label must be specified in the format `label="value"`. It is OK to specify multiple `-pushmetrics.extraLabel` command-line flags. In this case all the specified labels are added to all the metrics sending them to `-pushmetrics.url`.
+
+For example, the following command instructs VictoriaMetrics to push metrics from `/metrics` page to `https://maas.victoriametrics.com/api/v1/import/prometheus` with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication). The `instance="foobar"` and `job="vm"` labels are added to all the metrics before sending them to the remote storage:
+
+```console
+/path/to/victoria-metrics -pushmetrics.url=https://user:pass@maas.victoriametrics.com/api/v1/import/prometheus -pushmetrics.extraLabel='instance="foobar",job="vm"'
+```
+
 ## Cache removal
 
 VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
@@ -1745,7 +1762,7 @@ For accessing vmalert's UI through single-node VictoriaMetrics configure `-vmale
 
 Note, that vendors (including VictoriaMetrics) are often biased when doing such tests. E.g. they try highlighting
 the best parts of their product, while highlighting the worst parts of competing products.
-So we encourage users and all independent third parties to conduct their becnhmarks for various products
+So we encourage users and all independent third parties to conduct their benchmarks for various products
 they are evaluating in production and publish the results.
 
 As a reference, please see [benchmarks](https://docs.victoriametrics.com/Articles.html#benchmarks) conducted by
@@ -2083,6 +2100,14 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
+  -pushmetrics.extraLabels array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabels='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.interval duration
+     Interval for pushing metrics to -pushmetrics.url (default 10s)
+  -pushmetrics.url array
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Supports an array of values separated by comma or specified via multiple flags.
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
@@ -2101,7 +2126,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.graphiteMaxPointsPerSeries int
      The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overriden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration

@@ -382,7 +382,64 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	return rv, nil
 }
 
+func canPushdownCommonFilters(be *metricsql.BinaryOpExpr) bool {
+	switch strings.ToLower(be.Op) {
+	case "or", "default":
+		return false
+	}
+	if isAggrFuncWithoutGrouping(be.Left) || isAggrFuncWithoutGrouping(be.Right) {
+		return false
+	}
+	return true
+}
+
+func isAggrFuncWithoutGrouping(e metricsql.Expr) bool {
+	afe, ok := e.(*metricsql.AggrFuncExpr)
+	if !ok {
+		return false
+	}
+	return len(afe.Modifier.Args) == 0
+}
+
 func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
+	if !canPushdownCommonFilters(be) {
+		// Execute exprFirst and exprSecond in parallel, since it is impossible to pushdown common filters
+		// from exprFirst to exprSecond.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2886
+		qt = qt.NewChild("execute left and right sides of %q in parallel", be.Op)
+		defer qt.Done()
+		var wg sync.WaitGroup
+
+		var tssFirst []*timeseries
+		var errFirst error
+		qtFirst := qt.NewChild("expr1")
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
+			qtFirst.Done()
+		}()
+
+		var tssSecond []*timeseries
+		var errSecond error
+		qtSecond := qt.NewChild("expr2")
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
+			qtSecond.Done()
+		}()
+
+		wg.Wait()
+		if errFirst != nil {
+			return nil, nil, errFirst
+		}
+		if errSecond != nil {
+			return nil, nil, errFirst
+		}
+		return tssFirst, tssSecond, nil
+	}
+
 	// Execute binary operation in the following way:
 	//
 	// 1) execute the exprFirst
@@ -410,15 +467,9 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	if err != nil {
 		return nil, nil, err
 	}
-	switch strings.ToLower(be.Op) {
-	case "or":
-		// Do not pushdown common label filters from tssFirst for `or` operation, since this can filter out the needed time series from tssSecond.
-		// See https://prometheus.io/docs/prometheus/latest/querying/operators/#logical-set-binary-operators for details.
-	default:
-		lfs := getCommonLabelFilters(tssFirst)
-		lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
-		exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
-	}
+	lfs := getCommonLabelFilters(tssFirst)
+	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
+	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
 	tssSecond, err := evalExpr(qt, ec, exprSecond)
 	if err != nil {
 		return nil, nil, err

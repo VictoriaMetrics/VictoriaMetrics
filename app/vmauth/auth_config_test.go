@@ -110,6 +110,18 @@ users:
 - username: foo
   url_prefix: https://sss.sss
 `)
+	// Duplicate users
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: http://foo.bar
+- username: bar
+  url_prefix: http://xxx.yyy
+- username: foo
+  password: bar
+  url_prefix: https://sss.sss
+`)
 
 	// Duplicate bearer_tokens
 	f(`
@@ -317,6 +329,28 @@ users:
 			},
 		},
 	})
+	// Multiple users with the same name
+	f(`
+users:
+- username: foo-same
+  password: baz
+  url_prefix: http://foo
+- username: foo-same
+  password: bar
+  url_prefix: https://bar/x///
+`, map[string]*UserInfo{
+		getAuthToken("", "foo-same", "baz"): {
+			Username:  "foo-same",
+			Password:  "baz",
+			URLPrefix: mustParseURL("http://foo"),
+		},
+		getAuthToken("", "foo-same", "bar"): {
+			Username:  "foo-same",
+			Password:  "bar",
+			URLPrefix: mustParseURL("https://bar/x"),
+		},
+	})
+
 }
 
 func getSrcPaths(paths []string) []*SrcPath {

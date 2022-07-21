@@ -9,9 +9,9 @@ require (
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
-	github.com/VictoriaMetrics/metrics v1.18.1
+	github.com/VictoriaMetrics/metrics v1.19.3
 	github.com/VictoriaMetrics/metricsql v0.44.1
-	github.com/aws/aws-sdk-go v1.44.53
+	github.com/aws/aws-sdk-go v1.44.56
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 
@@ -37,7 +37,7 @@ require (
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
 	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0
-	golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	google.golang.org/api v0.87.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -76,7 +76,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220712132514-bdd2acd4974d // indirect
+	google.golang.org/genproto v0.0.0-20220715211116-798f69b842b9 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )
