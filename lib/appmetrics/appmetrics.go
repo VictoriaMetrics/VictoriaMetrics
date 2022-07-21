@@ -1,4 +1,4 @@
-package httpserver
+package appmetrics
 
 import (
 	"flag"

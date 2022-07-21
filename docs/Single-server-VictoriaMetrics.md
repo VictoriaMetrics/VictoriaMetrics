@@ -1636,6 +1636,20 @@ See also more advanced [cardinality limiter in vmagent](https://docs.victoriamet
 
 See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
+## Push metrics
+
+All the VictoriaMetrics apps support pushing their metrics exposed at `/metrics` page to remote storage in Prometheus text exposition format. This can be done by specifying the following command-line flags:
+
+* `-pushmetrics.url` - the url to push metrics to. For example, `-pushmetrics.url=http://victoria-metrics:8428/api/v1/import/prometheus` instructs to push internal metrics to `/api/v1/import/prometheus` endpoint according to [these docs](#how-to-import-data-in-prometheus-exposition-format). The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls. The url can contain basic auth params in the form http://user:pass@hostname/api/v1/import/prometheus .
+* `-pushmetrics.interval` - the interval between pushes. By default it is set to 10 seconds.
+* `-pushmetrics.extraLabels` - the list of labels to add to all the metrics before sending them to `-pushmetrics.url`.
+
+For example, the following command instructs VictoriaMetrics to push metrics from `/metrics` page to `https://maas.victoriametrics.com/api/v1/import/prometheus` with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication):
+
+```console
+/path/to/victoria-metrics -pushmetrics.url=https://user:pass@maas.victoriametrics.com/api/v1/import/prometheus
+```
+
 ## Cache removal
 
 VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
