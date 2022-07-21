@@ -110,3 +110,8 @@ func WriteFDMetrics(w io.Writer) {
 func UnregisterMetric(name string) bool {
 	return defaultSet.UnregisterMetric(name)
 }
+
+// ListMetricNames returns a list of all the metric names from default set.
+func ListMetricNames() []string {
+	return defaultSet.ListMetricNames()
+}

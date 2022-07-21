@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -281,7 +282,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 		startTime := time.Now()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		WritePrometheusMetrics(w)
+		appmetrics.WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
