@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	"google.golang.org/api/iterator"
 	raw "google.golang.org/api/storage/v1"
 )
@@ -135,10 +136,10 @@ func (hkh *HMACKeyHandle) Get(ctx context.Context, opts ...HMACKeyOption) (*HMAC
 		return nil, err
 	}
 
-	hkPb := &raw.HmacKey{
+	hk := &raw.HmacKey{
 		Metadata: metadata,
 	}
-	return pbHmacKeyToHMACKey(hkPb, false)
+	return toHMACKeyFromRaw(hk, false)
 }
 
 // Delete invokes an RPC to delete the key referenced by accessID, on Google Cloud Storage.
@@ -162,34 +163,50 @@ func (hkh *HMACKeyHandle) Delete(ctx context.Context, opts ...HMACKeyOption) err
 	}, hkh.retry, true, setRetryHeaderHTTP(delCall))
 }
 
-func pbHmacKeyToHMACKey(pb *raw.HmacKey, updatedTimeCanBeNil bool) (*HMACKey, error) {
-	pbmd := pb.Metadata
-	if pbmd == nil {
+func toHMACKeyFromRaw(hk *raw.HmacKey, updatedTimeCanBeNil bool) (*HMACKey, error) {
+	hkmd := hk.Metadata
+	if hkmd == nil {
 		return nil, errors.New("field Metadata cannot be nil")
 	}
-	createdTime, err := time.Parse(time.RFC3339, pbmd.TimeCreated)
+	createdTime, err := time.Parse(time.RFC3339, hkmd.TimeCreated)
 	if err != nil {
 		return nil, fmt.Errorf("field CreatedTime: %v", err)
 	}
-	updatedTime, err := time.Parse(time.RFC3339, pbmd.Updated)
+	updatedTime, err := time.Parse(time.RFC3339, hkmd.Updated)
 	if err != nil && !updatedTimeCanBeNil {
 		return nil, fmt.Errorf("field UpdatedTime: %v", err)
 	}
 
-	hmk := &HMACKey{
-		AccessID:    pbmd.AccessId,
-		Secret:      pb.Secret,
-		Etag:        pbmd.Etag,
-		ID:          pbmd.Id,
-		State:       HMACState(pbmd.State),
-		ProjectID:   pbmd.ProjectId,
+	hmKey := &HMACKey{
+		AccessID:    hkmd.AccessId,
+		Secret:      hk.Secret,
+		Etag:        hkmd.Etag,
+		ID:          hkmd.Id,
+		State:       HMACState(hkmd.State),
+		ProjectID:   hkmd.ProjectId,
 		CreatedTime: createdTime,
 		UpdatedTime: updatedTime,
 
-		ServiceAccountEmail: pbmd.ServiceAccountEmail,
+		ServiceAccountEmail: hkmd.ServiceAccountEmail,
 	}
 
-	return hmk, nil
+	return hmKey, nil
+}
+
+func toHMACKeyFromProto(pbmd *storagepb.HmacKeyMetadata) *HMACKey {
+	if pbmd == nil {
+		return nil
+	}
+
+	return &HMACKey{
+		AccessID:            pbmd.GetAccessId(),
+		ID:                  pbmd.GetId(),
+		State:               HMACState(pbmd.GetState()),
+		ProjectID:           pbmd.GetProject(),
+		CreatedTime:         convertProtoTime(pbmd.GetCreateTime()),
+		UpdatedTime:         convertProtoTime(pbmd.GetUpdateTime()),
+		ServiceAccountEmail: pbmd.GetServiceAccountEmail(),
+	}
 }
 
 // CreateHMACKey invokes an RPC for Google Cloud Storage to create a new HMACKey.
@@ -215,17 +232,17 @@ func (c *Client) CreateHMACKey(ctx context.Context, projectID, serviceAccountEma
 
 	setClientHeader(call.Header())
 
-	var hkPb *raw.HmacKey
+	var hk *raw.HmacKey
 
 	if err := run(ctx, func() error {
 		h, err := call.Context(ctx).Do()
-		hkPb = h
+		hk = h
 		return err
 	}, c.retry, false, setRetryHeaderHTTP(call)); err != nil {
 		return nil, err
 	}
 
-	return pbHmacKeyToHMACKey(hkPb, true)
+	return toHMACKeyFromRaw(hk, true)
 }
 
 // HMACKeyAttrsToUpdate defines the attributes of an HMACKey that will be updated.
@@ -272,10 +289,10 @@ func (h *HMACKeyHandle) Update(ctx context.Context, au HMACKeyAttrsToUpdate, opt
 	if err != nil {
 		return nil, err
 	}
-	hkPb := &raw.HmacKey{
+	hk := &raw.HmacKey{
 		Metadata: metadata,
 	}
-	return pbHmacKeyToHMACKey(hkPb, false)
+	return toHMACKeyFromRaw(hk, false)
 }
 
 // An HMACKeysIterator is an iterator over HMACKeys.
@@ -350,6 +367,8 @@ func (it *HMACKeysIterator) Next() (*HMACKey, error) {
 func (it *HMACKeysIterator) PageInfo() *iterator.PageInfo { return it.pageInfo }
 
 func (it *HMACKeysIterator) fetch(pageSize int, pageToken string) (token string, err error) {
+	// TODO: Remove fetch method upon integration. This method is internalized into
+	// httpStorageClient.ListHMACKeys() as it is the only caller.
 	call := it.raw.List(it.projectID)
 	setClientHeader(call.Header())
 	if pageToken != "" {
@@ -379,10 +398,10 @@ func (it *HMACKeysIterator) fetch(pageSize int, pageToken string) (token string,
 	}
 
 	for _, metadata := range resp.Items {
-		hkPb := &raw.HmacKey{
+		hk := &raw.HmacKey{
 			Metadata: metadata,
 		}
-		hkey, err := pbHmacKeyToHMACKey(hkPb, true)
+		hkey, err := toHMACKeyFromRaw(hk, true)
 		if err != nil {
 			return "", err
 		}

@@ -39,6 +39,9 @@ type Config struct {
 	// ServiceAccountImpersonationURL is the URL for the service account impersonation request. This is only
 	// required for workload identity pools when APIs to be accessed have not integrated with UberMint.
 	ServiceAccountImpersonationURL string
+	// ServiceAccountImpersonationLifetimeSeconds is the number of seconds the service account impersonation
+	// token will be valid for.
+	ServiceAccountImpersonationLifetimeSeconds int
 	// ClientSecret is currently only required if token_info endpoint also
 	// needs to be called with the generated GCP access token. When provided, STS will be
 	// called with additional basic authentication using client_id as username and client_secret as password.
@@ -141,10 +144,11 @@ func (c *Config) tokenSource(ctx context.Context, tokenURLValidPats []*regexp.Re
 	scopes := c.Scopes
 	ts.conf.Scopes = []string{"https://www.googleapis.com/auth/cloud-platform"}
 	imp := ImpersonateTokenSource{
-		Ctx:    ctx,
-		URL:    c.ServiceAccountImpersonationURL,
-		Scopes: scopes,
-		Ts:     oauth2.ReuseTokenSource(nil, ts),
+		Ctx:                  ctx,
+		URL:                  c.ServiceAccountImpersonationURL,
+		Scopes:               scopes,
+		Ts:                   oauth2.ReuseTokenSource(nil, ts),
+		TokenLifetimeSeconds: c.ServiceAccountImpersonationLifetimeSeconds,
 	}
 	return oauth2.ReuseTokenSource(nil, imp), nil
 }

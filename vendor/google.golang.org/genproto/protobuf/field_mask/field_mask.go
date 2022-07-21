@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file, and the cloud.google.com/go import, won't actually become part of
-// the resultant binary.
-//go:build modhack
-// +build modhack
+// Package field_mask aliases all exported identifiers in
+// package "google.golang.org/protobuf/types/known/fieldmaskpb".
+package field_mask
 
-package storage
+import "google.golang.org/protobuf/types/known/fieldmaskpb"
 
-// Necessary for safely adding multi-module repo. See: https://github.com/golang/go/wiki/Modules#is-it-possible-to-add-a-module-to-a-multi-module-repository
-import _ "cloud.google.com/go"
+type FieldMask = fieldmaskpb.FieldMask
+
+var File_google_protobuf_field_mask_proto = fieldmaskpb.File_google_protobuf_field_mask_proto
