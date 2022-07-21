@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -60,7 +60,7 @@ func selfScraper(scrapeInterval time.Duration) {
 			currentTimestamp = currentTime.UnixNano() / 1e6
 		}
 		bb.Reset()
-		httpserver.WritePrometheusMetrics(&bb)
+		appmetrics.WritePrometheusMetrics(&bb)
 		s := bytesutil.ToUnsafeString(bb.B)
 		rows.Reset()
 		rows.Unmarshal(s)
