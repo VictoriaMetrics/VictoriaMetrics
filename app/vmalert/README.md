@@ -622,6 +622,8 @@ The shortlist of configuration flags is the following:
      Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+  -datasource.headers string
+     Optional HTTP headers to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
      Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
@@ -807,6 +809,8 @@ The shortlist of configuration flags is the following:
      Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.disablePathAppend
      Whether to disable automatic appending of '/api/v1/query' path to the configured -datasource.url and -remoteRead.url
+  -remoteRead.headers string
+     Optional HTTP headers to send with each request to the corresponding -remoteRead.url. For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'
   -remoteRead.ignoreRestoreErrors
      Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
@@ -849,6 +853,8 @@ The shortlist of configuration flags is the following:
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
      Defines interval of flushes to remote write endpoint (default 5s)
+  -remoteWrite.headers string
+     Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
   -remoteWrite.maxBatchSize int
      Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
