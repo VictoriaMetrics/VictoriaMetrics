@@ -1,7 +1,6 @@
 package promql
 
 import (
-	"log"
 	"reflect"
 	"testing"
 
@@ -316,9 +315,6 @@ func Test_vmrangeBucketsToLE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := vmrangeBucketsToLE(tt.tss); !reflect.DeepEqual(got, tt.want) {
-				for _, t2 := range got {
-					log.Printf("GOT => %#v", t2.MetricName.Tags)
-				}
 				t.Errorf("vmrangeBucketsToLE() = %#v, want %#v", got, tt.want)
 			}
 		})
