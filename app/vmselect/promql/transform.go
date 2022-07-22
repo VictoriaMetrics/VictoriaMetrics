@@ -3,7 +3,6 @@ package promql
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"regexp"
@@ -565,7 +564,6 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			}
 			xsPrev = xs
 		}
-		log.Printf("xsPrev.end => %#v", xsPrev)
 		if !math.IsInf(xsPrev.end, 1) {
 			xssNew = append(xssNew, x{
 				endStr: "+Inf",
