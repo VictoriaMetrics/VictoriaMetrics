@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
@@ -132,7 +131,7 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/dir/rules1-good.rules",
 					Name:     "duplicatedGroupDiffFiles",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules: []Rule{
 						&AlertingRule{
@@ -157,14 +156,14 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Rules:    []Rule{VMRows},
 					Interval: defaultEvalInterval,
 				},
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
@@ -179,7 +178,7 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
@@ -187,7 +186,7 @@ func TestManagerUpdate(t *testing.T) {
 					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
 					Name:     "TestGroup",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
@@ -202,14 +201,14 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,

@@ -1,4 +1,4 @@
-package datasource
+package config
 
 import (
 	"fmt"
@@ -10,45 +10,45 @@ import (
 
 // Type represents data source type
 type Type struct {
-	name string
+	Name string
 }
 
 // NewPrometheusType returns prometheus datasource type
 func NewPrometheusType() Type {
 	return Type{
-		name: "prometheus",
+		Name: "prometheus",
 	}
 }
 
 // NewGraphiteType returns graphite datasource type
 func NewGraphiteType() Type {
 	return Type{
-		name: "graphite",
+		Name: "graphite",
 	}
 }
 
 // NewRawType returns datasource type from raw string
 // without validation.
 func NewRawType(d string) Type {
-	return Type{name: d}
+	return Type{Name: d}
 }
 
 // Get returns datasource type
 func (t *Type) Get() string {
-	return t.name
+	return t.Name
 }
 
 // Set changes datasource type
 func (t *Type) Set(d Type) {
-	t.name = d.name
+	t.Name = d.Name
 }
 
 // String implements String interface with default value.
 func (t Type) String() string {
-	if t.name == "" {
+	if t.Name == "" {
 		return "prometheus"
 	}
-	return t.name
+	return t.Name
 }
 
 // ValidateExpr validates query expression with datasource ql.
@@ -63,7 +63,7 @@ func (t *Type) ValidateExpr(expr string) error {
 			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
 		}
 	default:
-		return fmt.Errorf("unknown datasource type=%q", t.name)
+		return fmt.Errorf("unknown datasource type=%q", t.Name)
 	}
 	return nil
 }
@@ -82,13 +82,13 @@ func (t *Type) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	default:
 		return fmt.Errorf("unknown datasource type=%q, want %q or %q", s, "prometheus", "graphite")
 	}
-	t.name = s
+	t.Name = s
 	return nil
 }
 
 // MarshalYAML implements the yaml.Unmarshaler interface.
 func (t Type) MarshalYAML() (interface{}, error) {
-	return t.name, nil
+	return t.Name, nil
 }
 
 // Header is a Key - Value struct for holding an HTTP header.
