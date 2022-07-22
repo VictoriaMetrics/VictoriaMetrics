@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,10 +24,12 @@ func init() {
 	flagutil.RegisterSecretFlag("pushmetrics.url")
 }
 
-// Init must be called after flag.Parse.
+// Init must be called after logger.Init
 func Init() {
 	extraLabels := strings.Join(*pushExtraLabels, ",")
 	for _, pu := range *pushURL {
-		_ = metrics.InitPushExt(pu, *pushInterval, extraLabels, appmetrics.WritePrometheusMetrics)
+		if err := metrics.InitPushExt(pu, *pushInterval, extraLabels, appmetrics.WritePrometheusMetrics); err != nil {
+			logger.Fatalf("cannot initialize pushmetrics: %s", err)
+		}
 	}
 }

@@ -75,9 +75,9 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	pushmetrics.Init()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
