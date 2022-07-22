@@ -89,8 +89,8 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
 
-	p := NewPrometheusType()
-	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
+	p := datasourcePrometheus
+	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(p), EvaluationInterval: 15 * time.Second})
 	ts := time.Now()
 
 	expErr := func(err string) {
@@ -146,8 +146,7 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Fatalf("unexpected metric %+v want %+v", m, expected)
 	}
 
-	g := NewGraphiteType()
-	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
+	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
 	m, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
 	if err != nil {
@@ -212,8 +211,7 @@ func TestVMRangeQuery(t *testing.T) {
 	}
 	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
 
-	p := NewPrometheusType()
-	pq := s.BuildWithParams(QuerierParams{DataSourceType: &p, EvaluationInterval: 15 * time.Second})
+	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus), EvaluationInterval: 15 * time.Second})
 
 	_, err = pq.QueryRange(ctx, query, time.Now(), time.Time{})
 	expectError(t, err, "is missing")
@@ -239,8 +237,7 @@ func TestVMRangeQuery(t *testing.T) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
 
-	g := NewGraphiteType()
-	gq := s.BuildWithParams(QuerierParams{DataSourceType: &g})
+	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
 	_, err = gq.QueryRange(ctx, queryRender, start, end)
 	expectError(t, err, "is not supported")
@@ -263,7 +260,7 @@ func TestRequestParams(t *testing.T) {
 			"prometheus path",
 			false,
 			&VMStorage{
-				dataSourceType: NewPrometheusType(),
+				dataSourceType: datasourcePrometheus,
 			},
 			func(t *testing.T, r *http.Request) {
 				checkEqualString(t, "/api/v1/query", r.URL.Path)
@@ -273,7 +270,7 @@ func TestRequestParams(t *testing.T) {
 			"prometheus prefix",
 			false,
 			&VMStorage{
-				dataSourceType:   NewPrometheusType(),
+				dataSourceType:   datasourcePrometheus,
 				appendTypePrefix: true,
 			},
 			func(t *testing.T, r *http.Request) {
@@ -284,7 +281,7 @@ func TestRequestParams(t *testing.T) {
 			"prometheus range path",
 			true,
 			&VMStorage{
-				dataSourceType: NewPrometheusType(),
+				dataSourceType: datasourcePrometheus,
 			},
 			func(t *testing.T, r *http.Request) {
 				checkEqualString(t, "/api/v1/query_range", r.URL.Path)
@@ -294,7 +291,7 @@ func TestRequestParams(t *testing.T) {
 			"prometheus range prefix",
 			true,
 			&VMStorage{
-				dataSourceType:   NewPrometheusType(),
+				dataSourceType:   datasourcePrometheus,
 				appendTypePrefix: true,
 			},
 			func(t *testing.T, r *http.Request) {
@@ -305,7 +302,7 @@ func TestRequestParams(t *testing.T) {
 			"graphite path",
 			false,
 			&VMStorage{
-				dataSourceType: NewGraphiteType(),
+				dataSourceType: datasourceGraphite,
 			},
 			func(t *testing.T, r *http.Request) {
 				checkEqualString(t, graphitePath, r.URL.Path)
@@ -315,7 +312,7 @@ func TestRequestParams(t *testing.T) {
 			"graphite prefix",
 			false,
 			&VMStorage{
-				dataSourceType:   NewGraphiteType(),
+				dataSourceType:   datasourceGraphite,
 				appendTypePrefix: true,
 			},
 			func(t *testing.T, r *http.Request) {
@@ -453,7 +450,7 @@ func TestRequestParams(t *testing.T) {
 			"graphite extra params",
 			false,
 			&VMStorage{
-				dataSourceType: NewGraphiteType(),
+				dataSourceType: datasourceGraphite,
 				extraParams: url.Values{
 					"nocache":      {"1"},
 					"max_lookback": {"1h"},
@@ -472,14 +469,14 @@ func TestRequestParams(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			switch tc.vm.dataSourceType.String() {
-			case "prometheus":
+			switch tc.vm.dataSourceType {
+			case "", datasourcePrometheus:
 				if tc.queryRange {
 					tc.vm.setPrometheusRangeReqParams(req, query, timestamp, timestamp)
 				} else {
 					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
 				}
-			case "graphite":
+			case datasourceGraphite:
 				tc.vm.setGraphiteReqParams(req, query, timestamp)
 			}
 			tc.checkFn(t, req)
@@ -530,9 +527,9 @@ func TestHeaders(t *testing.T) {
 		{
 			name: "custom extraHeaders",
 			vmFn: func() *VMStorage {
-				return &VMStorage{extraHeaders: []Header{
-					{Key: "Foo", Value: "bar"},
-					{Key: "Baz", Value: "qux"},
+				return &VMStorage{extraHeaders: []keyValue{
+					{key: "Foo", value: "bar"},
+					{key: "Baz", value: "qux"},
 				}}
 			},
 			checkFn: func(t *testing.T, r *http.Request) {
@@ -551,8 +548,8 @@ func TestHeaders(t *testing.T) {
 				}
 				return &VMStorage{
 					authCfg: cfg,
-					extraHeaders: []Header{
-						{Key: "Authorization", Value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
+					extraHeaders: []keyValue{
+						{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
 					}}
 			},
 			checkFn: func(t *testing.T, r *http.Request) {

@@ -27,6 +27,6 @@ func init() {
 func Init() {
 	extraLabels := strings.Join(*pushExtraLabels, ",")
 	for _, pu := range *pushURL {
-		metrics.InitPushExt(pu, *pushInterval, extraLabels, appmetrics.WritePrometheusMetrics)
+		_ = metrics.InitPushExt(pu, *pushInterval, extraLabels, appmetrics.WritePrometheusMetrics)
 	}
 }

@@ -19,10 +19,10 @@ type QuerierBuilder interface {
 
 // QuerierParams params for Querier.
 type QuerierParams struct {
-	DataSourceType     *Type
+	DataSourceType     string
 	EvaluationInterval time.Duration
 	QueryParams        url.Values
-	Headers            []Header
+	Headers            map[string]string
 }
 
 // Metric is the basic entity which should be return by datasource

@@ -200,13 +200,22 @@ func urlValuesToStrings(values url.Values) []string {
 	return res
 }
 
-func headersToStrings(headers []datasource.Header) []string {
+func headersToStrings(headers map[string]string) []string {
 	if len(headers) < 1 {
 		return nil
 	}
-	var res []string
-	for _, h := range headers {
-		res = append(res, fmt.Sprintf("%s: %s", h.Key, h.Value))
+
+	keys := make([]string, 0, len(headers))
+	for k := range headers {
+		keys = append(keys, k)
 	}
+	sort.Strings(keys)
+
+	var res []string
+	for _, k := range keys {
+		v := headers[k]
+		res = append(res, fmt.Sprintf("%s: %s", k, v))
+	}
+
 	return res
 }

@@ -12,7 +12,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -23,7 +22,7 @@ import (
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	Type        datasource.Type `yaml:"type,omitempty"`
+	Type        Type `yaml:"type,omitempty"`
 	File        string
 	Name        string              `yaml:"name"`
 	Interval    *promutils.Duration `yaml:"interval,omitempty"`
@@ -39,7 +38,7 @@ type Group struct {
 	// Optional HTTP URL parameters added to each rule request
 	Params url.Values `yaml:"params"`
 	// Headers contains optional HTTP headers added to each rule request
-	Headers []datasource.Header `yaml:"headers,omitempty"`
+	Headers []Header `yaml:"headers,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -57,7 +56,7 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	// change default value to prometheus datasource.
 	if g.Type.Get() == "" {
-		g.Type.Set(datasource.NewPrometheusType())
+		g.Type.Set(NewPrometheusType())
 	}
 
 	h := md5.New()

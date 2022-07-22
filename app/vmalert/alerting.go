@@ -20,7 +20,7 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	Type         datasource.Type
+	Type         config.Type
 	RuleID       uint64
 	Name         string
 	Expr         string
@@ -72,7 +72,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:    group.Name,
 		EvalInterval: group.Interval,
 		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     &group.Type,
+			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
 			QueryParams:        group.Params,
 			Headers:            group.Headers,
