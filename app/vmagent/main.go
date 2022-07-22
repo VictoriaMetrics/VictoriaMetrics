@@ -77,10 +77,10 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	pushmetrics.Init()
 	remotewrite.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
 		if err := promscrape.CheckConfig(); err != nil {

@@ -36,9 +36,9 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	pushmetrics.Init()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
 		*dryRun = true

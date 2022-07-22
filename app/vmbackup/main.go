@@ -42,9 +42,9 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	pushmetrics.Init()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	if len(*snapshotCreateURL) > 0 {
 		if len(*snapshotName) > 0 {
