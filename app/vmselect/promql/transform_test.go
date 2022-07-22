@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"log"
 	"reflect"
 	"testing"
 
@@ -75,18 +76,7 @@ func Test_vmrangeBucketsToLE(t *testing.T) {
 					Timestamps: nil,
 				},
 			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("0...+Inf")},
-						},
-					},
-					Values:     nil,
-					Timestamps: nil,
-				},
-			},
+			want: []*timeseries{},
 		},
 		// Panic as well
 		{
@@ -103,18 +93,7 @@ func Test_vmrangeBucketsToLE(t *testing.T) {
 					Timestamps: nil,
 				},
 			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("0...+Inf")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: nil,
-				},
-			},
+			want: []*timeseries{},
 		},
 		{
 			name: "with zeroes on both ranges",
@@ -337,6 +316,9 @@ func Test_vmrangeBucketsToLE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := vmrangeBucketsToLE(tt.tss); !reflect.DeepEqual(got, tt.want) {
+				for _, t2 := range got {
+					log.Printf("GOT => %#v", t2.MetricName.Tags)
+				}
 				t.Errorf("vmrangeBucketsToLE() = %#v, want %#v", got, tt.want)
 			}
 		})
