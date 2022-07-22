@@ -12,7 +12,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -66,7 +65,7 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Validate check for internal Group or Rule configuration errors
-func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
+func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
 	}
@@ -92,11 +91,11 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
-		if validateAnnotations {
-			if err := notifier.ValidateTemplates(r.Annotations); err != nil {
+		if validateTplFn != nil {
+			if err := validateTplFn(r.Annotations); err != nil {
 				return fmt.Errorf("invalid annotations for rule %q.%q: %w", g.Name, ruleName, err)
 			}
-			if err := notifier.ValidateTemplates(r.Labels); err != nil {
+			if err := validateTplFn(r.Labels); err != nil {
 				return fmt.Errorf("invalid labels for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
@@ -169,8 +168,10 @@ func (r *Rule) Validate() error {
 	return checkOverflow(r.XXX, "rule")
 }
 
+type ValidateTplFn func(annotations map[string]string) error
+
 // Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool) ([]Group, error) {
+func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	var fp []string
 	for _, pattern := range pathPatterns {
 		matches, err := filepath.Glob(pattern)
@@ -189,7 +190,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 			continue
 		}
 		for _, g := range gr {
-			if err := g.Validate(validateAnnotations, validateExpressions); err != nil {
+			if err := g.Validate(validateTplFn, validateExpressions); err != nil {
 				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
 				continue
 			}
