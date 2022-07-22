@@ -585,9 +585,9 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	scrapeResponseSize.Update(float64(sbr.bodyLen))
 	up := 1
 	if err != nil {
-		if samplesScraped == 0 {
-			up = 0
-		}
+		// Mark the scrape as failed even if it already read and pushed some samples
+		// to remote storage. This makes the logic compatible with Prometheus.
+		up = 0
 		scrapesFailed.Inc()
 	}
 	seriesAdded := 0
