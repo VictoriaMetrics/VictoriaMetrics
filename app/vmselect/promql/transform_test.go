@@ -36,41 +36,6 @@ func TestFixBrokenBuckets(t *testing.T) {
 }
 
 func Test_vmrangeBucketsToLE(t *testing.T) {
-	f := func(name string, tss []*timeseries, tssExpected *timeseries) {
-		t.Run(name, func(t *testing.T) {
-			if got := vmrangeBucketsToLE(tss); !reflect.DeepEqual(got, tssExpected) {
-				t.Errorf("vmrangeBucketsToLE() = %v, want %v", got, tssExpected)
-			}
-		})
-	}
-
-	tests := []struct {
-		name string
-		tss  []*timeseries
-		want *timeseries
-	}{}
-
-	for _, tt := range tests {
-		f(tt.name, tt.tss, tt.want)
-	}
-
-	// tss := []*timeseries{
-	// 	&timeseries{
-	// 		MetricName: storage.MetricName{
-	// 			MetricGroup: []byte("new_metrics"),
-	// 			Tags: []storage.Tag{
-	// 				storage.Tag{Key: []byte("vmrange"), Value: []byte("0...+Inf")},
-	// 			},
-	// 		},
-	// 		Values:     []float64{0},
-	// 		Timestamps: []int64{0},
-	// 	},
-	// }
-	//
-	// f(tss, nil)
-}
-
-func Test_vmrangeBucketsToLE1(t *testing.T) {
 	tests := []struct {
 		name string
 		tss  []*timeseries
