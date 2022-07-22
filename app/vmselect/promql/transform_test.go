@@ -79,7 +79,7 @@ func Test_vmrangeBucketsToLE(t *testing.T) {
 		},
 		// Panic as well
 		{
-			name: "with infinite end time and values is nil",
+			name: "with infinite end time is nil but values one data",
 			tss: []*timeseries{
 				&timeseries{
 					MetricName: storage.MetricName{
