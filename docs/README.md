@@ -66,6 +66,7 @@ VictoriaMetrics has the following prominent features:
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
 * It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/products/enterprise/).
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+* It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/) and [Google Filestore](https://cloud.google.com/filestore).
 
 See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
@@ -1636,7 +1637,7 @@ See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting
 
 All the VictoriaMetrics apps support pushing their metrics exposed at `/metrics` page to remote storage in Prometheus text exposition format. This can be done by specifying the following command-line flags:
 
-* `-pushmetrics.url` - the url to push metrics to. For example, `-pushmetrics.url=http://victoria-metrics:8428/api/v1/import/prometheus` instructs to push internal metrics to `/api/v1/import/prometheus` endpoint according to [these docs](#how-to-import-data-in-prometheus-exposition-format). The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls. The url can contain basic auth params in the form http://user:pass@hostname/api/v1/import/prometheus .
+* `-pushmetrics.url` - the url to push metrics to. For example, `-pushmetrics.url=http://victoria-metrics:8428/api/v1/import/prometheus` instructs to push internal metrics to `/api/v1/import/prometheus` endpoint according to [these docs](#how-to-import-data-in-prometheus-exposition-format). The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls. The url can contain basic auth params in the form http://user:pass@hostname/api/v1/import/prometheus . Metrics are pushed to the provided `-pushmetrics.url` in a compressed form with `Content-Encoding: gzip` request header. This allows reducing the required network bandwidth for metrics push.
 * `-pushmetrics.interval` - the interval between pushes. By default it is set to 10 seconds.
 * `-pushmetrics.extraLabel` - label to add to all the metrics before sending them to `-pushmetrics.url`. The label must be specified in the format `label="value"`. It is OK to specify multiple `-pushmetrics.extraLabel` command-line flags. In this case all the specified labels are added to all the metrics sending them to `-pushmetrics.url`.
 
