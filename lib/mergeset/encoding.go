@@ -119,7 +119,9 @@ func (ib *inmemoryBlock) updateCommonPrefixUnsorted() {
 	ib.commonPrefix = append(ib.commonPrefix[:0], cp...)
 }
 
-func commonPrefixLen(a, b []byte) int {
+// macbook pro 2019, Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
+// 15.70 ns/op
+func commonPrefixLenOneByOne(a, b []byte) int {
 	i := 0
 	if len(a) > len(b) {
 		for i < len(b) && a[i] == b[i] {
@@ -131,6 +133,33 @@ func commonPrefixLen(a, b []byte) int {
 		}
 	}
 	return i
+}
+
+// from this issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2254
+// macbook pro 2019, Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
+// 9.785 ns/op when memory aligned, 1.6 times faster
+// 9.833 ns/op when memory not aligned
+func commonPrefixLen(a, b []byte) int {
+	if len(a) > len(b) {
+		a, b = b, a
+	}
+	if len(a) < 8 {
+		return commonPrefixLenOneByOne(a, b)
+	}
+	const size = 8
+	compareTimes := len(a) / size
+	addrA := uintptr(unsafe.Pointer(&a[0]))
+	addrB := uintptr(unsafe.Pointer(&b[0]))
+	for i := 0; i < compareTimes; i++ {
+		v1 := (*uint64)(unsafe.Pointer(addrA))
+		v2 := (*uint64)(unsafe.Pointer(addrB))
+		if *v1 != *v2 {
+			return i*size + commonPrefixLenOneByOne(a[i*size:], b[i*size:])
+		}
+		addrA += size
+		addrB += size
+	}
+	return compareTimes*size + commonPrefixLenOneByOne(a[compareTimes*size:], b[compareTimes*size:])
 }
 
 // Add adds x to the end of ib.
