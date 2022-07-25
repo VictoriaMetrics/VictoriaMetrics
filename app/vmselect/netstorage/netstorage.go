@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"regexp"
@@ -84,7 +85,7 @@ type timeseriesWork struct {
 	rss      *Results
 	pts      *packedTimeseries
 	f        func(rs *Result, workerID uint) error
-	doneCh   chan error
+	err      error
 
 	rowsProcessed int
 }
@@ -94,18 +95,14 @@ func (tsw *timeseriesWork) reset() {
 	tsw.rss = nil
 	tsw.pts = nil
 	tsw.f = nil
-	if n := len(tsw.doneCh); n > 0 {
-		logger.Panicf("BUG: tsw.doneCh must be empty during reset; it contains %d items instead", n)
-	}
+	tsw.err = nil
 	tsw.rowsProcessed = 0
 }
 
 func getTimeseriesWork() *timeseriesWork {
 	v := tswPool.Get()
 	if v == nil {
-		v = &timeseriesWork{
-			doneCh: make(chan error, 1),
-		}
+		v = &timeseriesWork{}
 	}
 	return v.(*timeseriesWork)
 }
@@ -116,28 +113,6 @@ func putTimeseriesWork(tsw *timeseriesWork) {
 }
 
 var tswPool sync.Pool
-
-func scheduleTimeseriesWork(workChs []chan *timeseriesWork, tsw *timeseriesWork) {
-	if len(workChs) == 1 {
-		// Fast path for a single worker
-		workChs[0] <- tsw
-		return
-	}
-	attempts := 0
-	for {
-		idx := fastrand.Uint32n(uint32(len(workChs)))
-		select {
-		case workChs[idx] <- tsw:
-			return
-		default:
-			attempts++
-			if attempts >= len(workChs) {
-				workChs[idx] <- tsw
-				return
-			}
-		}
-	}
-}
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 	if atomic.LoadUint32(tsw.mustStop) != 0 {
@@ -162,15 +137,15 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 	return nil
 }
 
-func timeseriesWorker(ch <-chan *timeseriesWork, workerID uint) {
+func timeseriesWorker(tsws []*timeseriesWork, workerID uint) {
 	v := resultPool.Get()
 	if v == nil {
 		v = &result{}
 	}
 	r := v.(*result)
-	for tsw := range ch {
+	for _, tsw := range tsws {
 		err := tsw.do(&r.rs, workerID)
-		tsw.doneCh <- err
+		tsw.err = err
 	}
 	currentTime := fasttime.UnixTimestamp()
 	if cap(r.rs.Values) > 1024*1024 && 4*len(r.rs.Values) < cap(r.rs.Values) && currentTime-r.lastResetTime > 10 {
@@ -202,31 +177,7 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		rss.tbf = nil
 	}()
 
-	// Spin up local workers.
-	//
-	// Do not use a global workChs with a global pool of workers, since it may lead to a deadlock in the following case:
-	// - RunParallel is called with f, which blocks without forward progress.
-	// - All the workers in the global pool became blocked in f.
-	// - workChs is filled up, so it cannot accept new work items from other RunParallel calls.
-	workers := len(rss.packedTimeseries)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
-	}
-	if workers < 1 {
-		workers = 1
-	}
-	workChs := make([]chan *timeseriesWork, workers)
-	var workChsWG sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		workChs[i] = make(chan *timeseriesWork, 16)
-		workChsWG.Add(1)
-		go func(workerID int) {
-			defer workChsWG.Done()
-			timeseriesWorker(workChs[workerID], uint(workerID))
-		}(i)
-	}
-
-	// Feed workers with work.
+	// Prepare work for workers.
 	tsws := make([]*timeseriesWork, len(rss.packedTimeseries))
 	var mustStop uint32
 	for i := range rss.packedTimeseries {
@@ -235,17 +186,49 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsw.pts = &rss.packedTimeseries[i]
 		tsw.f = f
 		tsw.mustStop = &mustStop
-		scheduleTimeseriesWork(workChs, tsw)
 		tsws[i] = tsw
 	}
-	seriesProcessedTotal := len(rss.packedTimeseries)
-	rss.packedTimeseries = rss.packedTimeseries[:0]
+	// Shuffle tsws for providing the equal amount of work among workers.
+	r := rand.New(rand.NewSource(int64(fasttime.UnixTimestamp())))
+	r.Shuffle(len(tsws), func(i, j int) {
+		tsws[i], tsws[j] = tsws[j], tsws[i]
+	})
+
+	// Spin up up to gomaxprocs local workers and split work equally among them.
+	// This guarantees linear scalability with the increase of gomaxprocs
+	// (e.g. the number of available CPU cores).
+	workers := len(rss.packedTimeseries)
+	itemsPerWorker := 1
+	if workers > gomaxprocs {
+		itemsPerWorker = 1 + workers/gomaxprocs
+		workers = gomaxprocs
+	}
+	var start int
+	var i uint
+	var wg sync.WaitGroup
+	for start < len(tsws) {
+		end := start + itemsPerWorker
+		if end > len(tsws) {
+			end = len(tsws)
+		}
+		chunk := tsws[start:end]
+		wg.Add(1)
+		go func(tswsChunk []*timeseriesWork, workerID uint) {
+			defer wg.Done()
+			timeseriesWorker(tswsChunk, workerID)
+		}(chunk, i)
+		start = end
+		i++
+	}
 
 	// Wait until work is complete.
+	wg.Wait()
+
+	// Collect results.
 	var firstErr error
 	rowsProcessedTotal := 0
 	for _, tsw := range tsws {
-		if err := <-tsw.doneCh; err != nil && firstErr == nil {
+		if err := tsw.err; err != nil && firstErr == nil {
 			// Return just the first error, since other errors are likely duplicate the first error.
 			firstErr = err
 		}
@@ -254,14 +237,11 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		putTimeseriesWork(tsw)
 	}
 
+	seriesProcessedTotal := len(rss.packedTimeseries)
+	rss.packedTimeseries = rss.packedTimeseries[:0]
 	rowsReadPerQuery.Update(float64(rowsProcessedTotal))
 	seriesReadPerQuery.Update(float64(seriesProcessedTotal))
 
-	// Shut down local workers
-	for _, workCh := range workChs {
-		close(workCh)
-	}
-	workChsWG.Wait()
 	qt.Donef("series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
 
 	return firstErr
