@@ -1,9 +1,11 @@
 package promql
 
 import (
+	"log"
 	"reflect"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -36,287 +38,134 @@ func TestFixBrokenBuckets(t *testing.T) {
 }
 
 func Test_vmrangeBucketsToLE(t *testing.T) {
-	tests := []struct {
-		name string
-		tss  []*timeseries
-		want []*timeseries
-	}{
+	f := func(metrics string, expected []*timeseries) {
+		t.Helper()
 
-		{
-			name: "nil timeseries",
-			tss:  nil,
-			want: []*timeseries{},
-		},
-		{
-			name: "empty timeseries",
-			tss:  []*timeseries{},
-			want: []*timeseries{},
-		},
-		// This test is panic. Panic appears if xsPrev.end is Inf, and we skip appending to the slice
-		// if !math.IsInf(xsPrev.end, 1) {
-		//			xssNew = append(xssNew, x{
-		//				endStr: "+Inf",
-		//				end:    math.Inf(1),
-		//				ts:     copyTS(xsPrev.ts, "+Inf"),
-		//			})
-		//		}
-		// and it is not depend on value of timeseries.Value
-		{
-			name: "with infinite end time and values is nil",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("0...+Inf")},
-						},
-					},
-					Values:     nil,
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{},
-		},
-		// Panic as well
-		{
-			name: "with infinite end time is nil but values one data",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("0...+Inf")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{},
-		},
-		{
-			name: "with zeroes on both ranges",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("0...0")},
-						},
-					},
-					Values:     nil,
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("+Inf")},
-						},
-					},
-					Values:     []float64(nil),
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-			},
-		},
-		{
-			name: "with zeroes on both ranges and zero value",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("0...1")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("+Inf")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-			},
-		},
-		{
-			name: "range with values",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("1.000e+00...1.136e+00")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("1.000e+00")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("1.136e+00")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: []int64(nil),
-					denyReuse:  false,
-				},
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("+Inf")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-			},
-		},
-		{
-			name: "range with empty first value",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("...1.136e+00")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{},
-		},
-		{
-			name: "range with minus Inf",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("-Inf...0")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("-Inf")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("0")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: []int64(nil),
-					denyReuse:  false,
-				},
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("+Inf")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-			},
-		},
-		{
-			name: "range with empty first value",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("...1.136e+00")},
-						},
-					},
-					Values:     []float64{123},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{},
-		},
-		{
-			name: "range with minus Inf and zero value",
-			tss: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("vmrange"), Value: []byte("-Inf...0")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: nil,
-				},
-			},
-			want: []*timeseries{
-				&timeseries{
-					MetricName: storage.MetricName{
-						MetricGroup: []byte("new_metrics"),
-						Tags: []storage.Tag{
-							{Key: []byte("le"), Value: []byte("+Inf")},
-						},
-					},
-					Values:     []float64{0},
-					Timestamps: []int64(nil),
-					denyReuse:  true,
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := vmrangeBucketsToLE(tt.tss); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("vmrangeBucketsToLE() = %#v, want %#v", got, tt.want)
-			}
+		var rows prometheus.Rows
+		rows.UnmarshalWithErrLogger(metrics, func(errStr string) {
+			t.Fatalf("unexpected error when parsing %s: %s", metrics, errStr)
 		})
+		var tss []*timeseries
+		for _, row := range rows.Rows {
+			log.Printf("ROW => %#v", row)
+			var tags []storage.Tag
+			for _, tag := range row.Tags {
+				tags = append(tags, storage.Tag{
+					Key:   []byte(tag.Key),
+					Value: []byte(tag.Value),
+				})
+			}
+			var ts timeseries
+			ts.MetricName.MetricGroup = []byte(row.Metric)
+			ts.MetricName.Tags = tags
+			ts.Timestamps = append(ts.Timestamps, row.Timestamp)
+			ts.Values = append(ts.Values, row.Value)
+			tss = append(tss, &ts)
+		}
+		if got := vmrangeBucketsToLE(tss); !reflect.DeepEqual(got, expected) {
+			t.Errorf("vmrangeBucketsToLE() = %#v, want %#v", got, expected)
+		}
 	}
+
+	f(`vm_rows_read_per_query_bucket{vmrange="4.084e+02...4.642e+02"} 2`, []*timeseries{
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("4.084e+02")},
+				},
+			},
+			Values:     []float64{0},
+			Timestamps: []int64{0},
+			denyReuse:  true,
+		},
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("4.642e+02")},
+				},
+			},
+			Values:     []float64{2},
+			Timestamps: []int64{0},
+			denyReuse:  false,
+		},
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("+Inf")},
+				},
+			},
+			Values:     []float64{2},
+			Timestamps: []int64{0},
+			denyReuse:  true,
+		},
+	})
+	// This test is panic
+	f(`vm_rows_read_per_query_bucket{vmrange="0...+Inf"} 0`, []*timeseries{})
+	f(`vm_rows_read_per_query_bucket{vmrange="-Inf...0"} 0`, []*timeseries{
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("+Inf")},
+				},
+			},
+			Values:     []float64{0},
+			Timestamps: []int64{0},
+			denyReuse:  true,
+		},
+	})
+	f(`vm_rows_read_per_query_bucket{vmrange="0...0"} 0`, []*timeseries{
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("+Inf")},
+				},
+			},
+			Values:     []float64{0},
+			Timestamps: []int64{0},
+			denyReuse:  true,
+		},
+	})
+	f(`vm_rows_read_per_query_bucket{vmrange="-Inf...+Inf"} 0`, []*timeseries{})
+	f(`vm_rows_read_per_query_bucket{vmrange="-Inf...+Inf"} 1`, []*timeseries{
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("-Inf")},
+				},
+			},
+			Values:     []float64{0},
+			Timestamps: []int64{0},
+			denyReuse:  true,
+		},
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("+Inf")},
+				},
+			},
+			Values:     []float64{1},
+			Timestamps: []int64{0},
+			denyReuse:  false,
+		},
+	})
+	f(`vm_rows_read_per_query_bucket{vmrange="4.084e+02...4.642e+02"} 0`, []*timeseries{
+		&timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte("vm_rows_read_per_query_bucket"),
+				Tags: []storage.Tag{
+					{Key: []byte("le"), Value: []byte("+Inf")},
+				},
+			},
+			Values:     []float64{0},
+			Timestamps: []int64{0},
+			denyReuse:  true,
+		},
+	})
 }
