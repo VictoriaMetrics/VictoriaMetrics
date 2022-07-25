@@ -1,7 +1,6 @@
 package promql
 
 import (
-	"log"
 	"reflect"
 	"testing"
 
@@ -47,7 +46,6 @@ func Test_vmrangeBucketsToLE(t *testing.T) {
 		})
 		var tss []*timeseries
 		for _, row := range rows.Rows {
-			log.Printf("ROW => %#v", row)
 			var tags []storage.Tag
 			for _, tag := range row.Tags {
 				tags = append(tags, storage.Tag{
