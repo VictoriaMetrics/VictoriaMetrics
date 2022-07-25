@@ -168,6 +168,7 @@ func (r *Rule) Validate() error {
 	return checkOverflow(r.XXX, "rule")
 }
 
+// ValidateTplFn must validate the given annotations
 type ValidateTplFn func(annotations map[string]string) error
 
 // Parse parses rule configs from given file patterns
