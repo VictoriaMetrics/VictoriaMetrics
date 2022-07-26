@@ -1635,16 +1635,32 @@ See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting
 
 ## Push metrics
 
-All the VictoriaMetrics apps support pushing their metrics exposed at `/metrics` page to remote storage in Prometheus text exposition format. This can be done by specifying the following command-line flags:
+All the VictoriaMetrics components support pushing their metrics exposed at `/metrics` page to remote storage in Prometheus text exposition format.
+This functionality may be used instead of [classic Prometheus-like metrics scraping](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+if VictoriaMetrics components are located in isolated networks, so they cannot be scraped by local [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
-* `-pushmetrics.url` - the url to push metrics to. For example, `-pushmetrics.url=http://victoria-metrics:8428/api/v1/import/prometheus` instructs to push internal metrics to `/api/v1/import/prometheus` endpoint according to [these docs](#how-to-import-data-in-prometheus-exposition-format). The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls. The url can contain basic auth params in the form http://user:pass@hostname/api/v1/import/prometheus . Metrics are pushed to the provided `-pushmetrics.url` in a compressed form with `Content-Encoding: gzip` request header. This allows reducing the required network bandwidth for metrics push.
+The following command-line flags are related to pushing metrics from VictoriaMetrics components:
+
+* `-pushmetrics.url` - the url to push metrics to. For example, `-pushmetrics.url=http://victoria-metrics:8428/api/v1/import/prometheus` instructs
+  to push internal metrics to `/api/v1/import/prometheus` endpoint according to [these docs](#how-to-import-data-in-prometheus-exposition-format).
+  The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls.
+  The url can contain basic auth params in the form `http://user:pass@hostname/api/v1/import/prometheus`.
+  Metrics are pushed to the provided `-pushmetrics.url` in a compressed form with `Content-Encoding: gzip` request header.
+  This allows reducing the required network bandwidth for metrics push.
+* `-pushmetrics.extraLabel` - labels to add to all the metrics before sending them to `-pushmetrics.url`. Each label must be specified in the format `label="value"`.
+  It is OK to specify multiple `-pushmetrics.extraLabel` command-line flags. In this case all the specified labels
+  are added to all the metrics before sending them to all the configured `-pushmetrics.url` addresses.
 * `-pushmetrics.interval` - the interval between pushes. By default it is set to 10 seconds.
-* `-pushmetrics.extraLabel` - label to add to all the metrics before sending them to `-pushmetrics.url`. The label must be specified in the format `label="value"`. It is OK to specify multiple `-pushmetrics.extraLabel` command-line flags. In this case all the specified labels are added to all the metrics sending them to `-pushmetrics.url`.
 
-For example, the following command instructs VictoriaMetrics to push metrics from `/metrics` page to `https://maas.victoriametrics.com/api/v1/import/prometheus` with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication). The `instance="foobar"` and `job="vm"` labels are added to all the metrics before sending them to the remote storage:
+For example, the following command instructs VictoriaMetrics to push metrics from `/metrics` page to `https://maas.victoriametrics.com/api/v1/import/prometheus`
+with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication). The `instance="foobar"` and `job="vm"` labels
+are added to all the metrics before sending them to the remote storage:
 
 ```console
-/path/to/victoria-metrics -pushmetrics.url=https://user:pass@maas.victoriametrics.com/api/v1/import/prometheus -pushmetrics.extraLabel='instance="foobar",job="vm"'
+/path/to/victoria-metrics \
+  -pushmetrics.url=https://user:pass@maas.victoriametrics.com/api/v1/import/prometheus \
+  -pushmetrics.extraLabel='instance="foobar"' \
+  -pushmetrics.extraLabel='job="vm"'
 ```
 
 ## Cache removal
