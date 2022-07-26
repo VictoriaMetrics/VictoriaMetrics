@@ -572,21 +572,22 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			})
 		}
 		xss = xssNew
-		if len(xss) > 0 {
-			for i := range xss[0].ts.Values {
-				count := float64(0)
-				for _, xs := range xss {
-					ts := xs.ts
-					v := ts.Values[i]
-					if !math.IsNaN(v) && v > 0 {
-						count += v
-					}
-					ts.Values[i] = count
-				}
-			}
+		if len(xss) == 0 {
+			continue
+		}
+		for i := range xss[0].ts.Values {
+			count := float64(0)
 			for _, xs := range xss {
-				rvs = append(rvs, xs.ts)
+				ts := xs.ts
+				v := ts.Values[i]
+				if !math.IsNaN(v) && v > 0 {
+					count += v
+				}
+				ts.Values[i] = count
 			}
+		}
+		for _, xs := range xss {
+			rvs = append(rvs, xs.ts)
 		}
 	}
 	return rvs
