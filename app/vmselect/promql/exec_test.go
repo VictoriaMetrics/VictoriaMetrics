@@ -4297,18 +4297,7 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`prometheus_buckets(zero-vmrange-value)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(prometheus_buckets(label_set(0, "vmrange", "0...0")))`
-		r1 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{0, 0, 0, 0, 0, 0},
-			Timestamps: timestampsExpected,
-		}
-		r1.MetricName.Tags = []storage.Tag{
-			{
-				Key:   []byte("le"),
-				Value: []byte("+Inf"),
-			},
-		}
-		resultsExpected := []netstorage.Result{r1}
+		resultsExpected := []netstorage.Result{}
 		f(q, resultsExpected)
 	})
 	t.Run(`prometheus_buckets(valid)`, func(t *testing.T) {
