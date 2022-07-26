@@ -1079,8 +1079,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
-  -pushmetrics.extraLabels array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabels='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+  -pushmetrics.extraLabel array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)
