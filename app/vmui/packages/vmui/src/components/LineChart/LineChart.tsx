@@ -1,7 +1,7 @@
 import React, {FC, useCallback, useEffect, useRef, useState} from "preact/compat";
 import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale} from "uplot";
 import {defaultOptions} from "../../utils/uplot/helpers";
-import {dragChart} from "../../utils/uplot/events";
+import {dragChart, zoomChart} from "../../utils/uplot/events";
 import {getAxes, getMinMaxBuffer} from "../../utils/uplot/axes";
 import {setTooltip} from "../../utils/uplot/tooltip";
 import {MetricResult} from "../../api/types";
@@ -52,25 +52,38 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
   };
 
   const onReadyChart = (u: uPlot) => {
-    const factor = 0.9;
     tooltipOffset.left = parseFloat(u.over.style.left);
     tooltipOffset.top = parseFloat(u.over.style.top);
     u.root.querySelector(".u-wrap")?.appendChild(tooltip);
-    // wheel drag pan
-    u.over.addEventListener("mousedown", e => dragChart({u, e, setPanning, setPlotScale, factor}));
-    // wheel scroll zoom
-    u.over.addEventListener("wheel", e => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const {width} = u.over.getBoundingClientRect();
-      const zoomPos = u.cursor.left && u.cursor.left > 0 ? u.cursor.left : 0;
-      const xVal = u.posToVal(zoomPos, "x");
-      const oxRange = (u.scales.x.max || 0) - (u.scales.x.min || 0);
-      const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
-      const min = xVal - (zoomPos / width) * nxRange;
-      const max = min + nxRange;
-      u.batch(() => setPlotScale({u, min, max}));
+    u.over.addEventListener("mousedown", e => {
+      const {ctrlKey, metaKey} = e;
+      const leftClick = e.button === 0;
+      const leftClickWithMeta = leftClick && (ctrlKey || metaKey);
+      if (leftClickWithMeta) {
+        // wheel drag pan
+        dragChart({u, e, setPanning, setPlotScale, factor: 0.9});
+      } else if (leftClick) {
+        // wheel scroll zoom
+        zoomChart({u, e, setPanning, setPlotScale, factor: 1});
+      }
     });
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const {target, ctrlKey, metaKey} = e;
+    const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+    if (!uPlotInst || isInput) return;
+    const minus = e.code === "Minus";
+    const plus = e.code === "Equal";
+    if ((minus || plus) && !(ctrlKey || metaKey)) {
+      e.preventDefault();
+      const factor = (xRange.max - xRange.min) / 10 * (plus ? 1 : -1);
+      setPlotScale({
+        u: uPlotInst,
+        min: xRange.min + factor,
+        max: xRange.max - factor
+      });
+    }
   };
 
   const setCursor = (u: uPlot) => {
@@ -140,6 +153,14 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     setXRange({min: period.start, max: period.end});
     return u.destroy;
   }, [uPlotRef.current, series, layoutSize]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [xRange]);
 
   useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
