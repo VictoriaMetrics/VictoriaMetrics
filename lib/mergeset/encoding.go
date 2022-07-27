@@ -1,6 +1,7 @@
 package mergeset
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"reflect"
@@ -36,7 +37,7 @@ func (it Item) Bytes(data []byte) []byte {
 	return data
 }
 
-// String returns string represetnation of it obtained from data.
+// String returns string representation of it obtained from data.
 //
 // The returned string representation belongs to data.
 func (it Item) String(data []byte) string {
@@ -56,7 +57,7 @@ func (ib *inmemoryBlock) Less(i, j int) bool {
 	a.Start += cpLen
 	b.Start += cpLen
 	data := ib.data
-	return string(a.Bytes(data)) < string(b.Bytes(data))
+	return a.String(data) < b.String(data)
 }
 
 func (ib *inmemoryBlock) Swap(i, j int) {
@@ -74,6 +75,21 @@ type inmemoryBlock struct {
 	// items contains items stored in inmemoryBlock.
 	// Every item contains the prefix specified at commonPrefix.
 	items []Item
+}
+
+func (ib *inmemoryBlock) CopyFrom(src *inmemoryBlock) {
+	ib.commonPrefix = append(ib.commonPrefix[:0], src.commonPrefix...)
+	ib.data = append(ib.data[:0], src.data...)
+	ib.items = append(ib.items[:0], src.items...)
+}
+
+func (ib *inmemoryBlock) SortItems() {
+	if !ib.isSorted() {
+		ib.updateCommonPrefixUnsorted()
+		sort.Sort(ib)
+	} else {
+		ib.updateCommonPrefixSorted()
+	}
 }
 
 func (ib *inmemoryBlock) SizeBytes() int {
@@ -110,7 +126,11 @@ func (ib *inmemoryBlock) updateCommonPrefixUnsorted() {
 	data := ib.data
 	cp := items[0].Bytes(data)
 	for _, it := range items[1:] {
-		cpLen := commonPrefixLen(cp, it.Bytes(data))
+		item := it.Bytes(data)
+		if bytes.HasPrefix(item, cp) {
+			continue
+		}
+		cpLen := commonPrefixLen(cp, item)
 		if cpLen == 0 {
 			return
 		}
@@ -199,12 +219,7 @@ func (ib *inmemoryBlock) isSorted() bool {
 // - returns the number of items encoded including the first item.
 // - returns the marshal type used for the encoding.
 func (ib *inmemoryBlock) MarshalUnsortedData(sb *storageBlock, firstItemDst, commonPrefixDst []byte, compressLevel int) ([]byte, []byte, uint32, marshalType) {
-	if !ib.isSorted() {
-		ib.updateCommonPrefixUnsorted()
-		sort.Sort(ib)
-	} else {
-		ib.updateCommonPrefixSorted()
-	}
+	ib.SortItems()
 	return ib.marshalData(sb, firstItemDst, commonPrefixDst, compressLevel)
 }
 
