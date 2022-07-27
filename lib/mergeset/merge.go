@@ -116,18 +116,18 @@ again:
 
 	bsr := bsm.bsrHeap[0]
 
-	var nextItem []byte
+	var nextItem string
 	hasNextItem := false
 	if len(bsm.bsrHeap) > 1 {
 		bsr := bsm.bsrHeap.getNextReader()
-		nextItem = bsr.bh.firstItem
+		nextItem = bsr.CurrItem()
 		hasNextItem = true
 	}
 	items := bsr.Block.items
 	data := bsr.Block.data
-	for bsr.blockItemIdx < len(bsr.Block.items) {
-		item := items[bsr.blockItemIdx].Bytes(data)
-		if hasNextItem && string(item) > string(nextItem) {
+	for bsr.currItemIdx < len(bsr.Block.items) {
+		item := items[bsr.currItemIdx].Bytes(data)
+		if hasNextItem && string(item) > nextItem {
 			break
 		}
 		if !bsm.ib.Add(item) {
@@ -135,9 +135,9 @@ again:
 			bsm.flushIB(bsw, ph, itemsMerged)
 			continue
 		}
-		bsr.blockItemIdx++
+		bsr.currItemIdx++
 	}
-	if bsr.blockItemIdx == len(bsr.Block.items) {
+	if bsr.currItemIdx == len(bsr.Block.items) {
 		// bsr.Block is fully read. Proceed to the next block.
 		if bsr.Next() {
 			heap.Fix(&bsm.bsrHeap, 0)
@@ -151,8 +151,7 @@ again:
 	}
 
 	// The next item in the bsr.Block exceeds nextItem.
-	// Adjust bsr.bh.firstItem and return bsr to heap.
-	bsr.bh.firstItem = append(bsr.bh.firstItem[:0], bsr.Block.items[bsr.blockItemIdx].String(bsr.Block.data)...)
+	// Return bsr to heap.
 	heap.Fix(&bsm.bsrHeap, 0)
 	goto again
 }
@@ -212,7 +211,7 @@ func (bh bsrHeap) getNextReader() *blockStreamReader {
 	}
 	a := bh[1]
 	b := bh[2]
-	if string(a.bh.firstItem) <= string(b.bh.firstItem) {
+	if a.CurrItem() <= b.CurrItem() {
 		return a
 	}
 	return b
@@ -229,7 +228,7 @@ func (bh *bsrHeap) Swap(i, j int) {
 
 func (bh *bsrHeap) Less(i, j int) bool {
 	x := *bh
-	return string(x[i].bh.firstItem) < string(x[j].bh.firstItem)
+	return x[i].CurrItem() < x[j].CurrItem()
 }
 
 func (bh *bsrHeap) Pop() interface{} {
