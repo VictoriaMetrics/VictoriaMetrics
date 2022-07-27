@@ -11,6 +11,27 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+func TestCommonPrefixLen(t *testing.T) {
+	f := func(a, b string, expectedPrefixLen int) {
+		t.Helper()
+		prefixLen := commonPrefixLen([]byte(a), []byte(b))
+		if prefixLen != expectedPrefixLen {
+			t.Fatalf("unexpected prefix len; got %d; want %d", prefixLen, expectedPrefixLen)
+		}
+	}
+	f("", "", 0)
+	f("a", "", 0)
+	f("", "a", 0)
+	f("a", "a", 1)
+	f("abc", "xy", 0)
+	f("abc", "abd", 2)
+	f("01234567", "01234567", 8)
+	f("01234567", "012345678", 8)
+	f("012345679", "012345678", 8)
+	f("01234569", "012345678", 7)
+	f("01234569", "01234568", 7)
+}
+
 func TestInmemoryBlockAdd(t *testing.T) {
 	var ib inmemoryBlock
 

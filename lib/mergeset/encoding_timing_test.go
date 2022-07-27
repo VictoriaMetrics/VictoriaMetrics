@@ -8,6 +8,36 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+func BenchmarkCommonPrefixLen(b *testing.B) {
+	for _, prefix := range []string{
+		"", "x", "xy", "xyz", "xyz1", "xyz12",
+		"xyz123", "xyz1234", "01234567", "xyz123456", "xyz123456789012345678901234567890",
+		"aljkljfdpjopoewpoirerop934093094poipdfidpfdsfkjljdfpjoejkdjfljpfdkl",
+		"aljkljfdpjopoewpoirerop934093094poipdfidpfdsfkjljdfpjoejkdjfljpfdkllkj321oiiou321oijlkfdfjj lfdsjdslkfjdslfj ldskafjldsflkfdsjlkj",
+	} {
+		b.Run(fmt.Sprintf("prefix-len-%d", len(prefix)), func(b *testing.B) {
+			benchmarkCommonPrefixLen(b, prefix)
+		})
+	}
+}
+
+func benchmarkCommonPrefixLen(b *testing.B, prefix string) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(prefix)))
+	b.RunParallel(func(pb *testing.PB) {
+		a := append([]byte{}, prefix...)
+		a = append(a, 'a')
+		b := append([]byte{}, prefix...)
+		b = append(b, 'b')
+		for pb.Next() {
+			n := commonPrefixLen(a, b)
+			if n != len(prefix) {
+				panic(fmt.Errorf("unexpected prefix len; got %d; want %d", n, len(prefix)))
+			}
+		}
+	})
+}
+
 func BenchmarkInmemoryBlockMarshal(b *testing.B) {
 	const itemsCount = 1000
 	var ibSrc inmemoryBlock
