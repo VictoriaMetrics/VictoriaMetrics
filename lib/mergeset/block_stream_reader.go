@@ -17,7 +17,8 @@ type blockStreamReader struct {
 	// Block contains the current block if Next returned true.
 	Block inmemoryBlock
 
-	blockItemIdx int
+	// The index of the current item in the Block, which is returned from CurrItem()
+	currItemIdx int
 
 	path string
 
@@ -66,7 +67,7 @@ type blockStreamReader struct {
 
 func (bsr *blockStreamReader) reset() {
 	bsr.Block.Reset()
-	bsr.blockItemIdx = 0
+	bsr.currItemIdx = 0
 	bsr.path = ""
 	bsr.ph.Reset()
 	bsr.mrs = nil
@@ -185,6 +186,10 @@ func (bsr *blockStreamReader) MustClose() {
 	bsr.reset()
 }
 
+func (bsr *blockStreamReader) CurrItem() string {
+	return bsr.Block.items[bsr.currItemIdx].String(bsr.Block.data)
+}
+
 func (bsr *blockStreamReader) Next() bool {
 	if bsr.err != nil {
 		return false
@@ -233,7 +238,7 @@ func (bsr *blockStreamReader) Next() bool {
 		bsr.err = fmt.Errorf("too many blocks read: %d; must be smaller than partHeader.blocksCount %d", bsr.blocksRead, bsr.ph.blocksCount)
 		return false
 	}
-	bsr.blockItemIdx = 0
+	bsr.currItemIdx = 0
 	bsr.itemsRead += uint64(len(bsr.Block.items))
 	if bsr.itemsRead > bsr.ph.itemsCount {
 		bsr.err = fmt.Errorf("too many items read: %d; must be smaller than partHeader.itemsCount %d", bsr.itemsRead, bsr.ph.itemsCount)
