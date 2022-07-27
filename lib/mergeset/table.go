@@ -718,47 +718,34 @@ func (tb *Table) mergeRawItemsBlocks(ibs []*inmemoryBlock, isFinal bool) {
 }
 
 func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
-	// Convert ibs into inmemoryPart's
-	mps := make([]*inmemoryPart, 0, len(ibs))
+	atomic.AddUint64(&tb.mergesCount, 1)
+	atomic.AddUint64(&tb.activeMerges, 1)
+	defer atomic.AddUint64(&tb.activeMerges, ^uint64(0))
+
+	// Prepare blockStreamReaders for source blocks.
+	bsrs := make([]*blockStreamReader, 0, len(ibs))
 	for _, ib := range ibs {
 		if len(ib.items) == 0 {
 			continue
 		}
-		mp := getInmemoryPart()
-		mp.Init(ib)
+		bsr := getBlockStreamReader()
+		bsr.InitFromInmemoryBlock(ib)
 		putInmemoryBlock(ib)
-		mps = append(mps, mp)
+		bsrs = append(bsrs, bsr)
 	}
-	if len(mps) == 0 {
+	if len(bsrs) == 0 {
 		return nil
 	}
-	if len(mps) == 1 {
+	if len(bsrs) == 1 {
 		// Nothing to merge. Just return a single inmemory part.
-		mp := mps[0]
+		mp := getInmemoryPart()
+		mp.Init(&bsrs[0].Block)
 		p := mp.NewPart()
 		return &partWrapper{
 			p:        p,
 			mp:       mp,
 			refCount: 1,
 		}
-	}
-	defer func() {
-		// Return source inmemoryParts to pool.
-		for _, mp := range mps {
-			putInmemoryPart(mp)
-		}
-	}()
-
-	atomic.AddUint64(&tb.mergesCount, 1)
-	atomic.AddUint64(&tb.activeMerges, 1)
-	defer atomic.AddUint64(&tb.activeMerges, ^uint64(0))
-
-	// Prepare blockStreamReaders for source parts.
-	bsrs := make([]*blockStreamReader, 0, len(mps))
-	for _, mp := range mps {
-		bsr := getBlockStreamReader()
-		bsr.InitFromInmemoryPart(mp)
-		bsrs = append(bsrs, bsr)
 	}
 
 	// Prepare blockStreamWriter for destination part.

@@ -17,6 +17,9 @@ type blockStreamReader struct {
 	// Block contains the current block if Next returned true.
 	Block inmemoryBlock
 
+	// isInmemoryBlock is set to true if bsr was initialized with InitFromInmemoryBlock().
+	isInmemoryBlock bool
+
 	// The index of the current item in the Block, which is returned from CurrItem()
 	currItemIdx int
 
@@ -67,6 +70,7 @@ type blockStreamReader struct {
 
 func (bsr *blockStreamReader) reset() {
 	bsr.Block.Reset()
+	bsr.isInmemoryBlock = false
 	bsr.currItemIdx = 0
 	bsr.path = ""
 	bsr.ph.Reset()
@@ -97,6 +101,14 @@ func (bsr *blockStreamReader) String() string {
 		return bsr.path
 	}
 	return bsr.ph.String()
+}
+
+// InitFromInmemoryBlock initializes bsr from the given ib.
+func (bsr *blockStreamReader) InitFromInmemoryBlock(ib *inmemoryBlock) {
+	bsr.reset()
+	bsr.Block.CopyFrom(ib)
+	bsr.Block.SortItems()
+	bsr.isInmemoryBlock = true
 }
 
 // InitFromInmemoryPart initializes bsr from the given mp.
@@ -179,10 +191,11 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 //
 // It closes *Reader files passed to Init.
 func (bsr *blockStreamReader) MustClose() {
-	bsr.indexReader.MustClose()
-	bsr.itemsReader.MustClose()
-	bsr.lensReader.MustClose()
-
+	if !bsr.isInmemoryBlock {
+		bsr.indexReader.MustClose()
+		bsr.itemsReader.MustClose()
+		bsr.lensReader.MustClose()
+	}
 	bsr.reset()
 }
 
@@ -193,6 +206,10 @@ func (bsr *blockStreamReader) CurrItem() string {
 func (bsr *blockStreamReader) Next() bool {
 	if bsr.err != nil {
 		return false
+	}
+	if bsr.isInmemoryBlock {
+		bsr.err = io.EOF
+		return true
 	}
 
 	if bsr.bhIdx >= len(bsr.bhs) {
