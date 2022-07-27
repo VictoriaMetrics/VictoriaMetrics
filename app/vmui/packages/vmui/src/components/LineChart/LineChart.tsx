@@ -70,11 +70,11 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    const {target, ctrlKey, metaKey} = e;
+    const {target, ctrlKey, metaKey, key} = e;
     const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     if (!uPlotInst || isInput) return;
-    const minus = e.code === "Minus";
-    const plus = e.code === "Equal";
+    const minus = key === "-";
+    const plus = key === "+" || key === "=";
     if ((minus || plus) && !(ctrlKey || metaKey)) {
       e.preventDefault();
       const factor = (xRange.max - xRange.min) / 10 * (plus ? 1 : -1);
