@@ -19,7 +19,7 @@ package-base:
 docker-scan: package-base
 	docker scan --accept-license $(BASE_IMAGE) || (echo "❌ The build has been terminated because critical vulnerabilities were found in $(BASE_IMAGE)"; exit 1)
 
-package-builder: docker-scan
+package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
 		|| docker build \
 			--build-arg go_builder_image=$(GO_BUILDER_IMAGE) \
