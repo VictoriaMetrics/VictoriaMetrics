@@ -182,10 +182,11 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsws[i] = tsw
 	}
 	// Shuffle tsws for providing the equal amount of work among workers.
-	r := rand.New(rand.NewSource(int64(fasttime.UnixTimestamp())))
+	r := getRand()
 	r.Shuffle(len(tsws), func(i, j int) {
 		tsws[i], tsws[j] = tsws[j], tsws[i]
 	})
+	putRand(r)
 
 	// Spin up up to gomaxprocs local workers and split work equally among them.
 	// This guarantees linear scalability with the increase of gomaxprocs
@@ -238,6 +239,20 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	qt.Donef("series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
 
 	return firstErr
+}
+
+var randPool sync.Pool
+
+func getRand() *rand.Rand {
+	v := randPool.Get()
+	if v == nil {
+		v = rand.New(rand.NewSource(int64(fasttime.UnixTimestamp())))
+	}
+	return v.(*rand.Rand)
+}
+
+func putRand(r *rand.Rand) {
+	randPool.Put(r)
 }
 
 var (
