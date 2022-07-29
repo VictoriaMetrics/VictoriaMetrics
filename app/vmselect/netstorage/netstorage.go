@@ -123,13 +123,13 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
+	tsw.rowsProcessed = len(r.Timestamps)
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			atomic.StoreUint32(tsw.mustStop, 1)
 			return err
 		}
 	}
-	tsw.rowsProcessed = len(r.Values)
 	return nil
 }
 
