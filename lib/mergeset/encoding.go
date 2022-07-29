@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset/commonprefixlen"
 )
 
 // Item represents a single item for storing in a mergeset.
@@ -160,6 +161,13 @@ func commonPrefixLen(a, b []byte) int {
 		addrB += size
 	}
 	return compareTimes*size + commonPrefixLenOneByOne(a[compareTimes*size:], b[compareTimes*size:])
+}
+
+func commonPrefixLenSIMD(a, b []byte) int {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	return commonprefixlen.CommonPrefixLen(a, b)
 }
 
 // Add adds x to the end of ib.
