@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -141,10 +142,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}()
 	}
 
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
-	if path == "/internal/resetRollupResultCache" {
+	pathRequest := strings.Replace(r.URL.Path, "//", "/", -1)
+	if pathRequest == "/internal/resetRollupResultCache" {
 		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
-			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), pathRequest))
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -155,35 +156,39 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	//
 	// See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 	switch {
-	case strings.HasPrefix(path, "/prometheus/"):
-		path = path[len("/prometheus"):]
-	case strings.HasPrefix(path, "/graphite/"):
-		path = path[len("/graphite"):]
+	case strings.HasPrefix(pathRequest, "/prometheus/"):
+		pathRequest = pathRequest[len("/prometheus"):]
+	case strings.HasPrefix(pathRequest, "/graphite/"):
+		pathRequest = pathRequest[len("/graphite"):]
 	}
 	// vmui access.
-	if path == "/vmui" || path == "/graph" {
+	if pathRequest == "/vmui" || pathRequest == "/graph" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		_ = r.ParseForm()
-		path = strings.TrimPrefix(path, "/")
-		newURL := path + "/?" + r.Form.Encode()
+		pathPrefix := httpserver.GetPathPrefix()
+		if pathPrefix != "" {
+			pathRequest = path.Join(pathPrefix, pathRequest)
+		}
+		pathRequest = strings.TrimPrefix(pathRequest, "/")
+		newURL := pathRequest + "/?" + r.Form.Encode()
 		http.Redirect(w, r, newURL, http.StatusMovedPermanently)
 		return true
 	}
-	if strings.HasPrefix(path, "/vmui/") {
-		r.URL.Path = path
+	if strings.HasPrefix(pathRequest, "/vmui/") {
+		r.URL.Path = pathRequest
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
-	if strings.HasPrefix(path, "/graph/") {
+	if strings.HasPrefix(pathRequest, "/graph/") {
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
-		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
+		r.URL.Path = strings.Replace(pathRequest, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
-	if strings.HasPrefix(path, "/api/v1/label/") {
-		s := path[len("/api/v1/label/"):]
+	if strings.HasPrefix(pathRequest, "/api/v1/label/") {
+		s := pathRequest[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
@@ -196,8 +201,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 	}
-	if strings.HasPrefix(path, "/tags/") && !isGraphiteTagsPath(path) {
-		tagName := path[len("/tags/"):]
+	if strings.HasPrefix(pathRequest, "/tags/") && !isGraphiteTagsPath(pathRequest) {
+		tagName := pathRequest[len("/tags/"):]
 		graphiteTagValuesRequests.Inc()
 		if err := graphite.TagValuesHandler(startTime, tagName, w, r); err != nil {
 			graphiteTagValuesErrors.Inc()
@@ -206,21 +211,21 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
-	if strings.HasPrefix(path, "/functions") {
+	if strings.HasPrefix(pathRequest, "/functions") {
 		graphiteFunctionsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{}`)
 		return true
 	}
 
-	if path == "/vmalert" {
+	if pathRequest == "/vmalert" {
 		// vmalert access via incomplete url without `/` in the end. Redirecto to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		http.Redirect(w, r, "vmalert/", http.StatusMovedPermanently)
 		return true
 	}
-	if strings.HasPrefix(path, "/vmalert/") {
+	if strings.HasPrefix(pathRequest, "/vmalert/") {
 		vmalertRequests.Inc()
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -232,7 +237,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	switch path {
+	switch pathRequest {
 	case "/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
