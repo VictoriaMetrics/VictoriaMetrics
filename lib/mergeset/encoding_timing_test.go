@@ -24,7 +24,6 @@ func BenchmarkCommonPrefixLen(b *testing.B) {
 }
 
 func benchmarkCommonPrefixLen(b *testing.B, prefix string) {
-	fmt.Println("prefix is :", prefix)
 	b.ReportAllocs()
 	b.SetBytes(int64(len(prefix)))
 	b.RunParallel(func(pb *testing.PB) {
