@@ -17,6 +17,9 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 		return nil, err
 	}
 	folders, err := cfg.getFolders(clouds)
+	if err != nil {
+		return nil, err
+	}
 
 	var instances []instance
 	for _, fld := range folders {

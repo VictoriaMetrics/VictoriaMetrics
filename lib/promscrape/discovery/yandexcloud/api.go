@@ -259,7 +259,7 @@ func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create new request for openstack api url %s: %w", apiURL, err)
+		return nil, fmt.Errorf("cannot create new request for yandex cloud api url %s: %w", apiURL, err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+creds.Token)
