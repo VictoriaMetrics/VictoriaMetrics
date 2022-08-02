@@ -21,9 +21,9 @@ func TestNewTokenSuccess(t *testing.T) {
 
 	}
 	f("token with accountID and projectID", "1:2", "1:2")
-	f("correct uint32 accountID", "4294967295:1", "4294967295:1")
-	f("correct uint32 projectID", "1:4294967295", "1:4294967295")
-	f("correct uint32 accountID and projectID", "4294967295:4294967295", "4294967295:4294967295")
+	f("max uint32 accountID", "4294967295:1", "4294967295:1")
+	f("max uint32 projectID", "1:4294967295", "1:4294967295")
+	f("max uint32 accountID and projectID", "4294967295:4294967295", "4294967295:4294967295")
 }
 
 func TestNewTokenFailure(t *testing.T) {
