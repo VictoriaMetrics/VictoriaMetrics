@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -309,7 +310,7 @@ again:
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	h.Set("Content-Encoding", "snappy")
+	h.Set("Content-Encoding", promremotewrite.Header())
 	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 	if c.awsCfg != nil {
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {

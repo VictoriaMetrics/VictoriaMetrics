@@ -12,11 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/snappy"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -209,7 +208,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	}
 
 	const attempts = 5
-	b := snappy.Encode(nil, data)
+	b, _ := promremotewrite.Encode(nil, data)
 	for i := 0; i < attempts; i++ {
 		err := c.send(ctx, b)
 		if err == nil {
@@ -238,7 +237,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	}
 
 	// RFC standard compliant headers
-	req.Header.Set("Content-Encoding", "snappy")
+	req.Header.Set("Content-Encoding", promremotewrite.Header())
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
 	// Prometheus compliant headers

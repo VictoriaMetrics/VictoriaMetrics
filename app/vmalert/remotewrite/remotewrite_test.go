@@ -11,10 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/snappy"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 )
 
 func TestClient_Push(t *testing.T) {
@@ -82,8 +81,8 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := r.Header.Get("Content-Encoding")
-	if h != "snappy" {
-		rw.err(w, fmt.Errorf("header read error: Content-Encoding is not snappy (%q)", h))
+	if h != promremotewrite.Header() {
+		rw.err(w, fmt.Errorf("header read error: Content-Encoding is not %s (%q)", promremotewrite.Header(), h))
 	}
 
 	h = r.Header.Get("Content-Type")
@@ -103,7 +102,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = r.Body.Close() }()
 
-	b, err := snappy.Decode(nil, data)
+	b, err := promremotewrite.Decode(nil, data)
 	if err != nil {
 		rw.err(w, fmt.Errorf("decode err: %w", err))
 		return

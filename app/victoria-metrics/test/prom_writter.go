@@ -1,6 +1,6 @@
 package test
 
-import "github.com/golang/snappy"
+import "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 
 // Compress marshals and compresses wr.
 func Compress(wr WriteRequest) ([]byte, error) {
@@ -8,5 +8,5 @@ func Compress(wr WriteRequest) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return snappy.Encode(nil, data), nil
+	return promremotewrite.Encode(nil, data)
 }

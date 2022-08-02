@@ -35,6 +35,7 @@ const (
 	testOpenTSDBListenAddr     = ":4242"
 	testOpenTSDBHTTPListenAddr = ":4243"
 	testLogLevel               = "INFO"
+	testRemoteWriteEncodingAlg = "snappy"
 )
 
 const (
@@ -159,6 +160,7 @@ func processFlags() {
 		{flag: "opentsdbListenAddr", value: testOpenTSDBListenAddr},
 		{flag: "loggerLevel", value: testLogLevel},
 		{flag: "opentsdbHTTPListenAddr", value: testOpenTSDBHTTPListenAddr},
+		{flag: "remoteWrite.compression", value: testRemoteWriteEncodingAlg},
 	} {
 		// panics if flag doesn't exist
 		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {

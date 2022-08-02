@@ -14,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 var (
@@ -197,7 +197,7 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
 	if len(bb.B) <= maxUnpackedBlockSize.N {
 		zb := snappyBufPool.Get()
-		zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
+		zb.B, _ = promremotewrite.Encode(zb.B[:cap(zb.B)], bb.B)
 		writeRequestBufPool.Put(bb)
 		if len(zb.B) <= persistentqueue.MaxBlockSize {
 			pushBlock(zb.B)
