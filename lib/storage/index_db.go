@@ -322,11 +322,22 @@ func (db *indexDB) getFromTagFiltersCache(qt *querytracer.Tracer, key []byte) ([
 		qt.Printf("cache miss")
 		return nil, false
 	}
+	if compressedBuf.B[0] == 0 {
+		// Fast path - tsids are stored in uncompressed form.
+		qt.Printf("found tsids with size: %d bytes", len(compressedBuf.B))
+		tsids, err := unmarshalTSIDs(nil, compressedBuf.B[1:])
+		if err != nil {
+			logger.Panicf("FATAL: cannot unmarshal tsids from tagFiltersCache: %s", err)
+		}
+		qt.Printf("unmarshaled %d tsids", len(tsids))
+		return tsids, true
+	}
+	// Slow path - tsids are stored in compressed form.
 	qt.Printf("found tsids with compressed size: %d bytes", len(compressedBuf.B))
 	buf := tagBufPool.Get()
 	defer tagBufPool.Put(buf)
 	var err error
-	buf.B, err = encoding.DecompressZSTD(buf.B[:0], compressedBuf.B)
+	buf.B, err = encoding.DecompressZSTD(buf.B[:0], compressedBuf.B[1:])
 	if err != nil {
 		logger.Panicf("FATAL: cannot decompress tsids from tagFiltersCache: %s", err)
 	}
@@ -344,15 +355,30 @@ var tagBufPool bytesutil.ByteBufferPool
 func (db *indexDB) putToTagFiltersCache(qt *querytracer.Tracer, tsids []TSID, key []byte) {
 	qt = qt.NewChild("put %d tsids in cache", len(tsids))
 	defer qt.Done()
+	if len(tsids) <= 2 {
+		// Fast path - store small number of tsids in uncompressed form.
+		// This saves CPU time on compress / decompress.
+		buf := tagBufPool.Get()
+		buf.B = append(buf.B[:0], 0)
+		buf.B = marshalTSIDs(buf.B, tsids)
+		qt.Printf("marshaled %d tsids into %d bytes", len(tsids), len(buf.B))
+		db.tagFiltersCache.SetBig(key, buf.B)
+		qt.Printf("store %d tsids into cache", len(tsids))
+		tagBufPool.Put(buf)
+		return
+	}
+	// Slower path - store big number of tsids in compressed form.
+	// This increases cache capacity.
 	buf := tagBufPool.Get()
 	buf.B = marshalTSIDs(buf.B[:0], tsids)
 	qt.Printf("marshaled %d tsids into %d bytes", len(tsids), len(buf.B))
 	compressedBuf := tagBufPool.Get()
-	compressedBuf.B = encoding.CompressZSTDLevel(compressedBuf.B[:0], buf.B, 1)
+	compressedBuf.B = append(compressedBuf.B[:0], 1)
+	compressedBuf.B = encoding.CompressZSTDLevel(compressedBuf.B, buf.B, 1)
 	qt.Printf("compressed %d tsids into %d bytes", len(tsids), len(compressedBuf.B))
 	tagBufPool.Put(buf)
 	db.tagFiltersCache.SetBig(key, compressedBuf.B)
-	qt.Printf("store %d compressed tsids into cache", len(tsids))
+	qt.Printf("stored %d compressed tsids into cache", len(tsids))
 	tagBufPool.Put(compressedBuf)
 }
 
@@ -528,11 +554,19 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	if is.tsidByNameMisses < 100 {
 		err := is.getTSIDByMetricName(dst, metricName)
 		if err == nil {
+			// Fast path - the TSID for the given metricName has been found in the index.
 			is.tsidByNameMisses = 0
-			return is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw)
+			if err = is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw); err != nil {
+				return err
+			}
+			// There is no need in checking whether the TSID is present in the per-day index for the given date,
+			// since this check must be performed by the caller in an optimized way.
+			// See storage.updatePerDateData() function.
+			return nil
 		}
 		if err != io.EOF {
-			return fmt.Errorf("cannot search TSID by MetricName %q: %w", metricName, err)
+			userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+			return fmt.Errorf("cannot search TSID by MetricName %s: %w", userReadableMetricName, err)
 		}
 		is.tsidByNameMisses++
 	} else {
@@ -547,7 +581,8 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	// It is OK if duplicate TSID for mn is created by concurrent goroutines.
 	// Metric results will be merged by mn after TableSearch.
 	if err := is.createTSIDByName(dst, metricName, metricNameRaw, date); err != nil {
-		return fmt.Errorf("cannot create TSID by MetricName %q: %w", metricName, err)
+		userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+		return fmt.Errorf("cannot create TSID by MetricName %s: %w", userReadableMetricName, err)
 	}
 	return nil
 }

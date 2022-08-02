@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, true, true); err != nil {
+	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 }
@@ -66,7 +66,7 @@ func TestParseBad(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		_, err := Parse(tc.path, true, true)
+		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
 		if err == nil {
 			t.Errorf("expected to get error")
 			return
@@ -224,7 +224,7 @@ func TestGroup_Validate(t *testing.T) {
 		},
 		{
 			group: &Group{Name: "test thanos",
-				Type: datasource.NewRawType("thanos"),
+				Type: NewRawType("thanos"),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"description": "{{ value|query }}",
@@ -236,7 +236,7 @@ func TestGroup_Validate(t *testing.T) {
 		},
 		{
 			group: &Group{Name: "test graphite",
-				Type: datasource.NewGraphiteType(),
+				Type: NewGraphiteType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"description": "some-description",
@@ -248,7 +248,7 @@ func TestGroup_Validate(t *testing.T) {
 		},
 		{
 			group: &Group{Name: "test prometheus",
-				Type: datasource.NewPrometheusType(),
+				Type: NewPrometheusType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"description": "{{ value|query }}",
@@ -261,7 +261,7 @@ func TestGroup_Validate(t *testing.T) {
 		{
 			group: &Group{
 				Name: "test graphite inherit",
-				Type: datasource.NewGraphiteType(),
+				Type: NewGraphiteType(),
 				Rules: []Rule{
 					{
 						Expr: "sumSeries(time('foo.bar',10))",
@@ -276,7 +276,7 @@ func TestGroup_Validate(t *testing.T) {
 		{
 			group: &Group{
 				Name: "test graphite prometheus bad expr",
-				Type: datasource.NewGraphiteType(),
+				Type: NewGraphiteType(),
 				Rules: []Rule{
 					{
 						Expr: "sum(up == 0 ) by (host)",
@@ -290,8 +290,13 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "invalid rule",
 		},
 	}
+
 	for _, tc := range testCases {
-		err := tc.group.Validate(tc.validateAnnotations, tc.validateExpressions)
+		var validateTplFn ValidateTplFn
+		if tc.validateAnnotations {
+			validateTplFn = notifier.ValidateTemplates
+		}
+		err := tc.group.Validate(validateTplFn, tc.validateExpressions)
 		if err == nil {
 			if tc.expErr != "" {
 				t.Errorf("expected to get err %q; got nil insted", tc.expErr)

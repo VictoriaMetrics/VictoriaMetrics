@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
@@ -69,7 +68,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < iterations; i++ {
 				rnd := rand.Intn(len(paths))
-				cfg, err := config.Parse([]string{paths[rnd]}, true, true)
+				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected
 					continue
 				}
@@ -132,7 +131,7 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/dir/rules1-good.rules",
 					Name:     "duplicatedGroupDiffFiles",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules: []Rule{
 						&AlertingRule{
@@ -157,14 +156,14 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Rules:    []Rule{VMRows},
 					Interval: defaultEvalInterval,
 				},
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
@@ -179,7 +178,7 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
@@ -187,7 +186,7 @@ func TestManagerUpdate(t *testing.T) {
 					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
 					Name:     "TestGroup",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
@@ -202,14 +201,14 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
 				{
 					File:     "config/testdata/rules/rules0-good.rules",
 					Interval: defaultEvalInterval,
-					Type:     datasource.NewPrometheusType(),
+					Type:     config.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
@@ -232,7 +231,7 @@ func TestManagerUpdate(t *testing.T) {
 				t.Fatalf("failed to complete initial rules update: %s", err)
 			}
 
-			cfgUpdate, err := config.Parse([]string{tc.updatePath}, true, true)
+			cfgUpdate, err := config.Parse([]string{tc.updatePath}, notifier.ValidateTemplates, true)
 			if err == nil { // update can fail and that's expected
 				_ = m.update(ctx, cfgUpdate, false)
 			}
@@ -330,7 +329,11 @@ func TestManagerUpdateNegative(t *testing.T) {
 
 func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressions bool) []config.Group {
 	t.Helper()
-	cfg, err := config.Parse(path, validateAnnotations, validateExpressions)
+	var validateTplFn config.ValidateTplFn
+	if validateAnnotations {
+		validateTplFn = notifier.ValidateTemplates
+	}
+	cfg, err := config.Parse(path, validateTplFn, validateExpressions)
 	if err != nil {
 		t.Fatal(err)
 	}

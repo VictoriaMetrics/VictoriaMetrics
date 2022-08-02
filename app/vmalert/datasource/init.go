@@ -97,7 +97,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		appendTypePrefix: *appendTypePrefix,
 		lookBack:         *lookBack,
 		queryStep:        *queryStep,
-		dataSourceType:   NewPrometheusType(),
+		dataSourceType:   datasourcePrometheus,
 		extraParams:      extraParams,
 	}, nil
 }

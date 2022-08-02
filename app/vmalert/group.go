@@ -28,7 +28,7 @@ type Group struct {
 	Name           string
 	File           string
 	Rules          []Rule
-	Type           datasource.Type
+	Type           config.Type
 	Interval       time.Duration
 	Limit          int
 	Concurrency    int
@@ -37,7 +37,7 @@ type Group struct {
 
 	Labels  map[string]string
 	Params  url.Values
-	Headers []datasource.Header
+	Headers map[string]string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -97,7 +97,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Concurrency: cfg.Concurrency,
 		Checksum:    cfg.Checksum,
 		Params:      cfg.Params,
-		Headers:     cfg.Headers,
+		Headers:     make(map[string]string),
 		Labels:      cfg.Labels,
 
 		doneCh:     make(chan struct{}),
@@ -109,6 +109,9 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	if g.Concurrency < 1 {
 		g.Concurrency = 1
+	}
+	for _, h := range cfg.Headers {
+		g.Headers[h.Key] = h.Value
 	}
 	g.metrics = newGroupMetrics(g)
 	rules := make([]Rule, len(cfg.Rules))

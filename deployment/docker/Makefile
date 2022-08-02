@@ -4,7 +4,7 @@ DOCKER_NAMESPACE := victoriametrics
 
 ROOT_IMAGE ?= alpine:3.16.1
 CERTS_IMAGE := alpine:3.16.1
-GO_BUILDER_IMAGE := golang:1.18.4-alpine
+GO_BUILDER_IMAGE := golang:1.18.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
@@ -15,6 +15,9 @@ package-base:
 			--build-arg certs_image=$(CERTS_IMAGE) \
 			--tag $(BASE_IMAGE) \
 			deployment/docker/base
+
+docker-scan: package-base
+	docker scan --accept-license $(BASE_IMAGE) || (echo "❌ The build has been terminated because critical vulnerabilities were found in $(BASE_IMAGE)"; exit 1)
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \

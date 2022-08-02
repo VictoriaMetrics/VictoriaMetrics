@@ -35,7 +35,7 @@ jwt token must be in following format:
          "team": "dev",
          "project": "mobile"
       },
-      "extra_filters": ["{env~=\"prod|dev\",team!=\"test\"}"],
+      "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
       "mode": 1
   }
 }
@@ -281,8 +281,8 @@ The shortlist of configuration flags include the following:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -pushmetrics.extraLabels array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabels='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+  -pushmetrics.extraLabel array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)

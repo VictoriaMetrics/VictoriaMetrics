@@ -9,9 +9,9 @@ require (
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
-	github.com/VictoriaMetrics/metrics v1.19.3
+	github.com/VictoriaMetrics/metrics v1.20.1
 	github.com/VictoriaMetrics/metricsql v0.44.1
-	github.com/aws/aws-sdk-go v1.44.59
+	github.com/aws/aws-sdk-go v1.44.67
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 
@@ -35,10 +35,10 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.0.0-20220708220712-1185a9018129
-	golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
-	google.golang.org/api v0.88.0
+	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
+	golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c
+	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
+	google.golang.org/api v0.90.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -62,8 +62,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/rivo/uniseg v0.3.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
@@ -71,11 +71,11 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/goleak v1.1.11-0.20210813005559-691160354723 // indirect
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220720214146-176da50484ac // indirect
+	google.golang.org/genproto v0.0.0-20220801145646-83ce21fca29f // indirect
 	google.golang.org/grpc v1.48.0 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 )

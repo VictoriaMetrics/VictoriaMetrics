@@ -25,7 +25,7 @@ github.com/VictoriaMetrics/fastcache
 github.com/VictoriaMetrics/fasthttp
 github.com/VictoriaMetrics/fasthttp/fasthttputil
 github.com/VictoriaMetrics/fasthttp/stackless
-# github.com/VictoriaMetrics/metrics v1.19.3
+# github.com/VictoriaMetrics/metrics v1.20.1
 ## explicit; go 1.12
 github.com/VictoriaMetrics/metrics
 # github.com/VictoriaMetrics/metricsql v0.44.1
@@ -35,7 +35,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit; go 1.12
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.44.59
+# github.com/aws/aws-sdk-go v1.44.67
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -200,8 +200,8 @@ github.com/prometheus/client_model/go
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.7.3
-## explicit; go 1.13
+# github.com/prometheus/procfs v0.8.0
+## explicit; go 1.17
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -222,8 +222,8 @@ github.com/prometheus/prometheus/tsdb/record
 github.com/prometheus/prometheus/tsdb/tombstones
 github.com/prometheus/prometheus/tsdb/tsdbutil
 github.com/prometheus/prometheus/tsdb/wal
-# github.com/rivo/uniseg v0.2.0
-## explicit; go 1.12
+# github.com/rivo/uniseg v0.3.1
+## explicit; go 1.18
 github.com/rivo/uniseg
 # github.com/russross/blackfriday/v2 v2.1.0
 ## explicit
@@ -280,7 +280,7 @@ go.opencensus.io/trace/tracestate
 go.uber.org/atomic
 # go.uber.org/goleak v1.1.11-0.20210813005559-691160354723
 ## explicit; go 1.13
-# golang.org/x/net v0.0.0-20220708220712-1185a9018129
+# golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -292,7 +292,7 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92
+# golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c
 ## explicit; go 1.17
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -302,10 +302,10 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
+# golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
+# golang.org/x/sys v0.0.0-20220731174439-a90be440212d
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -320,7 +320,7 @@ golang.org/x/text/unicode/norm
 ## explicit; go 1.17
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.88.0
+# google.golang.org/api v0.90.0
 ## explicit; go 1.15
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -353,8 +353,8 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220720214146-176da50484ac
-## explicit; go 1.17
+# google.golang.org/genproto v0.0.0-20220801145646-83ce21fca29f
+## explicit; go 1.18
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
@@ -425,7 +425,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.28.0
+# google.golang.org/protobuf v1.28.1
 ## explicit; go 1.11
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext

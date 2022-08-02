@@ -34,9 +34,10 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	pushmetrics.Init()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
+
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
 	startTime := time.Now()
 	initAuthConfig()

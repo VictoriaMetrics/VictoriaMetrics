@@ -557,14 +557,14 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			prevTs := uniqTs[xs.endStr]
 			if prevTs != nil {
 				// the end of the current bucket is not unique, need to merge it with the existing bucket.
-				mergeNonOverlappingTimeseries(prevTs, xs.ts)
+				_ = mergeNonOverlappingTimeseries(prevTs, xs.ts)
 			} else {
 				xssNew = append(xssNew, xs)
 				uniqTs[xs.endStr] = xs.ts
 			}
 			xsPrev = xs
 		}
-		if !math.IsInf(xsPrev.end, 1) {
+		if !math.IsInf(xsPrev.end, 1) && !isZeroTS(xsPrev.ts) {
 			xssNew = append(xssNew, x{
 				endStr: "+Inf",
 				end:    math.Inf(1),
@@ -572,6 +572,9 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			})
 		}
 		xss = xssNew
+		if len(xss) == 0 {
+			continue
+		}
 		for i := range xss[0].ts.Values {
 			count := float64(0)
 			for _, xs := range xss {

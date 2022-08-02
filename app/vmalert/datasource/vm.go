@@ -12,6 +12,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
+type datasourceType string
+
+const (
+	datasourcePrometheus datasourceType = "prometheus"
+	datasourceGraphite   datasourceType = "graphite"
+)
+
+func toDatasourceType(s string) datasourceType {
+	if s == string(datasourceGraphite) {
+		return datasourceGraphite
+	}
+	return datasourcePrometheus
+}
+
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
 	c                *http.Client
@@ -21,10 +35,15 @@ type VMStorage struct {
 	lookBack         time.Duration
 	queryStep        time.Duration
 
-	dataSourceType     Type
+	dataSourceType     datasourceType
 	evaluationInterval time.Duration
 	extraParams        url.Values
-	extraHeaders       []Header
+	extraHeaders       []keyValue
+}
+
+type keyValue struct {
+	key   string
+	value string
 }
 
 // Clone makes clone of VMStorage, shares http client.
@@ -42,12 +61,15 @@ func (s *VMStorage) Clone() *VMStorage {
 
 // ApplyParams - changes given querier params.
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
-	if params.DataSourceType != nil {
-		s.dataSourceType = *params.DataSourceType
-	}
+	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
 	s.extraParams = params.QueryParams
-	s.extraHeaders = params.Headers
+	if params.Headers != nil {
+		for key, value := range params.Headers {
+			kv := keyValue{key: key, value: value}
+			s.extraHeaders = append(s.extraHeaders, kv)
+		}
+	}
 	return s
 }
 
@@ -65,7 +87,7 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 		appendTypePrefix: appendTypePrefix,
 		lookBack:         lookBack,
 		queryStep:        queryStep,
-		dataSourceType:   NewPrometheusType(),
+		dataSourceType:   datasourcePrometheus,
 	}
 }
 
@@ -76,13 +98,13 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 		return nil, err
 	}
 
-	switch s.dataSourceType.String() {
-	case "prometheus":
+	switch s.dataSourceType {
+	case "", datasourcePrometheus:
 		s.setPrometheusInstantReqParams(req, query, ts)
-	case "graphite":
+	case datasourceGraphite:
 		s.setGraphiteReqParams(req, query, ts)
 	default:
-		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType.name)
+		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType)
 	}
 
 	resp, err := s.do(ctx, req)
@@ -94,7 +116,7 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 	}()
 
 	parseFn := parsePrometheusResponse
-	if s.dataSourceType.name != "prometheus" {
+	if s.dataSourceType != datasourcePrometheus {
 		parseFn = parseGraphiteResponse
 	}
 	return parseFn(req, resp)
@@ -104,8 +126,8 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 // For Prometheus type see https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 // Graphite type isn't supported.
 func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end time.Time) ([]Metric, error) {
-	if s.dataSourceType.name != "prometheus" {
-		return nil, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType.name)
+	if s.dataSourceType != datasourcePrometheus {
+		return nil, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType)
 	}
 	req, err := s.newRequestPOST()
 	if err != nil {
@@ -151,7 +173,7 @@ func (s *VMStorage) newRequestPOST() (*http.Request, error) {
 		s.authCfg.SetHeaders(req, true)
 	}
 	for _, h := range s.extraHeaders {
-		req.Header.Set(h.Key, h.Value)
+		req.Header.Set(h.key, h.value)
 	}
 	return req, nil
 }
