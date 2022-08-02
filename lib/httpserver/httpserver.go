@@ -235,13 +235,27 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		connTimeoutClosedConns.Inc()
 		w.Header().Set("Connection", "close")
 	}
-	path, err := getCanonicalPath(r.URL.Path)
-	if err != nil {
-		Errorf(w, r, "cannot get canonical path: %s", err)
-		unsupportedRequestErrors.Inc()
-		return
+	path := r.URL.Path
+	prefix := GetPathPrefix()
+	if prefix != "" {
+		// Trim -http.pathPrefix from path
+		prefixNoTrailingSlash := strings.TrimSuffix(prefix, "/")
+		if path == prefixNoTrailingSlash {
+			// Redirect to url with / at the end.
+			// This is needed for proper handling of relative urls in web browsers.
+			// Intentionally ignore query args, since it is expected that the requested url
+			// is composed by a human, so it doesn't contain query args.
+			RedirectPermanent(w, prefix)
+			return
+		}
+		if !strings.HasPrefix(path, prefix) {
+			Errorf(w, r, "missing -http.pathPrefix=%q in the requested path %q", *pathPrefix, path)
+			unsupportedRequestErrors.Inc()
+			return
+		}
+		path = path[len(prefix)-1:]
+		r.URL.Path = path
 	}
-	r.URL.Path = path
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -325,24 +339,6 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		unsupportedRequestErrors.Inc()
 		return
 	}
-}
-
-func getCanonicalPath(path string) (string, error) {
-	if len(*pathPrefix) == 0 || path == "/" {
-		return path, nil
-	}
-	if *pathPrefix == path {
-		return "/", nil
-	}
-	prefix := *pathPrefix
-	if !strings.HasSuffix(prefix, "/") {
-		prefix = prefix + "/"
-	}
-	if !strings.HasPrefix(path, prefix) {
-		return "", fmt.Errorf("missing `-pathPrefix=%q` in the requested path: %q", *pathPrefix, path)
-	}
-	path = path[len(prefix)-1:]
-	return path, nil
 }
 
 func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -643,7 +639,17 @@ func IsTLS() bool {
 
 // GetPathPrefix - returns http server path prefix.
 func GetPathPrefix() string {
-	return *pathPrefix
+	prefix := *pathPrefix
+	if prefix == "" {
+		return ""
+	}
+	if !strings.HasPrefix(prefix, "/") {
+		prefix = "/" + prefix
+	}
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	return prefix
 }
 
 // WriteAPIHelp writes pathList to w in HTML format.
@@ -670,4 +676,13 @@ func GetRequestURI(r *http.Request) string {
 		delimiter = "&"
 	}
 	return requestURI + delimiter + queryArgs
+}
+
+// RedirectPermanent redirects to the given url using 301 status code.
+func RedirectPermanent(w http.ResponseWriter, url string) {
+	// Do not use http.Redirect, since it breaks relative redirects
+	// if the http.Request.URL contains unexpected url.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918
+	w.Header().Set("Location", url)
+	w.WriteHeader(http.StatusMovedPermanently)
 }
