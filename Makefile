@@ -29,7 +29,7 @@ all: \
 clean:
 	rm -rf bin/*
 
-publish: \
+publish: docker-scan \
 	publish-victoria-metrics \
 	publish-vmagent \
 	publish-vmalert \
