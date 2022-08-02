@@ -16,6 +16,9 @@ package-base:
 			--tag $(BASE_IMAGE) \
 			deployment/docker/base
 
+docker-scan: package-base
+	docker scan --accept-license $(BASE_IMAGE) || (echo "❌ The build has been terminated because critical vulnerabilities were found in $(BASE_IMAGE)"; exit 1)
+
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
 		|| docker build \
