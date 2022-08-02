@@ -554,11 +554,19 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	if is.tsidByNameMisses < 100 {
 		err := is.getTSIDByMetricName(dst, metricName)
 		if err == nil {
+			// Fast path - the TSID for the given metricName has been found in the index.
 			is.tsidByNameMisses = 0
-			return is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw)
+			if err = is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw); err != nil {
+				return err
+			}
+			// There is no need in checking whether the TSID is present in the per-day index for the given date,
+			// since this check must be performed by the caller in an optimized way.
+			// See storage.updatePerDateData() function.
+			return nil
 		}
 		if err != io.EOF {
-			return fmt.Errorf("cannot search TSID by MetricName %q: %w", metricName, err)
+			userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+			return fmt.Errorf("cannot search TSID by MetricName %s: %w", userReadableMetricName, err)
 		}
 		is.tsidByNameMisses++
 	} else {
@@ -573,7 +581,8 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	// It is OK if duplicate TSID for mn is created by concurrent goroutines.
 	// Metric results will be merged by mn after TableSearch.
 	if err := is.createTSIDByName(dst, metricName, metricNameRaw, date); err != nil {
-		return fmt.Errorf("cannot create TSID by MetricName %q: %w", metricName, err)
+		userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+		return fmt.Errorf("cannot create TSID by MetricName %s: %w", userReadableMetricName, err)
 	}
 	return nil
 }
