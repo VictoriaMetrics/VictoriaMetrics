@@ -17,7 +17,7 @@ var SDCheckInterval = flag.Duration("promscrape.yandexcloudSDCheckInterval", 30*
 type SDConfig struct {
 	Service                  string              `yaml:"service"`
 	YandexPassportOAuthToken *promauth.Secret    `yaml:"yandex_passport_oauth_token,omitempty"`
-	ApiEndpoint              string              `yaml:"api_endpoint,omitempty"`
+	APIEndpoint              string              `yaml:"api_endpoint,omitempty"`
 	TLSConfig                *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 }
 

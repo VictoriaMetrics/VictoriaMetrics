@@ -81,7 +81,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 	}
 
-	if err := cfg.getEndpoints(sdc.ApiEndpoint); err != nil {
+	if err := cfg.getEndpoints(sdc.APIEndpoint); err != nil {
 		return nil, err
 	}
 

@@ -134,11 +134,11 @@ func Test_addInstanceLabels(t *testing.T) {
 									Address: "192.168.1.1",
 									OneToOneNat: oneToOneNat{
 										Address: "1.1.1.1",
-										DnsRecords: []dnsRecord{
+										DNSRecords: []dnsRecord{
 											{FQDN: "server-1.example.com"},
 										},
 									},
-									DnsRecords: []dnsRecord{
+									DNSRecords: []dnsRecord{
 										{FQDN: "server-1.example.local"},
 									},
 								},

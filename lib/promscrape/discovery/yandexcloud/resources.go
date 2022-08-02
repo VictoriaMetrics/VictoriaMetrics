@@ -62,7 +62,7 @@ type cloud struct {
 	Name           string            `json:"name"`
 	ID             string            `json:"id"`
 	Labels         map[string]string `json:"labels"`
-	OrganizationId string            `json:"organizationId"`
+	OrganizationID string            `json:"organizationId"`
 	Description    string            `json:"description"`
 	CreatedAt      time.Time         `json:"createdAt"`
 }
@@ -125,19 +125,19 @@ type dnsRecord struct {
 type oneToOneNat struct {
 	Address    string      `json:"address"`
 	IPVersion  string      `json:"ipVersion"`
-	DnsRecords []dnsRecord `json:"dnsRecords"`
+	DNSRecords []dnsRecord `json:"dnsRecords"`
 }
 
 type primaryV4Address struct {
 	Address     string      `json:"address"`
 	OneToOneNat oneToOneNat `json:"oneToOneNat"`
-	DnsRecords  []dnsRecord `json:"dnsRecords"`
+	DNSRecords  []dnsRecord `json:"dnsRecords"`
 }
 
 type networkInterface struct {
 	Index            string           `json:"index"`
 	MacAddress       string           `json:"macAddress"`
-	SubnetId         string           `json:"subnetId"`
+	SubnetID         string           `json:"subnetId"`
 	PrimaryV4Address primaryV4Address `json:"primaryV4Address"`
 }
 

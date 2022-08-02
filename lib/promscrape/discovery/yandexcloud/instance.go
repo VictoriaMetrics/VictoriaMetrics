@@ -56,19 +56,19 @@ func addInstanceLabels(instances []instance) []map[string]string {
 		}
 
 		for _, netInterface := range server.NetworkInterfaces {
-			privateIpLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_ip_%s", netInterface.Index)
-			m[privateIpLabel] = netInterface.PrimaryV4Address.Address
+			privateIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_ip_%s", netInterface.Index)
+			m[privateIPLabel] = netInterface.PrimaryV4Address.Address
 			if len(netInterface.PrimaryV4Address.OneToOneNat.Address) > 0 {
-				publicIpLabel := fmt.Sprintf("__meta_yandexcloud_instance_public_ip_%s", netInterface.Index)
-				m[publicIpLabel] = netInterface.PrimaryV4Address.OneToOneNat.Address
+				publicIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_public_ip_%s", netInterface.Index)
+				m[publicIPLabel] = netInterface.PrimaryV4Address.OneToOneNat.Address
 			}
 
-			for j, dnsRecord := range netInterface.PrimaryV4Address.DnsRecords {
+			for j, dnsRecord := range netInterface.PrimaryV4Address.DNSRecords {
 				dnsRecordLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_dns_%d", j)
 				m[dnsRecordLabel] = dnsRecord.FQDN
 			}
 
-			for j, dnsRecord := range netInterface.PrimaryV4Address.OneToOneNat.DnsRecords {
+			for j, dnsRecord := range netInterface.PrimaryV4Address.OneToOneNat.DNSRecords {
 				dnsRecordLabel := fmt.Sprintf("__meta_yandexcloud_instance_public_dns_%d", j)
 				m[dnsRecordLabel] = dnsRecord.FQDN
 			}
