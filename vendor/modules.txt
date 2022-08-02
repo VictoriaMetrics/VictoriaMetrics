@@ -35,6 +35,9 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit; go 1.12
 github.com/VividCortex/ewma
+# github.com/andybalholm/brotli v1.0.4
+## explicit; go 1.12
+github.com/andybalholm/brotli
 # github.com/aws/aws-sdk-go v1.44.67
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws

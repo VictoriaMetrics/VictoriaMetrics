@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
@@ -33,7 +32,7 @@ func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) erro
 	bb := bodyBufferPool.Get()
 	defer bodyBufferPool.Put(bb)
 	var err error
-	bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
+	bb.B, err = Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
 	if err != nil {
 		return fmt.Errorf("cannot decompress request with length %d: %w", len(ctx.reqBuf.B), err)
 	}
