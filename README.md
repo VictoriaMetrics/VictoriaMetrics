@@ -870,7 +870,7 @@ when new data is ingested into it.
 
 VictoriaMetrics provides the following handlers for exporting data:
 
-* `/api/v1/export` for exporing data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
+* `/api/v1/export` for exporting data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
 * `/api/v1/export/csv` for exporting data in CSV. See [these docs](#how-to-export-csv-data) for details.
 * `/api/v1/export/native` for exporting data in native binary format. This is the most efficient format for data export.
   See [these docs](#how-to-export-data-in-native-format) for details.
