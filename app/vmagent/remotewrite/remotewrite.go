@@ -451,6 +451,9 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	switch remoteWriteURL.Scheme {
 	case "http", "https":
 		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
+	case "dns+http", "dns+https":
+		remoteWriteURL.Scheme = remoteWriteURL.Scheme[4:]
+		c = newHTTPClientWithBalancer(argIdx, remoteWriteURL, sanitizedURL, fq, *queues)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}

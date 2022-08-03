@@ -136,6 +136,16 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	return c
 }
 
+func newHTTPClientWithBalancer(argIdx int, remoteWriteURL *url.URL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
+	c := newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, concurrency)
+	tr, err := newTransport(c.hc.Transport, remoteWriteURL.Host, c.stopCh)
+	if err != nil {
+		logger.Fatalf("create loadbalance transport failed, err: %v", err)
+	}
+	c.hc.Transport = tr
+	return c
+}
+
 func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	if bytesPerSec := rateLimit.GetOptionalArgOrDefault(argIdx, 0); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
