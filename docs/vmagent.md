@@ -180,6 +180,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config) for details.
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config) for details.
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config) for details.
+* `yandexcloud_sd_configs` is for discovering and scraping targets registered in [Yandex Cloud](https://cloud.yandex.ru/). See [yandexcloud_sd_configs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/sd_configs.md#yandex_cloud_service_discovery_configs) for details.
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -1083,6 +1084,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
+  -promscrape.yandexcloudSDCheckInterval duration
+     Interval for checking for changes in Yandex Cloud. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. (default 30s)
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.

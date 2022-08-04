@@ -2117,6 +2117,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
+  -promscrape.yandexcloudSDCheckInterval duration
+     Interval for checking for changes in Yandex Cloud. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. (default 30s)
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.

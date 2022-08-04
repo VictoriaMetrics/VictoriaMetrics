@@ -326,6 +326,7 @@ VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping t
 * [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)
 * [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
 * [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
+* [yandexcloud_sd_config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/sd_configs.md#yandex_cloud_service_discovery_config)
 
 File a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need support for other `*_sd_config` types.
 
