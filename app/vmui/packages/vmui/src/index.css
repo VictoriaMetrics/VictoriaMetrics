@@ -15,3 +15,18 @@ code {
 .MuiAccordionSummary-content {
   margin: 0 !important;
 }
+
+.shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px 0;
+  text-align: center;
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 22px;
+  white-space: nowrap;
+  cursor: default;
+  border: 1px solid #dedede;
+  background: #fafafa;
+}
