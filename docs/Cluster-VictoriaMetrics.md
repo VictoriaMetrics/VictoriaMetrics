@@ -258,7 +258,7 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
   Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
   be used on a regular basis, since it carries non-zero overhead.
 
-- URL for accessing [vmalert's](https://docs.victoriametrics.com/vmalert.html) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/home`.
+- URL for accessing [vmalert's](https://docs.victoriametrics.com/vmalert.html) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
@@ -484,7 +484,7 @@ when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for accessing vmalert's UI through vmselect's Web interface.
 
 For accessing vmalert's UI through vmselect configure `-vmalert.proxyURL` flag and visit
-`http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/home` link.
+`http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.
 
 
 ## Community and contributions
