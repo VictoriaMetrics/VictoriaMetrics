@@ -493,6 +493,14 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
+`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+This may be used for better integraion with Grafana unified alerting system. See the following docs for details:
+
+* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
+* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
+
+
 ## Graphite
 
 vmalert sends requests to `<-datasource.url>/render?format=json` during evaluation of alerting and recording rules

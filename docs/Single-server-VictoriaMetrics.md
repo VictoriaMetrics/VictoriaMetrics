@@ -1777,7 +1777,7 @@ when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for accessing vmalert's UI through single-node VictoriaMetrics Web interface.
 
 For accessing vmalert's UI through single-node VictoriaMetrics configure `-vmalert.proxyURL` flag and visit
-`http://<victoriametrics-addr>:8428/vmalert/home` link.
+`http://<victoriametrics-addr>:8428/vmalert/` link.
 
 ## Benchmarks
 
