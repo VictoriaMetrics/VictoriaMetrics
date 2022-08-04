@@ -27,11 +27,10 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		instances = append(instances, inst...)
 	}
 
-	logger.Infof("Collected %d instances", len(instances))
+	logger.Infof("yandexcloud_sd: collected %d instances", len(instances))
 
 	return addInstanceLabels(instances), nil
 }
@@ -55,20 +54,20 @@ func addInstanceLabels(instances []instance) []map[string]string {
 			m["__meta_yandexcloud_instance_label_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
 
-		for _, netInterface := range server.NetworkInterfaces {
-			privateIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_ip_%s", netInterface.Index)
-			m[privateIPLabel] = netInterface.PrimaryV4Address.Address
-			if len(netInterface.PrimaryV4Address.OneToOneNat.Address) > 0 {
-				publicIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_public_ip_%s", netInterface.Index)
-				m[publicIPLabel] = netInterface.PrimaryV4Address.OneToOneNat.Address
+		for _, ni := range server.NetworkInterfaces {
+			privateIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_ip_%s", ni.Index)
+			m[privateIPLabel] = ni.PrimaryV4Address.Address
+			if len(ni.PrimaryV4Address.OneToOneNat.Address) > 0 {
+				publicIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_public_ip_%s", ni.Index)
+				m[publicIPLabel] = ni.PrimaryV4Address.OneToOneNat.Address
 			}
 
-			for j, dnsRecord := range netInterface.PrimaryV4Address.DNSRecords {
+			for j, dnsRecord := range ni.PrimaryV4Address.DNSRecords {
 				dnsRecordLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_dns_%d", j)
 				m[dnsRecordLabel] = dnsRecord.FQDN
 			}
 
-			for j, dnsRecord := range netInterface.PrimaryV4Address.OneToOneNat.DNSRecords {
+			for j, dnsRecord := range ni.PrimaryV4Address.OneToOneNat.DNSRecords {
 				dnsRecordLabel := fmt.Sprintf("__meta_yandexcloud_instance_public_dns_%d", j)
 				m[dnsRecordLabel] = dnsRecord.FQDN
 			}

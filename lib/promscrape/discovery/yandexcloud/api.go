@@ -7,19 +7,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-)
-
-const (
-	defaultInstanceCredsEndpoint = "http://169.254.169.254/latest/meta-data/iam/security-credentials/default"
-	defaultAPIEndpoint           = "https://api.cloud.yandex.net"
-	defaultAPIVersion            = "v1"
 )
 
 var configMap = discoveryutils.NewConfigMap()
@@ -35,19 +28,14 @@ type yandexPassportOAuth struct {
 	YandexPassportOAuthToken string `json:"yandexPassportOauthToken"`
 }
 
-// iamToken Yandex Cloud IAM token response
-// https://cloud.yandex.com/en-ru/docs/iam/operations/iam-token/create
-type iamToken struct {
-	IAMToken  string    `json:"iamToken"`
-	ExpiresAt time.Time `json:"expiresAt"`
-}
-
 type apiConfig struct {
 	client              *http.Client
-	tokenLock           sync.Mutex
-	creds               *apiCredentials
 	yandexPassportOAuth *yandexPassportOAuth
-	serviceEndpoints    map[string]*url.URL
+	serviceEndpoints    map[string]string
+
+	// credsLock protects the refresh of creds
+	credsLock sync.Mutex
+	creds     *apiCredentials
 }
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
@@ -59,12 +47,8 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	cfg := &apiConfig{
-		client: &http.Client{
-			Transport: &http.Transport{
-				MaxIdleConnsPerHost: 100,
-			},
-		},
+	transport := &http.Transport{
+		MaxIdleConnsPerHost: 100,
 	}
 	if sdc.TLSConfig != nil {
 		opts := &promauth.Options{
@@ -73,47 +57,49 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		ac, err := opts.NewConfig()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
 		}
-		cfg.client.Transport = &http.Transport{
-			TLSClientConfig:     ac.NewTLSConfig(),
-			MaxIdleConnsPerHost: 100,
-		}
+		transport.TLSClientConfig = ac.NewTLSConfig()
 	}
-
-	if err := cfg.getEndpoints(sdc.APIEndpoint); err != nil {
-		return nil, err
+	cfg := &apiConfig{
+		client: &http.Client{
+			Transport: transport,
+		},
 	}
-
+	apiEndpoint := sdc.APIEndpoint
+	if apiEndpoint == "" {
+		apiEndpoint = "https://api.cloud.yandex.net"
+	}
+	serviceEndpoints, err := cfg.getServiceEndpoints(apiEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain endpoints for yandex services: %w", err)
+	}
+	cfg.serviceEndpoints = serviceEndpoints
 	if sdc.YandexPassportOAuthToken != nil {
-		logger.Infof("Using yandex passport OAuth token")
-
+		logger.Infof("yandexcloud_sd: using yandex passport OAuth token")
 		cfg.yandexPassportOAuth = &yandexPassportOAuth{
 			YandexPassportOAuthToken: sdc.YandexPassportOAuthToken.String(),
 		}
 	}
-
 	return cfg, nil
 }
 
 // getFreshAPICredentials checks token lifetime and update if needed
 func (cfg *apiConfig) getFreshAPICredentials() (*apiCredentials, error) {
-	cfg.tokenLock.Lock()
-	defer cfg.tokenLock.Unlock()
+	cfg.credsLock.Lock()
+	defer cfg.credsLock.Unlock()
 
 	if cfg.creds != nil && time.Until(cfg.creds.Expiration) > 10*time.Second {
 		// Credentials aren't expired yet.
 		return cfg.creds, nil
 	}
-
+	// Refresh credentials.
 	newCreds, err := getCreds(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("cannot refresh service account api token: %w", err)
 	}
 	cfg.creds = newCreds
-
-	logger.Infof("successfully refreshed service account api token; expiration: %.3f seconds", time.Until(newCreds.Expiration).Seconds())
-
+	logger.Infof("yandexcloud_sd: successfully refreshed service account api token; expiration: %.3f seconds", time.Until(newCreds.Expiration).Seconds())
 	return newCreds, nil
 }
 
@@ -122,12 +108,10 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 	if cfg.yandexPassportOAuth == nil {
 		return getInstanceCreds(cfg)
 	}
-
 	it, err := getIAMToken(cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot get IAM token: %w", err)
 	}
-
 	return &apiCredentials{
 		Token:      it.IAMToken,
 		Expiration: it.ExpiresAt,
@@ -135,104 +119,118 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 }
 
 // getInstanceCreds gets Yandex Cloud IAM token using instance Service Account
-// https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm
+//
+// See https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm
 func getInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
-	resp, err := cfg.client.Get(defaultInstanceCredsEndpoint)
+	endpoint := "http://169.254.169.254/latest/meta-data/iam/security-credentials/default"
+	resp, err := cfg.client.Get(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed query security credentials api, url: %s, err: %w", defaultInstanceCredsEndpoint, err)
+		return nil, fmt.Errorf("cannot read instance creds from %s: %w", endpoint, err)
 	}
-	r, err := ioutil.ReadAll(resp.Body)
-	_ = resp.Body.Close()
+	data, err := readResponseBody(resp, endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read response from %q: %w", defaultInstanceCredsEndpoint, err)
+		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("auth failed, bad status code: %d, want: 200", resp.StatusCode)
-	}
-
 	var ac apiCredentials
-	if err := json.Unmarshal(r, &ac); err != nil {
-		return nil, fmt.Errorf("cannot parse auth credentials response: %w", err)
+	if err := json.Unmarshal(data, &ac); err != nil {
+		return nil, fmt.Errorf("cannot parse auth credentials response from %s: %w", endpoint, err)
 	}
-
 	return &ac, nil
 }
 
-// getIAMToken gets Yandex Cloud IAM token using OAuth:
-// https://cloud.yandex.com/en-ru/docs/iam/operations/iam-token/create
+// getIAMToken gets Yandex Cloud IAM token using OAuth
+//
+// See https://cloud.yandex.com/en-ru/docs/iam/operations/iam-token/create
 func getIAMToken(cfg *apiConfig) (*iamToken, error) {
-	iamURL := *cfg.serviceEndpoints["iam"]
-	iamURL.Path = path.Join(iamURL.Path, "iam", defaultAPIVersion, "tokens")
-
+	iamURL := cfg.serviceEndpoints["iam"] + "/iam/v1/tokens"
 	passport, err := json.Marshal(cfg.yandexPassportOAuth)
 	if err != nil {
-		return nil, fmt.Errorf("failed marshall yandex passport OAuth token, err: %w", err)
+		logger.Panicf("BUG: cannot marshal yandex passport OAuth token: %s", err)
 	}
-
-	resp, err := cfg.client.Post(iamURL.String(), "application/json", bytes.NewBuffer(passport))
+	body := bytes.NewBuffer(passport)
+	resp, err := cfg.client.Post(iamURL, "application/json", body)
 	if err != nil {
-		return nil, fmt.Errorf("failed query yandex cloud iam api, url: %s, err: %w", iamURL.String(), err)
+		logger.Panicf("BUG: cannot create request to yandex cloud iam api %q: %s", iamURL, err)
 	}
-
-	r, err := ioutil.ReadAll(resp.Body)
-	_ = resp.Body.Close()
+	data, err := readResponseBody(resp, iamURL)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read response from %q: %w", iamURL.String(), err)
+		return nil, err
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("auth failed, bad status code: %d, want: 200", resp.StatusCode)
+	var it iamToken
+	if err := json.Unmarshal(data, &it); err != nil {
+		return nil, fmt.Errorf("cannot parse iam token: %w; data: %s", err, data)
 	}
-
-	it := iamToken{}
-	if err := json.Unmarshal(r, &it); err != nil {
-		return nil, fmt.Errorf("cannot parse auth credentials response: %w", err)
-	}
-
 	return &it, nil
 }
 
-// getEndpoints makes services endpoints map:
-// https://cloud.yandex.com/en-ru/docs/api-design-guide/concepts/endpoints
-func (cfg *apiConfig) getEndpoints(apiEndpoint string) error {
-	if apiEndpoint == "" {
-		apiEndpoint = defaultAPIEndpoint
-	}
+// iamToken represents Yandex Cloud IAM token response
+//
+// See https://cloud.yandex.com/en-ru/docs/iam/operations/iam-token/create
+type iamToken struct {
+	IAMToken  string    `json:"iamToken"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
 
+// getServiceEndpoints returns services endpoints map
+//
+// See https://cloud.yandex.com/en-ru/docs/api-design-guide/concepts/endpoints
+func (cfg *apiConfig) getServiceEndpoints(apiEndpoint string) (map[string]string, error) {
 	apiEndpointURL, err := url.Parse(apiEndpoint)
 	if err != nil {
-		return fmt.Errorf("cannot parse api_endpoint: %s as url, err: %w", apiEndpoint, err)
+		return nil, fmt.Errorf("cannot parse api_endpoint %q: %w", apiEndpoint, err)
 	}
-
-	apiEndpointURL.Path = path.Join(apiEndpointURL.Path, "endpoints")
-
-	resp, err := cfg.client.Get(apiEndpointURL.String())
+	scheme := apiEndpointURL.Scheme
+	if scheme == "" {
+		return nil, fmt.Errorf("missing scheme in api_endpoint %q", apiEndpoint)
+	}
+	if apiEndpointURL.Host == "" {
+		return nil, fmt.Errorf("missing host in api_endpoint %q", apiEndpoint)
+	}
+	endpointsURL := apiEndpoint + "/endpoints"
+	resp, err := cfg.client.Get(endpointsURL)
 	if err != nil {
-		return fmt.Errorf("failed query endpoints, url: %s, err: %w", apiEndpointURL.String(), err)
+		return nil, fmt.Errorf("cannot query %q: %w", endpointsURL, err)
 	}
-	r, err := ioutil.ReadAll(resp.Body)
-	_ = resp.Body.Close()
+	data, err := readResponseBody(resp, endpointsURL)
 	if err != nil {
-		return fmt.Errorf("cannot read response from %q: %w", apiEndpointURL.String(), err)
+		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("auth failed, bad status code: %d, want: 200", resp.StatusCode)
+	var eps endpoints
+	if err := json.Unmarshal(data, &eps); err != nil {
+		return nil, fmt.Errorf("cannot parse API endpoints list: %w; data=%s", err, data)
 	}
+	m := make(map[string]string, len(eps.Endpoints))
+	for _, endpoint := range eps.Endpoints {
+		m[endpoint.ID] = scheme + "://" + endpoint.Address
+	}
+	return m, nil
+}
 
-	endpoints, err := parseEndpoints(r)
+type endpoint struct {
+	ID      string `json:"id"`
+	Address string `json:"address"`
+}
+
+type endpoints struct {
+	Endpoints []endpoint `json:"endpoints"`
+}
+
+// getAPIResponse calls Yandex Cloud apiURL and returns response body.
+func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
+	creds, err := cfg.getFreshAPICredentials()
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	cfg.serviceEndpoints = make(map[string]*url.URL, len(endpoints.Endpoints))
-	for _, endpoint := range endpoints.Endpoints {
-		cfg.serviceEndpoints[endpoint.ID] = &url.URL{
-			Scheme: apiEndpointURL.Scheme,
-			Host:   endpoint.Address,
-		}
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		logger.Panicf("BUG: cannot create new request for yandex cloud api url %s: %s", apiURL, err)
 	}
-
-	return nil
+	req.Header.Set("Authorization", "Bearer "+creds.Token)
+	resp, err := cfg.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot query yandex cloud api url %s: %w", apiURL, err)
+	}
+	return readResponseBody(resp, apiURL)
 }
 
 // readResponseBody reads body from http.Response.
@@ -243,30 +241,8 @@ func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code for %q; got %d; want %d; response body: %q",
+		return nil, fmt.Errorf("unexpected status code for %q; got %d; want %d; response body: %s",
 			apiURL, resp.StatusCode, http.StatusOK, data)
 	}
-
 	return data, nil
-}
-
-// getAPIResponse calls Yandex Cloud apiURL and returns response body.
-func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
-	creds, err := cfg.getFreshAPICredentials()
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create new request for yandex cloud api url %s: %w", apiURL, err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+creds.Token)
-	resp, err := cfg.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("cannot query yandex cloud api url %s: %w", apiURL, err)
-	}
-
-	return readResponseBody(resp, apiURL)
 }
