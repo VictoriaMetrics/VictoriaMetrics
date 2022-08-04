@@ -3,7 +3,7 @@ package yandexcloud
 import (
 	"flag"
 	"fmt"
-	"path"
+	"net/url"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -36,142 +36,103 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 }
 
 func (cfg *apiConfig) getInstances(folderID string) ([]instance, error) {
-	computeURL := *cfg.serviceEndpoints["compute"]
-	computeURL.Path = path.Join(computeURL.Path, "compute", defaultAPIVersion, "instances")
-	q := computeURL.Query()
-	q.Set("folderId", folderID)
-	computeURL.RawQuery = q.Encode()
-	nextLink := computeURL.String()
+	instancesURL := cfg.serviceEndpoints["compute"] + "/compute/v1/instances"
+	instancesURL += "?folderId=" + url.QueryEscape(folderID)
 
-	instances := make([]instance, 0)
+	var instances []instance
+	nextLink := instancesURL
 	for {
-		resp, err := getAPIResponse(nextLink, cfg)
+		data, err := getAPIResponse(nextLink, cfg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot get instances: %w", err)
 		}
-		instancesPage, err := parseInstancesPage(resp)
+		ip, err := parseInstancesPage(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot parse instances response from %q: %w; response body: %s", nextLink, err, data)
 		}
-		instances = append(instances, instancesPage.Instances...)
-		if len(instancesPage.NextPageToken) == 0 {
+		instances = append(instances, ip.Instances...)
+		if len(ip.NextPageToken) == 0 {
 			return instances, nil
 		}
-
-		q.Set("pageToken", instancesPage.NextPageToken)
-		computeURL.RawQuery = q.Encode()
-		nextLink = computeURL.String()
+		nextLink = instancesURL + "&pageToken=" + url.QueryEscape(ip.NextPageToken)
 	}
 }
 
 func (cfg *apiConfig) getFolders(clouds []cloud) ([]folder, error) {
-	rmURL := *cfg.serviceEndpoints["resource-manager"]
-	rmURL.Path = path.Join(rmURL.Path, "resource-manager", defaultAPIVersion, "folders")
-	q := rmURL.Query()
-
-	folders := make([]folder, 0)
+	foldersURL := cfg.serviceEndpoints["resource-manager"] + "/resource-manager/v1/folders"
+	var folders []folder
 	for _, cl := range clouds {
-		q.Set("cloudId", cl.ID)
-		rmURL.RawQuery = q.Encode()
-
-		nextLink := rmURL.String()
+		cloudURL := foldersURL + "?cloudId=" + url.QueryEscape(cl.ID)
+		nextLink := cloudURL
 		for {
-			resp, err := getAPIResponse(nextLink, cfg)
+			data, err := getAPIResponse(nextLink, cfg)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot get folders: %w", err)
 			}
-
-			foldersPage, err := parseFoldersPage(resp)
+			fp, err := parseFoldersPage(data)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot parse folders response from %q: %w; response body: %s", nextLink, err, data)
 			}
-
-			folders = append(folders, foldersPage.Folders...)
-
-			if len(foldersPage.NextPageToken) == 0 {
+			folders = append(folders, fp.Folders...)
+			if len(fp.NextPageToken) == 0 {
 				break
 			}
-
-			q.Set("pageToken", foldersPage.NextPageToken)
-			rmURL.RawQuery = q.Encode()
-			nextLink = rmURL.String()
+			nextLink = cloudURL + "&pageToken=" + url.QueryEscape(fp.NextPageToken)
 		}
 	}
-
 	return folders, nil
 }
 
-func (cfg *apiConfig) getClouds(organizations []organization) ([]cloud, error) {
-	rmURL := *cfg.serviceEndpoints["resource-manager"]
-	rmURL.Path = path.Join(rmURL.Path, "resource-manager", defaultAPIVersion, "clouds")
-	q := rmURL.Query()
-
-	if len(organizations) == 0 {
-		organizations = append(organizations, organization{
+func (cfg *apiConfig) getClouds(orgs []organization) ([]cloud, error) {
+	cloudsURL := cfg.serviceEndpoints["resource-manager"] + "/resource-manager/v1/clouds"
+	if len(orgs) == 0 {
+		orgs = append(orgs, organization{
 			ID: "",
 		})
 	}
-
-	clouds := make([]cloud, 0)
-	for _, org := range organizations {
+	var clouds []cloud
+	for _, org := range orgs {
+		orgURL := cloudsURL
 		if org.ID != "" {
-			q.Set("organizationId", org.ID)
-			rmURL.RawQuery = q.Encode()
+			orgURL += "?organizationId=" + url.QueryEscape(org.ID)
 		}
-
-		nextLink := rmURL.String()
+		nextLink := orgURL
 		for {
-			resp, err := getAPIResponse(nextLink, cfg)
+			data, err := getAPIResponse(nextLink, cfg)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot get clouds: %w", err)
 			}
-
-			cloudsPage, err := parseCloudsPage(resp)
+			cp, err := parseCloudsPage(data)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot parse clouds response from %q: %w; response body: %s", nextLink, err, data)
 			}
-
-			clouds = append(clouds, cloudsPage.Clouds...)
-
-			if len(cloudsPage.NextPageToken) == 0 {
+			clouds = append(clouds, cp.Clouds...)
+			if len(cp.NextPageToken) == 0 {
 				break
 			}
-
-			q.Set("pageToken", cloudsPage.NextPageToken)
-			rmURL.RawQuery = q.Encode()
-			nextLink = rmURL.String()
+			nextLink = orgURL + "&pageToken=" + url.QueryEscape(cp.NextPageToken)
 		}
 	}
-
 	return clouds, nil
 }
 
 func (cfg *apiConfig) getOrganizations() ([]organization, error) {
-	omURL := *cfg.serviceEndpoints["organization-manager"]
-	omURL.Path = path.Join(omURL.Path, "organization-manager", defaultAPIVersion, "organizations")
-	q := omURL.Query()
-	nextLink := omURL.String()
-
-	organizations := make([]organization, 0)
+	orgsURL := cfg.serviceEndpoints["organization-manager"] + "/organization-manager/v1/organizations"
+	var orgs []organization
+	nextLink := orgsURL
 	for {
-		resp, err := getAPIResponse(nextLink, cfg)
+		data, err := getAPIResponse(nextLink, cfg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot get organizations: %w", err)
 		}
-
-		organizationsPage, err := parseOrganizationsPage(resp)
+		op, err := parseOrganizationsPage(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot parse organizations response from %q: %w; response body: %s", nextLink, err, data)
 		}
-
-		organizations = append(organizations, organizationsPage.Organizations...)
-
-		if len(organizationsPage.NextPageToken) == 0 {
-			return organizations, nil
+		orgs = append(orgs, op.Organizations...)
+		if len(op.NextPageToken) == 0 {
+			return orgs, nil
 		}
-
-		q.Set("pageToken", organizationsPage.NextPageToken)
-		omURL.RawQuery = q.Encode()
-		nextLink = omURL.String()
+		nextLink = orgsURL + "&pageToken=" + url.QueryEscape(op.NextPageToken)
 	}
 }

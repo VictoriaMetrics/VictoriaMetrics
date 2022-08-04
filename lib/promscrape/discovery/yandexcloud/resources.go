@@ -2,33 +2,9 @@ package yandexcloud
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 )
-
-type endpoint struct {
-	ID      string `json:"id"`
-	Address string `json:"address"`
-}
-
-type endpoints struct {
-	Endpoints []endpoint `json:"endpoints"`
-}
-
-// See https://cloud.yandex.com/en-ru/docs/api-design-guide/concepts/endpoints
-func parseEndpoints(data []byte) (*endpoints, error) {
-	var endpointsResponse endpoints
-	if err := json.Unmarshal(data, &endpointsResponse); err != nil {
-		return nil, fmt.Errorf("cannot parse endpoints list: %w", err)
-	}
-
-	if endpointsResponse.Endpoints == nil {
-		return nil, errors.New("yandex cloud API endpoints list is empty")
-	}
-
-	return &endpointsResponse, nil
-}
 
 type organization struct {
 	Name        string            `json:"name"`
