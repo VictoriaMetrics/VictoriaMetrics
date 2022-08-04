@@ -900,7 +900,7 @@ Optional `max_rows_per_line` arg may be added to the request for limiting the ma
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
 In this case the output may contain multiple lines with samples for the same time series.
 
-Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
+Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporting big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
 <div class="with-copy" markdown="1">
