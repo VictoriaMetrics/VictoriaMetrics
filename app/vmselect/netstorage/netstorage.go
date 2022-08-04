@@ -1705,7 +1705,10 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if err := writeBool(bc, traceEnabled); err != nil {
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
-		_ = bc.Close()
+		if er := bc.Close(); er != nil {
+			return fmt.Errorf("cannot send timeout=%d for rpcName=%q to the server: %w, (originally %w)", timeout, rpcName, er, err)
+		}
+
 		return fmt.Errorf("cannot send traceEnabled=%v for funcName=%q to the server: %w", traceEnabled, funcName, err)
 	}
 	// Send the remaining timeout instead of deadline to remote server, since it may have different time.
@@ -1716,24 +1719,30 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 		_ = bc.Close()
 		return fmt.Errorf("cannot send timeout=%d for funcName=%q to the server: %w", timeout, funcName, err)
 	}
+	
 	// Execute the rpc function.
-	if err := f(bc); err != nil {
-		remoteAddr := bc.RemoteAddr()
-		var er *errRemote
-		if errors.As(err, &er) {
-			// Remote error. The connection may be re-used. Return it to the pool.
-			_ = readTrace(qt, bc)
-			sn.connPool.Put(bc)
+	// Remote error. The connection may be re-used. Return it to the pool.
+	var er *errRemote
+	if err := f(bc); err != nil && !errors.As(err, &er) {
+		// Deadline has been introduced as an error instead of Timeout
+		if errors.As(err, os.ErrDeadlineExceeded) {
+			return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout (errDeadlineExceeded) %s: %w", rpcName, remoteAddr, deadline.String(), err)
 		} else {
 			// Local error.
 			// Close the connection instead of returning it to the pool,
 			// since it may be broken.
-			_ = bc.Close()
+			if er := bc.Close(); _err != nil {
+				logger.Infof("closing conn from %s with err %w, (originally %w)", bc.RemoteAddr(), er, err)
+			}
 		}
+		// Not so serious anymore?
 		if deadline.Exceeded() {
-			return fmt.Errorf("cannot execute funcName=%q on vmstorage %q with timeout %s: %w", funcName, remoteAddr, deadline.String(), err)
+			logger.Infof("cannot execute rpcName=%q on vmstorage %q with timeout %s: %w", rpcName, remoteAddr, deadline.String(), err)
+			sn.connPool.Put(bc)
+		} else {
+			return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q: %w", rpcName, remoteAddr, err)
+
 		}
-		return fmt.Errorf("cannot execute funcName=%q on vmstorage %q: %w", funcName, remoteAddr, err)
 	}
 
 	// Read trace from the response
