@@ -738,7 +738,7 @@ func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
 	}
 	if len(bsrs) == 1 {
 		// Nothing to merge. Just return a single inmemory part.
-		mp := getInmemoryPart()
+		mp := &inmemoryPart{}
 		mp.Init(&bsrs[0].Block)
 		p := mp.NewPart()
 		return &partWrapper{
@@ -750,9 +750,6 @@ func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
 
 	// Prepare blockStreamWriter for destination part.
 	bsw := getBlockStreamWriter()
-	// Do not obtain mpDst via getInmemoryPart(), since its size
-	// may be too big comparing to other entries in the pool.
-	// This may result in increased memory usage because of high fragmentation.
 	mpDst := &inmemoryPart{}
 	bsw.InitFromInmemoryPart(mpDst)
 
