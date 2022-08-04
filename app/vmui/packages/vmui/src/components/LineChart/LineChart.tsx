@@ -1,7 +1,7 @@
 import React, {FC, useCallback, useEffect, useRef, useState} from "preact/compat";
 import uPlot, {AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale} from "uplot";
 import {defaultOptions} from "../../utils/uplot/helpers";
-import {dragChart, zoomChart} from "../../utils/uplot/events";
+import {dragChart} from "../../utils/uplot/events";
 import {getAxes, getMinMaxBuffer} from "../../utils/uplot/axes";
 import {setTooltip} from "../../utils/uplot/tooltip";
 import {MetricResult} from "../../api/types";
@@ -52,6 +52,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
   };
 
   const onReadyChart = (u: uPlot) => {
+    const factor = 0.9;
     tooltipOffset.left = parseFloat(u.over.style.left);
     tooltipOffset.top = parseFloat(u.over.style.top);
     u.root.querySelector(".u-wrap")?.appendChild(tooltip);
@@ -60,12 +61,22 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
       const leftClick = e.button === 0;
       const leftClickWithMeta = leftClick && (ctrlKey || metaKey);
       if (leftClickWithMeta) {
-        // wheel drag pan
-        dragChart({u, e, setPanning, setPlotScale, factor: 0.9});
-      } else if (leftClick) {
-        // wheel scroll zoom
-        zoomChart({u, e, setPanning, setPlotScale, factor: 1});
+        // drag pan
+        dragChart({u, e, setPanning, setPlotScale, factor});
       }
+    });
+
+    u.over.addEventListener("wheel", e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const {width} = u.over.getBoundingClientRect();
+      const zoomPos = u.cursor.left && u.cursor.left > 0 ? u.cursor.left : 0;
+      const xVal = u.posToVal(zoomPos, "x");
+      const oxRange = (u.scales.x.max || 0) - (u.scales.x.min || 0);
+      const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
+      const min = xVal - (zoomPos / width) * nxRange;
+      const max = min + nxRange;
+      u.batch(() => setPlotScale({u, min, max}));
     });
   };
 
@@ -123,6 +134,15 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     scales: {...getScales()},
     width: layoutSize.width || 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
+    hooks: {
+      setSelect: [
+        (u) => {
+          const min = u.posToVal(u.select.left, "x");
+          const max = u.posToVal(u.select.left + u.select.width, "x");
+          setPlotScale({u, min, max});
+        }
+      ]
+    }
   };
 
   const updateChart = (type: typeChartUpdate): void => {
