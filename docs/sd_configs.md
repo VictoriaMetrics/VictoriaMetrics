@@ -10,8 +10,8 @@ sort: 24
 * `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs).
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [these docs](#digitalocean_sd_configs).
 * `dns_sd_configs` is for discovering and scraping targets from [DNS](https://it.wikipedia.org/wiki/Domain_Name_System) records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
-* `docker_sd_configs` is for discovering and scraping Docker targets. See [these docs](#docker_sd_configs).
-* `dockerswarm_sd_configs` is for discovering and scraping Docker Swarm targets. See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config).
+* `docker_sd_configs` is for discovering and scraping [Docker](https://www.docker.com/) targets. See [these docs](#docker_sd_configs).
+* `dockerswarm_sd_configs` is for discovering and scraping [Docker Swarm](https://docs.docker.com/engine/swarm/) targets. See [these docs](#dockerswarm_sd_configs).
 * `ec2_sd_configs` is for discovering and scraping Amazon EC2 targets. See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). `vmagent` doesn't support the `profile` config param yet.
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config).
@@ -256,8 +256,7 @@ scrape_configs:
     # host must contain the address of the Docker daemon.
   - host: "..."
 
-    # port is an optional port to scrape metrics from, when `role` is nodes,
-    # and for discovered tasks and services that don't have published ports.
+    # port is an optional port to scrape metrics from.
     # By default port 80 is used.
     # port: ...
 
@@ -267,6 +266,126 @@ scrape_configs:
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
     # See https://docs.docker.com/engine/api/v1.40/#operation/ContainerList
+    # filters:
+    # - name: "..."
+    #   values: ["...", "..."]
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+## dockerswarm_sd_configs
+
+Docker Swarm SD configurations allow retrieving scrape targets from [Docker Swarm engine](https://docs.docker.com/engine/swarm/).
+
+One of the following roles can be configured to discover targets:
+
+* `role: services`
+
+  The `services` role discovers all Swarm services and exposes their ports as targets.
+  For each published port of a service, a single target is generated. If a service has no published ports,
+  a target per service is created using the port parameter defined in the SD configuration.
+
+  Available meta labels for `role: services`:
+
+  * `__meta_dockerswarm_service_id`: the id of the service
+  * `__meta_dockerswarm_service_name`: the name of the service
+  * `__meta_dockerswarm_service_mode`: the mode of the service
+  * `__meta_dockerswarm_service_endpoint_port_name`: the name of the endpoint port, if available
+  * `__meta_dockerswarm_service_endpoint_port_publish_mode`: the publish mode of the endpoint port
+  * `__meta_dockerswarm_service_label_<labelname>`: each label of the service
+  * `__meta_dockerswarm_service_task_container_hostname`: the container hostname of the target, if available
+  * `__meta_dockerswarm_service_task_container_image`: the container image of the target
+  * `__meta_dockerswarm_service_updating_status`: the status of the service, if available
+  * `__meta_dockerswarm_network_id`: the ID of the network
+  * `__meta_dockerswarm_network_name`: the name of the network
+  * `__meta_dockerswarm_network_ingress`: whether the network is ingress
+  * `__meta_dockerswarm_network_internal`: whether the network is internal
+  * `__meta_dockerswarm_network_label_<labelname>`: each label of the network
+  * `__meta_dockerswarm_network_scope`: the scope of the network
+
+* `role: tasks`
+
+  The `tasks` role discovers all Swarm tasks and exposes their ports as targets.
+  For each published port of a task, a single target is generated. If a task has no published ports,
+  a target per task is created using the port parameter defined in the SD configuration.
+
+  Available meta labels for `role: tasks`:
+
+  * `__meta_dockerswarm_container_label_<labelname>`: each label of the container
+  * `__meta_dockerswarm_task_id`: the id of the task
+  * `__meta_dockerswarm_task_container_id`: the container id of the task
+  * `__meta_dockerswarm_task_desired_state`: the desired state of the task
+  * `__meta_dockerswarm_task_slot`: the slot of the task
+  * `__meta_dockerswarm_task_state`: the state of the task
+  * `__meta_dockerswarm_task_port_publish_mode`: the publish mode of the task port
+  * `__meta_dockerswarm_service_id`: the id of the service
+  * `__meta_dockerswarm_service_name`: the name of the service
+  * `__meta_dockerswarm_service_mode`: the mode of the service
+  * `__meta_dockerswarm_service_label_<labelname>`: each label of the service
+  * `__meta_dockerswarm_network_id`: the ID of the network
+  * `__meta_dockerswarm_network_name`: the name of the network
+  * `__meta_dockerswarm_network_ingress`: whether the network is ingress
+  * `__meta_dockerswarm_network_internal`: whether the network is internal
+  * `__meta_dockerswarm_network_label_<labelname>`: each label of the network
+  * `__meta_dockerswarm_network_label`: each label of the network
+  * `__meta_dockerswarm_network_scope`: the scope of the network
+  * `__meta_dockerswarm_node_id`: the ID of the node
+  * `__meta_dockerswarm_node_hostname`: the hostname of the node
+  * `__meta_dockerswarm_node_address`: the address of the node
+  * `__meta_dockerswarm_node_availability`: the availability of the node
+  * `__meta_dockerswarm_node_label_<labelname>`: each label of the node
+  * `__meta_dockerswarm_node_platform_architecture`: the architecture of the node
+  * `__meta_dockerswarm_node_platform_os`: the operating system of the node
+  * `__meta_dockerswarm_node_role`: the role of the node
+  * `__meta_dockerswarm_node_status`: the status of the node
+
+  The `__meta_dockerswarm_network_*` meta labels are not populated for ports which are published with `mode=host`.
+
+* `role: nodes`
+
+  The `nodes` role is used to discover Swarm nodes.
+
+  Available meta labels for `role: nodes`:
+
+  * `__meta_dockerswarm_node_address`: the address of the node
+  * `__meta_dockerswarm_node_availability`: the availability of the node
+  * `__meta_dockerswarm_node_engine_version`: the version of the node engine
+  * `__meta_dockerswarm_node_hostname`: the hostname of the node
+  * `__meta_dockerswarm_node_id`: the ID of the node
+  * `__meta_dockerswarm_node_label_<labelname>`: each label of the node
+  * `__meta_dockerswarm_node_manager_address`: the address of the manager component of the node
+  * `__meta_dockerswarm_node_manager_leader`: the leadership status of the manager component of the node (true or false)
+  * `__meta_dockerswarm_node_manager_reachability`: the reachability of the manager component of the node
+  * `__meta_dockerswarm_node_platform_architecture`: the architecture of the node
+  * `__meta_dockerswarm_node_platform_os`: the operating system of the node
+  * `__meta_dockerswarm_node_role`: the role of the node
+  * `__meta_dockerswarm_node_status`: the status of the node
+
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: dockerswarm
+  dockerswarm_sd_configs:
+
+    # host must contain the address of the Docker daemon.
+  - host: "..."
+
+    # role must contain `services`, `tasks` or `nodes` as described above.
+    role: ...
+
+    # port is an optional port to scrape metrics from, when `role` is nodes, and for discovered
+    # tasks and services that don't have published ports.
+    # By default port 80 is used.
+    # port: ...
+
+    # filters is an optional filters to limit the discovery process to a subset of available resources.
+    # The available filters are listed in the upstream documentation:
+    # Services: https://docs.docker.com/engine/api/v1.40/#operation/ServiceList
+    # Tasks: https://docs.docker.com/engine/api/v1.40/#operation/TaskList
+    # Nodes: https://docs.docker.com/engine/api/v1.40/#operation/NodeList
     # filters:
     # - name: "..."
     #   values: ["...", "..."]
