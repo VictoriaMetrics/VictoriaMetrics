@@ -15,11 +15,7 @@ sort: 24
 * `ec2_sd_configs` is for discovering and scraping [Amazon EC2](https://aws.amazon.com/ec2/) targets. See [these docs](#ec2_sd_configs).
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
-* `gce_sd_configs` is for discovering and scraping Google Compute Engine (GCE) targets. See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config). `vmagent` provides the following additional functionality for `gce_sd_config`:
-  * if `project` arg is missing then `vmagent` uses the project for the instance where it runs;
-  * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
-  * if `zone` arg equals to `"*"`, then `vmagent` discovers all the zones for the given project;
-  * `zone` may contain a list of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
+* `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config).
 * `kubernetes_sd_configs` is for discovering and scraping Kubernetes (K8S) targets. See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config). [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
@@ -543,8 +539,80 @@ Files may be provided in YAML or JSON format. Files must contain a list of stati
 Each target has a meta label `__meta_filepath` during the [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) phase.
 Its value is set to the filepath from which the target was extracted.
 
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: file
+  file_sd_configs:
+    # files must contain a list of file patterns for files with scrape targets.
+    # The last path segment can contain `*`, which matches any number of chars in file name.
+  - files:
+    - "my/path/*.yaml"
+    - "another/path.json"
+```
+
 See the [list of integrations](https://prometheus.io/docs/operating/integrations/#file-service-discovery) with `file_sd_configs`.
 
+
+## gce_sd_configs
+
+GCE SD configurations allow retrieving scrape targets from [GCP GCE instances](https://cloud.google.com/compute).
+
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_gce_instance_id`: the numeric id of the instance
+* `__meta_gce_instance_name`: the name of the instance
+* `__meta_gce_label_<labelname>`: each GCE label of the instance
+* `__meta_gce_machine_type`: full or partial URL of the machine type of the instance
+* `__meta_gce_metadata_<name>`: each metadata item of the instance
+* `__meta_gce_network`: the network URL of the instance
+* `__meta_gce_private_ip`: the private IP address of the instance
+* `__meta_gce_interface_ipv4_<name>`: IPv4 address of each named interface
+* `__meta_gce_project`: the GCP project in which the instance is running
+* `__meta_gce_public_ip`: the public IP address of the instance, if present
+* `__meta_gce_subnetwork`: the subnetwork URL of the instance
+* `__meta_gce_tags`: comma separated list of instance tags
+* `__meta_gce_zone`: the GCE zone URL in which the instance is running
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: gce
+  gce_sd_configs:
+    # project is an optional GCE project where targets must be discovered.
+    # By default the local project is used.
+  - project: "..."
+
+    # zone is an optional zone where targets must be discovered.
+    # By default the local zone is used.
+    # If zone equals to '*', then targets in all the zones for the given project are discovered.
+    # The zone may contain a list of zones: zone["us-east1-a", "us-east1-b"]
+    # zone: "..."
+
+    # filter is an optional filter for the instance list.
+    # See https://cloud.google.com/compute/docs/reference/latest/instances/list
+    # filter: "..."
+
+    # port is an optional port to scrape metrics from.
+    # By default port 80 is used.
+    # port: ...
+
+    # tag_separator is an optional separator for tags in `__meta_gce_tags` label.
+    # By default "," is used.
+    # tag_separator: "..."
+```
+
+Credentials are discovered by looking in the following places, preferring the first location found:
+
+1. a JSON file specified by the `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+2. a JSON file in the well-known path `$HOME/.config/gcloud/application_default_credentials.json`
+3. fetched from the GCE metadata server
+
+When running within GCE, the service account associated with the instance it is running on should have
+at least read-only permissions to the compute resources. If running outside of GCE make sure to create
+an appropriate service account and place the credential file in one of the expected locations.
 
 ## yandexcloud_sd_configs
 
