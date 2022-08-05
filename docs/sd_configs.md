@@ -9,7 +9,7 @@ sort: 24
 * `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs).
 * `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs).
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [these docs](#digitalocean_sd_configs).
-* `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config).
+* `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
 * `docker_sd_configs` is for discovering and scraping Docker targets. See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config).
 * `dockerswarm_sd_configs` is for discovering and scraping Docker Swarm targets. See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config).
 * `ec2_sd_configs` is for discovering and scraping Amazon EC2 targets. See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). `vmagent` doesn't support the `profile` config param yet.
@@ -58,7 +58,7 @@ scrape_configs:
 - job_name: azure
   azure_sd_configs:
     # subscription_id is a mandatory subscription ID.
-    subscription_id: "..."
+  - subscription_id: "..."
 
     # environment is an optional Azure environment. By default "AzurePublicCloud" is used.
     # environment: ...
@@ -113,7 +113,7 @@ scrape_configs:
 - job_name: consul
   consul_sd_configs:
     # server is an optional Consul server to connect to. By default localhost:8500 is used
-    # server: "..."
+  - server: "localhost:8500"
 
     # token is an optional Consul API token.
     # If the token isn't specified, then it is read from a file pointed by CONSUL_HTTP_TOKEN_FILE
@@ -188,13 +188,41 @@ scrape_configs:
   digitalocean_sd_configs:
     # server is an optional DigitalOcean API server to query.
     # By default https://api.digitalocean.com is used.
-  - server: ...
+  - server: "https://api.digitalocean.com"
 
     # port is an optional port to scrape metrics from. By default port 80 is used.
     # port: ...
 
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+## dns_sd_configs
+
+DNS-based service discovery configuration allows specifying a set of DNS domain names which are periodically queried to discover a list of targets.
+
+The following meta labels are available on targets during relabeling:
+
+* `__meta_dns_name`: the record name that produced the discovered target.
+* `__meta_dns_srv_record_target`: the target field of the SRV record
+* `__meta_dns_srv_record_port`: the port field of the SRV record
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: dns
+  dns_sd_configs:
+    # names must contain a list of DNS names to query.
+  - names: ["...", "..."]
+
+    # type is an optional type of DNS query to perform.
+    # Supported values are: SRV, A, or AAAA.
+    # By default SRV is used.
+    # type: ...
+
+    # port is a port number to use if the query type is not SRV.
+    # port: ...
 ```
 
 ## yandexcloud_sd_configs
