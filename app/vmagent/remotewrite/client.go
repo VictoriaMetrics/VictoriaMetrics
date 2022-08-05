@@ -56,10 +56,12 @@ var (
 
 	awsUseSigv4 = flagutil.NewArrayBool("remoteWrite.aws.useSigv4", "Enables SigV4 request signing for the corresponding -remoteWrite.url. "+
 		"It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled")
-	awsRegion    = flagutil.NewArray("remoteWrite.aws.region", "Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsRoleARN   = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional AWS roleARN to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsAccessKey = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsService   = flagutil.NewArray("remoteWrite.aws.service", "Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+	awsEC2Endpoint = flagutil.NewArray("remoteWrite.aws.ec2Endpoint", "Optional AWS EC2 API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsSTSEndpoint = flagutil.NewArray("remoteWrite.aws.stsEndpoint", "Optional AWS STS API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsRegion      = flagutil.NewArray("remoteWrite.aws.region", "Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsRoleARN     = flagutil.NewArray("remoteWrite.aws.roleARN", "Optional AWS roleARN to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsAccessKey   = flagutil.NewArray("remoteWrite.aws.accessKey", "Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsService     = flagutil.NewArray("remoteWrite.aws.service", "Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"Defaults to \"aps\"")
 	awsSecretKey = flagutil.NewArray("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
 )
@@ -231,12 +233,14 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	if !awsUseSigv4.GetOptionalArg(argIdx) {
 		return nil, nil
 	}
+	ec2Endpoint := awsEC2Endpoint.GetOptionalArg(argIdx)
+	stsEndpoint := awsSTSEndpoint.GetOptionalArg(argIdx)
 	region := awsRegion.GetOptionalArg(argIdx)
 	roleARN := awsRoleARN.GetOptionalArg(argIdx)
 	accessKey := awsAccessKey.GetOptionalArg(argIdx)
 	secretKey := awsSecretKey.GetOptionalArg(argIdx)
 	service := awsService.GetOptionalArg(argIdx)
-	cfg, err := awsapi.NewConfig(region, roleARN, accessKey, secretKey, service)
+	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service)
 	if err != nil {
 		return nil, err
 	}
