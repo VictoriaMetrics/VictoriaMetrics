@@ -9,8 +9,8 @@ sort: 24
 * `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs).
 * `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs).
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [these docs](#digitalocean_sd_configs).
-* `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
-* `docker_sd_configs` is for discovering and scraping Docker targets. See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config).
+* `dns_sd_configs` is for discovering and scraping targets from [DNS](https://it.wikipedia.org/wiki/Domain_Name_System) records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
+* `docker_sd_configs` is for discovering and scraping Docker targets. See [these docs](#docker_sd_configs).
 * `dockerswarm_sd_configs` is for discovering and scraping Docker Swarm targets. See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config).
 * `ec2_sd_configs` is for discovering and scraping Amazon EC2 targets. See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). `vmagent` doesn't support the `profile` config param yet.
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config).
@@ -223,6 +223,56 @@ scrape_configs:
 
     # port is a port number to use if the query type is not SRV.
     # port: ...
+```
+
+## docker_sd_configs
+
+Docker SD configurations allow retrieving scrape targets from [Docker Engine](https://docs.docker.com/engine/) hosts.
+
+Available meta labels:
+
+* `__meta_docker_container_id`: the id of the container
+* `__meta_docker_container_name`: the name of the container
+* `__meta_docker_container_network_mode`: the network mode of the container
+* `__meta_docker_container_label_<labelname>`: each label of the container
+* `__meta_docker_network_id`: the ID of the network
+* `__meta_docker_network_name`: the name of the network
+* `__meta_docker_network_ingress`: whether the network is ingress
+* `__meta_docker_network_internal`: whether the network is internal
+* `__meta_docker_network_label_<labelname>`: each label of the network
+* `__meta_docker_network_scope`: the scope of the network
+* `__meta_docker_network_ip`: the IP of the container in this network
+* `__meta_docker_port_private`: the port on the container
+* `__meta_docker_port_public`: the external port if a port-mapping exists
+* `__meta_docker_port_public_ip`: the public IP if a port-mapping exists
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: docker
+  docker_sd_configs:
+
+    # host must contain the address of the Docker daemon.
+  - host: "..."
+
+    # port is an optional port to scrape metrics from, when `role` is nodes,
+    # and for discovered tasks and services that don't have published ports.
+    # By default port 80 is used.
+    # port: ...
+
+    # host_networking_host is an optional host to use if the container is in host networking mode.
+    # By default localhost is used.
+    # host_networking_host: "..."
+
+    # filters is an optional filters to limit the discovery process to a subset of available resources.
+    # See https://docs.docker.com/engine/api/v1.40/#operation/ContainerList
+    # filters:
+    # - name: "..."
+    #   values: ["...", "..."]
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
 ## yandexcloud_sd_configs
