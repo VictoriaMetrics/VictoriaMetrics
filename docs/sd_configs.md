@@ -14,7 +14,7 @@ sort: 24
 * `dockerswarm_sd_configs` is for discovering and scraping [Docker Swarm](https://docs.docker.com/engine/swarm/) targets. See [these docs](#dockerswarm_sd_configs).
 * `ec2_sd_configs` is for discovering and scraping [Amazon EC2](https://aws.amazon.com/ec2/) targets. See [these docs](#ec2_sd_configs).
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
-* `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config).
+* `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
 * `gce_sd_configs` is for discovering and scraping Google Compute Engine (GCE) targets. See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config). `vmagent` provides the following additional functionality for `gce_sd_config`:
   * if `project` arg is missing then `vmagent` uses the project for the instance where it runs;
   * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
@@ -508,6 +508,43 @@ scrape_configs:
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
+
+## file_sd_configs
+
+File-based service discovery reads a set of files containing a list of targets to scrape.
+Scrape targets are automatically updated when the underlying files are changed.
+Files may be provided in YAML or JSON format. Files must contain a list of static configs in the following format:
+
+* JSON:
+
+  ```json
+  [
+    {
+      "targets": ["<host>", ... ],
+      "labels": {
+        "<labelname>": "<labelvalue>",
+        ...,
+      }
+    },
+    ...
+  ]
+  ```
+
+* YAML:
+
+  ```yaml
+  - targets: ["<host>", ... ]
+    labels:
+      <labelname>: <labelvalue>
+      ...
+    ...
+  ```
+
+Each target has a meta label `__meta_filepath` during the [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) phase.
+Its value is set to the filepath from which the target was extracted.
+
+See the [list of integrations](https://prometheus.io/docs/operating/integrations/#file-service-discovery) with `file_sd_configs`.
+
 
 ## yandexcloud_sd_configs
 
