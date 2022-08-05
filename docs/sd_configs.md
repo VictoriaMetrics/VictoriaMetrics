@@ -12,7 +12,7 @@ sort: 24
 * `dns_sd_configs` is for discovering and scraping targets from [DNS](https://it.wikipedia.org/wiki/Domain_Name_System) records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
 * `docker_sd_configs` is for discovering and scraping [Docker](https://www.docker.com/) targets. See [these docs](#docker_sd_configs).
 * `dockerswarm_sd_configs` is for discovering and scraping [Docker Swarm](https://docs.docker.com/engine/swarm/) targets. See [these docs](#dockerswarm_sd_configs).
-* `ec2_sd_configs` is for discovering and scraping Amazon EC2 targets. See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). `vmagent` doesn't support the `profile` config param yet.
+* `ec2_sd_configs` is for discovering and scraping [Amazon EC2](https://aws.amazon.com/ec2/) targets. See [these docs](#ec2_sd_configs).
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config).
 * `gce_sd_configs` is for discovering and scraping Google Compute Engine (GCE) targets. See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config). `vmagent` provides the following additional functionality for `gce_sd_config`:
@@ -201,7 +201,7 @@ scrape_configs:
 
 DNS-based service discovery configuration allows specifying a set of DNS domain names which are periodically queried to discover a list of targets.
 
-The following meta labels are available on targets during relabeling:
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
 * `__meta_dns_name`: the record name that produced the discovered target.
 * `__meta_dns_srv_record_target`: the target field of the SRV record
@@ -229,7 +229,7 @@ scrape_configs:
 
 Docker SD configurations allow retrieving scrape targets from [Docker Engine](https://docs.docker.com/engine/) hosts.
 
-Available meta labels:
+Available meta labels during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
 * `__meta_docker_container_id`: the id of the container
 * `__meta_docker_container_name`: the name of the container
@@ -286,7 +286,7 @@ One of the following roles can be configured to discover targets:
   For each published port of a service, a single target is generated. If a service has no published ports,
   a target per service is created using the port parameter defined in the SD configuration.
 
-  Available meta labels for `role: services`:
+  Available meta labels for `role: services` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_dockerswarm_service_id`: the id of the service
   * `__meta_dockerswarm_service_name`: the name of the service
@@ -310,7 +310,7 @@ One of the following roles can be configured to discover targets:
   For each published port of a task, a single target is generated. If a task has no published ports,
   a target per task is created using the port parameter defined in the SD configuration.
 
-  Available meta labels for `role: tasks`:
+  Available meta labels for `role: tasks` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_dockerswarm_container_label_<labelname>`: each label of the container
   * `__meta_dockerswarm_task_id`: the id of the task
@@ -346,7 +346,7 @@ One of the following roles can be configured to discover targets:
 
   The `nodes` role is used to discover Swarm nodes.
 
-  Available meta labels for `role: nodes`:
+  Available meta labels for `role: nodes` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_dockerswarm_node_address`: the address of the node
   * `__meta_dockerswarm_node_availability`: the availability of the node
@@ -392,6 +392,82 @@ scrape_configs:
 
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+## ec2_sd_configs
+
+EC2 SD configuration allows retrieving scrape targets from [AWS EC2 instances](https://aws.amazon.com/ec2/).
+
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_ec2_ami`: the EC2 Amazon Machine Image
+* `__meta_ec2_architecture`: the architecture of the instance
+* `__meta_ec2_availability_zone`: the availability zone in which the instance is running
+* `__meta_ec2_availability_zone_id`: the availability zone ID in which the instance is running (requires ec2:DescribeAvailabilityZones)
+* `__meta_ec2_instance_id`: the EC2 instance ID
+* `__meta_ec2_instance_lifecycle`: the lifecycle of the EC2 instance, set only for 'spot' or 'scheduled' instances, absent otherwise
+* `__meta_ec2_instance_state`: the state of the EC2 instance
+* `__meta_ec2_instance_type`: the type of the EC2 instance
+* `__meta_ec2_ipv6_addresses`: comma separated list of IPv6 addresses assigned to the instance's network interfaces, if present
+* `__meta_ec2_owner_id`: the ID of the AWS account that owns the EC2 instance
+* `__meta_ec2_platform`: the Operating System platform, set to 'windows' on Windows servers, absent otherwise
+* `__meta_ec2_primary_subnet_id`: the subnet ID of the primary network interface, if available
+* `__meta_ec2_private_dns_name`: the private DNS name of the instance, if available
+* `__meta_ec2_private_ip`: the private IP address of the instance, if present
+* `__meta_ec2_public_dns_name`: the public DNS name of the instance, if available
+* `__meta_ec2_public_ip`: the public IP address of the instance, if available
+* `__meta_ec2_subnet_id`: comma separated list of subnets IDs in which the instance is running, if available
+* `__meta_ec2_tag_<tagkey>`: each tag value of the instance
+* `__meta_ec2_vpc_id`: the ID of the VPC in which the instance is running, if available
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: ec2
+  ec2_sd_configs:
+    # region is an optional config for AWS region.
+    # By default the region from the instance metadata is used.
+  - region: "..."
+
+    # endpoint is an optional custom AWS API endpoint to use.
+    # By default the standard endpoint for the given region is used.
+    # endpoint: "..."
+
+    # sts_endpoint is an optional custom STS API endpoint to use.
+    # By default the standard endpoint for the given region is used.
+    # sts_endpoint: "..."
+
+    # access_key is an optional AWS API access key.
+    # By default the access key is loaded from AWS_ACCESS_KEY_ID environment var.
+    # access_key: "..."
+
+    # secret_key is an optional AWS API secret key.
+    # By default the secret key is loaded from AWS_SECRET_ACCESS_KEY environment var.
+    # secret_key: "..."
+
+    # role_arn is an optional AWS Role ARN, an alternative to using AWS API keys.
+    # role_arn: "..."
+
+    # port is an optional port to scrape metrics from.
+    # By default port 80 is used.
+    # port: ...
+
+    # filters is an optional filters for the instance list.
+    # Available filter criteria can be found here:
+    # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
+    # Filter API documentation: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
+    # filters:
+    # - name: "..."
+    #   values: ["...", "..."]
+
+    # az_filters is an optional filters for the availability zones list.
+    # Available filter criteria can be found here:
+    # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
+    # Filter API documentation: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
+    # az_filters:
+    # - name: "..."
+    #   values: ["...", "..."]
 ```
 
 ## yandexcloud_sd_configs
