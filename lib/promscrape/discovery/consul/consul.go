@@ -27,7 +27,7 @@ type SDConfig struct {
 	Tags              []string                   `yaml:"tags,omitempty"`
 	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`
 	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
-	AllowStale        bool                       `yaml:"allow_stale,omitempty"`
+	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.consulSDCheckInterval` command-line option.
 }
