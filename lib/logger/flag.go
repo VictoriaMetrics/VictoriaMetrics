@@ -17,6 +17,9 @@ func logAllFlags() {
 		if flagutil.IsSecretFlag(lname) {
 			value = "secret"
 		}
+		if flagutil.IsURLFlag(lname) {
+			value = flagutil.RedactURLFlagPassword(value)
+		}
 		Infof("flag %q=%q", f.Name, value)
 	})
 }
