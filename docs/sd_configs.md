@@ -13,7 +13,7 @@ sort: 24
 * `docker_sd_configs` is for discovering and scraping [Docker](https://www.docker.com/) targets. See [these docs](#docker_sd_configs).
 * `dockerswarm_sd_configs` is for discovering and scraping [Docker Swarm](https://docs.docker.com/engine/swarm/) targets. See [these docs](#dockerswarm_sd_configs).
 * `ec2_sd_configs` is for discovering and scraping [Amazon EC2](https://aws.amazon.com/ec2/) targets. See [these docs](#ec2_sd_configs).
-* `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config).
+* `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config).
 * `gce_sd_configs` is for discovering and scraping Google Compute Engine (GCE) targets. See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config). `vmagent` provides the following additional functionality for `gce_sd_config`:
   * if `project` arg is missing then `vmagent` uses the project for the instance where it runs;
@@ -468,6 +468,45 @@ scrape_configs:
     # az_filters:
     # - name: "..."
     #   values: ["...", "..."]
+```
+
+## eureka_sd_configs
+
+Eureka SD configuration allows retrieving scrape targets using the [Eureka REST API](https://github.com/Netflix/eureka/wiki/Eureka-REST-operations).
+
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_eureka_app_name`: the name of the app
+* `__meta_eureka_app_instance_id`: the ID of the app instance
+* `__meta_eureka_app_instance_hostname`: the hostname of the instance
+* `__meta_eureka_app_instance_homepage_url`: the homepage url of the app instance
+* `__meta_eureka_app_instance_statuspage_url`: the status page url of the app instance
+* `__meta_eureka_app_instance_healthcheck_url`: the health check url of the app instance
+* `__meta_eureka_app_instance_ip_addr`: the IP address of the app instance
+* `__meta_eureka_app_instance_vip_address`: the VIP address of the app instance
+* `__meta_eureka_app_instance_secure_vip_address`: the secure VIP address of the app instance
+* `__meta_eureka_app_instance_status`: the status of the app instance
+* `__meta_eureka_app_instance_port`: the port of the app instance
+* `__meta_eureka_app_instance_port_enabled`: the port enabled of the app instance
+* `__meta_eureka_app_instance_secure_port`: the secure port address of the app instance
+* `__meta_eureka_app_instance_secure_port_enabled`: the secure port of the app instance
+* `__meta_eureka_app_instance_country_id`: the country ID of the app instance
+* `__meta_eureka_app_instance_metadata_<metadataname>`: app instance metadata
+* `__meta_eureka_app_instance_datacenterinfo_name`: the datacenter name of the app instance
+* `__meta_eureka_app_instance_datacenterinfo_metadata_<metadataname>`: the datacenter metadata
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: eureka
+  eureka_sd_configs:
+    # server is an optional URL to connect to the Eureka server.
+    # By default The http://localhost:8080/eureka/v2 is used.
+  - server: "..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
 ## yandexcloud_sd_configs
