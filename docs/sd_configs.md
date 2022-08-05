@@ -6,8 +6,8 @@ sort: 24
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter) supports the following Prometheus-compatible service discovery options for Prometheus-compatible scrape targets in the file pointed by `-promscrape.config` command-line flag.
 
-* `azure_sd_configs` - is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_config) for details.
-* `consul_sd_configs` is for discovering and scraping targets registered in Consul. See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
+* `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs) for details.
+* `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs) for details.
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config) for details.
 * `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
 * `docker_sd_configs` is for discovering and scraping Docker targets. See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config) for details.
@@ -83,14 +83,80 @@ scrape_configs:
     # port is an optional port to scrape metrics from.
     # port: ...
 
-    # proxy_url is an optional URL for the proxy to use for all the API requests.
-    # proxy_url: "..."
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
 
-    # tls_config is an optional TLS configuration.
-    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
-    # tls_config:
-    #   cert_file: ...
-    #   key_file: ...
+## consul_sd_configs
+
+Consul SD configurations allow retrieving scrape targets from [Consul's Catalog API](https://www.consul.io/api-docs/catalog).
+
+The following meta labels are available on targets during relabeling:
+
+* `__meta_consul_address`: the address of the target
+* `__meta_consul_dc`: the datacenter name for the target
+* `__meta_consul_health`: the health status of the service
+* `__meta_consul_metadata_<key>`: each node metadata key value of the target
+* `__meta_consul_node`: the node name defined for the target
+* `__meta_consul_service_address`: the service address of the target
+* `__meta_consul_service_id`: the service ID of the target
+* `__meta_consul_service_metadata_<key>`: each service metadata key value of the target
+* `__meta_consul_service_port`: the service port of the target
+* `__meta_consul_service`: the name of the service the target belongs to
+* `__meta_consul_tagged_address_<key>`: each node tagged address key value of the target
+* `__meta_consul_tags`: the list of tags of the target joined by the tag separator
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: consul
+  consul_sd_configs:
+    # server is an optional Consul server to connect to. By default localhost:8500 is used
+    # server: "..."
+
+    # token is an optional Consul API token.
+    # If the token isn't specified, then it is read from a file pointed by CONSUL_HTTP_TOKEN_FILE
+    # environment var or from the CONSUL_HTTP_TOKEN environment var.
+    # token: "..."
+
+    # datacenter is an optional Consul API datacenter.
+    # If the datacenter isn't specified, then it is read from Consul server.
+    # See https://www.consul.io/api-docs/agent#read-configuration
+    # datacenter: "..."
+
+    # namespace is an optional Consul namespace.
+    # If the namespace isn't specified, then it is read from CONSUL_NAMESPACE environment var.
+    # namespace: "..."
+
+    # scheme is an optional scheme (http or https) to use for connecting to Consul server.
+    # By default http scheme is used.
+    # scheme: "..."
+
+    # services is an optional list of services for which targets are retrieved.
+    # If omitted, all services are scraped.
+    # See https://www.consul.io/api-docs/catalog#list-nodes-for-service for details.
+    # services: ["...", "..."]
+
+    # tags is an optional list of tags used to filter nodes for a given service.
+    # Services must contain all tags in the list.
+    # tags: ["...", "..."]
+
+    # node_meta is an optional node metadata key/value pairs to filter nodes for a given service.
+    # node_meta:
+    #   "...": "..."
+
+    # tag_separate is an optional string by which Consul tags are joined into the __meta_consul_tags label.
+    # By default "," is used as a tag separator.
+    # tag_separator: "..."
+
+    # allow_stale is an optional config, which allows stale Consul results.
+    # See https://www.consul.io/api/features/consistency.html
+    # Reduce load on Consul if set to true. By default is is set to true.
+    # allow_stale: ...
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
 ## yandexcloud_sd_configs
@@ -135,8 +201,7 @@ scrape_configs:
     # tls_config is an optional tls config.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
     # tls_config:
-    #   cert_file: ...
-    #   key_file: ...
+    #   ...
 ```
 
 Yandex Cloud SD support both user [OAuth token](https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token)
@@ -160,4 +225,73 @@ scrape_configs:
   - source_labels: [__meta_yandexcloud_instance_private_ip_0]
     target_label: __address__
     replacement: "$1:9100"
+```
+
+
+## HTTP API client options
+
+The following additional options can be specified in the majority of supported service discovery types:
+
+```yaml
+    # authorization is an optional `Authorization` header configuration.
+    # authorization:
+    #   type: "..."  # default: Bearer
+    #   credentials: "..."
+    #   credentials_file: "..."
+
+    # basic_auth is an optional HTTP basic authentication configuration.
+    # basic_auth:
+    #   username: "..."
+    #   password: "..."
+    #   password_file: "..."
+
+    # bearer_token is an optional Bearer token to send in every HTTP API request during service discovery.
+    # bearer_token: "..."
+
+    # bearer_token_file is an optional path to file with Bearer token to send
+    # in every HTTP API request during service discovery.
+    # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
+    # bearer_token_file: "..."
+
+    # oauth2 is an optional OAuth 2.0 configuration.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # oauth2:
+    #   ...
+
+    # tls_config is an optional TLS configuration.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # tls_config:
+    #   ...
+
+    # proxy_url is an optional URL for the proxy to use for HTTP API queries during service discovery.
+    # proxy_url: "..."
+
+    # proxy_authorization is an optional `Authorization` header config for the proxy_url.
+    # proxy_authorization:
+    #   type: "..."  # default: Bearer
+    #   credentials: "..."
+    #   credentials_file: "..."
+
+    # proxy_basic_auth is an optional HTTP basic authentication configuration for the proxy_url.
+    # proxy_basic_auth:
+    #   username: "..."
+    #   password: "..."
+    #   password_file: "..."
+
+    # proxy_bearer_token is an optional Bearer token to send to proxy_url.
+    # proxy_bearer_token: "..."
+
+    # proxy_bearer_token_file is an optional path to file with Bearer token to send to proxy_url.
+    # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
+    # proxy_bearer_token_file: "..."
+
+    # proxy_oauth2 is an optional OAuth 2.0 configuration for the proxy_url.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # proxy_oauth2:
+    #   ...
+
+    # proxy_tls_config is an optional TLS configuration for the proxy_url.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # proxy_tls_config:
+    #   ...
 ```
