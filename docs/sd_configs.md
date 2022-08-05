@@ -16,7 +16,7 @@ sort: 24
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
-* `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config).
+* `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping Kubernetes (K8S) targets. See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config). [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
 * `static_configs` is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config).
@@ -536,8 +536,9 @@ Files may be provided in YAML or JSON format. Files must contain a list of stati
     ...
   ```
 
-Each target has a meta label `__meta_filepath` during the [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) phase.
-Its value is set to the filepath from which the target was extracted.
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_filepath`: the filepath from which the target was extracted
 
 Configuration example:
 
@@ -614,11 +615,48 @@ When running within GCE, the service account associated with the instance it is 
 at least read-only permissions to the compute resources. If running outside of GCE make sure to create
 an appropriate service account and place the credential file in one of the expected locations.
 
+## http_sd_configs
+
+HTTP-based service discovery fetches targets from the specified `url`. The service at `url` must return JSON response in the following format:
+
+```json
+[
+  {
+    "targets": [ "<host>", ... ],
+    "labels": {
+      "<labelname>": "<labelvalue>",
+      ...
+    }
+  },
+  ...
+]
+```
+
+The endpoint is queried periodically with the refresh interval specified in `-promscrape.httpSDCheckInterval` command-line flag.
+Discovery errors are tracked in `promscrape_discovery_http_errors_total` metric.
+
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_url`: the URL from which the target was extracted
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: http
+  http_sd_configs:
+    # url must contain the URL from which the targets are fetched.
+  - url: "http://..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
 ## yandexcloud_sd_configs
 
 [Yandex Cloud](https://cloud.yandex.com/en/) SD configurations allow retrieving scrape targets from accessible folders.
 
-Only compute instances currently supported and the following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
 * `__meta_yandexcloud_instance_name`: the name of instance
 * `__meta_yandexcloud_instance_id`: the id of instance
