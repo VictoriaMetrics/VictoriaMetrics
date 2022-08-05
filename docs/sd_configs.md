@@ -6,8 +6,7 @@ sort: 24
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter) supports the following Prometheus-compatible service discovery options for Prometheus-compatible scrape targets in the file pointed by `-promscrape.config` command-line flag.
 
-* `azure_sd_configs` - is for scraping the targets registered in Azure Cloud.
-  See [azure_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config) for details.
+* `azure_sd_configs` - is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_config) for details.
 * `consul_sd_configs` is for discovering and scraping targets registered in Consul. See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config) for details.
 * `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
@@ -33,10 +32,70 @@ entries to 60s. Run `vmagent -help` or `victoria-metrics -help` in order to see 
 
 Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by VictoriaMetrics and `vmagent`.
 
+## azure_sd_configs
+
+Azure SD configurations allow retrieving scrape targets from [Microsoft Azure](https://azure.microsoft.com/en-us/) VMs.
+
+The following meta labels are available on targets during relabeling:
+
+* `__meta_azure_machine_id`: the machine ID
+* `__meta_azure_machine_location`: the location the machine runs in
+* `__meta_azure_machine_name`: the machine name
+* `__meta_azure_machine_computer_name`: the machine computer name
+* `__meta_azure_machine_os_type`: the machine operating system
+* `__meta_azure_machine_private_ip`: the machine's private IP
+* `__meta_azure_machine_public_ip`: the machine's public IP if it exists
+* `__meta_azure_machine_resource_group`: the machine's resource group
+* `__meta_azure_machine_tag_<tagname>`: each tag value of the machine
+* `__meta_azure_machine_scale_set`: the name of the scale set which the vm is part of (this value is only set if you are using a scale set)
+* `__meta_azure_subscription_id`: the subscription ID
+* `__meta_azure_tenant_id`: the tenant ID
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: azure
+  azure_sd_configs:
+    # subscription_id is a mandatory subscription ID.
+    subscription_id: "..."
+
+    # environment is an optional Azure environment. By default "AzurePublicCloud" is used.
+    # environment: ...
+
+    # authentication_method is an optional authentication method, either OAuth or ManagedIdentity.
+    # See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
+    # By default OAuth is used.
+    # authentication_method: ...
+
+    # tenant_id is an optional tenant ID. Only required with authentication_method OAuth.
+    # tenant_id: "..."
+
+    # client_id is an optional client ID. Only required with authentication_method OAuth.
+    # client_id: "..."
+
+    # client_secret is an optional client secret. Only required with authentication_method OAuth.
+    # client_secret: "..."
+
+    # resource_group is an optional resource group name. Limits discovery to this resource group. 
+    # resource_group: "..."
+
+    # port is an optional port to scrape metrics from.
+    # port: ...
+
+    # proxy_url is an optional URL for the proxy to use for all the API requests.
+    # proxy_url: "..."
+
+    # tls_config is an optional TLS configuration.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # tls_config:
+    #   cert_file: ...
+    #   key_file: ...
+```
 
 ## yandexcloud_sd_configs
 
-Yandex Cloud SD configurations allow retrieving scrape targets from accessible folders.
+[Yandex Cloud](https://cloud.yandex.com/en/) SD configurations allow retrieving scrape targets from accessible folders.
 
 Only compute instances currently supported and the following meta labels are available on targets during relabeling:
 
@@ -55,28 +114,50 @@ Only compute instances currently supported and the following meta labels are ava
 * `__meta_yandexcloud_instance_private_dns_<record number>`: if configured DNS records for private IP
 * `__meta_yandexcloud_instance_public_dns_<record number>`: if configured DNS records for public IP
 
-Yandex Cloud SD support both user [OAuth token](https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token) and [instance service account](https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm) if OAuth is omitted.
+Configuration example:
 
 ```yaml
----
-global:
-  scrape_interval: 10s
-
 scrape_configs:
-  - job_name: YC_with_oauth
-    yandexcloud_sd_configs:
-      - service: "compute"
-        yandex_passport_oauth_token: "AQAAAAAsfasah<...>7E10SaotuL0"
-    relabel_configs:
-      - source_labels: [__meta_yandexcloud_instance_public_ip_0]
-        target_label: __address__
-        replacement: "$1:9100"
+- job_name: yandexcloud
+  yandexcloud_sd_configs:
+    # service is a mandatory option for yandexcloud service discovery
+    # currently only "compute" service is supported
+  - service: compute
 
-  - job_name: YC_with_Instance_service_account
-    yandexcloud_sd_configs:
-      - service: "compute"
-    relabel_configs:
-      - source_labels: [__meta_yandexcloud_instance_private_ip_0]
-        target_label: __address__
-        replacement: "$1:9100"
+    # api_endpoint is an optional API endpoint for service discovery
+    # The https://api.cloud.yandex.net endpoint is used by default.
+    # api_endpoint: "https://api.cloud.yandex.net"
+
+    # yandex_passport_oauth_token is an optional OAuth token
+    # for querying yandexcloud API. See https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token
+    # yandex_passport_oauth_token: "..."
+
+    # tls_config is an optional tls config.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # tls_config:
+    #   cert_file: ...
+    #   key_file: ...
+```
+
+Yandex Cloud SD support both user [OAuth token](https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token)
+and [instance service account](https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm) if `yandex_passport_oauth_token` is omitted:
+
+```yaml
+scrape_configs:
+- job_name: YC_with_oauth
+  yandexcloud_sd_configs:
+  - service: compute
+    yandex_passport_oauth_token: "AQAAAAAsfasah<...>7E10SaotuL0"
+  relabel_configs:
+  - source_labels: [__meta_yandexcloud_instance_public_ip_0]
+    target_label: __address__
+    replacement: "$1:9100"
+
+- job_name: YC_with_Instance_service_account
+  yandexcloud_sd_configs:
+  - service: compute
+  relabel_configs:
+  - source_labels: [__meta_yandexcloud_instance_private_ip_0]
+    target_label: __address__
+    replacement: "$1:9100"
 ```
