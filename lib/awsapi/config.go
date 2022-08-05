@@ -43,8 +43,8 @@ type credentials struct {
 	Expiration      time.Time
 }
 
-// NewConfig returns new AWS Config.
-func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, error) {
+// NewConfig returns new AWS Config from the given args.
+func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service string) (*Config, error) {
 	cfg := &Config{
 		client:           http.DefaultClient,
 		region:           region,
@@ -65,8 +65,8 @@ func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, 
 		}
 		cfg.region = r
 	}
-	cfg.ec2Endpoint = buildAPIEndpoint(cfg.ec2Endpoint, cfg.region, "ec2")
-	cfg.stsEndpoint = buildAPIEndpoint(cfg.stsEndpoint, cfg.region, "sts")
+	cfg.ec2Endpoint = buildAPIEndpoint(ec2Endpoint, cfg.region, "ec2")
+	cfg.stsEndpoint = buildAPIEndpoint(stsEndpoint, cfg.region, "sts")
 	if cfg.roleARN == "" {
 		cfg.roleARN = os.Getenv("AWS_ROLE_ARN")
 	}
