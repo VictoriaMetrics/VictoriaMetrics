@@ -206,13 +206,13 @@ func (cfg *apiConfig) getServiceEndpoints(apiEndpoint string) (map[string]string
 	return m, nil
 }
 
+type endpoints struct {
+	Endpoints []endpoint `json:"endpoints"`
+}
+
 type endpoint struct {
 	ID      string `json:"id"`
 	Address string `json:"address"`
-}
-
-type endpoints struct {
-	Endpoints []endpoint `json:"endpoints"`
 }
 
 // getAPIResponse calls Yandex Cloud apiURL and returns response body.

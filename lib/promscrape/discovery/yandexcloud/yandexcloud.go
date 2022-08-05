@@ -1,6 +1,7 @@
 package yandexcloud
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
@@ -46,8 +47,8 @@ func (cfg *apiConfig) getInstances(folderID string) ([]instance, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot get instances: %w", err)
 		}
-		ip, err := parseInstancesPage(data)
-		if err != nil {
+		var ip instancesPage
+		if err := json.Unmarshal(data, &ip); err != nil {
 			return nil, fmt.Errorf("cannot parse instances response from %q: %w; response body: %s", nextLink, err, data)
 		}
 		instances = append(instances, ip.Instances...)
@@ -56,6 +57,56 @@ func (cfg *apiConfig) getInstances(folderID string) ([]instance, error) {
 		}
 		nextLink = instancesURL + "&pageToken=" + url.QueryEscape(ip.NextPageToken)
 	}
+}
+
+// See https://cloud.yandex.com/en-ru/docs/compute/api-ref/Instance/list
+type instancesPage struct {
+	Instances     []instance `json:"instances"`
+	NextPageToken string     `json:"nextPageToken"`
+}
+
+type instance struct {
+	ID                string             `json:"id"`
+	Name              string             `json:"name"`
+	FQDN              string             `json:"fqdn"`
+	Status            string             `json:"status"`
+	FolderID          string             `json:"folderId"`
+	PlatformID        string             `json:"platformId"`
+	Resources         resources          `json:"resources"`
+	NetworkInterfaces []networkInterface `json:"networkInterfaces"`
+	Labels            map[string]string  `json:"labels,omitempty"`
+}
+
+type resources struct {
+	Cores        string `json:"cores"`
+	CoreFraction string `json:"coreFraction"`
+	Memory       string `json:"memory"`
+}
+
+type networkInterface struct {
+	Index            string           `json:"index"`
+	MacAddress       string           `json:"macAddress"`
+	SubnetID         string           `json:"subnetId"`
+	PrimaryV4Address primaryV4Address `json:"primaryV4Address"`
+}
+
+type primaryV4Address struct {
+	Address     string      `json:"address"`
+	OneToOneNat oneToOneNat `json:"oneToOneNat"`
+	DNSRecords  []dnsRecord `json:"dnsRecords"`
+}
+
+type oneToOneNat struct {
+	Address    string      `json:"address"`
+	IPVersion  string      `json:"ipVersion"`
+	DNSRecords []dnsRecord `json:"dnsRecords"`
+}
+
+type dnsRecord struct {
+	FQDN      string `json:"fqdn"`
+	DNSZoneID string `json:"dnsZoneId"`
+	TTL       string `json:"ttl"`
+	PTR       bool   `json:"ptr"`
 }
 
 func (cfg *apiConfig) getFolders(clouds []cloud) ([]folder, error) {
@@ -69,8 +120,8 @@ func (cfg *apiConfig) getFolders(clouds []cloud) ([]folder, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot get folders: %w", err)
 			}
-			fp, err := parseFoldersPage(data)
-			if err != nil {
+			var fp foldersPage
+			if err := json.Unmarshal(data, &fp); err != nil {
 				return nil, fmt.Errorf("cannot parse folders response from %q: %w; response body: %s", nextLink, err, data)
 			}
 			folders = append(folders, fp.Folders...)
@@ -81,6 +132,22 @@ func (cfg *apiConfig) getFolders(clouds []cloud) ([]folder, error) {
 		}
 	}
 	return folders, nil
+}
+
+// See https://cloud.yandex.com/en-ru/docs/resource-manager/api-ref/Folder/list
+type foldersPage struct {
+	Folders       []folder `json:"folders"`
+	NextPageToken string   `json:"nextPageToken"`
+}
+
+type folder struct {
+	Name        string            `json:"name"`
+	ID          string            `json:"id"`
+	CloudID     string            `json:"cloudId"`
+	Description string            `json:"description"`
+	Status      string            `json:"status"`
+	Labels      map[string]string `json:"labels"`
+	CreatedAt   time.Time         `json:"createdAt"`
 }
 
 func (cfg *apiConfig) getClouds(orgs []organization) ([]cloud, error) {
@@ -102,8 +169,8 @@ func (cfg *apiConfig) getClouds(orgs []organization) ([]cloud, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot get clouds: %w", err)
 			}
-			cp, err := parseCloudsPage(data)
-			if err != nil {
+			var cp cloudsPage
+			if err := json.Unmarshal(data, &cp); err != nil {
 				return nil, fmt.Errorf("cannot parse clouds response from %q: %w; response body: %s", nextLink, err, data)
 			}
 			clouds = append(clouds, cp.Clouds...)
@@ -116,6 +183,21 @@ func (cfg *apiConfig) getClouds(orgs []organization) ([]cloud, error) {
 	return clouds, nil
 }
 
+// See https://cloud.yandex.com/en-ru/docs/resource-manager/api-ref/Cloud/list
+type cloudsPage struct {
+	Clouds        []cloud `json:"clouds"`
+	NextPageToken string  `json:"nextPageToken"`
+}
+
+type cloud struct {
+	Name           string            `json:"name"`
+	ID             string            `json:"id"`
+	Labels         map[string]string `json:"labels"`
+	OrganizationID string            `json:"organizationId"`
+	Description    string            `json:"description"`
+	CreatedAt      time.Time         `json:"createdAt"`
+}
+
 func (cfg *apiConfig) getOrganizations() ([]organization, error) {
 	orgsURL := cfg.serviceEndpoints["organization-manager"] + "/organization-manager/v1/organizations"
 	var orgs []organization
@@ -125,8 +207,8 @@ func (cfg *apiConfig) getOrganizations() ([]organization, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot get organizations: %w", err)
 		}
-		op, err := parseOrganizationsPage(data)
-		if err != nil {
+		var op organizationsPage
+		if err := json.Unmarshal(data, &op); err != nil {
 			return nil, fmt.Errorf("cannot parse organizations response from %q: %w; response body: %s", nextLink, err, data)
 		}
 		orgs = append(orgs, op.Organizations...)
@@ -135,4 +217,19 @@ func (cfg *apiConfig) getOrganizations() ([]organization, error) {
 		}
 		nextLink = orgsURL + "&pageToken=" + url.QueryEscape(op.NextPageToken)
 	}
+}
+
+// See https://cloud.yandex.com/en-ru/docs/organization/api-ref/Organization/list
+type organizationsPage struct {
+	Organizations []organization `json:"organizations"`
+	NextPageToken string         `json:"nextPageToken"`
+}
+
+type organization struct {
+	Name        string            `json:"name"`
+	ID          string            `json:"id"`
+	Labels      map[string]string `json:"labels"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	CreatedAt   time.Time         `json:"createdAt"`
 }
