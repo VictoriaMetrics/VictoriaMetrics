@@ -259,7 +259,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   scrape_samples_scraped > 10000
   ```
 
-* `scrape_samples_limit` - this metric exposes the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config). This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
+* `scrape_samples_limit` - this metric exposes the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
 
   ```metricsql
   scrape_samples_scraped / scrape_samples_limit > 0.8
@@ -510,8 +510,8 @@ scrape_configs:
 
 Proxy can be configured with the following optional settings:
 
-* `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
-* `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_authorization` for generic token authorization. See [these docs](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options).
+* `proxy_basic_auth` for Basic authorization. See [these docs](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options).
 * `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_oauth2` for OAuth2 config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
@@ -546,7 +546,7 @@ By default `vmagent` doesn't limit the number of time series each scrape target 
 
 All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric.
 
-See also `sample_limit` option at [scrape_config section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
 
