@@ -17,7 +17,7 @@ sort: 24
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
-* `kubernetes_sd_configs` is for discovering and scraping Kubernetes (K8S) targets. See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config).
+* `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config). [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
 * `static_configs` is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config).
 * `yandexcloud_sd_configs` is for discoverying and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
@@ -30,22 +30,7 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
 
 ## azure_sd_configs
 
-Azure SD configurations allow retrieving scrape targets from [Microsoft Azure](https://azure.microsoft.com/en-us/) VMs.
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_azure_machine_id`: the machine ID
-* `__meta_azure_machine_location`: the location the machine runs in
-* `__meta_azure_machine_name`: the machine name
-* `__meta_azure_machine_computer_name`: the machine computer name
-* `__meta_azure_machine_os_type`: the machine operating system
-* `__meta_azure_machine_private_ip`: the machine's private IP
-* `__meta_azure_machine_public_ip`: the machine's public IP if it exists
-* `__meta_azure_machine_resource_group`: the machine's resource group
-* `__meta_azure_machine_tag_<tagname>`: each tag value of the machine
-* `__meta_azure_machine_scale_set`: the name of the scale set which the vm is part of (this value is only set if you are using a scale set)
-* `__meta_azure_subscription_id`: the subscription ID
-* `__meta_azure_tenant_id`: the tenant ID
+Azure SD configuration allows retrieving scrape targets from [Microsoft Azure](https://azure.microsoft.com/en-us/) VMs.
 
 Configuration example:
 
@@ -53,16 +38,17 @@ Configuration example:
 scrape_configs:
 - job_name: azure
   azure_sd_configs:
+
     # subscription_id is a mandatory subscription ID.
   - subscription_id: "..."
 
     # environment is an optional Azure environment. By default "AzurePublicCloud" is used.
-    # environment: ...
+    # environment: "..."
 
     # authentication_method is an optional authentication method, either OAuth or ManagedIdentity.
     # See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
     # By default OAuth is used.
-    # authentication_method: ...
+    # authentication_method: "..."
 
     # tenant_id is an optional tenant ID. Only required with authentication_method OAuth.
     # tenant_id: "..."
@@ -83,24 +69,25 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_azure_machine_id`: the machine ID
+* `__meta_azure_machine_location`: the location the machine runs in
+* `__meta_azure_machine_name`: the machine name
+* `__meta_azure_machine_computer_name`: the machine computer name
+* `__meta_azure_machine_os_type`: the machine operating system
+* `__meta_azure_machine_private_ip`: the machine's private IP
+* `__meta_azure_machine_public_ip`: the machine's public IP if it exists
+* `__meta_azure_machine_resource_group`: the machine's resource group
+* `__meta_azure_machine_tag_<tagname>`: each tag value of the machine
+* `__meta_azure_machine_scale_set`: the name of the scale set which the vm is part of (this value is only set if you are using a scale set)
+* `__meta_azure_subscription_id`: the subscription ID
+* `__meta_azure_tenant_id`: the tenant ID
+
+
 ## consul_sd_configs
 
-Consul SD configurations allow retrieving scrape targets from [Consul's Catalog API](https://www.consul.io/api-docs/catalog).
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_consul_address`: the address of the target
-* `__meta_consul_dc`: the datacenter name for the target
-* `__meta_consul_health`: the health status of the service
-* `__meta_consul_metadata_<key>`: each node metadata key value of the target
-* `__meta_consul_node`: the node name defined for the target
-* `__meta_consul_service_address`: the service address of the target
-* `__meta_consul_service_id`: the service ID of the target
-* `__meta_consul_service_metadata_<key>`: each service metadata key value of the target
-* `__meta_consul_service_port`: the service port of the target
-* `__meta_consul_service`: the name of the service the target belongs to
-* `__meta_consul_tagged_address_<key>`: each node tagged address key value of the target
-* `__meta_consul_tags`: the list of tags of the target joined by the tag separator
+Consul SD configuration allows retrieving scrape targets from [Consul's Catalog API](https://www.consul.io/api-docs/catalog).
 
 Configuration example:
 
@@ -108,6 +95,7 @@ Configuration example:
 scrape_configs:
 - job_name: consul
   consul_sd_configs:
+
     # server is an optional Consul server to connect to. By default localhost:8500 is used
   - server: "localhost:8500"
 
@@ -155,26 +143,25 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_consul_address`: the address of the target
+* `__meta_consul_dc`: the datacenter name for the target
+* `__meta_consul_health`: the health status of the service
+* `__meta_consul_metadata_<key>`: each node metadata key value of the target
+* `__meta_consul_node`: the node name defined for the target
+* `__meta_consul_service_address`: the service address of the target
+* `__meta_consul_service_id`: the service ID of the target
+* `__meta_consul_service_metadata_<key>`: each service metadata key value of the target
+* `__meta_consul_service_port`: the service port of the target
+* `__meta_consul_service`: the name of the service the target belongs to
+* `__meta_consul_tagged_address_<key>`: each node tagged address key value of the target
+* `__meta_consul_tags`: the list of tags of the target joined by the tag separator
+
+
 ## digitalocean_sd_configs
 
-DigitalOcean SD configurations allow retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/api-reference/#tag/Droplets).
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_digitalocean_droplet_id`: the id of the droplet
-* `__meta_digitalocean_droplet_name`: the name of the droplet
-* `__meta_digitalocean_image`: the slug of the droplet's image
-* `__meta_digitalocean_image_name`: the display name of the droplet's image
-* `__meta_digitalocean_private_ipv4`: the private IPv4 of the droplet
-* `__meta_digitalocean_public_ipv4`: the public IPv4 of the droplet
-* `__meta_digitalocean_public_ipv6`: the public IPv6 of the droplet
-* `__meta_digitalocean_region`: the region of the droplet
-* `__meta_digitalocean_size`: the size of the droplet
-* `__meta_digitalocean_status`: the status of the droplet
-* `__meta_digitalocean_features`: the comma-separated list of features of the droplet
-* `__meta_digitalocean_tags`: the comma-separated list of tags of the droplet
-* `__meta_digitalocean_vpc`: the id of the droplet's VPC
-
+DigitalOcean SD configuration allows retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/api-reference/#tag/Droplets).
 
 Configuration example:
 
@@ -193,15 +180,28 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_digitalocean_droplet_id`: the id of the droplet
+* `__meta_digitalocean_droplet_name`: the name of the droplet
+* `__meta_digitalocean_image`: the slug of the droplet's image
+* `__meta_digitalocean_image_name`: the display name of the droplet's image
+* `__meta_digitalocean_private_ipv4`: the private IPv4 of the droplet
+* `__meta_digitalocean_public_ipv4`: the public IPv4 of the droplet
+* `__meta_digitalocean_public_ipv6`: the public IPv6 of the droplet
+* `__meta_digitalocean_region`: the region of the droplet
+* `__meta_digitalocean_size`: the size of the droplet
+* `__meta_digitalocean_status`: the status of the droplet
+* `__meta_digitalocean_features`: the comma-separated list of features of the droplet
+* `__meta_digitalocean_tags`: the comma-separated list of tags of the droplet
+* `__meta_digitalocean_vpc`: the id of the droplet's VPC
+
+
 ## dns_sd_configs
 
-DNS-based service discovery configuration allows specifying a set of DNS domain names which are periodically queried to discover a list of targets.
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_dns_name`: the record name that produced the discovered target.
-* `__meta_dns_srv_record_target`: the target field of the SRV record
-* `__meta_dns_srv_record_port`: the port field of the SRV record
+DNS-based service discovery allows retrieving scrape tragets from the specified DNS domain names.
+These specified names are periodically queried to discover a list of targets with the interval
+configured via `-promscrape.dnsSDCheckInterval` command-line flag.
 
 Configuration example:
 
@@ -221,26 +221,16 @@ scrape_configs:
     # port: ...
 ```
 
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_dns_name`: the record name that produced the discovered target.
+* `__meta_dns_srv_record_target`: the target field of the SRV record
+* `__meta_dns_srv_record_port`: the port field of the SRV record
+
+
 ## docker_sd_configs
 
-Docker SD configurations allow retrieving scrape targets from [Docker Engine](https://docs.docker.com/engine/) hosts.
-
-Available meta labels during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_docker_container_id`: the id of the container
-* `__meta_docker_container_name`: the name of the container
-* `__meta_docker_container_network_mode`: the network mode of the container
-* `__meta_docker_container_label_<labelname>`: each label of the container
-* `__meta_docker_network_id`: the ID of the network
-* `__meta_docker_network_name`: the name of the network
-* `__meta_docker_network_ingress`: whether the network is ingress
-* `__meta_docker_network_internal`: whether the network is internal
-* `__meta_docker_network_label_<labelname>`: each label of the network
-* `__meta_docker_network_scope`: the scope of the network
-* `__meta_docker_network_ip`: the IP of the container in this network
-* `__meta_docker_port_private`: the port on the container
-* `__meta_docker_port_public`: the external port if a port-mapping exists
-* `__meta_docker_port_public_ip`: the public IP if a port-mapping exists
+Docker SD configuration allows retrieving scrape targets from [Docker Engine](https://docs.docker.com/engine/) hosts.
 
 Configuration example:
 
@@ -270,9 +260,58 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_docker_container_id`: the id of the container
+* `__meta_docker_container_name`: the name of the container
+* `__meta_docker_container_network_mode`: the network mode of the container
+* `__meta_docker_container_label_<labelname>`: each label of the container
+* `__meta_docker_network_id`: the ID of the network
+* `__meta_docker_network_name`: the name of the network
+* `__meta_docker_network_ingress`: whether the network is ingress
+* `__meta_docker_network_internal`: whether the network is internal
+* `__meta_docker_network_label_<labelname>`: each label of the network
+* `__meta_docker_network_scope`: the scope of the network
+* `__meta_docker_network_ip`: the IP of the container in this network
+* `__meta_docker_port_private`: the port on the container
+* `__meta_docker_port_public`: the external port if a port-mapping exists
+* `__meta_docker_port_public_ip`: the public IP if a port-mapping exists
+
+
 ## dockerswarm_sd_configs
 
-Docker Swarm SD configurations allow retrieving scrape targets from [Docker Swarm engine](https://docs.docker.com/engine/swarm/).
+Docker Swarm SD configuration allows retrieving scrape targets from [Docker Swarm engine](https://docs.docker.com/engine/swarm/).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: dockerswarm
+  dockerswarm_sd_configs:
+
+    # host must contain the address of the Docker daemon.
+  - host: "..."
+
+    # role must contain `services`, `tasks` or `nodes` as described below.
+    role: ...
+
+    # port is an optional port to scrape metrics from, when `role` is nodes, and for discovered
+    # tasks and services that don't have published ports.
+    # By default port 80 is used.
+    # port: ...
+
+    # filters is an optional filters to limit the discovery process to a subset of available resources.
+    # The available filters are listed in the upstream documentation:
+    # Services: https://docs.docker.com/engine/api/v1.40/#operation/ServiceList
+    # Tasks: https://docs.docker.com/engine/api/v1.40/#operation/TaskList
+    # Nodes: https://docs.docker.com/engine/api/v1.40/#operation/NodeList
+    # filters:
+    # - name: "..."
+    #   values: ["...", "..."]
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
 
 One of the following roles can be configured to discover targets:
 
@@ -359,62 +398,9 @@ One of the following roles can be configured to discover targets:
   * `__meta_dockerswarm_node_status`: the status of the node
 
 
-Configuration example:
-
-```yaml
-scrape_configs:
-- job_name: dockerswarm
-  dockerswarm_sd_configs:
-
-    # host must contain the address of the Docker daemon.
-  - host: "..."
-
-    # role must contain `services`, `tasks` or `nodes` as described above.
-    role: ...
-
-    # port is an optional port to scrape metrics from, when `role` is nodes, and for discovered
-    # tasks and services that don't have published ports.
-    # By default port 80 is used.
-    # port: ...
-
-    # filters is an optional filters to limit the discovery process to a subset of available resources.
-    # The available filters are listed in the upstream documentation:
-    # Services: https://docs.docker.com/engine/api/v1.40/#operation/ServiceList
-    # Tasks: https://docs.docker.com/engine/api/v1.40/#operation/TaskList
-    # Nodes: https://docs.docker.com/engine/api/v1.40/#operation/NodeList
-    # filters:
-    # - name: "..."
-    #   values: ["...", "..."]
-
-    # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
-```
-
 ## ec2_sd_configs
 
 EC2 SD configuration allows retrieving scrape targets from [AWS EC2 instances](https://aws.amazon.com/ec2/).
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_ec2_ami`: the EC2 Amazon Machine Image
-* `__meta_ec2_architecture`: the architecture of the instance
-* `__meta_ec2_availability_zone`: the availability zone in which the instance is running
-* `__meta_ec2_availability_zone_id`: the availability zone ID in which the instance is running (requires ec2:DescribeAvailabilityZones)
-* `__meta_ec2_instance_id`: the EC2 instance ID
-* `__meta_ec2_instance_lifecycle`: the lifecycle of the EC2 instance, set only for 'spot' or 'scheduled' instances, absent otherwise
-* `__meta_ec2_instance_state`: the state of the EC2 instance
-* `__meta_ec2_instance_type`: the type of the EC2 instance
-* `__meta_ec2_ipv6_addresses`: comma separated list of IPv6 addresses assigned to the instance's network interfaces, if present
-* `__meta_ec2_owner_id`: the ID of the AWS account that owns the EC2 instance
-* `__meta_ec2_platform`: the Operating System platform, set to 'windows' on Windows servers, absent otherwise
-* `__meta_ec2_primary_subnet_id`: the subnet ID of the primary network interface, if available
-* `__meta_ec2_private_dns_name`: the private DNS name of the instance, if available
-* `__meta_ec2_private_ip`: the private IP address of the instance, if present
-* `__meta_ec2_public_dns_name`: the public DNS name of the instance, if available
-* `__meta_ec2_public_ip`: the public IP address of the instance, if available
-* `__meta_ec2_subnet_id`: comma separated list of subnets IDs in which the instance is running, if available
-* `__meta_ec2_tag_<tagkey>`: each tag value of the instance
-* `__meta_ec2_vpc_id`: the ID of the VPC in which the instance is running, if available
 
 Configuration example:
 
@@ -466,11 +452,48 @@ scrape_configs:
     #   values: ["...", "..."]
 ```
 
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_ec2_ami`: the EC2 Amazon Machine Image
+* `__meta_ec2_architecture`: the architecture of the instance
+* `__meta_ec2_availability_zone`: the availability zone in which the instance is running
+* `__meta_ec2_availability_zone_id`: the availability zone ID in which the instance is running (requires ec2:DescribeAvailabilityZones)
+* `__meta_ec2_instance_id`: the EC2 instance ID
+* `__meta_ec2_instance_lifecycle`: the lifecycle of the EC2 instance, set only for 'spot' or 'scheduled' instances, absent otherwise
+* `__meta_ec2_instance_state`: the state of the EC2 instance
+* `__meta_ec2_instance_type`: the type of the EC2 instance
+* `__meta_ec2_ipv6_addresses`: comma separated list of IPv6 addresses assigned to the instance's network interfaces, if present
+* `__meta_ec2_owner_id`: the ID of the AWS account that owns the EC2 instance
+* `__meta_ec2_platform`: the Operating System platform, set to 'windows' on Windows servers, absent otherwise
+* `__meta_ec2_primary_subnet_id`: the subnet ID of the primary network interface, if available
+* `__meta_ec2_private_dns_name`: the private DNS name of the instance, if available
+* `__meta_ec2_private_ip`: the private IP address of the instance, if present
+* `__meta_ec2_public_dns_name`: the public DNS name of the instance, if available
+* `__meta_ec2_public_ip`: the public IP address of the instance, if available
+* `__meta_ec2_subnet_id`: comma separated list of subnets IDs in which the instance is running, if available
+* `__meta_ec2_tag_<tagkey>`: each tag value of the instance
+* `__meta_ec2_vpc_id`: the ID of the VPC in which the instance is running, if available
+
+
 ## eureka_sd_configs
 
 Eureka SD configuration allows retrieving scrape targets using the [Eureka REST API](https://github.com/Netflix/eureka/wiki/Eureka-REST-operations).
 
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: eureka
+  eureka_sd_configs:
+    # server is an optional URL to connect to the Eureka server.
+    # By default The http://localhost:8080/eureka/v2 is used.
+  - server: "..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
 * `__meta_eureka_app_name`: the name of the app
 * `__meta_eureka_app_instance_id`: the ID of the app instance
@@ -491,25 +514,26 @@ The following meta labels are available on targets during [relabeling](https://d
 * `__meta_eureka_app_instance_datacenterinfo_name`: the datacenter name of the app instance
 * `__meta_eureka_app_instance_datacenterinfo_metadata_<metadataname>`: the datacenter metadata
 
+
+## file_sd_configs
+
+File-based service discovery reads a set of files with lists of targets to scrape.
+Scrape targets are automatically updated when the underlying files are changed with the interval
+
 Configuration example:
 
 ```yaml
 scrape_configs:
-- job_name: eureka
-  eureka_sd_configs:
-    # server is an optional URL to connect to the Eureka server.
-    # By default The http://localhost:8080/eureka/v2 is used.
-  - server: "..."
-
-    # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+- job_name: file
+  file_sd_configs:
+    # files must contain a list of file patterns for files with scrape targets.
+    # The last path segment can contain `*`, which matches any number of chars in file name.
+  - files:
+    - "my/path/*.yaml"
+    - "another/path.json"
 ```
 
-## file_sd_configs
-
-File-based service discovery reads a set of files containing a list of targets to scrape.
-Scrape targets are automatically updated when the underlying files are changed.
-Files may be provided in YAML or JSON format. Files must contain a list of static configs in the following format:
+Files must contain a list of static configs in one of the following formats:
 
 * JSON:
 
@@ -536,45 +560,16 @@ Files may be provided in YAML or JSON format. Files must contain a list of stati
     ...
   ```
 
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
 * `__meta_filepath`: the filepath from which the target was extracted
-
-Configuration example:
-
-```yaml
-scrape_configs:
-- job_name: file
-  file_sd_configs:
-    # files must contain a list of file patterns for files with scrape targets.
-    # The last path segment can contain `*`, which matches any number of chars in file name.
-  - files:
-    - "my/path/*.yaml"
-    - "another/path.json"
-```
 
 See the [list of integrations](https://prometheus.io/docs/operating/integrations/#file-service-discovery) with `file_sd_configs`.
 
 
 ## gce_sd_configs
 
-GCE SD configurations allow retrieving scrape targets from [GCP GCE instances](https://cloud.google.com/compute).
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_gce_instance_id`: the numeric id of the instance
-* `__meta_gce_instance_name`: the name of the instance
-* `__meta_gce_label_<labelname>`: each GCE label of the instance
-* `__meta_gce_machine_type`: full or partial URL of the machine type of the instance
-* `__meta_gce_metadata_<name>`: each metadata item of the instance
-* `__meta_gce_network`: the network URL of the instance
-* `__meta_gce_private_ip`: the private IP address of the instance
-* `__meta_gce_interface_ipv4_<name>`: IPv4 address of each named interface
-* `__meta_gce_project`: the GCP project in which the instance is running
-* `__meta_gce_public_ip`: the public IP address of the instance, if present
-* `__meta_gce_subnetwork`: the subnetwork URL of the instance
-* `__meta_gce_tags`: comma separated list of instance tags
-* `__meta_gce_zone`: the GCE zone URL in which the instance is running
+GCE SD configuration allows retrieving scrape targets from [GCP GCE instances](https://cloud.google.com/compute).
 
 Configuration example:
 
@@ -611,33 +606,26 @@ Credentials are discovered by looking in the following places, preferring the fi
 2. a JSON file in the well-known path `$HOME/.config/gcloud/application_default_credentials.json`
 3. fetched from the GCE metadata server
 
-When running within GCE, the service account associated with the instance it is running on should have
-at least read-only permissions to the compute resources. If running outside of GCE make sure to create
-an appropriate service account and place the credential file in one of the expected locations.
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_gce_instance_id`: the numeric id of the instance
+* `__meta_gce_instance_name`: the name of the instance
+* `__meta_gce_label_<labelname>`: each GCE label of the instance
+* `__meta_gce_machine_type`: full or partial URL of the machine type of the instance
+* `__meta_gce_metadata_<name>`: each metadata item of the instance
+* `__meta_gce_network`: the network URL of the instance
+* `__meta_gce_private_ip`: the private IP address of the instance
+* `__meta_gce_interface_ipv4_<name>`: IPv4 address of each named interface
+* `__meta_gce_project`: the GCP project in which the instance is running
+* `__meta_gce_public_ip`: the public IP address of the instance, if present
+* `__meta_gce_subnetwork`: the subnetwork URL of the instance
+* `__meta_gce_tags`: comma separated list of instance tags
+* `__meta_gce_zone`: the GCE zone URL in which the instance is running
+
 
 ## http_sd_configs
 
-HTTP-based service discovery fetches targets from the specified `url`. The service at `url` must return JSON response in the following format:
-
-```json
-[
-  {
-    "targets": [ "<host>", ... ],
-    "labels": {
-      "<labelname>": "<labelvalue>",
-      ...
-    }
-  },
-  ...
-]
-```
-
-The endpoint is queried periodically with the refresh interval specified in `-promscrape.httpSDCheckInterval` command-line flag.
-Discovery errors are tracked in `promscrape_discovery_http_errors_total` metric.
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_url`: the URL from which the target was extracted
+HTTP-based service discovery fetches targets from the specified `url`.
 
 Configuration example:
 
@@ -652,26 +640,222 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+The service at `url` must return JSON response in the following format:
+
+```json
+[
+  {
+    "targets": [ "<host>", ... ],
+    "labels": {
+      "<labelname>": "<labelvalue>",
+      ...
+    }
+  },
+  ...
+]
+```
+
+The `url` is queried periodically with the interval specified in `-promscrape.httpSDCheckInterval` command-line flag.
+Discovery errors are tracked in `promscrape_discovery_http_errors_total` metric.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_url`: the URL from which the target was extracted
+
+
+## kubernetes_sd_configs
+
+Kubernetes SD configuration allows retrieving scrape targets from [Kubernetes REST API](https://kubernetes.io/docs/reference/using-api/).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: kubernetes
+  kubernetes_sd_configs:
+
+    # role must contain the Kubernetes role of entities that should be discovered.
+    # It must have one of the following values:
+    # endpoints, endpointslice, service, pod, node or ingress.
+    # See docs below about each particular role.
+  - role: "..."
+
+    # api_server is an optional url for Kubernetes API server.
+    # By default it is read from /var/run/secrets/kubernetes.io/serviceaccount/
+    # api_server: "..."
+
+    # kubeconfig_file is an optional path to a kubeconfig file.
+    # Note that api_server and kubeconfig_file are mutually exclusive.
+    # kubeconfig_file: "..."
+
+    # namespaces is an optional namespace for service discovery.
+    # By default all namespaces are used.
+    # If own_namespace is set to true, then the current namespace is used for service discovery.
+    # namespaces:
+    #   own_namespace: <boolean>
+    #   names: ["...", "..."]
+
+    # selects is an optional label and field selectors to limit the discovery process to a subset of available resources.
+    # See https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
+    # and https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    # The `role: endpoints` supports pod, service and endpoints selectors.
+    # The `role: pod` supports node selectors when configured with `attach_metadata: {node: true}`.
+    # Other roles only support selectors matching the role itself (e.g. node role can only contain node selectors).
+    # selectors:
+    # - role: "..."
+    #   label: "..."
+    #   field: "..."
+
+    # attach_metadata is an optional metadata to attach to discovered targets.
+    # When `node` is set to true, then node metadata is attached to discovered targets.
+    # Valid for roles: pod, endpoints, endpointslice.
+    # attach_metadata:
+    #   node: <boolean>
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+One of the following `role` types can be configured to discover targets:
+
+* `role: node`
+
+  The `role: node` discovers one target per cluster node with the address defaulting to the Kubelet's HTTP port.
+  The target address defaults to the first existing address of the Kubernetes node object in the address type order
+  of `NodeInternalIP`, `NodeExternalIP`, `NodeLegacyHostIP` and `NodeHostName`.
+
+  Available meta labels for `role: node`:
+
+  * `__meta_kubernetes_node_name`: The name of the node object.
+  * `__meta_kubernetes_node_provider_id`: The cloud provider's name for the node object.
+  * `__meta_kubernetes_node_label_<labelname>`: Each label from the node object.
+  * `__meta_kubernetes_node_labelpresent_<labelname>`: "true" for each label from the node object.
+  * `__meta_kubernetes_node_annotation_<annotationname>`: Each annotation from the node object.
+  * `__meta_kubernetes_node_annotationpresent_<annotationname>`: "true" for each annotation from the node object.
+  * `__meta_kubernetes_node_address_<address_type>`: The first address for each node address type, if it exists.
+
+  In addition, the `instance` label for the node will be set to the node name as retrieved from the API server.
+
+* `role: service`
+
+  The `role: service` discovers a target for each service port for each service.
+  This is generally useful for blackbox monitoring of a service. The target address will be set to the Kubernetes DNS name
+  of the service and respective service port.
+
+  Available meta labels for `role: service`:
+
+  * `__meta_kubernetes_namespace`: The namespace of the service object.
+  * `__meta_kubernetes_service_annotation_<annotationname>`: Each annotation from the service object.
+  * `__meta_kubernetes_service_annotationpresent_<annotationname>`: "true" for each annotation of the service object.
+  * `__meta_kubernetes_service_cluster_ip`: The cluster IP address of the service. (Does not apply to services of type ExternalName)
+  * `__meta_kubernetes_service_external_name`: The DNS name of the service. (Applies to services of type ExternalName)
+  * `__meta_kubernetes_service_label_<labelname>`: Each label from the service object.
+  * `__meta_kubernetes_service_labelpresent_<labelname>`: "true" for each label of the service object.
+  * `__meta_kubernetes_service_name`: The name of the service object.
+  * `__meta_kubernetes_service_port_name`: Name of the service port for the target.
+  * `__meta_kubernetes_service_port_protocol`: Protocol of the service port for the target.
+  * `__meta_kubernetes_service_type`: The type of the service.
+
+* `role: pod`
+
+  The `role: pod` discovers all pods and exposes their containers as targets. For each declared port of a container
+  a single target is generated. If a container has no specified ports, a port-free target per container is created
+  for manually adding a port via relabeling.
+
+  Available meta labels for `role: pod`:
+
+  * `__meta_kubernetes_namespace`: The namespace of the pod object.
+  * `__meta_kubernetes_pod_name`: The name of the pod object.
+  * `__meta_kubernetes_pod_ip`: The pod IP of the pod object.
+  * `__meta_kubernetes_pod_label_<labelname>`: Each label from the pod object.
+  * `__meta_kubernetes_pod_labelpresent_<labelname>`: "true" for each label from the pod object.
+  * `__meta_kubernetes_pod_annotation_<annotationname>`: Each annotation from the pod object.
+  * `__meta_kubernetes_pod_annotationpresent_<annotationname>`: "true" for each annotation from the pod object.
+  * `__meta_kubernetes_pod_container_init`: "true" if the container is an InitContainer
+  * `__meta_kubernetes_pod_container_name`: Name of the container the target address points to.
+  * `__meta_kubernetes_pod_container_port_name`: Name of the container port.
+  * `__meta_kubernetes_pod_container_port_number`: Number of the container port.
+  * `__meta_kubernetes_pod_container_port_protocol`: Protocol of the container port.
+  * `__meta_kubernetes_pod_ready`: Set to true or false for the pod's ready state.
+  * `__meta_kubernetes_pod_phase`: Set to Pending, Running, Succeeded, Failed or Unknown in the lifecycle.
+  * `__meta_kubernetes_pod_node_name`: The name of the node the pod is scheduled onto.
+  * `__meta_kubernetes_pod_host_ip`: The current host IP of the pod object.
+  * `__meta_kubernetes_pod_uid`: The UID of the pod object.
+  * `__meta_kubernetes_pod_controller_kind`: Object kind of the pod controller.
+  * `__meta_kubernetes_pod_controller_name`: Name of the pod controller.
+
+* `role: endpoints`
+
+  The `role: endpoints` discovers targets from listed endpoints of a service. For each endpoint address one target is discovered per port.
+  If the endpoint is backed by a pod, all additional container ports of the pod, not bound to an endpoint port, are discovered as targets as well.
+
+  Available meta labels for `role: endpoints`:
+
+  * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
+  * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
+  * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
+  * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
+
+  For all targets discovered directly from the endpoints list (those not additionally inferred from underlying pods), the following labels are attached:
+
+  * `__meta_kubernetes_endpoint_hostname`: Hostname of the endpoint.
+  * `__meta_kubernetes_endpoint_node_name`: Name of the node hosting the endpoint.
+  * `__meta_kubernetes_endpoint_ready`: Set to true or false for the endpoint's ready state.
+  * `__meta_kubernetes_endpoint_port_name`: Name of the endpoint port.
+  * `__meta_kubernetes_endpoint_port_protocol`: Protocol of the endpoint port.
+  * `__meta_kubernetes_endpoint_address_target_kind`: Kind of the endpoint address target.
+  * `__meta_kubernetes_endpoint_address_target_name`: Name of the endpoint address target.
+
+  If the endpoints belong to a service, all labels of the `role: service` are attached.
+  For all targets backed by a pod, all labels of the `role: pod` are attached.
+
+* `role: endpointslice`
+
+  The `role: endpointslice` discovers targets from existing endpointslices. For each endpoint address referenced in the endpointslice
+  object one target is discovered. If the endpoint is backed by a pod, all additional container ports of the pod,
+  not bound to an endpoint port, are discovered as targets as well.
+
+  Available meta labels for `role: endpointslice`:
+
+  * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
+  * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
+
+  For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
+
+  * `__meta_kubernetes_endpointslice_address_target_kind`: Kind of the referenced object.
+  * `__meta_kubernetes_endpointslice_address_target_name`: Name of referenced object.
+  * `__meta_kubernetes_endpointslice_address_type`: The ip protocol family of the address of the target.
+  * `__meta_kubernetes_endpointslice_endpoint_conditions_ready`: Set to true or false for the referenced endpoint's ready state.
+  * `__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname`: Name of the node hosting the referenced endpoint.
+  * `__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname`: Flag that shows if the referenced object has a kubernetes.io/hostname annotation.
+  * `__meta_kubernetes_endpointslice_port`: Port of the referenced endpoint.
+  * `__meta_kubernetes_endpointslice_port_name`: Named port of the referenced endpoint.
+  * `__meta_kubernetes_endpointslice_port_protocol`: Protocol of the referenced endpoint.
+
+  If the endpoints belong to a service, all labels of the `role: service` are attached.
+  For all targets backed by a pod, all labels of the `role: pod` are attached.
+
+* `role: ingress`
+
+  The `role: ingress` discovers a target for each path of each ingress. This is generally useful for blackbox monitoring of an ingress.
+  The target address will be set to the host specified in the ingress spec.
+
+  Available meta labels for `role: ingress`:
+
+  * `__meta_kubernetes_namespace`: The namespace of the ingress object.
+  * `__meta_kubernetes_ingress_name`: The name of the ingress object.
+  * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
+  * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.
+  * `__meta_kubernetes_ingress_annotation_<annotationname>`: Each annotation from the ingress object.
+  * `__meta_kubernetes_ingress_annotationpresent_<annotationname>`: "true" for each annotation from the ingress object.
+  * `__meta_kubernetes_ingress_class_name`: Class name from ingress spec, if present.
+  * `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
+  * `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
+
+
 ## yandexcloud_sd_configs
 
 [Yandex Cloud](https://cloud.yandex.com/en/) SD configurations allow retrieving scrape targets from accessible folders.
-
-The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
-
-* `__meta_yandexcloud_instance_name`: the name of instance
-* `__meta_yandexcloud_instance_id`: the id of instance
-* `__meta_yandexcloud_instance_fqdn`: generated FQDN for instance
-* `__meta_yandexcloud_instance_status`: the status of instance
-* `__meta_yandexcloud_instance_platform_id`: instance platform ID (i.e. "standard-v3")
-* `__meta_yandexcloud_instance_resources_cores`: instance vCPU cores
-* `__meta_yandexcloud_instance_resources_core_fraction`: instance core fraction
-* `__meta_yandexcloud_instance_resources_memory`: instance memory
-* `__meta_yandexcloud_folder_id`: instance folder ID
-* `__meta_yandexcloud_instance_label_<label name>`: each label from instance
-* `__meta_yandexcloud_instance_private_ip_<interface index>`: private IP of <interface index> network interface
-* `__meta_yandexcloud_instance_public_ip_<interface index>`: public (NAT) IP of <interface index> network interface
-* `__meta_yandexcloud_instance_private_dns_<record number>`: if configured DNS records for private IP
-* `__meta_yandexcloud_instance_public_dns_<record number>`: if configured DNS records for public IP
 
 Configuration example:
 
@@ -719,6 +903,23 @@ scrape_configs:
     target_label: __address__
     replacement: "$1:9100"
 ```
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_yandexcloud_instance_name`: the name of instance
+* `__meta_yandexcloud_instance_id`: the id of instance
+* `__meta_yandexcloud_instance_fqdn`: generated FQDN for instance
+* `__meta_yandexcloud_instance_status`: the status of instance
+* `__meta_yandexcloud_instance_platform_id`: instance platform ID (i.e. "standard-v3")
+* `__meta_yandexcloud_instance_resources_cores`: instance vCPU cores
+* `__meta_yandexcloud_instance_resources_core_fraction`: instance core fraction
+* `__meta_yandexcloud_instance_resources_memory`: instance memory
+* `__meta_yandexcloud_folder_id`: instance folder ID
+* `__meta_yandexcloud_instance_label_<label name>`: each label from instance
+* `__meta_yandexcloud_instance_private_ip_<interface index>`: private IP of <interface index> network interface
+* `__meta_yandexcloud_instance_public_ip_<interface index>`: public (NAT) IP of <interface index> network interface
+* `__meta_yandexcloud_instance_private_dns_<record number>`: if configured DNS records for private IP
+* `__meta_yandexcloud_instance_public_dns_<record number>`: if configured DNS records for public IP
 
 
 ## HTTP API client options
