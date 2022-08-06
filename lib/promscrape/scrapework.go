@@ -572,7 +572,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 					"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 			}
-			sw.pushData(&wc.writeRequest)
+			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 			wc.resetNoRows()
 			return nil
 		}, sw.logError)
@@ -607,7 +607,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
-	sw.pushData(&wc.writeRequest)
+	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = sbr.bodyLen
 	wc.reset()
@@ -774,7 +774,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		}
 		staleSamplesCreated.Add(len(samples))
 	}
-	sw.pushData(&wc.writeRequest)
+	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 }
 
 var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)
