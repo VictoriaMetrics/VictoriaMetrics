@@ -214,6 +214,7 @@ func timeseriesToPromMetrics(tss []*timeseries) string {
 	for _, ts := range tss {
 		metricName := ts.MetricName.String()
 		for i := range ts.Timestamps {
+			metricName = strings.TrimPrefix(metricName, "AccountID=0, ProjectID=0, ")
 			line := fmt.Sprintf("%s %v %d", metricName, ts.Values[i], ts.Timestamps[i])
 			a = append(a, line)
 		}
