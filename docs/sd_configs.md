@@ -1272,4 +1272,7 @@ scrape_configs:
   # By default there is no limit on the number of exposed series.
   # See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter .
   # series_limit: ...
+
+  # Additional HTTP client options for target scraping can be specified here.
+  # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
