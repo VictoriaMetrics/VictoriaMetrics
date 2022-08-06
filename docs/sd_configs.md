@@ -19,7 +19,7 @@ sort: 24
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
-* `static_configs` is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config).
+* `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `yandexcloud_sd_configs` is for discoverying and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
 
 Note that the `refresh_interval` option isn't supported for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
@@ -961,6 +961,36 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_openstack_tag_<tagkey>`: each tag value of the instance.
   * `__meta_openstack_user_id`: the user account owning the tenant.
 
+
+## static_configs
+
+A static config allows specifying a list of targets and a common label set for them.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: static
+  static_configs:
+
+    # targets must contain a list of `host:port` targets to scrape.
+    # The `http://host:port/metrics` endpoint is scraped per each configured traget then.
+    # The `http` scheme can be changed to `https` by setting it via `scheme` field at `scrape_config` level.
+    # The `/metrics` path can be changed to arbitrary path via `metrics_path` field at `scrape_config` level.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config .
+    #
+    # Alternatively the scheme and path can be changed via `relabel_configs` section at `scrape_config` level.
+    # See https://docs.victoriametrics.com/vmagent.html#relabeling .
+  - targets:
+    - "vmsingle1:8428"
+    - "vmsingleN:8428"
+
+    # labels is an optional labels to add to all the targets.
+    # labels:
+    #   <labelname1>: "<labelvalue1>"
+    #   ...
+    #   <labelnameN>: "<labelvalueN>"
+```
 
 ## yandexcloud_sd_configs
 
