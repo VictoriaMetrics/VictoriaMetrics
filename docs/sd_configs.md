@@ -18,7 +18,7 @@ sort: 24
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
-* `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config). [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
+* `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config).
 * `yandexcloud_sd_configs` is for discoverying and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
 
@@ -724,7 +724,7 @@ One of the following `role` types can be configured to discover targets:
   The target address defaults to the first existing address of the Kubernetes node object in the address type order
   of `NodeInternalIP`, `NodeExternalIP`, `NodeLegacyHostIP` and `NodeHostName`.
 
-  Available meta labels for `role: node`:
+  Available meta labels for `role: node` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_kubernetes_node_name`: The name of the node object.
   * `__meta_kubernetes_node_provider_id`: The cloud provider's name for the node object.
@@ -742,7 +742,7 @@ One of the following `role` types can be configured to discover targets:
   This is generally useful for blackbox monitoring of a service. The target address will be set to the Kubernetes DNS name
   of the service and respective service port.
 
-  Available meta labels for `role: service`:
+  Available meta labels for `role: service` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_kubernetes_namespace`: The namespace of the service object.
   * `__meta_kubernetes_service_annotation_<annotationname>`: Each annotation from the service object.
@@ -762,7 +762,7 @@ One of the following `role` types can be configured to discover targets:
   a single target is generated. If a container has no specified ports, a port-free target per container is created
   for manually adding a port via relabeling.
 
-  Available meta labels for `role: pod`:
+  Available meta labels for `role: pod` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_kubernetes_namespace`: The namespace of the pod object.
   * `__meta_kubernetes_pod_name`: The name of the pod object.
@@ -789,7 +789,7 @@ One of the following `role` types can be configured to discover targets:
   The `role: endpoints` discovers targets from listed endpoints of a service. For each endpoint address one target is discovered per port.
   If the endpoint is backed by a pod, all additional container ports of the pod, not bound to an endpoint port, are discovered as targets as well.
 
-  Available meta labels for `role: endpoints`:
+  Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
   * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
@@ -815,7 +815,7 @@ One of the following `role` types can be configured to discover targets:
   object one target is discovered. If the endpoint is backed by a pod, all additional container ports of the pod,
   not bound to an endpoint port, are discovered as targets as well.
 
-  Available meta labels for `role: endpointslice`:
+  Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
   * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
@@ -840,7 +840,7 @@ One of the following `role` types can be configured to discover targets:
   The `role: ingress` discovers a target for each path of each ingress. This is generally useful for blackbox monitoring of an ingress.
   The target address will be set to the host specified in the ingress spec.
 
-  Available meta labels for `role: ingress`:
+  Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   * `__meta_kubernetes_namespace`: The namespace of the ingress object.
   * `__meta_kubernetes_ingress_name`: The name of the ingress object.
@@ -851,6 +851,115 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_ingress_class_name`: Class name from ingress spec, if present.
   * `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
   * `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
+
+
+## openstack_sd_configs
+
+OpenStack SD configuration allows retrieving scrape targets from [OpenStack Nova](https://docs.openstack.org/nova/latest/) instances.
+
+[OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: openstack
+  openstack_sd_configs:
+
+    # role must contain either `hypervisor` or `instance`.
+    # See docs below for details.
+  - role: "..."
+
+    # region must contain OpenStack region for targets' discovery.
+    region: "..."
+
+    # identity_endpoint is an optional HTTP Identity API endpoint.
+    # By default it is read from OS_AUTH_URL environment variable.
+    # identity_endpoint: "..."
+
+    # username is an optional username to query Identity API.
+    # By default it is read from OS_USERNAME environment variable.
+    # username: "..."
+
+    # userid is an optional userid to query Identity API.
+    # By default it is read from OS_USERID environment variable.
+    # userid: "..."
+
+    # password is an optional password to query Identity API.
+    # By default it is read from OS_PASSWORD environment variable.
+    # password: "..."
+
+    # At most one of domain_id and domain_name must be provided.
+    # By default they are read from OS_DOMAIN_NAME and OS_DOMAIN_ID environment variables.
+    # domain_name: "..."
+    # domain_id: "..."
+
+    # project_name and project_id are optional project name and project id.
+    # By default is is read from OS_PROJECT_NAME and OS_PROJECT_ID environment variables.
+    # If these vars are emtpy, then the options are read
+    # from OS_TENANT_NAME and OS_TENANT_ID environment variables.
+    # project_name: "..."
+    # project_id: "..."
+
+    # By default these fields are read from OS_APPLICATION_CREDENTIAL_NAME
+    # and OS_APPLICATION_CREDENTIAL_ID environment variables
+    # application_credential_name: "..."
+    # application_credential_id: "..."
+
+    # By default this field is read from OS_APPLICATION_CREDENTIAL_SECRET
+    # application_credential_secret: "..."
+
+    # all_tenants can be set to true if all instances in all projects must be discovered.
+    # It is only relevant for the 'role: instance' and usually requires admin permissions.
+    # all_tenants: ...
+
+    # port is an optional port to scrape metrics from.
+    # port: ...
+
+    # availability is the availability of the endpoint to connect to.
+    # Must be one of public, admin or internal.
+    # By default it is set to public
+    # availability: "..."
+
+    # tls_config is an optional tls config.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # tls_config:
+    #   ...
+```
+
+One of the following `role` types can be configured to discover targets:
+
+* `role: hypervisor`
+
+  The `role: hypervisor` discovers one target per Nova hypervisor node.
+  The target address defaults to the `host_ip` attribute of the hypervisor.
+
+  The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+  * `__meta_openstack_hypervisor_host_ip`: the hypervisor node's IP address.
+  * `__meta_openstack_hypervisor_hostname`: the hypervisor node's name.
+  * `__meta_openstack_hypervisor_id`: the hypervisor node's ID.
+  * `__meta_openstack_hypervisor_state`: the hypervisor node's state.
+  * `__meta_openstack_hypervisor_status`: the hypervisor node's status.
+  * `__meta_openstack_hypervisor_type`: the hypervisor node's type.
+
+* `role: instance`
+
+  The `role: instance` discovers one target per network interface of Nova instance.
+  The target address defaults to the private IP address of the network interface.
+
+  The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+  * `__meta_openstack_address_pool`: the pool of the private IP.
+  * `__meta_openstack_instance_flavor`: the flavor of the OpenStack instance.
+  * `__meta_openstack_instance_id`: the OpenStack instance ID.
+  * `__meta_openstack_instance_name`: the OpenStack instance name.
+  * `__meta_openstack_instance_status`: the status of the OpenStack instance.
+  * `__meta_openstack_private_ip`: the private IP of the OpenStack instance.
+  * `__meta_openstack_project_id`: the project (tenant) owning this instance.
+  * `__meta_openstack_public_ip`: the public IP of the OpenStack instance.
+  * `__meta_openstack_tag_<tagkey>`: each tag value of the instance.
+  * `__meta_openstack_user_id`: the user account owning the tenant.
 
 
 ## yandexcloud_sd_configs
