@@ -235,8 +235,8 @@ func Stop() {
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
-func Push(wr *prompbmarshal.WriteRequest) {
-	PushWithAuthToken(nil, wr)
+func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	PushWithAuthToken(at, wr)
 }
 
 // PushWithAuthToken sends wr to remote storage systems set via `-remoteWrite.multitenantURL`.

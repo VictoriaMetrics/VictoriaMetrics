@@ -3,6 +3,7 @@ package promscrape
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io/ioutil"
 	"math"
 	"math/bits"
@@ -119,6 +120,9 @@ type ScrapeWork struct {
 	// Optional limit on the number of unique series the scrape target can expose.
 	SeriesLimit int
 
+	//The Tenant Info
+	AuthToken *auth.Token
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
@@ -188,7 +192,7 @@ type scrapeWork struct {
 	GetStreamReader func() (*streamReader, error)
 
 	// PushData is called for pushing collected data.
-	PushData func(wr *prompbmarshal.WriteRequest)
+	PushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
 
 	// ScrapeGroup is name of ScrapeGroup that
 	// scrapeWork belongs to
@@ -487,7 +491,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		// See https://github.com/VictoriaMetrics/operator/issues/497
 		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sw.Config.SampleLimit), scrapeTimestamp)
 	}
-	sw.pushData(&wc.writeRequest)
+	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = len(bodyString)
 	wc.reset()
@@ -514,9 +518,9 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	return err
 }
 
-func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
+func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	startTime := time.Now()
-	sw.PushData(wr)
+	sw.PushData(at, wr)
 	pushDataDuration.UpdateDuration(startTime)
 }
 
