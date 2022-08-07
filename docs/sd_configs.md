@@ -4,6 +4,8 @@ sort: 24
 
 # Prometheus service discovery
 
+# Supported service discovery configs
+
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter) supports the following Prometheus-compatible service discovery options for Prometheus-compatible scrape targets in the file pointed by `-promscrape.config` command-line flag.
 
 * `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs).
@@ -1061,78 +1063,9 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_yandexcloud_instance_public_dns_<record number>`: if configured DNS records for public IP
 
 
-## HTTP API client options
-
-The following additional options can be specified in the majority of supported service discovery types:
-
-```yaml
-    # authorization is an optional `Authorization` header configuration.
-    # authorization:
-    #   type: "..."  # default: Bearer
-    #   credentials: "..."
-    #   credentials_file: "..."
-
-    # basic_auth is an optional HTTP basic authentication configuration.
-    # basic_auth:
-    #   username: "..."
-    #   password: "..."
-    #   password_file: "..."
-
-    # bearer_token is an optional Bearer token to send in every HTTP API request during service discovery.
-    # bearer_token: "..."
-
-    # bearer_token_file is an optional path to file with Bearer token to send
-    # in every HTTP API request during service discovery.
-    # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
-    # bearer_token_file: "..."
-
-    # oauth2 is an optional OAuth 2.0 configuration.
-    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
-    # oauth2:
-    #   ...
-
-    # tls_config is an optional TLS configuration.
-    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
-    # tls_config:
-    #   ...
-
-    # proxy_url is an optional URL for the proxy to use for HTTP API queries during service discovery.
-    # proxy_url: "..."
-
-    # proxy_authorization is an optional `Authorization` header config for the proxy_url.
-    # proxy_authorization:
-    #   type: "..."  # default: Bearer
-    #   credentials: "..."
-    #   credentials_file: "..."
-
-    # proxy_basic_auth is an optional HTTP basic authentication configuration for the proxy_url.
-    # proxy_basic_auth:
-    #   username: "..."
-    #   password: "..."
-    #   password_file: "..."
-
-    # proxy_bearer_token is an optional Bearer token to send to proxy_url.
-    # proxy_bearer_token: "..."
-
-    # proxy_bearer_token_file is an optional path to file with Bearer token to send to proxy_url.
-    # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
-    # proxy_bearer_token_file: "..."
-
-    # proxy_oauth2 is an optional OAuth 2.0 configuration for the proxy_url.
-    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
-    # proxy_oauth2:
-    #   ...
-
-    # proxy_tls_config is an optional TLS configuration for the proxy_url.
-    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
-    # proxy_tls_config:
-    #   ...
-```
-
-
 ## scrape_configs
 
-The `scrape_configs` section at file pointed by `-promscrape.config` command-line flag can contain [supported service discovery options](#service-discovery).
+The `scrape_configs` section at file pointed by `-promscrape.config` command-line flag can contain [supported service discovery options](#supported-service-discovery-configs).
 Additionally, it can contain the following options:
 
 ```yaml
@@ -1275,4 +1208,83 @@ scrape_configs:
 
   # Additional HTTP client options for target scraping can be specified here.
   # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+## HTTP API client options
+
+The following additional options can be specified in the [scrape_configs](#scrape_configs)
+and in the majority of [supported service discovery configs](#supported-service-discovery-configs):
+
+```yaml
+    # authorization is an optional `Authorization` header configuration.
+    # authorization:
+    #   type: "..."  # default: Bearer
+    #   credentials: "..."
+    #   credentials_file: "..."
+
+    # basic_auth is an optional HTTP basic authentication configuration.
+    # basic_auth:
+    #   username: "..."
+    #   password: "..."
+    #   password_file: "..."
+
+    # bearer_token is an optional Bearer token to send in every HTTP API request during service discovery.
+    # bearer_token: "..."
+
+    # bearer_token_file is an optional path to file with Bearer token to send
+    # in every HTTP API request during service discovery.
+    # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
+    # bearer_token_file: "..."
+
+    # oauth2 is an optional OAuth 2.0 configuration.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # oauth2:
+    #   ...
+
+    # tls_config is an optional TLS configuration.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # tls_config:
+    #   ...
+
+    # headers is an optional HTTP headers to pass with each request.
+    # headers:
+    # - "HeaderName1: HeaderValue"
+    # - "HeaderNameN: HeaderValueN"
+
+    # proxy_url is an optional URL for the proxy to use for HTTP API queries during service discovery.
+    # proxy_url: "..."
+
+    # proxy_authorization is an optional `Authorization` header config for the proxy_url.
+    # proxy_authorization:
+    #   type: "..."  # default: Bearer
+    #   credentials: "..."
+    #   credentials_file: "..."
+
+    # proxy_basic_auth is an optional HTTP basic authentication configuration for the proxy_url.
+    # proxy_basic_auth:
+    #   username: "..."
+    #   password: "..."
+    #   password_file: "..."
+
+    # proxy_bearer_token is an optional Bearer token to send to proxy_url.
+    # proxy_bearer_token: "..."
+
+    # proxy_bearer_token_file is an optional path to file with Bearer token to send to proxy_url.
+    # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
+    # proxy_bearer_token_file: "..."
+
+    # proxy_oauth2 is an optional OAuth 2.0 configuration for the proxy_url.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # proxy_oauth2:
+    #   ...
+
+    # proxy_tls_config is an optional TLS configuration for the proxy_url.
+    # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    # proxy_tls_config:
+    #   ...
+
+    # proxy_headers is an optional HTTP headers to pass to the proxy_url.
+    # proxy_headers:
+    # - "HeaderName1: HeaderValue"
+    # - "HeaderNameN: HeaderValueN"
 ```
