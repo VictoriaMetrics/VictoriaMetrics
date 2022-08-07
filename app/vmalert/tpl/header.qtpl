@@ -2,6 +2,7 @@
     "strings"
     "net/http"
     "path"
+    "net/url"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 ) %}
@@ -86,7 +87,11 @@ type NavItem struct {
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
             {% for _, item := range items  %}
                 <li class="nav-item">
-                    <a class="nav-link{% if current == item.Name %} active{% endif %}" href="{%s path.Join(prefix,item.Url) %}">
+                    {% code
+                    u, _ := url.Parse(item.Url)
+                    %}
+                    <a class="nav-link{% if current == item.Name %} active{% endif %}"
+                       href="{% if u.IsAbs() %}{%s item.Url %}{% else %}{%s path.Join(prefix,item.Url) %}{% endif %}">
                         {%s item.Name %}
                     </a>
                 </li>
