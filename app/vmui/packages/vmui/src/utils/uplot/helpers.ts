@@ -8,7 +8,7 @@ export const defaultOptions = {
   },
   cursor: {
     drag: {
-      x: false,
+      x: true,
       y: false
     },
     focus: {
@@ -19,12 +19,9 @@ export const defaultOptions = {
       width: 1.4
     },
     bind: {
-      mouseup: (): null => null,
-      mousedown: (): null => null,
       click: (): null => null,
       dblclick: (): null => null,
-      mouseenter: (): null => null
-    }
+    },
   },
 };
 

@@ -263,8 +263,9 @@ It also provides the ability to [explore cardinality](#cardinality-explorer) and
 
 Graphs in vmui support scrolling and zooming:
 
-* Drag the graph to the left / right in order to move the displayed time range into the past / future.
-* Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
+* Select the needed time range on the graph in order to zoom in into the selected time range. Hold `ctrl` (or `cmd` on MacOS) and scroll down in order to zoom out.
+* Hold `ctrl` (or `cmd` on MacOS) and scroll up in order to zoom in the area under cursor.
+* Hold `ctrl` (or `cmd` on MacOS) and drag the graph to the left / right in order to move the displayed time range into the future / past.
 
 Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
