@@ -37,7 +37,8 @@ import "unicode/utf8"
 //
 // Note that in accordance with UAX #14 LB3, the final segment will end with
 // "mustBreak" set to true. You can choose to ignore this by checking if the
-// length of the "rest" slice is 0.
+// length of the "rest" slice is 0 and calling [HasTrailingLineBreak] or
+// [HasTrailingLineBreakInString] on the last rune.
 //
 // Note also that this algorithm may break within grapheme clusters. This is
 // addressed in Section 8.2 Example 6 of UAX #14. To avoid this, you can use
@@ -110,4 +111,19 @@ func FirstLineSegmentInString(str string, state int) (segment, rest string, must
 			return str, "", true, lbAny // LB3.
 		}
 	}
+}
+
+// HasTrailingLineBreak returns true if the last rune in the given byte slice is
+// one of the hard line break code points as defined in LB4 and LB5 of UAX #14.
+func HasTrailingLineBreak(b []byte) bool {
+	r, _ := utf8.DecodeLastRune(b)
+	property, _ := propertyWithGenCat(lineBreakCodePoints, r)
+	return property == lbBK || property == lbCR || property == lbLF || property == lbNL
+}
+
+// HasTrailingLineBreakInString is like [HasTrailingLineBreak] but for a string.
+func HasTrailingLineBreakInString(str string) bool {
+	r, _ := utf8.DecodeLastRuneInString(str)
+	property, _ := propertyWithGenCat(lineBreakCodePoints, r)
+	return property == lbBK || property == lbCR || property == lbLF || property == lbNL
 }

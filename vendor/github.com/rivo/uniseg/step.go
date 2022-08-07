@@ -76,7 +76,8 @@ const (
 //
 // Note that in accordance with UAX #14 LB3, the final segment will end with
 // a mandatory line break (boundaries&MaskLine == LineMustBreak). You can choose
-// to ignore this by checking if the length of the "rest" slice is 0.
+// to ignore this by checking if the length of the "rest" slice is 0 and calling
+// [HasTrailingLineBreak] or [HasTrailingLineBreakInString] on the last rune.
 func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState int) {
 	// An empty byte slice returns nothing.
 	if len(b) == 0 {
@@ -136,7 +137,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 	}
 }
 
-// StepString is like Step() but its input and outputs are strings.
+// StepString is like [Step] but its input and outputs are strings.
 func StepString(str string, state int) (cluster, rest string, boundaries int, newState int) {
 	// An empty byte slice returns nothing.
 	if len(str) == 0 {
