@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -1728,7 +1729,7 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 			// since it may be broken.
 			_ = bc.Close()
 		}
-		if deadline.Exceeded() {
+		if deadline.Exceeded() || errors.Is(err, os.ErrDeadlineExceeded) {
 			return fmt.Errorf("cannot execute funcName=%q on vmstorage %q with timeout %s: %w", funcName, remoteAddr, deadline.String(), err)
 		}
 		return fmt.Errorf("cannot execute funcName=%q on vmstorage %q: %w", funcName, remoteAddr, err)
