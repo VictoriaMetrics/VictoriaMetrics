@@ -36,7 +36,7 @@ app-via-docker: package-builder
 		--env GOCACHE=/gocache \
 		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
-		go build $(RACE) -mod=vendor -trimpath -buildvcs=false \
+		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
 			-tags 'netgo osusergo nethttpomithttp2 musl' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
@@ -51,7 +51,7 @@ app-via-docker-windows: package-builder
 		--env GOCACHE=/gocache \
 		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
-		go build $(RACE) -mod=vendor -trimpath -buildvcs=false \
+		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
 			-tags 'netgo osusergo nethttpomithttp2' \
 			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
