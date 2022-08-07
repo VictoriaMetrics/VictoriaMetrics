@@ -19,13 +19,13 @@ func NewToken(authToken string) (*Token, error) {
 		return nil, fmt.Errorf("unexpected number of items in authToken %q; got %d; want 1 or 2", authToken, len(tmp))
 	}
 	var at Token
-	accountID, err := strconv.Atoi(tmp[0])
+	accountID, err := strconv.ParseUint(tmp[0], 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse accountID from %q: %w", tmp[0], err)
 	}
 	at.AccountID = uint32(accountID)
 	if len(tmp) > 1 {
-		projectID, err := strconv.Atoi(tmp[1])
+		projectID, err := strconv.ParseUint(tmp[1], 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse projectID from %q: %w", tmp[1], err)
 		}
