@@ -123,13 +123,13 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
+	tsw.rowsProcessed = len(r.Timestamps)
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			atomic.StoreUint32(tsw.mustStop, 1)
 			return err
 		}
 	}
-	tsw.rowsProcessed = len(r.Values)
 	return nil
 }
 
@@ -182,19 +182,18 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsws[i] = tsw
 	}
 	// Shuffle tsws for providing the equal amount of work among workers.
-	r := rand.New(rand.NewSource(int64(fasttime.UnixTimestamp())))
+	r := getRand()
 	r.Shuffle(len(tsws), func(i, j int) {
 		tsws[i], tsws[j] = tsws[j], tsws[i]
 	})
+	putRand(r)
 
 	// Spin up up to gomaxprocs local workers and split work equally among them.
 	// This guarantees linear scalability with the increase of gomaxprocs
 	// (e.g. the number of available CPU cores).
-	workers := len(rss.packedTimeseries)
 	itemsPerWorker := 1
-	if workers > gomaxprocs {
-		itemsPerWorker = 1 + workers/gomaxprocs
-		workers = gomaxprocs
+	if len(rss.packedTimeseries) > gomaxprocs {
+		itemsPerWorker = 1 + len(rss.packedTimeseries)/gomaxprocs
 	}
 	var start int
 	var i uint
@@ -238,6 +237,20 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	qt.Donef("series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
 
 	return firstErr
+}
+
+var randPool sync.Pool
+
+func getRand() *rand.Rand {
+	v := randPool.Get()
+	if v == nil {
+		v = rand.New(rand.NewSource(int64(fasttime.UnixTimestamp())))
+	}
+	return v.(*rand.Rand)
+}
+
+func putRand(r *rand.Rand) {
+	randPool.Put(r)
 }
 
 var (

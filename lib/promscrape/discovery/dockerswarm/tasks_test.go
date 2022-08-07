@@ -27,13 +27,13 @@ func Test_parseTasks(t *testing.T) {
     "Version": {
       "Index": 23
     },
-    "Labels": {
-	    "label1": "value1"
-    },
     "Spec": {
       "ContainerSpec": {
         "Image": "redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842",
-        "Init": false
+        "Init": false,
+        "Labels": {
+	    "label1": "value1"
+        }
       },
       "Resources": {
         "Limits": {},
@@ -70,8 +70,18 @@ func Test_parseTasks(t *testing.T) {
 					ID:        "t4rdm7j2y9yctbrksiwvsgpu5",
 					ServiceID: "t91nf284wzle1ya09lqvyjgnq",
 					NodeID:    "qauwmifceyvqs0sipvzu8oslu",
-					Labels: map[string]string{
-						"label1": "value1",
+					Spec: struct {
+						ContainerSpec struct {
+							Labels map[string]string
+						}
+					}{
+						ContainerSpec: struct {
+							Labels map[string]string
+						}{
+							Labels: map[string]string{
+								"label1": "value1",
+							},
+						},
 					},
 					DesiredState: "running",
 					Slot:         1,
@@ -97,7 +107,7 @@ func Test_parseTasks(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseTasks() got = %v, want %v", got, tt.want)
+				t.Errorf("parseTasks() got\n%v\nwant\n%v", got, tt.want)
 			}
 		})
 	}
@@ -126,7 +136,6 @@ func Test_addTasksLabels(t *testing.T) {
 						ID:           "t4rdm7j2y9yctbrksiwvsgpu5",
 						ServiceID:    "t91nf284wzle1ya09lqvyjgnq",
 						NodeID:       "qauwmifceyvqs0sipvzu8oslu",
-						Labels:       map[string]string{},
 						DesiredState: "running",
 						Slot:         1,
 						Status: struct {
@@ -194,7 +203,6 @@ func Test_addTasksLabels(t *testing.T) {
 						ID:           "t4rdm7j2y9yctbrksiwvsgpu5",
 						ServiceID:    "tgsci5gd31aai3jyudv98pqxf",
 						NodeID:       "qauwmifceyvqs0sipvzu8oslu",
-						Labels:       map[string]string{},
 						DesiredState: "running",
 						Slot:         1,
 						NetworksAttachments: []struct {

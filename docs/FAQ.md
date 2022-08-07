@@ -39,7 +39,7 @@ Yes in most cases. VictoriaMetrics can substitute Prometheus in the following as
 ## What is the difference between vmagent and Prometheus?
 
 While both [vmagent](https://docs.victoriametrics.com/vmagent.html) and Prometheus may scrape Prometheus targets (aka `/metrics` pages)
-according to the provided Prometheus-compatible [scrape configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
+according to the provided Prometheus-compatible [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
 and send data to multiple remote storage systems, vmagent has the following additional features:
 
 * vmagent usually requires lower amounts of CPU, RAM and disk IO compared to Prometheus when scraping an enormous number of targets (more than 1000)
