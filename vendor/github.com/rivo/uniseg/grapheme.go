@@ -6,13 +6,13 @@ import "unicode/utf8"
 // user-perceived characters. While iterating, it also provides information
 // about word boundaries, sentence boundaries, and line breaks.
 //
-// After constructing the class via NewGraphemes(str) for a given string "str",
-// Next() is called for every grapheme cluster in a loop until it returns false.
+// After constructing the class via [NewGraphemes] for a given string "str",
+// [Next] is called for every grapheme cluster in a loop until it returns false.
 // Inside the loop, information about the grapheme cluster as well as boundary
 // information is available via the various methods (see examples below).
 //
 // Using this class to iterate over a string is convenient but it is much slower
-// than using this package's Step() or StepString() functions or any of the
+// than using this package's [Step] or [StepString] functions or any of the
 // other specialized functions starting with "First".
 type Graphemes struct {
 	// The original string.
@@ -60,7 +60,7 @@ func (g *Graphemes) Next() bool {
 }
 
 // Runes returns a slice of runes (code points) which corresponds to the current
-// grapheme cluster. If the iterator is already past the end or Next() has not
+// grapheme cluster. If the iterator is already past the end or [Next] has not
 // yet been called, nil is returned.
 func (g *Graphemes) Runes() []rune {
 	if g.state < 0 {
@@ -70,14 +70,14 @@ func (g *Graphemes) Runes() []rune {
 }
 
 // Str returns a substring of the original string which corresponds to the
-// current grapheme cluster. If the iterator is already past the end or Next()
+// current grapheme cluster. If the iterator is already past the end or [Next]
 // has not yet been called, an empty string is returned.
 func (g *Graphemes) Str() string {
 	return g.cluster
 }
 
 // Bytes returns a byte slice which corresponds to the current grapheme cluster.
-// If the iterator is already past the end or Next() has not yet been called,
+// If the iterator is already past the end or [Next] has not yet been called,
 // nil is returned.
 func (g *Graphemes) Bytes() []byte {
 	if g.state < 0 {
@@ -90,7 +90,7 @@ func (g *Graphemes) Bytes() []byte {
 // positions into the original string. The first returned value "from" indexes
 // the first byte and the second returned value "to" indexes the first byte that
 // is not included anymore, i.e. str[from:to] is the current grapheme cluster of
-// the original string "str". If Next() has not yet been called, both values are
+// the original string "str". If [Next] has not yet been called, both values are
 // 0. If the iterator is already past the end, both values are 1.
 func (g *Graphemes) Positions() (int, int) {
 	if g.state == -1 {
@@ -120,9 +120,9 @@ func (g *Graphemes) IsSentenceBoundary() bool {
 }
 
 // LineBreak returns whether the line can be broken after the current grapheme
-// cluster. A value of LineDontBreak means the line may not be broken, a value
-// of LineMustBreak means the line must be broken, and a value of LineCanBreak
-// means the line may or may not be broken.
+// cluster. A value of [LineDontBreak] means the line may not be broken, a value
+// of [LineMustBreak] means the line must be broken, and a value of
+// [LineCanBreak] means the line may or may not be broken.
 func (g *Graphemes) LineBreak() int {
 	if g.state == -1 {
 		return LineDontBreak
@@ -134,7 +134,7 @@ func (g *Graphemes) LineBreak() int {
 }
 
 // Reset puts the iterator into its initial state such that the next call to
-// Next() sets it to the first grapheme cluster again.
+// [Next] sets it to the first grapheme cluster again.
 func (g *Graphemes) Reset() {
 	g.state = -1
 	g.offset = 0
@@ -210,7 +210,7 @@ func FirstGraphemeCluster(b []byte, state int) (cluster, rest []byte, reserved, 
 	}
 }
 
-// FirstGraphemeClusterInString is like FirstGraphemeCluster() but its input and
+// FirstGraphemeClusterInString is like [FirstGraphemeCluster] but its input and
 // outputs are strings.
 func FirstGraphemeClusterInString(str string, state int) (cluster, rest string, reserved, newState int) {
 	// An empty string returns nothing.

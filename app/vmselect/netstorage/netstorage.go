@@ -192,11 +192,9 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// Spin up up to gomaxprocs local workers and split work equally among them.
 	// This guarantees linear scalability with the increase of gomaxprocs
 	// (e.g. the number of available CPU cores).
-	workers := len(rss.packedTimeseries)
 	itemsPerWorker := 1
-	if workers > gomaxprocs {
-		itemsPerWorker = 1 + workers/gomaxprocs
-		workers = gomaxprocs
+	if len(rss.packedTimeseries) > gomaxprocs {
+		itemsPerWorker = 1 + len(rss.packedTimeseries)/gomaxprocs
 	}
 	var start int
 	var i uint

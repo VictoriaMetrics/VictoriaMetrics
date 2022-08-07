@@ -99,6 +99,7 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 func WriteProcessMetrics(w io.Writer) {
 	writeGoMetrics(w)
 	writeProcessMetrics(w)
+	writePushMetrics(w)
 }
 
 // WriteFDMetrics writes `process_max_fds` and `process_open_fds` metrics to w.

@@ -18,12 +18,13 @@ var SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config
 type SDConfig struct {
-	Region    string           `yaml:"region,omitempty"`
-	Endpoint  string           `yaml:"endpoint,omitempty"`
-	AccessKey string           `yaml:"access_key,omitempty"`
-	SecretKey *promauth.Secret `yaml:"secret_key,omitempty"`
+	Region      string           `yaml:"region,omitempty"`
+	Endpoint    string           `yaml:"endpoint,omitempty"`
+	STSEndpoint string           `yaml:"sts_endpoint,omitempty"`
+	AccessKey   string           `yaml:"access_key,omitempty"`
+	SecretKey   *promauth.Secret `yaml:"secret_key,omitempty"`
 	// TODO add support for Profile, not working atm
-	Profile string `yaml:"profile,omitempty"`
+	// Profile string `yaml:"profile,omitempty"`
 	RoleARN string `yaml:"role_arn,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.

@@ -112,6 +112,12 @@ func InitPushExt(pushURL string, interval time.Duration, extraLabels string, wri
 	c := &http.Client{
 		Timeout: interval,
 	}
+	pushesTotal := pushMetrics.GetOrCreateCounter(fmt.Sprintf(`metrics_push_total{url=%q}`, pushURLRedacted))
+	pushErrorsTotal := pushMetrics.GetOrCreateCounter(fmt.Sprintf(`metrics_push_errors_total{url=%q}`, pushURLRedacted))
+	bytesPushedTotal := pushMetrics.GetOrCreateCounter(fmt.Sprintf(`metrics_push_bytes_pushed_total{url=%q}`, pushURLRedacted))
+	pushDuration := pushMetrics.GetOrCreateHistogram(fmt.Sprintf(`metrics_push_duration_seconds{url=%q}`, pushURLRedacted))
+	pushBlockSize := pushMetrics.GetOrCreateHistogram(fmt.Sprintf(`metrics_push_block_size_bytes{url=%q}`, pushURLRedacted))
+	pushMetrics.GetOrCreateFloatCounter(fmt.Sprintf(`metrics_push_interval_seconds{url=%q}`, pushURLRedacted)).Set(interval.Seconds())
 	go func() {
 		ticker := time.NewTicker(interval)
 		var bb bytes.Buffer
@@ -136,15 +142,22 @@ func InitPushExt(pushURL string, interval time.Duration, extraLabels string, wri
 			if err := zw.Close(); err != nil {
 				panic(fmt.Errorf("BUG: cannot flush metrics to gzip writer: %s", err))
 			}
+			pushesTotal.Inc()
+			blockLen := bb.Len()
+			bytesPushedTotal.Add(blockLen)
+			pushBlockSize.Update(float64(blockLen))
 			req, err := http.NewRequest("GET", pushURL, &bb)
 			if err != nil {
-				log.Printf("ERROR: metrics.push: cannot initialize request for metrics push to %q: %s", pushURLRedacted, err)
+				panic(fmt.Errorf("BUG: metrics.push: cannot initialize request for metrics push to %q: %w", pushURLRedacted, err))
 			}
 			req.Header.Set("Content-Type", "text/plain")
 			req.Header.Set("Content-Encoding", "gzip")
+			startTime := time.Now()
 			resp, err := c.Do(req)
+			pushDuration.UpdateDuration(startTime)
 			if err != nil {
 				log.Printf("ERROR: metrics.push: cannot push metrics to %q: %s", pushURLRedacted, err)
+				pushErrorsTotal.Inc()
 				continue
 			}
 			if resp.StatusCode/100 != 2 {
@@ -152,12 +165,19 @@ func InitPushExt(pushURL string, interval time.Duration, extraLabels string, wri
 				_ = resp.Body.Close()
 				log.Printf("ERROR: metrics.push: unexpected status code in response from %q: %d; expecting 2xx; response body: %q",
 					pushURLRedacted, resp.StatusCode, body)
+				pushErrorsTotal.Inc()
 				continue
 			}
 			_ = resp.Body.Close()
 		}
 	}()
 	return nil
+}
+
+var pushMetrics = NewSet()
+
+func writePushMetrics(w io.Writer) {
+	pushMetrics.WritePrometheus(w)
 }
 
 func addExtraLabels(dst, src []byte, extraLabels string) []byte {
