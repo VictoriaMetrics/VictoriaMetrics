@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
@@ -29,6 +30,7 @@ import (
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -80,7 +82,9 @@ func Init() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, opentsdbhttp.InsertHandler)
 	}
-	promscrape.Init(prompush.Push)
+	promscrape.Init(func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		prompush.Push(wr)
+	})
 }
 
 // Stop stops vminsert.

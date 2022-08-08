@@ -60,7 +60,7 @@ func InitPush(pushURL string, interval time.Duration, extraLabels string, pushPr
 // extraLabels may contain comma-separated list of `label="value"` labels, which will be added
 // to all the metrics before pushing them to pushURL.
 //
-/// The metrics are pushed to pushURL in Prometheus text exposition format.
+// / The metrics are pushed to pushURL in Prometheus text exposition format.
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to

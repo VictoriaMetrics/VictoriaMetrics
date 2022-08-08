@@ -140,7 +140,25 @@ While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx
 
 ## Multitenancy
 
-By default `vmagent` collects the data without tenant identifiers and routes it to the configured `-remoteWrite.url`. But it can accept multitenant data if `-remoteWrite.multitenantURL` is set. In this case it accepts multitenant data at `http://vmagent:8429/insert/<accountID>/...` in the same way as cluster version of VictoriaMetrics does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and routes it to `<-remoteWrite.multitenantURL>/insert/<accountID>/prometheus/api/v1/write`. If multiple `-remoteWrite.multitenantURL` command-line options are set, then `vmagent` replicates the collected data across all the configured urls. This allows using a single `vmagent` instance in front of VictoriaMetrics clusters for processing the data from all the tenants.
+By default `vmagent` collects the data without tenant identifiers and routes it to the configured `-remoteWrite.url`.
+
+[Multitenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) support is enabled when `-remoteWrite.multitenantURL` command-line flag is set. In this case `vmagent` accepts multitenant data at `http://vmagent:8429/insert/<accountID>/...` in the same way as cluster version of VictoriaMetrics does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and routes it to `<-remoteWrite.multitenantURL>/insert/<accountID>/prometheus/api/v1/write`. If multiple `-remoteWrite.multitenantURL` command-line options are set, then `vmagent` replicates the collected data across all the configured urls. This allows using a single `vmagent` instance in front of VictoriaMetrics clusters for processing the data from all the tenants.
+
+If `-remoteWrite.multitenantURL` command-line flag is set and `vmagent` is configured to scrape Prometheus-compatible targets (e.g. if `-promscrape.config` command-line flag is set)
+then `vmagent` reads tenantID from `__tenant_id__` label for the discovered targets and routes all the metrics from this target to the given `__tenant_id__`, e.g. to the url `<-remoteWrite.multitnenatURL>/insert/<__tenant_id__>/prometheus/api/v1/write`.
+
+For example, the following relabeling rule instructs sending metrics to tenantID defined in the `prometheus.io/tenant` annotation of Kubernetes pod deployment:
+
+```yaml
+scrape_configs:
+- kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant]
+    target_label: __tenant_id__
+```
+
+If the target has no associated `__tenant_id__` label, then its' metrics are routed to zero tenantID, e.g. to `<-remoteWrite.multitenantURL>/insert/0/prometheus/api/v1/write`.
 
 ## How to collect metrics in Prometheus format
 
