@@ -1,7 +1,6 @@
 package promql
 
 import (
-	"log"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -56,7 +55,7 @@ func Test_validateMaxPointsPerTimeseriesFailed(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := validateMaxPointsPerTimeseries(start, end, step, limiter)
 			if err == nil {
-				log.Fatal("should be non-nil error")
+				t.Fatal("should be non-nil error")
 			}
 		})
 	}
@@ -72,7 +71,7 @@ func Test_validateMaxPointsPerTimeseriesSuccess(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := validateMaxPointsPerTimeseries(start, end, step, limiter)
 			if err != nil {
-				log.Fatal("should be nil error")
+				t.Fatal("should be nil error")
 			}
 		})
 	}
