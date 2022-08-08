@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	addr = flag.String("datasource.url", "", "VictoriaMetrics or vmselect url. Required parameter. "+
+	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. "+
 		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend")
 	appendTypePrefix = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
 

@@ -2,7 +2,7 @@
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
-rules against configured `-datasource.url`. For sending alerting notifications
+rules against configured `-datasource.url` compatible with Prometheus HTTP API. For sending alerting notifications
 vmalert relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
 protocol and require `-remoteWrite.url` to be configured.
@@ -20,7 +20,7 @@ implementation and aims to be compatible with its syntax.
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
-* Lightweight without extra dependencies.
+* Lightweight and without extra dependencies.
 * Supports [reusable templates](#reusable-templates) for annotations.
 
 ## Limitations
@@ -47,7 +47,7 @@ The build binary will be placed in `VictoriaMetrics/bin` folder.
 To start using `vmalert` you will need the following things:
 
 * list of rules - PromQL/MetricsQL expressions to execute;
-* datasource address - reachable MetricsQL endpoint to run queries against;
+* datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
@@ -60,11 +60,11 @@ Then configure `vmalert` accordingly:
 
 ```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
-    -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
+    -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
-    -remoteRead.url=http://localhost:8428 \  # MetricsQL compatible datasource to restore alerts state from
+    -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
     -external.label=replica=a                # Multiple external labels may be set
 ```
@@ -149,7 +149,7 @@ rules:
 ### Rules
 
 Every rule contains `expr` field for [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression. Vmalert will execute the configured
+or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression. `vmalert` will execute the configured
 expression and then act according to the Rule type.
 
 There are two types of Rules:
@@ -174,7 +174,7 @@ The syntax for alerting rule is the following:
 alert: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
+# By default, PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -249,7 +249,7 @@ The syntax for recording rules is following:
 record: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default MetricsQL expression is used. If group.type="graphite", then the expression
+# By default, MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -519,7 +519,7 @@ To run vmalert in `replay` mode:
 
 ```
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
-    -datasource.url=http://localhost:8428 \     # PromQL/MetricsQL compatible datasource
+    -datasource.url=http://localhost:8428 \     # Prometheus HTTP API compatible datasource
     -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
     -replay.timeFrom=2021-05-11T07:21:43Z \     # time from begin replay
     -replay.timeTo=2021-05-29T18:40:43Z         # time to finish replay
@@ -622,333 +622,272 @@ command-line flags with their descriptions.
 The shortlist of configuration flags is the following:
 
 ```
-  -clusterMode
-     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy
   -configCheckInterval duration
-     Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
+        Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
-     Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
+        Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
-     Optional basic auth password for -datasource.url
+        Optional basic auth password for -datasource.url
   -datasource.basicAuth.passwordFile string
-     Optional path to basic auth password to use for -datasource.url
+        Optional path to basic auth password to use for -datasource.url
   -datasource.basicAuth.username string
-     Optional basic auth username for -datasource.url
+        Optional basic auth username for -datasource.url
   -datasource.bearerToken string
-     Optional bearer auth token to use for -datasource.url.
+        Optional bearer auth token to use for -datasource.url.
   -datasource.bearerTokenFile string
-     Optional path to bearer token file to use for -datasource.url.
+        Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
-     Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+        Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
   -datasource.headers string
-     Optional HTTP headers to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
+        Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
-     Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+        Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
-     Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
+        Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+        Optional OAuth2 clientID to use for -datasource.url. 
   -datasource.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -datasource.url.
+        Optional OAuth2 clientSecret to use for -datasource.url.
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+        Optional OAuth2 clientSecretFile to use for -datasource.url. 
   -datasource.oauth2.scopes string
-     Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
+        Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
-     Optional OAuth2 tokenURL to use for -datasource.url.
+        Optional OAuth2 tokenURL to use for -datasource.url.
   -datasource.queryStep duration
-     queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+        queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
   -datasource.queryTimeAlignment
-     Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
+        Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
-     Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
+        Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
+        Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
-     Optional path to client-side TLS certificate file to use when connecting to -datasource.url
+        Optional path to client-side TLS certificate file to use when connecting to -datasource.url
   -datasource.tlsInsecureSkipVerify
-     Whether to skip tls verification when connecting to -datasource.url
+        Whether to skip tls verification when connecting to -datasource.url
   -datasource.tlsKeyFile string
-     Optional path to client-side TLS certificate key to use when connecting to -datasource.url
+        Optional path to client-side TLS certificate key to use when connecting to -datasource.url
   -datasource.tlsServerName string
-     Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
+        Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
-  -defaultTenant.graphite string
-     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
-  -defaultTenant.prometheus string
-     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+        Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
   -disableAlertgroupLabel
-     Whether to disable adding group's Name as label to generated alerts and time series.
+        Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun -rule
-     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
+        Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+        Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
-     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+        Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
-     Prefix for environment variables if -envflag.enable is set
-  -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+        Prefix for environment variables if -envflag.enable is set
   -evaluationInterval duration
-     How often to evaluate the rules (default 1m0s)
+        How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-     eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/vmalert/api/v1/alert?group_id=&alert_id=' is used
+        External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
+        eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/vmalert/api/v1/alert?group_id=&alert_id=' is used
   -external.label array
-     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
+        Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
-     External URL is used as alert's source for sent alerts to the notifier
-  -flagsAuthKey string
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
-  -http.connTimeout duration
-     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
-  -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
-  -http.idleConnTimeout duration
-     Timeout for incoming idle http connections (default 1m0s)
-  -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
-  -http.pathPrefix string
-     An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
-  -http.shutdownDelay duration
-     Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+        External URL is used as alert's source for sent alerts to the notifier
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+        Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+        Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     Address to listen for http connections (default ":8880")
-  -loggerDisableTimestamps
-     Whether to disable writing timestamps in logs
-  -loggerErrorsPerSecondLimit int
-     Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
-  -loggerFormat string
-     Format for logs. Possible values: default, json (default "default")
-  -loggerLevel string
-     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
-  -loggerOutput string
-     Output for the logs. Supported values: stderr, stdout (default "stderr")
-  -loggerTimezone string
-     Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
-  -loggerWarnsPerSecondLimit int
-     Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
-  -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
-  -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+        Address to listen for http connections (default ":8880")
   -metricsAuthKey string
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+        Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
-     Optional basic auth password for -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional basic auth password for -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.passwordFile array
-     Optional path to basic auth password file for -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional path to basic auth password file for -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.username array
-     Optional basic auth username for -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional basic auth username for -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.bearerToken array
-     Optional bearer token for -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional bearer token for -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.bearerTokenFile array
-     Optional path to bearer token file for -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional path to bearer token file for -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.config string
-     Path to configuration file for notifiers
+        Path to configuration file for notifiers
   -notifier.oauth2.clientID array
-     Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.clientSecret array
-     Optional OAuth2 clientSecret to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional OAuth2 clientSecret to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.clientSecretFile array
-     Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.scopes array
-     Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.tokenUrl array
-     Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.suppressDuplicateTargetErrors
-     Whether to suppress 'duplicate target' errors during discovery
+        Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
-     Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsCertFile array
-     Optional path to client-side TLS certificate file to use when connecting to -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional path to client-side TLS certificate file to use when connecting to -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsInsecureSkipVerify array
-     Whether to skip tls verification when connecting to -notifier.url
-     Supports array of values separated by comma or specified via multiple flags.
+        Whether to skip tls verification when connecting to -notifier.url
+        Supports array of values separated by comma or specified via multiple flags.
   -notifier.tlsKeyFile array
-     Optional path to client-side TLS certificate key to use when connecting to -notifier.url
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional path to client-side TLS certificate key to use when connecting to -notifier.url
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsServerName array
-     Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
+        Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
-     Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
-     Supports an array of values separated by comma or specified via multiple flags.
+        Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
+        Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -promscrape.consul.waitTime duration
-     Wait time used by Consul service discovery. Default value is used if not set
-  -promscrape.consulSDCheckInterval duration
-     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
-  -promscrape.discovery.concurrency int
-     The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
-  -promscrape.discovery.concurrentWaitTime duration
-     The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
-  -promscrape.dnsSDCheckInterval duration
-     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
-  -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
-     Supports an array of values separated by comma or specified via multiple flags.
-  -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
-  -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
-     Supports an array of values separated by comma or specified via multiple flags.
+        Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -remoteRead.basicAuth.password string
-     Optional basic auth password for -remoteRead.url
+        Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.passwordFile string
-     Optional path to basic auth password to use for -remoteRead.url
+        Optional path to basic auth password to use for -remoteRead.url
   -remoteRead.basicAuth.username string
-     Optional basic auth username for -remoteRead.url
+        Optional basic auth username for -remoteRead.url
   -remoteRead.bearerToken string
-     Optional bearer auth token to use for -remoteRead.url.
+        Optional bearer auth token to use for -remoteRead.url.
   -remoteRead.bearerTokenFile string
-     Optional path to bearer token file to use for -remoteRead.url.
+        Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/query' path to the configured -datasource.url and -remoteRead.url
+        Whether to disable automatic appending of '/api/v1/query' path to the configured -datasource.url and -remoteRead.url
   -remoteRead.headers string
-     Optional HTTP headers to send with each request to the corresponding -remoteRead.url. For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'
+        Optional HTTP headers to send with each request to the corresponding -remoteRead.url. For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'
   -remoteRead.ignoreRestoreErrors
-     Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
+        Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
   -remoteRead.lookback duration
-     Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
+        Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
   -remoteRead.oauth2.clientID string
-     Optional OAuth2 clientID to use for -remoteRead.url.
+        Optional OAuth2 clientID to use for -remoteRead.url.
   -remoteRead.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -remoteRead.url.
+        Optional OAuth2 clientSecret to use for -remoteRead.url.
   -remoteRead.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -remoteRead.url.
+        Optional OAuth2 clientSecretFile to use for -remoteRead.url.
   -remoteRead.oauth2.scopes string
-     Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
+        Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
-     Optional OAuth2 tokenURL to use for -remoteRead.url. 
+        Optional OAuth2 tokenURL to use for -remoteRead.url. 
   -remoteRead.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
+        Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
   -remoteRead.tlsCertFile string
-     Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url
+        Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url
   -remoteRead.tlsInsecureSkipVerify
-     Whether to skip tls verification when connecting to -remoteRead.url
+        Whether to skip tls verification when connecting to -remoteRead.url
   -remoteRead.tlsKeyFile string
-     Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url
+        Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url
   -remoteRead.tlsServerName string
-     Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
+        Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
   -remoteRead.url vmalert
-     Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend
+        Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend
   -remoteWrite.basicAuth.password string
-     Optional basic auth password for -remoteWrite.url
+        Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.passwordFile string
-     Optional path to basic auth password to use for -remoteWrite.url
+        Optional path to basic auth password to use for -remoteWrite.url
   -remoteWrite.basicAuth.username string
-     Optional basic auth username for -remoteWrite.url
+        Optional basic auth username for -remoteWrite.url
   -remoteWrite.bearerToken string
-     Optional bearer auth token to use for -remoteWrite.url.
+        Optional bearer auth token to use for -remoteWrite.url.
   -remoteWrite.bearerTokenFile string
-     Optional path to bearer token file to use for -remoteWrite.url.
+        Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote querier (default 1)
+        Defines number of writers for concurrent writing into remote querier (default 1)
   -remoteWrite.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
+        Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
-     Defines interval of flushes to remote write endpoint (default 5s)
+        Defines interval of flushes to remote write endpoint (default 5s)
   -remoteWrite.headers string
-     Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
+        Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
   -remoteWrite.maxBatchSize int
-     Defines defines max number of timeseries to be flushed at once (default 1000)
+        Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 100000)
+        Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
-     Optional OAuth2 clientID to use for -remoteWrite.url.
+        Optional OAuth2 clientID to use for -remoteWrite.url.
   -remoteWrite.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -remoteWrite.url.
+        Optional OAuth2 clientSecret to use for -remoteWrite.url.
   -remoteWrite.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
+        Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
   -remoteWrite.oauth2.scopes string
-     Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
+        Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string
-     Optional OAuth2 tokenURL to use for -notifier.url.
+        Optional OAuth2 tokenURL to use for -notifier.url.
   -remoteWrite.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
+        Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
   -remoteWrite.tlsCertFile string
-     Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url
+        Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url
   -remoteWrite.tlsInsecureSkipVerify
-     Whether to skip tls verification when connecting to -remoteWrite.url
+        Whether to skip tls verification when connecting to -remoteWrite.url
   -remoteWrite.tlsKeyFile string
-     Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url
+        Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url
   -remoteWrite.tlsServerName string
-     Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
+        Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
-     Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
+        Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
   -replay.disableProgressBar
-     Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
+        Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
-     Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
+        Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
-     Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
+        Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
-     Delay between rules evaluation within the group. Could be important if there are chained rules inside of the groupand processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
+        Delay between rules evaluation within the group. Could be important if there are chained rules inside of the groupand processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
   -replay.timeFrom string
-     The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
+        The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
   -replay.timeTo string
-     The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
+        The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
-     Path to the file with alert rules.
-     Supports patterns. Flag can be specified multiple times.
-     Examples:
-      -rule="/path/to/file". Path to a single file with alerting rules
-      -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-     absolute path to all .yaml files in root.
-     Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
-     Supports an array of values separated by comma or specified via multiple flags.
+        Path to the file with alert rules.
+        Supports patterns. Flag can be specified multiple times.
+        Examples:
+         -rule="/path/to/file". Path to a single file with alerting rules
+         -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
+        absolute path to all .yaml files in root.
+        Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+        Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration
-     Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
+        Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
-     Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+        Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
   -rule.resendDelay duration
-     Minimum amount of time to wait before resending an alert to notifier
+        Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array
-     Path or glob pattern to location with go template definitions
-      for rules annotations templating. Flag can be specified multiple times.
-     Examples:
-      -rule.templates="/path/to/file". Path to a single file with go templates
-      -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
-     absolute path to all .tpl files in root.
-     Supports an array of values separated by comma or specified via multiple flags.
+        Path or glob pattern to location with go template definitions
+                for rules annotations templating. Flag can be specified multiple times.
+        Examples:
+         -rule.templates="/path/to/file". Path to a single file with go templates
+         -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
+        absolute path to all .tpl files in root.
+        Supports an array of values separated by comma or specified via multiple flags.
   -rule.validateExpressions
-     Whether to validate rules expressions via MetricsQL engine (default true)
+        Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
-     Whether to validate annotation and label templates (default true)
+        Whether to validate annotation and label templates (default true)
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+        Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+        Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
-     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
-     Supports an array of values separated by comma or specified via multiple flags.
+        Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+        Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
-     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+        Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -version
-     Show VictoriaMetrics version
+        Show VictoriaMetrics version
 ```
 
 ### Hot config reload

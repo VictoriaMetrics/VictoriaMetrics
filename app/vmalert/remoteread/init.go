@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	addr = flag.String("remoteRead.url", "", "Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts "+
-		"state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
+	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect."+
+		"Remote read is used to restore alerts state."+
+		"This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
 		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
 
 	headers = flag.String("remoteRead.headers", "", "Optional HTTP headers to send with each request to the corresponding -remoteRead.url. "+
