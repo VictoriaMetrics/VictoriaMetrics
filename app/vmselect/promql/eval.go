@@ -3,6 +3,7 @@ package promql
 import (
 	"flag"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"sort"
@@ -25,10 +26,12 @@ import (
 
 var (
 	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
-	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 1e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
 		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
-	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
+	// TODO write better description of the flag
+	maxPointsPerTimeSeriesSubquery = flag.Int("search.maxPointsSubqueryPerTimeSeries", 4e3, "The maximum points per a single timeseries return from /api/v1/query_range of each sub-query in the query.")
+	noStaleMarkers                 = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -39,12 +42,31 @@ const minTimeseriesPointsForTimeRounding = 50
 // ValidateMaxPointsPerTimeseries checks the maximum number of points that
 // may be returned per each time series.
 //
-// The number mustn't exceed -search.maxPointsPerTimeseries.
+// The number mustn't exceed -search.maxPointsPerTimeSeriesSubquery.
 func ValidateMaxPointsPerTimeseries(start, end, step int64) error {
+	if err := validateMaxPointsPerTimeseries(start, end, step, *maxPointsPerTimeseries); err != nil {
+		return fmt.Errorf(`%w; cannot exceed -search.maxPointsPerTimeseries=%d`, err, *maxPointsPerTimeseries)
+	}
+	return nil
+}
+
+// ValidateSubqueryMaxPointPerTimeseries checks the maximum number of points that
+// may be returned per each time series of sub-query.
+// This limit can be used if you need better resolution result.
+//
+// The number mustn't exceed -search.maxPointsPerTimeSeriesSubquery.
+func ValidateSubqueryMaxPointPerTimeseries(start, end, step int64) error {
+	log.Printf("POINST => %d", uint64((end-start)/step+1))
+	if err := validateMaxPointsPerTimeseries(start, end, step, *maxPointsPerTimeSeriesSubquery); err != nil {
+		return fmt.Errorf(`subquery %w; cannot exceed -search.maxPointsPerTimeSeriesSubquery=%d`, err, *maxPointsPerTimeSeriesSubquery)
+	}
+	return nil
+}
+
+func validateMaxPointsPerTimeseries(start, end, step int64, limiter int) error {
 	points := (end-start)/step + 1
-	if uint64(points) > uint64(*maxPointsPerTimeseries) {
-		return fmt.Errorf(`too many points for the given step=%d, start=%d and end=%d: %d; cannot exceed -search.maxPointsPerTimeseries=%d`,
-			step, start, end, uint64(points), *maxPointsPerTimeseries)
+	if uint64(points) > uint64(limiter) {
+		return fmt.Errorf("too many points for the given step=%d, start=%d and end=%d: %d", step, start, end, uint64(points))
 	}
 	return nil
 }
@@ -185,9 +207,9 @@ func getTimestamps(start, end, step int64) []int64 {
 	if start > end {
 		logger.Panicf("BUG: Start cannot exceed End; got %d vs %d", start, end)
 	}
-	if err := ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
-		logger.Panicf("BUG: %s; this must be validated before the call to getTimestamps", err)
-	}
+	// if err := ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
+	// 	logger.Panicf("BUG: %s; this must be validated before the call to getTimestamps", err)
+	// }
 
 	// Prepare timestamps.
 	points := 1 + (end-start)/step
@@ -784,6 +806,7 @@ func aggregateAbsentOverTime(ec *EvalConfig, expr metricsql.Expr, tss []*timeser
 
 func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
+	log.Printf("HERE")
 	qt = qt.NewChild("subquery")
 	defer qt.Done()
 	step := re.Step.Duration(ec.Step)
@@ -796,7 +819,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	ecSQ.Start -= window + maxSilenceInterval + step
 	ecSQ.End += step
 	ecSQ.Step = step
-	if err := ValidateMaxPointsPerTimeseries(ecSQ.Start, ecSQ.End, ecSQ.Step); err != nil {
+	if err := ValidateSubqueryMaxPointPerTimeseries(ecSQ.Start, ecSQ.End, ecSQ.Step); err != nil {
 		return nil, err
 	}
 	// unconditionally align start and end args to step for subquery as Prometheus does.

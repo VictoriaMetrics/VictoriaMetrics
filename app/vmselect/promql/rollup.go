@@ -513,9 +513,9 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	if rc.Window < 0 {
 		logger.Panicf("BUG: Window must be non-negative; got %d", rc.Window)
 	}
-	if err := ValidateMaxPointsPerTimeseries(rc.Start, rc.End, rc.Step); err != nil {
-		logger.Panicf("BUG: %s; this must be validated before the call to rollupConfig.Do", err)
-	}
+	// if err := ValidateMaxPointsPerTimeseries(rc.Start, rc.End, rc.Step); err != nil {
+	// 	logger.Panicf("BUG: %s; this must be validated before the call to rollupConfig.Do", err)
+	// }
 
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
