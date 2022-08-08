@@ -1173,16 +1173,9 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	var wg syncwg.WaitGroup
-	var stopped uint32
 	var blocksRead uint64
 	var samples uint64
 	processBlock := func(mb *storage.MetricBlock) error {
-		wg.Add(1)
-		defer wg.Done()
-		if atomic.LoadUint32(&stopped) != 0 {
-			return nil
-		}
 		mn := metricNamePool.Get().(*storage.MetricName)
 		if err := mn.Unmarshal(mb.MetricName); err != nil {
 			return fmt.Errorf("cannot unmarshal metricName: %w", err)
@@ -1197,12 +1190,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return nil
 	}
 	_, err := ProcessBlocks(qt, true, sq, processBlock, deadline)
-
-	// Make sure processBlock isn't called anymore in order to prevent from data races.
-	atomic.StoreUint32(&stopped, 1)
-	wg.Wait()
-	qt.Printf("export blocks=%d, samples=%d", blocksRead, samples)
-
+	qt.Printf("export blocks=%d, samples=%d, err=%v", blocksRead, samples, err)
 	if err != nil {
 		return fmt.Errorf("error occured during export: %w", err)
 	}
@@ -1282,16 +1270,9 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		tbf: getTmpBlocksFile(),
 		m:   make(map[string][]tmpBlockAddr),
 	}
-	var wg syncwg.WaitGroup
-	var stopped uint32
 	var blocksRead uint64
 	var samples uint64
 	processBlock := func(mb *storage.MetricBlock) error {
-		wg.Add(1)
-		defer wg.Done()
-		if atomic.LoadUint32(&stopped) != 0 {
-			return nil
-		}
 		atomic.AddUint64(&blocksRead, 1)
 		n := atomic.AddUint64(&samples, uint64(mb.Block.RowsCount()))
 		if *maxSamplesPerQuery > 0 && n > uint64(*maxSamplesPerQuery) {
@@ -1303,11 +1284,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		return nil
 	}
 	isPartial, err := ProcessBlocks(qt, denyPartialResponse, sq, processBlock, deadline)
-
-	// Make sure processBlock isn't called anymore in order to protect from data races.
-	atomic.StoreUint32(&stopped, 1)
-	wg.Wait()
-
 	if err != nil {
 		putTmpBlocksFile(tbfw.tbf)
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
@@ -1338,10 +1314,22 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 	processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) (bool, error) {
 	requestData := sq.Marshal(nil)
 
+	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
+	var stopped uint32
+	var wg syncwg.WaitGroup
+	f := func(mb *storage.MetricBlock) error {
+		wg.Add(1)
+		defer wg.Done()
+		if atomic.LoadUint32(&stopped) != 0 {
+			return nil
+		}
+		return processBlock(mb)
+	}
+
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, idx int, sn *storageNode) interface{} {
 		sn.searchRequests.Inc()
-		err := sn.processSearchQuery(qt, requestData, processBlock, deadline)
+		err := sn.processSearchQuery(qt, requestData, f, deadline)
 		if err != nil {
 			sn.searchErrors.Inc()
 			err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1354,6 +1342,9 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 		errP := result.(*error)
 		return *errP
 	})
+	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
+	atomic.StoreUint32(&stopped, 1)
+	wg.Wait()
 	if err != nil {
 		return isPartial, fmt.Errorf("cannot fetch query results from vmstorage nodes: %w", err)
 	}
