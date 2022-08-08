@@ -55,7 +55,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 - regex:
   - 'fo.+'
   - '.*ba[r-z]a'
-`, "- regex:\n  - fo.+\n  - .*ba[r-z]a\n")
+`, "- regex: fo.+|.*ba[r-z]a\n")
 	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
 	f(`- regex: True`, `- regex: "true"`+"\n")
 	f(`- regex: true`, `- regex: "true"`+"\n")
