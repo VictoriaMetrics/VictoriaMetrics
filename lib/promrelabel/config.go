@@ -104,6 +104,11 @@ func stringValue(v interface{}) (string, error) {
 
 // MarshalYAML marshals mlr to YAML.
 func (mlr *MultiLineRegex) MarshalYAML() (interface{}, error) {
+	if strings.ContainsAny(mlr.S, "([") {
+		// The mlr.S contains groups. Fall back to returning the regexp as is without splitting it into parts.
+		// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2928 .
+		return mlr.S, nil
+	}
 	a := strings.Split(mlr.S, "|")
 	if len(a) == 1 {
 		return a[0], nil

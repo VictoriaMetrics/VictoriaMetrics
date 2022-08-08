@@ -267,8 +267,9 @@ It also provides the ability to [explore cardinality](#cardinality-explorer) and
 
 Graphs in vmui support scrolling and zooming:
 
-* Drag the graph to the left / right in order to move the displayed time range into the past / future.
-* Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
+* Select the needed time range on the graph in order to zoom in into the selected time range. Hold `ctrl` (or `cmd` on MacOS) and scroll down in order to zoom out.
+* Hold `ctrl` (or `cmd` on MacOS) and scroll up in order to zoom in the area under cursor.
+* Hold `ctrl` (or `cmd` on MacOS) and drag the graph to the left / right in order to move the displayed time range into the future / past.
 
 Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
@@ -719,7 +720,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -735,7 +736,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -749,7 +750,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
