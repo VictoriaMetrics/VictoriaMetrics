@@ -29,7 +29,7 @@ var (
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
 		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
 	// TODO write better description of the flag
-	maxPointsPerTimeSeriesSubquery = flag.Int("search.maxPointsSubqueryPerTimeSeries", 30e3, "The maximum points per a single timeseries return from /api/v1/query_range of each sub-query in the query.")
+	maxPointsPerTimeseriesSubquery = flag.Int("search.maxPointsPerTimeseriesSubquery", 30e3, "The maximum points per a single timeseries return from /api/v1/query_range of each sub-query in the query.")
 	noStaleMarkers                 = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 )
 
@@ -53,10 +53,10 @@ func ValidateMaxPointsPerTimeseries(start, end, step int64) error {
 // may be returned per each time series of sub-query.
 // This limit can be used if you need better resolution result.
 //
-// The number mustn't exceed -search.maxPointsPerTimeSeriesSubquery.
+// The number mustn't exceed -search.maxPointsPerTimeseriesSubquery.
 func ValidateSubqueryMaxPointPerTimeseries(start, end, step int64) error {
-	if err := validateMaxPointsPerTimeseries(start, end, step, *maxPointsPerTimeSeriesSubquery); err != nil {
-		return fmt.Errorf(`subquery %w; cannot exceed -search.maxPointsPerTimeSeriesSubquery=%d`, err, *maxPointsPerTimeSeriesSubquery)
+	if err := validateMaxPointsPerTimeseries(start, end, step, *maxPointsPerTimeseriesSubquery); err != nil {
+		return fmt.Errorf(`subquery %w; cannot exceed -search.maxPointsPerTimeSeriesSubquery=%d`, err, *maxPointsPerTimeseriesSubquery)
 	}
 	return nil
 }
