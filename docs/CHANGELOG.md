@@ -39,6 +39,24 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
 
 
+## [v1.79.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.2)
+
+Released at 08-08-2022
+
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix potential panic in [multi-level cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) when top-level `vmselect` is configured with `-replicationFactor` bigger than 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2961).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly handle custom `endpoint` value in [ec2_sd_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). It was ignored since [v1.77.0](https://docs.victoriametrics.com/CHANGELOG.html#v1770) because of a bug in the implementation of [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1287).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): add missing `__meta_kubernetes_ingress_class_name` meta-label for `role: ingress` service discovery in Kubernetes. See [this commit from Prometheus](https://github.com/prometheus/prometheus/commit/7e65ad3e432bd2837c17e3e63e85dcbcc30f4a8a).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow stale responses from Consul service discovery (aka [consul_sd_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)) by default in the same way as Prometheus does. This should reduce load on Consul when discovering big number of targets. Stale responses can be disabled by specifying `allow_stale: false` option in `consul_sd_config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2940).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): [dockerswarm_sd_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config): properly set `__meta_dockerswarm_container_label_*` labels instead of `__meta_dockerswarm_task_label_*` labels as Prometheus does. See [this issue](https://github.com/prometheus/prometheus/issues/9187).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): set `up` metric to `0` for partial scrapes in [stream parsing mode](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode). Previously the `up` metric was set to `1` when at least a single metric has been scraped before the error. This aligns the behaviour of `vmselect` with Prometheus.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): restart all the scrape jobs during [config reload](https://docs.victoriametrics.com/vmagent.html#configuration-update) after `global` section is changed inside `-promscrape.config`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2884).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly assume role with AWS ECS credentials. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2875). Thanks to @transacid for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2876).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not split regex in [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling) into multiple lines if it contains groups. This fixes [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2928).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): return series from `q1` if `q2` doesn't return matching time series in the query `q1 ifnot q2`. Previously series from `q1` weren't returned in this case.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show date picker at `Table` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2874).
+* BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
+
+
 ## [v1.79.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.1)
 
 Released at 02-08-2022
