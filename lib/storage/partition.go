@@ -569,7 +569,7 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
 	}
-	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
 		return
 	}
 	logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -952,19 +952,22 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 			isFinal = false
 			continue
 		}
-		if errors.Is(err, errForciblyStopped) {
-			// The merger has been stopped.
-			return nil
-		}
-		if !errors.Is(err, errNothingToMerge) {
-			return err
-		}
-		if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
-			// We have free time for merging into bigger parts.
-			// This should improve select performance.
-			lastMergeTime = fasttime.UnixTimestamp()
-			isFinal = true
-			continue
+
+		if !errors.Is(err, errReadOnlyMode) {
+			if errors.Is(err, errForciblyStopped) {
+				// The merger has been stopped.
+				return nil
+			}
+			if !errors.Is(err, errNothingToMerge) {
+				return err
+			}
+			if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
+				// We have free time for merging into bigger parts.
+				// This should improve select performance.
+				lastMergeTime = fasttime.UnixTimestamp()
+				isFinal = true
+				continue
+			}
 		}
 
 		// Nothing to merge. Sleep for a while and try again.
@@ -1012,11 +1015,13 @@ func (pt *partition) canBackgroundMerge() bool {
 	return atomic.LoadUint32(pt.isReadOnly) == 0
 }
 
+var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
+
 func (pt *partition) mergeBigParts(isFinal bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	maxOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
 
@@ -1032,7 +1037,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	// Try merging small parts to a big part at first.
 	maxBigPartOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
