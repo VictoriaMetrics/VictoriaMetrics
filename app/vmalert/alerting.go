@@ -561,9 +561,6 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
 	}
 
-	// Get the last data point in range via MetricsQL `last_over_time`.
-	// We don't use plain PromQL since Prometheus doesn't support
-	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
 	qMetrics, err := q.Query(ctx, expr, ts)
