@@ -13,7 +13,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * [How to build vmauth](https://docs.victoriametrics.com/vmauth.html#how-to-build-from-sources)
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
-## tip
+## v1.79.x long-time support release (LTS)
+
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix potential panic in [multi-level cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) when top-level `vmselect` is configured with `-replicationFactor` bigger than 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2961).
+
 
 ## [v1.79.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.1)
 
