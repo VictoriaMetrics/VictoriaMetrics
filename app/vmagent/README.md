@@ -154,7 +154,7 @@ scrape_configs:
 - kubernetes_sd_configs:
   - role: pod
   relabel_configs:
-  - source_labels: [__meta_kubernetes_annotation_prometheus_io_tenant]
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant]
     target_label: __tenant_id__
 ```
 
