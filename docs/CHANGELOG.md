@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.79.x long-time support release (LTS)
 
+## [v1.79.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.2)
+
+Released at 08-08-2022
+
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix potential panic in [multi-level cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) when top-level `vmselect` is configured with `-replicationFactor` bigger than 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2961).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly handle custom `endpoint` value in [ec2_sd_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config). It was ignored since [v1.77.0](https://docs.victoriametrics.com/CHANGELOG.html#v1770) because of a bug in the implementation of [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1287).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): add missing `__meta_kubernetes_ingress_class_name` meta-label for `role: ingress` service discovery in Kubernetes. See [this commit from Prometheus](https://github.com/prometheus/prometheus/commit/7e65ad3e432bd2837c17e3e63e85dcbcc30f4a8a).
