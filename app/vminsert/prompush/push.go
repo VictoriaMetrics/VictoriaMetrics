@@ -14,7 +14,7 @@ var (
 
 const maxRowsPerBlock = 10000
 
-// Push pushes wr to storage.
+// Push pushes wr for the given at to storage.
 func Push(wr *prompbmarshal.WriteRequest) {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)

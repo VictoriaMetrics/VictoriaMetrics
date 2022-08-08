@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -39,7 +40,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 		var sw scrapeWork
 		sw.Config = &ScrapeWork{}
 		sw.ReadData = readDataFunc
-		sw.PushData = func(wr *prompbmarshal.WriteRequest) {}
+		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {}
 		timestamp := int64(0)
 		for pb.Next() {
 			if err := sw.scrapeInternal(timestamp, timestamp); err != nil {

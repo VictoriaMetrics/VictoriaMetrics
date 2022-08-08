@@ -8,8 +8,16 @@ import (
 
 // Token contains settings for request processing
 type Token struct {
-	ProjectID uint32
 	AccountID uint32
+	ProjectID uint32
+}
+
+// String returns string representation of t.
+func (t *Token) String() string {
+	if t.ProjectID == 0 {
+		return fmt.Sprintf("%d", t.AccountID)
+	}
+	return fmt.Sprintf("%d:%d", t.AccountID, t.ProjectID)
 }
 
 // NewToken returns new Token for the given authToken
