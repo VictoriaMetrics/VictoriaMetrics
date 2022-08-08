@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -12,13 +11,13 @@ func TestNewTokenSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		got := fmt.Sprintf("%d:%d", newToken.AccountID, newToken.ProjectID)
+		got := newToken.String()
 		if got != want {
 			t.Fatalf("unexpected NewToken() result;got\n%s\nwant\n%s", got, want)
 		}
 	}
 	// token with accountID only
-	f("1", "1:0")
+	f("1", "1")
 	// token with accountID and projecTID
 	f("1:2", "1:2")
 	// max uint32 accountID

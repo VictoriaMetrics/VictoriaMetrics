@@ -1230,11 +1230,11 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 
 	var at *auth.Token
-	tenantIdRelabeled := promrelabel.GetLabelValueByName(labels, "__tenant_id__")
-	if tenantIdRelabeled != "" {
-		newToken, err := auth.NewToken(tenantIdRelabeled)
+	tenantID := promrelabel.GetLabelValueByName(labels, "__tenant_id__")
+	if tenantID != "" {
+		newToken, err := auth.NewToken(tenantID)
 		if err != nil {
-			return nil, fmt.Errorf("invalid tenant id: %s for job=%s, err: %w", tenantIdRelabeled, swc.jobName, err)
+			return nil, fmt.Errorf("cannot parse __tenant_id__=%q for job=%s, err: %w", tenantID, swc.jobName, err)
 		}
 		at = newToken
 	}
