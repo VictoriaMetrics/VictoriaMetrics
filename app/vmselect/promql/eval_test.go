@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"log"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -47,4 +48,35 @@ m2{a="bar"} 1`, `{a=~"bar|foo"}`)
 m2{b="bar"} 1`, `{}`)
 	f(`m1{a="foo",b="bar"} 1
 m2{b="bar",c="x"} 1`, `{b="bar"}`)
+}
+
+func Test_validateMaxPointsPerTimeseriesFailed(t *testing.T) {
+	f := func(name string, start, end, step int64, limiter int) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			err := validateMaxPointsPerTimeseries(start, end, step, limiter)
+			if err == nil {
+				log.Fatal("should be non-nil error")
+			}
+		})
+	}
+	f("all zeroes", 0, 0, 0, 0)
+	f("more than expected limiter", 0, 1, 1, 0)
+	f("more than expected limiter but limiter not zero", 0, 1, 1, 1)
+	f("calculated point equal to 782 (higher than limiter)", 1659962171908, 1659966077742, 5000, 700)
+}
+
+func Test_validateMaxPointsPerTimeseriesSuccess(t *testing.T) {
+	f := func(name string, start, end, step int64, limiter int) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			err := validateMaxPointsPerTimeseries(start, end, step, limiter)
+			if err != nil {
+				log.Fatal("should be nil error")
+			}
+		})
+	}
+	f("all zeroes", 1, 1, 1, 2)
+	f("calculated point equal to 782 (lower than limiter)", 1659962171908, 1659966077742, 5000, 800)
+	f("calculated point equal to 10000 (equal to limiter)", 1659962150000, 1659966070000, 10000, 393)
 }

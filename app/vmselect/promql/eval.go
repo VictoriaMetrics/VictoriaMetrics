@@ -62,6 +62,9 @@ func ValidateSubqueryMaxPointPerTimeseries(start, end, step int64) error {
 }
 
 func validateMaxPointsPerTimeseries(start, end, step int64, limiter int) error {
+	if step == 0 {
+		return fmt.Errorf("step can't be equal to zero")
+	}
 	points := (end-start)/step + 1
 	if uint64(points) > uint64(limiter) {
 		return fmt.Errorf("too many points for the given step=%d, start=%d and end=%d: %d", step, start, end, uint64(points))
