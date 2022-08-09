@@ -13,12 +13,12 @@ import (
 )
 
 type roundrobin struct {
-	idx     int32
+	idx     uint64
 	servers []string
 }
 
 func (rr *roundrobin) Next() string {
-	idx := atomic.AddInt32(&rr.idx, 1) % int32(len(rr.servers))
+	idx := atomic.AddUint64(&rr.idx, 1) % uint64(len(rr.servers))
 	return rr.servers[idx]
 }
 
@@ -28,7 +28,7 @@ func newRoundRobin(servers []string) (*roundrobin, error) {
 	}
 	return &roundrobin{
 		servers: servers,
-		idx:     int32(rand.Int() % len(servers)),
+		idx:     rand.Uint64() % uint64(len(servers)),
 	}, nil
 }
 
@@ -86,13 +86,11 @@ func (tr *transport) RoundTrip(r *http.Request) (*http.Response, error) {
 		if err == nil {
 			return resp, nil
 		}
-		//TODO
 		if opErr, ok := err.(*net.OpError); ok && opErr.Op == "dial" {
 			continue
 		}
 		return resp, err
 	}
-	//TODO
 	return nil, fmt.Errorf("not found avaliable backend")
 }
 
