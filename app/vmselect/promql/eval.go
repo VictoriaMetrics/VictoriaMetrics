@@ -209,8 +209,7 @@ func getTimestamps(start, end, step int64) []int64 {
 		logger.Panicf("BUG: Start cannot exceed End; got %d vs %d", start, end)
 	}
 	// We should check both max points for any query
-	var err error
-	err = ValidateMaxPointsPerTimeseries(start, end, step)
+	err := ValidateMaxPointsPerTimeseries(start, end, step)
 	err = ValidateSubqueryMaxPointPerTimeseries(start, end, step)
 	if err != nil {
 		logger.Panicf("BUG: %s; this must be validated before the call to getTimestamps", err)

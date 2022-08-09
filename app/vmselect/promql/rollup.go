@@ -514,8 +514,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		logger.Panicf("BUG: Window must be non-negative; got %d", rc.Window)
 	}
 	// We should check both max points for any query
-	var err error
-	err = ValidateMaxPointsPerTimeseries(rc.Start, rc.End, rc.Step)
+	err := ValidateMaxPointsPerTimeseries(rc.Start, rc.End, rc.Step)
 	err = ValidateSubqueryMaxPointPerTimeseries(rc.Start, rc.End, rc.Step)
 	if err != nil {
 		logger.Panicf("BUG: %s; this must be validated before the call to rollupConfig.Do", err)
