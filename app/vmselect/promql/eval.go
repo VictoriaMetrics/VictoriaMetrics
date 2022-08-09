@@ -25,12 +25,12 @@ import (
 
 var (
 	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
-	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range and /api/v1/query. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
-		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
-	// TODO write better description of the flag
-	maxPointsPerTimeseriesSubquery = flag.Int("search.maxPointsPerTimeseriesSubquery", 30e3, "The maximum points per a single timeseries return from /api/v1/query_range of each sub-query in the query.")
-	noStaleMarkers                 = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
+		"returned to graphing UI such as Grafana or VMUI. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
+	maxPointsSubqueryPerTimeseries = flag.Int("search.maxPointsSubqueryPerTimeseries", 30e3, "The maximum points per a single timeseries return from /api/v1/query_range and /api/v1/query of each sub-query in the query."+
+		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is enable better resolution for sub-queries returned to graphing UI such as Grafana or VMUI.")
+	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -53,10 +53,10 @@ func ValidateMaxPointsPerTimeseries(start, end, step int64) error {
 // may be returned per each time series of sub-query.
 // This limit can be used if you need better resolution result.
 //
-// The number mustn't exceed -search.maxPointsPerTimeseriesSubquery.
+// The number mustn't exceed -search.maxPointsSubqueryPerTimeseries.
 func ValidateSubqueryMaxPointPerTimeseries(start, end, step int64) error {
-	if err := validateMaxPointsPerTimeseries(start, end, step, *maxPointsPerTimeseriesSubquery); err != nil {
-		return fmt.Errorf(`subquery %w; cannot exceed -search.maxPointsPerTimeSeriesSubquery=%d`, err, *maxPointsPerTimeseriesSubquery)
+	if err := validateMaxPointsPerTimeseries(start, end, step, *maxPointsSubqueryPerTimeseries); err != nil {
+		return fmt.Errorf(`subquery %w; cannot exceed -search.maxPointsSubqueryPerTimeseries=%d`, err, *maxPointsSubqueryPerTimeseries)
 	}
 	return nil
 }
@@ -208,9 +208,13 @@ func getTimestamps(start, end, step int64) []int64 {
 	if start > end {
 		logger.Panicf("BUG: Start cannot exceed End; got %d vs %d", start, end)
 	}
-	// if err := ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
-	// 	logger.Panicf("BUG: %s; this must be validated before the call to getTimestamps", err)
-	// }
+	// We should check both max points for any query
+	var err error
+	err = ValidateMaxPointsPerTimeseries(start, end, step)
+	err = ValidateSubqueryMaxPointPerTimeseries(start, end, step)
+	if err != nil {
+		logger.Panicf("BUG: %s; this must be validated before the call to getTimestamps", err)
+	}
 
 	// Prepare timestamps.
 	points := 1 + (end-start)/step
