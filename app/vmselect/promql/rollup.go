@@ -515,8 +515,8 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	}
 	// We should check both max points for any query
 	err := ValidateMaxPointsPerTimeseries(rc.Start, rc.End, rc.Step)
-	err = ValidateSubqueryMaxPointPerTimeseries(rc.Start, rc.End, rc.Step)
-	if err != nil {
+	subQueryErr := ValidateSubqueryMaxPointPerTimeseries(rc.Start, rc.End, rc.Step)
+	if err != nil && subQueryErr != nil {
 		logger.Panicf("BUG: %s; this must be validated before the call to rollupConfig.Do", err)
 	}
 
