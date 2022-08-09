@@ -952,22 +952,19 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 			isFinal = false
 			continue
 		}
-
-		if !errors.Is(err, errReadOnlyMode) {
-			if errors.Is(err, errForciblyStopped) {
-				// The merger has been stopped.
-				return nil
-			}
-			if !errors.Is(err, errNothingToMerge) {
-				return err
-			}
-			if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
-				// We have free time for merging into bigger parts.
-				// This should improve select performance.
-				lastMergeTime = fasttime.UnixTimestamp()
-				isFinal = true
-				continue
-			}
+		if errors.Is(err, errForciblyStopped) {
+			// The merger has been stopped.
+			return nil
+		}
+		if !errors.Is(err, errNothingToMerge) && !errors.Is(err, errReadOnlyMode) {
+			return err
+		}
+		if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
+			// We have free time for merging into bigger parts.
+			// This should improve select performance.
+			lastMergeTime = fasttime.UnixTimestamp()
+			isFinal = true
+			continue
 		}
 
 		// Nothing to merge. Sleep for a while and try again.
