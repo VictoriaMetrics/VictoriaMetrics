@@ -60,9 +60,9 @@ func Test_validateMaxPointsPerTimeseriesFailed(t *testing.T) {
 		})
 	}
 	f("all zeroes", 0, 0, 0, 0)
-	f("more than expected limiter", 0, 1, 1, 0)
-	f("more than expected limiter but limiter not zero", 0, 1, 1, 1)
-	f("calculated point equal to 782 (higher than limiter)", 1659962171908, 1659966077742, 5000, 700)
+	f("calculated points more than expected limiter", 0, 1, 1, 0)
+	f("calculated points more than expected limiter but limiter not zero", 0, 1, 1, 1)
+	f("calculated points equal to 782 (higher than limiter)", 1659962171908, 1659966077742, 5000, 700)
 }
 
 func Test_validateMaxPointsPerTimeseriesSuccess(t *testing.T) {
@@ -75,7 +75,7 @@ func Test_validateMaxPointsPerTimeseriesSuccess(t *testing.T) {
 			}
 		})
 	}
-	f("all zeroes", 1, 1, 1, 2)
+	f("limiter bigger than calculated points", 1, 1, 1, 2)
 	f("calculated point equal to 782 (lower than limiter)", 1659962171908, 1659966077742, 5000, 800)
 	f("calculated point equal to 10000 (equal to limiter)", 1659962150000, 1659966070000, 10000, 393)
 }
