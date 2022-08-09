@@ -49,7 +49,7 @@ func newTransport(tr http.RoundTripper, addr string, stopCh chan struct{}) (*tra
 		err  error
 	)
 	host = addr
-	if strings.Index(addr, ":") >= 0 {
+	if strings.Contains(addr, ":") {
 		host, port, err = net.SplitHostPort(addr)
 		if err != nil {
 			return nil, err
