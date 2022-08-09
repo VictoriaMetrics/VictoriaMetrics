@@ -251,6 +251,9 @@ func (rh *requestHandler) groupAlerts() []GroupAlerts {
 			})
 		}
 	}
+	sort.Slice(groupAlerts, func(i, j int) bool {
+		return groupAlerts[i].Group.Name < groupAlerts[j].Group.Name
+	})
 	return groupAlerts
 }
 
