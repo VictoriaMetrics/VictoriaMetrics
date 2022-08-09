@@ -2,7 +2,7 @@ version: '3.5'
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent
+    image: victoriametrics/vmagent:v1.80.0
     depends_on:
       - "vminsert"
     ports:
@@ -17,7 +17,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.0.3
+    image: grafana/grafana:9.0.6
     depends_on:
       - "vmselect"
     ports:
@@ -32,7 +32,7 @@ services:
 
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage
+    image: victoriametrics/vmstorage:v1.80.0-cluster
     ports:
       - 8482
       - 8400
@@ -44,7 +44,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage
+    image: victoriametrics/vmstorage:v1.80.0-cluster
     ports:
       - 8482
       - 8400
@@ -56,7 +56,7 @@ services:
     restart: always
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert
+    image: victoriametrics/vminsert:v1.80.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -68,7 +68,7 @@ services:
     restart: always
   vmselect:
     container_name: vmselect
-    image: victoriametrics/vmselect
+    image: victoriametrics/vmselect:v1.80.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -82,7 +82,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert
+    image: victoriametrics/vmalert:v1.80.0
     depends_on:
       - "vmselect"
     ports:
@@ -103,7 +103,7 @@ services:
 
   alertmanager:
     container_name: alertmanager
-    image:  prom/alertmanager
+    image: prom/alertmanager:v0.24.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
