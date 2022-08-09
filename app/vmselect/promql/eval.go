@@ -25,11 +25,11 @@ import (
 
 var (
 	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
-	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range and /api/v1/query. "+
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
-		"returned to graphing UI such as Grafana or VMUI. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
-	maxPointsSubqueryPerTimeseries = flag.Int("search.maxPointsSubqueryPerTimeseries", 30e3, "The maximum points per a single timeseries return from /api/v1/query_range and /api/v1/query of each sub-query in the query."+
-		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is enable better resolution for sub-queries returned to graphing UI such as Grafana or VMUI.")
+		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
+	maxPointsSubqueryPerTimeseries = flag.Int("search.maxPointsSubqueryPerTimeseries", 30e3, "The maximum points per a single timeseries return from /api/v1/query_range of each sub-query in the query."+
+		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is enable better resolution for sub-queries returned to graphing UI such as VMUI or Grafana.")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 )
 
@@ -51,7 +51,7 @@ func ValidateMaxPointsPerTimeseries(start, end, step int64) error {
 
 // ValidateSubqueryMaxPointPerTimeseries checks the maximum number of points that
 // may be returned per each time series of sub-query.
-// This limit can be used if you need better resolution result.
+// This limit can be used if sub-query should be with better resolution result.
 //
 // The number mustn't exceed -search.maxPointsSubqueryPerTimeseries.
 func ValidateSubqueryMaxPointPerTimeseries(start, end, step int64) error {
