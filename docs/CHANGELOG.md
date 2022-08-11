@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.79.x long-time support release (LTS)
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): do not show `-remoteWrite.url`, `-remoteRead.url`, `-datasource.url` if corresponding `-remoteWrite.showURL`, `-remoteRead.showURL`, `-datasource.showURL` are set. Thanks to @mble for [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2965).
 * SECURITY: upgrade base docker image (alpine) from 3.16.1 to 3.16.2. See [alpine 3.16.2 release notes](https://alpinelinux.org/posts/Alpine-3.13.12-3.14.8-3.15.6-3.16.2-released.html).
 
 * BUGFIX: prevent from excess CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
