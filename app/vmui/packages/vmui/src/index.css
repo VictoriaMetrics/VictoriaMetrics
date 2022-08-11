@@ -22,11 +22,10 @@ code {
   justify-content: center;
   padding: 2px 6px 0;
   text-align: center;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 10px;
   line-height: 22px;
   white-space: nowrap;
-  cursor: default;
   border: 1px solid #dedede;
-  background: #fafafa;
+  cursor: default;
 }
