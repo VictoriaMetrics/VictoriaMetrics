@@ -13,7 +13,7 @@ import (
 var (
 	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
 		"and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
-		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend")
+		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 
