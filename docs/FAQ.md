@@ -332,7 +332,8 @@ Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without
 
 [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can be restarted / upgraded / downgraded without downtime if the following conditions are met:
 
-If every component of the cluster - `vminsert`, `vmselect` and `vmstorage` - has at least 2 instances.
-If the cluster has enough compute resources (CPU, RAM, disk IO, network bandwidth) to perform rolling restart of all its components.
-If the version used for upgrade / downgrade is compatible with the currently running version. The [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) contains compatibility notes for the published releases.
+* If every component of the cluster - `vminsert`, `vmselect` and `vmstorage` - has at least 2 instances.
+* If the cluster has enough compute resources (CPU, RAM, disk IO, network bandwidth) to perform rolling restart of all its components.
+* If the version used for upgrade / downgrade is compatible with the currently running version. The [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) contains compatibility notes for the published releases.
+
 See [updating / reconfiguring cluster nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes) for details on cluster upgrade.
