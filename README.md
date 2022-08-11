@@ -263,8 +263,9 @@ It also provides the ability to [explore cardinality](#cardinality-explorer) and
 
 Graphs in vmui support scrolling and zooming:
 
-* Drag the graph to the left / right in order to move the displayed time range into the past / future.
-* Hold `Ctrl` (or `Cmd` on MacOS) and scroll up / down in order to zoom in / out the graph.
+* Select the needed time range on the graph in order to zoom in into the selected time range. Hold `ctrl` (or `cmd` on MacOS) and scroll down in order to zoom out.
+* Hold `ctrl` (or `cmd` on MacOS) and scroll up in order to zoom in the area under cursor.
+* Hold `ctrl` (or `cmd` on MacOS) and drag the graph to the left / right in order to move the displayed time range into the future / past.
 
 Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
@@ -310,26 +311,11 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
-VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file). Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets. Currently the following [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) types are supported:
-
-* [static_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config)
-* [file_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config)
-* [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config)
-* [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config)
-* [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config)
-* [azure_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config)
-* [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
-* [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
-* [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config)
-* [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config)
-* [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)
-* [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)
-* [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config)
-* [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config)
-
-File a [feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need support for other `*_sd_config` types.
+VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file). Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
+
+See [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html).
 
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
@@ -730,7 +716,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -746,7 +732,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -760,7 +746,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
@@ -870,7 +856,7 @@ when new data is ingested into it.
 
 VictoriaMetrics provides the following handlers for exporting data:
 
-* `/api/v1/export` for exporing data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
+* `/api/v1/export` for exporting data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
 * `/api/v1/export/csv` for exporting data in CSV. See [these docs](#how-to-export-csv-data) for details.
 * `/api/v1/export/native` for exporting data in native binary format. This is the most efficient format for data export.
   See [these docs](#how-to-export-data-in-native-format) for details.
@@ -900,7 +886,7 @@ Optional `max_rows_per_line` arg may be added to the request for limiting the ma
 Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
 In this case the output may contain multiple lines with samples for the same time series.
 
-Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
+Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporting big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
 <div class="with-copy" markdown="1">
@@ -1283,7 +1269,7 @@ The de-duplication reduces disk space usage if multiple identically configured [
 write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series. See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
 
-It is recommended passing different `-promscrape.cluster.name` values to HA paris of `vmagent` instances, so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples from other `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
+It is recommended passing different `-promscrape.cluster.name` values to HA pairs of `vmagent` instances, so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples from other `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
 
 ## Storage
 
@@ -1773,7 +1759,7 @@ when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for accessing vmalert's UI through single-node VictoriaMetrics Web interface.
 
 For accessing vmalert's UI through single-node VictoriaMetrics configure `-vmalert.proxyURL` flag and visit
-`http://<victoriametrics-addr>:8428/vmalert/home` link.
+`http://<victoriametrics-addr>:8428/vmalert/` link.
 
 ## Benchmarks
 
@@ -2117,6 +2103,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
+  -promscrape.yandexcloudSDCheckInterval duration
+     Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. (default 30s)
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.

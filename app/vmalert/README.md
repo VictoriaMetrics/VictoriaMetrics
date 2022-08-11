@@ -2,7 +2,7 @@
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
-rules against configured `-datasource.url`. For sending alerting notifications
+rules against configured `-datasource.url` compatible with Prometheus HTTP API. For sending alerting notifications
 vmalert relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
 protocol and require `-remoteWrite.url` to be configured.
@@ -20,7 +20,7 @@ implementation and aims to be compatible with its syntax.
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
-* Lightweight without extra dependencies.
+* Lightweight and without extra dependencies.
 * Supports [reusable templates](#reusable-templates) for annotations.
 
 ## Limitations
@@ -47,7 +47,7 @@ The build binary will be placed in `VictoriaMetrics/bin` folder.
 To start using `vmalert` you will need the following things:
 
 * list of rules - PromQL/MetricsQL expressions to execute;
-* datasource address - reachable MetricsQL endpoint to run queries against;
+* datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
@@ -60,11 +60,11 @@ Then configure `vmalert` accordingly:
 
 ```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
-    -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
+    -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
-    -remoteRead.url=http://localhost:8428 \  # MetricsQL compatible datasource to restore alerts state from
+    -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
     -external.label=replica=a                # Multiple external labels may be set
 ```
@@ -149,7 +149,7 @@ rules:
 ### Rules
 
 Every rule contains `expr` field for [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression. Vmalert will execute the configured
+or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression. `vmalert` will execute the configured
 expression and then act according to the Rule type.
 
 There are two types of Rules:
@@ -174,7 +174,7 @@ The syntax for alerting rule is the following:
 alert: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
+# By default, PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -249,7 +249,7 @@ The syntax for recording rules is following:
 record: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default MetricsQL expression is used. If group.type="graphite", then the expression
+# By default, MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -489,6 +489,14 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
+`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+This may be used for better integraion with Grafana unified alerting system. See the following docs for details:
+
+* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
+* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
+
+
 ## Graphite
 
 vmalert sends requests to `<-datasource.url>/render?format=json` during evaluation of alerting and recording rules
@@ -511,7 +519,7 @@ To run vmalert in `replay` mode:
 
 ```
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
-    -datasource.url=http://localhost:8428 \     # PromQL/MetricsQL compatible datasource
+    -datasource.url=http://localhost:8428 \     # Prometheus HTTP API compatible datasource
     -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
     -replay.timeFrom=2021-05-11T07:21:43Z \     # time from begin replay
     -replay.timeTo=2021-05-29T18:40:43Z         # time to finish replay
@@ -633,7 +641,7 @@ The shortlist of configuration flags is the following:
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
   -datasource.headers string
-     Optional HTTP headers to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
+     Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
      Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
@@ -665,7 +673,7 @@ The shortlist of configuration flags is the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
+     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
   -defaultTenant.graphite string
      Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
   -defaultTenant.prometheus string
@@ -846,7 +854,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.tlsServerName string
      Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
   -remoteRead.url vmalert
-     Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend
+     Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend
   -remoteWrite.basicAuth.password string
      Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.passwordFile string
@@ -1108,7 +1116,7 @@ spec:
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
@@ -1124,7 +1132,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-linux-arm` or `vmalert-linux-arm64` binary respectively and puts it into the `bin` folder.
 

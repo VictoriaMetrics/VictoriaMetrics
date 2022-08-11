@@ -78,7 +78,8 @@ func TestParseIngressListSuccess(t *testing.T) {
 	  {
             "host": "foobar"
           }
-	]
+	],
+	"ingressClassName": "foo-class"
       },
       "status": {
         "loadBalancer": {
@@ -107,11 +108,12 @@ func TestParseIngressListSuccess(t *testing.T) {
 			"__address__": "foobar",
 			"__meta_kubernetes_ingress_annotation_kubectl_kubernetes_io_last_applied_configuration":        `{"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{},"name":"test-ingress","namespace":"default"},"spec":{"backend":{"serviceName":"testsvc","servicePort":80}}}` + "\n",
 			"__meta_kubernetes_ingress_annotationpresent_kubectl_kubernetes_io_last_applied_configuration": "true",
-			"__meta_kubernetes_ingress_host":   "foobar",
-			"__meta_kubernetes_ingress_name":   "test-ingress",
-			"__meta_kubernetes_ingress_path":   "/",
-			"__meta_kubernetes_ingress_scheme": "http",
-			"__meta_kubernetes_namespace":      "default",
+			"__meta_kubernetes_ingress_host":       "foobar",
+			"__meta_kubernetes_ingress_name":       "test-ingress",
+			"__meta_kubernetes_ingress_path":       "/",
+			"__meta_kubernetes_ingress_scheme":     "http",
+			"__meta_kubernetes_ingress_class_name": "foo-class",
+			"__meta_kubernetes_namespace":          "default",
 		}),
 	}
 	if !areEqualLabelss(sortedLabelss, expectedLabelss) {

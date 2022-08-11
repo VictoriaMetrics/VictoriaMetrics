@@ -51,7 +51,7 @@ func FirstSentence(b []byte, state int) (sentence, rest []byte, newState int) {
 	}
 }
 
-// FirstSentenceInString is like FirstSentence() but its input and outputs are
+// FirstSentenceInString is like [FirstSentence] but its input and outputs are
 // strings.
 func FirstSentenceInString(str string, state int) (sentence, rest string, newState int) {
 	// An empty byte slice returns nothing.

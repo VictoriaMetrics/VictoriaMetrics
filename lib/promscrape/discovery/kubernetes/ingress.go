@@ -52,8 +52,9 @@ type Ingress struct {
 //
 // See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingressspec-v1-networking-k8s-io
 type IngressSpec struct {
-	TLS   []IngressTLS `json:"tls"`
-	Rules []IngressRule
+	TLS              []IngressTLS `json:"tls"`
+	Rules            []IngressRule
+	IngressClassName string
 }
 
 // IngressTLS represents ingress TLS spec in k8s.
@@ -130,12 +131,13 @@ func matchesHostPattern(pattern, host string) bool {
 
 func getLabelsForIngressPath(ig *Ingress, scheme, host, path string) map[string]string {
 	m := map[string]string{
-		"__address__":                      host,
-		"__meta_kubernetes_namespace":      ig.Metadata.Namespace,
-		"__meta_kubernetes_ingress_name":   ig.Metadata.Name,
-		"__meta_kubernetes_ingress_scheme": scheme,
-		"__meta_kubernetes_ingress_host":   host,
-		"__meta_kubernetes_ingress_path":   path,
+		"__address__":                          host,
+		"__meta_kubernetes_namespace":          ig.Metadata.Namespace,
+		"__meta_kubernetes_ingress_name":       ig.Metadata.Name,
+		"__meta_kubernetes_ingress_scheme":     scheme,
+		"__meta_kubernetes_ingress_host":       host,
+		"__meta_kubernetes_ingress_path":       path,
+		"__meta_kubernetes_ingress_class_name": ig.Spec.IngressClassName,
 	}
 	ig.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_ingress", m)
 	return m
