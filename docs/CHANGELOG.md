@@ -15,7 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): do not show `-remoteWrite.url`, `-remoteRead.url`, `-datasource.url` if corresponding `-remoteWrite.showURL`, `-remoteRead.showURL`, `-datasource.showURL` are set. Thanks to @mble for [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2965).
+* SECURITY: [vmalert](https://docs.victoriametrics.com/vmalert.html): do not expose `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flag values in logs and at `http://vmalert:8880/flags` page by default, since they may contain sensitive data such as auth keys. This aligns `vmalert` behaviour with [vmagent](https://docs.victoriametrics.com/vmagent.html), which doesn't expose `-remoteWrite.url` command-line flag value in logs and at `http://vmagent:8429/flags` page by default. Specify `-remoteWrite.showURL`, `-remoteRead.showURL` and `-datasource.showURL` command-line flags for showing values for the corresponding `-*.url` flags in logs. Thanks to @mble for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2965).
+
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve performance for heavy queries on systems with many CPU cores.
 
 * BUGFIX: prevent from excess CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
@@ -76,7 +77,7 @@ Released at 02-08-2022
 **v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
 
-* SECURITY FIX: upgrade base docker image (alpine) from 3.16.0 to 3.16.1 . See [alpine 3.16.1 release notes](https://alpinelinux.org/posts/Alpine-3.16.1-released.html).
+* SECURITY: upgrade base docker image (alpine) from 3.16.0 to 3.16.1 . See [alpine 3.16.1 release notes](https://alpinelinux.org/posts/Alpine-3.16.1-released.html).
 
 
 ## [v1.79.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.0)
