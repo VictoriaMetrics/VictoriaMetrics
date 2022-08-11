@@ -8,12 +8,15 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
 	addr = flag.String("datasource.url", "", "VictoriaMetrics or vmselect url. Required parameter. "+
 		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend")
-	appendTypePrefix = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to show -datasource.url in the exported metrics. "+
+		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	basicAuthUsername     = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
 	basicAuthPassword     = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
@@ -46,6 +49,13 @@ var (
 	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
 )
+
+// InitSecretFlags must be called after flag.Parse and before any logging
+func InitSecretFlags() {
+	if !*showDatasourceURL {
+		flagutil.RegisterSecretFlag("datasource.url")
+	}
+}
 
 // Param represents an HTTP GET param
 type Param struct {
