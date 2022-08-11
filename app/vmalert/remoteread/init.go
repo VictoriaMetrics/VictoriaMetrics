@@ -7,12 +7,16 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts "+
 		"state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
 		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
+
+	showRemoteReadURL = flag.Bool("remoteRead.showURL", false, "Whether to show -remoteRead.url in the exported metrics. "+
+		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
 	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
@@ -35,6 +39,13 @@ var (
 	oauth2TokenURL         = flag.String("remoteRead.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -remoteRead.url. ")
 	oauth2Scopes           = flag.String("remoteRead.oauth2.scopes", "", "Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.")
 )
+
+// InitSecretFlags must be called after flag.Parse and before any logging
+func InitSecretFlags() {
+	if !*showRemoteReadURL {
+		flagutil.RegisterSecretFlag("remoteRead.url")
+	}
+}
 
 // Init creates a Querier from provided flag values.
 // Returns nil if addr flag wasn't set.
