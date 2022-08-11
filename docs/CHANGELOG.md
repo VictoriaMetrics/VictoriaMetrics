@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): do not show `-remoteWrite.url`, `-remoteRead.url`, `-datasource.url` if corresponding `-remoteWrite.showURL`, `-remoteRead.showURL`, `-datasource.showURL` are set. Thanks to @mble for [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2965).
 * BUGFIX: prevent from excess CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
 ## [v1.80.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.80.0)
