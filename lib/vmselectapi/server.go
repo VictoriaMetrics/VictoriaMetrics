@@ -437,7 +437,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read traceEnabled: %w", err)
 	}
-	ctx.qt = querytracer.New(traceEnabled, "%s() at vmstorage", rpcName)
+	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
