@@ -243,6 +243,14 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
      Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pushmetrics.extraLabel array
+     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.interval duration
+     Interval for pushing metrics to -pushmetrics.url (default 10s)
+  -pushmetrics.url array
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Supports an array of values separated by comma or specified via multiple flags.
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -snapshot.createURL string
@@ -272,7 +280,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
 2. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 

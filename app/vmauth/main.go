@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -35,6 +36,8 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
+
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
 	startTime := time.Now()
 	initAuthConfig()

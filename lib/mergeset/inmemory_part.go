@@ -1,8 +1,6 @@
 package mergeset
 
 import (
-	"sync"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -90,18 +88,3 @@ func (mp *inmemoryPart) NewPart() *part {
 func (mp *inmemoryPart) size() uint64 {
 	return uint64(len(mp.metaindexData.B) + len(mp.indexData.B) + len(mp.itemsData.B) + len(mp.lensData.B))
 }
-
-func getInmemoryPart() *inmemoryPart {
-	v := inmemoryPartPool.Get()
-	if v == nil {
-		return &inmemoryPart{}
-	}
-	return v.(*inmemoryPart)
-}
-
-func putInmemoryPart(mp *inmemoryPart) {
-	mp.Reset()
-	inmemoryPartPool.Put(mp)
-}
-
-var inmemoryPartPool sync.Pool

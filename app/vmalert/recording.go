@@ -18,7 +18,7 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
-	Type    datasource.Type
+	Type    config.Type
 	RuleID  uint64
 	Name    string
 	Expr    string
@@ -70,9 +70,10 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
 		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     &group.Type,
+			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
 			QueryParams:        group.Params,
+			Headers:            group.Headers,
 		}),
 	}
 

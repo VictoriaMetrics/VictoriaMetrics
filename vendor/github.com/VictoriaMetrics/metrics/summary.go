@@ -36,9 +36,9 @@ type Summary struct {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned summary is safe to use from concurrent goroutines.
 func NewSummary(name string) *Summary {
@@ -51,9 +51,9 @@ func NewSummary(name string) *Summary {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned summary is safe to use from concurrent goroutines.
 func NewSummaryExt(name string, window time.Duration, quantiles []float64) *Summary {
@@ -140,9 +140,9 @@ func (sm *Summary) updateQuantiles() {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned summary is safe to use from concurrent goroutines.
 //
@@ -158,9 +158,9 @@ func GetOrCreateSummary(name string) *Summary {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned summary is safe to use from concurrent goroutines.
 //

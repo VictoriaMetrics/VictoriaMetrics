@@ -7,6 +7,30 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func TestMultiLineRegexUnmarshalMarshal(t *testing.T) {
+	f := func(data, resultExpected string) {
+		t.Helper()
+		var mlr MultiLineRegex
+		if err := yaml.UnmarshalStrict([]byte(data), &mlr); err != nil {
+			t.Fatalf("cannot unmarshal %q: %s", data, err)
+		}
+		result, err := yaml.Marshal(&mlr)
+		if err != nil {
+			t.Fatalf("cannot marshal %q: %s", data, err)
+		}
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected marshaled data; got\n%q\nwant\n%q", result, resultExpected)
+		}
+	}
+	f(``, `""`+"\n")
+	f(`foo`, "foo\n")
+	f(`a|b||c`, "- a\n- b\n- \"\"\n- c\n")
+	f(`(a|b)`, "(a|b)\n")
+	f(`a|b[c|d]`, "a|b[c|d]\n")
+	f("- a\n- b", "- a\n- b\n")
+	f("- a\n- (b)", "a|(b)\n")
+}
+
 func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f := func(data, resultExpected string) {
 		t.Helper()
@@ -31,7 +55,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 - regex:
   - 'fo.+'
   - '.*ba[r-z]a'
-`, "- regex:\n  - fo.+\n  - .*ba[r-z]a\n")
+`, "- regex: fo.+|.*ba[r-z]a\n")
 	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
 	f(`- regex: True`, `- regex: "true"`+"\n")
 	f(`- regex: true`, `- regex: "true"`+"\n")

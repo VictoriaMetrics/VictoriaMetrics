@@ -21,8 +21,8 @@ import (
 	"regexp"
 
 	"cloud.google.com/go/internal/trace"
+	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	raw "google.golang.org/api/storage/v1"
-	storagepb "google.golang.org/genproto/googleapis/storage/v2"
 )
 
 // A Notification describes how to send Cloud PubSub messages when certain

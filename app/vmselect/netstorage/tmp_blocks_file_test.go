@@ -86,9 +86,12 @@ func testTmpBlocksFile() error {
 			for tbf.offset < uint64(size) {
 				b := createBlock()
 				bb.B = storage.MarshalBlock(bb.B[:0], b)
-				addr, err := tbf.WriteBlockData(bb.B)
+				addr, err := tbf.WriteBlockData(bb.B, 123)
 				if err != nil {
 					return fmt.Errorf("cannot write block at offset %d: %w", tbf.offset, err)
+				}
+				if addr.tbfIdx != 123 {
+					return fmt.Errorf("unexpected tbfIdx; got %d; want 123", addr.tbfIdx)
 				}
 				if addr.offset+uint64(addr.size) != tbf.offset {
 					return fmt.Errorf("unexpected addr=%+v for offset %v", &addr, tbf.offset)

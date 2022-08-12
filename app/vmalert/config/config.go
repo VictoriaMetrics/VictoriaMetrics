@@ -12,8 +12,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -23,7 +21,7 @@ import (
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	Type        datasource.Type `yaml:"type,omitempty"`
+	Type        Type `yaml:"type,omitempty"`
 	File        string
 	Name        string              `yaml:"name"`
 	Interval    *promutils.Duration `yaml:"interval,omitempty"`
@@ -38,6 +36,8 @@ type Group struct {
 	Checksum string
 	// Optional HTTP URL parameters added to each rule request
 	Params url.Values `yaml:"params"`
+	// Headers contains optional HTTP headers added to each rule request
+	Headers []Header `yaml:"headers,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -55,7 +55,7 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	// change default value to prometheus datasource.
 	if g.Type.Get() == "" {
-		g.Type.Set(datasource.NewPrometheusType())
+		g.Type.Set(NewPrometheusType())
 	}
 
 	h := md5.New()
@@ -65,7 +65,7 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Validate check for internal Group or Rule configuration errors
-func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
+func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
 	}
@@ -91,11 +91,11 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
-		if validateAnnotations {
-			if err := notifier.ValidateTemplates(r.Annotations); err != nil {
+		if validateTplFn != nil {
+			if err := validateTplFn(r.Annotations); err != nil {
 				return fmt.Errorf("invalid annotations for rule %q.%q: %w", g.Name, ruleName, err)
 			}
-			if err := notifier.ValidateTemplates(r.Labels); err != nil {
+			if err := validateTplFn(r.Labels); err != nil {
 				return fmt.Errorf("invalid labels for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
@@ -168,8 +168,11 @@ func (r *Rule) Validate() error {
 	return checkOverflow(r.XXX, "rule")
 }
 
+// ValidateTplFn must validate the given annotations
+type ValidateTplFn func(annotations map[string]string) error
+
 // Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool) ([]Group, error) {
+func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	var fp []string
 	for _, pattern := range pathPatterns {
 		matches, err := filepath.Glob(pattern)
@@ -188,7 +191,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 			continue
 		}
 		for _, g := range gr {
-			if err := g.Validate(validateAnnotations, validateExpressions); err != nil {
+			if err := g.Validate(validateTplFn, validateExpressions); err != nil {
 				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
 				continue
 			}

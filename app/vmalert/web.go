@@ -37,7 +37,7 @@ func initLinks() {
 		{"/-/reload", "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: "home"},
+		{Name: "vmalert", Url: "."},
 		{Name: "Groups", Url: "groups"},
 		{Name: "Alerts", Url: "alerts"},
 		{Name: "Notifiers", Url: "notifiers"},
@@ -67,8 +67,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	switch r.URL.Path {
-	case "/", "/vmalert", "/vmalert/home":
+	case "/", "/vmalert", "/vmalert/":
 		if r.Method != "GET" {
+			httpserver.Errorf(w, r, "path %q supports only GET method", r.URL.Path)
 			return false
 		}
 		WriteWelcome(w, r)
@@ -146,6 +147,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		// TODO: to remove in next versions
 
 		if !strings.HasSuffix(r.URL.Path, "/status") {
+			httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
 			return false
 		}
 		alert, err := rh.alertByPath(strings.TrimPrefix(r.URL.Path, "/api/v1/"))
@@ -158,7 +160,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
 			redirectURL = alert.APILink()
 		}
-		http.Redirect(w, r, "/"+redirectURL, http.StatusPermanentRedirect)
+		httpserver.RedirectPermanent(w, "/"+redirectURL)
 		return true
 	}
 }
@@ -249,6 +251,9 @@ func (rh *requestHandler) groupAlerts() []GroupAlerts {
 			})
 		}
 	}
+	sort.Slice(groupAlerts, func(i, j int) bool {
+		return groupAlerts[i].Group.Name < groupAlerts[j].Group.Name
+	})
 	return groupAlerts
 }
 

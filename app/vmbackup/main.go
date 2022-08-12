@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 )
 
@@ -43,6 +44,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	if len(*snapshotCreateURL) > 0 {
 		if len(*snapshotName) > 0 {

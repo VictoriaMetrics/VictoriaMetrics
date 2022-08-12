@@ -57,6 +57,13 @@
                     {% endfor %}
                     </div>
                 {% endif %}
+                {% if len(g.Headers) > 0 %}
+                    <div class="fs-6 fw-lighter">Extra headers
+                    {% for _, header := range g.Headers %}
+                            <span class="float-left badge bg-primary">{%s header %}</span>
+                    {% endfor %}
+                    </div>
+                {% endif %}
             </div>
             <div class="collapse" id="rules-{%s g.ID %}">
                 <table class="table table-striped table-hover table-sm">

@@ -79,10 +79,11 @@ var tmpBlocksFilePool sync.Pool
 type tmpBlockAddr struct {
 	offset uint64
 	size   int
+	tbfIdx int
 }
 
 func (addr tmpBlockAddr) String() string {
-	return fmt.Sprintf("offset %d, size %d", addr.offset, addr.size)
+	return fmt.Sprintf("offset %d, size %d, tbfIdx %d", addr.offset, addr.size, addr.tbfIdx)
 }
 
 var (
@@ -96,8 +97,9 @@ var (
 //
 // It returns errors since the operation may fail on space shortage
 // and this must be handled.
-func (tbf *tmpBlocksFile) WriteBlockData(b []byte) (tmpBlockAddr, error) {
+func (tbf *tmpBlocksFile) WriteBlockData(b []byte, tbfIdx int) (tmpBlockAddr, error) {
 	var addr tmpBlockAddr
+	addr.tbfIdx = tbfIdx
 	addr.offset = tbf.offset
 	addr.size = len(b)
 	tbf.offset += uint64(addr.size)

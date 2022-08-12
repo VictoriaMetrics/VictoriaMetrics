@@ -20,7 +20,7 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	Type         datasource.Type
+	Type         config.Type
 	RuleID       uint64
 	Name         string
 	Expr         string
@@ -72,9 +72,10 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:    group.Name,
 		EvalInterval: group.Interval,
 		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     &group.Type,
+			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
 			QueryParams:        group.Params,
+			Headers:            group.Headers,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
 		metrics: &alertingRuleMetrics{},
@@ -560,9 +561,6 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
 	}
 
-	// Get the last data point in range via MetricsQL `last_over_time`.
-	// We don't use plain PromQL since Prometheus doesn't support
-	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
 	qMetrics, err := q.Query(ctx, expr, ts)

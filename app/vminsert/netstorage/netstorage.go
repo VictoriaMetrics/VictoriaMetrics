@@ -303,7 +303,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
 		"re-routing this data to healthy storage nodes", len(br.buf), br.rows, sn.dialer.Addr(), err)
 	if err = sn.bc.Close(); err != nil {
-		logger.WithThrottler("cannotCloseStorageNodeConn", 5*time.Second).Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
+		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
 	atomic.StoreUint32(&sn.broken, 1)
@@ -311,6 +311,8 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	sn.connectionErrors.Inc()
 	return false
 }
+
+var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageNodeConn", 5*time.Second)
 
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
@@ -673,11 +675,13 @@ func getNotReadyStorageNodeIdxsBlocking(dst []int, snExtra *storageNode) []int {
 		time.Sleep(time.Second)
 		dst = getNotReadyStorageNodeIdxs(dst[:0], snExtra)
 		if availableNodes := len(storageNodes) - len(dst); availableNodes > 0 {
-			logger.WithThrottler("storageNodesBecameAvailable", 5*time.Second).Warnf("%d vmstorage nodes became available, so continue data processing", availableNodes)
+			storageNodesBecameAvailableLogger.Warnf("%d vmstorage nodes became available, so continue data processing", availableNodes)
 			return dst
 		}
 	}
 }
+
+var storageNodesBecameAvailableLogger = logger.WithThrottler("storageNodesBecameAvailable", 5*time.Second)
 
 var noStorageNodesLogger = logger.WithThrottler("storageNodesUnavailable", 5*time.Second)
 

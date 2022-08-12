@@ -234,15 +234,11 @@ func Stop() {
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
-// Note that wr may be modified by Push due to relabeling and rounding.
-func Push(wr *prompbmarshal.WriteRequest) {
-	PushWithAuthToken(nil, wr)
-}
-
-// PushWithAuthToken sends wr to remote storage systems set via `-remoteWrite.multitenantURL`.
+// If at is nil, then the data is pushed to the configured `-remoteWrite.url`.
+// If at isn't nil, the the data is pushed to the configured `-remoteWrite.multitenantURL`.
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
-func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
 		at = defaultAuthToken
@@ -252,7 +248,7 @@ func PushWithAuthToken(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		rwctxs = rwctxsDefault
 	} else {
 		if len(*remoteWriteMultitenantURLs) == 0 {
-			logger.Panicf("BUG: remoteWriteMultitenantURLs must be non-empty for non-nil at")
+			logger.Panicf("BUG: -remoteWrite.multitenantURL command-line flag must be set when __tenant_id__=%q label is set", at)
 		}
 		rwctxsMapLock.Lock()
 		tenantID := tenantmetrics.TenantID{

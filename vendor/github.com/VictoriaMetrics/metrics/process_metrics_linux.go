@@ -45,13 +45,13 @@ func writeProcessMetrics(w io.Writer) {
 	statFilepath := "/proc/self/stat"
 	data, err := ioutil.ReadFile(statFilepath)
 	if err != nil {
-		log.Printf("ERROR: cannot open %s: %s", statFilepath, err)
+		log.Printf("ERROR: metrics: cannot open %s: %s", statFilepath, err)
 		return
 	}
 	// Search for the end of command.
 	n := bytes.LastIndex(data, []byte(") "))
 	if n < 0 {
-		log.Printf("ERROR: cannot find command in parentheses in %q read from %s", data, statFilepath)
+		log.Printf("ERROR: metrics: cannot find command in parentheses in %q read from %s", data, statFilepath)
 		return
 	}
 	data = data[n+2:]
@@ -62,7 +62,7 @@ func writeProcessMetrics(w io.Writer) {
 		&p.State, &p.Ppid, &p.Pgrp, &p.Session, &p.TtyNr, &p.Tpgid, &p.Flags, &p.Minflt, &p.Cminflt, &p.Majflt, &p.Cmajflt,
 		&p.Utime, &p.Stime, &p.Cutime, &p.Cstime, &p.Priority, &p.Nice, &p.NumThreads, &p.ItrealValue, &p.Starttime, &p.Vsize, &p.Rss)
 	if err != nil {
-		log.Printf("ERROR: cannot parse %q read from %s: %s", data, statFilepath, err)
+		log.Printf("ERROR: metrics: cannot parse %q read from %s: %s", data, statFilepath, err)
 		return
 	}
 
@@ -89,17 +89,17 @@ func writeIOMetrics(w io.Writer) {
 	ioFilepath := "/proc/self/io"
 	data, err := ioutil.ReadFile(ioFilepath)
 	if err != nil {
-		log.Printf("ERROR: cannot open %q: %s", ioFilepath, err)
+		log.Printf("ERROR: metrics: cannot open %q: %s", ioFilepath, err)
 	}
 	getInt := func(s string) int64 {
 		n := strings.IndexByte(s, ' ')
 		if n < 0 {
-			log.Printf("ERROR: cannot find whitespace in %q at %q", s, ioFilepath)
+			log.Printf("ERROR: metrics: cannot find whitespace in %q at %q", s, ioFilepath)
 			return 0
 		}
 		v, err := strconv.ParseInt(s[n+1:], 10, 64)
 		if err != nil {
-			log.Printf("ERROR: cannot parse %q at %q: %s", s, ioFilepath, err)
+			log.Printf("ERROR: metrics: cannot parse %q at %q: %s", s, ioFilepath, err)
 			return 0
 		}
 		return v
@@ -137,12 +137,12 @@ var startTimeSeconds = time.Now().Unix()
 func writeFDMetrics(w io.Writer) {
 	totalOpenFDs, err := getOpenFDsCount("/proc/self/fd")
 	if err != nil {
-		log.Printf("ERROR: cannot determine open file descriptors count: %s", err)
+		log.Printf("ERROR: metrics: cannot determine open file descriptors count: %s", err)
 		return
 	}
 	maxOpenFDs, err := getMaxFilesLimit("/proc/self/limits")
 	if err != nil {
-		log.Printf("ERROR: cannot determine the limit on open file descritors: %s", err)
+		log.Printf("ERROR: metrics: cannot determine the limit on open file descritors: %s", err)
 		return
 	}
 	fmt.Fprintf(w, "process_max_fds %d\n", maxOpenFDs)
@@ -211,7 +211,7 @@ type memStats struct {
 func writeProcessMemMetrics(w io.Writer) {
 	ms, err := getMemStats("/proc/self/status")
 	if err != nil {
-		log.Printf("ERROR: cannot determine memory status: %s", err)
+		log.Printf("ERROR: metrics: cannot determine memory status: %s", err)
 		return
 	}
 	fmt.Fprintf(w, "process_virtual_memory_peak_bytes %d\n", ms.vmPeak)

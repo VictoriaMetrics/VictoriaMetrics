@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -67,6 +68,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetLogNewSeries(*logNewSeries)

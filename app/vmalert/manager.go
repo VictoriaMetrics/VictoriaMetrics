@@ -170,6 +170,7 @@ func (g *Group) toAPI() APIGroup {
 		LastEvaluation: g.LastEvaluation,
 		Concurrency:    g.Concurrency,
 		Params:         urlValuesToStrings(g.Params),
+		Headers:        headersToStrings(g.Headers),
 		Labels:         g.Labels,
 	}
 	for _, r := range g.Rules {
@@ -196,5 +197,25 @@ func urlValuesToStrings(values url.Values) []string {
 			res = append(res, fmt.Sprintf("%s=%s", k, v))
 		}
 	}
+	return res
+}
+
+func headersToStrings(headers map[string]string) []string {
+	if len(headers) < 1 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(headers))
+	for k := range headers {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var res []string
+	for _, k := range keys {
+		v := headers[k]
+		res = append(res, fmt.Sprintf("%s: %s", k, v))
+	}
+
 	return res
 }

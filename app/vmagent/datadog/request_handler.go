@@ -82,7 +82,7 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.PushWithAuthToken(at, &ctx.WriteRequest)
+	remotewrite.Push(at, &ctx.WriteRequest)
 	rowsInserted.Add(rowsTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)

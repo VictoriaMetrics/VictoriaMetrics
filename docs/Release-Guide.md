@@ -7,7 +7,8 @@ sort: 18
 ## Release version and Docker images
 
 0. Make sure that the release commits have no security issues.
-1. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
+1a. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
+1b. Add `(available in v1.xx.y)` line to feature docs introduced in the upcoming release.
 2. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
    * `git tag -s v1.xx.y-cluster` in `cluster` branch

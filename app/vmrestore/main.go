@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 )
 
 var (
@@ -35,6 +36,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	go httpserver.Serve(*httpListenAddr, nil)
 

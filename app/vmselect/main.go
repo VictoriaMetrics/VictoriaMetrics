@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -76,6 +77,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	pushmetrics.Init()
 
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
@@ -290,7 +292,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		_ = r.ParseForm()
 		suffix := strings.Replace(p.Suffix, "prometheus/", "../prometheus/", 1)
 		newURL := suffix + "/?" + r.Form.Encode()
-		http.Redirect(w, r, newURL, http.StatusMovedPermanently)
+		httpserver.RedirectPermanent(w, newURL)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
@@ -344,7 +346,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 
 	if p.Suffix == "prometheus/vmalert" {
 		path := "../" + p.Suffix + "/"
-		http.Redirect(w, r, path, http.StatusMovedPermanently)
+		httpserver.RedirectPermanent(w, path)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/vmalert/") {

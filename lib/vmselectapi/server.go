@@ -129,7 +129,8 @@ func (s *Server) run() {
 			}
 			logger.Panicf("FATAL: cannot process vmselect conns at %s: %s", s.ln.Addr(), err)
 		}
-		logger.Infof("accepted vmselect conn from %s", c.RemoteAddr())
+		// Do not log connection accept from vmselect, since this can generate too many lines
+		// in the log because vmselect tends to re-establish idle connections.
 
 		if !s.connsMap.Add(c) {
 			// The server is closed.
@@ -166,13 +167,8 @@ func (s *Server) run() {
 			}
 
 			defer func() {
-				if !s.isStopping() {
-					logger.Infof("closing vmselect conn from %s", c.RemoteAddr())
-				}
 				_ = bc.Close()
 			}()
-
-			logger.Infof("processing vmselect conn from %s", c.RemoteAddr())
 			if err := s.processConn(bc); err != nil {
 				if s.isStopping() {
 					return
@@ -437,7 +433,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read traceEnabled: %w", err)
 	}
-	ctx.qt = querytracer.New(traceEnabled, "%s() at vmstorage", rpcName)
+	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
