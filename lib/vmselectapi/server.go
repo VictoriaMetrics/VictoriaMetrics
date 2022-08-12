@@ -129,7 +129,8 @@ func (s *Server) run() {
 			}
 			logger.Panicf("FATAL: cannot process vmselect conns at %s: %s", s.ln.Addr(), err)
 		}
-		logger.Infof("accepted vmselect conn from %s", c.RemoteAddr())
+		// Do not log connection accept from vmselect, since this can generate too many lines
+		// in the log because vmselect tends to re-establish idle connections.
 
 		if !s.connsMap.Add(c) {
 			// The server is closed.
@@ -166,13 +167,8 @@ func (s *Server) run() {
 			}
 
 			defer func() {
-				if !s.isStopping() {
-					logger.Infof("closing vmselect conn from %s", c.RemoteAddr())
-				}
 				_ = bc.Close()
 			}()
-
-			logger.Infof("processing vmselect conn from %s", c.RemoteAddr())
 			if err := s.processConn(bc); err != nil {
 				if s.isStopping() {
 					return
