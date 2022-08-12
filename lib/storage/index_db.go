@@ -890,6 +890,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
 	prefix := kb.B
 	ts.Seek(prefix)
+	filter.Subtract(dmis)
 	for len(lns) < maxLabelNames && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
@@ -904,7 +905,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		if err := mp.Init(item, nsPrefixExpected); err != nil {
 			return err
 		}
-		if mp.GetMatchingSeriesCount(filter, dmis) == 0 {
+		if mp.GetMatchingSeriesCount(filter, nil) == 0 {
 			continue
 		}
 		labelName := mp.Tag.Key
@@ -1044,6 +1045,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	kb := &is.kb
 	mp := &is.mp
 	dmis := is.db.s.getDeletedMetricIDs()
+	filter.Subtract(dmis)
 	loopsPaceLimiter := 0
 	nsPrefixExpected := byte(nsPrefixDateTagToMetricIDs)
 	if date == 0 {
@@ -1067,7 +1069,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 		if err := mp.Init(item, nsPrefixExpected); err != nil {
 			return err
 		}
-		if mp.GetMatchingSeriesCount(filter, dmis) == 0 {
+		if mp.GetMatchingSeriesCount(filter, nil) == 0 {
 			continue
 		}
 		labelValue := mp.Tag.Value
@@ -1357,6 +1359,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 	kb := &is.kb
 	mp := &is.mp
 	dmis := is.db.s.getDeletedMetricIDs()
+	filter.Subtract(dmis)
 	thSeriesCountByMetricName := newTopHeap(topN)
 	thSeriesCountByLabelName := newTopHeap(topN)
 	thSeriesCountByFocusLabelValue := newTopHeap(topN)
@@ -1390,7 +1393,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 		if err := mp.Init(item, nsPrefixExpected); err != nil {
 			return nil, err
 		}
-		matchingSeriesCount := mp.GetMatchingSeriesCount(filter, dmis)
+		matchingSeriesCount := mp.GetMatchingSeriesCount(filter, nil)
 		if matchingSeriesCount == 0 {
 			// Skip rows without matching metricIDs.
 			continue
@@ -3243,7 +3246,7 @@ func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter
 		if filter != nil && !filter.Has(metricID) {
 			continue
 		}
-		if !negativeFilter.Has(metricID) {
+		if negativeFilter == nil || !negativeFilter.Has(metricID) {
 			n++
 		}
 	}

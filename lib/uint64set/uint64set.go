@@ -351,7 +351,7 @@ func (s *Set) Intersect(a *Set) {
 
 // Subtract removes from s all the shared items between s and a.
 func (s *Set) Subtract(a *Set) {
-	if s.Len() == 0 || a.Len() == 0 {
+	if s == nil || a == nil || s.Len() == 0 || a.Len() == 0 {
 		// Fast path - nothing to subtract.
 		return
 	}
