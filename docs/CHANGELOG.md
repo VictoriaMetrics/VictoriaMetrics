@@ -19,6 +19,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve performance for heavy queries on systems with many CPU cores.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for MX record types in [dns_sd_configs](https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs) in the same way as Prometheus 2.38 [does](https://github.com/prometheus/prometheus/pull/10099).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `toTime()` template function in the same way as Prometheus 2.38 [does](https://github.com/prometheus/prometheus/pull/10993). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/template_reference/#numbers).
 
 * BUGFIX: prevent from excess CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
