@@ -373,8 +373,21 @@ func templateFuncs() textTpl.FuncMap {
 			if math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Sprintf("%.4g", v), nil
 			}
-			t := TimeFromUnixNano(int64(v * 1e9)).Time().UTC()
+			t := timeFromUnixTimestamp(v).Time().UTC()
 			return fmt.Sprint(t), nil
+		},
+
+		// toTime converts given timestamp to a time.Time.
+		"toTime": func(i interface{}) (time.Time, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return time.Time{}, err
+			}
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return time.Time{}, fmt.Errorf("cannot convert %v to time.Time", v)
+			}
+			t := timeFromUnixTimestamp(v).Time().UTC()
+			return t, nil
 		},
 
 		/* URLs */
@@ -492,10 +505,9 @@ func templateFuncs() textTpl.FuncMap {
 // (1970-01-01 00:00 UTC) excluding leap seconds.
 type Time int64
 
-// TimeFromUnixNano returns the Time equivalent to the Unix Time
-// t provided in nanoseconds.
-func TimeFromUnixNano(t int64) Time {
-	return Time(t / nanosPerTick)
+// timeFromUnixTimestamp returns the Time equivalent to t in unix timestamp.
+func timeFromUnixTimestamp(t float64) Time {
+	return Time(t * 1e3)
 }
 
 // The number of nanoseconds per minimum tick.

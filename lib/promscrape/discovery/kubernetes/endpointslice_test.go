@@ -304,7 +304,11 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 			},
 		}
 		for cn, ports := range args.containerPorts {
-			pod.Spec.Containers = append(pod.Spec.Containers, Container{Name: cn, Ports: ports})
+			pod.Spec.Containers = append(pod.Spec.Containers, Container{
+				Name:  cn,
+				Image: "test-image",
+				Ports: ports,
+			})
 		}
 		var gw groupWatcher
 		gw.m = map[string]*urlWatcher{
@@ -432,6 +436,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_node_label_node_label":        "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label": "true",
 				"__meta_kubernetes_node_name":                    "test-node",
+				"__meta_kubernetes_pod_container_image":          "test-image",
 				"__meta_kubernetes_pod_container_name":           "metrics",
 				"__meta_kubernetes_pod_container_port_name":      "http-metrics",
 				"__meta_kubernetes_pod_container_port_number":    "8428",
@@ -484,6 +489,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_node_label_node_label":                                 "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
+				"__meta_kubernetes_pod_container_image":                                   "test-image",
 				"__meta_kubernetes_pod_container_name":                                    "metrics",
 				"__meta_kubernetes_pod_container_port_name":                               "web",
 				"__meta_kubernetes_pod_container_port_number":                             "8428",

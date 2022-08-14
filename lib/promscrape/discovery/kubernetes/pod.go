@@ -66,6 +66,7 @@ type PodSpec struct {
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#container-v1-core
 type Container struct {
 	Name  string
+	Image string
 	Ports []ContainerPort
 }
 
@@ -135,6 +136,7 @@ func appendPodLabelsInternal(ms []map[string]string, gw *groupWatcher, p *Pod, c
 }
 
 func (p *Pod) appendContainerLabels(m map[string]string, c Container, cp *ContainerPort) {
+	m["__meta_kubernetes_pod_container_image"] = c.Image
 	m["__meta_kubernetes_pod_container_name"] = c.Name
 	if cp != nil {
 		m["__meta_kubernetes_pod_container_port_name"] = cp.Name

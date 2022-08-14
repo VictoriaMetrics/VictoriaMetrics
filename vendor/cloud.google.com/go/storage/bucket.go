@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"reflect"
 	"time"
 
@@ -55,7 +54,8 @@ type BucketHandle struct {
 // The supplied name must contain only lowercase letters, numbers, dashes,
 // underscores, and dots. The full specification for valid bucket names can be
 // found at:
-//   https://cloud.google.com/storage/docs/bucket-naming
+//
+//	https://cloud.google.com/storage/docs/bucket-naming
 func (c *Client) Bucket(name string) *BucketHandle {
 	retry := c.retry.clone()
 	return &BucketHandle{
@@ -82,27 +82,11 @@ func (b *BucketHandle) Create(ctx context.Context, projectID string, attrs *Buck
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Bucket.Create")
 	defer func() { trace.EndSpan(ctx, err) }()
 
-	var bkt *raw.Bucket
-	if attrs != nil {
-		bkt = attrs.toRawBucket()
-	} else {
-		bkt = &raw.Bucket{}
+	o := makeStorageOpts(true, b.retry, b.userProject)
+	if _, err := b.c.tc.CreateBucket(ctx, projectID, b.name, attrs, o...); err != nil {
+		return err
 	}
-	bkt.Name = b.name
-	// If there is lifecycle information but no location, explicitly set
-	// the location. This is a GCS quirk/bug.
-	if bkt.Location == "" && bkt.Lifecycle != nil {
-		bkt.Location = "US"
-	}
-	req := b.c.raw.Buckets.Insert(projectID, bkt)
-	setClientHeader(req.Header())
-	if attrs != nil && attrs.PredefinedACL != "" {
-		req.PredefinedAcl(attrs.PredefinedACL)
-	}
-	if attrs != nil && attrs.PredefinedDefaultObjectACL != "" {
-		req.PredefinedDefaultObjectAcl(attrs.PredefinedDefaultObjectACL)
-	}
-	return run(ctx, func() error { _, err := req.Context(ctx).Do(); return err }, b.retry, true, setRetryHeaderHTTP(req))
+	return nil
 }
 
 // Delete deletes the Bucket.
@@ -110,24 +94,8 @@ func (b *BucketHandle) Delete(ctx context.Context) (err error) {
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Bucket.Delete")
 	defer func() { trace.EndSpan(ctx, err) }()
 
-	req, err := b.newDeleteCall()
-	if err != nil {
-		return err
-	}
-
-	return run(ctx, func() error { return req.Context(ctx).Do() }, b.retry, true, setRetryHeaderHTTP(req))
-}
-
-func (b *BucketHandle) newDeleteCall() (*raw.BucketsDeleteCall, error) {
-	req := b.c.raw.Buckets.Delete(b.name)
-	setClientHeader(req.Header())
-	if err := applyBucketConds("BucketHandle.Delete", b.conds, req); err != nil {
-		return nil, err
-	}
-	if b.userProject != "" {
-		req.UserProject(b.userProject)
-	}
-	return req, nil
+	o := makeStorageOpts(true, b.retry, b.userProject)
+	return b.c.tc.DeleteBucket(ctx, b.name, b.conds, o...)
 }
 
 // ACL returns an ACLHandle, which provides access to the bucket's access control list.
@@ -150,7 +118,8 @@ func (b *BucketHandle) DefaultObjectACL() *ACLHandle {
 //
 // name must consist entirely of valid UTF-8-encoded runes. The full specification
 // for valid object names can be found at:
-//   https://cloud.google.com/storage/docs/naming-objects
+//
+//	https://cloud.google.com/storage/docs/naming-objects
 func (b *BucketHandle) Object(name string) *ObjectHandle {
 	retry := b.retry.clone()
 	return &ObjectHandle{
@@ -175,35 +144,8 @@ func (b *BucketHandle) Attrs(ctx context.Context) (attrs *BucketAttrs, err error
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Bucket.Attrs")
 	defer func() { trace.EndSpan(ctx, err) }()
 
-	req, err := b.newGetCall()
-	if err != nil {
-		return nil, err
-	}
-	var resp *raw.Bucket
-	err = run(ctx, func() error {
-		resp, err = req.Context(ctx).Do()
-		return err
-	}, b.retry, true, setRetryHeaderHTTP(req))
-	var e *googleapi.Error
-	if ok := errors.As(err, &e); ok && e.Code == http.StatusNotFound {
-		return nil, ErrBucketNotExist
-	}
-	if err != nil {
-		return nil, err
-	}
-	return newBucket(resp)
-}
-
-func (b *BucketHandle) newGetCall() (*raw.BucketsGetCall, error) {
-	req := b.c.raw.Buckets.Get(b.name).Projection("full")
-	setClientHeader(req.Header())
-	if err := applyBucketConds("BucketHandle.Attrs", b.conds, req); err != nil {
-		return nil, err
-	}
-	if b.userProject != "" {
-		req.UserProject(b.userProject)
-	}
-	return req, nil
+	o := makeStorageOpts(true, b.retry, b.userProject)
+	return b.c.tc.GetBucket(ctx, b.name, b.conds, o...)
 }
 
 // Update updates a bucket's attributes.
@@ -211,43 +153,9 @@ func (b *BucketHandle) Update(ctx context.Context, uattrs BucketAttrsToUpdate) (
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Bucket.Create")
 	defer func() { trace.EndSpan(ctx, err) }()
 
-	req, err := b.newPatchCall(&uattrs)
-	if err != nil {
-		return nil, err
-	}
-	if uattrs.PredefinedACL != "" {
-		req.PredefinedAcl(uattrs.PredefinedACL)
-	}
-	if uattrs.PredefinedDefaultObjectACL != "" {
-		req.PredefinedDefaultObjectAcl(uattrs.PredefinedDefaultObjectACL)
-	}
-
 	isIdempotent := b.conds != nil && b.conds.MetagenerationMatch != 0
-
-	var rawBucket *raw.Bucket
-	call := func() error {
-		rb, err := req.Context(ctx).Do()
-		rawBucket = rb
-		return err
-	}
-
-	if err := run(ctx, call, b.retry, isIdempotent, setRetryHeaderHTTP(req)); err != nil {
-		return nil, err
-	}
-	return newBucket(rawBucket)
-}
-
-func (b *BucketHandle) newPatchCall(uattrs *BucketAttrsToUpdate) (*raw.BucketsPatchCall, error) {
-	rb := uattrs.toRawBucket()
-	req := b.c.raw.Buckets.Patch(b.name, rb).Projection("full")
-	setClientHeader(req.Header())
-	if err := applyBucketConds("BucketHandle.Update", b.conds, req); err != nil {
-		return nil, err
-	}
-	if b.userProject != "" {
-		req.UserProject(b.userProject)
-	}
-	return req, nil
+	o := makeStorageOpts(isIdempotent, b.retry, b.userProject)
+	return b.c.tc.UpdateBucket(ctx, b.name, &uattrs, b.conds, o...)
 }
 
 // SignedURL returns a URL for the specified object. Signed URLs allow anyone
@@ -1364,15 +1272,8 @@ func (b *BucketHandle) UserProject(projectID string) *BucketHandle {
 // most customers. It might be changed in backwards-incompatible ways and is not
 // subject to any SLA or deprecation policy.
 func (b *BucketHandle) LockRetentionPolicy(ctx context.Context) error {
-	var metageneration int64
-	if b.conds != nil {
-		metageneration = b.conds.MetagenerationMatch
-	}
-	req := b.c.raw.Buckets.LockRetentionPolicy(b.name, metageneration)
-	return run(ctx, func() error {
-		_, err := req.Context(ctx).Do()
-		return err
-	}, b.retry, true, setRetryHeaderHTTP(req))
+	o := makeStorageOpts(true, b.retry, b.userProject)
+	return b.c.tc.LockBucketRetentionPolicy(ctx, b.name, b.conds, o...)
 }
 
 // applyBucketConds modifies the provided call using the conditions in conds.
@@ -1988,18 +1889,8 @@ func customPlacementFromProto(c *storagepb.Bucket_CustomPlacementConfig) *Custom
 //
 // Note: The returned iterator is not safe for concurrent operations without explicit synchronization.
 func (b *BucketHandle) Objects(ctx context.Context, q *Query) *ObjectIterator {
-	it := &ObjectIterator{
-		ctx:    ctx,
-		bucket: b,
-	}
-	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
-		it.fetch,
-		func() int { return len(it.items) },
-		func() interface{} { b := it.items; it.items = nil; return b })
-	if q != nil {
-		it.query = *q
-	}
-	return it
+	o := makeStorageOpts(true, b.retry, b.userProject)
+	return b.c.tc.ListObjects(ctx, b.name, q, o...)
 }
 
 // Retryer returns a bucket handle that is configured with custom retry
@@ -2034,7 +1925,6 @@ func (b *BucketHandle) Retryer(opts ...RetryOption) *BucketHandle {
 // Note: This iterator is not safe for concurrent operations without explicit synchronization.
 type ObjectIterator struct {
 	ctx      context.Context
-	bucket   *BucketHandle
 	query    Query
 	pageInfo *iterator.PageInfo
 	nextFunc func() error
@@ -2071,52 +1961,6 @@ func (it *ObjectIterator) Next() (*ObjectAttrs, error) {
 	return item, nil
 }
 
-func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) {
-	req := it.bucket.c.raw.Objects.List(it.bucket.name)
-	setClientHeader(req.Header())
-	projection := it.query.Projection
-	if projection == ProjectionDefault {
-		projection = ProjectionFull
-	}
-	req.Projection(projection.String())
-	req.Delimiter(it.query.Delimiter)
-	req.Prefix(it.query.Prefix)
-	req.StartOffset(it.query.StartOffset)
-	req.EndOffset(it.query.EndOffset)
-	req.Versions(it.query.Versions)
-	req.IncludeTrailingDelimiter(it.query.IncludeTrailingDelimiter)
-	if len(it.query.fieldSelection) > 0 {
-		req.Fields("nextPageToken", googleapi.Field(it.query.fieldSelection))
-	}
-	req.PageToken(pageToken)
-	if it.bucket.userProject != "" {
-		req.UserProject(it.bucket.userProject)
-	}
-	if pageSize > 0 {
-		req.MaxResults(int64(pageSize))
-	}
-	var resp *raw.Objects
-	var err error
-	err = run(it.ctx, func() error {
-		resp, err = req.Context(it.ctx).Do()
-		return err
-	}, it.bucket.retry, true, setRetryHeaderHTTP(req))
-	if err != nil {
-		var e *googleapi.Error
-		if ok := errors.As(err, &e); ok && e.Code == http.StatusNotFound {
-			err = ErrBucketNotExist
-		}
-		return "", err
-	}
-	for _, item := range resp.Items {
-		it.items = append(it.items, newObject(item))
-	}
-	for _, prefix := range resp.Prefixes {
-		it.items = append(it.items, &ObjectAttrs{Prefix: prefix})
-	}
-	return resp.NextPageToken, nil
-}
-
 // Buckets returns an iterator over the buckets in the project. You may
 // optionally set the iterator's Prefix field to restrict the list to buckets
 // whose names begin with the prefix. By default, all buckets in the project
@@ -2124,17 +1968,8 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 //
 // Note: The returned iterator is not safe for concurrent operations without explicit synchronization.
 func (c *Client) Buckets(ctx context.Context, projectID string) *BucketIterator {
-	it := &BucketIterator{
-		ctx:       ctx,
-		client:    c,
-		projectID: projectID,
-	}
-	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
-		it.fetch,
-		func() int { return len(it.buckets) },
-		func() interface{} { b := it.buckets; it.buckets = nil; return b })
-
-	return it
+	o := makeStorageOpts(true, c.retry, "")
+	return c.tc.ListBuckets(ctx, projectID, o...)
 }
 
 // A BucketIterator is an iterator over BucketAttrs.
@@ -2145,7 +1980,6 @@ type BucketIterator struct {
 	Prefix string
 
 	ctx       context.Context
-	client    *Client
 	projectID string
 	buckets   []*BucketAttrs
 	pageInfo  *iterator.PageInfo
@@ -2170,36 +2004,6 @@ func (it *BucketIterator) Next() (*BucketAttrs, error) {
 //
 // Note: This method is not safe for concurrent operations without explicit synchronization.
 func (it *BucketIterator) PageInfo() *iterator.PageInfo { return it.pageInfo }
-
-// TODO: When the transport-agnostic client interface is integrated into the Veneer,
-// this method should be removed, and the iterator should be initialized by the
-// transport-specific client implementations.
-func (it *BucketIterator) fetch(pageSize int, pageToken string) (token string, err error) {
-	req := it.client.raw.Buckets.List(it.projectID)
-	setClientHeader(req.Header())
-	req.Projection("full")
-	req.Prefix(it.Prefix)
-	req.PageToken(pageToken)
-	if pageSize > 0 {
-		req.MaxResults(int64(pageSize))
-	}
-	var resp *raw.Buckets
-	err = run(it.ctx, func() error {
-		resp, err = req.Context(it.ctx).Do()
-		return err
-	}, it.client.retry, true, setRetryHeaderHTTP(req))
-	if err != nil {
-		return "", err
-	}
-	for _, item := range resp.Items {
-		b, err := newBucket(item)
-		if err != nil {
-			return "", err
-		}
-		it.buckets = append(it.buckets, b)
-	}
-	return resp.NextPageToken, nil
-}
 
 // RPO (Recovery Point Objective) configures the turbo replication feature. See
 // https://cloud.google.com/storage/docs/managing-turbo-replication for more information.
