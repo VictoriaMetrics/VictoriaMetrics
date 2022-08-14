@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package storage
 
-// Version is the current tagged release of the library.
-const Version = "1.25.0"
+import (
+	"context"
+
+	"google.golang.org/grpc/metadata"
+)
+
+// InsertMetadata inserts the given gRPC metadata into the outgoing context.
+func InsertMetadata(ctx context.Context, mds ...metadata.MD) context.Context {
+	return insertMetadata(ctx, mds...)
+}

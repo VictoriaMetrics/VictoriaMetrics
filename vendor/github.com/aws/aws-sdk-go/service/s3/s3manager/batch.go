@@ -112,6 +112,7 @@ type BatchDeleteIterator interface {
 // iterate through a list of objects and delete the objects.
 //
 // Example:
+//
 //	iter := &s3manager.DeleteListIterator{
 //		Client: svc,
 //		Input: &s3.ListObjectsInput{
@@ -203,6 +204,7 @@ type BatchDelete struct {
 // objects.
 //
 // Example:
+//
 //	batcher := s3manager.NewBatchDeleteWithClient(client, size)
 //
 //	objects := []BatchDeleteObject{
@@ -236,6 +238,7 @@ func NewBatchDeleteWithClient(client s3iface.S3API, options ...func(*BatchDelete
 // objects.
 //
 // Example:
+//
 //	batcher := s3manager.NewBatchDelete(sess, size)
 //
 //	objects := []BatchDeleteObject{
