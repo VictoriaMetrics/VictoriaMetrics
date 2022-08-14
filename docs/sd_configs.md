@@ -776,6 +776,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_pod_annotation_<annotationname>`: Each annotation from the pod object.
   * `__meta_kubernetes_pod_annotationpresent_<annotationname>`: "true" for each annotation from the pod object.
   * `__meta_kubernetes_pod_container_init`: "true" if the container is an InitContainer
+  * `__meta_kubernetes_pod_container_image`: Container image the target address points to.
   * `__meta_kubernetes_pod_container_name`: Name of the container the target address points to.
   * `__meta_kubernetes_pod_container_port_name`: Name of the container port.
   * `__meta_kubernetes_pod_container_port_number`: Number of the container port.
