@@ -275,7 +275,9 @@ func (a *App) RunContext(ctx context.Context, arguments []string) (err error) {
 	cCtx := NewContext(a, set, &Context{Context: ctx})
 	if nerr != nil {
 		_, _ = fmt.Fprintln(a.Writer, nerr)
-		_ = ShowAppHelp(cCtx)
+		if !a.HideHelp {
+			_ = ShowAppHelp(cCtx)
+		}
 		return nerr
 	}
 	cCtx.shellComplete = shellComplete
@@ -296,8 +298,22 @@ func (a *App) RunContext(ctx context.Context, arguments []string) (err error) {
 				fmt.Fprintf(a.Writer, suggestion)
 			}
 		}
-		_ = ShowAppHelp(cCtx)
+		if !a.HideHelp {
+			_ = ShowAppHelp(cCtx)
+		}
 		return err
+	}
+
+	if a.After != nil {
+		defer func() {
+			if afterErr := a.After(cCtx); afterErr != nil {
+				if err != nil {
+					err = newMultiError(err, afterErr)
+				} else {
+					err = afterErr
+				}
+			}
+		}()
 	}
 
 	if !a.HideHelp && checkHelp(cCtx) {
@@ -314,18 +330,6 @@ func (a *App) RunContext(ctx context.Context, arguments []string) (err error) {
 	if cerr != nil {
 		_ = ShowAppHelp(cCtx)
 		return cerr
-	}
-
-	if a.After != nil {
-		defer func() {
-			if afterErr := a.After(cCtx); afterErr != nil {
-				if err != nil {
-					err = newMultiError(err, afterErr)
-				} else {
-					err = afterErr
-				}
-			}
-		}()
 	}
 
 	if a.Before != nil {
