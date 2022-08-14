@@ -15,7 +15,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.eurekaSDCheckInterval", 30*time.Second, "Interval for checking for changes in eureka. "+
 	"This works only if eureka_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details")
+	"See https://docs.victoriametrics.com/sd_configs.html#eureka_sd_configs for details")
 
 // SDConfig represents service discovery config for eureka.
 //
