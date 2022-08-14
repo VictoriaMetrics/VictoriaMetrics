@@ -107,6 +107,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_name":          "kube-dns",
 			"__meta_kubernetes_service_type":          "ClusterIP",
 			"__meta_kubernetes_service_port_name":     "dns",
+			"__meta_kubernetes_service_port_number":   "53",
 			"__meta_kubernetes_service_port_protocol": "UDP",
 			"__meta_kubernetes_service_cluster_ip":    "10.96.0.10",
 
@@ -130,6 +131,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_name":          "kube-dns",
 			"__meta_kubernetes_service_type":          "ClusterIP",
 			"__meta_kubernetes_service_port_name":     "dns-tcp",
+			"__meta_kubernetes_service_port_number":   "53",
 			"__meta_kubernetes_service_port_protocol": "TCP",
 			"__meta_kubernetes_service_cluster_ip":    "10.96.0.10",
 
@@ -153,6 +155,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_name":          "kube-dns",
 			"__meta_kubernetes_service_type":          "ClusterIP",
 			"__meta_kubernetes_service_port_name":     "metrics",
+			"__meta_kubernetes_service_port_number":   "9153",
 			"__meta_kubernetes_service_port_protocol": "TCP",
 			"__meta_kubernetes_service_cluster_ip":    "10.96.0.10",
 
