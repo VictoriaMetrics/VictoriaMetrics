@@ -249,6 +249,7 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_node_name":                    "test-node",
 			"__meta_kubernetes_pod_name":                     "etcd-m01",
 			"__meta_kubernetes_pod_ip":                       "172.17.0.2",
+			"__meta_kubernetes_pod_container_image":          "k8s.gcr.io/etcd:3.4.3-0",
 			"__meta_kubernetes_pod_container_name":           "etcd",
 			"__meta_kubernetes_pod_container_port_name":      "foobar",
 			"__meta_kubernetes_pod_container_port_number":    "1234",
