@@ -215,7 +215,7 @@ scrape_configs:
   - names: ["...", "..."]
 
     # type is an optional type of DNS query to perform.
-    # Supported values are: SRV, A, or AAAA.
+    # Supported values are: SRV, A, AAAA or MX.
     # By default SRV is used.
     # type: ...
 
@@ -228,6 +228,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_dns_name`: the record name that produced the discovered target.
 * `__meta_dns_srv_record_target`: the target field of the SRV record
 * `__meta_dns_srv_record_port`: the port field of the SRV record
+* `__meta_dns_mx_record_target`: the target field of the MX record.
 
 
 ## docker_sd_configs
