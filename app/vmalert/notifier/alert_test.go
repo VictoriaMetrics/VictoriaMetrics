@@ -109,6 +109,19 @@ func TestAlert_ExecTemplate(t *testing.T) {
 				"description": fmt.Sprintf("It is 10000 connections for localhost (cluster-%s)", extCluster),
 			},
 		},
+		{
+			name: "alert and group IDs",
+			alert: &Alert{
+				ID:      42,
+				GroupID: 24,
+			},
+			annotations: map[string]string{
+				"url": "/api/v1/alert?alertID={{$alertID}}&groupID={{$groupID}}",
+			},
+			expTpl: map[string]string{
+				"url": "/api/v1/alert?alertID=42&groupID=24",
+			},
+		},
 	}
 
 	qFn := func(q string) ([]datasource.Metric, error) {
