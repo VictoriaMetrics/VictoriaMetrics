@@ -220,3 +220,33 @@ func timeseriesToPromMetrics(tss []*timeseries) string {
 	}
 	return strings.Join(a, "\n")
 }
+
+func TestNaturalLess(t *testing.T) {
+	f := func(name, str, nextStr string, want bool) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			if got := alphanumericLess(str, nextStr); got != want {
+				t.Errorf("alphanumericLess() = %v, want %v", got, want)
+			}
+		})
+	}
+	f("empty strings", "", "", false)
+	f("check that a bigger than b", "a", "b", true)
+	f("check that b lower than a", "b", "a", false)
+	f("numbers with special chars", "1:0:0", "1:0:2", true)
+	f("numbers with special chars and different number rank", "1:0:15", "1:0:2", true)
+	f("has two zeroes", "0", "00", true)
+	f("reverse two zeroes", "00", "0", false)
+	f("only chars", "aa", "ab", true)
+	f("not equal strings", "ab", "abc", true)
+	f("char with a smaller number", "a0001", "a0000001", true)
+	f("short first string with numbers and highest rank", "a10", "abcdefgh2", false)
+	f("less as second string", "a1b", "a01b", true)
+	f("equal strings by length with different number rank", "a001b01", "a01b001", false)
+	f("different numbers rank", "a01b001", "a001b01", true)
+	f("different numbers rank", "a01b001", "a001b01", true)
+	f("highest char and number", "a1", "a1x", true)
+	f("highest number revers chars", "1b", "1ax", false)
+	f("numbers with leading zero", "082", "83", true)
+	f("numbers with leading zero and chars", "083a", "9a", true)
+}

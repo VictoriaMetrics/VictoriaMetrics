@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -19,99 +20,101 @@ import (
 )
 
 var transformFuncs = map[string]transformFunc{
-	"":                     transformUnion, // empty func is a synonym to union
-	"abs":                  newTransformFuncOneArg(transformAbs),
-	"absent":               transformAbsent,
-	"acos":                 newTransformFuncOneArg(transformAcos),
-	"acosh":                newTransformFuncOneArg(transformAcosh),
-	"asin":                 newTransformFuncOneArg(transformAsin),
-	"asinh":                newTransformFuncOneArg(transformAsinh),
-	"atan":                 newTransformFuncOneArg(transformAtan),
-	"atanh":                newTransformFuncOneArg(transformAtanh),
-	"bitmap_and":           newTransformBitmap(bitmapAnd),
-	"bitmap_or":            newTransformBitmap(bitmapOr),
-	"bitmap_xor":           newTransformBitmap(bitmapXor),
-	"buckets_limit":        transformBucketsLimit,
-	"ceil":                 newTransformFuncOneArg(transformCeil),
-	"clamp":                transformClamp,
-	"clamp_max":            transformClampMax,
-	"clamp_min":            transformClampMin,
-	"cos":                  newTransformFuncOneArg(transformCos),
-	"cosh":                 newTransformFuncOneArg(transformCosh),
-	"day_of_month":         newTransformFuncDateTime(transformDayOfMonth),
-	"day_of_week":          newTransformFuncDateTime(transformDayOfWeek),
-	"days_in_month":        newTransformFuncDateTime(transformDaysInMonth),
-	"deg":                  newTransformFuncOneArg(transformDeg),
-	"drop_common_labels":   transformDropCommonLabels,
-	"end":                  newTransformFuncZeroArgs(transformEnd),
-	"exp":                  newTransformFuncOneArg(transformExp),
-	"floor":                newTransformFuncOneArg(transformFloor),
-	"histogram_avg":        transformHistogramAvg,
-	"histogram_quantile":   transformHistogramQuantile,
-	"histogram_quantiles":  transformHistogramQuantiles,
-	"histogram_share":      transformHistogramShare,
-	"histogram_stddev":     transformHistogramStddev,
-	"histogram_stdvar":     transformHistogramStdvar,
-	"hour":                 newTransformFuncDateTime(transformHour),
-	"interpolate":          transformInterpolate,
-	"keep_last_value":      transformKeepLastValue,
-	"keep_next_value":      transformKeepNextValue,
-	"label_copy":           transformLabelCopy,
-	"label_del":            transformLabelDel,
-	"label_graphite_group": transformLabelGraphiteGroup,
-	"label_join":           transformLabelJoin,
-	"label_keep":           transformLabelKeep,
-	"label_lowercase":      transformLabelLowercase,
-	"label_map":            transformLabelMap,
-	"label_match":          transformLabelMatch,
-	"label_mismatch":       transformLabelMismatch,
-	"label_move":           transformLabelMove,
-	"label_replace":        transformLabelReplace,
-	"label_set":            transformLabelSet,
-	"label_transform":      transformLabelTransform,
-	"label_uppercase":      transformLabelUppercase,
-	"label_value":          transformLabelValue,
-	"limit_offset":         transformLimitOffset,
-	"ln":                   newTransformFuncOneArg(transformLn),
-	"log2":                 newTransformFuncOneArg(transformLog2),
-	"log10":                newTransformFuncOneArg(transformLog10),
-	"minute":               newTransformFuncDateTime(transformMinute),
-	"month":                newTransformFuncDateTime(transformMonth),
-	"now":                  transformNow,
-	"pi":                   transformPi,
-	"prometheus_buckets":   transformPrometheusBuckets,
-	"rad":                  newTransformFuncOneArg(transformRad),
-	"rand":                 newTransformRand(newRandFloat64),
-	"rand_exponential":     newTransformRand(newRandExpFloat64),
-	"rand_normal":          newTransformRand(newRandNormFloat64),
-	"range_avg":            newTransformFuncRange(runningAvg),
-	"range_first":          transformRangeFirst,
-	"range_last":           transformRangeLast,
-	"range_max":            newTransformFuncRange(runningMax),
-	"range_min":            newTransformFuncRange(runningMin),
-	"range_quantile":       transformRangeQuantile,
-	"range_sum":            newTransformFuncRange(runningSum),
-	"remove_resets":        transformRemoveResets,
-	"round":                transformRound,
-	"running_avg":          newTransformFuncRunning(runningAvg),
-	"running_max":          newTransformFuncRunning(runningMax),
-	"running_min":          newTransformFuncRunning(runningMin),
-	"running_sum":          newTransformFuncRunning(runningSum),
-	"scalar":               transformScalar,
-	"sgn":                  transformSgn,
-	"sin":                  newTransformFuncOneArg(transformSin),
-	"sinh":                 newTransformFuncOneArg(transformSinh),
-	"smooth_exponential":   transformSmoothExponential,
-	"sort":                 newTransformFuncSort(false),
-	"sort_by_label":        newTransformFuncSortByLabel(false),
-	"sort_by_label_desc":   newTransformFuncSortByLabel(true),
-	"sort_desc":            newTransformFuncSort(true),
-	"sqrt":                 newTransformFuncOneArg(transformSqrt),
-	"start":                newTransformFuncZeroArgs(transformStart),
-	"step":                 newTransformFuncZeroArgs(transformStep),
-	"tan":                  newTransformFuncOneArg(transformTan),
-	"tanh":                 newTransformFuncOneArg(transformTanh),
-	"time":                 transformTime,
+	"":                           transformUnion, // empty func is a synonym to union
+	"abs":                        newTransformFuncOneArg(transformAbs),
+	"absent":                     transformAbsent,
+	"acos":                       newTransformFuncOneArg(transformAcos),
+	"acosh":                      newTransformFuncOneArg(transformAcosh),
+	"asin":                       newTransformFuncOneArg(transformAsin),
+	"asinh":                      newTransformFuncOneArg(transformAsinh),
+	"atan":                       newTransformFuncOneArg(transformAtan),
+	"atanh":                      newTransformFuncOneArg(transformAtanh),
+	"bitmap_and":                 newTransformBitmap(bitmapAnd),
+	"bitmap_or":                  newTransformBitmap(bitmapOr),
+	"bitmap_xor":                 newTransformBitmap(bitmapXor),
+	"buckets_limit":              transformBucketsLimit,
+	"ceil":                       newTransformFuncOneArg(transformCeil),
+	"clamp":                      transformClamp,
+	"clamp_max":                  transformClampMax,
+	"clamp_min":                  transformClampMin,
+	"cos":                        newTransformFuncOneArg(transformCos),
+	"cosh":                       newTransformFuncOneArg(transformCosh),
+	"day_of_month":               newTransformFuncDateTime(transformDayOfMonth),
+	"day_of_week":                newTransformFuncDateTime(transformDayOfWeek),
+	"days_in_month":              newTransformFuncDateTime(transformDaysInMonth),
+	"deg":                        newTransformFuncOneArg(transformDeg),
+	"drop_common_labels":         transformDropCommonLabels,
+	"end":                        newTransformFuncZeroArgs(transformEnd),
+	"exp":                        newTransformFuncOneArg(transformExp),
+	"floor":                      newTransformFuncOneArg(transformFloor),
+	"histogram_avg":              transformHistogramAvg,
+	"histogram_quantile":         transformHistogramQuantile,
+	"histogram_quantiles":        transformHistogramQuantiles,
+	"histogram_share":            transformHistogramShare,
+	"histogram_stddev":           transformHistogramStddev,
+	"histogram_stdvar":           transformHistogramStdvar,
+	"hour":                       newTransformFuncDateTime(transformHour),
+	"interpolate":                transformInterpolate,
+	"keep_last_value":            transformKeepLastValue,
+	"keep_next_value":            transformKeepNextValue,
+	"label_copy":                 transformLabelCopy,
+	"label_del":                  transformLabelDel,
+	"label_graphite_group":       transformLabelGraphiteGroup,
+	"label_join":                 transformLabelJoin,
+	"label_keep":                 transformLabelKeep,
+	"label_lowercase":            transformLabelLowercase,
+	"label_map":                  transformLabelMap,
+	"label_match":                transformLabelMatch,
+	"label_mismatch":             transformLabelMismatch,
+	"label_move":                 transformLabelMove,
+	"label_replace":              transformLabelReplace,
+	"label_set":                  transformLabelSet,
+	"label_transform":            transformLabelTransform,
+	"label_uppercase":            transformLabelUppercase,
+	"label_value":                transformLabelValue,
+	"limit_offset":               transformLimitOffset,
+	"ln":                         newTransformFuncOneArg(transformLn),
+	"log2":                       newTransformFuncOneArg(transformLog2),
+	"log10":                      newTransformFuncOneArg(transformLog10),
+	"minute":                     newTransformFuncDateTime(transformMinute),
+	"month":                      newTransformFuncDateTime(transformMonth),
+	"now":                        transformNow,
+	"pi":                         transformPi,
+	"prometheus_buckets":         transformPrometheusBuckets,
+	"rad":                        newTransformFuncOneArg(transformRad),
+	"rand":                       newTransformRand(newRandFloat64),
+	"rand_exponential":           newTransformRand(newRandExpFloat64),
+	"rand_normal":                newTransformRand(newRandNormFloat64),
+	"range_avg":                  newTransformFuncRange(runningAvg),
+	"range_first":                transformRangeFirst,
+	"range_last":                 transformRangeLast,
+	"range_max":                  newTransformFuncRange(runningMax),
+	"range_min":                  newTransformFuncRange(runningMin),
+	"range_quantile":             transformRangeQuantile,
+	"range_sum":                  newTransformFuncRange(runningSum),
+	"remove_resets":              transformRemoveResets,
+	"round":                      transformRound,
+	"running_avg":                newTransformFuncRunning(runningAvg),
+	"running_max":                newTransformFuncRunning(runningMax),
+	"running_min":                newTransformFuncRunning(runningMin),
+	"running_sum":                newTransformFuncRunning(runningSum),
+	"scalar":                     transformScalar,
+	"sgn":                        transformSgn,
+	"sin":                        newTransformFuncOneArg(transformSin),
+	"sinh":                       newTransformFuncOneArg(transformSinh),
+	"smooth_exponential":         transformSmoothExponential,
+	"sort":                       newTransformFuncSort(false),
+	"sort_by_label":              newTransformFuncSortByLabel(false),
+	"sort_by_label_desc":         newTransformFuncSortByLabel(true),
+	"sort_by_label_numeric":      newTransformFuncAlphaNumericSort(false),
+	"sort_by_label_numeric_desc": newTransformFuncAlphaNumericSort(true),
+	"sort_desc":                  newTransformFuncSort(true),
+	"sqrt":                       newTransformFuncOneArg(transformSqrt),
+	"start":                      newTransformFuncZeroArgs(transformStart),
+	"step":                       newTransformFuncZeroArgs(transformStep),
+	"tan":                        newTransformFuncOneArg(transformTan),
+	"tanh":                       newTransformFuncOneArg(transformTanh),
+	"time":                       transformTime,
 	// "timestamp" has been moved to rollup funcs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415
 	"timezone_offset": transformTimezoneOffset,
 	"union":           transformUnion,
@@ -1986,6 +1989,87 @@ func newTransformFuncSortByLabel(isDesc bool) transformFunc {
 		})
 		return rvs, nil
 	}
+}
+
+func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
+	return func(tfa *transformFuncArg) ([]*timeseries, error) {
+		args := tfa.args
+		if len(args) < 2 {
+			return nil, fmt.Errorf("expecting at least 2 args; got %d args", len(args))
+		}
+		var labels []string
+		for i, arg := range args[1:] {
+			label, err := getString(arg, 1)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse label #%d for sorting: %w", i+1, err)
+			}
+			labels = append(labels, label)
+		}
+		rvs := args[0]
+		sort.SliceStable(rvs, func(i, j int) bool {
+			for _, label := range labels {
+				a := rvs[i].MetricName.GetTagValue(label)
+				b := rvs[j].MetricName.GetTagValue(label)
+				if string(a) == string(b) {
+					continue
+				}
+				if isDesc {
+					return !alphanumericLess(string(a), string(b))
+				}
+				return alphanumericLess(string(a), string(b))
+			}
+			return false
+		})
+		return rvs, nil
+	}
+}
+
+func alphanumericLess(str, nextStr string) bool {
+	idx, idxNext := 0, 0
+	for idx < len(str) && idxNext < len(nextStr) {
+		c, cNext := str[idx], nextStr[idxNext]
+		isDigit, isDigitNext := unicode.IsDigit(rune(c)), unicode.IsDigit(rune(cNext))
+
+		if isDigit != isDigitNext {
+			return isDigit
+		}
+
+		if !isDigit {
+			if c != cNext {
+				return c < cNext
+			}
+			idx++
+			idxNext++
+		}
+
+		for idx < len(str) && str[idx] == '0' {
+			idx++
+		}
+		for idxNext < len(nextStr) && nextStr[idxNext] == '0' {
+			idxNext++
+		}
+
+		nonZeroVal, nonZeroValNext := idx, idxNext
+
+		for idx < len(str) && unicode.IsDigit(rune(str[idx])) {
+			idx++
+		}
+		for idxNext < len(nextStr) && unicode.IsDigit(rune(nextStr[idxNext])) {
+			idxNext++
+		}
+
+		partOfStr := str[nonZeroVal:idx]
+		partOfStrNext := nextStr[nonZeroValNext:idxNext]
+		if partOfStr != partOfStrNext {
+			return partOfStr < partOfStrNext
+		}
+
+		if nonZeroVal != nonZeroValNext {
+			return nonZeroVal < nonZeroValNext
+		}
+	}
+
+	return len(str) < len(nextStr)
 }
 
 func newTransformFuncSort(isDesc bool) transformFunc {

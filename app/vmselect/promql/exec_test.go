@@ -7737,6 +7737,158 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+	t.Run(`sort_by_label_numeric(multiple_labels_only_string)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric((
+			label_set(1, "x", "b", "y", "aa"),
+			label_set(2, "x", "a", "y", "aa"),
+		), "y", "x")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("a"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("aa"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("b"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("aa"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_numeric(multiple_labels_numbers_special_chars)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric((
+			label_set(1, "x", "1:0:0", "y", "1:0:1"),
+			label_set(2, "x", "1:0:15", "y", "1:0:1"),
+		), "x", "y")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:0"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:15"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_numeric(alias_numbers_with_special_chars)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			alias(1, "DS50:1/0/0"),
+			alias(2, "DS50:1/0/1"),
+			alias(3, "DS50:1/0/15"),
+			alias(4, "DS50:1/0/2"),
+		), "__name__")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("DS50:1/0/0")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("DS50:1/0/1")
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("DS50:1/0/15")
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.MetricGroup = []byte("DS50:1/0/2")
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_numeric(multiple_labels)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric((
+			label_set(1, "x", "1:0:0", "y", "1:0:1"),
+			label_set(2, "x", "1:0:15", "y", "1:0:2"),
+		), "x", "y")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:0"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:15"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:2"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 }
 
 func TestExecError(t *testing.T) {
@@ -7809,6 +7961,8 @@ func TestExecError(t *testing.T) {
 	f(`sort_desc()`)
 	f(`sort_by_label()`)
 	f(`sort_by_label_desc()`)
+	f(`sort_by_label_numeric()`)
+	f(`sort_by_label_numeric_desc()`)
 	f(`timestamp()`)
 	f(`timestamp_with_name()`)
 	f(`vector()`)
