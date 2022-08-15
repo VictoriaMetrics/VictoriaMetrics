@@ -8,31 +8,31 @@
 //
 // For product documentation, see: https://cloud.google.com/iam/docs/creating-short-lived-service-account-credentials
 //
-// Creating a client
+// # Creating a client
 //
 // Usage example:
 //
-//   import "google.golang.org/api/iamcredentials/v1"
-//   ...
-//   ctx := context.Background()
-//   iamcredentialsService, err := iamcredentials.NewService(ctx)
+//	import "google.golang.org/api/iamcredentials/v1"
+//	...
+//	ctx := context.Background()
+//	iamcredentialsService, err := iamcredentials.NewService(ctx)
 //
 // In this example, Google Application Default Credentials are used for authentication.
 //
 // For information on how to create and obtain Application Default Credentials, see https://developers.google.com/identity/protocols/application-default-credentials.
 //
-// Other authentication options
+// # Other authentication options
 //
 // To use an API key for authentication (note: some APIs do not support API keys), use option.WithAPIKey:
 //
-//   iamcredentialsService, err := iamcredentials.NewService(ctx, option.WithAPIKey("AIza..."))
+//	iamcredentialsService, err := iamcredentials.NewService(ctx, option.WithAPIKey("AIza..."))
 //
 // To use an OAuth token (e.g., a user token obtained via a three-legged OAuth flow), use option.WithTokenSource:
 //
-//   config := &oauth2.Config{...}
-//   // ...
-//   token, err := config.Exchange(ctx, ...)
-//   iamcredentialsService, err := iamcredentials.NewService(ctx, option.WithTokenSource(config.TokenSource(ctx, token)))
+//	config := &oauth2.Config{...}
+//	// ...
+//	token, err := config.Exchange(ctx, ...)
+//	iamcredentialsService, err := iamcredentials.NewService(ctx, option.WithTokenSource(config.TokenSource(ctx, token)))
 //
 // See https://godoc.org/google.golang.org/api/option/ for details on options.
 package iamcredentials // import "google.golang.org/api/iamcredentials/v1"
@@ -519,11 +519,11 @@ type ProjectsServiceAccountsGenerateAccessTokenCall struct {
 // GenerateAccessToken: Generates an OAuth 2.0 access token for a
 // service account.
 //
-// - name: The resource name of the service account for which the
-//   credentials are requested, in the following format:
-//   `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
-//   wildcard character is required; replacing it with a project ID is
-//   invalid.
+//   - name: The resource name of the service account for which the
+//     credentials are requested, in the following format:
+//     `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
+//     wildcard character is required; replacing it with a project ID is
+//     invalid.
 func (r *ProjectsServiceAccountsService) GenerateAccessToken(name string, generateaccesstokenrequest *GenerateAccessTokenRequest) *ProjectsServiceAccountsGenerateAccessTokenCall {
 	c := &ProjectsServiceAccountsGenerateAccessTokenCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -666,11 +666,11 @@ type ProjectsServiceAccountsGenerateIdTokenCall struct {
 // GenerateIdToken: Generates an OpenID Connect ID token for a service
 // account.
 //
-// - name: The resource name of the service account for which the
-//   credentials are requested, in the following format:
-//   `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
-//   wildcard character is required; replacing it with a project ID is
-//   invalid.
+//   - name: The resource name of the service account for which the
+//     credentials are requested, in the following format:
+//     `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
+//     wildcard character is required; replacing it with a project ID is
+//     invalid.
 func (r *ProjectsServiceAccountsService) GenerateIdToken(name string, generateidtokenrequest *GenerateIdTokenRequest) *ProjectsServiceAccountsGenerateIdTokenCall {
 	c := &ProjectsServiceAccountsGenerateIdTokenCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -813,11 +813,11 @@ type ProjectsServiceAccountsSignBlobCall struct {
 // SignBlob: Signs a blob using a service account's system-managed
 // private key.
 //
-// - name: The resource name of the service account for which the
-//   credentials are requested, in the following format:
-//   `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
-//   wildcard character is required; replacing it with a project ID is
-//   invalid.
+//   - name: The resource name of the service account for which the
+//     credentials are requested, in the following format:
+//     `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
+//     wildcard character is required; replacing it with a project ID is
+//     invalid.
 func (r *ProjectsServiceAccountsService) SignBlob(name string, signblobrequest *SignBlobRequest) *ProjectsServiceAccountsSignBlobCall {
 	c := &ProjectsServiceAccountsSignBlobCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -960,11 +960,11 @@ type ProjectsServiceAccountsSignJwtCall struct {
 // SignJwt: Signs a JWT using a service account's system-managed private
 // key.
 //
-// - name: The resource name of the service account for which the
-//   credentials are requested, in the following format:
-//   `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
-//   wildcard character is required; replacing it with a project ID is
-//   invalid.
+//   - name: The resource name of the service account for which the
+//     credentials are requested, in the following format:
+//     `projects/-/serviceAccounts/{ACCOUNT_EMAIL_OR_UNIQUEID}`. The `-`
+//     wildcard character is required; replacing it with a project ID is
+//     invalid.
 func (r *ProjectsServiceAccountsService) SignJwt(name string, signjwtrequest *SignJwtRequest) *ProjectsServiceAccountsSignJwtCall {
 	c := &ProjectsServiceAccountsSignJwtCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name

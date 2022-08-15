@@ -91,7 +91,7 @@ type HMACKeyHandle struct {
 	projectID string
 	accessID  string
 	retry     *retryConfig
-	raw       *raw.ProjectsHmacKeysService
+	tc        storageClient
 }
 
 // HMACKeyHandle creates a handle that will be used for HMACKey operations.
@@ -102,7 +102,7 @@ func (c *Client) HMACKeyHandle(projectID, accessID string) *HMACKeyHandle {
 		projectID: projectID,
 		accessID:  accessID,
 		retry:     c.retry,
-		raw:       raw.NewProjectsHmacKeysService(c.raw),
+		tc:        c.tc,
 	}
 }
 
@@ -114,32 +114,15 @@ func (c *Client) HMACKeyHandle(projectID, accessID string) *HMACKeyHandle {
 //
 // This method is EXPERIMENTAL and subject to change or removal without notice.
 func (hkh *HMACKeyHandle) Get(ctx context.Context, opts ...HMACKeyOption) (*HMACKey, error) {
-	call := hkh.raw.Get(hkh.projectID, hkh.accessID)
-
 	desc := new(hmacKeyDesc)
 	for _, opt := range opts {
 		opt.withHMACKeyDesc(desc)
 	}
-	if desc.userProjectID != "" {
-		call = call.UserProject(desc.userProjectID)
-	}
 
-	setClientHeader(call.Header())
+	o := makeStorageOpts(true, hkh.retry, desc.userProjectID)
+	hk, err := hkh.tc.GetHMACKey(ctx, hkh.projectID, hkh.accessID, o...)
 
-	var metadata *raw.HmacKeyMetadata
-	var err error
-	err = run(ctx, func() error {
-		metadata, err = call.Context(ctx).Do()
-		return err
-	}, hkh.retry, true, setRetryHeaderHTTP(call))
-	if err != nil {
-		return nil, err
-	}
-
-	hk := &raw.HmacKey{
-		Metadata: metadata,
-	}
-	return toHMACKeyFromRaw(hk, false)
+	return hk, err
 }
 
 // Delete invokes an RPC to delete the key referenced by accessID, on Google Cloud Storage.
@@ -148,19 +131,13 @@ func (hkh *HMACKeyHandle) Get(ctx context.Context, opts ...HMACKeyOption) (*HMAC
 //
 // This method is EXPERIMENTAL and subject to change or removal without notice.
 func (hkh *HMACKeyHandle) Delete(ctx context.Context, opts ...HMACKeyOption) error {
-	delCall := hkh.raw.Delete(hkh.projectID, hkh.accessID)
 	desc := new(hmacKeyDesc)
 	for _, opt := range opts {
 		opt.withHMACKeyDesc(desc)
 	}
-	if desc.userProjectID != "" {
-		delCall = delCall.UserProject(desc.userProjectID)
-	}
-	setClientHeader(delCall.Header())
 
-	return run(ctx, func() error {
-		return delCall.Context(ctx).Do()
-	}, hkh.retry, true, setRetryHeaderHTTP(delCall))
+	o := makeStorageOpts(true, hkh.retry, desc.userProjectID)
+	return hkh.tc.DeleteHMACKey(ctx, hkh.projectID, hkh.accessID, o...)
 }
 
 func toHMACKeyFromRaw(hk *raw.HmacKey, updatedTimeCanBeNil bool) (*HMACKey, error) {
@@ -220,29 +197,14 @@ func (c *Client) CreateHMACKey(ctx context.Context, projectID, serviceAccountEma
 		return nil, errors.New("storage: expecting a non-blank service account email")
 	}
 
-	svc := raw.NewProjectsHmacKeysService(c.raw)
-	call := svc.Create(projectID, serviceAccountEmail)
 	desc := new(hmacKeyDesc)
 	for _, opt := range opts {
 		opt.withHMACKeyDesc(desc)
 	}
-	if desc.userProjectID != "" {
-		call = call.UserProject(desc.userProjectID)
-	}
 
-	setClientHeader(call.Header())
-
-	var hk *raw.HmacKey
-
-	if err := run(ctx, func() error {
-		h, err := call.Context(ctx).Do()
-		hk = h
-		return err
-	}, c.retry, false, setRetryHeaderHTTP(call)); err != nil {
-		return nil, err
-	}
-
-	return toHMACKeyFromRaw(hk, true)
+	o := makeStorageOpts(false, c.retry, desc.userProjectID)
+	hk, err := c.tc.CreateHMACKey(ctx, projectID, serviceAccountEmail, o...)
+	return hk, err
 }
 
 // HMACKeyAttrsToUpdate defines the attributes of an HMACKey that will be updated.
@@ -264,35 +226,15 @@ func (h *HMACKeyHandle) Update(ctx context.Context, au HMACKeyAttrsToUpdate, opt
 		return nil, fmt.Errorf("storage: invalid state %q for update, must be either %q or %q", au.State, Active, Inactive)
 	}
 
-	call := h.raw.Update(h.projectID, h.accessID, &raw.HmacKeyMetadata{
-		Etag:  au.Etag,
-		State: string(au.State),
-	})
-
 	desc := new(hmacKeyDesc)
 	for _, opt := range opts {
 		opt.withHMACKeyDesc(desc)
 	}
-	if desc.userProjectID != "" {
-		call = call.UserProject(desc.userProjectID)
-	}
-	setClientHeader(call.Header())
 
-	var metadata *raw.HmacKeyMetadata
-	var err error
 	isIdempotent := len(au.Etag) > 0
-	err = run(ctx, func() error {
-		metadata, err = call.Context(ctx).Do()
-		return err
-	}, h.retry, isIdempotent, setRetryHeaderHTTP(call))
-
-	if err != nil {
-		return nil, err
-	}
-	hk := &raw.HmacKey{
-		Metadata: metadata,
-	}
-	return toHMACKeyFromRaw(hk, false)
+	o := makeStorageOpts(isIdempotent, h.retry, desc.userProjectID)
+	hk, err := h.tc.UpdateHMACKey(ctx, h.projectID, desc.forServiceAccountEmail, h.accessID, &au, o...)
+	return hk, err
 }
 
 // An HMACKeysIterator is an iterator over HMACKeys.
@@ -318,27 +260,13 @@ type HMACKeysIterator struct {
 //
 // This method is EXPERIMENTAL and subject to change or removal without notice.
 func (c *Client) ListHMACKeys(ctx context.Context, projectID string, opts ...HMACKeyOption) *HMACKeysIterator {
-	it := &HMACKeysIterator{
-		ctx:       ctx,
-		raw:       raw.NewProjectsHmacKeysService(c.raw),
-		projectID: projectID,
-		retry:     c.retry,
-	}
-
+	desc := new(hmacKeyDesc)
 	for _, opt := range opts {
-		opt.withHMACKeyDesc(&it.desc)
+		opt.withHMACKeyDesc(desc)
 	}
 
-	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
-		it.fetch,
-		func() int { return len(it.hmacKeys) - it.index },
-		func() interface{} {
-			prev := it.hmacKeys
-			it.hmacKeys = it.hmacKeys[:0]
-			it.index = 0
-			return prev
-		})
-	return it
+	o := makeStorageOpts(true, c.retry, desc.userProjectID)
+	return c.tc.ListHMACKeys(ctx, projectID, desc.forServiceAccountEmail, desc.showDeletedKeys, o...)
 }
 
 // Next returns the next result. Its second return value is iterator.Done if

@@ -80,6 +80,9 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	remoteread.InitSecretFlags()
+	remotewrite.InitSecretFlags()
+	datasource.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()

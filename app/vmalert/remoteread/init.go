@@ -7,13 +7,17 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect."+
 		"Remote read is used to restore alerts state."+
 		"This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
-		"E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend")
+		"E.g. http://127.0.0.1:8428. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.")
+
+	showRemoteReadURL = flag.Bool("remoteRead.showURL", false, "Whether to show -remoteRead.url in the exported metrics. "+
+		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	headers = flag.String("remoteRead.headers", "", "Optional HTTP headers to send with each request to the corresponding -remoteRead.url. "+
 		"For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. "+
@@ -40,6 +44,13 @@ var (
 	oauth2TokenURL         = flag.String("remoteRead.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -remoteRead.url. ")
 	oauth2Scopes           = flag.String("remoteRead.oauth2.scopes", "", "Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.")
 )
+
+// InitSecretFlags must be called after flag.Parse and before any logging
+func InitSecretFlags() {
+	if !*showRemoteReadURL {
+		flagutil.RegisterSecretFlag("remoteRead.url")
+	}
+}
 
 // Init creates a Querier from provided flag values.
 // Returns nil if addr flag wasn't set.

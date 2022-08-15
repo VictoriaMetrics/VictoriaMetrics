@@ -12,7 +12,8 @@ import (
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.yandexcloudSDCheckInterval", 30*time.Second, "Interval for checking for changes in Yandex Cloud API. "+
-	"This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file.")
+	"This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. "+
+	"See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details")
 
 // SDConfig is the configuration for Yandex Cloud service discovery.
 type SDConfig struct {
