@@ -910,7 +910,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
-		return fmt.Errorf("cannot execute query: %w", err)
+		return err
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
 		queryOffset := getLatencyOffsetMilliseconds()
