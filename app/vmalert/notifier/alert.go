@@ -74,9 +74,11 @@ func (as AlertState) String() string {
 
 // AlertTplData is used to execute templating
 type AlertTplData struct {
-	Labels map[string]string
-	Value  float64
-	Expr   string
+	Labels  map[string]string
+	Value   float64
+	Expr    string
+	AlertID uint64
+	GroupID uint64
 }
 
 var tplHeaders = []string{
@@ -85,6 +87,8 @@ var tplHeaders = []string{
 	"{{ $expr := .Expr }}",
 	"{{ $externalLabels := .ExternalLabels }}",
 	"{{ $externalURL := .ExternalURL }}",
+	"{{ $alertID := .AlertID }}",
+	"{{ $groupID := .GroupID }}",
 }
 
 // ExecTemplate executes the Alert template for given
@@ -92,7 +96,7 @@ var tplHeaders = []string{
 // Every alert could have a different datasource, so function
 // requires a queryFunction as an argument.
 func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string]string) (map[string]string, error) {
-	tplData := AlertTplData{Value: a.Value, Labels: labels, Expr: a.Expr}
+	tplData := AlertTplData{Value: a.Value, Labels: labels, Expr: a.Expr, AlertID: a.ID, GroupID: a.GroupID}
 	tmpl, err := templates.GetWithFuncs(templates.FuncsWithQuery(q))
 	if err != nil {
 		return nil, fmt.Errorf("error getting a template: %w", err)
