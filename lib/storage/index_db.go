@@ -838,9 +838,13 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if err != nil {
 		return err
 	}
-	if filter != nil && filter.Len() == 0 {
-		qt.Printf("found zero label names for filter=%s", tfss)
-		return nil
+	if filter != nil && filter.Len() <= 100e3 {
+		// It is faster to obtain label names by metricIDs from the filter
+		// instead of scanning the inverted index for the matching filters.
+		// This hould help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		metricIDs := filter.AppendTo(nil)
+		qt.Printf("sort %d metricIDs", len(metricIDs))
+		return is.getLabelNamesForMetricIDs(qt, metricIDs, lns, maxLabelNames)
 	}
 	var prevLabelName []byte
 	ts := &is.ts
@@ -897,6 +901,41 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error during search for prefix %q: %w", prefix, err)
 	}
+	return nil
+}
+
+func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, lns map[string]struct{}, maxLabelNames int) error {
+	lns["__name__"] = struct{}{}
+	var mn MetricName
+	foundLabelNames := 0
+	var buf []byte
+	for _, metricID := range metricIDs {
+		var err error
+		buf, err = is.searchMetricNameWithCache(buf[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			return fmt.Errorf("cannot find metricName by metricID %d: %w", metricID, err)
+		}
+		if err := mn.Unmarshal(buf); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName %q: %w", buf, err)
+		}
+		for _, tag := range mn.Tags {
+			_, ok := lns[string(tag.Key)]
+			if !ok {
+				foundLabelNames++
+				lns[string(tag.Key)] = struct{}{}
+				if len(lns) >= maxLabelNames {
+					qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
+					return nil
+				}
+			}
+		}
+	}
+	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, len(metricIDs))
 	return nil
 }
 
@@ -995,9 +1034,13 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if err != nil {
 		return err
 	}
-	if filter != nil && filter.Len() == 0 {
-		qt.Printf("found zero label values for filter=%s", tfss)
-		return nil
+	if filter != nil && filter.Len() < 100e3 {
+		// It is faster to obtain label names by metricIDs from the filter
+		// instead of scanning the inverted index for the matching filters.
+		// This hould help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		metricIDs := filter.AppendTo(nil)
+		qt.Printf("sort %d metricIDs", len(metricIDs))
+		return is.getLabelValuesForMetricIDs(qt, lvs, labelName, metricIDs, maxLabelValues)
 	}
 	if labelName == "__name__" {
 		// __name__ label is encoded as empty string in indexdb.
@@ -1053,6 +1096,39 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error when searching for tag name prefix %q: %w", prefix, err)
 	}
+	return nil
+}
+
+func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs map[string]struct{}, labelName string, metricIDs []uint64, maxLabelValues int) error {
+	var mn MetricName
+	foundLabelValues := 0
+	var buf []byte
+	for _, metricID := range metricIDs {
+		var err error
+		buf, err = is.searchMetricNameWithCache(buf[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			return fmt.Errorf("cannot find metricName by metricID %d: %w", metricID, err)
+		}
+		if err := mn.Unmarshal(buf); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName %q: %w", buf, err)
+		}
+		tagValue := mn.GetTagValue(labelName)
+		_, ok := lvs[string(tagValue)]
+		if !ok {
+			foundLabelValues++
+			lvs[string(tagValue)] = struct{}{}
+			if len(lvs) >= maxLabelValues {
+				qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
+				return nil
+			}
+		}
+	}
+	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, len(metricIDs))
 	return nil
 }
 
