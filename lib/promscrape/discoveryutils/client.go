@@ -240,20 +240,23 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	return data, nil
 }
 
-func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+// DoRequestWithPossibleRetry performs the given req at hc and stores the response at resp.
+func DoRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time, requestCounter, retryCounter *metrics.Counter) error {
 	sleepTime := time.Second
-	discoveryRequests.Inc()
+	requestCounter.Inc()
 	for {
 		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
 		// across multiple retries.
 		err := hc.DoDeadline(req, resp, deadline)
 		if err == nil {
-			return nil
-		}
-		if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
+			statusCode := resp.StatusCode()
+			if statusCode != fasthttp.StatusTooManyRequests {
+				return nil
+			}
+		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
 			return err
 		}
-		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
+		// Retry request after exponentially increased sleep.
 		maxSleepTime := time.Until(deadline)
 		if sleepTime > maxSleepTime {
 			return fmt.Errorf("the server closes all the connection attempts: %w", err)
@@ -263,11 +266,15 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 			sleepTime = maxSleepTime
 		}
 		time.Sleep(sleepTime)
-		discoveryRetries.Inc()
+		retryCounter.Inc()
 	}
 }
 
+func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+	return DoRequestWithPossibleRetry(hc, req, resp, deadline, discoveryRequests, discoveryRetries)
+}
+
 var (
-	discoveryRetries  = metrics.NewCounter(`vm_promscrape_discovery_retries_total`)
 	discoveryRequests = metrics.NewCounter(`vm_promscrape_discovery_requests_total`)
+	discoveryRetries  = metrics.NewCounter(`vm_promscrape_discovery_retries_total`)
 )
