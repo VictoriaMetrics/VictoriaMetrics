@@ -1035,7 +1035,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 		return err
 	}
 	if filter != nil && filter.Len() < 100e3 {
-		// It is faster to obtain label names by metricIDs from the filter
+		// It is faster to obtain label values by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
 		// This hould help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 		metricIDs := filter.AppendTo(nil)
