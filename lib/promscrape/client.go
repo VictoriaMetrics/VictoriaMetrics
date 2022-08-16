@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -189,6 +190,7 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	c.setHeaders(req)
 	c.setProxyHeaders(req)
+	scrapeRequests.Inc()
 	resp, err := c.sc.Do(req)
 	if err != nil {
 		cancel()
@@ -327,33 +329,12 @@ var (
 	scrapesOK             = metrics.NewCounter(`vm_promscrape_scrapes_total{status_code="200"}`)
 	scrapesGunzipped      = metrics.NewCounter(`vm_promscrape_scrapes_gunziped_total`)
 	scrapesGunzipFailed   = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
+	scrapeRequests        = metrics.NewCounter(`vm_promscrape_scrape_requests_total`)
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
-	sleepTime := time.Second
-	for {
-		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
-		// across multiple retries.
-		err := hc.DoDeadline(req, resp, deadline)
-		if err == nil {
-			return nil
-		}
-		if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return err
-		}
-		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
-		maxSleepTime := time.Until(deadline)
-		if sleepTime > maxSleepTime {
-			return fmt.Errorf("the server closes all the connection attempts: %w", err)
-		}
-		sleepTime += sleepTime
-		if sleepTime > maxSleepTime {
-			sleepTime = maxSleepTime
-		}
-		time.Sleep(sleepTime)
-		scrapeRetries.Inc()
-	}
+	return discoveryutils.DoRequestWithPossibleRetry(hc, req, resp, deadline, scrapeRequests, scrapeRetries)
 }
 
 type streamReader struct {
