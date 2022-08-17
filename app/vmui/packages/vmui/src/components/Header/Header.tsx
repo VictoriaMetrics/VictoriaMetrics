@@ -16,6 +16,7 @@ import router, {RouterOptions, routerOptions} from "../../router/index";
 import DatePicker from "../Main/DatePicker/DatePicker";
 import {useCardinalityState, useCardinalityDispatch} from "../../state/cardinality/CardinalityStateContext";
 import {useEffect} from "react";
+import ShortcutKeys from "../ShortcutKeys/ShortcutKeys";
 
 const classes = {
   logo: {
@@ -110,7 +111,7 @@ const Header: FC = () => {
             to={`${router.cardinality}${search}`}/>
         </Tabs>
       </Box>
-      <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap={1} alignItems="center" ml="auto" mr={0}>
+      <Box display="flex" gap={1} alignItems="center" ml="auto" mr={0}>
         {headerSetup?.timeSelector && <TimeSelector/>}
         {headerSetup?.datePicker && (
           <DatePicker
@@ -120,6 +121,7 @@ const Header: FC = () => {
         )}
         {headerSetup?.executionControls && <ExecutionControls/>}
         {headerSetup?.globalSettings && <GlobalSettings/>}
+        <ShortcutKeys/>
       </Box>
     </Toolbar>
   </AppBar>;

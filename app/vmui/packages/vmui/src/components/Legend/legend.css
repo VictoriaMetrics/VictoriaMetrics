@@ -7,7 +7,7 @@
 }
 
 .legendGroup {
-    margin: 0 12px 24px 0;
+    margin: 0 12px 0 0;
     padding: 10px 6px;
 }
 
@@ -76,27 +76,4 @@
 
 .legendFreeFields:not(:last-child):after {
     content: ",";
-}
-
-.legendWrapperHotkey {
-    display: flex;
-    align-items: center;
-    font-size: 11px;
-}
-
-.legendWrapperHotkey p {
-    margin-right: 20px;
-}
-
-.legendWrapperHotkey code {
-    display: inline;
-    max-width: 100%;
-    padding: 4px 6px;
-    border: 1px solid #dedede;
-    background-color: #f2f2f2;
-    border-radius: 2px;
-    font-weight: 400;
-    font-size: 10px;
-    color: #0a0a0a;
-    word-wrap: break-word;
 }

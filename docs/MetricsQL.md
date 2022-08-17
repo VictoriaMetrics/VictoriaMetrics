@@ -80,6 +80,8 @@ MetricsQL provides the following functions:
 
 See also [implicit query conversions](#implicit-query-conversions).
 
+The list of supported rollup functions:
+
 #### absent_over_time
 
 `absent_over_time(series_selector[d])` returns 1 if the given lookbehind window `d` doesn't contain raw samples. Otherwise it returns an empty result. This function is supported by PromQL. See also [present_over_time](#present_over_time).
@@ -376,6 +378,8 @@ See also [implicit query conversions](#implicit-query-conversions).
 * All the transform functions accept optional `keep_metric_names` modifier. If it is set, then the function doesn't drop metric names from the resulting time series. See [these docs](#keep_metric_names).
 
 See also [implicit query conversions](#implicit-query-conversions).
+
+The list of supported transform functions:
 
 #### abs
 
@@ -717,6 +721,8 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 See also [implicit query conversions](#implicit-query-conversions).
 
+The list of supported label manipulation functions:
+
 #### alias
 
 `alias(q, "name")` sets the given `name` to all the time series returned by `q`. For example, `alias(up, "foobar")` would rename `up` series to `foobar` series.
@@ -802,6 +808,8 @@ sum by (__name__) (
 * Aggregate functions support optional `limit N` suffix, which can be used for limiting the number of output groups. For example, `sum(x) by (y) limit 3` limits the number of groups for the aggregation to 3. All the other groups are ignored.
 
 See also [implicit query conversions](#implicit-query-conversions).
+
+The list of supported aggregate functions:
 
 #### any
 

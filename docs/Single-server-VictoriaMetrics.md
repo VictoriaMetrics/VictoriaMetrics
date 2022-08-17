@@ -1143,7 +1143,11 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
 The `-relabelConfig` also can point to http or https url. For example, `-relabelConfig=https://config-server/relabel_config.yml`.
-See [this article with relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
+
+The following docs can be useful in understanding the relabeling:
+
+* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling.html).
+* [Relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
 
 The `-relabelConfig` files can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
 

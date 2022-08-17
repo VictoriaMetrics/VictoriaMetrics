@@ -239,7 +239,7 @@ But migration from InfluxDB might get easier when using [vmctl](https://docs.vic
 VictoriaMetrics command-line tool. See more about
 migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-1x).
 Migrating data from InfluxDB v2.x is not supported yet. But there is
-useful [3rd party solution]((https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-2x)) for this.
+useful [3rd party solution](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-2x) for this.
 
 Please note, that data migration is a backfilling process. So, please
 consider [backfilling tips](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backfilling).
