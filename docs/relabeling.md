@@ -1,6 +1,10 @@
-# Relabeling
+---
+sort: 25
+---
 
-VicotriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent.html) support
+# Relabeling cookbook
+
+VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent.html) support
 [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
 with additional enhancements.
 
