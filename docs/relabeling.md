@@ -97,7 +97,7 @@ relabeling rules at `metric_relabel_configs` section:
 * `action: drop` drops all the metrics, which match the `if` [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 * `action: keep` drops all the metrics, which don't match the `if` [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 
-For example, the following config drops all the metrics obtained from `http://host123/metrics`, which start from `foo_` prefix:
+For example, the following config drops all the metrics obtained from `http://host123/metrics`, which start with `foo_` prefix:
 
 ```yaml
 scrape_configs:
@@ -449,7 +449,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
   [here](https://docs.victoriametrics.com/sd_configs.html#prometheus-service-discovery).
 * Every discovered target contains additional labels with `__` prefix other than `__meta_` labels.
   See [these docs](#how-to-modify-scrape-urls-in-targets) for more details.
-* All the labels, which start from `__` prefix, are automatically removed from targets after the relabeling.
+* All the labels, which start with `__` prefix, are automatically removed from targets after the relabeling.
   So it is common practice to store temporary labels with names starting with `__` during target relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets.
 * The list of discovered scrape targets with all the discovered meta-labels is available at `http://vmagent:8429/service-discovery` page for `vmagent`
@@ -460,7 +460,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## Useful tips for metric relabeling
 
-* All the labels, which start from `__` prefix, are automatically removed from metrics after the relabeling.
+* All the labels, which start with `__` prefix, are automatically removed from metrics after the relabeling.
   So it is common practice to store temporary labels with names startigh with `__` during metrics relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets,
   so target-level labels are available during metrics relabeling.
