@@ -221,7 +221,7 @@ func timeseriesToPromMetrics(tss []*timeseries) string {
 	return strings.Join(a, "\n")
 }
 
-func TestNaturalLess(t *testing.T) {
+func TestAlphanumericLess(t *testing.T) {
 	f := func(name, str, nextStr string, want bool) {
 		t.Helper()
 		t.Run(name, func(t *testing.T) {
