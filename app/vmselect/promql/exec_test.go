@@ -7819,9 +7819,9 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label_numeric((
 			label_set(1, "a", "DS50:1/0/0"),
-			label_set(2, "b", "DS50:1/0/1"),
-			label_set(3, "c", "DS50:1/0/2"),
-			label_set(4, "d", "DS50:1/0/15"),
+			label_set(2, "a", "DS50:1/0/1"),
+			label_set(3, "a", "DS50:1/0/2"),
+			label_set(4, "a", "DS50:1/0/15"),
 		), "c", "d")`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
@@ -7841,30 +7841,30 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r2.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("b"),
+				Key:   []byte("a"),
 				Value: []byte("DS50:1/0/1"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Values:     []float64{4, 4, 4, 4, 4, 4},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("c"),
-				Value: []byte("DS50:1/0/2"),
+				Key:   []byte("a"),
+				Value: []byte("DS50:1/0/15"),
 			},
 		}
 		r4 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Values:     []float64{3, 3, 3, 3, 3, 3},
 			Timestamps: timestampsExpected,
 		}
 		r4.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("d"),
-				Value: []byte("DS50:1/0/15"),
+				Key:   []byte("a"),
+				Value: []byte("DS50:1/0/2"),
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
