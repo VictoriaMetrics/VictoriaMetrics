@@ -1046,7 +1046,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if err != nil {
 		return err
 	}
-	if filter != nil && filter.Len() < 100e3 && labelName != "" {
+	if filter != nil && filter.Len() < 100e3 {
 		// It is faster to obtain label values by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
 		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
@@ -1113,7 +1113,6 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 
 func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs map[string]struct{}, labelName string, metricIDs []uint64, maxLabelValues int) error {
 	if labelName == "" {
-		// __name__ label is encoded as empty string in indexdb.
 		labelName = "__name__"
 	}
 	var mn MetricName
