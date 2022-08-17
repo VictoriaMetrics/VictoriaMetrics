@@ -209,9 +209,6 @@ type scrapeWork struct {
 	// Optional limiter on the number of unique series per scrape target.
 	seriesLimiter *bloomfilter.Limiter
 
-	// Optional counter on the number of dropped samples if the limit on the number of unique series is set.
-	seriesLimiterRowsDroppedTotal *metrics.Counter
-
 	// prevBodyLen contains the previous response body length for the given scrape work.
 	// It is used as a hint in order to reduce memory usage for body buffers.
 	prevBodyLen int
@@ -343,14 +340,8 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				sw.sendStaleSeries(lastScrape, "", t, true)
 			}
 			if sw.seriesLimiter != nil {
-				job := sw.Config.Job()
-				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-					sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
-				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_max_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-					sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
-				metrics.UnregisterMetric(fmt.Sprintf(`promscrape_series_limit_current_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-					sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
 				sw.seriesLimiter.MustStop()
+				sw.seriesLimiter = nil
 			}
 			return
 		case tt := <-ticker.C:
@@ -475,22 +466,22 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		// This is a trade-off between performance and accuracy.
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
+	samplesDropped := 0
 	if sw.seriesLimitExceeded || !areIdenticalSeries {
-		if sw.applySeriesLimit(wc) {
+		samplesDropped = sw.applySeriesLimit(wc)
+		if samplesDropped > 0 {
 			sw.seriesLimitExceeded = true
 		}
 	}
-	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
-	if sw.Config.SampleLimit > 0 {
-		// Expose scrape_samples_limit metric if sample_limt config is set for the target.
-		// See https://github.com/VictoriaMetrics/operator/issues/497
-		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sw.Config.SampleLimit), scrapeTimestamp)
+	am := &autoMetrics{
+		up:                        up,
+		scrapeDurationSeconds:     duration,
+		samplesScraped:            samplesScraped,
+		samplesPostRelabeling:     samplesPostRelabeling,
+		seriesAdded:               seriesAdded,
+		seriesLimitSamplesDropped: samplesDropped,
 	}
+	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = len(bodyString)
@@ -601,12 +592,14 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		// This is a trade-off between performance and accuracy.
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
-	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
-	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), scrapeTimestamp)
+	am := &autoMetrics{
+		up:                    up,
+		scrapeDurationSeconds: duration,
+		samplesScraped:        samplesScraped,
+		samplesPostRelabeling: samplesPostRelabeling,
+		seriesAdded:           seriesAdded,
+	}
+	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = sbr.bodyLen
@@ -699,44 +692,30 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 	return strings.Count(bodyString, "\n")
 }
 
-func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) bool {
+func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	seriesLimit := *seriesLimitPerTarget
 	if sw.Config.SeriesLimit > 0 {
 		seriesLimit = sw.Config.SeriesLimit
 	}
 	if sw.seriesLimiter == nil && seriesLimit > 0 {
-		job := sw.Config.Job()
 		sw.seriesLimiter = bloomfilter.NewLimiter(seriesLimit, 24*time.Hour)
-		sw.seriesLimiterRowsDroppedTotal = metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_series_limit_rows_dropped_total{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-			sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL))
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`promscrape_series_limit_max_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-			sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL), func() float64 {
-			return float64(sw.seriesLimiter.MaxItems())
-		})
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`promscrape_series_limit_current_series{scrape_job_original=%q,scrape_job=%q,scrape_target=%q}`,
-			sw.Config.jobNameOriginal, job, sw.Config.ScrapeURL), func() float64 {
-			return float64(sw.seriesLimiter.CurrentItems())
-		})
 	}
-	hsl := sw.seriesLimiter
-	if hsl == nil {
-		return false
+	sl := sw.seriesLimiter
+	if sl == nil {
+		return 0
 	}
 	dstSeries := wc.writeRequest.Timeseries[:0]
-	limitExceeded := false
+	samplesDropped := 0
 	for _, ts := range wc.writeRequest.Timeseries {
 		h := sw.getLabelsHash(ts.Labels)
-		if !hsl.Add(h) {
-			// The limit on the number of hourly unique series per scrape target has been exceeded.
-			// Drop the metric.
-			sw.seriesLimiterRowsDroppedTotal.Inc()
-			limitExceeded = true
+		if !sl.Add(h) {
+			samplesDropped++
 			continue
 		}
 		dstSeries = append(dstSeries, ts)
 	}
 	wc.writeRequest.Timeseries = dstSeries
-	return limitExceeded
+	return samplesDropped
 }
 
 func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
@@ -756,11 +735,8 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		}
 	}
 	if addAutoSeries {
-		sw.addAutoTimeseries(wc, "up", 0, timestamp)
-		sw.addAutoTimeseries(wc, "scrape_duration_seconds", 0, timestamp)
-		sw.addAutoTimeseries(wc, "scrape_samples_scraped", 0, timestamp)
-		sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", 0, timestamp)
-		sw.addAutoTimeseries(wc, "scrape_series_added", 0, timestamp)
+		am := &autoMetrics{}
+		sw.addAutoMetrics(am, wc, timestamp)
 	}
 	series := wc.writeRequest.Timeseries
 	if len(series) == 0 {
@@ -789,6 +765,34 @@ func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	}
 	sw.labelsHashBuf = b
 	return xxhash.Sum64(b)
+}
+
+type autoMetrics struct {
+	up                        int
+	scrapeDurationSeconds     float64
+	samplesScraped            int
+	samplesPostRelabeling     int
+	seriesAdded               int
+	seriesLimitSamplesDropped int
+}
+
+func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, timestamp int64) {
+	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
+	if sampleLimit := sw.Config.SampleLimit; sampleLimit > 0 {
+		// Expose scrape_samples_limit metric if sample_limt config is set for the target.
+		// See https://github.com/VictoriaMetrics/operator/issues/497
+		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sampleLimit), timestamp)
+	}
+	if sl := sw.seriesLimiter; sl != nil {
+		sw.addAutoTimeseries(wc, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
+		sw.addAutoTimeseries(wc, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
+		sw.addAutoTimeseries(wc, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
+	}
 }
 
 // addAutoTimeseries adds automatically generated time series with the given name, value and timestamp.
