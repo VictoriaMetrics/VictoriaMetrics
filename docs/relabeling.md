@@ -5,8 +5,8 @@ sort: 25
 # Relabeling cookbook
 
 VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent.html) support
-[Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
-with additional enhancements.
+[Prometheus-compatible relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling)
+with [additional enhancements](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements).
 
 The relabeling is mostly used for the following tasks:
 
