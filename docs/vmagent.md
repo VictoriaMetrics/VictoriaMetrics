@@ -263,43 +263,57 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   up == 0
   ```
 
-* `scrape_duration_seconds` - this metric exposes scrape duration. This allows monitoring slow scrapes. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes, which take more than 1.5 seconds to complete:
+* `scrape_duration_seconds` - the duration of the scrape for the given target. This allows monitoring slow scrapes. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes, which take more than 1.5 seconds to complete:
 
   ```metricsql
   scrape_duration_seconds > 1.5
   ```
 
-* `scrape_timeout_seconds` - this metric exposes the configured timeout for the current scrape target (aka `scrape_timeout`). This allows detecting targets with scrape durations close to the configured scrape timeout. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label), which take more than 80% of the configured `scrape_timeout` during scrapes:
+* `scrape_timeout_seconds` - the configured timeout for the current scrape target (aka `scrape_timeout`). This allows detecting targets with scrape durations close to the configured scrape timeout. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label), which take more than 80% of the configured `scrape_timeout` during scrapes:
 
   ```metricsql
   scrape_duration_seconds / scrape_timeout_seconds > 0.8
   ```
 
-* `scrape_samples_scraped` - this metric exposes the number of samples (aka metrics) parsed per each scrape. This allows detecting targets, which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which expose more than 10000 metrics:
+* `scrape_samples_scraped` - the number of samples (aka metrics) parsed per each scrape. This allows detecting targets, which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which expose more than 10000 metrics:
 
   ```metricsql
   scrape_samples_scraped > 10000
   ```
 
-* `scrape_samples_limit` - this metric exposes the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
+* `scrape_samples_limit` - the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This metric is exposed only if the `sample_limit` is set. This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
 
   ```metricsql
   scrape_samples_scraped / scrape_samples_limit > 0.8
   ```
 
-* `scrape_samples_post_metric_relabeling` - this metric exposes the number of samples (aka metrics) left after applying metric-level relabeling from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details). This allows detecting targets with too many metrics after the relabeling. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets with more than 10000 metrics after the relabeling:
+* `scrape_samples_post_metric_relabeling` - the number of samples (aka metrics) left after applying metric-level relabeling from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details). This allows detecting targets with too many metrics after the relabeling. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets with more than 10000 metrics after the relabeling:
 
   ```metricsql
   scrape_samples_post_metric_relabeling > 10000
   ```
 
-* `scrape_series_added` - this metric exposes **an approximate** number of new series the given target generates during the current scrape. This metric allows detecting targets (identified by `instance` label), which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which generate more than 1000 new series during the last hour:
+* `scrape_series_added` - **an approximate** number of new series the given target generates during the current scrape. This metric allows detecting targets (identified by `instance` label), which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which generate more than 1000 new series during the last hour:
 
   ```metricsql
   sum_over_time(scrape_series_added[1h]) > 1000
   ```
 
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option (e.g. when [staleness markers](#prometheus-staleness-markers) are disabled).
+
+* `scrape_series_limit` - the limit on the number of unique time series the given target can expose according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This metric is exposed only if the series limit is set.
+
+* `scrape_series_current` - the number of unique series the given target exposed so far. This metric is exposed only if the series limit is set according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This metric allows alerting when the number of exposed series by the given target reaches the limit. For example, the following query would alert when the target exposes more than 90% of unique series compared to the configured limit.
+
+  ```metricsql
+  scrape_series_current / scrape_series_limit > 0.9
+  ```
+
+* `scrape_series_limit_samples_dropped` - exposes the number of dropped samples during the scrape because of the exceeded limit on the number of unique series. This metric is exposed only if the series limit is set according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This metric allows alerting when scraped samples are dropped because of the exceeded limit. For example, the following query alerts when at least a single sample is dropped because of the exceeded limit during the last hour:
+
+  ```metricsql
+  sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0
+  ```
 
 
 ## Relabeling
@@ -566,9 +580,23 @@ By default `vmagent` doesn't limit the number of time series each scrape target 
 * Via `series_limit` config option at `scrape_config` section. This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
 * Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section. This limit is applied to the corresponding scrape targets. Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets, which may expose too high number of time series.
 
-All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric.
-
 See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+
+Scraped metrics are dropped for time series exceeding the given limit.
+
+`vmagent` creates the following additional per-target metrics for targets with non-zero series limit:
+
+- `scrape_series_limit_samples_dropped` - the number of dropped samples during the scrape when the unique series limit is exceeded.
+- `scrape_series_limit` - the series limit for the given target.
+- `scrape_series_current` - the current number of series for the given target.
+
+These metrics are automatically sent to the configured `-remoteWrite.url` alongside with the scraped per-target metrics.
+
+These metrics allow building the following alerting rules:
+
+- `scrape_series_current / scrape_series_limit > 0.9` - alerts when the number of series exposed by the target reaches 90% of the limit.
+- `rate(scrape_series_samples_dropped_total) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
+
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
 
@@ -577,10 +605,14 @@ By default `vmagent` doesn't limit the number of time series written to remote s
 
 Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
 
-The exceeded limits can be [monitored](#monitoring) with the following metrics:
+`vmagent` exposes the following metrics at `http://vmagent:8429/metrics` page (see [monitoring docs](#monitoring) for details):
 
 * `vmagent_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vmagent_hourly_series_limit_max_series` - the hourly series limit set via `-remoteWrite.maxHourlySeries`.
+* `vmagent_hourly_series_limit_current_series` - the current number of unique series registered during the last hour.
 * `vmagent_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
+* `vmagent_daily_series_limit_max_series` - the daily series limit set via `-remoteWrite.maxDailySeries`.
+* `vmagent_daily_series_limit_current_series` - the current number of unique series registered during the last day.
 
 These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
 
