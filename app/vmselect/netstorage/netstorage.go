@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math/bits"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -262,7 +263,7 @@ var (
 var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
-	metricName string
+	metricName []byte
 	brs        []blockRef
 }
 
@@ -374,8 +375,8 @@ var unpackBatchSize = 5000
 // Unpack unpacks pts to dst.
 func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange) error {
 	dst.reset()
-	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
-		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
+	if err := dst.MetricName.Unmarshal(pts.metricName); err != nil {
+		return fmt.Errorf("cannot unmarshal metricName %q: %w", bytesutil.ToUnsafeString(pts.metricName), err)
 	}
 
 	// Spin up local workers.
@@ -579,7 +580,8 @@ func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br 
 	tmpBlock.Reset()
 	brReal := tbf.MustReadBlockRefAt(br.partRef, br.addr)
 	brReal.MustReadBlock(tmpBlock)
-	if err := tmpBlock.UnmarshalData(); err != nil {
+	var err error
+	if err = tmpBlock.UnmarshalData(); err != nil {
 		return fmt.Errorf("cannot unmarshal block: %w", err)
 	}
 	sb.Timestamps, sb.Values = tmpBlock.AppendRowsWithTimeRangeFilter(sb.Timestamps[:0], sb.Values[:0], tr)
@@ -983,24 +985,71 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 	return metricNames, nil
 }
 
+// Its logic has been copied from leveledbytebufferpool.
+type leveledPacketTimeseriesPool struct {
+	pools [22]sync.Pool
+}
+
+func (lpp *leveledPacketTimeseriesPool) Get(labelsCapacity int) []packedTimeseries {
+	id, capacityNeeded := lpp.getPoolIDAndCapacity(labelsCapacity)
+	for i := 0; i < 2; i++ {
+		if id < 0 || id >= len(lpp.pools) {
+			break
+		}
+		if v := lpp.pools[id].Get(); v != nil {
+			return *v.(*[]packedTimeseries)
+		}
+		id++
+	}
+	return make([]packedTimeseries, 0, capacityNeeded)
+}
+
+func (lpp *leveledPacketTimeseriesPool) Put(pts *[]packedTimeseries) {
+	capacity := cap(*pts)
+	id, poolCapacity := lpp.getPoolIDAndCapacity(capacity)
+	if capacity <= poolCapacity {
+		*pts = (*pts)[:0]
+		lpp.pools[id].Put(pts)
+	}
+}
+
+func (lpp *leveledPacketTimeseriesPool) getPoolIDAndCapacity(size int) (int, int) {
+	size--
+	if size < 0 {
+		size = 0
+	}
+	size >>= 3
+	id := bits.Len(uint(size))
+	if id >= len(lpp.pools) {
+		id = len(lpp.pools) - 1
+	}
+	return id, (1 << (id + 3))
+}
+
+var packetTimeseries leveledPacketTimeseriesPool
+
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (*Results, error) {
-	qt = qt.NewChild("fetch matching series: %s", sq)
+func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, func(), error) {
+	qt = qt.NewChild("fetch matching series: %s, fetchData=%v", sq, fetchData)
 	defer qt.Done()
 	if deadline.Exceeded() {
-		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+		return nil, nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 
+	maxSamples := *maxSamplesPerQuery
 	// Setup search.
-	tr := sq.GetTimeRange()
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	vmstorage.WG.Add(1)
@@ -1010,77 +1059,112 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	startTime := time.Now()
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
-	m := make(map[string][]blockRef, maxSeriesCount)
-	orderedMetricNames := make([]string, 0, maxSeriesCount)
+	var tbf *tmpBlocksFile
+	var pts []packedTimeseries
+	var cb func() = nil
+
+	tbf = getTmpBlocksFile()
+	pts = packetTimeseries.Get(maxSeriesCount)
+	cb = func() {
+		pts = pts[:0]
+		packetTimeseries.Put(&pts)
+	}
+
+	m := make(map[string]int, maxSeriesCount)
+
+	// preallocate a pt
+	pts = append(pts, packedTimeseries{
+		metricName: make([]byte, 0, 256),
+		brs:        make([]blockRef, 0, 20),
+	})
+	sr.MetricName = &pts[0].metricName
 	blocksRead := 0
 	samples := 0
-	tbf := getTmpBlocksFile()
 	var buf []byte
 	for sr.NextMetricBlock() {
 		blocksRead++
 		if deadline.Exceeded() {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
+			return nil, cb, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		br := sr.MetricBlockRef.BlockRef
 		samples += br.RowsCount()
-		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
+		if maxSamples > 0 && samples > maxSamples {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			return nil, cb, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
+			return nil, cb, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
-		metricName := sr.MetricBlockRef.MetricName
-		brs := m[string(metricName)]
-		brs = append(brs, blockRef{
+		ptIdx := len(pts) - 1
+		metricName := bytesutil.ToUnsafeString(pts[ptIdx].metricName)
+		if metricName == "" {
+			metricName = bytesutil.ToUnsafeString(pts[ptIdx-1].metricName)
+			if metricName != bytesutil.ToUnsafeString(sr.MetricBlockRef.MetricName) {
+				logger.Warnf("ptIdx: %d addr: %p, sr: %p, value: %s should equal to %s", ptIdx, &pts[ptIdx].metricName, sr.MetricName, metricName, bytesutil.ToUnsafeString(sr.MetricBlockRef.MetricName))
+			}
+		}
+		var brsPtr *[]blockRef
+		if idx, ok := m[metricName]; ok {
+			brsPtr = &pts[idx].brs // existed in pts
+			if len(*brsPtr) == 0 {
+				logger.Errorf("unexpected brs whose len should not be 0")
+			}
+		}
+		if brsPtr == nil {
+			brsPtr = &pts[ptIdx].brs
+		}
+		*brsPtr = append(*brsPtr, blockRef{
 			partRef: br.PartRef(),
 			addr:    addr,
 		})
-		if len(brs) > 1 {
-			m[string(metricName)] = brs
-		} else {
+		if len(*brsPtr) == 1 {
 			// An optimization for big number of time series with long metricName values:
 			// use only a single copy of metricName for both orderedMetricNames and m.
-			orderedMetricNames = append(orderedMetricNames, string(metricName))
-			m[orderedMetricNames[len(orderedMetricNames)-1]] = brs
+			if val, ok := m[metricName]; ok {
+				logger.Errorf("unexpected index get from %s, get %d: %+vv, should be %+v", metricName, val, pts[val], pts[len(pts)-1])
+			} else {
+				m[metricName] = ptIdx
+				if len(pts[ptIdx].brs) != len(*brsPtr) {
+					pts[ptIdx].brs = *brsPtr
+				}
+			}
+			// preallocate another pt
+			pts = append(pts, packedTimeseries{
+				metricName: make([]byte, 0, 256),
+				brs:        make([]blockRef, 0, 20),
+			})
+			sr.MetricName = &pts[ptIdx+1].metricName
 		}
 	}
 	if err := sr.Error(); err != nil {
 		putTmpBlocksFile(tbf)
 		putStorageSearch(sr)
 		if errors.Is(err, storage.ErrDeadlineExceeded) {
-			return nil, fmt.Errorf("timeout exceeded during the query: %s", deadline.String())
+			return nil, cb, fmt.Errorf("timeout exceeded during the query: %s", deadline.String())
 		}
-		return nil, fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
+		return nil, cb, fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
 	}
 	if err := tbf.Finalize(); err != nil {
 		putTmpBlocksFile(tbf)
 		putStorageSearch(sr)
-		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
+		return nil, cb, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
 	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, tbf.Len())
 
 	var rss Results
 	rss.tr = tr
 	rss.deadline = deadline
-	pts := make([]packedTimeseries, len(orderedMetricNames))
-	for i, metricName := range orderedMetricNames {
-		pts[i] = packedTimeseries{
-			metricName: metricName,
-			brs:        m[metricName],
-		}
-	}
-	rss.packedTimeseries = pts
+	rss.packedTimeseries = pts[:len(pts)-1]
 	rss.sr = sr
 	rss.tbf = tbf
-	return &rss, nil
+	return &rss, cb, nil
 }
 
 var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds`)

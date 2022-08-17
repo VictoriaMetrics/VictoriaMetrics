@@ -90,6 +90,8 @@ type MetricBlockRef struct {
 
 // Search is a search for time series.
 type Search struct {
+	MetricName *[]byte
+
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
@@ -116,6 +118,7 @@ type Search struct {
 }
 
 func (s *Search) reset() {
+	s.MetricName = nil
 	s.MetricBlockRef.MetricName = s.MetricBlockRef.MetricName[:0]
 	s.MetricBlockRef.BlockRef = nil
 
@@ -199,7 +202,12 @@ func (s *Search) NextMetricBlock() bool {
 		tsid := &s.ts.BlockRef.bh.TSID
 		if tsid.MetricID != s.prevMetricID {
 			var err error
-			s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			if s.MetricName != nil {
+				*(s.MetricName), err = s.idb.searchMetricNameWithCache((*(s.MetricName))[:0], tsid.MetricID)
+				s.MetricBlockRef.MetricName = *(s.MetricName)
+			} else {
+				s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			}
 			if err != nil {
 				if err == io.EOF {
 					// Skip missing metricName for tsid.MetricID.

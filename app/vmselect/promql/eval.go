@@ -972,7 +972,10 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
-	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
+	rss, cb, err := netstorage.ProcessSearchQuery(qt, sq, true, ec.Deadline)
+	if cb != nil {
+		defer cb()
+	}
 	if err != nil {
 		return nil, &UserReadableError{
 			Err: err,

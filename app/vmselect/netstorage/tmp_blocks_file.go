@@ -36,8 +36,8 @@ func maxInmemoryTmpBlocksFile() int {
 	if maxLen < 64*1024 {
 		return 64 * 1024
 	}
-	if maxLen > 4*1024*1024 {
-		return 4 * 1024 * 1024
+	if maxLen > 16*1024*1024 {
+		return 16 * 1024 * 1024
 	}
 	return maxLen
 }
@@ -52,7 +52,8 @@ type tmpBlocksFile struct {
 	f *os.File
 	r *fs.ReaderAt
 
-	offset uint64
+	offset         uint64
+	shouldInmemory bool
 }
 
 func getTmpBlocksFile() *tmpBlocksFile {
@@ -71,9 +72,25 @@ func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.f = nil
 	tbf.r = nil
 	tbf.offset = 0
-	tmpBlocksFilePool.Put(tbf)
+	if tbf.shouldInmemory {
+		inmemoryTmpBlocksFilePool.Put(tbf)
+	} else {
+		tmpBlocksFilePool.Put(tbf)
+	}
 }
 
+func getInmemoryTmpBlocksFile() *tmpBlocksFile {
+	v := inmemoryTmpBlocksFilePool.Get()
+	if v == nil {
+		return &tmpBlocksFile{
+			buf:            make([]byte, 0, 128*1024*1024),
+			shouldInmemory: true,
+		}
+	}
+	return v.(*tmpBlocksFile)
+}
+
+var inmemoryTmpBlocksFilePool sync.Pool
 var tmpBlocksFilePool sync.Pool
 
 type tmpBlockAddr struct {

@@ -73,7 +73,10 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		cp.start = cp.end - lookbackDelta
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxFederateSeries)
-	rss, err := netstorage.ProcessSearchQuery(nil, sq, cp.deadline)
+	rss, cb, err := netstorage.ProcessSearchQuery(nil, sq, true, cp.deadline)
+	if cb != nil {
+		defer cb()
+	}
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -134,7 +137,10 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	}
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
-		rss, err := netstorage.ProcessSearchQuery(nil, sq, cp.deadline)
+		rss, cb, err := netstorage.ProcessSearchQuery(nil, sq, true, cp.deadline)
+		if cb != nil {
+			defer cb()
+		}
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -336,7 +342,10 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
-		rss, err := netstorage.ProcessSearchQuery(qt, sq, cp.deadline)
+		rss, cb, err := netstorage.ProcessSearchQuery(qt, sq, true, cp.deadline)
+		if cb != nil {
+			defer cb()
+		}
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -610,9 +619,6 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		cp.start = cp.end - defaultStep
 	}
 	limit, err := searchutils.GetInt(r, "limit")
-	if err != nil {
-		return err
-	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
