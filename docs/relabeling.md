@@ -442,7 +442,7 @@ scrape_configs:
 See also [useful tips for target relabeling](#useful-tips-for-target-relabeling).
 
 
-# Useful tips for target relabeling
+## Useful tips for target relabeling
 
 * Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
   The specific sets of labels per each supported service discovery option are listed
