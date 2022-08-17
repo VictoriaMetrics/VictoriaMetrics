@@ -408,10 +408,6 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## How to drop discovered targets
 
-Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
-The specific sets of labels per each supported service discovery labels are listed
-[here](https://docs.victoriametrics.com/sd_configs.html#prometheus-service-discovery).
-
 If a particular discovered target shouldn't be scraped, then `action: keep` or `action: drop` relabeling rules
 must be used inside `relabel_configs` section.
 
@@ -448,6 +444,11 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 # Useful tips for target relabeling
 
+* Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
+  The specific sets of labels per each supported service discovery option are listed
+  [here](https://docs.victoriametrics.com/sd_configs.html#prometheus-service-discovery).
+* Every discovered target contains additional labels with `__` prefix other than `__meta_` labels.
+  See [these docs](#how-to-modify-scrape-urls-in-targets) for more details.
 * All the labels, which start from `__` prefix, are automatically removed from targets after the relabeling.
   So it is common practice to store temporary labels with names starting with `__` during target relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets.
