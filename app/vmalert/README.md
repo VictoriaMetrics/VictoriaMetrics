@@ -500,8 +500,9 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"` - get alert status by ID.
+* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
   Used as alert source in AlertManager.
+* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
