@@ -158,10 +158,10 @@ func TestAlert_ExecTemplate(t *testing.T) {
 			},
 		},
 		{
-			name:  "ActiveAt query range",
+			name: "ActiveAt query range",
 			alert: &Alert{
 				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
-            },
+			},
 			annotations: map[string]string{
 				"grafana_url": `vm-grafana.com?from={{($activeAt.Add (parseDurationTime "1h")).Unix}}&to={{($activeAt.Add (parseDurationTime "-1h")).Unix}}`,
 			},
