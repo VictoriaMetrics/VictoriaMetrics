@@ -90,7 +90,7 @@ var tplHeaders = []string{
 	"{{ $externalURL := .ExternalURL }}",
 	"{{ $alertID := .AlertID }}",
 	"{{ $groupID := .GroupID }}",
-	"{{ $activeAt := .activeAt }}",
+	"{{ $activeAt := .ActiveAt }}",
 }
 
 // ExecTemplate executes the Alert template for given
