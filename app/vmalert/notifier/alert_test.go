@@ -146,13 +146,27 @@ func TestAlert_ExecTemplate(t *testing.T) {
 			},
 		},
 		{
-			name:  "ActiveAt custome format",
-			alert: &Alert{},
+			name: "ActiveAt custome format",
+			alert: &Alert{
+				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+			},
 			annotations: map[string]string{
 				"fire_time": `{{$activeAt.Format "2006/01/02 15:04:05"}}`,
 			},
 			expTpl: map[string]string{
-				"fire_time": "0001/01/01 00:00:00",
+				"fire_time": "2022/08/19 20:34:58",
+			},
+		},
+		{
+			name:  "ActiveAt query range",
+			alert: &Alert{
+				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+            },
+			annotations: map[string]string{
+				"grafana_url": `vm-grafana.com?from={{($activeAt.Add (parseDurationTime "1h")).Unix}}&to={{($activeAt.Add (parseDurationTime "-1h")).Unix}}`,
+			},
+			expTpl: map[string]string{
+				"grafana_url": "vm-grafana.com?from=1660944898&to=1660937698",
 			},
 		},
 	}

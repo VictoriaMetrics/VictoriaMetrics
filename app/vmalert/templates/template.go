@@ -255,6 +255,15 @@ func templateFuncs() textTpl.FuncMap {
 			return d.Seconds(), nil
 		},
 
+		// same with parseDuration but returns a time.Duration
+		"parseDurationTime": func(s string) (time.Duration, error) {
+			d, err := promutils.ParseDuration(s)
+			if err != nil {
+				return 0, err
+			}
+			return d, nil
+		},
+
 		/* Numbers */
 
 		// humanize converts given number to a human readable format
