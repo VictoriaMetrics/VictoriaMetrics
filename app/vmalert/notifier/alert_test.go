@@ -152,7 +152,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 				"fire_time": `{{$activeAt.Format "2006/01/02 15:04:05"}}`,
 			},
 			expTpl: map[string]string{
-                "fire_time": "0001/01/01 00:00:00",
+				"fire_time": "0001/01/01 00:00:00",
 			},
 		},
 	}
