@@ -315,6 +315,8 @@ the update process. See [cluster availability](#cluster-availability) section fo
 
 Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
+Data re-routing can lead to a significant increase in resource usage depending on the number of `vmstorage` nodes and data replication. See [these docs](#capacity-planning) for details.
+
 ## Capacity planning
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
