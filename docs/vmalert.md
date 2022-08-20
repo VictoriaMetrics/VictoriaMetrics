@@ -214,7 +214,7 @@ The following variables are available in templating:
 | $externalURL or .ExternalURL       | URL configured via `-external.url` command-line flag. Used for cases when vmalert is hidden behind proxy. | {% raw  %}"Visit {{ $externalURL }} for more details"{% endraw %}                                |
 
 Additionally, `vmalert` provides some extra templating functions
-listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go) 
+listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/templates/template.go) 
 and [reusable templates](#reusable-templates).
 
 #### Reusable templates
