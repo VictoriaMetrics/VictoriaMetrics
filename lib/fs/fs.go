@@ -269,20 +269,20 @@ func SymlinkRelative(srcPath, dstPath string) error {
 
 // CopyDirectory copies all the files in srcPath to dstPath.
 func CopyDirectory(srcPath, dstPath string) error {
-	fis, err := ioutil.ReadDir(srcPath)
+	des, err := os.ReadDir(srcPath)
 	if err != nil {
 		return err
 	}
 	if err := MkdirAllIfNotExist(dstPath); err != nil {
 		return err
 	}
-	for _, fi := range fis {
-		if !fi.Mode().IsRegular() {
+	for _, de := range des {
+		if !de.Type().IsRegular() {
 			// Skip non-files
 			continue
 		}
-		src := filepath.Join(srcPath, fi.Name())
-		dst := filepath.Join(dstPath, fi.Name())
+		src := filepath.Join(srcPath, de.Name())
+		dst := filepath.Join(dstPath, de.Name())
 		if err := copyFile(src, dst); err != nil {
 			return err
 		}

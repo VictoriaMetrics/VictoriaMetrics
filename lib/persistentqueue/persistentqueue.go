@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
@@ -221,14 +220,14 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 
 	// Locate reader and writer chunks in the path.
-	fis, err := ioutil.ReadDir(path)
+	des, err := os.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read contents of the directory %q: %w", path, err)
 	}
-	for _, fi := range fis {
-		fname := fi.Name()
+	for _, de := range des {
+		fname := de.Name()
 		filepath := path + "/" + fname
-		if fi.IsDir() {
+		if de.IsDir() {
 			logger.Errorf("skipping unknown directory %q", filepath)
 			continue
 		}
