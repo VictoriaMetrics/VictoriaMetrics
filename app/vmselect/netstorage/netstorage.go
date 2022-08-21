@@ -1356,9 +1356,9 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
 	type wgWithPadding struct {
 		wg sync.WaitGroup
-		// Prevents false sharing on widespread platforms with
+		// The padding prevents false sharing on widespread platforms with
 		// 128 mod (cache line size) = 0 .
-		pad [128 - unsafe.Sizeof(sync.WaitGroup{})%128]byte
+		_ [128 - unsafe.Sizeof(sync.WaitGroup{})%128]byte
 	}
 	wgs := make([]wgWithPadding, len(storageNodes))
 	var stopped uint32
@@ -2407,9 +2407,9 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 
 type uint64WithPadding struct {
 	n uint64
-	// Prevents false sharing on widespread platforms with
+	// The padding prevents false sharing on widespread platforms with
 	// 128 mod (cache line size) = 0 .
-	pad [128 - unsafe.Sizeof(uint64(0))%128]byte
+	_ [128 - unsafe.Sizeof(uint64(0))%128]byte
 }
 
 type perNodeCounter struct {
