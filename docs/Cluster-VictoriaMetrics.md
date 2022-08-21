@@ -219,8 +219,8 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
   - `<suffix>` may have the following values:
-    - `api/v1/query` - performs [PromQL instant query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
-    - `api/v1/query_range` - performs [PromQL range query](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+    - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/keyConcepts.html#instant-query).
+    - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
     - `api/v1/series` - performs [series query](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers).
     - `api/v1/labels` - returns a [list of label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names).
     - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values).
@@ -305,11 +305,50 @@ the update process. See [cluster availability](#cluster-availability) section fo
 
 ## Cluster availability
 
-- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
-- The cluster remains available if at least a single `vmstorage` node exists:
+VictoriaMetrics cluster architecture prioritizes availability over data consistency.
+This means that the cluster remains available for data ingestion and data querying
+if some of its components are temporarily unavailable.
 
-  - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
-  - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available. If consistency over availability is preferred, then either pass `-search.denyPartialResponse` command-line flag to `vmselect` or pass `deny_partial_response=1` query arg in requests to `vmselect`.
+VictoriaMetrics cluster remains available if the following conditions are met:
+
+- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
+
+- At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
+  The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
+  for handling the current data ingestion workload.
+  If the remaining active `vminsert` nodes have no enough resources for processing the data ingestion workload,
+  then arbitrary delays may occur during data ingestion.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+- At least a single `vmselect` node must remain available in the cluster for processing query workload.
+  The remaining active `vmselect` nodes must have enough compute capacity (CPU, RAM, network bandwidth, disk IO)
+  for handling the current query workload.
+  If the remaining active `vmselect` nodes have no enough resources for processing query workload,
+  then arbitrary failures and delays may occur during query processing.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+- At least a single `vmstorage` node must remain available in the cluster for accepting newly ingested data
+  and for processing incoming queries. The remaining active `vmstorage` nodes must have enough compute capacity
+  (CPU, RAM, network bandwidth, disk IO, free disk space) for  handling the current workload.
+  If the remaining active `vmstorage` nodes have no enough resources for processing query workload,
+  then arbitrary failures and delay may occur during data ingestion and query processing.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+The cluster works in the following way when some of `vmstorage` nodes are unavailable:
+
+- `vminsert` re-routes newly ingested data from unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes.
+  This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
+  for processing the increased data ingestion workload.
+  `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
+  the increased load on these nodes.
+
+- `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
+  It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
+  since such responses may miss historical data stored on the temporarily unavailable `vmstorage` nodes.
+  Every partial JSON response contains `"isPartial": true` option.
+  If you prefer consistency over availability, then run `vmselect` nodes with `-search.denyPartialResponse` command-line flag.
+  In this case `vmselect` returns an error if at least a single `vmstorage` node is unavailable.
+  Another option is to pass `deny_partial_response=1` query arg to requests to `vmselect` nodes.
 
 `vmselect` doesn't serve partial responses for API handlers returning raw datapoints - [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series), since users usually expect this data is always complete.
 

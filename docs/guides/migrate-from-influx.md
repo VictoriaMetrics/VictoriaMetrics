@@ -204,7 +204,7 @@ behavior by adding `fill(previous)` to the query.
 VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
 To limit the interval on which VictoriaMetrics will try to fill the gaps, set `-search.setLookbackToStep`
 command-line flag. This limits the gap filling to a single `step` interval passed to
-[/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+[/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 This behavior is close to InfluxDB data model.
 
 
