@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -131,7 +130,7 @@ func (ph *partHeader) Reset() {
 
 func (ph *partHeader) readMinDedupInterval(partPath string) error {
 	filePath := partPath + "/min_dedup_interval"
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// The minimum dedup interval may not exist for old parts.

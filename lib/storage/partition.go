@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -871,7 +870,7 @@ func hasActiveMerges(pws []*partWrapper) bool {
 
 var (
 	bigMergeWorkersCount   = getDefaultMergeConcurrency(4)
-	smallMergeWorkersCount = getDefaultMergeConcurrency(8)
+	smallMergeWorkersCount = getDefaultMergeConcurrency(16)
 )
 
 func getDefaultMergeConcurrency(max int) int {
@@ -1743,7 +1742,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	txnLock.RLock()
 	defer txnLock.RUnlock()
 
-	data, err := ioutil.ReadFile(txnPath)
+	data, err := os.ReadFile(txnPath)
 	if err != nil {
 		return fmt.Errorf("cannot read transaction file: %w", err)
 	}

@@ -178,7 +178,7 @@ See [the list of supported service discovery types for Prometheus scrape targets
 
 ## scrape_config enhancements
 
-`vmagent` supports the following additional options in `scrape_configs` section:
+`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section:
 
 * `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target needs custom authorization and authentication. For example:
 
@@ -199,9 +199,12 @@ scrape_configs:
 * `relabel_debug: true` for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
 * `metric_relabel_debug: true` for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
+See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
+
+
 ## Loading scrape configs from multiple files
 
-`vmagent` supports loading scrape configs from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file and from `https://config-server/scrape_config.yml` url:
+`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file and from `https://config-server/scrape_config.yml` url:
 
 ```yml
 scrape_config_files:
@@ -210,7 +213,7 @@ scrape_config_files:
 - https://config-server/scrape_config.yml
 ```
 
-Every referred file can contain arbitrary number of [supported scrape configs](#how-to-collect-metrics-in-prometheus-format). There is no need in specifying top-level `scrape_configs` section in these files. For example:
+Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
 ```yml
 - job_name: foo
@@ -338,85 +341,94 @@ The following articles contain useful information about Prometheus relabeling:
 
 ## Relabeling enhancements
 
-VictoriaMetrics provides the following additional relabeling actions on top of standard actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
+* The `replacement` option can refer arbitrary labels via {% raw %}`{{label_name}}`{% endraw %} placeholders. Such placeholders are substituted with the corresponding label value. For example, the following relabeling rule sets `instance-job` label value to `host123-foo` when applied to the metric with `{instance="host123",job="foo"}` labels:
 
-* `replace_all` replaces all of the occurrences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
+  {% raw %}
+  ```yaml
+  - target_label: "instance-job"
+    replacement: "{{instance}}-{{job}}"
+  ```
+  {% endraw %}
+
+* An optional `if` filter can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
 
   ```yaml
-  - action: replace_all
-    source_labels: ["__name__"]
-    target_label: "__name__"
-    regex: "-"
-    replacement: "_"
+  - action: keep
+    if: 'foo{bar="baz"}'
   ```
 
-* `labelmap_all` replaces all of the occurrences of `regex` in all the label names with the `replacement`. For example, the following relabeling config replaces all the occurrences of `-` char in all the label names with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
+  This is equivalent to less clear Prometheus-compatible relabeling rule:
 
   ```yaml
-  - action: labelmap_all
-    regex: "-"
-    replacement: "_"
+  - action: keep
+    source_labels: [__name__, bar]
+    regex: 'foo;baz'
   ```
 
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal, while dropping all the other entries. For example, the following relabeling config keeps targets if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
-
-  ```yaml
-  - action: keep_if_equal
-    source_labels: ["instance", "host"]
-  ```
-
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal, while keeping all the other entries. For example, the following relabeling config drops targets if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
-
-  ```yaml
-  - action: drop_if_equal
-    source_labels: ["instance", "host"]
-  ```
-
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`, while dropping all the other metrics. For example, the following relabeling config keeps metrics with `fo` and `bar` names, while dropping all the other metrics:
+* The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
   ```yaml
   - action: keep_metrics
-    regex: "foo|bar"
+    regex: "metric_a|metric_b|foo_.+"
   ```
-
-* `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics. For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
 
   ```yaml
-  - action: drop_metrics
-    regex: "foo|bar"
+  - action: keep_metrics
+    regex:
+    - "metric_a"
+    - "metric_b"
+    - "foo_.+"
   ```
 
-* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
+* VictoriaMetrics provides the following additional relabeling actions on top of standard actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
-The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
+  * `replace_all` replaces all of the occurrences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
 
-```yaml
-- action: keep_metrics
-  regex: "metric_a|metric_b|foo_.+"
-```
+    ```yaml
+    - action: replace_all
+      source_labels: ["__name__"]
+      target_label: "__name__"
+      regex: "-"
+      replacement: "_"
+    ```
 
-```yaml
-- action: keep_metrics
-  regex:
-  - "metric_a"
-  - "metric_b"
-  - "foo_.+"
-```
+  * `labelmap_all` replaces all of the occurrences of `regex` in all the label names with the `replacement`. For example, the following relabeling config replaces all the occurrences of `-` char in all the label names with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
 
-VictoriaMetrics components support an optional `if` filter in relabeling configs, which can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
+    ```yaml
+    - action: labelmap_all
+      regex: "-"
+      replacement: "_"
+    ```
 
-```yaml
-- action: keep
-  if: 'foo{bar="baz"}'
-```
+  * `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal, while dropping all the other entries. For example, the following relabeling config keeps targets if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
 
-This is equivalent to less clear Prometheus-compatible relabeling rule:
+    ```yaml
+    - action: keep_if_equal
+      source_labels: ["instance", "host"]
+    ```
 
-```yaml
-- action: keep
-  source_labels: [__name__, bar]
-  regex: 'foo;baz'
-```
+  * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal, while keeping all the other entries. For example, the following relabeling config drops targets if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
+
+    ```yaml
+    - action: drop_if_equal
+      source_labels: ["instance", "host"]
+    ```
+
+  * `keep_metrics`: keeps all the metrics with names matching the given `regex`, while dropping all the other metrics. For example, the following relabeling config keeps metrics with `fo` and `bar` names, while dropping all the other metrics:
+
+    ```yaml
+    - action: keep_metrics
+      regex: "foo|bar"
+    ```
+
+  * `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics. For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
+
+    ```yaml
+    - action: drop_metrics
+      regex: "foo|bar"
+    ```
+
+  * `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
 
 ## Graphite relabeling
 

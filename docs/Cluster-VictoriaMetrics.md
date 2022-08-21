@@ -300,8 +300,47 @@ All the node types - `vminsert`, `vmselect` and `vmstorage` - may be updated via
 Send `SIGINT` signal to the corresponding process, wait until it finishes and then start new version
 with new configs.
 
-Cluster should remain in working state if at least a single node of each type remains available during
-the update process. See [cluster availability](#cluster-availability) section for details.
+There are the following cluster update / upgrade approaches exist:
+
+* `No downtime` strategy. Gracefully restart every node in the cluster one-by-one with the updated config / upgraded binary.
+
+  It is recommended restarting the nodes in the following order:
+
+  1. Restart `vmstorage` nodes.
+  2. Restart `vminsert` nodes.
+  3. Restart `vmselect` nodes.
+
+  This strategy allows upgrading the cluster without downtime if the following conditions are met:
+
+  - The cluster has at least a pair of nodes of each type - `vminsert`, `vmselect` and `vmstorage`,
+    so it can continue accept new data and serve incoming requests when a single node is temporary unavailable
+    during its restart. See [cluster availability docs](#cluster-availability) for details.
+  - The cluster has enough compute resources (CPU, RAM, network bandwidth, disk IO) for processing
+    the current workload when a single node of any type (`vminsert`, `vmselect` or `vmstorage`)
+    is temporarily unavailable during its restart.
+  - The updated config / upgraded binary is compatible with the remaining components in the cluster.
+    See the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) for compatibility notes between different releases.
+
+  If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
+  during the config update / version upgrade. In this case the following strategy is recommended.
+
+* `Minimum downtime` strategy:
+
+  1. Gracefully stop all the `vminsert` and `vmselect` nodes in parallel.
+  2. Gracefully restart all the `vmstorage` nodes in parallel.
+  3. Start all the `vminsert` and `vmselect` nodes in parallel.
+
+  The cluster is unavailable for data ingestion and querying when performing the steps above.
+  The downtime is minimized by restarting cluster nodes in parallel at every step above.
+  The `minimum downtime` strategy has the following benefits comparing to `no downtime` startegy:
+
+  - It allows performing config update / version upgrade with minimum disruption
+    when the previous config / version is incompatible with the new config / version.
+  - It allows perorming config update / version upgrade with minimum disruption
+    when the cluster has no enough compute resources (CPU, RAM, disk IO, network bandwidth)
+    for rolling upgrade.
+  - It allows minimizing the duration of config update / version ugprade for clusters with big number of nodes
+    of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
 
 ## Cluster availability
 
@@ -391,8 +430,8 @@ By default cluster components of VictoriaMetrics are tuned for an optimal resour
 - `-search.maxSamplesPerSeries` at `vmselect` limits the number of raw samples the query can process per each time series. `vmselect` sequentially processes raw samples per each found time series during the query. It unpacks raw samples on the selected time range per each time series into memory and then applies the given [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). The `-search.maxSamplesPerSeries` command-line flag allows limiting memory usage at `vmselect` in the case when the query is executed on a time range, which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` at `vmselect` limits the number of raw samples a single query can process. This allows limiting CPU usage at `vmselect` for heavy queries.
 - `-search.maxSeries` at `vmselect` limits the number of time series, which may be returned from [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers). This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
-- `-search.maxTagKeys` at `vmselect` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
-- `-search.maxTagValues` at `vmselect` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
+- `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
+- `-search.maxTagValues` at `vmstorage` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
 - `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day.
 - `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 

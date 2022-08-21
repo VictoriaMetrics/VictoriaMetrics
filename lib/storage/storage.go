@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -845,7 +844,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 		logger.Infof("nothing to load from %q", path)
 		return e
 	}
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
@@ -889,7 +888,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		logger.Infof("nothing to load from %q", path)
 		return hm
 	}
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
@@ -938,7 +937,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	// Marshal e.v
 	dst = marshalUint64Set(dst, &e.v)
 
-	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
+	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
 	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), e.v.Len(), len(dst))
@@ -961,7 +960,7 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	// Marshal hm.m
 	dst = marshalUint64Set(dst, hm.m)
 
-	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
+	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
 	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), hm.m.Len(), len(dst))
@@ -1022,7 +1021,7 @@ func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) in
 }
 
 func loadMinTimestampForCompositeIndex(path string) (int64, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}

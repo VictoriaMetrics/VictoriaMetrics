@@ -3,7 +3,6 @@ package fs
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -269,20 +268,20 @@ func SymlinkRelative(srcPath, dstPath string) error {
 
 // CopyDirectory copies all the files in srcPath to dstPath.
 func CopyDirectory(srcPath, dstPath string) error {
-	fis, err := ioutil.ReadDir(srcPath)
+	des, err := os.ReadDir(srcPath)
 	if err != nil {
 		return err
 	}
 	if err := MkdirAllIfNotExist(dstPath); err != nil {
 		return err
 	}
-	for _, fi := range fis {
-		if !fi.Mode().IsRegular() {
+	for _, de := range des {
+		if !de.Type().IsRegular() {
 			// Skip non-files
 			continue
 		}
-		src := filepath.Join(srcPath, fi.Name())
-		dst := filepath.Join(dstPath, fi.Name())
+		src := filepath.Join(srcPath, de.Name())
+		dst := filepath.Join(dstPath, de.Name())
 		if err := copyFile(src, dst); err != nil {
 			return err
 		}
@@ -383,14 +382,14 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch %q: %w", path, err)
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %s", path, err)
 		}
 		return data, nil
 	}
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q: %w", path, err)
 	}

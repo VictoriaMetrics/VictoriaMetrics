@@ -17,7 +17,7 @@ import (
 	"errors"
 	"fmt"
 	htmlTpl "html/template"
-	"io/ioutil"
+	"io"
 	"math"
 	"net"
 	"net/url"
@@ -71,7 +71,7 @@ func Load(pathPatterns []string, overwrite bool) error {
 		}
 	}
 	if len(tmpl.Templates()) > 0 {
-		err := tmpl.Execute(ioutil.Discard, nil)
+		err := tmpl.Execute(io.Discard, nil)
 		if err != nil {
 			return fmt.Errorf("failed to execute template: %w", err)
 		}

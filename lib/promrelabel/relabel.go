@@ -28,9 +28,11 @@ type parsedRelabelConfig struct {
 	graphiteMatchTemplate *graphiteMatchTemplate
 	graphiteLabelRules    []graphiteLabelRule
 
-	regexOriginal                *regexp.Regexp
-	hasCaptureGroupInTargetLabel bool
-	hasCaptureGroupInReplacement bool
+	regexOriginal *regexp.Regexp
+
+	hasCaptureGroupInTargetLabel   bool
+	hasCaptureGroupInReplacement   bool
+	hasLabelReferenceInReplacement bool
 }
 
 // String returns human-readable representation for prc.
@@ -172,10 +174,16 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return labels
 	case "replace":
 		// Store `replacement` at `target_label` if the `regex` matches `source_labels` joined with `separator`
+		replacement := prc.Replacement
 		bb := relabelBufPool.Get()
+		if prc.hasLabelReferenceInReplacement {
+			// Fill {{labelName}} references in the replacement
+			bb.B = fillLabelReferences(bb.B[:0], replacement, labels[labelsOffset:])
+			replacement = string(bb.B)
+		}
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		if prc.Regex == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInTargetLabel {
-			if prc.Replacement == "$1" {
+			if replacement == "$1" {
 				// Fast path for the rule that copies source label values to destination:
 				// - source_labels: [...]
 				//   target_label: foobar
@@ -188,7 +196,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 				// - target_label: foobar
 				//   replacement: something-here
 				relabelBufPool.Put(bb)
-				labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, prc.Replacement)
+				labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, replacement)
 				return labels
 			}
 		}
@@ -203,7 +211,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		if prc.hasCaptureGroupInTargetLabel {
 			nameStr = prc.expandCaptureGroups(nameStr, sourceStr, match)
 		}
-		valueStr := prc.expandCaptureGroups(prc.Replacement, sourceStr, match)
+		valueStr := prc.expandCaptureGroups(replacement, sourceStr, match)
 		relabelBufPool.Put(bb)
 		return setLabelValue(labels, labelsOffset, nameStr, valueStr)
 	case "replace_all":
@@ -538,4 +546,26 @@ func labelsToString(labels []prompbmarshal.Label) string {
 	}
 	b = append(b, '}')
 	return string(b)
+}
+
+func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.Label) []byte {
+	s := replacement
+	for len(s) > 0 {
+		n := strings.Index(s, "{{")
+		if n < 0 {
+			return append(dst, s...)
+		}
+		dst = append(dst, s[:n]...)
+		s = s[n+2:]
+		n = strings.Index(s, "}}")
+		if n < 0 {
+			dst = append(dst, "{{"...)
+			return append(dst, s...)
+		}
+		labelName := s[:n]
+		s = s[n+2:]
+		labelValue := GetLabelValueByName(labels, labelName)
+		dst = append(dst, labelValue...)
+	}
+	return dst
 }

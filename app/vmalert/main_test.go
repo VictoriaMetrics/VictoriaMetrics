@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"testing"
@@ -87,7 +86,7 @@ groups:
 `
 	)
 
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +153,7 @@ groups:
 
 func writeToFile(t *testing.T, file, b string) {
 	t.Helper()
-	err := ioutil.WriteFile(file, []byte(b), 0644)
+	err := os.WriteFile(file, []byte(b), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

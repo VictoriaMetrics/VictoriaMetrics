@@ -4,8 +4,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -214,7 +214,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parseFile(path string) ([]Group, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading alert rule file: %w", err)
 	}
