@@ -8,9 +8,7 @@ sort: 22
 
 ### What is a metric
 
-Simply put, `metric` - is a measure or observation of something. The measurement can be used to describe the process,
-compare it to other processes, perform some calculations with it, or even define events to trigger on reaching
-user-defined thresholds.
+Simply put, `metric` - is a numeric measure or observation of something.
 
 The most common use-cases for metrics are:
 
@@ -18,8 +16,6 @@ The most common use-cases for metrics are:
 - correlate behavior changes to other measurements;
 - observe or forecast trends;
 - trigger events (alerts) if the metric exceeds a threshold.
-
-Collecting and analyzing metrics provides advantages that are difficult to overestimate.
 
 ### Structure of a metric
 
@@ -53,57 +49,70 @@ requests_total{path="/", code="200"}
 
 A combination of a metric name and its labels defines a `time series`. For
 example, `requests_total{path="/", code="200"}` and `requests_total{path="/", code="403"}`
-are two different time series.
+are two different time series because they have different values for `code` label.
 
-Number of time series has an impact on database resource usage. See
+The number of unique time series has an impact on database resource usage. See
 also [What is an active time series?](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series)
 and  [What is high churn rate?](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 
 #### Cardinality
 
-The number of all unique label combinations for one metric defines its `cardinality`. For example, if `requests_total`
-has 3 unique `path` values and 5 unique `code` values, then its cardinality will be `3*5=15` of unique time series. If
-you add one more unique `path` value, cardinality will bump to `20`. See more in
-[What is cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality).
+The number of unique [time series](#time-series) is named `cardinality`. Too big number of unique time series is named `high cardinality`.
+High cardinality may result in increased resource usage at VictoriaMetrics.
+See [these docs](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) for more details.
 
 #### Data points
 
-Every time series consists of `data points` (also called `samples`). A `data point` is value-timestamp pair associated
-with the specific series:
+Every unique time series consists of arbitrary number of (`value`, `timestamp`) data points sorted by `timestamp`.
+The `value` is a [double-precision floating-point number](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
+The `timestamp` is a [unix timestamp](https://en.wikipedia.org/wiki/Unix_time) with millisecond precision.
+
+A `data point` is also named `sample`. Below is an example of a single data point
+in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format):
 
 ```
-requests_total{path="/", code="200"} <float64 value> <unixtimestamp>
+requests_total{path="/", code="200"} 123 4567890
 ```
 
-In VictoriaMetrics data model, data point's value is always of type `float64`. And timestamp is unix time with
-milliseconds precision. Each series can contain an infinite number of data points.
+- The `requests_total{path="/", code="200"}` identifies the associated time series for the given data point.
+- The `123` is a data point value.
+- The `4567890` is an optional data point timestamp. If it is missing,
+  then the current timestamp is used when storing the data point in VictoriaMetrics.
 
 ### Types of metrics
 
-Internally, VictoriaMetrics does not have a notion of a metric type. All metrics are the same. The concept of a metric
+Internally, VictoriaMetrics does not have the notion of a metric type. The concept of a metric
 type exists specifically to help users to understand how the metric was measured. There are 4 common metric types.
 
 #### Counter
 
-Counter metric type is a [monotonically increasing counter](https://en.wikipedia.org/wiki/Monotonic_function)
-used for capturing a number of events. It represents a cumulative metric whose value never goes down and always shows
-the current number of captured events. In other words, `counter` always shows the number of observed events since the
-application has started. In programming, `counter` is a variable that you **increment** each time something happens.
+Counter is a metric, which counts some events. Its value increases or stays the same over time.
+It cannot decrease in general case. The only exception is e.g. `counter reset`,
+when the metric resets to zero. The `counter reset` can occur when the service, which exposes the counter, restarts.
+So, the `counter` metric shows the number of observed events since the service start.
+
+In programming, `counter` is a variable that you **increment** each time something happens.
 
 {% include img.html href="keyConcepts_counter.png" %}
 
 `vm_http_requests_total` is a typical example of a counter - a metric which only grows. The interpretation of a graph
-above is that time series
-`vm_http_requests_total{instance="localhost:8428", job="victoriametrics", path="api/v1/query_range"}`
+above is that time series `vm_http_requests_total{instance="localhost:8428", job="victoriametrics", path="api/v1/query_range"}`
 was rapidly changing from 1:38 pm to 1:39 pm, then there were no changes until 1:41 pm.
 
 Counter is used for measuring a number of events, like a number of requests, errors, logs, messages, etc. The most
 common [MetricsQL](#metricsql) functions used with counters are:
 
 * [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) - calculates the speed of metric's change. For
-  example, `rate(requests_total)` will show how many requests are served per second;
+  example, `rate(requests_total)` shows how many requests are served per second;
 * [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) - calculates the growth of a metric on the given
-  time period. For example, `increase(requests_total[1h])` will show how many requests were served over `1h` interval.
+  time period. For example, `increase(requests_total[1h])` shows the number of requests served over the last hour.
+
+It is OK to have fractional counters. For example, `request_duration_seconds_sum` counter may sum durations of all the requests.
+Every duration may have fractional value in seconds, e.g. `0.5` seconds. So the cumulative sum of all the request durations
+may be fractional too.
+
+It is recommended to put `_total`, `_sum` or `_count` suffix to `counter` metric names, so such metrics can be easily differentiated
+by humans from other metric types.
 
 #### Gauge
 
@@ -111,8 +120,8 @@ Gauge is used for measuring a value that can go up and down:
 
 {% include img.html href="keyConcepts_gauge.png" %}
 
-The metric `process_resident_memory_anon_bytes` on the graph shows the number of bytes of memory used by the application
-during the runtime. It is changing frequently, going up and down showing how the process allocates and frees the memory.
+The metric `process_resident_memory_anon_bytes` on the graph shows memory usage of the application at every given time.
+It is changing frequently, going up and down showing how the process allocates and frees the memory.
 In programming, `gauge` is a variable to which you **set** a specific value as it changes.
 
 Gauge is used in the following scenarios:
@@ -121,17 +130,20 @@ Gauge is used in the following scenarios:
 * storing the state of some process. For example, gauge `config_reloaded_successful` can be set to `1` if everything is
   good, and to `0` if configuration failed to reload;
 * storing the timestamp when event happened. For example, `config_last_reload_success_timestamp_seconds`
-  can store the timestamp of the last successful configuration relaod.
+  can store the timestamp of the last successful configuration reload.
 
 The most common [MetricsQL](#metricsql)
 functions used with gauges are [aggregation and grouping functions](#aggregation-and-grouping-functions).
 
 #### Histogram
 
-Histogram is a set of [counter](#counter) metrics with different labels for tracking the dispersion
-and [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles) of the observed value. For example, in
-VictoriaMetrics we track how many rows is processed per query using the histogram with the
-name `vm_rows_read_per_query`. The exposition format for this histogram has the following form:
+Historgram is a set of [counter](#counter) metrics with different `vmrange` or `le` labels.
+The `vmrange` or `le` labels define measurement boundaries of a particular bucket.
+When the observed measurement hits a particular bucket, then the corresponding counter is incremented.
+
+Histogram buckets usually have `_bucket` suffix in their names.
+For example, VictoriaMetrics tracks the distribution of rows processed per query with the `vm_rows_read_per_query` histogram.
+The exposition format for this histogram has the following form:
 
 ```
 vm_rows_read_per_query_bucket{vmrange="4.084e+02...4.642e+02"} 2
@@ -143,7 +155,48 @@ vm_rows_read_per_query_sum 15582
 vm_rows_read_per_query_count 11
 ```
 
-In practice, histogram `vm_rows_read_per_query` may be used in the following way:
+The `vm_rows_read_per_query_bucket{vmrange="4.084e+02...4.642e+02"} 2` line means
+that there were 2 queries with the number of rows in the range `(408.4 - 464.2]`
+since the last VictoriaMetrics start.
+
+The metrics ending with `_bucket` suffix allow estimating arbitrary percentile
+for the observed measurement with the help of [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile)
+function. For example, the following query returns the estimated 99th percentile
+on the number of rows read per each query during the last hour (see `1h` in square brackets):
+
+```metricsql
+histogram_quantile(0.99, sum(increase(vm_rows_read_per_query_bucket[1h])) by (vmrange))
+```
+
+This query works in the following way:
+
+1. The `increase(vm_rows_read_per_query_bucket[1h])` calculates per-bucket per-instance
+   number of events over the last hour.
+
+2. The `sum(...) by (vmrange)` calculates per-bucket events by summing per-instance buckets
+   with the same `vmrange` values.
+
+3. The `histogram_quantile(0.99, ...)` calculates 99th percentile over `vmrange` buckets returned at the step 2.
+
+
+Histogram metric type exposes two additional counters ending with `_sum` and `_count` suffixes:
+
+- the `vm_rows_read_per_query_sum` is a sum of all the observed measurements,
+  e.g. the sum of rows served by all the queries since the last VictoriaMetrics start.
+
+- the `vm_rows_read_per_query_count` is the total number of observed events,
+  e.g. the total number of observed queries since the last VictoriaMetrics start.
+
+These counters allow calculating the average measurement value on a particular lookbehind window.
+For example, the following query calculates the average number of rows read per query
+during the last 5 minutes (see `5m` in square brackets):
+
+```metricsql
+increase(vm_rows_read_per_query_sum[5m]) / increase(vm_rows_read_per_query_count[5m])
+```
+
+The `vm_rows_read_per_query` histogram may be used in Go application in the following way
+by using the [github.com/VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) package:
 
 ```go
 // define the histogram
@@ -157,9 +210,8 @@ for _, query := range queries {
 
 Now let's see what happens each time when `rowsReadPerQuery.Update` is called:
 
-* counter `vm_rows_read_per_query_sum` increments by value of `len(query.Rows)` expression and accounts for
-  total sum of all observed values;
-* counter `vm_rows_read_per_query_count` increments by 1 and accounts for total number of observations;
+* counter `vm_rows_read_per_query_sum` is incremented by value of `len(query.Rows)` expression;
+* counter `vm_rows_read_per_query_count` increments by 1;
 * counter `vm_rows_read_per_query_bucket` gets incremented only if observed value is within the
   range (`bucket`) defined in `vmrange`.
 
@@ -169,7 +221,7 @@ and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#qua
 
 {% include img.html href="keyConcepts_histogram.png" %}
 
-Histograms are usually used for measuring latency, sizes of elements (batch size, for example) etc. There are two
+Histograms are usually used for measuring the distribution of latency, sizes of elements (batch size, for example) etc. There are two
 implementations of a histogram supported by VictoriaMetrics:
 
 1. [Prometheus histogram](https://prometheus.io/docs/practices/histograms/). The canonical histogram implementation
@@ -178,7 +230,7 @@ implementations of a histogram supported by VictoriaMetrics:
    histogram requires a user to define ranges (`buckets`) statically.
 2. [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
    supported by [VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) instrumentation library.
-   Victoriametrics histogram automatically adjusts buckets, so users don't need to think about them.
+   Victoriametrics histogram automatically handles bucket boundaries, so users don't need to think about them.
 
 Histograms aren't trivial to learn and use. We recommend reading the following articles before you start:
 
@@ -189,9 +241,9 @@ Histograms aren't trivial to learn and use. We recommend reading the following a
 
 #### Summary
 
-Summary is quite similar to [histogram](#histogram) and is used for
-[quantiles](https://prometheus.io/docs/practices/histograms/#quantiles) calculations. The main difference to histograms
-is that calculations are made on the client-side, so metrics exposition format already contains pre-calculated
+Summary metric type is quite similar to [histogram](#histogram) and is used for
+[quantiles](https://prometheus.io/docs/practices/histograms/#quantiles) calculations. The main difference
+is that calculations are made on the client-side, so metrics exposition format already contains pre-defined
 quantiles:
 
 ```
@@ -208,87 +260,82 @@ The visualisation of summaries is pretty straightforward:
 
 {% include img.html href="keyConcepts_summary.png" %}
 
-Such an approach makes summaries easier to use but also puts significant limitations - summaries can't be aggregated.
-The [histogram](#histogram) exposes the raw values via counters. It means a user can aggregate these counters for
-different metrics (for example, for metrics with different `instance` label) and **then calculate quantiles**. For
-summary, quantiles are already calculated, so
-they [can't be aggregated](https://latencytipoftheday.blogspot.de/2014/06/latencytipoftheday-you-cant-average.html)
-with other metrics.
+Such an approach makes summaries easier to use but also puts significant limitations comparing to [histograms](#histogram):
 
-Summaries are usually used for measuring latency, sizes of elements (batch size, for example) etc. But taking into
-account the limitation mentioned above.
+- It is impossible to calculate quantile over multiple summary metrics, e.g. `sum(go_gc_duration_seconds{quantile="0.75"})`,
+  `avg(go_gc_duration_seconds{quantile="0.75"})` or `max(go_gc_duration_seconds{quantile="0.75"})`
+  won't return the expected 0.75 quantile over `go_gc_duration_seconds` metrics collected from multiple instances
+  of the application. See [this article](https://latencytipoftheday.blogspot.de/2014/06/latencytipoftheday-you-cant-average.html) for details.
+
+- It is impossible to calculate quantiles other than the already pre-calculated quantiles.
+
+Summaries are usually used for tracking the pre-defined quantiles for latency, sizes of elements (batch size, for example) etc.
 
 ### Instrumenting application with metrics
 
-As was said at the beginning of the section [Types of metrics](#types-of-metrics), metric type defines how it was
-measured. VictoriaMetrics TSDB doesn't know about metric types, all it sees are labels, values, and timestamps. And what
-are these metrics, what do they measure, and how - all this depends on the application which emits them.
+As was said at the beginning of the [types of metrics](#types-of-metrics) section, metric type defines how it was
+measured. VictoriaMetrics TSDB doesn't know about metric types, all it sees are metric names, labels, values, and timestamps.
+What are these metrics, what do they measure, and how - all this depends on the application which emits them.
 
-To instrument your application with metrics compatible with VictoriaMetrics TSDB we recommend
-using [VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) instrumentation library. See more about how
-to use it on example of
-[How to monitor Go applications with VictoriaMetrics](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870)
-article.
+To instrument your application with metrics compatible with VictoriaMetrics we recommend
+using [github.com/VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) package.
+See more details on how to use it in [this article](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870).
 
-VictoriaMetrics is also compatible with
-Prometheus [client libraries for metrics instrumentation](https://prometheus.io/docs/instrumenting/clientlibs/).
+VictoriaMetrics is also compatible with Prometheus [client libraries for metrics instrumentation](https://prometheus.io/docs/instrumenting/clientlibs/).
 
 #### Naming
 
 We recommend following [naming convention introduced by Prometheus](https://prometheus.io/docs/practices/naming/). There
-are no strict (except allowed chars) restrictions and any metric name would be accepted by VictoriaMetrics. But
-convention will help to keep names meaningful, descriptive and clear to other people. Following convention is a good
-practice.
+are no strict restrictions, so any metric name and labels are be accepted by VictoriaMetrics.
+But the convention helps to keep names meaningful, descriptive and clear to other people.
+Following convention is a good practice.
 
 #### Labels
 
-Every metric can contain an arbitrary number of label names. The good practice is to keep this number limited.
-Otherwise, it would be difficult to use or plot on the graphs. By default, VictoriaMetrics limits the number of labels
-per series to `30` and drops all excessive labels. This limit can be changed via `-maxLabelsPerTimeseries` flag.
+Every metric can contain an arbitrary number of (`key="value"`) labels. The good practice is to keep this number limited.
+Otherwise, it would be difficult to use or plot metrics with big number of labels on graphs.
+By default, VictoriaMetrics limits the number of labels per metric to `30` and drops other labels.
+This limit can be changed via `-maxLabelsPerTimeseries` command-line flag if necessary (but this isn't recommended).
 
 Every label value can contain arbitrary string value. The good practice is to use short and meaningful label values to
 describe the attribute of the metric, not to tell the story about it. For example, label-value pair
-`environment=prod` is ok, but `log_message=long log message with a lot of details...` is not ok. By default,
-VcitoriaMetrics limits label's value size with 16kB. This limit can be changed via `-maxLabelValueLen` flag.
+`environment="prod"` is ok, but `log_message="long log message with a lot of details..."` is not ok. By default,
+VcitoriaMetrics limits label's value size with 16kB. This limit can be changed via `-maxLabelValueLen` command-line flag.
 
-It is very important to control the max number of unique label values since it defines the number
-of [time series](#time-series). Try to avoid using volatile values such as session ID or query ID in label values to
+It is very important to keep under control the number of unique label values, since every unique label value
+leads to a new [time series](#time-series). Try to avoid using volatile label values such as session ID or query ID in order to
 avoid excessive resource usage and database slowdown.
 
 ## Write data
 
-There are two main models in monitoring for data collection: [push](#push-model) and [pull](#pull-model). Both are used
-in modern monitoring and both are supported by VictoriaMetrics.
+There are two models used in modern monitoring for data collection: [push](#push-model) and [pull](#pull-model).
+Both are supported by VictoriaMetrics.
 
 ### Push model
 
-Push model is a traditional model of the client sending data to the server:
+Client regularly sends the collected metrics to the server in push model:
 
 {% include img.html href="keyConcepts_push_model.png" %}
 
-The client (application) decides when and where to send/ingest its metrics. VictoriaMetrics supports following protocols
-for ingesting:
+The client (application) decides when and where to send its metrics. VictoriaMetrics supports the following protocols
+for data ingestion (aka `push protocols`):
 
 * [Prometheus remote write API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup).
-* [Prometheus exposition format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format)
-  .
+* [Prometheus text exposition format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format).
 * [InfluxDB line protocol](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
   over HTTP, TCP and UDP.
 * [Graphite plaintext protocol](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-* [OpenTSDB put message](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-data-via-telnet-put-protocol)
-  .
-* [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests)
-  .
-* [JSON line format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format)
-  .
+* [OpenTSDB put message](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-data-via-telnet-put-protocol).
+* [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests).
+* [JSON line format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
 * [Arbitrary CSV data](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data).
-* [Native binary format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format)
-  .
+* [Native binary format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format).
 
 All the protocols are fully compatible with VictoriaMetrics [data model](#data-model) and can be used in production.
-There are no officially supported clients by VictoriaMetrics team for data ingestion. We recommend choosing from already
-existing clients compatible with the listed above protocols
+We recommend using the [github.com/VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) package
+for pushing application metrics to VictoriaMetrics.
+It is also possible to use already existing clients compatible with the protocols listed above
 (like [Telegraf](https://github.com/influxdata/telegraf)
 for [InfluxDB line protocol](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf))
 .
@@ -299,28 +346,28 @@ Creating custom clients or instrumenting the application for metrics writing is 
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
-It is allowed to push/write metrics
-to [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html),
+It is allowed to push/write metrics to [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html),
 [cluster component vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview)
 and [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
 The pros of push model:
 
-* application decides how and when to send data;
-* with a batch size of which size, at which rate;
-* with which retry logic;
-* simpler security management, the only access needed for the application is the access to the TSDB.
+* Simpler configuration - there is no need to configure VictoriaMetrics with locations of the monitored applications.
+  There is no need in complex [service discovery schemes](https://docs.victoriametrics.com/sd_configs.html).
+* Simpler security setup - there is no need to set up access from VictoriaMetrics to each monitored application.
 
 See [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
 elaborating more on why Percona switched from pull to push model.
 
 The cons of push protocol:
 
-* it requires applications to be more complex, since they need to be responsible for metrics delivery;
-* applications need to be aware of monitoring systems;
-* using a monitoring system it is hard to tell whether the application went down or just stopped sending metrics for a
-  different reason;
-* applications can overload the monitoring system by pushing too many metrics.
+* Increased configuration complexity for monitored applications.
+  Every application needs te be individually configured with the address of the monitoring system
+  for metrics delivery. It also needs to be configured with the interval between metric pushes
+  and the strategy on metric delivery failure.
+* Non-trivial setup for metrics' delivery into multiple monitoring systems.
+* It may be hard to tell whether the application went down or just stopped sending metrics for a different reason.
+* Applications can overload the monitoring system by pushing metrics at too short intervals.
 
 ### Pull model
 
@@ -330,86 +377,85 @@ and where to pull metrics from:
 {% include img.html href="keyConcepts_pull_model.png" %}
 
 In pull model, the monitoring system needs to be aware of all the applications it needs to monitor. The metrics are
-scraped (pulled) with fixed intervals via HTTP protocol.
+scraped (pulled) from the known applications (aka `scrape targets`) with via HTTP protocol on a regular basis (aka `scrape_interval`).
 
-For metrics scraping VictoriaMetrics
-supports [Prometheus exposition format](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-and needs to be configured with `-promscrape.config` flag pointing to the file with scrape configuration. This
-configuration may include list of static `targets` (applications or services)
-or `targets` discovered via various service discoveries.
+VictoriaMetrics supports discovering Prometheus-compatible targets and scraping metrics from them in the same way as Prometheus does -
+see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-Metrics scraping is supported
-by [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
-and [vmagent](https://docs.victoriametrics.com/vmagent.html).
+Metrics scraping is supported by [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+and by [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
 The pros of the pull model:
 
-* monitoring system decides how and when to scrape data, so it can't be overloaded;
-* applications aren't aware of the monitoring system and don't need to implement the logic for delivering metrics;
-* the list of all monitored targets belongs to the monitoring system and can be quickly checked;
-* easy to detect faulty or crashed services when they don't respond.
+* Easier to debug - VictoriaMetrics knows about all the monitored applications (aka `scrape targets`).
+  The `up == 0` query instantly shows unavailable scrape targets.
+  The actual information about scrape targets is available at `http://victoriametrics:8428/targets` and `http://vmagent:8429/targets`.
+* Monitoring system controls the frequency of metrics' scrape, so it is easier to control its' load.
+* Applications aren't aware of the monitoring system and don't need to implement the logic for metrics' delivery.
 
 The cons of the pull model:
 
-* monitoring system needs access to applications it monitors;
-* the frequency at which metrics are collected depends on the monitoring system.
+* Harder security setup - monitoring system needs have access to applications it monitors.
+* Pull model needs non-trivial [service discovery schemes](https://docs.victoriametrics.com/sd_configs.html).
 
 ### Common approaches for data collection
 
 VictoriaMetrics supports both [Push](#push-model) and [Pull](#pull-model)
-models for data collection. Many installations are using exclusively one or second model, or both at once.
+models for data collection. Many installations use exclusively one of these models, or both at once.
 
 The most common approach for data collection is using both models:
 
 {% include img.html href="keyConcepts_data_collection.png" %}
 
 In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent.html). Vmagent is
-a lightweight agent whose main purpose is to collect and deliver metrics. It supports all the same mentioned protocols
-and approaches mentioned for both data collection models.
+a lightweight agent whose main purpose is to collect, filter, relabel and deliver metrics to VictoriaMetrics.
+It supports all [push](#push-model) and [pull](#pull-model) protocols mentioned above.
 
-The basic setup for using VictoriaMetrics and vmagent for monitoring is described in example
-of [docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker). In this
-example,
-vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
-and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9d7da130b5a873be334b38c8d8dec702c9e8fac5/deployment/docker/docker-compose.yml#L15)
-. VictoriaMetrics is then used as
-a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/datasource.yml)
+The basic monitoring setup of VictoriaMetrics and vmagent is described in the [example
+ docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
+In this example vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
+and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9d7da130b5a873be334b38c8d8dec702c9e8fac5/deployment/docker/docker-compose.yml#L15).
+VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/datasource.yml)
 installation for querying collected data.
 
-VictoriaMetrics components allow building more advanced topologies. For example, vmagents pushing metrics from separate
-datacenters to the central VictoriaMetrics:
+VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
 
 {% include img.html href="keyConcepts_two_dcs.png" %}
 
-VictoriaMetrics in example may
-be [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+VictoriaMetrics in example may be [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html). Vmagent also allows to
-fan-out the same data to multiple destinations.
+[replicate the same data to multiple destinations](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability).
 
 ## Query data
 
 VictoriaMetrics provides
 an [HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup). The same API is also used
-by
+[Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup). The same API is also used by
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - graphical User Interface for querying
 and visualizing metrics.
 
-The API consists of two main handlers: [instant](#instant-query) and [range queries](#range-query).
+The API consists of two main handlers for serving [instant queries](#instant-query) and [range queries](#range-query).
 
 ### Instant query
 
-Instant query executes the query expression at the given moment of time:
+Instant query executes the query expression at the given timestamp:
 
 ```
-GET | POST /api/v1/query
+GET | POST /api/v1/query?query=...&time=...&step=...
+```
 
 Params:
-query - MetricsQL expression, required
-time - when (rfc3339 | unix_timestamp) to evaluate the query. If omitted, the current timestamp is used
-step - max lookback window if no datapoints found at the given time. If omitted, is set to 5m
-```
+
+* `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
+* `time` - optional timestamp when to evaluate the `query`. If `time` is skipped, then the current timestamp is used.
+  The `time` param can be specified in the following formats:
+  * [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) such as `2022-08-10T12:45:43.000Z`.
+  * [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in seconds. It can contains fractional part for millisecond precision.
+  * [Relative duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+    comparing to the current timestamp. For example, `-1h` means `one hour before the current time`.
+* `step` - optional max lookback window for searching for raw samples when executing the `query`.
+  If `step` is skipped, then it is set to `5m` (5 minutes) by default.
 
 To understand how instant queries work, let's begin with a data sample:
 
@@ -429,8 +475,8 @@ foo_bar 1.00 1652170500000 # 2022-05-10 10:15:00
 foo_bar 4.00 1652170560000 # 2022-05-10 10:16:00
 ```
 
-The data sample contains a list of samples for one time series with time intervals between samples from 1m to 3m. If we
-plot this data sample on the system of coordinates, it will have the following form:
+The data sample contains a list of samples for `foo_bar` time series with time intervals between samples from 1m to 3m. If we
+plot this data sample on the graph, it will have the following form:
 
 <p style="text-align: center">
     <a href="keyConcepts_data_samples.png" target="_blank">
@@ -492,14 +538,23 @@ the following scenarios:
 Range query executes the query expression at the given time range with the given step:
 
 ```
-GET | POST /api/v1/query_range
+GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
+```
 
 Params:
-query - MetricsQL expression, required
-start - beginning (rfc3339 | unix_timestamp) of the time rage, required
-end - end (rfc3339 | unix_timestamp) of the time range. If omitted, current timestamp is used 
-step - step in seconds for evaluating query expression on the time range. If omitted, is set to 5m
-```
+* `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
+* `start` - the starting timestamp of the time range for `query` evaluation.
+  The `start` param can be specified in the following formats:
+  * [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) such as `2022-08-10T12:45:43.000Z`.
+  * [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in seconds. It can contains fractional part for millisecond precision.
+  * [Relative duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+    comparing to the current timestamp. For example, `-1h` means `one hour before the current time`.
+* `end` - the ending timestamp of the time range for `query` evaluation.
+  If the `end` isn't set, then the `end` is automatically set to the current time.
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) between datapoints,
+  which must be returned from the range query.
+  The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
+  If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
 
 To get the values of `foo_bar` on time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
 need to issue a range query:
@@ -637,14 +692,12 @@ useful in the following scenarios:
 
 ### MetricsQL
 
-VictoriaMetrics provide a special query language for executing read queries
-
-- [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). MetricsQL is
-  a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) -like query language with a powerful set of
-  functions and features for working specifically with time series data. MetricsQL is backwards-compatible with PromQL,
-  so it shares most of the query concepts. For example, the basics concepts of PromQL are
-  described [here](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
-  are applicable to MetricsQL as well.
+VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+It is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics)-like query language with a powerful set of
+functions and features for working specifically with time series data. MetricsQL is backwards-compatible with PromQL,
+so it shares most of the query concepts. For example, the basics concepts of PromQL are
+described [here](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
+are applicable to MetricsQL as well.
 
 #### Filtering
 
