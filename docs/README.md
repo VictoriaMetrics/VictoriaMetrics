@@ -610,8 +610,8 @@ For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
 
-* [/api/v1/query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
-* [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
+* [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+* [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)
 * [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
