@@ -196,7 +196,7 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
 	if len(cfg.webTokenPath) > 0 {
-		token, err := ioutil.ReadFile(cfg.webTokenPath)
+		token, err := os.ReadFile(cfg.webTokenPath)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read webToken from path: %q, err: %w", cfg.webTokenPath, err)
 		}

@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -38,7 +38,7 @@ func TLSConfig(certFile, keyFile, CAFile, serverName string, insecureSkipVerify 
 
 	var rootCAs *x509.CertPool
 	if CAFile != "" {
-		pem, err := ioutil.ReadFile(CAFile)
+		pem, err := os.ReadFile(CAFile)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read `ca_file` %q: %w", CAFile, err)
 		}
