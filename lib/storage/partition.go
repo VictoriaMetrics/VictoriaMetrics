@@ -871,7 +871,7 @@ func hasActiveMerges(pws []*partWrapper) bool {
 
 var (
 	bigMergeWorkersCount   = getDefaultMergeConcurrency(4)
-	smallMergeWorkersCount = getDefaultMergeConcurrency(8)
+	smallMergeWorkersCount = getDefaultMergeConcurrency(16)
 )
 
 func getDefaultMergeConcurrency(max int) int {
