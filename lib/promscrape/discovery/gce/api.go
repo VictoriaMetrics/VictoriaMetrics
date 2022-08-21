@@ -3,7 +3,7 @@ package gce
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -94,7 +94,7 @@ func getAPIResponse(client *http.Client, apiURL, filter, pageToken string) ([]by
 }
 
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)

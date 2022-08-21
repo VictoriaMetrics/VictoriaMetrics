@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -130,7 +130,7 @@ func (cfg *Config) SignRequest(req *http.Request, payloadHash string) error {
 }
 
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)

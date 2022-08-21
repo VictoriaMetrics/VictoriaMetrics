@@ -3,7 +3,7 @@ package opentsdb
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -115,7 +115,7 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 		return nil, fmt.Errorf("Bad return from OpenTSDB: %q: %v", resp.StatusCode, resp)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve metric data from %q: %s", q, err)
 	}
@@ -139,7 +139,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 		return nil, fmt.Errorf("Bad return from OpenTSDB: %q: %v", resp.StatusCode, resp)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
 	}
@@ -200,7 +200,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 		return Metric{}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("couldn't read response body from OpenTSDB query...skipping")
 		return Metric{}, nil

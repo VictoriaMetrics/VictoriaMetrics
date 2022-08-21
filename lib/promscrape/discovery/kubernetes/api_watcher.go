@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -580,7 +579,7 @@ func (uw *urlWatcher) reloadObjects() string {
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 		return ""
@@ -676,7 +675,7 @@ func (uw *urlWatcher) watchForUpdates() {
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 			} else {
-				body, _ := ioutil.ReadAll(resp.Body)
+				body, _ := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
 				logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 				backoffSleep()

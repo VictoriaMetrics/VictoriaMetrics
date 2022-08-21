@@ -3,7 +3,6 @@ package fs
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -383,7 +382,7 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch %q: %w", path, err)
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %s", path, err)

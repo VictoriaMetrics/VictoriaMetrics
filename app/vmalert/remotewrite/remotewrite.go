@@ -5,7 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 	"strings"
@@ -257,7 +257,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}

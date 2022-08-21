@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"io/ioutil"
+	"io"
 	"math"
 	"math/bits"
 	"strconv"
@@ -406,7 +406,7 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, err := ioutil.ReadAll(sr)
+		data, err := io.ReadAll(sr)
 		sr.MustClose()
 		return data, err
 	}
