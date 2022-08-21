@@ -3,7 +3,7 @@ package datasource
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -156,7 +156,7 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL.Redacted(), body)
 	}
