@@ -343,8 +343,10 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		graphiteMatchTemplate: graphiteMatchTemplate,
 		graphiteLabelRules:    graphiteLabelRules,
 
-		regexOriginal:                regexOriginalCompiled,
-		hasCaptureGroupInTargetLabel: strings.Contains(targetLabel, "$"),
-		hasCaptureGroupInReplacement: strings.Contains(replacement, "$"),
+		regexOriginal: regexOriginalCompiled,
+
+		hasCaptureGroupInTargetLabel:   strings.Contains(targetLabel, "$"),
+		hasCaptureGroupInReplacement:   strings.Contains(replacement, "$"),
+		hasLabelReferenceInReplacement: strings.Contains(replacement, "{{"),
 	}, nil
 }
