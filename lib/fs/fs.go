@@ -390,7 +390,7 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		}
 		return data, nil
 	}
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q: %w", path, err)
 	}

@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -367,7 +367,7 @@ func mustLoadRollupResultCacheKeyPrefix(path string) {
 		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
 		return
 	}
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		logger.Errorf("cannot load %s: %s; reset rollupResult cache", path, err)
 		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
