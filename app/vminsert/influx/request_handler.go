@@ -74,6 +74,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 	ic.Reset() // This line is required for initializing ic internals.
 	rowsTotal := 0
 	atCopy := *at
+	ats := make(map[*auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -132,13 +133,18 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.SortLabelsIfNeeded()
+				atCopy, err := ic.MaybeParseAuthTokenFromLabels(&atCopy)
+				if err != nil {
+					return err
+				}
 				for i := range ic.Labels {
 					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
 				}
-				storageNodeIdx := ic.GetStorageNodeIdx(&atCopy, ic.Labels)
-				if err := ic.WriteDataPointExt(&atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				storageNodeIdx := ic.GetStorageNodeIdx(atCopy, ic.Labels)
+				if err := ic.WriteDataPointExt(atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
+				ats[atCopy]++
 			}
 		} else {
 			ic.SortLabelsIfNeeded()
@@ -158,16 +164,21 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					continue
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
-				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
-				storageNodeIdx := ic.GetStorageNodeIdx(&atCopy, ic.Labels)
-				if err := ic.WriteDataPointExt(&atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				atCopy, err := ic.MaybeParseAuthTokenFromLabels(&atCopy)
+				if err != nil {
 					return err
 				}
+				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
+				storageNodeIdx := ic.GetStorageNodeIdx(atCopy, ic.Labels)
+				if err := ic.WriteDataPointExt(atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+					return err
+				}
+				ats[atCopy]++
 			}
 		}
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(&atCopy).Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(ats)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }

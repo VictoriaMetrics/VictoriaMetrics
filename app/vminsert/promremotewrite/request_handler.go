@@ -41,6 +41,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
+	ats := make(map[*auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range timeseries {
 		ts := &timeseries[i]
@@ -65,6 +66,11 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 		samples := ts.Samples
+
+		at, err := ctx.MaybeParseAuthTokenFromLabels(at)
+		if err != nil {
+			return err
+		}
 		for i := range samples {
 			r := &samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
@@ -74,9 +80,10 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 				return err
 			}
 		}
+		ats[at] += len(ts.Samples)
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(at).Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
+	rowsTenantInserted.MultiAdd(ats)
 	return ctx.FlushBufs()
 }

@@ -43,6 +43,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
+	ats := make(map[*auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -64,12 +65,17 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
+		at, err := ctx.MaybeParseAuthTokenFromLabels(at)
+		if err != nil {
+			return err
+		}
 		if err := ctx.WriteDataPoint(at, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
+		ats[at] += 1
 	}
 	rowsInserted.Add(len(rows))
-	rowsTenantInserted.Get(at).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
+	rowsTenantInserted.MultiAdd(ats)
 	return ctx.FlushBufs()
 }

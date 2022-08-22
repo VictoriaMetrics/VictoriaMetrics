@@ -48,6 +48,7 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 
 	ctx.Reset()
 	rowsTotal := 0
+	ats := make(map[*auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range series {
 		ss := &series[i]
@@ -74,6 +75,10 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
+		at, err := ctx.MaybeParseAuthTokenFromLabels(at)
+		if err != nil {
+			return err
+		}
 		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		for _, pt := range ss.Points {
@@ -83,9 +88,10 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 				return err
 			}
 		}
+		ats[at] += len(ss.Points)
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(at).Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(ats)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }

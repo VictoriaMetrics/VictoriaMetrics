@@ -44,6 +44,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
+	ats := make(map[*auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -65,6 +66,10 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
+		at, err := ctx.MaybeParseAuthTokenFromLabels(at)
+		if err != nil {
+			return err
+		}
 		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		values := r.Values
@@ -78,9 +83,10 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 				return err
 			}
 		}
+		ats[at] += len(r.Values)
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(at).Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(ats)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }

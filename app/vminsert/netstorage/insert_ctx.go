@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 
@@ -13,6 +14,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/cespare/xxhash/v2"
 )
+
+var mustGetTenantFromLabels = flag.Bool("parseTenantIDFromLabels", false, "allows to obtain tenant id with vm_project_id and vm_account_id labels. Label values must be in numeric format."+
+	` E.g. {vm_project_id="5",vm_account_id="0"} converted into "0:5" tenant id.`)
 
 // InsertCtx is a generic context for inserting data.
 //
@@ -180,4 +184,44 @@ func marshalBytesFast(dst []byte, s []byte) []byte {
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst
+}
+
+// MaybeParseAuthTokenFromLabels parses auth Token from context labels
+// return fallback token if no labels were found or parsing is disabled
+// token labels removed from timeseries
+//go:inline
+func (ctx *InsertCtx) MaybeParseAuthTokenFromLabels(fallbackAt *auth.Token) (*auth.Token, error) {
+	if !*mustGetTenantFromLabels {
+		return fallbackAt, nil
+	}
+	return ctx.parseAuthTokenFromLabels(fallbackAt)
+}
+
+func (ctx *InsertCtx) parseAuthTokenFromLabels(fallbackAt *auth.Token) (*auth.Token, error) {
+	accountID := "0"
+	projectID := "0"
+	tmpLabels := ctx.Labels[:0]
+	var isTenantLabelFound bool
+	for _, label := range ctx.Labels {
+		if string(label.Name) == `vm_project_id` {
+			projectID = string(label.Value)
+			isTenantLabelFound = true
+			continue
+		}
+		if string(label.Name) == `vm_account_id` {
+			isTenantLabelFound = true
+			accountID = string(label.Value)
+			continue
+		}
+		tmpLabels = append(tmpLabels, label)
+	}
+	if !isTenantLabelFound {
+		return fallbackAt, nil
+	}
+	ctx.Labels = tmpLabels
+	at, err := auth.NewToken(accountID + ":" + projectID)
+	if err != nil {
+		return nil, err
+	}
+	return at, nil
 }

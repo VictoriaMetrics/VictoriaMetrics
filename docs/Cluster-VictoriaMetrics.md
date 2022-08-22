@@ -273,6 +273,14 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
   Snapshots may be created independently on each `vmstorage` node. There is no need in synchronizing snapshots' creation
   across `vmstorage` nodes.
 
+## Tenant routing with labels
+
+ It's possible to define tenant id with metric labels. Meta labels - `vm_project_id` and `vm_account_id` are used for this case. Such labels must have numeric value. 
+For instance, `my_metric_name{vm_project_id="5",vm_account_id="15",job="special"}` will be routed to the `15:5` tenant.
+ Meta labels will be stripped and result metric will be `my_metric_name{job="special"}`. It's also possible to use `extra_label` or metric `relabeling` for tenant routing.
+
+This functional could be enabled with `vminsert` flag `-parseTenantIDFromLabels=true`. By default, it's disabled for security purpose.
+
 ## Cluster resizing and scalability
 
 Cluster performance and capacity can be scaled up in two ways:
@@ -646,6 +654,8 @@ Below is the output for `/path/to/vminsert -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -parseTenantIDFromLabels
+        allows to obtain tenant id with vm_project_id and vm_account_id labels. Label values must be in numeric format. E.g. {vm_project_id="5",vm_account_id="0"} converted into "0:5" tenant id.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pushmetrics.extraLabel array
