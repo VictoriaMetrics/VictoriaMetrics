@@ -830,6 +830,10 @@ func (pt *partition) ForceMergeAllParts() error {
 		return nil
 	}
 
+	if !NeedCalcDoDedup(pws) {
+		return nil
+	}
+
 	// Check whether there is enough disk space for merging pws.
 	newPartSize := getPartsSize(pws)
 	maxOutBytes := fs.MustGetFreeSpace(pt.bigPartsPath)
@@ -847,6 +851,28 @@ func (pt *partition) ForceMergeAllParts() error {
 }
 
 var forceMergeLogger = logger.WithThrottler("forceMerge", time.Minute)
+
+func NeedCalcDoDedup(pws []*partWrapper) bool {
+	samplingMeta := GetDownSamplingMeta()
+	if len(samplingMeta) == 0 {
+		return false
+	}
+	nowTime := time.Now().UnixNano() / 1e6
+	for _, pw := range pws {
+		if pw != nil {
+			for _, v := range samplingMeta {
+				ph := pw.p.ph
+				if nowTime-ph.MinTimestamp > v.Duration.Milliseconds() {
+					dedupInterval := v.DownsamplingInterval.Milliseconds()
+					if dedupInterval > ph.MinDedupInterval {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
 
 func appendAllPartsToMerge(dst, src []*partWrapper) []*partWrapper {
 	for _, pw := range src {
@@ -1087,14 +1113,7 @@ func atomicSetBool(p *uint64, b bool) {
 }
 
 func (pt *partition) runFinalDedup() error {
-	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
-	if requiredDedupInterval <= actualDedupInterval {
-		// Deduplication isn't needed.
-		return nil
-	}
 	t := time.Now()
-	logger.Infof("starting final dedup for partition %s using requiredDedupInterval=%d ms, since the partition has smaller actualDedupInterval=%d ms",
-		pt.bigPartsPath, requiredDedupInterval, actualDedupInterval)
 	if err := pt.ForceMergeAllParts(); err != nil {
 		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
 	}
@@ -1214,7 +1233,9 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 	bsrs = nil
 
-	ph.MinDedupInterval = GetDedupInterval()
+	if ph.MinDedupInterval <= 0 {
+		ph.MinDedupInterval = GetDedupInterval()
+	}
 	if err := ph.writeMinDedupInterval(tmpPartPath); err != nil {
 		return fmt.Errorf("cannot store min dedup interval for part %q: %w", tmpPartPath, err)
 	}

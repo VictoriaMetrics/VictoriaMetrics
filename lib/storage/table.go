@@ -445,7 +445,7 @@ func (tb *table) startFinalDedupWatcher() {
 }
 
 func (tb *table) finalDedupWatcher() {
-	if !isDedupEnabled() {
+	if !isDedupEnabled() && len(GetDownSamplingMeta()) == 0 {
 		// Deduplication is disabled.
 		return
 	}
