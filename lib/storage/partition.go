@@ -1121,28 +1121,6 @@ func (pt *partition) runFinalDedup() error {
 	return nil
 }
 
-func (pt *partition) getRequiredDedupInterval() (int64, int64) {
-	pws := pt.GetParts(nil)
-	defer pt.PutParts(pws)
-	dedupInterval := GetDedupInterval()
-	minDedupInterval := getMinDedupInterval(pws)
-	return dedupInterval, minDedupInterval
-}
-
-func getMinDedupInterval(pws []*partWrapper) int64 {
-	if len(pws) == 0 {
-		return 0
-	}
-	dMin := pws[0].p.ph.MinDedupInterval
-	for _, pw := range pws[1:] {
-		d := pw.p.ph.MinDedupInterval
-		if d < dMin {
-			dMin = d
-		}
-	}
-	return dMin
-}
-
 // mergeParts merges pws.
 //
 // Merging is immediately stopped if stopCh is closed.
