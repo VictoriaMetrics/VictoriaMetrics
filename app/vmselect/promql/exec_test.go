@@ -1,7 +1,6 @@
 package promql
 
 import (
-	"log"
 	"math"
 	"testing"
 	"time"
@@ -8183,12 +8182,6 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 	for i := range result {
 		r := &result[i]
 		rExpected := &resultExpected[i]
-		for idx, tagExpected := range r.MetricName.Tags {
-			log.Printf("EXPECTED => %s; IDX => %d", tagExpected, idx)
-		}
-		for i, tagGot := range rExpected.MetricName.Tags {
-			log.Printf("GOT => %s; IDX => %d", tagGot, i)
-		}
 		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
 		testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
 	}
