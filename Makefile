@@ -1,4 +1,10 @@
+BOLD=$(shell tput bold)
+RED=$(shell tput setaf 1)
+BLUE=$(shell tput setaf 4)
+RESET=$(shell tput sgr0)
+
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
+ENTERPRISE_REMOTE_EXISTS=$(shell grep -Fx '[remote "enterprise"]' .git/config > /dev/null && echo 1 || echo 0)
 
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
@@ -168,7 +174,8 @@ publish-release:
 	git checkout $(TAG) && $(MAKE) release publish && \
 		git checkout $(TAG)-cluster && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish && \
+		$(MAKE) github-create-release
 
 release: \
 	release-victoria-metrics \
@@ -415,3 +422,53 @@ docs-sync:
 	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
 	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+
+enterprise-remote-check:
+ifeq ($(ENTERPRISE_REMOTE_EXISTS), 0)
+	$(error enterprise remote is missing)
+endif
+
+create-tags: enterprise-remote-check
+	git fetch --all
+	git switch enterprise && git tag -s $(TAG)-enterprise -m "$(TAG)"
+	git switch enterprise-cluster && git tag -s $(TAG)-enterprise-cluster -m "$(TAG)"
+	git switch cluster && git tag -s $(TAG)-cluster -m "$(TAG)"
+	git switch master && git tag -s $(TAG) -m "$(TAG)"
+
+push-tags: enterprise-remote-check
+	git push origin $(TAG)
+	git push origin $(TAG)-cluster
+	git push enterprise $(TAG)-enterprise
+	git push enterprise $(TAG)-enterprise-cluster
+
+github-token-check:
+ifndef GITHUB_TOKEN
+	$(error GITHUB_TOKEN is undefined)
+endif
+
+github-create-release: github-token-check push-tags
+	@release_id=$$(curl -s -w "%{http_code}" \
+		-X POST \
+		-H "Accept: application/vnd.github+json" \
+		-H "Authorization: token ${GITHUB_TOKEN}" \
+		https://api.github.com/repos/VictoriaMetrics/VictoriaMetrics/releases \
+		-d '{"tag_name":"$(TAG)","name":"$(TAG)","body":"$(TAG)","draft":true,"prerelease":false,"generate_release_notes":false}' | grep '"id"' -m 1 | sed -E 's/.* ([[:digit:]]+)\,/\1/' ) && \
+	printf "Created release for ${BOLD}${BLUE}${TAG}${RESET}\n"; \
+	$(foreach file, $(wildcard bin/*.zip), FILE=$(file) RELEASE_ID=$${release_id} CONTENT_TYPE="application/zip" $(MAKE) github-upload-asset;) \
+	$(foreach file, $(wildcard bin/*.tar.gz), FILE=$(file) RELEASE_ID=$${release_id} CONTENT_TYPE="application/x-gzip" $(MAKE) github-upload-asset;) \
+	$(foreach file, $(wildcard bin/*_checksums.txt), FILE=$(file) RELEASE_ID=$${release_id} CONTENT_TYPE="text/plain" $(MAKE) github-upload-asset;) 
+
+github-upload-asset:
+	@printf "Uploading ${BOLD}$(FILE)${RESET}\n"
+	@result=$$(curl -o /dev/null -w "%{http_code}" \
+		-X POST \
+		-H "Accept: application/vnd.github+json" \
+		-H "Authorization: token ${GITHUB_TOKEN}" \
+		-H "Content-Type: $(CONTENT_TYPE)" \
+		--data-binary "@$(FILE)" \
+		https://uploads.github.com/repos/VictoriaMetrics/VictoriaMetrics/releases/$(RELEASE_ID)/assets?name=$(notdir $(FILE))) ; \
+		if [ $${result} = 201 ]; then \
+			printf "Upload OK: $${result}\n"; \
+		else \
+			printf "Upload ${RED}Failed${RESET}: $${result}\n"; \
+		fi
