@@ -671,11 +671,11 @@ See also [implicit query conversions](#implicit-query-conversions).
 
 #### sort_by_label_numeric
 
-`sort_by_label_numeric(q, label1, ... labelN)` sorts series in ascending order by the given set of labels. It uses alphanumeric algorithm so that can sort numbers with chars.  For example, `sort_by_label_numeric(foo, "bar")` would sort `foo` series by values which can have value like `1:0:0`, `1:0:15`, `a1`, `ab1`  of the label `bar` in these series. See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc).
+`sort_by_label_numeric(q, label1, ... labelN)` sorts series in ascending order by the given set of labels. It uses alphanumeric algorithm so that can sort numbers with chars.  For example, `sort_by_label_numeric(foo, "bar")` would sort `foo` series by values which can have value like `1:0:2`, `1:0:15`, `a1`, `ab1`  of the label `bar` in these series. See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc).
 
 #### sort_by_label_numeric_desc
 
-`sort_by_label_numeric_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels. For example, `sort_by_label_numeric_desc(foo, "bar")` would sort `foo` series by values which can have value like `1:0:0`, `1:0:15`, `a1`, `ab1`  of the label `bar` in these series. See also [sort_by_label](#sort_by_label).
+`sort_by_label_numeric_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels. For example, `sort_by_label_numeric_desc(foo, "bar")` would sort `foo` series by values which can have value like `1:0:2`, `1:0:15`, `a1`, `ab1`  of the label `bar` in these series. See also [sort_by_label](#sort_by_label).
 
 #### sort_desc
 

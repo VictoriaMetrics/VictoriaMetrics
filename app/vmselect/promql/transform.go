@@ -2010,13 +2010,15 @@ func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
 			for _, label := range labels {
 				a := rvs[i].MetricName.GetTagValue(label)
 				b := rvs[j].MetricName.GetTagValue(label)
-				if string(a) == string(b) {
+				unsafeA := bytesutil.ToUnsafeString(a)
+				unsafeB := bytesutil.ToUnsafeString(b)
+				if unsafeA == unsafeB {
 					continue
 				}
 				if isDesc {
-					return alphanumericLess(string(b), string(a))
+					return alphanumericLess(unsafeB, unsafeA)
 				}
-				return alphanumericLess(string(a), string(b))
+				return alphanumericLess(unsafeA, unsafeB)
 			}
 			return false
 		})
