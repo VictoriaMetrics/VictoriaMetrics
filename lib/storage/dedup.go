@@ -26,10 +26,12 @@ var globalDedupInterval int64
 
 var meta []DownSamplingMeta
 
+//GetDownSamplingMeta returns the downsampling infos, which has been set via SetDownsampling.
 func GetDownSamplingMeta() []DownSamplingMeta {
 	return meta
 }
 
+//SetDownsampling set downsampling infos, like  -downsampling.period=30d:5m,180d:1h
 func SetDownsampling(downsampling string) {
 	if downsampling != "" {
 		//downsampling like 30d:5m,180d:30m
@@ -58,6 +60,7 @@ func SetDownsampling(downsampling string) {
 	}
 }
 
+//convertDuration parse downsampling like -downsampling.period=30d:5m,180d:1h
 func convertDuration(duration string) (time.Duration, error) {
 	/*
 		Golang's time library doesn't support many different
@@ -115,6 +118,7 @@ func convertDuration(duration string) (time.Duration, error) {
 	return actualDuration, nil
 }
 
+//DownSamplingMeta include Duration and DownsamplingInterval
 type DownSamplingMeta struct {
 	Duration             time.Duration
 	DownsamplingInterval time.Duration

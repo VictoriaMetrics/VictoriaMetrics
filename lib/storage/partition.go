@@ -852,6 +852,7 @@ func (pt *partition) ForceMergeAllParts() error {
 
 var forceMergeLogger = logger.WithThrottler("forceMerge", time.Minute)
 
+//NeedCalcDoDedup dynamically determine whether downsampling is required,false not need true need
 func NeedCalcDoDedup(pws []*partWrapper) bool {
 	samplingMeta := GetDownSamplingMeta()
 	if len(samplingMeta) == 0 {
