@@ -604,7 +604,7 @@ These metrics are automatically sent to the configured `-remoteWrite.url` alongs
 These metrics allow building the following alerting rules:
 
 - `scrape_series_current / scrape_series_limit > 0.9` - alerts when the number of series exposed by the target reaches 90% of the limit.
-- `rate(scrape_series_samples_dropped_total) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
+- `sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
 
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
