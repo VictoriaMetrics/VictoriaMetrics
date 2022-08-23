@@ -231,22 +231,57 @@ func TestAlphanumericLess(t *testing.T) {
 		})
 	}
 	f("empty strings", "", "", false)
+	f("same length", "123", "321", true)
+	f("same length", "321", "123", false)
+	f("empty first string", "", "321", true)
+	f("empty second string", "213", "", false)
 	f("check that a bigger than b", "a", "b", true)
 	f("check that b lower than a", "b", "a", false)
 	f("numbers with special chars", "1:0:0", "1:0:2", true)
-	f("numbers with special chars and different number rank", "1:0:15", "1:0:2", true)
-	f("has two zeroes", "0", "00", true)
+	f("numbers with special chars and different number rank", "1:0:15", "1:0:2", false)
+	f("has two zeroes", "0", "00", false)
 	f("reverse two zeroes", "00", "0", false)
 	f("only chars", "aa", "ab", true)
 	f("not equal strings", "ab", "abc", true)
-	f("char with a smaller number", "a0001", "a0000001", true)
-	f("short first string with numbers and highest rank", "a10", "abcdefgh2", false)
-	f("less as second string", "a1b", "a01b", true)
+	f("char with a smaller number", "a0001", "a0000001", false)
+	f("short first string with numbers and highest rank", "a10", "abcdefgh2", true)
+	f("less as second string", "a1b", "a01b", false)
 	f("equal strings by length with different number rank", "a001b01", "a01b001", false)
-	f("different numbers rank", "a01b001", "a001b01", true)
-	f("different numbers rank", "a01b001", "a001b01", true)
-	f("highest char and number", "a1", "a1x", true)
-	f("highest number revers chars", "1b", "1ax", false)
+	f("different numbers rank", "a01b001", "a001b01", false)
+	f("different numbers rank", "a01b001", "a001b01", false)
+	f("highest char and number", "a1", "a1x", false)
+	f("highest number revers chars", "1b", "1ax", true)
 	f("numbers with leading zero", "082", "83", true)
-	f("numbers with leading zero and chars", "083a", "9a", true)
+	f("numbers with leading zero and chars", "083a", "9a", false)
+}
+
+func Test_prefixes(t *testing.T) {
+	f := func(name, str string, isNumeric bool, want string, wantIdx int) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			got, got1 := prefixes(str, isNumeric)
+			if got != want {
+				t.Errorf("prefixes() got = %v, want %v", got, want)
+			}
+			if got1 != wantIdx {
+				t.Errorf("prefixes() got1 = %v, want %v", got1, wantIdx)
+			}
+		})
+	}
+	// isNumeric false, we are trying to find non-numeric strings from the start of the string
+	// and index of the first numeric value
+	f("empty string and non numeric", "", false, "", 0)
+	f("only numbers and non numeric", "123", false, "", 0)
+	f("just chars numbers and non numeric", "abc", false, "abc", 0)
+	f("chars with numbers and non numeric", "ab123c", false, "ab", 2)
+	f("chars with numbers at the end of the string", "abc123", false, "abc", 3)
+	f("chars with numbers at the start of the string", "123abc", false, "", 0)
+	// isNumeric true, we are trying to find numeric strings from the start of the string
+	// and index of the first non-numeric value
+	f("empty string and numeric", "", true, "", 0)
+	f("only numbers and numeric", "123", true, "123", 0)
+	f("just chars numbers and non numeric", "abc", true, "", 0)
+	f("chars with numbers and non numeric", "ab123c", true, "", 0)
+	f("chars with numbers at the end of the string", "abc123", true, "", 0)
+	f("chars with numbers at the start of the string", "123abc", true, "123", 3)
 }

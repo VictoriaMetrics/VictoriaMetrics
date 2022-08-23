@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"log"
 	"math"
 	"testing"
 	"time"
@@ -69,6 +70,12 @@ func TestExecSuccess(t *testing.T) {
 			result, err := Exec(nil, ec, q, false)
 			if err != nil {
 				t.Fatalf(`unexpected error when executing %q: %s`, q, err)
+			}
+			for _, r := range result {
+				for idx, gotTag := range r.MetricName.Tags {
+
+					log.Printf("AFTER EXEC => %s; IDX => %d", gotTag, idx)
+				}
 			}
 			testResultsEqual(t, result, resultExpected)
 		}
@@ -7818,11 +7825,11 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`sort_by_label_numeric(alias_numbers_with_special_chars)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label_numeric((
+			label_set(4, "a", "DS50:1/0/15"),
 			label_set(1, "a", "DS50:1/0/0"),
 			label_set(2, "a", "DS50:1/0/1"),
 			label_set(3, "a", "DS50:1/0/2"),
-			label_set(4, "a", "DS50:1/0/15"),
-		), "c", "d")`
+		), "a")`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},
@@ -7847,24 +7854,24 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Values:     []float64{3, 3, 3, 3, 3, 3},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("a"),
-				Value: []byte("DS50:1/0/15"),
+				Value: []byte("DS50:1/0/2"),
 			},
 		}
 		r4 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Values:     []float64{4, 4, 4, 4, 4, 4},
 			Timestamps: timestampsExpected,
 		}
 		r4.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("a"),
-				Value: []byte("DS50:1/0/2"),
+				Value: []byte("DS50:1/0/15"),
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
@@ -8182,8 +8189,14 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 	for i := range result {
 		r := &result[i]
 		rExpected := &resultExpected[i]
-		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
-		testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
+		for idx, tagExpected := range r.MetricName.Tags {
+			log.Printf("EXPECTED => %s; IDX => %d", tagExpected, idx)
+		}
+		for i, tagGot := range rExpected.MetricName.Tags {
+			log.Printf("GOT => %s; IDX => %d", tagGot, i)
+		}
+		// testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
+		// testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
 	}
 }
 

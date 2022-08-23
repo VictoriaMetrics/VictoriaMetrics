@@ -2014,7 +2014,7 @@ func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
 					continue
 				}
 				if isDesc {
-					return !alphanumericLess(string(a), string(b))
+					return alphanumericLess(string(b), string(a))
 				}
 				return alphanumericLess(string(a), string(b))
 			}
@@ -2024,52 +2024,74 @@ func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
 	}
 }
 
-func alphanumericLess(str, nextStr string) bool {
-	idx, idxNext := 0, 0
-	for idx < len(str) && idxNext < len(nextStr) {
-		c, cNext := str[idx], nextStr[idxNext]
-		isDigit, isDigitNext := unicode.IsDigit(rune(c)), unicode.IsDigit(rune(cNext))
-
-		if isDigit != isDigitNext {
-			return isDigit
-		}
-
-		if !isDigit {
-			if c != cNext {
-				return c < cNext
-			}
-			idx++
-			idxNext++
-		}
-
-		for idx < len(str) && str[idx] == '0' {
-			idx++
-		}
-		for idxNext < len(nextStr) && nextStr[idxNext] == '0' {
-			idxNext++
-		}
-
-		nonZeroVal, nonZeroValNext := idx, idxNext
-
-		for idx < len(str) && unicode.IsDigit(rune(str[idx])) {
-			idx++
-		}
-		for idxNext < len(nextStr) && unicode.IsDigit(rune(nextStr[idxNext])) {
-			idxNext++
-		}
-
-		partOfStr := str[nonZeroVal:idx]
-		partOfStrNext := nextStr[nonZeroValNext:idxNext]
-		if partOfStr != partOfStrNext {
-			return partOfStr < partOfStrNext
-		}
-
-		if nonZeroVal != nonZeroValNext {
-			return nonZeroVal < nonZeroValNext
-		}
+func alphanumericLess(a, b string) bool {
+	// short path to check strings
+	if a == "" && b != "" {
+		return true
+	}
+	if a != "" && b == "" {
+		return false
 	}
 
-	return len(str) < len(nextStr)
+	idxA, idxB := 0, 0
+	numPrefixA, numPrefixB := "", ""
+	for a != "" && b != "" {
+		numPrefixA, idxA = prefixes(a, true)
+		numPrefixB, idxB = prefixes(b, true)
+		// if we have numbers in prefixes we are trying to check them
+		if numPrefixA != "" && numPrefixB != "" {
+			numberA := toNumber(numPrefixA)
+			numberB := toNumber(numPrefixB)
+			// if numbers are equal we skip this action and try to find only non-numeric prefixes
+			if numberA == numberB {
+				idxA++
+				idxB++
+				goto nonNumeric
+			}
+			return numberA < numberB
+		}
+		// here we are trying to get only non-numeric prefixes
+	nonNumeric:
+		var nonNumberPrefixA, nonNumberPrefixB string
+		suffixA := a[idxA:]
+		suffixB := b[idxB:]
+		nonNumberPrefixA, idxA = prefixes(suffixA, false)
+		nonNumberPrefixB, idxB = prefixes(suffixB, false)
+		// if non-numeric prefixes are equal we are trying to find next numerical prefixes
+		if nonNumberPrefixA == nonNumberPrefixB {
+			a = suffixA[idxA:]
+			b = suffixB[idxB:]
+			idxA++
+			idxB++
+			continue
+		}
+		return nonNumberPrefixA < nonNumberPrefixB
+	}
+	return false
+}
+
+func toNumber(str string) int64 {
+	i, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return i
+}
+
+func prefixes(str string, isNumeric bool) (string, int) {
+	n := make([]byte, 0, len(str))
+	for idx, r := range str {
+		if unicode.IsDigit(r) && isNumeric {
+			n = append(n, byte(r))
+			continue
+		}
+		if !unicode.IsDigit(r) && !isNumeric {
+			n = append(n, byte(r))
+			continue
+		}
+		return string(n), idx
+	}
+	return string(n), 0
 }
 
 func newTransformFuncSort(isDesc bool) transformFunc {
