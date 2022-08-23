@@ -71,12 +71,6 @@ func TestExecSuccess(t *testing.T) {
 			if err != nil {
 				t.Fatalf(`unexpected error when executing %q: %s`, q, err)
 			}
-			for _, r := range result {
-				for idx, gotTag := range r.MetricName.Tags {
-
-					log.Printf("AFTER EXEC => %s; IDX => %d", gotTag, idx)
-				}
-			}
 			testResultsEqual(t, result, resultExpected)
 		}
 	}
@@ -8195,8 +8189,8 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 		for i, tagGot := range rExpected.MetricName.Tags {
 			log.Printf("GOT => %s; IDX => %d", tagGot, i)
 		}
-		// testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
-		// testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
+		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
+		testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
 	}
 }
 
