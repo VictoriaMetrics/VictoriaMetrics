@@ -2063,8 +2063,6 @@ func alphanumericLess(a, b string) bool {
 		if nonNumberPrefixA == nonNumberPrefixB {
 			a = suffixA[idxA:]
 			b = suffixB[idxB:]
-			idxA++
-			idxB++
 			continue
 		}
 		return nonNumberPrefixA < nonNumberPrefixB
