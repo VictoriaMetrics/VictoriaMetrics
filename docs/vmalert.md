@@ -634,6 +634,35 @@ Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/1495
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
+## Profiling
+
+`vmalert` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
+
+```console
+curl http://0.0.0.0:8880/debug/pprof/heap > mem.pprof
+```
+
+</div>
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
+
+```console
+curl http://0.0.0.0:8880/debug/pprof/profile > cpu.pprof
+```
+
+</div>
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
+
 ## Configuration
 
 ### Flags
