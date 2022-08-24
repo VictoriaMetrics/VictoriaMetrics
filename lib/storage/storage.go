@@ -469,8 +469,13 @@ type Metrics struct {
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
 
-	HourlySeriesLimitRowsDropped uint64
-	DailySeriesLimitRowsDropped  uint64
+	HourlySeriesLimitRowsDropped   uint64
+	HourlySeriesLimitMaxSeries     uint64
+	HourlySeriesLimitCurrentSeries uint64
+
+	DailySeriesLimitRowsDropped   uint64
+	DailySeriesLimitMaxSeries     uint64
+	DailySeriesLimitCurrentSeries uint64
 
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
@@ -546,8 +551,17 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
 
-	m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
-	m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
+	if sl := s.hourlySeriesLimiter; sl != nil {
+		m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
+		m.HourlySeriesLimitMaxSeries += uint64(sl.MaxItems())
+		m.HourlySeriesLimitCurrentSeries += uint64(sl.CurrentItems())
+	}
+
+	if sl := s.dailySeriesLimiter; sl != nil {
+		m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
+		m.DailySeriesLimitMaxSeries += uint64(sl.MaxItems())
+		m.DailySeriesLimitCurrentSeries += uint64(sl.CurrentItems())
+	}
 
 	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
 	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
