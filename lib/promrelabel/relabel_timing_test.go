@@ -2,10 +2,89 @@ package promrelabel
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
+
+func BenchmarkMatchRegexOrValuesMatchOptimized(b *testing.B) {
+	const pattern = "foo|bar|baz|abc"
+	const s = "foo"
+	rc := &RelabelConfig{
+		Action: "labeldrop",
+		Regex: &MultiLineRegex{
+			S: pattern,
+		},
+	}
+	prc, err := parseRelabelConfig(rc)
+	if err != nil {
+		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %s", err))
+	}
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexOrValuesMismatchOptimized(b *testing.B) {
+	const pattern = "foo|bar|baz|abc"
+	const s = "qwert"
+	rc := &RelabelConfig{
+		Action: "labeldrop",
+		Regex: &MultiLineRegex{
+			S: pattern,
+		},
+	}
+	prc, err := parseRelabelConfig(rc)
+	if err != nil {
+		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %s", err))
+	}
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexOrValuesMatchUnoptimized(b *testing.B) {
+	const pattern = "foo|bar|baz|abc"
+	const s = "foo"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexOrValuesMismatchUnoptimized(b *testing.B) {
+	const pattern = "foo|bar|baz|abc"
+	const s = "qwert"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
 
 func BenchmarkApplyRelabelConfigs(b *testing.B) {
 	b.Run("replace-label-copy", func(b *testing.B) {

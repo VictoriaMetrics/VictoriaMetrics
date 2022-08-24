@@ -726,3 +726,61 @@ func TestFillLabelReferences(t *testing.T) {
 	f(`{{bar}}-aa`, `foo{bar="baz"}`, `baz-aa`)
 	f(`{{bar}}-aa{{__name__}}.{{bar}}{{non-existing-label}}`, `foo{bar="baz"}`, `baz-aafoo.baz`)
 }
+
+func TestRegexpMatchStringSuccess(t *testing.T) {
+	f := func(pattern, s string) {
+		t.Helper()
+		rc := &RelabelConfig{
+			Action: "labeldrop",
+			Regex: &MultiLineRegex{
+				S: pattern,
+			},
+		}
+		prc, err := parseRelabelConfig(rc)
+		if err != nil {
+			t.Fatalf("unexpected error in parseRelabelConfig: %s", err)
+		}
+		if !prc.matchString(s) {
+			t.Fatalf("unexpected matchString(%q) result; got false; want true", s)
+		}
+	}
+	f("", "")
+	f("foo", "foo")
+	f(".*", "")
+	f(".*", "foo")
+	f("foo.*", "foobar")
+	f("foo.+", "foobar")
+	f("f.+o", "foo")
+	f("foo|bar", "bar")
+	f("^(foo|bar)$", "foo")
+	f("foo.+", "foobar")
+	f("^foo$", "foo")
+}
+
+func TestRegexpMatchStringFailure(t *testing.T) {
+	f := func(pattern, s string) {
+		t.Helper()
+		rc := &RelabelConfig{
+			Action: "labeldrop",
+			Regex: &MultiLineRegex{
+				S: pattern,
+			},
+		}
+		prc, err := parseRelabelConfig(rc)
+		if err != nil {
+			t.Fatalf("unexpected error in parseRelabelConfig: %s", err)
+		}
+		if prc.matchString(s) {
+			t.Fatalf("unexpected matchString(%q) result; got true; want false", s)
+		}
+	}
+	f("", "foo")
+	f("foo", "")
+	f("foo.*", "foa")
+	f("foo.+", "foo")
+	f("f.+o", "foor")
+	f("foo|bar", "barz")
+	f("^(foo|bar)$", "xfoo")
+	f("foo.+", "foo")
+	f("^foo$", "foobar")
+}
