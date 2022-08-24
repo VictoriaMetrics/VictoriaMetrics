@@ -3,7 +3,6 @@ package consul
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -109,7 +108,7 @@ func getToken(token *promauth.Secret) (string, error) {
 		return token.String(), nil
 	}
 	if tokenFile := os.Getenv("CONSUL_HTTP_TOKEN_FILE"); tokenFile != "" {
-		data, err := ioutil.ReadFile(tokenFile)
+		data, err := os.ReadFile(tokenFile)
 		if err != nil {
 			return "", fmt.Errorf("cannot read consul token file %q; probably, `token` arg is missing in `consul_sd_config`? error: %w", tokenFile, err)
 		}

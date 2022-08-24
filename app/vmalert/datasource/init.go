@@ -8,12 +8,15 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
 	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. "+
-		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend")
-	appendTypePrefix = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+		"E.g. http://127.0.0.1:8428 . See also '-datasource.disablePathAppend', '-datasource.showURL'.")
+	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
+	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to show -datasource.url in the exported metrics. "+
+		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	headers = flag.String("datasource.headers", "", "Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. "+
 		"For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. "+
@@ -50,6 +53,13 @@ var (
 	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
 )
+
+// InitSecretFlags must be called after flag.Parse and before any logging
+func InitSecretFlags() {
+	if !*showDatasourceURL {
+		flagutil.RegisterSecretFlag("datasource.url")
+	}
+}
 
 // Param represents an HTTP GET param
 type Param struct {

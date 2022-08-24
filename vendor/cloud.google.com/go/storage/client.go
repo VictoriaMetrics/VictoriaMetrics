@@ -44,7 +44,7 @@ type storageClient interface {
 	// Top-level methods.
 
 	GetServiceAccount(ctx context.Context, project string, opts ...storageOption) (string, error)
-	CreateBucket(ctx context.Context, project string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error)
+	CreateBucket(ctx context.Context, project, bucket string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error)
 	ListBuckets(ctx context.Context, project string, opts ...storageOption) *BucketIterator
 	Close() error
 
@@ -162,6 +162,20 @@ func callSettings(defaults *settings, opts ...storageOption) *settings {
 	return &cs
 }
 
+// makeStorageOpts is a helper for generating a set of storageOption based on
+// idempotency, retryConfig, and userProject. All top-level client operations
+// will generally have to pass these options through the interface.
+func makeStorageOpts(isIdempotent bool, retry *retryConfig, userProject string) []storageOption {
+	opts := []storageOption{idempotent(isIdempotent)}
+	if retry != nil {
+		opts = append(opts, withRetryConfig(retry))
+	}
+	if userProject != "" {
+		opts = append(opts, withUserProject(userProject))
+	}
+	return opts
+}
+
 // storageOption is the transport-agnostic call option for the storageClient
 // interface.
 type storageOption interface {
@@ -267,13 +281,14 @@ type openWriterParams struct {
 }
 
 type newRangeReaderParams struct {
-	bucket        string
-	conds         *Conditions
-	encryptionKey []byte
-	gen           int64
-	length        int64
-	object        string
-	offset        int64
+	bucket         string
+	conds          *Conditions
+	encryptionKey  []byte
+	gen            int64
+	length         int64
+	object         string
+	offset         int64
+	readCompressed bool // Use accept-encoding: gzip. Only works for HTTP currently.
 }
 
 type composeObjectRequest struct {
@@ -281,7 +296,6 @@ type composeObjectRequest struct {
 	dstObject     destinationObject
 	srcs          []sourceObject
 	predefinedACL string
-	encryptionKey []byte
 	sendCRC32C    bool
 }
 
@@ -313,5 +327,6 @@ type rewriteObjectResponse struct {
 	resource *ObjectAttrs
 	done     bool
 	written  int64
+	size     int64
 	token    string
 }

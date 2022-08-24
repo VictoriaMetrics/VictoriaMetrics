@@ -11,9 +11,9 @@ import (
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned counter is safe to use from concurrent goroutines.
 func NewFloatCounter(name string) *FloatCounter {
@@ -70,9 +70,9 @@ func (fc *FloatCounter) marshalTo(prefix string, w io.Writer) {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned FloatCounter is safe to use from concurrent goroutines.
 //

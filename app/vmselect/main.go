@@ -500,6 +500,12 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 		statusCode = esc.StatusCode
 	}
 	w.WriteHeader(statusCode)
+
+	var ure *promql.UserReadableError
+	if errors.As(err, &ure) {
+		prometheus.WriteErrorResponse(w, statusCode, ure)
+		return
+	}
 	prometheus.WriteErrorResponse(w, statusCode, err)
 }
 

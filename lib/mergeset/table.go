@@ -3,7 +3,6 @@ package mergeset
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1259,7 +1258,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	txnLock.RLock()
 	defer txnLock.RUnlock()
 
-	data, err := ioutil.ReadFile(txnPath)
+	data, err := os.ReadFile(txnPath)
 	if err != nil {
 		return fmt.Errorf("cannot read transaction file: %w", err)
 	}

@@ -14,7 +14,7 @@ import (
 // SDCheckInterval is check interval for Azure service discovery.
 var SDCheckInterval = flag.Duration("promscrape.azureSDCheckInterval", 60*time.Second, "Interval for checking for changes in Azure. "+
 	"This works only if azure_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config for details")
+	"See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details")
 
 // SDConfig represents service discovery config for Azure.
 //

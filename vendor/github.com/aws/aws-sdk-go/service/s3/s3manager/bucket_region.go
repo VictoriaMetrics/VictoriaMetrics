@@ -24,30 +24,30 @@ import (
 // For example to get the region of a bucket which exists in "eu-central-1"
 // you could provide a region hint of "us-west-2".
 //
-//    sess := session.Must(session.NewSession())
+//	sess := session.Must(session.NewSession())
 //
-//    bucket := "my-bucket"
-//    region, err := s3manager.GetBucketRegion(ctx, sess, bucket, "us-west-2")
-//    if err != nil {
-//        if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NotFound" {
-//             fmt.Fprintf(os.Stderr, "unable to find bucket %s's region not found\n", bucket)
-//        }
-//        return err
-//    }
-//    fmt.Printf("Bucket %s is in %s region\n", bucket, region)
+//	bucket := "my-bucket"
+//	region, err := s3manager.GetBucketRegion(ctx, sess, bucket, "us-west-2")
+//	if err != nil {
+//	    if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NotFound" {
+//	         fmt.Fprintf(os.Stderr, "unable to find bucket %s's region not found\n", bucket)
+//	    }
+//	    return err
+//	}
+//	fmt.Printf("Bucket %s is in %s region\n", bucket, region)
 //
 // By default the request will be made to the Amazon S3 endpoint using the Path
 // style addressing.
 //
-//    s3.us-west-2.amazonaws.com/bucketname
+//	s3.us-west-2.amazonaws.com/bucketname
 //
 // This is not compatible with Amazon S3's FIPS endpoints. To override this
 // behavior to use Virtual Host style addressing, provide a functional option
 // that will set the Request's Config.S3ForcePathStyle to aws.Bool(false).
 //
-//    region, err := s3manager.GetBucketRegion(ctx, sess, "bucketname", "us-west-2", func(r *request.Request) {
-//        r.S3ForcePathStyle = aws.Bool(false)
-//    })
+//	region, err := s3manager.GetBucketRegion(ctx, sess, "bucketname", "us-west-2", func(r *request.Request) {
+//	    r.S3ForcePathStyle = aws.Bool(false)
+//	})
 //
 // To configure the GetBucketRegion to make a request via the Amazon
 // S3 FIPS endpoints directly when a FIPS region name is not available, (e.g.
@@ -55,11 +55,11 @@ import (
 // utility is called with. The hint region will be ignored if an endpoint URL
 // is configured on the session or client.
 //
-//    sess, err := session.NewSession(&aws.Config{
-//        Endpoint: aws.String("https://s3-fips.us-west-2.amazonaws.com"),
-//    })
+//	sess, err := session.NewSession(&aws.Config{
+//	    Endpoint: aws.String("https://s3-fips.us-west-2.amazonaws.com"),
+//	})
 //
-//    region, err := s3manager.GetBucketRegion(context.Background(), sess, "bucketname", "")
+//	region, err := s3manager.GetBucketRegion(context.Background(), sess, "bucketname", "")
 func GetBucketRegion(ctx aws.Context, c client.ConfigProvider, bucket, regionHint string, opts ...request.Option) (string, error) {
 	var cfg aws.Config
 	if len(regionHint) != 0 {
@@ -78,15 +78,15 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 // By default the request will be made to the Amazon S3 endpoint using the Path
 // style addressing.
 //
-//    s3.us-west-2.amazonaws.com/bucketname
+//	s3.us-west-2.amazonaws.com/bucketname
 //
 // This is not compatible with Amazon S3's FIPS endpoints. To override this
 // behavior to use Virtual Host style addressing, provide a functional option
 // that will set the Request's Config.S3ForcePathStyle to aws.Bool(false).
 //
-//    region, err := s3manager.GetBucketRegionWithClient(ctx, client, "bucketname", func(r *request.Request) {
-//        r.S3ForcePathStyle = aws.Bool(false)
-//    })
+//	region, err := s3manager.GetBucketRegionWithClient(ctx, client, "bucketname", func(r *request.Request) {
+//	    r.S3ForcePathStyle = aws.Bool(false)
+//	})
 //
 // To configure the GetBucketRegion to make a request via the Amazon
 // S3 FIPS endpoints directly when a FIPS region name is not available, (e.g.
@@ -94,11 +94,11 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 // utility is called with. The hint region will be ignored if an endpoint URL
 // is configured on the session or client.
 //
-//    region, err := s3manager.GetBucketRegionWithClient(context.Background(),
-//    s3.New(sess, &aws.Config{
-//        Endpoint: aws.String("https://s3-fips.us-west-2.amazonaws.com"),
-//    }),
-//    "bucketname")
+//	region, err := s3manager.GetBucketRegionWithClient(context.Background(),
+//	s3.New(sess, &aws.Config{
+//	    Endpoint: aws.String("https://s3-fips.us-west-2.amazonaws.com"),
+//	}),
+//	"bucketname")
 //
 // See GetBucketRegion for more information.
 func GetBucketRegionWithClient(ctx aws.Context, svc s3iface.S3API, bucket string, opts ...request.Option) (string, error) {

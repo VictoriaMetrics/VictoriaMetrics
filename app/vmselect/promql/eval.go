@@ -320,7 +320,9 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
 	tf := getTransformFunc(fe.Name)
 	if tf == nil {
-		return nil, fmt.Errorf(`unknown func %q`, fe.Name)
+		return nil, &UserReadableError{
+			Err: fmt.Errorf(`unknown func %q`, fe.Name),
+		}
 	}
 	args, err := evalExprs(qt, ec, fe.Args)
 	if err != nil {
@@ -362,7 +364,9 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 	}
 	af := getAggrFunc(ae.Name)
 	if af == nil {
-		return nil, fmt.Errorf(`unknown func %q`, ae.Name)
+		return nil, &UserReadableError{
+			Err: fmt.Errorf(`unknown func %q`, ae.Name),
+		}
 	}
 	afa := &aggrFuncArg{
 		ae:   ae,
@@ -705,10 +709,14 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 	}
 	tssAt, err := evalExpr(qt, ec, re.At)
 	if err != nil {
-		return nil, fmt.Errorf("cannot evaluate `@` modifier: %w", err)
+		return nil, &UserReadableError{
+			Err: fmt.Errorf("cannot evaluate `@` modifier: %w", err),
+		}
 	}
 	if len(tssAt) != 1 {
-		return nil, fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt))
+		return nil, &UserReadableError{
+			Err: fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt)),
+		}
 	}
 	atTimestamp := int64(tssAt[0].Values[0] * 1000)
 	ecNew := copyEvalConfig(ec)
@@ -768,7 +776,9 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 		rvs, err = evalRollupFuncWithSubquery(qt, ecNew, funcName, rf, expr, re)
 	}
 	if err != nil {
-		return nil, err
+		return nil, &UserReadableError{
+			Err: err,
+		}
 	}
 	if funcName == "absent_over_time" {
 		rvs = aggregateAbsentOverTime(ec, re.Expr, rvs)
@@ -990,7 +1000,9 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
 	if err != nil {
-		return nil, err
+		return nil, &UserReadableError{
+			Err: err,
+		}
 	}
 	rssLen := rss.Len()
 	if rssLen == 0 {
@@ -1026,12 +1038,14 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
-		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
-			"total available memory for concurrent requests: %d bytes; "+
-			"requested memory: %d bytes; "+
-			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
-			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
-			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3)
+		return nil, &UserReadableError{
+			Err: fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
+				"total available memory for concurrent requests: %d bytes; "+
+				"requested memory: %d bytes; "+
+				"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
+				"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
+				rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3),
+		}
 	}
 	defer rml.Put(uint64(rollupMemorySize))
 
@@ -1044,7 +1058,9 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		tss, err = evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
 	}
 	if err != nil {
-		return nil, err
+		return nil, &UserReadableError{
+			Err: err,
+		}
 	}
 	tss = mergeTimeseries(tssCached, tss, start, ec)
 	rollupResultCacheV.Put(qt, ec, expr, window, tss)

@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -569,7 +568,7 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
 	}
-	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
 		return
 	}
 	logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -871,7 +870,7 @@ func hasActiveMerges(pws []*partWrapper) bool {
 
 var (
 	bigMergeWorkersCount   = getDefaultMergeConcurrency(4)
-	smallMergeWorkersCount = getDefaultMergeConcurrency(8)
+	smallMergeWorkersCount = getDefaultMergeConcurrency(16)
 )
 
 func getDefaultMergeConcurrency(max int) int {
@@ -956,7 +955,7 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 			// The merger has been stopped.
 			return nil
 		}
-		if !errors.Is(err, errNothingToMerge) {
+		if !errors.Is(err, errNothingToMerge) && !errors.Is(err, errReadOnlyMode) {
 			return err
 		}
 		if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
@@ -1012,11 +1011,13 @@ func (pt *partition) canBackgroundMerge() bool {
 	return atomic.LoadUint32(pt.isReadOnly) == 0
 }
 
+var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
+
 func (pt *partition) mergeBigParts(isFinal bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	maxOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
 
@@ -1032,7 +1033,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	// Try merging small parts to a big part at first.
 	maxBigPartOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
@@ -1741,7 +1742,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	txnLock.RLock()
 	defer txnLock.RUnlock()
 
-	data, err := ioutil.ReadFile(txnPath)
+	data, err := os.ReadFile(txnPath)
 	if err != nil {
 		return fmt.Errorf("cannot read transaction file: %w", err)
 	}

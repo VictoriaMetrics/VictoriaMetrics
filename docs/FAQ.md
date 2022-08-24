@@ -104,6 +104,11 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-import-time-series-data)).
 * [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
 
+## What is the difference between VictoriaMetrics and [Grafana Mimir](https://github.com/grafana/mimir)?
+
+Grafana Mimir is a [Cortex](https://github.com/cortexproject/cortex) fork, so it has the same differences
+as Cortex. See [what is the difference between VictoriaMetrics and Cortex](#what-is-the-difference-between-victoriametrics-and-cortex).
+
 ## What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)?
 
 VictoriaMetrics is similar to Cortex in the following aspects:
@@ -325,3 +330,9 @@ The query engine may behave differently for some functions. Please see [this art
 ## If downsampling and deduplication are enabled how will this work?
 
 [Deduplication](https://docs.victoriametrics.com/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
+
+## How to upgrade or downgrade VictoriaMetrics without downtime?
+
+Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
+
+[Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes).

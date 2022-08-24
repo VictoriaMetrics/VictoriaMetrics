@@ -159,7 +159,7 @@ func (c *httpStorageClient) GetServiceAccount(ctx context.Context, project strin
 	return res.EmailAddress, nil
 }
 
-func (c *httpStorageClient) CreateBucket(ctx context.Context, project string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error) {
+func (c *httpStorageClient) CreateBucket(ctx context.Context, project, bucket string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error) {
 	s := callSettings(c.settings, opts...)
 	var bkt *raw.Bucket
 	if attrs != nil {
@@ -167,7 +167,7 @@ func (c *httpStorageClient) CreateBucket(ctx context.Context, project string, at
 	} else {
 		bkt = &raw.Bucket{}
 	}
-
+	bkt.Name = bucket
 	// If there is lifecycle information but no location, explicitly set
 	// the location. This is a GCS quirk/bug.
 	if bkt.Location == "" && bkt.Lifecycle != nil {
@@ -692,7 +692,7 @@ func (c *httpStorageClient) ComposeObject(ctx context.Context, req *composeObjec
 	}
 
 	call := c.raw.Objects.Compose(req.dstBucket, req.dstObject.name, rawReq).Context(ctx)
-	if err := applyConds("ComposeFrom destination", -1, req.dstObject.conds, call); err != nil {
+	if err := applyConds("ComposeFrom destination", defaultGen, req.dstObject.conds, call); err != nil {
 		return nil, err
 	}
 	if s.userProject != "" {
@@ -701,7 +701,7 @@ func (c *httpStorageClient) ComposeObject(ctx context.Context, req *composeObjec
 	if req.predefinedACL != "" {
 		call.DestinationPredefinedAcl(req.predefinedACL)
 	}
-	if err := setEncryptionHeaders(call.Header(), req.encryptionKey, false); err != nil {
+	if err := setEncryptionHeaders(call.Header(), req.dstObject.encryptionKey, false); err != nil {
 		return nil, err
 	}
 	var obj *raw.Object
@@ -760,6 +760,7 @@ func (c *httpStorageClient) RewriteObject(ctx context.Context, req *rewriteObjec
 	r := &rewriteObjectResponse{
 		done:     res.Done,
 		written:  res.TotalBytesRewritten,
+		size:     res.ObjectSize,
 		token:    res.RewriteToken,
 		resource: newObject(res.Resource),
 	}
@@ -773,14 +774,6 @@ func (c *httpStorageClient) NewRangeReader(ctx context.Context, params *newRange
 
 	s := callSettings(c.settings, opts...)
 
-	if params.offset < 0 && params.length >= 0 {
-		return nil, fmt.Errorf("storage: invalid offset %d < 0 requires negative length", params.offset)
-	}
-	if params.conds != nil {
-		if err := params.conds.validate("NewRangeReader"); err != nil {
-			return nil, err
-		}
-	}
 	u := &url.URL{
 		Scheme: c.scheme,
 		Host:   c.readHost,
@@ -798,10 +791,9 @@ func (c *httpStorageClient) NewRangeReader(ctx context.Context, params *newRange
 	if s.userProject != "" {
 		req.Header.Set("X-Goog-User-Project", s.userProject)
 	}
-	// TODO(noahdietz): add option for readCompressed.
-	// if o.readCompressed {
-	// 	req.Header.Set("Accept-Encoding", "gzip")
-	// }
+	if params.readCompressed {
+		req.Header.Set("Accept-Encoding", "gzip")
+	}
 	if err := setEncryptionHeaders(req.Header, params.encryptionKey, false); err != nil {
 		return nil, err
 	}
@@ -1026,7 +1018,7 @@ func (c *httpStorageClient) OpenWriter(params *openWriterParams, opts ...storage
 			return
 		}
 		var resp *raw.Object
-		err := applyConds("NewWriter", params.attrs.Generation, params.conds, call)
+		err := applyConds("NewWriter", defaultGen, params.conds, call)
 		if err == nil {
 			if s.userProject != "" {
 				call.UserProject(s.userProject)

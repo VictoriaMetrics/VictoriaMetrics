@@ -12,7 +12,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute, "Interval for checking for changes in ec2. "+
 	"This works only if ec2_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details")
+	"See https://docs.victoriametrics.com/sd_configs.html#ec2_sd_configs for details")
 
 // SDConfig represents service discovery config for ec2.
 //

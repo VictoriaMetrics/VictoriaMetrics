@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -148,7 +147,7 @@ func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error
 	}
 
 	if resp.StatusCode != expSC {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
 		}
