@@ -886,7 +886,7 @@ func getOrValuesExt(sre *syntax.Regexp) []string {
 	}
 }
 
-const maxOrValues = 20
+const maxOrValues = 100
 
 var tagCharsRegexpEscaper = strings.NewReplacer(
 	"\\x00", "\\x000", // escapeChar
