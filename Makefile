@@ -430,10 +430,10 @@ endif
 
 create-tags: enterprise-remote-check
 	git fetch --all
-	git switch enterprise && git tag -s $(TAG)-enterprise -m "$(TAG)"
-	git switch enterprise-cluster && git tag -s $(TAG)-enterprise-cluster -m "$(TAG)"
-	git switch cluster && git tag -s $(TAG)-cluster -m "$(TAG)"
-	git switch master && git tag -s $(TAG) -m "$(TAG)"
+	git checkout -b enterprise enterprise/enterprise && git tag -s $(TAG)-enterprise -m "$(TAG)"
+	git checkout -b enterprise-cluster enterprise/enterprise-cluster && git tag -s $(TAG)-enterprise-cluster -m "$(TAG)"
+	git checkout -b cluster origin/cluster && git tag -s $(TAG)-cluster -m "$(TAG)"
+	git checkout -b master origin/master && git tag -s $(TAG) -m "$(TAG)"
 
 push-tags: enterprise-remote-check
 	git push origin $(TAG)
@@ -471,4 +471,5 @@ github-upload-asset:
 			printf "Upload OK: $${result}\n"; \
 		else \
 			printf "Upload ${RED}Failed${RESET}: $${result}\n"; \
+			exit 1; \
 		fi
