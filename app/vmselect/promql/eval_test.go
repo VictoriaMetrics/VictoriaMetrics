@@ -48,3 +48,31 @@ m2{b="bar"} 1`, `{}`)
 	f(`m1{a="foo",b="bar"} 1
 m2{b="bar",c="x"} 1`, `{b="bar"}`)
 }
+
+func TestValidateMaxPointsPerSeriesFailure(t *testing.T) {
+	f := func(start, end, step int64, maxPoints int) {
+		t.Helper()
+		if err := ValidateMaxPointsPerSeries(start, end, step, maxPoints); err == nil {
+			t.Fatalf("expecint non-nil error for ValidateMaxPointsPerSeries(start=%d, end=%d, step=%d, maxPoints=%d)", start, end, step, maxPoints)
+		}
+	}
+	// zero step
+	f(0, 0, 0, 0)
+	f(0, 0, 0, 1)
+	// the maxPoints is smaller than the generated points
+	f(0, 1, 1, 0)
+	f(0, 1, 1, 1)
+	f(1659962171908, 1659966077742, 5000, 700)
+}
+
+func TestValidateMaxPointsPerSeriesSuccess(t *testing.T) {
+	f := func(start, end, step int64, maxPoints int) {
+		t.Helper()
+		if err := ValidateMaxPointsPerSeries(start, end, step, maxPoints); err != nil {
+			t.Fatalf("unexpected error in ValidateMaxPointsPerSeries(start=%d, end=%d, step=%d, maxPoints=%d): %s", start, end, step, maxPoints, err)
+		}
+	}
+	f(1, 1, 1, 2)
+	f(1659962171908, 1659966077742, 5000, 800)
+	f(1659962150000, 1659966070000, 10000, 393)
+}

@@ -68,12 +68,13 @@ func TestExecSuccess(t *testing.T) {
 				AccountID: accountID,
 				ProjectID: projectID,
 			},
-			Start:       start,
-			End:         end,
-			Step:        step,
-			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
-			RoundDigits: 100,
+			Start:              start,
+			End:                end,
+			Step:               step,
+			MaxPointsPerSeries: 1e4,
+			MaxSeries:          1000,
+			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits:        100,
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(nil, ec, q, false)
@@ -7757,12 +7758,13 @@ func TestExecError(t *testing.T) {
 				AccountID: 123,
 				ProjectID: 567,
 			},
-			Start:       1000,
-			End:         2000,
-			Step:        100,
-			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
-			RoundDigits: 100,
+			Start:              1000,
+			End:                2000,
+			Step:               100,
+			MaxPointsPerSeries: 1e4,
+			MaxSeries:          1000,
+			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits:        100,
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(nil, ec, q, false)
