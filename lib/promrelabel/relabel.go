@@ -29,6 +29,7 @@ type parsedRelabelConfig struct {
 	graphiteLabelRules    []graphiteLabelRule
 
 	regexOriginal *regexp.Regexp
+	regexOrValues []string
 
 	hasCaptureGroupInTargetLabel   bool
 	hasCaptureGroupInReplacement   bool
@@ -413,6 +414,14 @@ func (prc *parsedRelabelConfig) replaceStringSubmatches(s, replacement string, h
 }
 
 func (prc *parsedRelabelConfig) matchString(s string) bool {
+	if len(prc.regexOrValues) > 0 {
+		for _, orValue := range prc.regexOrValues {
+			if s == orValue {
+				return true
+			}
+		}
+		return false
+	}
 	prefix, complete := prc.regexOriginal.LiteralPrefix()
 	if complete {
 		return prefix == s

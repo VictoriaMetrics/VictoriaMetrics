@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -199,6 +200,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	targetLabel := rc.TargetLabel
 	regexCompiled := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
+	var regexOrValues []string
 	if rc.Regex != nil {
 		regex := rc.Regex.S
 		regexOrig := regex
@@ -215,6 +217,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regexOrig, err)
 		}
 		regexOriginalCompiled = reOriginal
+		regexOrValues = regexutil.GetOrValues(regexOrig)
 	}
 	modulus := rc.Modulus
 	replacement := "$1"
@@ -344,6 +347,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		graphiteLabelRules:    graphiteLabelRules,
 
 		regexOriginal: regexOriginalCompiled,
+		regexOrValues: regexOrValues,
 
 		hasCaptureGroupInTargetLabel:   strings.Contains(targetLabel, "$"),
 		hasCaptureGroupInReplacement:   strings.Contains(replacement, "$"),
