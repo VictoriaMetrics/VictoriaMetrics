@@ -1176,6 +1176,13 @@ func TestGetOrValues(t *testing.T) {
 	f("(a|b|c)(d|e|f)(g|h|k)", nil)
 	f("(?i)foo", nil)
 	f("(?i)(foo|bar)", nil)
+	f("^foo|bar$", []string{"bar", "foo"})
+	f("^(foo|bar)$", []string{"bar", "foo"})
+	f("^a(foo|b(?:a|r))$", []string{"aba", "abr", "afoo"})
+	// This is incorrect conversion, because the regexp matches nothing.
+	// It is OK for now, since such regexps are uncommon in practice.
+	// TODO: properly handle this case.
+	f("^a(^foo|bar$)z$", []string{"abarz", "afooz"})
 }
 
 func TestGetRegexpPrefix(t *testing.T) {

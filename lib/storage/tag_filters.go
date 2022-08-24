@@ -811,6 +811,8 @@ func getOrValuesExt(sre *syntax.Regexp) []string {
 		return []string{string(sre.Rune)}
 	case syntax.OpEmptyMatch:
 		return []string{""}
+	case syntax.OpBeginText, syntax.OpEndText:
+		return []string{""}
 	case syntax.OpAlternate:
 		a := make([]string, 0, len(sre.Sub))
 		for _, reSub := range sre.Sub {
