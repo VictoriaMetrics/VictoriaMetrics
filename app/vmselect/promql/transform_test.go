@@ -253,6 +253,8 @@ func TestAlphanumericLess(t *testing.T) {
 	f("highest number revers chars", "1b", "1ax", true)
 	f("numbers with leading zero", "082", "83", true)
 	f("numbers with leading zero and chars", "083a", "9a", false)
+	f("same numbers", "123", "123", false)
+	f("same strings", "a", "a", false)
 }
 
 func Test_prefixes(t *testing.T) {

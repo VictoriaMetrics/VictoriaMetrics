@@ -2034,6 +2034,9 @@ func alphanumericLess(a, b string) bool {
 	if a != "" && b == "" {
 		return false
 	}
+	if a == b {
+		return false
+	}
 
 	idxA, idxB := 0, 0
 	numPrefixA, numPrefixB := "", ""
