@@ -815,6 +815,40 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{
 	return nil
 }
 
+// ForceMergeCurrentMonthParts runs merge for the current month only big parts in pt - big.
+func (pt *partition) ForceMergeCurrentMonthParts() error {
+	var pws []*partWrapper
+	pt.partsLock.Lock()
+	if !hasActiveMerges(pt.bigParts) {
+		pws = appendAllPartsToMerge(pws, pt.bigParts)
+	}
+	pt.partsLock.Unlock()
+
+	if len(pws) == 0 {
+		// Nothing to merge.
+		return nil
+	}
+
+	if !NeedCalcDoDedup(pws) {
+		return nil
+	}
+
+	// Check whether there is enough disk space for merging pws.
+	newPartSize := getPartsSize(pws)
+	maxOutBytes := fs.MustGetFreeSpace(pt.bigPartsPath)
+	if newPartSize > maxOutBytes {
+		freeSpaceNeededBytes := newPartSize - maxOutBytes
+		forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
+		return nil
+	}
+
+	// If len(pws) == 1, then the merge must run anyway. This allows removing the deleted series and performing de-duplication if needed.
+	if err := pt.mergePartsOptimal(pws, pt.stopCh); err != nil {
+		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
+	}
+	return nil
+}
+
 // ForceMergeAllParts runs merge for all the parts in pt - small and big.
 func (pt *partition) ForceMergeAllParts() error {
 	var pws []*partWrapper
@@ -1111,6 +1145,16 @@ func atomicSetBool(p *uint64, b bool) {
 		v = 1
 	}
 	atomic.StoreUint64(p, v)
+}
+
+// runFinalDedupOnlyBigParts do run final dedup for the current month only big parts.
+func (pt *partition) runFinalDedupOnlyBigParts() error {
+	t := time.Now()
+	if err := pt.ForceMergeCurrentMonthParts(); err != nil {
+		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
+	}
+	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
+	return nil
 }
 
 func (pt *partition) runFinalDedup() error {

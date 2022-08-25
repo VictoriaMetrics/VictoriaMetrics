@@ -452,8 +452,16 @@ func (tb *table) finalDedupWatcher() {
 	f := func() {
 		ptws := tb.GetPartitions(nil)
 		defer tb.PutPartitions(ptws)
+		timestamp := timestampFromTime(time.Now())
+		currentPartitionName := timestampToPartitionName(timestamp)
 		for _, ptw := range ptws {
-			if err := ptw.pt.runFinalDedup(); err != nil {
+			if ptw.pt.name == currentPartitionName {
+				// Do run final dedup for the current month only big parts.
+				if err := ptw.pt.runFinalDedupOnlyBigParts(); err != nil {
+					logger.Errorf("cannot run final dedup only big parts for the current month only big partition %s: %s", ptw.pt.name, err)
+					continue
+				}
+			} else if err := ptw.pt.runFinalDedup(); err != nil {
 				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
 				continue
 			}
