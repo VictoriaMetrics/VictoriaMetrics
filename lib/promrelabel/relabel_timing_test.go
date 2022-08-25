@@ -8,19 +8,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func BenchmarkMatchRegexOrValuesMatchOptimized(b *testing.B) {
-	const pattern = "foo|bar|baz|abc"
-	const s = "foo"
-	rc := &RelabelConfig{
-		Action: "labeldrop",
-		Regex: &MultiLineRegex{
-			S: pattern,
-		},
-	}
-	prc, err := parseRelabelConfig(rc)
-	if err != nil {
-		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %s", err))
-	}
+func BenchmarkMatchRegexPrefixDotPlusMatchOptimized(b *testing.B) {
+	const pattern = "^foo.+$"
+	const s = "foobar"
+	prc := newTestRegexRelabelConfig(pattern)
 	b.ReportAllocs()
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
@@ -32,19 +23,25 @@ func BenchmarkMatchRegexOrValuesMatchOptimized(b *testing.B) {
 	})
 }
 
-func BenchmarkMatchRegexOrValuesMismatchOptimized(b *testing.B) {
-	const pattern = "foo|bar|baz|abc"
-	const s = "qwert"
-	rc := &RelabelConfig{
-		Action: "labeldrop",
-		Regex: &MultiLineRegex{
-			S: pattern,
-		},
-	}
-	prc, err := parseRelabelConfig(rc)
-	if err != nil {
-		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %s", err))
-	}
+func BenchmarkMatchRegexPrefixDotPlusMatchUnoptimized(b *testing.B) {
+	const pattern = "^foo.+$"
+	const s = "foobar"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexPrefixDotPlusMismatchOptimized(b *testing.B) {
+	const pattern = "^foo.+$"
+	const s = "xfoobar"
+	prc := newTestRegexRelabelConfig(pattern)
 	b.ReportAllocs()
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
@@ -56,8 +53,98 @@ func BenchmarkMatchRegexOrValuesMismatchOptimized(b *testing.B) {
 	})
 }
 
-func BenchmarkMatchRegexOrValuesMatchUnoptimized(b *testing.B) {
-	const pattern = "foo|bar|baz|abc"
+func BenchmarkMatchRegexPrefixDotPlusMismatchUnoptimized(b *testing.B) {
+	const pattern = "^foo.+$"
+	const s = "xfoobar"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexPrefixDotStarMatchOptimized(b *testing.B) {
+	const pattern = "^foo.*$"
+	const s = "foobar"
+	prc := newTestRegexRelabelConfig(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexPrefixDotStarMatchUnoptimized(b *testing.B) {
+	const pattern = "^foo.*$"
+	const s = "foobar"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexPrefixDotStarMismatchOptimized(b *testing.B) {
+	const pattern = "^foo.*$"
+	const s = "xfoobar"
+	prc := newTestRegexRelabelConfig(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexPrefixDotStarMismatchUnoptimized(b *testing.B) {
+	const pattern = "^foo.*$"
+	const s = "xfoobar"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexSingleValueMatchOptimized(b *testing.B) {
+	const pattern = "^foo$"
+	const s = "foo"
+	prc := newTestRegexRelabelConfig(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexSingleValueMatchUnoptimized(b *testing.B) {
+	const pattern = "^foo$"
 	const s = "foo"
 	re := regexp.MustCompile(pattern)
 	b.ReportAllocs()
@@ -71,8 +158,83 @@ func BenchmarkMatchRegexOrValuesMatchUnoptimized(b *testing.B) {
 	})
 }
 
+func BenchmarkMatchRegexSingleValueMismatchOptimized(b *testing.B) {
+	const pattern = "^foo$"
+	const s = "bar"
+	prc := newTestRegexRelabelConfig(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexSingleValueMismatchUnoptimized(b *testing.B) {
+	const pattern = "^foo$"
+	const s = "bar"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexOrValuesMatchOptimized(b *testing.B) {
+	const pattern = "^(foo|bar|baz|abc)$"
+	const s = "foo"
+	prc := newTestRegexRelabelConfig(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexOrValuesMatchUnoptimized(b *testing.B) {
+	const pattern = "^(foo|bar|baz|abc)$"
+	const s = "foo"
+	re := regexp.MustCompile(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !re.MatchString(s) {
+				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
+func BenchmarkMatchRegexOrValuesMismatchOptimized(b *testing.B) {
+	const pattern = "^(foo|bar|baz|abc)"
+	const s = "qwert"
+	prc := newTestRegexRelabelConfig(pattern)
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if prc.matchString(s) {
+				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
+			}
+		}
+	})
+}
+
 func BenchmarkMatchRegexOrValuesMismatchUnoptimized(b *testing.B) {
-	const pattern = "foo|bar|baz|abc"
+	const pattern = "^(foo|bar|baz|abc)$"
 	const s = "qwert"
 	re := regexp.MustCompile(pattern)
 	b.ReportAllocs()

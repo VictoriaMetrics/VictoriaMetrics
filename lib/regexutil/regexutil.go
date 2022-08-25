@@ -3,16 +3,31 @@ package regexutil
 import (
 	"regexp/syntax"
 	"sort"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// RemoveStartEndAnchors removes '^' at the start of expr and '$' at the end of the expr.
+func RemoveStartEndAnchors(expr string) string {
+	for strings.HasPrefix(expr, "^") {
+		expr = expr[1:]
+	}
+	for strings.HasSuffix(expr, "$") {
+		expr = expr[:len(expr)-1]
+	}
+	return expr
+}
+
 // GetOrValues returns "or" values from the given regexp expr.
 //
-// E.g. it returns ["foo", "bar"] for "foo|bar" regexp.
-// It returns an empty list if it is impossible to extract "or" values from the regexp.
+// It ignores start and end anchors ('^') and ('$') at the start and the end of expr.
+// It returns ["foo", "bar"] for "foo|bar" regexp.
+// It returns ["foo"] for "foo" regexp.
 // It returns [""] for "" regexp.
+// It returns an empty list if it is impossible to extract "or" values from the regexp.
 func GetOrValues(expr string) []string {
+	expr = RemoveStartEndAnchors(expr)
 	sre, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing verified expr=%q: %s", expr, err)
