@@ -863,7 +863,7 @@ func NeedCalcDoDedup(pws []*partWrapper) bool {
 		if pw != nil {
 			for _, v := range samplingMeta {
 				ph := pw.p.ph
-				if nowTime-ph.MinTimestamp > v.Duration.Milliseconds() {
+				if nowTime-ph.MaxTimestamp > v.Duration.Milliseconds() {
 					dedupInterval := v.DownsamplingInterval.Milliseconds()
 					if dedupInterval > ph.MinDedupInterval {
 						return true

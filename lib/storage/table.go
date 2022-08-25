@@ -452,13 +452,7 @@ func (tb *table) finalDedupWatcher() {
 	f := func() {
 		ptws := tb.GetPartitions(nil)
 		defer tb.PutPartitions(ptws)
-		timestamp := timestampFromTime(time.Now())
-		currentPartitionName := timestampToPartitionName(timestamp)
 		for _, ptw := range ptws {
-			if ptw.pt.name == currentPartitionName {
-				// Do not run final dedup for the current month.
-				continue
-			}
 			if err := ptw.pt.runFinalDedup(); err != nil {
 				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
 				continue
