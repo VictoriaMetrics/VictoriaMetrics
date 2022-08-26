@@ -203,6 +203,11 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 				return labels
 			}
 		}
+		if !prc.regex.MatchString(bytesutil.ToUnsafeString(bb.B)) {
+			// Fast path - regexp mismatch.
+			relabelBufPool.Put(bb)
+			return labels
+		}
 		match := prc.RegexAnchored.FindSubmatchIndex(bb.B)
 		if match == nil {
 			// Fast path - nothing to replace.
@@ -387,6 +392,10 @@ func (prc *parsedRelabelConfig) replaceFullString(s, replacement string, hasCapt
 				return s, false
 			}
 		}
+	}
+	if !prc.regex.MatchString(s) {
+		// Fast path - regex mismatch
+		return s, false
 	}
 	// Slow path - regexp processing
 	match := prc.RegexAnchored.FindStringSubmatchIndex(s)
