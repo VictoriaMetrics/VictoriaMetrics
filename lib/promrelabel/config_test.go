@@ -455,3 +455,21 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 		})
 	})
 }
+
+func TestIsDefaultRegex(t *testing.T) {
+	f := func(s string, resultExpected bool) {
+		t.Helper()
+		result := isDefaultRegex(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for isDefaultRegex(%q); got %v; want %v", s, result, resultExpected)
+		}
+	}
+	f("", false)
+	f("foo", false)
+	f(".+", false)
+	f("a.*", false)
+	f(".*", true)
+	f("(.*)", true)
+	f("^.*$", true)
+	f("(?:.*)", true)
+}
