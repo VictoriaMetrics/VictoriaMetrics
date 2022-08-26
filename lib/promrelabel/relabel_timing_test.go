@@ -16,7 +16,7 @@ func BenchmarkMatchRegexPrefixDotPlusMatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if !prc.matchString(s) {
+			if !prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -46,7 +46,7 @@ func BenchmarkMatchRegexPrefixDotPlusMismatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if prc.matchString(s) {
+			if prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -76,7 +76,7 @@ func BenchmarkMatchRegexPrefixDotStarMatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if !prc.matchString(s) {
+			if !prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -106,7 +106,7 @@ func BenchmarkMatchRegexPrefixDotStarMismatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if prc.matchString(s) {
+			if prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -136,7 +136,7 @@ func BenchmarkMatchRegexSingleValueMatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if !prc.matchString(s) {
+			if !prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -166,7 +166,7 @@ func BenchmarkMatchRegexSingleValueMismatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if prc.matchString(s) {
+			if prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -196,7 +196,7 @@ func BenchmarkMatchRegexOrValuesMatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if !prc.matchString(s) {
+			if !prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string mismatch for pattern=%q, s=%q", pattern, s))
 			}
 		}
@@ -226,7 +226,7 @@ func BenchmarkMatchRegexOrValuesMismatchOptimized(b *testing.B) {
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if prc.matchString(s) {
+			if prc.regex.MatchString(s) {
 				panic(fmt.Errorf("unexpected string match for pattern=%q, s=%q", pattern, s))
 			}
 		}
