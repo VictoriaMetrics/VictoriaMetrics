@@ -514,8 +514,12 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	if err != nil {
 		return err
 	}
+	minLimit := *maxSeriesLimit
+	if limit > 0 && limit < *maxSeriesLimit {
+		minLimit = limit
+	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, minLimit)
 	labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
@@ -613,8 +617,12 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
+	minLimit := *maxSeriesLimit
+	if limit > 0 && limit < *maxSeriesLimit {
+		minLimit = limit
+	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, minLimit)
 	labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
@@ -677,7 +685,12 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
+
+	minLimit := *maxSeriesLimit
+	if limit > 0 && limit < *maxSeriesLimit {
+		minLimit = limit
+	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, minLimit)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
