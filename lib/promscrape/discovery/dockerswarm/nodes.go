@@ -80,7 +80,7 @@ func addNodeLabels(nodes []node, port int) []map[string]string {
 			"__meta_dockerswarm_node_status":                node.Status.State,
 		}
 		for k, v := range node.Spec.Labels {
-			m["__meta_dockerswarm_node_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			m[discoveryutils.SanitizeLabelName("__meta_dockerswarm_node_label_"+k)] = v
 		}
 		ms = append(ms, m)
 	}

@@ -107,7 +107,7 @@ func addCommonLabels(m map[string]string, c *container, networkLabels map[string
 	m["__meta_docker_container_name"] = c.Names[0]
 	m["__meta_docker_container_network_mode"] = c.HostConfig.NetworkMode
 	for k, v := range c.Labels {
-		m["__meta_docker_container_label_"+discoveryutils.SanitizeLabelName(k)] = v
+		m[discoveryutils.SanitizeLabelName("__meta_docker_container_label_"+k)] = v
 	}
 	for k, v := range networkLabels {
 		m[k] = v
