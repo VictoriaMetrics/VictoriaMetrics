@@ -83,9 +83,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		// we're going to make serieslist * queryRanges queries, so we should represent that in the progress bar
 		bar := pb.StartNew(len(serieslist) * queryRanges)
 		defer func(bar *pb.ProgressBar) {
-			if !bar.IsFinished() {
-				bar.Finish()
-			}
+			bar.Finish()
 		}(bar)
 		var wg sync.WaitGroup
 		wg.Add(op.otsdbcc)
