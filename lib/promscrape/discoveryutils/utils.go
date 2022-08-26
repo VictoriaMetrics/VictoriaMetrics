@@ -29,6 +29,11 @@ func SanitizeLabelName(name string) string {
 	// Make a copy of name in order to limit memory usage to the name length,
 	// since the name may point to bigger string.
 	s := string(append([]byte{}, name...))
+	if sanitizedName == name {
+		// point sanitizedName to just allocated s, since it may point to name,
+		// which, in turn, can point to bigger string.
+		sanitizedName = s
+	}
 	sp := &sanitizedName
 	m.Store(s, sp)
 	n := atomic.AddUint64(&sanitizedLabelNamesLen, 1)
