@@ -363,7 +363,7 @@ func (tf *tagFilter) InitFromGraphiteQuery(commonPrefix, query []byte, paths []s
 	tf.regexpPrefix = prefix
 	tf.prefix = append(tf.prefix[:0], commonPrefix...)
 	tf.prefix = marshalTagValue(tf.prefix, nil)
-	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, []byte(prefix))
+	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, prefix)
 	tf.orSuffixes = append(tf.orSuffixes[:0], orSuffixes...)
 	tf.reSuffixMatch, tf.matchCost = newMatchFuncForOrSuffixes(orSuffixes)
 }
@@ -419,15 +419,15 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.prefix = append(tf.prefix, commonPrefix...)
 	tf.prefix = marshalTagValue(tf.prefix, key)
 
-	var expr []byte
-	prefix := tf.value
+	var expr string
+	prefix := bytesutil.ToUnsafeString(tf.value)
 	if tf.isRegexp {
-		prefix, expr = getRegexpPrefix(tf.value)
+		prefix, expr = simplifyRegexp(prefix)
 		if len(expr) == 0 {
 			tf.value = append(tf.value[:0], prefix...)
 			tf.isRegexp = false
 		} else {
-			tf.regexpPrefix = string(prefix)
+			tf.regexpPrefix = prefix
 		}
 	}
 	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, prefix)
@@ -508,22 +508,22 @@ func RegexpCacheMisses() uint64 {
 	return regexpCache.Misses()
 }
 
-func getRegexpFromCache(expr []byte) (*regexpCacheValue, error) {
-	if rcv := regexpCache.GetEntry(bytesutil.ToUnsafeString(expr)); rcv != nil {
+func getRegexpFromCache(expr string) (*regexpCacheValue, error) {
+	if rcv := regexpCache.GetEntry(expr); rcv != nil {
 		// Fast path - the regexp found in the cache.
 		return rcv.(*regexpCacheValue), nil
 	}
 	// Slow path - build the regexp.
-	exprOrig := string(expr)
+	exprOrig := expr
 
-	expr = []byte(tagCharsRegexpEscaper.Replace(exprOrig))
+	expr = tagCharsRegexpEscaper.Replace(exprOrig)
 	exprStr := fmt.Sprintf("^(%s)$", expr)
 	re, err := regexp.Compile(exprStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid regexp %q: %w", exprStr, err)
 	}
 
-	sExpr := string(expr)
+	sExpr := expr
 	orValues := regexutil.GetOrValues(sExpr)
 	var reMatch func(b []byte) bool
 	var reCost uint64
@@ -835,22 +835,28 @@ func (rcv *regexpCacheValue) SizeBytes() int {
 	return rcv.sizeBytes
 }
 
-func getRegexpPrefix(b []byte) ([]byte, []byte) {
-	// Fast path - search the prefix in the cache.
-	if ps := prefixesCache.GetEntry(bytesutil.ToUnsafeString(b)); ps != nil {
+func simplifyRegexp(expr string) (string, string) {
+	// It is safe to pass the expr constructed via bytesutil.ToUnsafeString()
+	// to GetEntry() here.
+	if ps := prefixesCache.GetEntry(expr); ps != nil {
+		// Fast path - the simplified expr is found in the cache.
 		ps := ps.(*prefixSuffix)
 		return ps.prefix, ps.suffix
 	}
 
-	// Slow path - extract the regexp prefix from b.
-	prefix, suffix := extractRegexpPrefix(b)
+	// Slow path - simplify the expr.
+
+	// Make a copy of expr before using it,
+	// since it may be constructed via bytesutil.ToUnsafeString()
+	expr = string(append([]byte{}, expr...))
+	prefix, suffix := regexutil.Simplify(expr)
 
 	// Put the prefix and the suffix to the cache.
 	ps := &prefixSuffix{
 		prefix: prefix,
 		suffix: suffix,
 	}
-	prefixesCache.PutEntry(string(b), ps)
+	prefixesCache.PutEntry(expr, ps)
 
 	return prefix, suffix
 }
@@ -897,120 +903,11 @@ func RegexpPrefixesCacheMisses() uint64 {
 }
 
 type prefixSuffix struct {
-	prefix []byte
-	suffix []byte
+	prefix string
+	suffix string
 }
 
 // SizeBytes implements lrucache.Entry interface
 func (ps *prefixSuffix) SizeBytes() int {
-	return cap(ps.prefix) + cap(ps.suffix) + int(unsafe.Sizeof(*ps))
-}
-
-func extractRegexpPrefix(b []byte) ([]byte, []byte) {
-	sre, err := syntax.Parse(string(b), syntax.Perl)
-	if err != nil {
-		// Cannot parse the regexp. Return it all as prefix.
-		return b, nil
-	}
-	sre = simplifyRegexp(sre)
-	if sre == emptyRegexp {
-		return nil, nil
-	}
-	if isLiteral(sre) {
-		return []byte(string(sre.Rune)), nil
-	}
-	var prefix []byte
-	if sre.Op == syntax.OpConcat {
-		sub0 := sre.Sub[0]
-		if isLiteral(sub0) {
-			prefix = []byte(string(sub0.Rune))
-			sre.Sub = sre.Sub[1:]
-			if len(sre.Sub) == 0 {
-				return nil, nil
-			}
-		}
-	}
-	if _, err := syntax.Compile(sre); err != nil {
-		// Cannot compile the regexp. Return it all as prefix.
-		return b, nil
-	}
-	return prefix, []byte(sre.String())
-}
-
-func simplifyRegexp(sre *syntax.Regexp) *syntax.Regexp {
-	s := sre.String()
-	for {
-		sre = simplifyRegexpExt(sre, false, false)
-		sre = sre.Simplify()
-		if sre.Op == syntax.OpBeginText || sre.Op == syntax.OpEndText {
-			sre = emptyRegexp
-		}
-		sNew := sre.String()
-		if sNew == s {
-			return sre
-		}
-		var err error
-		sre, err = syntax.Parse(sNew, syntax.Perl)
-		if err != nil {
-			logger.Panicf("BUG: cannot parse simplified regexp %q: %s", sNew, err)
-		}
-		s = sNew
-	}
-}
-
-func simplifyRegexpExt(sre *syntax.Regexp, hasPrefix, hasSuffix bool) *syntax.Regexp {
-	switch sre.Op {
-	case syntax.OpCapture:
-		// Substitute all the capture regexps with non-capture regexps.
-		sre.Op = syntax.OpAlternate
-		sre.Sub[0] = simplifyRegexpExt(sre.Sub[0], hasPrefix, hasSuffix)
-		if sre.Sub[0] == emptyRegexp {
-			return emptyRegexp
-		}
-		return sre
-	case syntax.OpStar, syntax.OpPlus, syntax.OpQuest, syntax.OpRepeat:
-		sre.Sub[0] = simplifyRegexpExt(sre.Sub[0], hasPrefix, hasSuffix)
-		if sre.Sub[0] == emptyRegexp {
-			return emptyRegexp
-		}
-		return sre
-	case syntax.OpAlternate:
-		// Do not remove empty captures from OpAlternate, since this may break regexp.
-		for i, sub := range sre.Sub {
-			sre.Sub[i] = simplifyRegexpExt(sub, hasPrefix, hasSuffix)
-		}
-		return sre
-	case syntax.OpConcat:
-		subs := sre.Sub[:0]
-		for i, sub := range sre.Sub {
-			if sub = simplifyRegexpExt(sub, i > 0, i+1 < len(sre.Sub)); sub != emptyRegexp {
-				subs = append(subs, sub)
-			}
-		}
-		sre.Sub = subs
-		// Remove anchros from the beginning and the end of regexp, since they
-		// will be added later.
-		if !hasPrefix {
-			for len(sre.Sub) > 0 && sre.Sub[0].Op == syntax.OpBeginText {
-				sre.Sub = sre.Sub[1:]
-			}
-		}
-		if !hasSuffix {
-			for len(sre.Sub) > 0 && sre.Sub[len(sre.Sub)-1].Op == syntax.OpEndText {
-				sre.Sub = sre.Sub[:len(sre.Sub)-1]
-			}
-		}
-		if len(sre.Sub) == 0 {
-			return emptyRegexp
-		}
-		return sre
-	case syntax.OpEmptyMatch:
-		return emptyRegexp
-	default:
-		return sre
-	}
-}
-
-var emptyRegexp = &syntax.Regexp{
-	Op: syntax.OpEmptyMatch,
+	return len(ps.prefix) + len(ps.suffix) + int(unsafe.Sizeof(*ps))
 }

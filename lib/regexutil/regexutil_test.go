@@ -23,6 +23,7 @@ func TestGetOrValues(t *testing.T) {
 	f("foo.*", nil)
 	f(".*", nil)
 	f("foo|.*", nil)
+	f("(fo((o)))|(bar)", []string{"bar", "foo"})
 	f("foobar", []string{"foobar"})
 	f("z|x|c", []string{"c", "x", "z"})
 	f("foo|bar", []string{"bar", "foo"})
@@ -41,8 +42,71 @@ func TestGetOrValues(t *testing.T) {
 	f("^foo|bar$", []string{"bar", "foo"})
 	f("^(foo|bar)$", []string{"bar", "foo"})
 	f("^a(foo|b(?:a|r))$", []string{"aba", "abr", "afoo"})
-	// This is incorrect conversion, because the regexp matches nothing.
-	// It is OK for now, since such regexps are uncommon in practice.
-	// TODO: properly handle this case.
-	f("^a(^foo|bar$)z$", []string{"abarz", "afooz"})
+	f("^a(foo$|b(?:a$|r))$", []string{"aba", "abr", "afoo"})
+	f("^a(^foo|bar$)z$", nil)
+}
+
+func TestSimplify(t *testing.T) {
+	f := func(s, expectedPrefix, expectedSuffix string) {
+		t.Helper()
+		prefix, suffix := Simplify(s)
+		if prefix != expectedPrefix {
+			t.Fatalf("unexpected prefix for s=%q; got %q; want %q", s, prefix, expectedPrefix)
+		}
+		if suffix != expectedSuffix {
+			t.Fatalf("unexpected suffix for s=%q; got %q; want %q", s, suffix, expectedSuffix)
+		}
+	}
+
+	f("", "", "")
+	f("^", "", "")
+	f("$", "", "")
+	f("^()$", "", "")
+	f("^(?:)$", "", "")
+	f("^foo|^bar$|baz", "", "foo|ba[rz]")
+	f("^(foo$|^bar)$", "", "foo|bar")
+	f("^a(foo$|bar)$", "a", "foo|bar")
+	f("^a(^foo|bar$)z$", "a", "(?:\\Afoo|bar$)z")
+	f("foobar", "foobar", "")
+	f("foo$|^foobar", "foo", "|bar")
+	f("^(foo$|^foobar)$", "foo", "|bar")
+	f("foobar|foobaz", "fooba", "[rz]")
+	f("(fo|(zar|bazz)|x)", "", "fo|zar|bazz|x")
+	f("(тестЧЧ|тест)", "тест", "ЧЧ|")
+	f("foo(bar|baz|bana)", "fooba", "[rz]|na")
+	f("^foobar|foobaz", "fooba", "[rz]")
+	f("^foobar|^foobaz$", "fooba", "[rz]")
+	f("foobar|foobaz", "fooba", "[rz]")
+	f("(?:^foobar|^foobaz)aa.*", "fooba", "[rz]aa.*")
+	f("foo[bar]+", "foo", "[a-br]+")
+	f("foo[a-z]+", "foo", "[a-z]+")
+	f("foo[bar]*", "foo", "[a-br]*")
+	f("foo[a-z]*", "foo", "[a-z]*")
+	f("foo[x]+", "foo", "x+")
+	f("foo[^x]+", "foo", "[^x]+")
+	f("foo[x]*", "foo", "x*")
+	f("foo[^x]*", "foo", "[^x]*")
+	f("foo[x]*bar", "foo", "x*bar")
+	f("fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
+	f("foo.+bar", "foo", ".+bar")
+	f("a(b|c.*).+", "a", "(?:b|c.*).+")
+	f("ab|ac", "a", "[b-c]")
+	f("(?i)xyz", "", "(?i:XYZ)")
+	f("(?i)foo|bar", "", "(?i:FOO)|(?i:BAR)")
+	f("(?i)up.+x", "", "(?i:UP).+(?i:X)")
+	f("(?smi)xy.*z$", "", "(?i:XY)(?s:.)*(?i:Z)(?m:$)")
+
+	// test invalid regexps
+	f("a(", "a(", "")
+	f("a[", "a[", "")
+	f("a[]", "a[]", "")
+	f("a{", "a{", "")
+	f("a{}", "a{}", "")
+	f("invalid(regexp", "invalid(regexp", "")
+
+	// The transformed regexp mustn't match aba
+	f("a?(^ba|c)", "", "a?(?:\\Aba|c)")
+
+	// The transformed regexp mustn't match barx
+	f("(foo|bar$)x*", "", "(?:foo|bar$)x*")
 }

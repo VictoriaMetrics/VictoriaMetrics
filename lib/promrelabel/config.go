@@ -197,14 +197,19 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	if rc.Separator != nil {
 		separator = *rc.Separator
 	}
+	action := strings.ToLower(rc.Action)
+	if action == "" {
+		action = "replace"
+	}
 	targetLabel := rc.TargetLabel
 	regexCompiled := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
 	var regexOrValues []string
-	if rc.Regex != nil {
-		regex := regexutil.RemoveStartEndAnchors(rc.Regex.S)
+	if rc.Regex != nil && !isDefaultRegex(rc.Regex.S) {
+		regex := rc.Regex.S
 		regexOrig := regex
 		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
+			regex = regexutil.RemoveStartEndAnchors(regex)
 			regex = "^(?:" + regex + ")$"
 		}
 		re, err := regexp.Compile(regex)
@@ -231,10 +236,6 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	var graphiteLabelRules []graphiteLabelRule
 	if rc.Labels != nil {
 		graphiteLabelRules = newGraphiteLabelRules(rc.Labels)
-	}
-	action := rc.Action
-	if action == "" {
-		action = "replace"
 	}
 	switch action {
 	case "graphite":
@@ -353,4 +354,12 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		hasCaptureGroupInReplacement:   strings.Contains(replacement, "$"),
 		hasLabelReferenceInReplacement: strings.Contains(replacement, "{{"),
 	}, nil
+}
+
+func isDefaultRegex(expr string) bool {
+	prefix, suffix := regexutil.Simplify(expr)
+	if prefix != "" {
+		return false
+	}
+	return suffix == ".*"
 }
