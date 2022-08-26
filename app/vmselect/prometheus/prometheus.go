@@ -514,8 +514,8 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	if err != nil {
 		return err
 	}
-	minLimit := *maxSeriesLimit
-	if limit > 0 && limit < *maxSeriesLimit {
+	minLimit := *maxUniqueTimeseries
+	if limit > 0 && limit < *maxUniqueTimeseries {
 		minLimit = limit
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
@@ -617,8 +617,8 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-	minLimit := *maxSeriesLimit
-	if limit > 0 && limit < *maxSeriesLimit {
+	minLimit := *maxUniqueTimeseries
+	if limit > 0 && limit < *maxUniqueTimeseries {
 		minLimit = limit
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
