@@ -43,6 +43,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: prevent from excess CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 * BUGFIX: improve performance for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels) and [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues) when the filter in the `match[]` query arg matches small number of time series. The performance for this case has been reduced in [v1.78.0](https://docs.victoriametrics.com/CHANGELOG.html#v1780). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1533) issues.
 * BUGFIX: increase the default limit on the number of concurrent merges for small parts from 8 to 16. This should help resolving potential issues with heavy data ingestion. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2673#issuecomment-1218185978) from @lukepalmer .
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): fix panic when user defines wrong param in `histogram_quantiles` function. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3026).
 
 ## [v1.80.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.80.0)
 
