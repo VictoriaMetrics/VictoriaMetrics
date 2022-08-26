@@ -826,6 +826,9 @@ func transformHistogramQuantiles(tfa *transformFuncArg) ([]*timeseries, error) {
 	// Calculate quantile individually per each phi.
 	var rvs []*timeseries
 	for _, phiArg := range phiArgs {
+		if len(phiArg) == 0 || (phiArg[0].Values[0] < 0 || phiArg[0].Values[0] > 1) {
+			return nil, fmt.Errorf("got unexpected phi arg. it should containes only numbers from range [0..1]")
+		}
 		phiStr := fmt.Sprintf("%g", phiArg[0].Values[0])
 		tss := copyTimeseries(tssOrig)
 		tfaTmp := &transformFuncArg{
