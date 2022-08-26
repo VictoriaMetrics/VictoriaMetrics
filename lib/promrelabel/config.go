@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"gopkg.in/yaml.v2"
 )
@@ -189,6 +190,13 @@ func ParseRelabelConfigs(rcs []RelabelConfig, relabelDebug bool) (*ParsedConfigs
 var (
 	defaultOriginalRegexForRelabelConfig = regexp.MustCompile(".*")
 	defaultRegexForRelabelConfig         = regexp.MustCompile("^(.*)$")
+	defaultPromRegex                     = func() *regexutil.PromRegex {
+		pr, err := regexutil.NewPromRegex(".*")
+		if err != nil {
+			panic(fmt.Errorf("BUG: unexpected error: %s", err))
+		}
+		return pr
+	}()
 )
 
 func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
@@ -202,9 +210,9 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		action = "replace"
 	}
 	targetLabel := rc.TargetLabel
-	regexCompiled := defaultRegexForRelabelConfig
+	regexAnchored := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
-	var regexOrValues []string
+	promRegex := defaultPromRegex
 	if rc.Regex != nil && !isDefaultRegex(rc.Regex.S) {
 		regex := rc.Regex.S
 		regexOrig := regex
@@ -216,13 +224,16 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regex, err)
 		}
-		regexCompiled = re
+		regexAnchored = re
 		reOriginal, err := regexp.Compile(regexOrig)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regexOrig, err)
 		}
 		regexOriginalCompiled = reOriginal
-		regexOrValues = regexutil.GetOrValues(regexOrig)
+		promRegex, err = regexutil.NewPromRegex(regexOrig)
+		if err != nil {
+			logger.Panicf("BUG: cannot parse already parsed regex %q: %s", regexOrig, err)
+		}
 	}
 	modulus := rc.Modulus
 	replacement := "$1"
@@ -335,20 +346,20 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 	}
 	return &parsedRelabelConfig{
-		SourceLabels: sourceLabels,
-		Separator:    separator,
-		TargetLabel:  targetLabel,
-		Regex:        regexCompiled,
-		Modulus:      modulus,
-		Replacement:  replacement,
-		Action:       action,
-		If:           rc.If,
+		SourceLabels:  sourceLabels,
+		Separator:     separator,
+		TargetLabel:   targetLabel,
+		RegexAnchored: regexAnchored,
+		Modulus:       modulus,
+		Replacement:   replacement,
+		Action:        action,
+		If:            rc.If,
 
 		graphiteMatchTemplate: graphiteMatchTemplate,
 		graphiteLabelRules:    graphiteLabelRules,
 
+		regex:         promRegex,
 		regexOriginal: regexOriginalCompiled,
-		regexOrValues: regexOrValues,
 
 		hasCaptureGroupInTargetLabel:   strings.Contains(targetLabel, "$"),
 		hasCaptureGroupInReplacement:   strings.Contains(replacement, "$"),

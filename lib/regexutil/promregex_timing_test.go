@@ -19,6 +19,15 @@ func BenchmarkPromRegexMatchString(b *testing.B) {
 	b.Run("unpotimized-prefix-mismatch", func(b *testing.B) {
 		benchmarkPromRegexMatchString(b, "foo(bar.*|baz)", "zfoobarz", false)
 	})
+	b.Run("dot-star-match", func(b *testing.B) {
+		benchmarkPromRegexMatchString(b, ".*", "foo", true)
+	})
+	b.Run("dot-plus-match", func(b *testing.B) {
+		benchmarkPromRegexMatchString(b, ".+", "foo", true)
+	})
+	b.Run("dot-plus-mismatch", func(b *testing.B) {
+		benchmarkPromRegexMatchString(b, ".+", "", false)
+	})
 	b.Run("literal-match", func(b *testing.B) {
 		benchmarkPromRegexMatchString(b, "foo", "foo", true)
 	})

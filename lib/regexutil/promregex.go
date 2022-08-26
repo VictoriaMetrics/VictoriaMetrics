@@ -16,7 +16,7 @@ import (
 type PromRegex struct {
 	// prefix contains literal prefix for regex.
 	// For example, prefix="foo" for regex="foo(a|b)"
-	prefix   string
+	prefix string
 
 	// Suffix contains regex suffix left after removing the prefix.
 	// For example, suffix="a|b" for regex="foo(a|b)"
@@ -51,12 +51,12 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	suffixExpr := "^(?:" + suffix + ")$"
 	reSuffix := regexp.MustCompile(suffixExpr)
 	pr := &PromRegex{
-		prefix:   prefix,
-		suffix: suffix,
+		prefix:        prefix,
+		suffix:        suffix,
 		substrDotStar: substrDotStar,
 		substrDotPlus: substrDotPlus,
-		orValues: orValues,
-		reSuffix:       reSuffix,
+		orValues:      orValues,
+		reSuffix:      reSuffix,
 	}
 	return pr, nil
 }
@@ -87,7 +87,7 @@ func (pr *PromRegex) MatchString(s string) bool {
 	if pr.substrDotPlus != "" {
 		// Fast path - pr contains ".+someText.+"
 		n := strings.Index(s, pr.substrDotPlus)
-		return n > 0 && n + len(pr.substrDotPlus) < len(s)
+		return n > 0 && n+len(pr.substrDotPlus) < len(s)
 	}
 	switch pr.suffix {
 	case ".*":
@@ -116,4 +116,3 @@ func getSubstringLiteral(expr, prefixSuffix string) string {
 	}
 	return prefix
 }
-

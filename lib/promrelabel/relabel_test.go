@@ -728,12 +728,12 @@ func TestFillLabelReferences(t *testing.T) {
 	f(`{{bar}}-aa{{__name__}}.{{bar}}{{non-existing-label}}`, `foo{bar="baz"}`, `baz-aafoo.baz`)
 }
 
-func TestRegexpMatchStringSuccess(t *testing.T) {
+func TestRegexMatchStringSuccess(t *testing.T) {
 	f := func(pattern, s string) {
 		t.Helper()
 		prc := newTestRegexRelabelConfig(pattern)
-		if !prc.matchString(s) {
-			t.Fatalf("unexpected matchString(%q) result; got false; want true", s)
+		if !prc.regex.MatchString(s) {
+			t.Fatalf("unexpected MatchString(%q) result; got false; want true", s)
 		}
 	}
 	f("", "")
@@ -753,8 +753,8 @@ func TestRegexpMatchStringFailure(t *testing.T) {
 	f := func(pattern, s string) {
 		t.Helper()
 		prc := newTestRegexRelabelConfig(pattern)
-		if prc.matchString(s) {
-			t.Fatalf("unexpected matchString(%q) result; got true; want false", s)
+		if prc.regex.MatchString(s) {
+			t.Fatalf("unexpected MatchString(%q) result; got true; want false", s)
 		}
 	}
 	f("", "foo")
