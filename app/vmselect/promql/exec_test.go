@@ -7932,7 +7932,7 @@ func TestExecError(t *testing.T) {
 	f(`limit_offet(1, (alias(1,"foo"),alias(2,"bar")), 10)`)
 	f(`round(1, 1 or label_set(2, "xx", "foo"))`)
 	f(`histogram_quantile(1 or label_set(2, "xx", "foo"), 1)`)
-	f(`histogram_quantiles("le", 1 or label_set(2, "xx", "foo"))`)
+	f(`histogram_quantiles("foo", 1 or label_set(2, "xxx", "foo"), 2)`)
 	f(`label_set(1, 2, 3)`)
 	f(`label_set(1, "foo", (label_set(1, "foo", bar") or label_set(2, "xxx", "yy")))`)
 	f(`label_set(1, "foo", 3)`)
