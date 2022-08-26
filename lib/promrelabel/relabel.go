@@ -203,7 +203,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 				return labels
 			}
 		}
-		if !prc.regex.MatchString(bytesutil.ToUnsafeString(bb.B)) {
+		if re := prc.regex; re.HasPrefix() && !re.MatchString(bytesutil.ToUnsafeString(bb.B)) {
 			// Fast path - regexp mismatch.
 			relabelBufPool.Put(bb)
 			return labels
@@ -304,8 +304,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
 	case "labelmap":
 		// Replace label names with the `replacement` if they match `regex`
-		for i := range src {
-			label := &src[i]
+		for _, label := range src {
 			labelName, ok := prc.replaceFullString(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
 			if ok {
 				labels = setLabelValue(labels, labelsOffset, labelName, label.Value)
@@ -322,20 +321,20 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	case "labeldrop":
 		// Drop labels with names matching the `regex`
 		dst := labels[:labelsOffset]
-		for i := range src {
-			label := &src[i]
-			if !prc.regex.MatchString(label.Name) {
-				dst = append(dst, *label)
+		re := prc.regex
+		for _, label := range src {
+			if !re.MatchString(label.Name) {
+				dst = append(dst, label)
 			}
 		}
 		return dst
 	case "labelkeep":
 		// Keep labels with names matching the `regex`
 		dst := labels[:labelsOffset]
-		for i := range src {
-			label := &src[i]
-			if prc.regex.MatchString(label.Name) {
-				dst = append(dst, *label)
+		re := prc.regex
+		for _, label := range src {
+			if re.MatchString(label.Name) {
+				dst = append(dst, label)
 			}
 		}
 		return dst
@@ -393,7 +392,7 @@ func (prc *parsedRelabelConfig) replaceFullString(s, replacement string, hasCapt
 			}
 		}
 	}
-	if !prc.regex.MatchString(s) {
+	if re := prc.regex; re.HasPrefix() && !re.MatchString(s) {
 		// Fast path - regex mismatch
 		return s, false
 	}
