@@ -497,7 +497,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		pcs := mustParseRelabelConfigs(`
 - action: drop
   source_labels: [id]
-  regex: yes
+  regex: "yes"
 `)
 		labelsOrig := []prompbmarshal.Label{
 			{
@@ -584,7 +584,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		pcs := mustParseRelabelConfigs(`
 - action: keep
   source_labels: [id]
-  regex: yes
+  regex: "yes"
 `)
 		labelsOrig := []prompbmarshal.Label{
 			{

@@ -218,6 +218,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		regexOrig := regex
 		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
 			regex = regexutil.RemoveStartEndAnchors(regex)
+			regexOrig = regex
 			regex = "^(?:" + regex + ")$"
 		}
 		re, err := regexp.Compile(regex)

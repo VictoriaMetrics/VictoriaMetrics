@@ -87,4 +87,6 @@ func TestPromRegex(t *testing.T) {
 	f(".*(a|b).*", "xa", true)
 	f(".*(a|b).*", "xay", true)
 	f(".*(a|b).*", "xzy", false)
+	f("^(?:true)$", "true", true)
+	f("^(?:true)$", "false", false)
 }
