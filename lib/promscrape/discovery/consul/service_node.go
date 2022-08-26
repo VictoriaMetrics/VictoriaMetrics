@@ -94,16 +94,13 @@ func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, serviceName, t
 	m["__meta_consul_tags"] = tagSeparator + strings.Join(sn.Service.Tags, tagSeparator) + tagSeparator
 
 	for k, v := range sn.Node.Meta {
-		key := discoveryutils.SanitizeLabelName(k)
-		m["__meta_consul_metadata_"+key] = v
+		m[discoveryutils.SanitizeLabelName("__meta_consul_metadata_"+k)] = v
 	}
 	for k, v := range sn.Service.Meta {
-		key := discoveryutils.SanitizeLabelName(k)
-		m["__meta_consul_service_metadata_"+key] = v
+		m[discoveryutils.SanitizeLabelName("__meta_consul_service_metadata_"+k)] = v
 	}
 	for k, v := range sn.Node.TaggedAddresses {
-		key := discoveryutils.SanitizeLabelName(k)
-		m["__meta_consul_tagged_address_"+key] = v
+		m[discoveryutils.SanitizeLabelName("__meta_consul_tagged_address_"+k)] = v
 	}
 	ms = append(ms, m)
 	return ms

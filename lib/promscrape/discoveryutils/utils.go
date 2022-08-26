@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -15,12 +17,38 @@ import (
 //
 // This has been copied from Prometheus sources at util/strutil/strconv.go
 func SanitizeLabelName(name string) string {
-	return invalidLabelCharRE.ReplaceAllString(name, "_")
+	m := sanitizedLabelNames.Load().(*sync.Map)
+	v, ok := m.Load(name)
+	if ok {
+		// Fast path - the sanitized label name is found in the cache.
+		sp := v.(*string)
+		return *sp
+	}
+	// Slow path - sanitize name and store it in the cache.
+	sanitizedName := invalidLabelCharRE.ReplaceAllString(name, "_")
+	// Make a copy of name in order to limit memory usage to the name length,
+	// since the name may point to bigger string.
+	s := string(append([]byte{}, name...))
+	sp := &sanitizedName
+	m.Store(s, sp)
+	n := atomic.AddUint64(&sanitizedLabelNamesLen, 1)
+	if n > 100e3 {
+		atomic.StoreUint64(&sanitizedLabelNamesLen, 0)
+		sanitizedLabelNames.Store(&sync.Map{})
+	}
+	return sanitizedName
 }
 
 var (
+	sanitizedLabelNames    atomic.Value
+	sanitizedLabelNamesLen uint64
+
 	invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 )
+
+func init() {
+	sanitizedLabelNames.Store(&sync.Map{})
+}
 
 // JoinHostPort returns host:port.
 //

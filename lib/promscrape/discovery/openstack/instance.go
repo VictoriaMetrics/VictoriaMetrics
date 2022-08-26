@@ -57,7 +57,7 @@ func addInstanceLabels(servers []server, port int) []map[string]string {
 			"__meta_openstack_instance_flavor": server.Flavor.ID,
 		}
 		for k, v := range server.Metadata {
-			m["__meta_openstack_tag_"+discoveryutils.SanitizeLabelName(k)] = v
+			m[discoveryutils.SanitizeLabelName("__meta_openstack_tag_"+k)] = v
 		}
 		// Traverse server.Addresses in alphabetical order of pool name
 		// in order to return targets in deterministic order.

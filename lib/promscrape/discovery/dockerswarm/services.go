@@ -96,7 +96,7 @@ func addServicesLabels(services []service, networksLabels map[string]map[string]
 			"__meta_dockerswarm_service_updating_status":         service.UpdateStatus.State,
 		}
 		for k, v := range service.Spec.Labels {
-			commonLabels["__meta_dockerswarm_service_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			commonLabels[discoveryutils.SanitizeLabelName("__meta_dockerswarm_service_label_"+k)] = v
 		}
 		for _, vip := range service.Endpoint.VirtualIPs {
 			// skip services without virtual address.
