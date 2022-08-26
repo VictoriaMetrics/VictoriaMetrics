@@ -445,7 +445,7 @@ func (tb *table) startFinalDedupWatcher() {
 }
 
 func (tb *table) finalDedupWatcher() {
-	if !isDedupEnabled() {
+	if !isDedupEnabled() && len(GetDownSamplingMeta()) == 0 {
 		// Deduplication is disabled.
 		return
 	}
@@ -456,10 +456,12 @@ func (tb *table) finalDedupWatcher() {
 		currentPartitionName := timestampToPartitionName(timestamp)
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
-				// Do not run final dedup for the current month.
-				continue
-			}
-			if err := ptw.pt.runFinalDedup(); err != nil {
+				// Do run final dedup for the current month only big parts.
+				if err := ptw.pt.runFinalDedupOnlyBigParts(); err != nil {
+					logger.Errorf("cannot run final dedup only big parts for the current month only big partition %s: %s", ptw.pt.name, err)
+					continue
+				}
+			} else if err := ptw.pt.runFinalDedup(); err != nil {
 				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
 				continue
 			}

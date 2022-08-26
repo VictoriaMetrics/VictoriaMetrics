@@ -815,6 +815,40 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{
 	return nil
 }
 
+// ForceMergeCurrentMonthParts runs merge for the current month only big parts in pt - big.
+func (pt *partition) ForceMergeCurrentMonthParts() error {
+	var pws []*partWrapper
+	pt.partsLock.Lock()
+	if !hasActiveMerges(pt.bigParts) {
+		pws = appendAllPartsToMerge(pws, pt.bigParts)
+	}
+	pt.partsLock.Unlock()
+
+	if len(pws) == 0 {
+		// Nothing to merge.
+		return nil
+	}
+
+	if !NeedCalcDoDedup(pws) {
+		return nil
+	}
+
+	// Check whether there is enough disk space for merging pws.
+	newPartSize := getPartsSize(pws)
+	maxOutBytes := fs.MustGetFreeSpace(pt.bigPartsPath)
+	if newPartSize > maxOutBytes {
+		freeSpaceNeededBytes := newPartSize - maxOutBytes
+		forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
+		return nil
+	}
+
+	// If len(pws) == 1, then the merge must run anyway. This allows removing the deleted series and performing de-duplication if needed.
+	if err := pt.mergePartsOptimal(pws, pt.stopCh); err != nil {
+		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
+	}
+	return nil
+}
+
 // ForceMergeAllParts runs merge for all the parts in pt - small and big.
 func (pt *partition) ForceMergeAllParts() error {
 	var pws []*partWrapper
@@ -827,6 +861,10 @@ func (pt *partition) ForceMergeAllParts() error {
 
 	if len(pws) == 0 {
 		// Nothing to merge.
+		return nil
+	}
+
+	if !NeedCalcDoDedup(pws) {
 		return nil
 	}
 
@@ -847,6 +885,29 @@ func (pt *partition) ForceMergeAllParts() error {
 }
 
 var forceMergeLogger = logger.WithThrottler("forceMerge", time.Minute)
+
+//NeedCalcDoDedup dynamically determine whether downsampling is required,false not need true need
+func NeedCalcDoDedup(pws []*partWrapper) bool {
+	samplingMeta := GetDownSamplingMeta()
+	if len(samplingMeta) == 0 {
+		return false
+	}
+	nowTime := time.Now().UnixNano() / 1e6
+	for _, pw := range pws {
+		if pw != nil {
+			for _, v := range samplingMeta {
+				ph := pw.p.ph
+				if nowTime-ph.MaxTimestamp > v.Duration.Milliseconds() {
+					dedupInterval := v.DownsamplingInterval.Milliseconds()
+					if dedupInterval > ph.MinDedupInterval {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
 
 func appendAllPartsToMerge(dst, src []*partWrapper) []*partWrapper {
 	for _, pw := range src {
@@ -1086,42 +1147,23 @@ func atomicSetBool(p *uint64, b bool) {
 	atomic.StoreUint64(p, v)
 }
 
-func (pt *partition) runFinalDedup() error {
-	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
-	if requiredDedupInterval <= actualDedupInterval {
-		// Deduplication isn't needed.
-		return nil
-	}
+// runFinalDedupOnlyBigParts do run final dedup for the current month only big parts.
+func (pt *partition) runFinalDedupOnlyBigParts() error {
 	t := time.Now()
-	logger.Infof("starting final dedup for partition %s using requiredDedupInterval=%d ms, since the partition has smaller actualDedupInterval=%d ms",
-		pt.bigPartsPath, requiredDedupInterval, actualDedupInterval)
-	if err := pt.ForceMergeAllParts(); err != nil {
+	if err := pt.ForceMergeCurrentMonthParts(); err != nil {
 		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
 	}
 	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
 	return nil
 }
 
-func (pt *partition) getRequiredDedupInterval() (int64, int64) {
-	pws := pt.GetParts(nil)
-	defer pt.PutParts(pws)
-	dedupInterval := GetDedupInterval()
-	minDedupInterval := getMinDedupInterval(pws)
-	return dedupInterval, minDedupInterval
-}
-
-func getMinDedupInterval(pws []*partWrapper) int64 {
-	if len(pws) == 0 {
-		return 0
+func (pt *partition) runFinalDedup() error {
+	t := time.Now()
+	if err := pt.ForceMergeAllParts(); err != nil {
+		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
 	}
-	dMin := pws[0].p.ph.MinDedupInterval
-	for _, pw := range pws[1:] {
-		d := pw.p.ph.MinDedupInterval
-		if d < dMin {
-			dMin = d
-		}
-	}
-	return dMin
+	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
+	return nil
 }
 
 // mergeParts merges pws.
@@ -1214,7 +1256,9 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 	bsrs = nil
 
-	ph.MinDedupInterval = GetDedupInterval()
+	if ph.MinDedupInterval <= 0 {
+		ph.MinDedupInterval = GetDedupInterval()
+	}
 	if err := ph.writeMinDedupInterval(tmpPartPath); err != nil {
 		return fmt.Errorf("cannot store min dedup interval for part %q: %w", tmpPartPath, err)
 	}

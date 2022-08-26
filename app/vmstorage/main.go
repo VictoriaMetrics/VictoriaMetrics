@@ -45,6 +45,7 @@ var (
 		"If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
+	downsampling = flag.String("downsampling.period", "", "-downsampling.period=30d:5m,180d:30m instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 30 minutes interval interval.")
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
@@ -71,6 +72,7 @@ func main() {
 	pushmetrics.Init()
 
 	storage.SetDedupInterval(*minScrapeInterval)
+	storage.SetDownsampling(*downsampling)
 	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
