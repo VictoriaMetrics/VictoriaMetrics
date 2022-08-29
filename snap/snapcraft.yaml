@@ -18,7 +18,7 @@ description: |
       * All the configuration is done via explicit command-line flags with reasonable defaults.
       * All the data is stored in a single directory pointed by `-storageDataPath` flag.
       * Easy and fast backups from
-      to S3 or GCS with [vmbackup] / [vmrestore].
+      to S3 or GCS with https://docs.victoriametrics.com/vmbackup.html / https://docs.victoriametrics.com/vmrestore.html.
   * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to the storage architecture.
   * Supports metrics' scraping, ingestion and backfilling via the following protocols:
     * [Metrics from Prometheus exporters]
@@ -33,7 +33,7 @@ description: |
       * Native binary format.
       * Prometheus exposition format.
       * Arbitrary CSV data.
-  * Supports metrics' relabeling. See [these docs](#relabeling) for details.
+  * Supports metrics' relabeling. See https://docs.victoriametrics.com/#relabeling for details.
   * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
   * Has open source cluster version (https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
