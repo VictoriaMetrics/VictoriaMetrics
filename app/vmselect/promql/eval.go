@@ -1167,7 +1167,7 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 		tsDst.MetricName.ResetMetricGroup()
 	}
 	var samplesScanned uint64
-	tsDst.Values, samplesScanned = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)
+	tsDst.Values, samplesScanned = rc.Do(funcName, tsDst.Values[:0], valuesSrc, timestampsSrc)
 	tsDst.Timestamps = sharedTimestamps
 	tsDst.denyReuse = true
 	return samplesScanned

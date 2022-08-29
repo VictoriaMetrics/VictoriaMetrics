@@ -586,7 +586,7 @@ func TestRollupNoWindowNoPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned != 0 {
 			t.Fatalf("expecting zero samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
@@ -604,7 +604,7 @@ func TestRollupNoWindowNoPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -625,7 +625,7 @@ func TestRollupWindowNoPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned != 0 {
 			t.Fatalf("expecting zero samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
@@ -643,7 +643,7 @@ func TestRollupWindowNoPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned != 0 {
 			t.Fatalf("expecting zero samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
@@ -664,7 +664,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -682,7 +682,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -700,7 +700,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -721,7 +721,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -739,7 +739,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -757,7 +757,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -778,7 +778,7 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -796,7 +796,7 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -814,7 +814,7 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -835,7 +835,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -853,7 +853,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -871,7 +871,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -889,7 +889,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -907,7 +907,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -925,7 +925,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -943,7 +943,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -961,7 +961,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -979,7 +979,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -997,7 +997,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1015,7 +1015,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1033,7 +1033,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1051,7 +1051,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1069,7 +1069,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1087,7 +1087,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1105,7 +1105,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1123,7 +1123,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1141,7 +1141,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1159,7 +1159,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1177,7 +1177,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1195,7 +1195,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1213,7 +1213,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1231,7 +1231,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1249,7 +1249,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1267,7 +1267,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1285,7 +1285,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1303,7 +1303,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1321,7 +1321,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
-		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
@@ -1347,7 +1347,7 @@ func TestRollupBigNumberOfValues(t *testing.T) {
 		srcValues[i] = float64(i)
 		srcTimestamps[i] = int64(i / 2)
 	}
-	values, samplesScanned := rc.Do(nil, srcValues, srcTimestamps)
+	values, samplesScanned := rc.Do("", nil, srcValues, srcTimestamps)
 	if samplesScanned == 0 {
 		t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 	}

@@ -18,6 +18,9 @@ var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The 
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
+var removeUnnecessaryMetricPoint = flag.Bool("removeUnnecessaryMetricPoint", true, "when metrics point redundant data appears remove"+
+	"out scrape interval metrics point")
+
 var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":        newRollupFuncOneArg(rollupAbsent),
 	"aggr_over_time":          newRollupFuncTwoArgs(rollupFake),
@@ -499,8 +502,34 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 // timestamps must cover time range [rc.Start - rc.Window - maxSilenceInterval ... rc.End].
 //
 // Do cannot be called from concurrent goroutines.
-func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) ([]float64, uint64) {
+func (rc *rollupConfig) Do(funcName string, dstValues []float64, values []float64, timestamps []int64) ([]float64, uint64) {
+	// will remove and funcname is irate
+	if *removeUnnecessaryMetricPoint && funcName == "irate" {
+		//get scrape interval
+		scrapeInterval := getScrapeInterval(timestamps, 0)
+
+		if len(timestamps) > 1 && len(values) > 1 {
+			timestamps, values = deduplicateMetricPointInternal(timestamps, values, scrapeInterval)
+		}
+	}
 	return rc.doInternal(dstValues, nil, values, timestamps)
+}
+
+// deduplicateMetricPointInternal remove  out scrape interval metrics point
+func deduplicateMetricPointInternal(srcTimestamps []int64, srcValues []float64, dedupMetricPointInterval int64) ([]int64, []float64) {
+	tsPre := srcTimestamps[0]
+	dstTimestamps := srcTimestamps[:1]
+	dstValues := srcValues[:1]
+	for i := 1; i < len(srcTimestamps); i++ {
+		ts := srcTimestamps[i]
+		if ts-tsPre < dedupMetricPointInterval {
+			continue
+		}
+		dstTimestamps = append(dstTimestamps, ts)
+		dstValues = append(dstValues, srcValues[i])
+		tsPre = ts
+	}
+	return dstTimestamps, dstValues
 }
 
 // DoTimeseriesMap calculates rollups for the given timestamps and values and puts them to tsm.
