@@ -26,8 +26,8 @@ git remote add enterprise <url>
 3. Run `TAG=v1.xx.yy make publish-release` This step will:
    1. Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory
    2. Publish Docker images for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`
-   3. Create draft github release with name of `TAG`
-   4. Attach all the binaries and checksums to that release
+   3. Create draft github release with name of `TAG` (`make github-create-release`)
+   4. Attach all the binaries and checksums to that release (`make github-upload-assets`)
 4. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> , verify release `TAG` from step 3
 5. Copy the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release to [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page and then publish the release.
 6. Bump version of the VictoriaMetrics cluster setup in for [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
