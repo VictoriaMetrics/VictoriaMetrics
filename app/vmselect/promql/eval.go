@@ -307,9 +307,7 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	}
 	rv, err := tf(tfa)
 	if err != nil {
-		return nil, &UserReadableError{
-			Err: fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err),
-		}
+		return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
 	}
 	return rv, nil
 }
