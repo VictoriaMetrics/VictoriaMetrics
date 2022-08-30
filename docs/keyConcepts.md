@@ -109,7 +109,7 @@ The most common [MetricsQL](#metricsql) functions used with counters are:
   For example, `increase(requests_total[1h])` shows the number of requests served over the last hour.
 
 It is OK to have fractional counters. For example, `request_duration_seconds_sum` counter may sum the durations of all the requests.
-Every duration may have a fractional value in seconds, e.g. `0.5` second. So the cumulative sum of all the request durations
+Every duration may have a fractional value in seconds, e.g. `0.5` of a second. So the cumulative sum of all the request durations
 may be fractional too.
 
 It is recommended to put `_total`, `_sum` or `_count` suffix to `counter` metric names, so such metrics can be easily differentiated
