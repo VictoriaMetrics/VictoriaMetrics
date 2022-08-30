@@ -3,10 +3,10 @@ package promrelabel
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -105,7 +105,7 @@ type labelFilter struct {
 	value string
 
 	// re contains compiled regexp for `=~` and `!~` op.
-	re *regexp.Regexp
+	re *regexutil.PromRegex
 }
 
 func newLabelFilter(mlf *metricsql.LabelFilter) (*labelFilter, error) {
@@ -115,10 +115,7 @@ func newLabelFilter(mlf *metricsql.LabelFilter) (*labelFilter, error) {
 		value: mlf.Value,
 	}
 	if lf.op == "=~" || lf.op == "!~" {
-		// PromQL regexps are anchored by default.
-		// See https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors
-		reString := "^(?:" + lf.value + ")$"
-		re, err := regexp.Compile(reString)
+		re, err := regexutil.NewPromRegex(lf.value)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse regexp for %s: %w", mlf.AppendString(nil), err)
 		}
@@ -134,9 +131,9 @@ func (lf *labelFilter) match(labels []prompbmarshal.Label) bool {
 	case "!=":
 		return !lf.equalValue(labels)
 	case "=~":
-		return lf.equalRegexp(labels)
+		return lf.matchRegexp(labels)
 	case "!~":
-		return !lf.equalRegexp(labels)
+		return !lf.matchRegexp(labels)
 	default:
 		logger.Panicf("BUG: unexpected operation for label filter: %s", lf.op)
 	}
@@ -161,7 +158,7 @@ func (lf *labelFilter) equalValue(labels []prompbmarshal.Label) bool {
 	return false
 }
 
-func (lf *labelFilter) equalRegexp(labels []prompbmarshal.Label) bool {
+func (lf *labelFilter) matchRegexp(labels []prompbmarshal.Label) bool {
 	labelNameMatches := 0
 	for _, label := range labels {
 		if toCanonicalLabelName(label.Name) != lf.label {

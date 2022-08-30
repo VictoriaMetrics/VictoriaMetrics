@@ -1,5 +1,12 @@
 # Changes
 
+## [0.104.0](https://github.com/googleapis/google-cloud-go/compare/v0.103.0...v0.104.0) (2022-08-24)
+
+
+### Features
+
+* **godocfx:** add friendlyAPIName ([#6447](https://github.com/googleapis/google-cloud-go/issues/6447)) ([c6d3ba4](https://github.com/googleapis/google-cloud-go/commit/c6d3ba401b7b3ae9b710a8850c6ec5d49c4c1490))
+
 ## [0.103.0](https://github.com/googleapis/google-cloud-go/compare/v0.102.1...v0.103.0) (2022-06-29)
 
 

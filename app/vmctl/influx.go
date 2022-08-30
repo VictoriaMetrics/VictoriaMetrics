@@ -52,6 +52,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	if err := barpool.Start(); err != nil {
 		return err
 	}
+	defer barpool.Stop()
 
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)
@@ -96,7 +97,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	for err := range errCh {
 		return fmt.Errorf("import process failed: %s", err)
 	}
-	barpool.Stop()
+
 	log.Println("Import finished!")
 	log.Print(ip.im.Stats())
 	return nil

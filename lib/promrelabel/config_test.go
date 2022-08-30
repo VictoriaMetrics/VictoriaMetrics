@@ -126,7 +126,7 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel:  "foo",
 			SourceLabels: []string{"aaa"},
 		},
-	}, "[SourceLabels=[aaa], Separator=;, TargetLabel=foo, Regex=^(.*)$, Modulus=0, Replacement=$1, Action=replace, If=, "+
+	}, "[SourceLabels=[aaa], Separator=;, TargetLabel=foo, Regex=.*, Modulus=0, Replacement=$1, Action=replace, If=, "+
 		"graphiteMatchTemplate=<nil>, graphiteLabelRules=[]], relabelDebug=false")
 	var ie IfExpression
 	if err := ie.Parse("{foo=~'bar'}"); err != nil {
@@ -141,7 +141,7 @@ func TestParsedConfigsString(t *testing.T) {
 			},
 			If: &ie,
 		},
-	}, "[SourceLabels=[], Separator=;, TargetLabel=, Regex=^(.*)$, Modulus=0, Replacement=$1, Action=graphite, If={foo=~'bar'}, "+
+	}, "[SourceLabels=[], Separator=;, TargetLabel=, Regex=.*, Modulus=0, Replacement=$1, Action=graphite, If={foo=~'bar'}, "+
 		"graphiteMatchTemplate=foo.*.bar, graphiteLabelRules=[replaceTemplate=$1-zz, targetLabel=job]], relabelDebug=false")
 	f([]RelabelConfig{
 		{
@@ -150,7 +150,7 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel:  "x",
 			If:           &ie,
 		},
-	}, "[SourceLabels=[foo bar], Separator=;, TargetLabel=x, Regex=^(.*)$, Modulus=0, Replacement=$1, Action=replace, If={foo=~'bar'}, "+
+	}, "[SourceLabels=[foo bar], Separator=;, TargetLabel=x, Regex=.*, Modulus=0, Replacement=$1, Action=replace, If={foo=~'bar'}, "+
 		"graphiteMatchTemplate=<nil>, graphiteLabelRules=[]], relabelDebug=false")
 }
 
@@ -174,13 +174,14 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 	}, &ParsedConfigs{
 		prcs: []*parsedRelabelConfig{
 			{
-				SourceLabels: []string{"foo", "bar"},
-				Separator:    ";",
-				TargetLabel:  "xxx",
-				Regex:        defaultRegexForRelabelConfig,
-				Replacement:  "$1",
-				Action:       "replace",
+				SourceLabels:  []string{"foo", "bar"},
+				Separator:     ";",
+				TargetLabel:   "xxx",
+				RegexAnchored: defaultRegexForRelabelConfig,
+				Replacement:   "$1",
+				Action:        "replace",
 
+				regex:                        defaultPromRegex,
 				regexOriginal:                defaultOriginalRegexForRelabelConfig,
 				hasCaptureGroupInReplacement: true,
 			},
@@ -454,4 +455,22 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
+}
+
+func TestIsDefaultRegex(t *testing.T) {
+	f := func(s string, resultExpected bool) {
+		t.Helper()
+		result := isDefaultRegex(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for isDefaultRegex(%q); got %v; want %v", s, result, resultExpected)
+		}
+	}
+	f("", false)
+	f("foo", false)
+	f(".+", false)
+	f("a.*", false)
+	f(".*", true)
+	f("(.*)", true)
+	f("^.*$", true)
+	f("(?:.*)", true)
 }

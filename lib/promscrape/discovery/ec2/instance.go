@@ -186,8 +186,7 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string,
 		if len(t.Key) == 0 || len(t.Value) == 0 {
 			continue
 		}
-		name := discoveryutils.SanitizeLabelName(t.Key)
-		m["__meta_ec2_tag_"+name] = t.Value
+		m[discoveryutils.SanitizeLabelName("__meta_ec2_tag_"+t.Key)] = t.Value
 	}
 	ms = append(ms, m)
 	return ms

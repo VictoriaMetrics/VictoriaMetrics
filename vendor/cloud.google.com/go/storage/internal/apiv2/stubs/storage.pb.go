@@ -1865,6 +1865,7 @@ type WriteObjectRequest struct {
 	// The first message of each stream should set one of the following.
 	//
 	// Types that are assignable to FirstMessage:
+	//
 	//	*WriteObjectRequest_UploadId
 	//	*WriteObjectRequest_WriteObjectSpec
 	FirstMessage isWriteObjectRequest_FirstMessage `protobuf_oneof:"first_message"`
@@ -1885,6 +1886,7 @@ type WriteObjectRequest struct {
 	// A portion of the data for the object.
 	//
 	// Types that are assignable to Data:
+	//
 	//	*WriteObjectRequest_ChecksummedData
 	Data isWriteObjectRequest_Data `protobuf_oneof:"data"`
 	// Checksums for the complete object. If the checksums computed by the service
@@ -2039,6 +2041,7 @@ type WriteObjectResponse struct {
 	// The response will set one of the following.
 	//
 	// Types that are assignable to WriteStatus:
+	//
 	//	*WriteObjectResponse_PersistedSize
 	//	*WriteObjectResponse_Resource
 	WriteStatus isWriteObjectResponse_WriteStatus `protobuf_oneof:"write_status"`
@@ -2338,6 +2341,7 @@ type QueryWriteStatusResponse struct {
 	// The response will set one of the following.
 	//
 	// Types that are assignable to WriteStatus:
+	//
 	//	*QueryWriteStatusResponse_PersistedSize
 	//	*QueryWriteStatusResponse_Resource
 	WriteStatus isQueryWriteStatusResponse_WriteStatus `protobuf_oneof:"write_status"`

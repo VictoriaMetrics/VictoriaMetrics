@@ -10,7 +10,7 @@ readme_index:
   with_frontmatter: true
 
 google:
-  gtag: UA-129683199-1
+  gtag: G-N9SVT8S3HK
 
 plugins:
   - github-pages
