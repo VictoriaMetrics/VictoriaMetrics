@@ -301,6 +301,40 @@ VictoriaMetrics maintains in-memory cache for mapping of [active time series](#w
 
 See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
 
+## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
+
+Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) and
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) are production-ready.
+
+Single-node VictoriaMetrics is able to handle quite big workloads in production
+with tens of millions of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series)
+at the ingestion rate of million of samples per second. See [this case study](https://docs.victoriametrics.com/CaseStudies.html#wixcom).
+
+Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
+to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
+between [cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
+
+The performance of a single-node VictoriaMetrics scales almost perfectly with the available CPU, RAM and disk IO resources on the host where it runs -
+see [this article](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+
+Given the facts above **it is recommended to use single-node VictoriaMetrics in the majority of cases**.
+
+Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMetrics in the following relatively rare cases:
+
+- If [multitenancy support](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) is needed,
+  since single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
+  instances - one per each tenant - and route incoming requests from particular tenant to the needed VictoriaMetrics instance
+  via [vmauth](https://docs.victoriametrics.com/vmauth.html).
+
+- If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
+  at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics.
+
+## How to migrate data from single-node VictoriaMetrics to cluster version?
+
+Single-node VictoriaMetrics stores data on disk in slightly different format comparing to cluster version of VictoriaMetrics.
+So it is impossible to just copy the on-disk data from `-storageDataPath` directory from single-node VictoriaMetrics to a `vmstorage` node in VictoriaMetrics cluster.
+If you need migrating data from single-node VictoriaMetrics to cluster version, then [follow these instructions](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
+
 ## Why isn't MetricsQL 100% compatible with PromQL?
 
 [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) provides better user experience than PromQL. It fixes a few annoying issues in PromQL. This prevents MetricsQL to be 100% compatible with PromQL. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
