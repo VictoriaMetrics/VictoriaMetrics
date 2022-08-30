@@ -161,6 +161,7 @@ func main() {
 							match:     c.String(vmNativeFilterMatch),
 							timeStart: c.String(vmNativeFilterTimeStart),
 							timeEnd:   c.String(vmNativeFilterTimeEnd),
+							chunk:     c.String(vmNativeFilterChunk),
 						},
 						src: &vmNativeClient{
 							addr:     strings.Trim(c.String(vmNativeSrcAddr), "/"),

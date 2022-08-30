@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/dmitryk-dk/pb/v3"
 	"io"
 	"log"
 	"net/http"
+	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
@@ -31,6 +32,7 @@ type filter struct {
 	match     string
 	timeStart string
 	timeEnd   string
+	chunk     string
 }
 
 func (f filter) String() string {
@@ -52,10 +54,52 @@ const (
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context) error {
+	if p.filter.chunk == "" {
+		return p.runSingle(ctx, p.filter)
+	}
+
+	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
+	}
+
+	var endOfRange time.Time
+	if p.filter.timeEnd != "" {
+		endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
+		}
+	} else {
+		endOfRange = time.Now()
+	}
+
+	ranges, err := splitDateRange(startOfRange, endOfRange, p.filter.chunk)
+	if err != nil {
+		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
+	}
+
+	for rangeIdx, r := range ranges {
+		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), r.start.Format(time.RFC3339), r.end.Format(time.RFC3339))
+		f := filter{
+			match:     p.filter.match,
+			timeStart: r.start.Format(time.RFC3339),
+			timeEnd:   r.end.Format(time.RFC3339),
+		}
+		err := p.runSingle(ctx, f)
+
+		if err != nil {
+			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), r.start.Format(time.RFC3339), r.end.Format(time.RFC3339))
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter) error {
 	pr, pw := io.Pipe()
 
-	fmt.Printf("Initing export pipe from %q with filters: %s\n", p.src.addr, p.filter)
-	exportReader, err := p.exportPipe(ctx)
+	log.Printf("Initing export pipe from %q with filters: %s\n", p.src.addr, f)
+	exportReader, err := p.exportPipe(ctx, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %s", err)
 	}
@@ -83,13 +127,20 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	}()
 
 	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
-	bar := barpool.AddWithTemplate(nativeBarTpl, 0)
+	pool := pb.NewPool()
+	bar := pb.ProgressBarTemplate(nativeBarTpl).New(0)
+	pool.Add(bar)
 	barReader := bar.NewProxyReader(exportReader)
-	if err := barpool.Start(); err != nil {
+	if err := pool.Start(); err != nil {
 		log.Printf("error start process bars pool: %s", err)
 		return err
 	}
-	defer barpool.Stop()
+	defer func() {
+		bar.Finish()
+		if err := pool.Stop(); err != nil {
+			fmt.Printf("failed to stop barpool: %+v\n", err)
+		}
+	}()
 
 	w := io.Writer(pw)
 	if p.rateLimit > 0 {
@@ -111,7 +162,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) exportPipe(ctx context.Context) (io.ReadCloser, error) {
+func (p *vmNativeProcessor) exportPipe(ctx context.Context, f filter) (io.ReadCloser, error) {
 	u := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
 	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
@@ -119,12 +170,12 @@ func (p *vmNativeProcessor) exportPipe(ctx context.Context) (io.ReadCloser, erro
 	}
 
 	params := req.URL.Query()
-	params.Set("match[]", p.filter.match)
-	if p.filter.timeStart != "" {
-		params.Set("start", p.filter.timeStart)
+	params.Set("match[]", f.match)
+	if f.timeStart != "" {
+		params.Set("start", f.timeStart)
 	}
-	if p.filter.timeEnd != "" {
-		params.Set("end", p.filter.timeEnd)
+	if f.timeEnd != "" {
+		params.Set("end", f.timeEnd)
 	}
 	req.URL.RawQuery = params.Encode()
 

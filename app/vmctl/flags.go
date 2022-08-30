@@ -318,6 +318,7 @@ const (
 	vmNativeFilterMatch     = "vm-native-filter-match"
 	vmNativeFilterTimeStart = "vm-native-filter-time-start"
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
+	vmNativeFilterChunk     = "vm-native-filter-chunk"
 
 	vmNativeSrcAddr     = "vm-native-src-addr"
 	vmNativeSrcUser     = "vm-native-src-user"
@@ -344,6 +345,10 @@ var (
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
 			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeFilterChunk,
+			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s'.", vmNativeFilterTimeStart, GranularityMonth, GranularityDay, GranularityHour),
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,
