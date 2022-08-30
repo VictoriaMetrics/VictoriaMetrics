@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.81.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.0)
+
+Released at 31-08-2022
+
 **Update note 1:** [vmalert](https://docs.victoriametrics.com/vmalert.html) by default hides values of `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` in logs and at `http://vmalert:8880/flags` for security reasons. See the corresponding SECURITY change in the Chagelog below for additional info.
 
 **Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) by default points alert source url to `/vmalert/alert?...` aka [web UI](https://docs.victoriametrics.com/vmalert.html#web) instead of `/vmalert/api/v1/alert?...` aka JSON handler. The old behavior can be achieved by setting {% raw %}`-external.alert.source=vmalert/api/v1/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}`{% endraw %} command-line flag.
